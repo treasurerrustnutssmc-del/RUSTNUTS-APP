@@ -9,6 +9,9 @@ import type { Database, MembersMoneyRows } from './database.types';
 /** Postgres timestamps ("2026-11-07T21:30:00+00:00") as the app's ISO instants. */
 const instant = (ts: string) => new Date(ts).toISOString();
 
+/** PostgREST's and Postgres's "no such function" codes. */
+const MISSING_FUNCTION = ['PGRST202', '42883'];
+
 function toError(error: { message?: string }): Error {
   return new Error(error.message ?? 'Couldn’t load the club data.');
 }
@@ -40,13 +43,12 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     // Rides from today on, their answers and the calendar's freshness, as one value so the API's
     // row limit can't cut the list short.
     db.rpc('ride_calendar'),
-    // Stage 4: check-ins, decisions and fees in one value. Until the database has them, the rest
-    // of the app still loads.
-    db.rpc('members_money').then(
-      (r) => (r.error ? null : r.data),
-      () => null,
-    ),
+    // Stage 4: check-ins, decisions and fees in one value.
+    db.rpc('members_money'),
   ]);
+  // Until the database has Stage 4, the rest of the app still loads. Any other failure is an error,
+  // so nobody is shown "you owe nothing" because a load went wrong.
+  if (money.error && !MISSING_FUNCTION.includes(money.error.code ?? '')) throw toError(money.error);
   for (const r of [members, privates, phones, bikes, regos, contacts, positions, calendar]) {
     if (r.error) throw toError(r.error);
   }
@@ -138,7 +140,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       updatedAt: instant(r.updated_at),
     })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
-    ...stage4(money),
+    ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
   };
 }
 

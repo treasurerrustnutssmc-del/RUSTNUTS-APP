@@ -77,7 +77,7 @@ create table public.payment_details (
 
 create table public.charges (
   id uuid primary key default gen_random_uuid(),
-  member_id uuid not null references public.members (id) on delete cascade,
+  member_id uuid not null references public.members (id) on delete restrict, -- the books outlive the account
   chapter_id uuid not null references public.chapters (id),
   fy int not null,
   kind text not null check (kind in ('annual', 'continuation', 'other')),
@@ -94,7 +94,7 @@ create index charges_chapter on public.charges (chapter_id, fy);
 
 create table public.payments (
   id uuid primary key default gen_random_uuid(),
-  charge_id uuid not null references public.charges (id) on delete cascade,
+  charge_id uuid not null references public.charges (id) on delete restrict,
   amount_cents int not null check (amount_cents > 0),
   paid_on date not null,
   method text not null check (method in ('payid', 'bank', 'cash', 'card')),
@@ -139,6 +139,15 @@ returns boolean language sql stable security definer set search_path = '' as $$
     select 1 from public.positions where member_id = auth.uid() and ended_on is null
       and ((role = 'treasurer' and chapter_id = target_chapter) or role in ('nec_chair', 'nec_secretary'))
   );
+$$;
+
+-- The chapter's board sets the amounts, as can whoever handles its money. (Not the wider NEC.)
+create or replace function private.can_set_fees(target_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.can_manage_fees(target_chapter) or (private.is_approved_member() and exists (
+    select 1 from public.positions where member_id = auth.uid() and ended_on is null and chapter_id = target_chapter
+      and role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+  ));
 $$;
 
 create or replace function private.can_see_fees(target_chapter uuid)
@@ -186,13 +195,16 @@ $$;
 -- The next receipt number for a chapter's year: W26-0001, W26-0002 …
 create or replace function private.next_receipt(p_chapter uuid, p_fy int)
 returns text language plpgsql volatile security definer set search_path = '' as $$
-declare n int;
+declare
+  n int;
+  prefix text;
 begin
-  perform pg_advisory_xact_lock(hashtext('receipt:' || p_chapter::text || ':' || p_fy::text));
-  select count(*) + 1 into n from public.payments p join public.charges c on c.id = p.charge_id
-  where c.chapter_id = p_chapter and c.fy = p_fy and p.receipt_no is not null;
-  return (select upper(left(slug, 1)) from public.chapters where id = p_chapter)
-    || lpad((p_fy % 100)::text, 2, '0') || '-' || lpad(n::text, 4, '0');
+  -- After the highest number already in this book (receipts are never renumbered or reused).
+  prefix := (select upper(left(slug, 1)) from public.chapters where id = p_chapter) || lpad((p_fy % 100)::text, 2, '0') || '-';
+  perform pg_advisory_xact_lock(hashtext('receipt:' || prefix));
+  select coalesce(max(substr(receipt_no, length(prefix) + 1)::int), 0) + 1 into n
+  from public.payments where receipt_no like prefix || '%';
+  return prefix || lpad(n::text, 4, '0');
 end;
 $$;
 
@@ -216,10 +228,10 @@ begin
 end;
 $$;
 
-revoke all on function private.can_check_in(), private.can_run_checkin(uuid), private.can_manage_fees(uuid),
+revoke all on function private.can_check_in(), private.can_run_checkin(uuid), private.can_manage_fees(uuid), private.can_set_fees(uuid),
   private.can_see_fees(uuid), private.fy_of(date), private.owing(uuid), private.fng_due(uuid),
   private.next_receipt(uuid, int), private.new_checkin_code() from public, anon;
-grant execute on function private.can_check_in(), private.can_run_checkin(uuid), private.can_manage_fees(uuid),
+grant execute on function private.can_check_in(), private.can_run_checkin(uuid), private.can_manage_fees(uuid), private.can_set_fees(uuid),
   private.can_see_fees(uuid), private.fy_of(date), private.owing(uuid), private.fng_due(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -252,8 +264,9 @@ create policy attendance_read on public.attendance for select to authenticated u
   or private.is_board_of(private.chapter_of(member_id))
 );
 
+-- The tally and the board's note stay with the board (the member sees the outcome in their status).
 create policy member_decisions_read on public.member_decisions for select to authenticated using (
-  member_id = auth.uid() or private.is_board_of(private.chapter_of(member_id))
+  private.is_board_of(private.chapter_of(member_id))
 );
 
 create policy fee_rates_read on public.fee_rates for select to authenticated using (private.is_approved_member());
@@ -445,7 +458,7 @@ begin
   if due.due_on - today > 30 then raise exception 'That review isn’t due yet.'; end if;
   perform private.check_votes(p_for, p_against, p_abstained);
   if p_outcome not in ('continue', 'patch', 'not_continuing') then raise exception 'Pick an outcome.'; end if;
-  if p_outcome = 'patch' and not (coalesce(p_for, 0) >= 1 and p_against = 0) then
+  if p_outcome = 'patch' and not (coalesce(p_for, 0) >= 1 and p_against is not distinct from 0) then
     raise exception 'Full membership needs a unanimous vote: at least one for and none against.';
   end if;
 
@@ -458,8 +471,9 @@ begin
     update public.members set status = 'full', patched_on = coalesce(patched_on, today), updated_at = now() where id = p_member;
   elsif p_outcome = 'not_continuing' then
     update public.members set status = 'supporter', updated_at = now() where id = p_member;
-  elsif p_at_months >= 12 then
+  elsif p_at_months >= 12 and not target.on_hiatus then
     -- Past twelve months, carrying on as an FNG costs the chapter's continuation fee, if it has one.
+    -- Members on hiatus don't pay.
     select amount_cents into fee from public.continuation_fees
     where chapter_id = target.chapter_id and fy = private.fy_of(today);
     if fee is not null then
@@ -478,8 +492,8 @@ $$;
 create or replace function public.set_fee_rate(p_chapter uuid, p_fy int, p_status public.member_status, p_amount_cents int, p_due_on date)
 returns void language plpgsql security definer set search_path = '' as $$
 begin
-  if not private.can_manage_fees(p_chapter) then
-    raise exception 'Only the chapter treasurer, or the National Chairman or Secretary, handles fees.';
+  if not private.can_set_fees(p_chapter) then
+    raise exception 'Only that chapter’s board sets its fees.';
   end if;
   if p_status not in ('full', 'nomad', 'fng', 'supporter', 'family') then raise exception 'That status doesn’t pay fees.'; end if;
   if coalesce(p_amount_cents, 0) <= 0 then raise exception 'Enter an amount over $0.'; end if;
@@ -493,8 +507,8 @@ $$;
 create or replace function public.set_continuation_fee(p_chapter uuid, p_fy int, p_amount_cents int)
 returns void language plpgsql security definer set search_path = '' as $$
 begin
-  if not private.can_manage_fees(p_chapter) then
-    raise exception 'Only the chapter treasurer, or the National Chairman or Secretary, handles fees.';
+  if not private.can_set_fees(p_chapter) then
+    raise exception 'Only that chapter’s board sets its fees.';
   end if;
   if coalesce(p_amount_cents, 0) <= 0 then raise exception 'Enter an amount over $0.'; end if;
   insert into public.continuation_fees (chapter_id, fy, amount_cents) values (p_chapter, p_fy, p_amount_cents)
@@ -515,7 +529,7 @@ begin
 end;
 $$;
 
--- One yearly charge for every approved member whose status has a rate. Running it again only adds
+-- One yearly charge for every approved member whose status has a rate, except those on hiatus. Running it again only adds
 -- charges for people who don't have one yet. Returns how many were added.
 create or replace function public.raise_fees(p_chapter uuid, p_fy int)
 returns int language plpgsql security definer set search_path = '' as $$
@@ -531,7 +545,7 @@ begin
   select m.id, p_chapter, p_fy, 'annual', r.amount_cents, r.due_on, auth.uid()
   from public.members m
   join public.fee_rates r on r.chapter_id = m.chapter_id and r.fy = p_fy and r.status = m.status
-  where m.chapter_id = p_chapter and m.approval = 'approved'
+  where m.chapter_id = p_chapter and m.approval = 'approved' and not m.on_hiatus
   on conflict (member_id, fy, kind) where kind in ('annual', 'continuation') do nothing;
   get diagnostics n = row_count;
   return n;

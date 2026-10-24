@@ -18,6 +18,9 @@ import {
   paymentReference,
   raiseChargeProblem,
   raiseFeesProblem,
+  SET_FEES_ONLY,
+  paysFees,
+  nextReceiptNo,
   receiptNo,
   recordPaymentProblem,
   waiveProblem,
@@ -102,15 +105,21 @@ test('setting fees', () => {
   const data = club();
   const tre = who(data, 'tre');
   assert.equal(feeRateProblem(tre, 'west', 'full', 25000, data), null);
-  assert.equal(feeRateProblem(who(data, 'sec'), 'west', 'full', 25000, data), MONEY_ONLY);
-  assert.equal(feeRateProblem(null, 'west', 'full', 25000, data), MONEY_ONLY);
+  // The chapter's board sets its fees; the treasurer collects them.
+  assert.equal(feeRateProblem(who(data, 'sec'), 'west', 'full', 25000, data), null);
+  assert.equal(feeRateProblem(who(data, 'chair'), 'west', 'full', 25000, data), null);
+  assert.equal(feeRateProblem(who(data, 'northsec'), 'west', 'full', 25000, data), SET_FEES_ONLY);
+  assert.equal(feeRateProblem(who(data, 'auditor'), 'west', 'full', 25000, data), SET_FEES_ONLY);
+  assert.equal(feeRateProblem(who(data, 'rider'), 'west', 'full', 25000, data), SET_FEES_ONLY);
+  assert.equal(feeRateProblem(null, 'west', 'full', 25000, data), SET_FEES_ONLY);
+  assert.equal(continuationFeeProblem(who(data, 'sec'), 'west', 5000, data), null);
   assert.equal(feeRateProblem(tre, 'west', 'legacy', 25000, data), 'That status doesn’t pay fees.');
   assert.equal(feeRateProblem(tre, 'west', 'introduced', 25000, data), 'That status doesn’t pay fees.');
   assert.equal(feeRateProblem(tre, 'west', 'full', 0, data), 'Enter an amount over $0.');
   assert.equal(feeRateProblem(tre, 'west', 'full', 12.5, data), 'Enter an amount over $0.');
   assert.equal(continuationFeeProblem(tre, 'west', 5000, data), null);
   assert.equal(continuationFeeProblem(tre, 'west', -1, data), 'Enter an amount over $0.');
-  assert.equal(continuationFeeProblem(who(data, 'rider'), 'west', 5000, data), MONEY_ONLY);
+  assert.equal(continuationFeeProblem(who(data, 'rider'), 'west', 5000, data), SET_FEES_ONLY);
   assert.equal(paymentDetailsProblem(tre, 'west', data), null);
   assert.equal(paymentDetailsProblem(who(data, 'northsec'), 'west', data), MONEY_ONLY);
 });
@@ -170,4 +179,19 @@ test('recording a payment and deciding a claim', () => {
   const covered = club({ charges: [charge()], payments: [payment({ amountCents: 25000 }), claim] });
   assert.equal(decidePaymentProblem(tre, claim, 'confirm', covered), 'That’s more than they owe.');
   assert.equal(decidePaymentProblem(tre, claim, 'reject', covered), null);
+});
+
+test('who pays the yearly fee: approved, a paying status, and not on hiatus', () => {
+  assert.equal(paysFees(member('a', { status: 'full' })), true);
+  assert.equal(paysFees(member('a', { status: 'supporter' })), true);
+  assert.equal(paysFees(member('a', { status: 'full', onHiatus: true })), false);
+  assert.equal(paysFees(member('a', { status: 'legacy' })), false);
+  assert.equal(paysFees(member('a', { status: 'introduced', approval: 'pending' })), false);
+});
+
+test('the next receipt follows the highest issued, so a gap never repeats a number', () => {
+  assert.equal(nextReceiptNo('west', 2026, []), 'W26-0001');
+  assert.equal(nextReceiptNo('west', 2026, ['W26-0001', 'W26-0002']), 'W26-0003');
+  assert.equal(nextReceiptNo('west', 2026, ['W26-0002']), 'W26-0003', 'one went missing');
+  assert.equal(nextReceiptNo('west', 2026, ['W25-0009', 'N26-0004']), 'W26-0001', 'other years and chapters');
 });

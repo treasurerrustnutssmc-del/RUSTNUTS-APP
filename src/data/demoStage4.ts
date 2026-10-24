@@ -12,8 +12,9 @@ import {
   fyOf,
   paymentDetailsProblem,
   raiseChargeProblem,
+  nextReceiptNo,
+  paysFees,
   raiseFeesProblem,
-  receiptNo,
   recordPaymentProblem,
   waiveProblem,
 } from '../domain/fees';
@@ -119,7 +120,8 @@ export function closeCheckin(ctx: DemoCtx, sessionId: string): ClubData {
 const cleanNote = (note: string) => note.trim() || null;
 
 export function decideApplication(ctx: DemoCtx, memberId: string, status: MemberStatus | null, votes: Votes, note: string): ClubData {
-  const target = memberOf(ctx.data, memberId);
+  const target = ctx.data.members.find((m) => m.id === memberId);
+  if (!target) throw new NotAllowedError('No such applicant.');
   deny(decideApplicationProblem(ctx.me, target, status, votes, ctx.data));
   const data = status === null ? decline(ctx, memberId) : approve(ctx, memberId, status);
   const decision = {
@@ -149,11 +151,11 @@ export function recordFngReview(ctx: DemoCtx, memberId: string, atMonths: number
         : m,
     ),
   };
-  // Past twelve months, carrying on costs the chapter's continuation fee, if it has one.
+  // Past twelve months, carrying on costs the chapter's continuation fee, if it has one (not while on hiatus).
   const fy = fyOf(ctx.today);
   const fee = (ctx.data.continuationFees ?? []).find((f) => f.chapterId === target.chapterId && f.fy === fy);
   const already = (ctx.data.charges ?? []).some((c) => c.memberId === memberId && c.fy === fy && c.kind === 'continuation');
-  if (outcome === 'continue' && atMonths >= 12 && fee && !already) {
+  if (outcome === 'continue' && atMonths >= 12 && fee && !already && !target.onHiatus) {
     data = {
       ...data,
       charges: [
@@ -200,7 +202,7 @@ export function raiseFees(ctx: DemoCtx, chapterId: string, fy: number): { data: 
   const charges = [...(ctx.data.charges ?? [])];
   let count = 0;
   for (const m of ctx.data.members) {
-    if (m.chapterId !== chapterId || m.approval !== 'approved') continue;
+    if (m.chapterId !== chapterId || !paysFees(m)) continue;
     const rate = (ctx.data.feeRates ?? []).find((r) => r.chapterId === chapterId && r.fy === fy && r.status === m.status);
     if (!rate || charges.some((c) => c.memberId === m.id && c.fy === fy && c.kind === 'annual')) continue;
     charges.push({
@@ -231,9 +233,7 @@ export function waiveCharge(ctx: DemoCtx, chargeId: string): ClubData {
 
 function nextReceipt(data: ClubData, charge: Charge): string {
   const slug = data.chapters.find((c) => c.id === charge.chapterId)?.slug ?? 'x';
-  const sameBook = new Set((data.charges ?? []).filter((c) => c.chapterId === charge.chapterId && c.fy === charge.fy).map((c) => c.id));
-  const issued = (data.payments ?? []).filter((p) => p.receiptNo && sameBook.has(p.chargeId)).length;
-  return receiptNo(slug, charge.fy, issued + 1);
+  return nextReceiptNo(slug, charge.fy, (data.payments ?? []).flatMap((p) => (p.receiptNo ? [p.receiptNo] : [])));
 }
 
 export function claimPayment(ctx: DemoCtx, chargeId: string, amountCents: number, paidOn: string, method: PaymentMethod, reference: string): ClubData {

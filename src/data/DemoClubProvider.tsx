@@ -3,7 +3,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { accessLevel } from '../domain/access';
-import { todayIso } from '../domain/dates';
+import { melbourneDate } from '../domain/rides';
 import type { ClubData } from '../domain/types';
 import { ClubContext, type ClubContextValue } from './clubContext';
 import * as act from './demoActions';
@@ -15,7 +15,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
   const [data, setData] = useState<ClubData>(() => ({ ...DEMO_DATA, rides: [...DEMO_DATA.rides, demoTodayRide()] }));
   const [meId, setMeId] = useState<string | null>(null);
-  const today = todayIso();
+  const today = melbourneDate(new Date().toISOString()); // the club's day, wherever the phone is
 
   const me = useMemo(() => data.members.find((m) => m.id === meId) ?? null, [data.members, meId]);
   const level = accessLevel(me, data.positions);

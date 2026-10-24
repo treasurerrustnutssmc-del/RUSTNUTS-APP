@@ -4,7 +4,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
-import { todayIso } from '../domain/dates';
 import { rsvpProblem } from '../domain/rides';
 import type { ClubData } from '../domain/types';
 import {
@@ -53,7 +52,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [justApplied, setJustApplied] = useState(false);
   const latest = useRef(0);
-  const today = todayIso();
+  const today = melbourneDate(new Date().toISOString()); // the club's day, wherever the phone is
 
   /** Loads what this person may see. Only the newest request wins, so a slow old load can't overwrite a newer one. */
   const reload = useCallback(async (uid: string | null) => {

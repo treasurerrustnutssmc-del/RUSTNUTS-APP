@@ -161,7 +161,7 @@ begin
   assert pg_temp.try_as(rita, $q$insert into member_decisions (member_id, kind, outcome, decided_on) values (auth.uid(), 'application', 'approved', current_date)$q$) is not null, 'decisions';
 end $$;
 
-\echo 'Deciding an application records the tally; only the board and the member see it'
+\echo 'Deciding an application records the tally; only the board sees it'
 do $$
 declare al constant uuid := '00000000-0000-0000-0000-0000000000a6';
 begin
@@ -169,7 +169,7 @@ begin
   assert (select approval = 'approved' and status = 'fng' and fng_started_on = private.club_date() from members where id = al), 'they''re in';
   assert (select votes_for = 7 and votes_against = 0 and votes_abstained = 1 and note = 'Good bloke' and outcome = 'approved'
           from member_decisions where member_id = al), 'tally kept';
-  assert pg_temp.value_as(al, 'select count(*) from public.member_decisions') = '1', 'they see their own';
+  assert pg_temp.value_as(al, 'select count(*) from public.member_decisions') = '0', 'not even them: the tally and note are the board''s';
   assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a3', 'select count(*) from public.member_decisions') = '0', 'other members don''t';
   assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a5', 'select count(*) from public.member_decisions') = '1', 'the NEC does';
 end $$;
@@ -200,10 +200,18 @@ declare
   c uuid;
   claim uuid;
   late_claim uuid;
+  extra uuid;
 begin
   assert pg_temp.try_as(tre, format($q$select public.set_fee_rate(%L, %s, 'full', 25000, %L)$q$, west, fy, private.club_date() + 30)) is null, 'full rate';
   assert pg_temp.try_as(tre, format($q$select public.set_fee_rate(%L, %s, 'fng', 15000, %L)$q$, west, fy, private.club_date() + 30)) is null, 'fng rate';
-  assert pg_temp.value_as(tre, format('select public.raise_fees(%L, %s)', west, fy)) = '5', 'sec, tre, rita, al and fred';
+  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a1', format($q$select public.set_fee_rate(%L, %s, 'supporter', 5000, %L)$q$, west, fy, private.club_date() + 30)) is null, 'the chapter board sets fees';
+  assert pg_temp.try_as(rita, format($q$select public.set_fee_rate(%L, %s, 'full', 1, %L)$q$, west, fy, private.club_date() + 30)) = 'Only that chapter’s board sets its fees.', 'not a member';
+  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a5', format('select public.set_continuation_fee(%L, %s, 100)', west, fy)) = 'Only that chapter’s board sets its fees.', 'not the auditor';
+  -- Someone on hiatus doesn't pay.
+  insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000b1', 'hank@example.com', now());
+  insert into members (id, chapter_id, full_name, road_name, status, approval, on_hiatus)
+  values ('00000000-0000-0000-0000-0000000000b1', west, 'Hank Hiatus', 'Hank', 'full', 'approved', true);
+  assert pg_temp.value_as(tre, format('select public.raise_fees(%L, %s)', west, fy)) = '5', 'sec, tre, rita, al and fred, not Hank on hiatus';
   assert pg_temp.value_as(tre, format('select public.raise_fees(%L, %s)', west, fy)) = '0', 'running it again adds nobody';
   select id into c from charges where member_id = rita and kind = 'annual';
 
@@ -220,6 +228,17 @@ begin
   assert (select receipt_no from payments where id = claim) = 'W' || lpad((fy % 100)::text, 2, '0') || '-0001', 'first receipt';
   assert pg_temp.try_as(tre, format($q$select public.record_payment(%L, 15000, %L, 'cash', null)$q$, c, private.club_date())) is null, 'the rest in cash';
   assert (select max(receipt_no) from payments where charge_id = c) = 'W' || lpad((fy % 100)::text, 2, '0') || '-0002', 'second receipt';
+  -- Money records outlive the person: their account can't be deleted out from under the books.
+  begin
+    delete from auth.users where id = rita;
+    assert false, 'deleting a member with charges is refused';
+  exception when foreign_key_violation then null;
+  end;
+  -- Numbers carry on from the highest issued, so a gap in the book can never cause a repeat.
+  update payments set receipt_no = replace(receipt_no, '-0001', '-0007') where receipt_no like '%-0001';
+  extra := pg_temp.value_as(tre, format($q$select public.raise_charge(%L, 'Patches', 2000, %L)$q$, '00000000-0000-0000-0000-0000000000a1', private.club_date() + 30));
+  assert pg_temp.try_as(tre, format($q$select public.record_payment(%L, 2000, %L, 'cash', null)$q$, extra, private.club_date())) is null, 'patches paid';
+  assert (select receipt_no from payments where charge_id = extra) = 'W' || lpad((fy % 100)::text, 2, '0') || '-0008', 'after the highest, not a repeat';
   assert pg_temp.try_as(tre, format('select public.confirm_payment(%L)', late_claim)) = 'That’s more than they owe.', 'the old claim would overpay';
   assert pg_temp.try_as(tre, format('select public.reject_payment(%L)', late_claim)) is null, 'so it''s rejected';
   assert private.owing(c) = 0, 'paid in full';

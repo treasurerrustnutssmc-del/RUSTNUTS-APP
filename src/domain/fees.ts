@@ -1,14 +1,20 @@
 // Fees by financial year (1 July to 30 June), charges, PayID claims and receipts. Money is whole
 // cents. The database's fee actions apply the same rules with the same words.
 
-import { activePositions, isBoardOf } from './access';
+import { activePositions, holdsBoardSeat, isBoardOf } from './access';
 import { daysBetween } from './dates';
 import type { Charge, ClubData, Member, MemberStatus, Payment, PaymentMethod, Position } from './types';
 
 /** Who pays a yearly fee. Introduced applicants don't yet, and Legacy members have left. */
 export const PAYING_STATUSES: MemberStatus[] = ['full', 'nomad', 'fng', 'supporter', 'family'];
 
+/** Approved, with a paying status, and not on hiatus (members on hiatus don't pay, Jeff 24 Oct 2026). */
+export function paysFees(member: Member): boolean {
+  return member.approval === 'approved' && !member.onHiatus && PAYING_STATUSES.includes(member.status);
+}
+
 export const MONEY_ONLY = 'Only the chapter treasurer, or the National Chairman or Secretary, handles fees.';
+export const SET_FEES_ONLY = 'Only that chapter’s board sets its fees.';
 const AMOUNT = 'Enter an amount over $0.';
 
 /** The financial year an ISO date falls in, by the year it starts (2026 = FY26–27). */
@@ -65,6 +71,13 @@ export function receiptNo(chapterSlug: string, fy: number, seq: number): string 
   return `${chapterSlug.charAt(0).toUpperCase()}${String(fy % 100).padStart(2, '0')}-${String(seq).padStart(4, '0')}`;
 }
 
+/** The receipt after the highest already issued in that chapter's book for the year. */
+export function nextReceiptNo(chapterSlug: string, fy: number, issued: string[]): string {
+  const prefix = receiptNo(chapterSlug, fy, 0).slice(0, -4);
+  const top = issued.filter((r) => r.startsWith(prefix)).reduce((max, r) => Math.max(max, Number(r.slice(prefix.length))), 0);
+  return receiptNo(chapterSlug, fy, top + 1);
+}
+
 /** What to put in the bank transfer's description, so the treasurer can match it. */
 export function paymentReference(member: Pick<Member, 'roadName' | 'fullName'>): string {
   const name = member.roadName?.trim() || member.fullName.trim().split(/\s+/).pop() || 'MEMBER';
@@ -79,19 +92,25 @@ export function canManageFees(viewer: Member | null, chapterId: string, position
   );
 }
 
+/** The chapter's board sets the amounts (Jeff, 24 Oct 2026), as can whoever handles its money. */
+export function canSetFees(viewer: Member | null, chapterId: string, positions: Position[]): boolean {
+  if (!viewer || viewer.approval !== 'approved') return false;
+  return canManageFees(viewer, chapterId, positions) || holdsBoardSeat(viewer.id, chapterId, positions);
+}
+
 /** Fee handlers, the chapter's board and the NEC (the National Auditor included) can look. */
 export function canSeeFees(viewer: Member | null, chapterId: string, positions: Position[]): boolean {
   return canManageFees(viewer, chapterId, positions) || isBoardOf(viewer, chapterId, positions);
 }
 
 export function feeRateProblem(me: Member | null, chapterId: string, status: MemberStatus, amountCents: number, data: ClubData): string | null {
-  if (!canManageFees(me, chapterId, data.positions)) return MONEY_ONLY;
+  if (!canSetFees(me, chapterId, data.positions)) return SET_FEES_ONLY;
   if (!PAYING_STATUSES.includes(status)) return 'That status doesn’t pay fees.';
   return isAmount(amountCents) ? null : AMOUNT;
 }
 
 export function continuationFeeProblem(me: Member | null, chapterId: string, amountCents: number, data: ClubData): string | null {
-  if (!canManageFees(me, chapterId, data.positions)) return MONEY_ONLY;
+  if (!canSetFees(me, chapterId, data.positions)) return SET_FEES_ONLY;
   return isAmount(amountCents) ? null : AMOUNT;
 }
 

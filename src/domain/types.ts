@@ -190,7 +190,7 @@ export interface Votes {
   abstained: number | null;
 }
 
-/** What the board decided about an applicant or at an FNG review: the member's board and themselves only. */
+/** What the board decided about an applicant or at an FNG review: the member's board only. */
 export interface MemberDecision {
   id: string;
   memberId: string;

@@ -1219,6 +1219,21 @@
       "allowed": false
     },
     {
+      "name": "Board patches an FNG without saying how many were against",
+      "as": "torque",
+      "action": "fngReview",
+      "member": "fred",
+      "atMonths": 12,
+      "outcome": "patch",
+      "votes": {
+        "for": 6,
+        "against": null,
+        "abstained": 0
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
       "name": "Board records an FNG who isn't continuing",
       "as": "torque",
       "action": "fngReview",
@@ -1320,13 +1335,24 @@
       "allowed": true
     },
     {
-      "name": "Secretary sets a fee",
+      "name": "Chapter Secretary sets a fee (the board sets them)",
       "as": "torque",
       "action": "setFeeRate",
       "chapter": "west",
       "fyOffset": 0,
       "status": "full",
       "amountCents": 25000,
+      "dueOnDays": 30,
+      "allowed": true
+    },
+    {
+      "name": "Member sets a fee",
+      "as": "gravel",
+      "action": "setFeeRate",
+      "chapter": "west",
+      "fyOffset": 0,
+      "status": "full",
+      "amountCents": 100,
       "dueOnDays": 30,
       "allowed": false
     },
@@ -1401,6 +1427,24 @@
       "chapter": "west",
       "fyOffset": 0,
       "amountCents": 0,
+      "allowed": false
+    },
+    {
+      "name": "Chapter Secretary sets the continuation fee",
+      "as": "torque",
+      "action": "setContinuationFee",
+      "chapter": "west",
+      "fyOffset": 0,
+      "amountCents": 6000,
+      "allowed": true
+    },
+    {
+      "name": "Member sets the continuation fee",
+      "as": "gravel",
+      "action": "setContinuationFee",
+      "chapter": "west",
+      "fyOffset": 0,
+      "amountCents": 6000,
       "allowed": false
     },
     {

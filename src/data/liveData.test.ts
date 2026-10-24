@@ -193,11 +193,20 @@ test('signed in: check-ins, decisions and fees load in one piece and become app 
   assert.deepEqual(data.paymentDetails, [{ chapterId: 'c1', payid: 'west@example.com', payidName: 'Rustnuts West', bsb: null, accountNo: null }]);
 });
 
-test('signed in: a database without Stage 4 yet still loads, with nothing for it', async () => {
-  const client = stubClient({ chapters: [west] }) as unknown as { rpc: (n: string) => Promise<unknown> };
-  const rpc = client.rpc;
-  client.rpc = (name: string) =>
-    name === 'members_money' ? Promise.resolve({ data: null, error: { message: 'function public.members_money() does not exist' } }) : rpc(name);
-  const data = await loadClub(client as never, true);
+function moneyFails(error: { code: string; message: string }) {
+  const base = stubClient({ chapters: [west] }) as unknown as { from: unknown; rpc: (n: string) => Promise<unknown> };
+  return {
+    from: base.from,
+    rpc: (name: string) => (name === 'members_money' ? Promise.resolve({ data: null, error }) : base.rpc(name)),
+  } as never;
+}
+
+test('before the fees and check-ins are live, the rest of the club still loads', async () => {
+  const data = await loadClub(moneyFails({ code: 'PGRST202', message: 'Could not find the function public.members_money' }), true);
+  assert.equal(data.chapters.length, 1);
   assert.deepEqual([data.checkinSessions, data.charges], [[], []]);
+});
+
+test('any other failure loading fees and check-ins is an error, not an empty list', async () => {
+  await assert.rejects(loadClub(moneyFails({ code: '57014', message: 'canceling statement due to statement timeout' }), true));
 });
