@@ -1,0 +1,33 @@
+# Every push to main publishes the app to the "preview" channel, so the test crew's phones
+# pick up changes without a new install. Needs the EXPO_TOKEN repository secret.
+name: Preview update
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Link the Expo project
+        run: eas init --non-interactive --force
+      - name: Publish
+        env:
+          # The publishable key is meant to ship inside the app; the database rules do the protecting.
+          EXPO_PUBLIC_SUPABASE_URL: https://mfhbvsybudneimgbfjpy.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_SQmN9OqIfZoyxopWB_wpNA_WjzUfHkK
+        run: eas update --channel preview --message "${{ github.event.head_commit.message || 'Manual update' }}" --non-interactive

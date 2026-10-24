@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Rustnuts",
-    "slug": "rustnuts",
+    "slug": "rustnutssmc",
     "scheme": "rustnuts",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -32,6 +32,7 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "owner": "rustnutssmcs-team"
   }
 }
