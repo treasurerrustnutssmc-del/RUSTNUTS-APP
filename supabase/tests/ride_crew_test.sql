@@ -307,7 +307,8 @@ begin
   assert pg_temp.crew(chair, 'e3', fran, 'officer') is null, 'and a North one';
   assert pg_temp.crew(wes, 'e3', wes, 'road_captain') is null, 'a sitting President is on the NEC';
   assert pg_temp.crew(fran, 'e2', gail, 'tail_gunner') = someone_else, 'an ended seat gives no powers';
-  update positions set ended_on = current_date where member_id = rick;
+  -- The Melbourne date, which seats start on: the server's current_date can be a day behind it.
+  update positions set ended_on = private.club_date() where member_id = rick;
   assert pg_temp.crew(rick, 'e1', fran, 'officer') = someone_else, 'an ended committee seat neither';
   update positions set ended_on = null where member_id = rick;
 end $$;
