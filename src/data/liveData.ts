@@ -3,6 +3,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ClubData, MemberPrivate, Route } from '../domain/types';
+import { toBusiness } from './businessLive';
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
 
@@ -66,6 +67,17 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   for (const r of [members, privates, phones, bikes, regos, contacts, positions, routes, calendar]) {
     if (r.error) throw toError(r.error);
   }
+  // Stage 5: meetings and votes. A failure here leaves the club business empty rather than
+  // blocking the whole app (it also covers the moment before the live database has the tables).
+  const business = toBusiness(
+    await db.rpc('club_business').then(
+      (r) => {
+        if (r.error) console.warn('club_business:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+  );
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
@@ -179,6 +191,8 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       .filter((r) => r.route_id != null)
       .map((r) => ({ rideId: r.ride_id, routeId: r.route_id })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
+    // Stage 5: meetings and votes
+    ...business,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
   };
 }

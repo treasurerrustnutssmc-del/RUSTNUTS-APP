@@ -1,5 +1,9 @@
 // Generated from the live Supabase schema (Stage 1). Regenerate after changing migrations.
 
+// Stage 5: meetings and votes
+import type { AgendaItem, BallotChoice, Electorate, MeetingKind, Threshold } from '../domain/types';
+import type { BusinessJson } from './businessLive';
+
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
 type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';
 type RsvpAnswer = 'going' | 'maybe' | 'no';
@@ -331,6 +335,36 @@ export type Database = {
         Returns: string;
       };
       remove_contact: { Args: { p_contact: string }; Returns: undefined };
+      // Stage 5: meetings and votes
+      club_business: { Args: never; Returns: BusinessJson };
+      save_meeting: {
+        Args: {
+          p_id: string | null; p_chapter: string | null; p_kind: MeetingKind; p_title: string; p_starts_at: string;
+          p_location: string | null; p_agenda: AgendaItem[];
+        };
+        Returns: string;
+      };
+      cancel_meeting: { Args: { p_id: string }; Returns: undefined };
+      save_minutes: { Args: { p_id: string; p_text: string }; Returns: undefined };
+      approve_minutes: { Args: { p_id: string }; Returns: undefined };
+      save_action_item: {
+        Args: {
+          p_id: string | null; p_chapter: string | null; p_meeting: string | null; p_title: string; p_owner: string;
+          p_due: string | null;
+        };
+        Returns: string;
+      };
+      set_action_done: { Args: { p_id: string; p_done: boolean }; Returns: undefined };
+      open_vote: {
+        Args: {
+          p_chapter: string | null; p_meeting: string | null; p_subject: string | null; p_question: string;
+          p_details: string | null; p_electorate: Electorate; p_threshold: Threshold; p_secret: boolean; p_quorum: number;
+          p_closes_at: string;
+        };
+        Returns: string;
+      };
+      cast_ballot: { Args: { p_vote: string; p_choice: BallotChoice }; Returns: undefined };
+      close_vote: { Args: { p_vote: string; p_casting: 'yes' | 'no' | null }; Returns: undefined };
       // Lane E: live ride
       start_live_ride: { Args: { p_ride: string }; Returns: string };
       live_ride_state: { Args: { p_ride: string }; Returns: LiveStateJson };

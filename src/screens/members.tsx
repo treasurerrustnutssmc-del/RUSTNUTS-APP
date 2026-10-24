@@ -9,6 +9,7 @@ import {
   visibleMembers,
   withHolders,
 } from '../domain/access';
+import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatLongDate, monthsBetween } from '../domain/dates';
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
@@ -67,6 +68,9 @@ function sortMembers(list: Member[]) {
 // Home
 // ---------------------------------------------------------------------------
 
+/** Stage 5: the current instant, for the club business row. */
+const nowInstant = () => new Date().toISOString();
+
 export function HomeScreen({ navigation }: TabScreen<'Home'>) {
   const { me, data, level, today, isDemo, refresh } = useClub();
   if (!me) return null;
@@ -84,6 +88,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
     : [];
   const boardAlerts = isBoard ? expiryAlerts(boardScope, data, today) : [];
   const approved = data.members.filter((m) => m.approval === 'approved');
+  const business = businessFor(me, data, nowInstant());
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
@@ -131,6 +136,19 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
               last
             />
           ) : null}
+        </Card>
+      ) : null}
+
+      {/* Stage 5: meetings and votes */}
+      {business.summary ? (
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            left={<IconBadge icon="hammer" tone={business.needsMe.length ? 'red' : undefined} />}
+            title="Club business"
+            subtitle={business.summary}
+            onPress={() => navigation.navigate('Business')}
+            last
+          />
         </Card>
       ) : null}
 
