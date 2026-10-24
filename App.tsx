@@ -9,8 +9,15 @@ import { DemoBar } from './src/ui/DemoBar';
 import { useAppFonts } from './src/useAppFonts';
 
 function Shell() {
-  const { isDemo } = useClub();
+  const { isDemo, loading } = useClub();
   const insets = useSafeAreaInsets();
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.redText} />
+      </View>
+    );
+  }
   if (!isDemo) return <RootNavigator />;
   // The demo strip takes the top safe area, so screens below it don't pad for the notch twice.
   return (

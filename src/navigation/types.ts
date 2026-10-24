@@ -13,7 +13,7 @@ export type TabParams = {
 export type RootParams = {
   // signed out
   Welcome: undefined;
-  SignIn: undefined;
+  SignIn: { joining?: boolean } | undefined;
   Join: undefined;
   // waiting for approval
   Pending: undefined;

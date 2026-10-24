@@ -128,7 +128,9 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
           label="Share my mobile with members"
           description="Your chapter board can always see it. Turn this on so other members can call you too."
           value={me.sharePhone}
-          onChange={(v) => updateProfile({ fullName: me.fullName, roadName: me.roadName, bio: me.bio, sharePhone: v })}
+          onChange={(v) => {
+            updateProfile({ fullName: me.fullName, roadName: me.roadName, bio: me.bio, sharePhone: v }).catch(() => {});
+          }}
         />
         <Small>
           Ride-day location sharing (coming in Stage 6) will always be your choice, switch off when the ride ends,
@@ -136,7 +138,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         </Small>
       </Card>
 
-      <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={signOut} />
+      <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
       {isDemo ? <Small style={{ textAlign: 'center' }}>Demo build: changes reset when you reload.</Small> : null}
     </Screen>
   );
@@ -158,19 +160,22 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
   const licence = useDateField(priv?.licenceExpiry ?? null);
   const firstAid = useDateField(priv?.firstAidExpiry ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   if (!me) return null;
 
-  const save = () => {
+  const save = async () => {
     if (licence.error || firstAid.error) {
       setError('Fix the dates marked in red.');
       return;
     }
+    setBusy(true);
     try {
-      updateProfile({ fullName, roadName, bio, sharePhone: me.sharePhone });
-      updatePrivate({ email, phone, licenceClass, licenceExpiry: licence.iso, firstAidExpiry: firstAid.iso });
+      await updateProfile({ fullName, roadName, bio, sharePhone: me.sharePhone });
+      await updatePrivate({ email, phone, licenceClass, licenceExpiry: licence.iso, firstAidExpiry: firstAid.iso });
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
+      setBusy(false);
     }
   };
 
@@ -213,7 +218,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
         />
       </Card>
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      <Button label="Save" icon="checkmark" onPress={save} />
+      <Button label="Save" icon="checkmark" onPress={save} busy={busy} />
     </Screen>
   );
 }
@@ -234,22 +239,25 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
   const [rego, setRego] = useState(reg?.rego ?? '');
   const expiry = useDateField(reg?.regoExpiry ?? null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const yearError = year.trim() && !/^\d{4}$/.test(year.trim()) ? 'Use a four-digit year.' : null;
 
-  const save = () => {
+  const save = async () => {
     if (yearError || expiry.error) {
       setError('Fix the fields marked in red.');
       return;
     }
+    setBusy(true);
     try {
-      saveBike(
+      await saveBike(
         { id: bike?.id ?? null, make, model, year: year.trim() ? Number(year) : null, nickname: nickname.trim() || null, isProject },
         { rego: isProject ? null : rego, regoExpiry: isProject ? null : expiry.iso },
       );
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
+      setBusy(false);
     }
   };
 
@@ -279,15 +287,16 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
         </Card>
       ) : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      <Button label={bike ? 'Save bike' : 'Add bike'} icon="checkmark" onPress={save} />
+      <Button label={bike ? 'Save bike' : 'Add bike'} icon="checkmark" onPress={save} busy={busy} />
       {bike ? (
         <ConfirmButton
           label="Remove this bike"
           confirmLabel="Yes, remove it"
           icon="trash-outline"
           onConfirm={() => {
-            removeBike(bike.id);
-            navigation.goBack();
+            removeBike(bike.id)
+              .then(() => navigation.goBack())
+              .catch((e: Error) => setError(e.message));
           }}
         />
       ) : null}
@@ -308,13 +317,16 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
   const [relationship, setRelationship] = useState(contact?.relationship ?? '');
   const [phone, setPhone] = useState(contact?.phone ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const save = () => {
+  const save = async () => {
+    setBusy(true);
     try {
-      saveContact({ id: contact?.id ?? null, name, relationship, phone });
+      await saveContact({ id: contact?.id ?? null, name, relationship, phone });
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
+      setBusy(false);
     }
   };
 
@@ -333,15 +345,16 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
         <Field label="Mobile" value={phone} onChangeText={setPhone} keyboardType="phone-pad" inputMode="tel" />
       </Card>
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      <Button label={contact ? 'Save contact' : 'Add contact'} icon="checkmark" onPress={save} />
+      <Button label={contact ? 'Save contact' : 'Add contact'} icon="checkmark" onPress={save} busy={busy} />
       {contact ? (
         <ConfirmButton
           label="Remove this contact"
           confirmLabel="Yes, remove"
           icon="trash-outline"
           onConfirm={() => {
-            removeContact(contact.id);
-            navigation.goBack();
+            removeContact(contact.id)
+              .then(() => navigation.goBack())
+              .catch((e: Error) => setError(e.message));
           }}
         />
       ) : null}

@@ -42,12 +42,16 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
   const chapter = data.chapters.find((c) => c.id === applicant.chapterId);
   const bikes = data.bikes.filter((b) => b.memberId === applicant.id);
 
-  const act = (fn: () => void, msg: string) => {
+  const [busy, setBusy] = useState(false);
+  const act = async (fn: () => Promise<void>, msg: string) => {
+    setBusy(true);
+    setError(null);
     try {
-      fn();
+      await fn();
       onDone(msg);
     } catch (e) {
       setError((e as Error).message);
+      setBusy(false);
     }
   };
 
@@ -90,6 +94,7 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
         <Button
           label="Approve"
           icon="checkmark"
+          busy={busy}
           style={{ flex: 1 }}
           onPress={() => act(() => approveMember(applicant.id, status), `${applicant.fullName} is in as ${STATUS_LABEL[status]}.`)}
         />
@@ -105,7 +110,7 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
 }
 
 export function BoardScreen({ navigation }: TabScreen<'Board'>) {
-  const { me, data, level, today } = useClub();
+  const { me, data, level, today, isDemo, refresh } = useClub();
   const [done, setDone] = useState<string | null>(null);
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
@@ -129,7 +134,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   };
 
   return (
-    <Screen>
+    <Screen onRefresh={isDemo ? undefined : refresh}>
       <Stack gap={space.sm}>
         <Chip label={national ? 'All chapters' : `${chapter?.name} chapter`} tone="redOutline" />
         <Small>
@@ -233,9 +238,9 @@ export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
   const canNational = isNational(me.id, data.positions);
   const roleOptions: PositionRole[] = [...BOARD_ROLES, ...CLUB_ROLES, ...(canNational ? NATIONAL_ROLES : [])];
 
-  const run = (fn: () => void, ok: string) => {
+  const run = async (fn: () => Promise<void>, ok: string) => {
     try {
-      fn();
+      await fn();
       setMsg({ tone: 'ok', text: ok });
     } catch (e) {
       setMsg({ tone: 'danger', text: (e as Error).message });

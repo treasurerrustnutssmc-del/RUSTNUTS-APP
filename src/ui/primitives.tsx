@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -30,12 +31,27 @@ export function Screen({
   children,
   scroll = true,
   padTop = false,
+  onRefresh,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   padTop?: boolean;
+  /** Pull down to refresh (live data only). */
+  onRefresh?: () => Promise<void>;
 }) {
   const insets = useSafeAreaInsets();
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshControl = onRefresh ? (
+    <RefreshControl
+      refreshing={refreshing}
+      tintColor={colors.redText}
+      colors={[colors.redBright]}
+      onRefresh={() => {
+        setRefreshing(true);
+        onRefresh().finally(() => setRefreshing(false));
+      }}
+    />
+  ) : undefined;
   const inner = (
     <View
       style={[
@@ -49,7 +65,7 @@ export function Screen({
   return (
     <View style={styles.screen}>
       {scroll ? (
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" refreshControl={refreshControl}>
           {inner}
         </ScrollView>
       ) : (

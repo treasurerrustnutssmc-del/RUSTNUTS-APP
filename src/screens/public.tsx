@@ -30,7 +30,7 @@ import {
 const SUPPORT_URL = 'https://www.rustnutssmc.com.au/resources.html';
 
 export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
-  const { data } = useClub();
+  const { data, isDemo } = useClub();
   return (
     <Screen padTop>
       <View style={{ alignItems: 'center', paddingTop: space.md }}>
@@ -45,7 +45,11 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
       </Stack>
       <Stack gap={space.sm}>
         <Button label="Sign in" icon="log-in-outline" onPress={() => navigation.navigate('SignIn')} />
-        <Button label="Ask to join" kind="secondary" onPress={() => navigation.navigate('Join')} />
+        <Button
+          label="Ask to join"
+          kind="secondary"
+          onPress={() => (isDemo ? navigation.navigate('Join') : navigation.navigate('SignIn', { joining: true }))}
+        />
       </Stack>
 
       <Card style={{ padding: 0, gap: 0 }}>
@@ -86,34 +90,105 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
   );
 }
 
-export function SignInScreen() {
-  const { isDemo, signInAs, data } = useClub();
+export function SignInScreen({ route }: RootScreen<'SignIn'>) {
+  const { isDemo, signInAs, data, sendCode, verifyCode } = useClub();
+  const joining = route.params?.joining ?? false;
   const [email, setEmail] = useState('');
-  const [tried, setTried] = useState(false);
+  const [code, setCode] = useState('');
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [demoNote, setDemoNote] = useState(false);
   const people = DEMO_PERSONAS.filter((p) => p.memberId !== null);
+  const emailOk = /^\S+@\S+\.\S+$/.test(email.trim());
+
+  const send = async () => {
+    if (isDemo) {
+      setDemoNote(true);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await sendCode(email);
+      setStep('code');
+      setCode('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verify = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await verifyCode(email, code);
+      // Signing in switches the app over to the right screens by itself.
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  };
 
   return (
     <Screen>
       <Stack gap={space.sm}>
-        <H1>Sign in</H1>
-        <Body>No passwords. Enter your email and we’ll send a 6-digit code to sign in with.</Body>
+        <H1>{joining ? 'First, your email' : 'Sign in'}</H1>
+        <Body>
+          {step === 'code'
+            ? `We've emailed a code to ${email.trim()}. It lasts an hour. Check your junk folder if it's not there.`
+            : joining
+              ? 'No passwords. Enter your email and we’ll send a code to confirm it’s you, then you can fill in your details.'
+              : 'No passwords. Enter your email and we’ll send a code to sign in with.'}
+        </Body>
       </Stack>
-      <Field
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@example.com"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="email"
-        inputMode="email"
-      />
-      <Button label="Email me a code" onPress={() => setTried(true)} disabled={!email.includes('@')} />
+
+      {step === 'email' ? (
+        <>
+          <Field
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            inputMode="email"
+            onSubmitEditing={() => emailOk && send()}
+          />
+          <Button label="Email me a code" icon="mail-outline" onPress={send} disabled={!emailOk} busy={busy} />
+        </>
+      ) : (
+        <>
+          <Field
+            label="Code from the email"
+            value={code}
+            onChangeText={(v) => setCode(v.replace(/\D/g, ''))}
+            placeholder="123456"
+            keyboardType="number-pad"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            textContentType="oneTimeCode"
+            maxLength={10}
+            onSubmitEditing={() => code.length >= 6 && verify()}
+          />
+          <Button label="Sign in" icon="log-in-outline" onPress={verify} disabled={code.length < 6} busy={busy} />
+          <Row style={{ gap: space.sm }}>
+            <Button label="Send a new code" kind="quiet" onPress={send} />
+            <Button label="Different email" kind="quiet" onPress={() => { setStep('email'); setError(null); }} />
+          </Row>
+        </>
+      )}
+
+      {error ? <Notice tone="danger">{error}</Notice> : null}
+
       {isDemo ? (
         <>
-          {tried ? (
+          {demoNote ? (
             <Notice tone="warn" title="This is the demo build">
-              No emails go out yet. Pick someone below to see the app as them.
+              No emails go out. Pick someone below to see the app as them.
             </Notice>
           ) : null}
           <Card style={{ padding: 0, gap: 0 }}>
@@ -144,7 +219,9 @@ export function SignInScreen() {
 type JoinAs = 'introduced' | 'supporter' | 'family';
 
 export function JoinScreen() {
-  const { data, submitApplication } = useClub();
+  const { data, submitApplication, isDemo, authEmail, signOut } = useClub();
+  const [busy, setBusy] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: '',
     roadName: '',
@@ -163,7 +240,7 @@ export function JoinScreen() {
 
   const errors = {
     fullName: form.fullName.trim() ? null : 'Add your full name.',
-    email: /^\S+@\S+\.\S+$/.test(form.email.trim()) ? null : 'Add an email address we can send your code to.',
+    email: !isDemo || /^\S+@\S+\.\S+$/.test(form.email.trim()) ? null : 'Add an email address we can send your code to.',
     phone: form.phone.replace(/\D/g, '').length >= 8 ? null : 'Add a mobile number.',
     chapter: chapterId ? null : 'Pick the chapter you ride with.',
     year:
@@ -174,16 +251,19 @@ export function JoinScreen() {
   const valid = Object.values(errors).every((e) => e === null);
   const err = (k: keyof typeof errors) => (showErrors ? errors[k] : null);
 
-  const submit = () => {
+  const submit = async () => {
     if (!valid || !chapterId) {
       setShowErrors(true);
       return;
     }
-    submitApplication({
+    setBusy(true);
+    setSubmitError(null);
+    try {
+      await submitApplication({
       chapterId,
       fullName: form.fullName,
       roadName: form.roadName,
-      email: form.email,
+      email: isDemo ? form.email : authEmail ?? '',
       phone: form.phone,
       introducedBy: form.introducedBy,
       note: form.note,
@@ -191,7 +271,11 @@ export function JoinScreen() {
       bike: form.make.trim()
         ? { make: form.make, model: form.model, year: form.year.trim() ? Number(form.year) : null }
         : null,
-    });
+      });
+    } catch (e) {
+      setSubmitError((e as Error).message);
+      setBusy(false);
+    }
   };
 
   return (
@@ -207,16 +291,23 @@ export function JoinScreen() {
       <Card>
         <Field label="Full name" value={form.fullName} onChangeText={set('fullName')} autoComplete="name" error={err('fullName')} />
         <Field label="Road name (if you have one)" value={form.roadName} onChangeText={set('roadName')} hint="What everyone calls you on a ride." />
-        <Field
-          label="Email"
-          value={form.email}
-          onChangeText={set('email')}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          inputMode="email"
-          error={err('email')}
-        />
+        {isDemo ? (
+          <Field
+            label="Email"
+            value={form.email}
+            onChangeText={set('email')}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            inputMode="email"
+            error={err('email')}
+          />
+        ) : (
+          <View style={{ gap: 2 }}>
+            <Label>Email</Label>
+            <Body>{authEmail}</Body>
+          </View>
+        )}
         <Field label="Mobile" value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" autoComplete="tel" inputMode="tel" error={err('phone')} />
       </Card>
 
@@ -263,7 +354,9 @@ export function JoinScreen() {
       />
 
       {showErrors && !valid ? <Notice tone="danger" title="A few things to fix">Check the fields marked in red.</Notice> : null}
-      <Button label="Send my request" icon="paper-plane-outline" onPress={submit} />
+      {submitError ? <Notice tone="danger">{submitError}</Notice> : null}
+      <Button label="Send my request" icon="paper-plane-outline" onPress={submit} busy={busy} />
+      {!isDemo ? <Button label="Sign out" kind="quiet" onPress={() => signOut()} /> : null}
     </Screen>
   );
 }
@@ -328,7 +421,7 @@ export function PendingScreen() {
         </Row>
       </Card>
 
-      <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={signOut} />
+      <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
     </Screen>
   );
 }

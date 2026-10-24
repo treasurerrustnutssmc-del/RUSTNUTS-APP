@@ -59,7 +59,7 @@ function sortMembers(list: Member[]) {
 // ---------------------------------------------------------------------------
 
 export function HomeScreen({ navigation }: TabScreen<'Home'>) {
-  const { me, data, level, today } = useClub();
+  const { me, data, level, today, isDemo, refresh } = useClub();
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const positions = sortedPositions(me.id, data);
@@ -77,7 +77,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
   const approved = data.members.filter((m) => m.approval === 'approved');
 
   return (
-    <Screen>
+    <Screen onRefresh={isDemo ? undefined : refresh}>
       <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
         <Avatar text={initials(me)} size={56} />
         <View style={{ flex: 1, gap: 4 }}>
@@ -197,7 +197,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
 // ---------------------------------------------------------------------------
 
 export function MembersScreen({ navigation }: TabScreen<'Members'>) {
-  const { me, data } = useClub();
+  const { me, data, isDemo, refresh } = useClub();
   const [query, setQuery] = useState('');
   const [chapterId, setChapterId] = useState<string>('all');
 
@@ -218,7 +218,7 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
     .filter((g) => g.members.length > 0);
 
   return (
-    <Screen>
+    <Screen onRefresh={isDemo ? undefined : refresh}>
       <Field
         label="Search"
         value={query}

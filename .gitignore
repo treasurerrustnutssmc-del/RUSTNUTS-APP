@@ -39,3 +39,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local settings (the club database details live here)
+.env
+
+# generated phone preview
+preview/

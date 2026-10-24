@@ -87,12 +87,14 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
-  const { level, me } = useClub();
+  const { level, me, needsApplication } = useClub();
   return (
     <NavigationContainer theme={navTheme}>
       {/* Keyed by who's signed in, so switching people always starts fresh on their home screen. */}
-      <Stack.Navigator key={me?.id ?? 'signed-out'} screenOptions={headerOptions}>
-        {level === 'public' ? (
+      <Stack.Navigator key={me?.id ?? (needsApplication ? 'applying' : 'signed-out')} screenOptions={headerOptions}>
+        {needsApplication ? (
+          <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
+        ) : level === 'public' ? (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
             <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign in' }} />

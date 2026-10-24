@@ -7,8 +7,6 @@
 --   board    : plus private details and applicants for their own chapter
 --   national : board powers across every chapter (NEC roles and sitting Presidents)
 
-create extension if not exists pgcrypto;
-
 -- ---------------------------------------------------------------------------
 -- Types
 -- ---------------------------------------------------------------------------
@@ -175,53 +173,53 @@ create policy chapters_manage on public.chapters for all to authenticated
 
 -- Members: self; approved members see approved members; board sees their chapter's applicants.
 create policy members_read on public.members for select to authenticated using (
-  id = auth.uid()
+  id = (select auth.uid())
   or (approval = 'approved' and public.is_approved_member())
   or public.is_board_of(chapter_id)
 );
 -- Members edit their own name, road name, bio and sharing only (column grants below).
 create policy members_update_self on public.members for update to authenticated
-  using (id = auth.uid()) with check (id = auth.uid());
+  using (id = (select auth.uid())) with check (id = (select auth.uid()));
 
 -- Private details: self and chapter board.
 create policy private_read on public.member_private for select to authenticated using (
-  member_id = auth.uid() or public.is_board_of(public.chapter_of(member_id))
+  member_id = (select auth.uid()) or public.is_board_of(public.chapter_of(member_id))
 );
 create policy private_update_self on public.member_private for update to authenticated
-  using (member_id = auth.uid()) with check (member_id = auth.uid());
+  using (member_id = (select auth.uid())) with check (member_id = (select auth.uid()));
 
 -- Bikes: approved members see approved members' bikes; everyone manages their own.
 create policy bikes_read on public.bikes for select to authenticated using (
-  member_id = auth.uid()
+  member_id = (select auth.uid())
   or (public.is_approved(member_id) and public.is_approved_member())
   or public.is_board_of(public.chapter_of(member_id))
 );
 create policy bikes_write_own on public.bikes for all to authenticated
-  using (member_id = auth.uid()) with check (member_id = auth.uid());
+  using (member_id = (select auth.uid())) with check (member_id = (select auth.uid()));
 
 -- Regos: owner and chapter board.
 create policy regos_read on public.bike_registrations for select to authenticated using (
   exists (
     select 1 from public.bikes b
     where b.id = bike_id
-      and (b.member_id = auth.uid() or public.is_board_of(public.chapter_of(b.member_id)))
+      and (b.member_id = (select auth.uid()) or public.is_board_of(public.chapter_of(b.member_id)))
   )
 );
 create policy regos_write_own on public.bike_registrations for all to authenticated
-  using (exists (select 1 from public.bikes b where b.id = bike_id and b.member_id = auth.uid()))
-  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.member_id = auth.uid()));
+  using (exists (select 1 from public.bikes b where b.id = bike_id and b.member_id = (select auth.uid())))
+  with check (exists (select 1 from public.bikes b where b.id = bike_id and b.member_id = (select auth.uid())));
 
 -- Emergency contacts: owner and chapter board.
 create policy emergency_read on public.emergency_contacts for select to authenticated using (
-  member_id = auth.uid() or public.is_board_of(public.chapter_of(member_id))
+  member_id = (select auth.uid()) or public.is_board_of(public.chapter_of(member_id))
 );
 create policy emergency_write_own on public.emergency_contacts for all to authenticated
-  using (member_id = auth.uid()) with check (member_id = auth.uid());
+  using (member_id = (select auth.uid())) with check (member_id = (select auth.uid()));
 
 -- Positions: approved members can see who holds what. Chapter board sets chapter roles,
 -- the NEC sets national roles. Positions are ended, never deleted, so history is kept.
 create policy positions_read on public.positions for select to authenticated using (
-  member_id = auth.uid() or public.is_approved_member()
+  member_id = (select auth.uid()) or public.is_approved_member()
 );
 create policy positions_insert on public.positions for insert to authenticated with check (
   public.is_approved(member_id)
@@ -360,7 +358,10 @@ returns text language sql stable security definer set search_path = public as $$
 $$;
 
 revoke all on function public.submit_application, public.approve_member, public.decline_member,
-  public.set_member_status, public.member_phone from public, anon;
+  public.set_member_status, public.member_phone, public.is_approved_member, public.is_national,
+  public.is_board_of, public.chapter_of, public.is_approved from public, anon;
+grant execute on function public.is_approved_member, public.is_national, public.is_board_of,
+  public.chapter_of, public.is_approved to authenticated;
 grant execute on function public.submit_application, public.approve_member, public.decline_member,
   public.set_member_status, public.member_phone to authenticated;
 
