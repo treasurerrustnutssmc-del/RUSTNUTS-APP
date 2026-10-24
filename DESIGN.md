@@ -237,6 +237,13 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 ### Notices
 - Tinted blocks for info, OK, warning and danger, with an icon, an optional stencil title and body text. They're used for empty states and for reasons something can't be done.
 
+### Crew
+- **Crew section** (ride screen, under the answers): one card with a row each for RC, TG and ATG, then each Officer. A row has a steel tile with the stencil short form, the road name (or a muted "Open") and the full role under it, and its buttons below.
+  - **Buttons:** "I'll do it" on an open spot only when you hold no spot on that ride. Crew managers get Pick or Change, and "Add officer" on the open Officer row.
+  - **Take off / Step down:** the first tap is a secondary (outline) button, so a full crew doesn't make a card of red. The confirm step ("Yes, take off" / "Yes, step down") is the danger style.
+  - **Locked:** on a cancelled ride or after the ride day the crew is a record. Only the people who crewed show, with no buttons and no Open rows. If nobody crewed, the section isn't shown.
+- **Pick crew screen:** the role as the title, the ride and date under it, a line on who can crew, then Going, that chapter's standing holders and everyone else, each by road name. A member already on this ride's crew carries a "Now RC" (or TG, ATG, O) chip, so it doesn't read as a standing position. Tapping a name saves it and goes back. A refusal shows under that name.
+
 ### Signature pieces
 - **Member disc:** the real round MEMBER patch art, shown only on Full members and Nomads.
 - **Flannel:** a flannel photo under a 76% ink wash. It's an accent only, used for the welcome, the waiting screen, the Home greeting and the disc moment.
