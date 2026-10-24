@@ -781,7 +781,11 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
           <View style={styles.bar} accessibilityLabel={`${vote.votedIds.length} of ${vote.electorIds.length} have voted`}>
             <View style={[styles.barFill, { width: `${share * 100}%` }]} />
           </View>
-          <Small>{`${vote.quorum} needed for the result to count. The count stays sealed until the vote closes.`}</Small>
+          <Small>
+            {vote.threshold === 'unanimous'
+              ? `Every one of the ${vote.electorIds.length} has to vote yes. ${vote.subjectMemberId ? 'Only the result is kept.' : 'The count stays sealed until the vote closes.'}`
+              : `${vote.quorum} needed for the result to count. The count stays sealed until the vote closes.`}
+          </Small>
         </Stack>
       )}
 
@@ -881,7 +885,8 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
         </Stack>
       ) : null}
 
-      {!closed && (runs || vote.electorIds.includes(me.id)) ? <StillToVote vote={vote} /> : null}
+      {/* On a patch vote a missing ballot counts against, so naming who's left would point at them. */}
+      {!closed && vote.subjectMemberId === null && (runs || vote.electorIds.includes(me.id)) ? <StillToVote vote={vote} /> : null}
     </Screen>
   );
 }
@@ -906,10 +911,10 @@ const THRESHOLDS: Threshold[] = ['majority', 'two_thirds', 'unanimous'];
 
 /** How the default quorum is worked out, for the hint under the field. */
 const QUORUM_RULE: Record<Electorate, string> = {
-  chapter_board: 'More than half',
-  chapter_patched: 'A third, rounded up (10.6),',
-  club_patched: 'A third, rounded up (10.6),',
-  nec: '51%, rounded up (11.5),',
+  chapter_board: 'more than half the board',
+  chapter_patched: 'a third, rounded up (10.6)',
+  club_patched: 'a third, rounded up (10.6)',
+  nec: '51%, rounded up (11.5)',
 };
 
 /** A week from today, at 7 pm Melbourne time. */
@@ -1008,13 +1013,16 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
           <Toggle label="Secret ballot" description="Nobody, the board included, sees who voted which way." value={secret} onChange={setSecret} />
         </>
       ) : null}
-      <Field
-        label="Quorum"
-        value={quorumText ?? String(defaultQuorum(electorate, size))}
-        onChangeText={(t) => setQuorumText(t.replace(/\D/g, ''))}
-        keyboardType="number-pad"
-        hint={`Ballots needed for the result to count, out of ${size}. ${QUORUM_RULE[electorate]} is ${defaultQuorum(electorate, size)}.`}
-      />
+      {/* A patch vote needs every ballot anyway, so its quorum stays at the least allowed. */}
+      {!subject ? (
+        <Field
+          label="Quorum"
+          value={quorumText ?? String(defaultQuorum(electorate, size))}
+          onChangeText={(t) => setQuorumText(t.replace(/\D/g, ''))}
+          keyboardType="number-pad"
+          hint={`Ballots needed for the result to count, out of ${size}. At least ${defaultQuorum(electorate, size)}: ${QUORUM_RULE[electorate]}.`}
+        />
+      ) : null}
       <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
         <View style={{ flex: 3 }}>
           <Field

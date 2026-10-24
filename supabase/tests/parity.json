@@ -1003,9 +1003,21 @@
       "subject": null,
       "electorate": "club_patched",
       "threshold": "majority",
-      "quorum": 1,
+      "quorum": 4,
       "days": 7,
       "allowed": true
+    },
+    {
+      "name": "A national vote with a quorum under a third of the voters",
+      "as": "lou",
+      "action": "openVote",
+      "chapter": null,
+      "subject": null,
+      "electorate": "club_patched",
+      "threshold": "majority",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
     },
     {
       "name": "The board opens a secret patch vote on an FNG",

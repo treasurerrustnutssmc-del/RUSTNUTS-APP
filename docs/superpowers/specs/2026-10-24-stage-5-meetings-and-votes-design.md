@@ -281,3 +281,16 @@ Jeff sent the constitution (29 Jul 2026 draft, in the project files at `referenc
 - **Unanimous (4.9):** every elector must vote yes, so an abstention or a missing ballot stops it.
 - **Patch votes (4.7, 4.9):** always secret and unanimous. They can't open before nine months into the trial, though a start date nobody recorded doesn't block one.
 - **Chair (10.9):** the President, then the Vice President. With no chair, a tie is lost (9.10).
+
+**After review:**
+- When a chapter's President chairs the NEC, that chapter's NEC vote passes to its Vice President (11.2).
+- A quorum below the constitution's minimum is refused.
+- A closed patch vote keeps no counts and no ballots, only the result (4.9).
+- The nine-month date clamps to the month's end, the same way in the app and the database.
+- During a handover, the newer seat-holder chairs (9.8).
+
+**Not covered yet:**
+- The 51%-of-chapters part of the national quorum (10.6).
+- Who conducts a patch vote: any board member can open one, rather than only the President (4.8).
+- Changing an FNG to Full on Manage member isn't tied to a carried patch vote.
+- A President of two chapters casts a single NEC ballot.

@@ -4,7 +4,6 @@
 // ones it doesn't settle.
 
 import { activePositions } from './access';
-import { monthsBetween } from './dates';
 import { BOARD_ROLES, electoratesFor } from './labels';
 import { runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
@@ -42,9 +41,9 @@ export function electorsFor(electorate: Electorate, chapterId: string | null, da
         case 'club_patched':
           return isVoting(m);
         case 'nec':
-          // One ordinary vote per chapter, cast by its President; the National Chairperson only
-          // breaks a tie (11.2).
-          return activePositions(m.id, data.positions).some((p) => p.role === 'president' && p.chapterId !== null);
+          // One ordinary vote per chapter, cast by its President, or by its Vice President when the
+          // President chairs the NEC; the National Chairperson only breaks a tie (11.2).
+          return data.chapters.some((c) => necVoterFor(c.id, data.positions) === m.id);
       }
     })
     .map((m) => m.id);
@@ -67,14 +66,25 @@ export function defaultQuorum(electorate: Electorate, electors: number): number 
   }
 }
 
+/** The current holder of a seat: the newest, during a handover (9.8). */
+function holderOf(role: string, chapterId: string | null, positions: Position[]): string | null {
+  const seats = positions
+    .filter((p) => p.endedOn === null && p.role === role && p.chapterId === chapterId)
+    .sort((a, b) => b.startedOn.localeCompare(a.startedOn));
+  return seats[0]?.memberId ?? null;
+}
+
 /** Who has the casting vote: the chapter's President, then its Vice President (10.9), or the National Chairperson (11.2). */
 export function chairOf(chapterId: string | null, positions: Position[]): string | null {
-  const roles = chapterId === null ? ['nec_chair'] : ['president', 'vice_president'];
-  for (const role of roles) {
-    const seat = positions.find((p) => p.endedOn === null && p.role === role && p.chapterId === chapterId);
-    if (seat) return seat.memberId;
-  }
-  return null;
+  if (chapterId === null) return holderOf('nec_chair', null, positions);
+  return holderOf('president', chapterId, positions) ?? holderOf('vice_president', chapterId, positions);
+}
+
+/** Who casts a chapter's NEC vote: its President, unless they chair the NEC; then its Vice President (11.2). */
+function necVoterFor(chapterId: string, positions: Position[]): string | null {
+  const president = holderOf('president', chapterId, positions);
+  if (president !== null && president !== holderOf('nec_chair', null, positions)) return president;
+  return holderOf('vice_president', chapterId, positions);
 }
 
 /**
@@ -102,6 +112,21 @@ export function decide(
 
 const ms = (iso: string) => new Date(iso).getTime();
 
+/** The date nine months after an FNG's start, the day clamped to the month's end as Postgres does. */
+export function nineMonthsAfter(startIso: string): string {
+  const [y, m, d] = startIso.split('-').map(Number);
+  const total = m - 1 + 9;
+  const year = y + Math.floor(total / 12);
+  const month = (total % 12) + 1;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(d, lastDay)).padStart(2, '0')}`;
+}
+
+/** Full Membership can't be granted before nine months (4.7); an unrecorded start doesn't block it. */
+export function patchVoteTooEarly(fngStartedOn: string | null, today: string): boolean {
+  return fngStartedOn !== null && nineMonthsAfter(fngStartedOn) > today;
+}
+
 export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubData, now: string): string | null {
   const signedIn = signedInProblem(me);
   if (signedIn) return signedIn;
@@ -110,8 +135,9 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
   if (!electoratesFor(input.chapterId).includes(input.electorate)) return 'That electorate doesn’t fit here.';
   const electors = electorsFor(input.electorate, input.chapterId, data).length;
   if (electors === 0) return 'Nobody can vote in that electorate yet.';
-  if (!Number.isInteger(input.quorum) || input.quorum < 1 || input.quorum > electors) {
-    return `Quorum must be between 1 and ${electors}.`;
+  const least = defaultQuorum(input.electorate, electors);
+  if (!Number.isInteger(input.quorum) || input.quorum < least || input.quorum > electors) {
+    return `Quorum must be between ${least} and ${electors}.`;
   }
   if (!input.closesAt || !(ms(input.closesAt) > ms(now))) return 'Pick a closing time in the future.';
   if (ms(input.closesAt) > ms(now) + MAX_OPEN_DAYS * 86_400_000) return 'Votes can stay open for 60 days at most.';
@@ -124,7 +150,7 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
       return 'A patch vote is a secret, unanimous vote of the chapter’s Full Members.';
     }
     // Full Membership can't be granted before nine months (4.7).
-    if (subject.fngStartedOn !== null && monthsBetween(subject.fngStartedOn, melbourneDate(now)) < 9) {
+    if (patchVoteTooEarly(subject.fngStartedOn, melbourneDate(now))) {
       return 'A patch vote can open only nine months into the FNG’s trial (4.7).';
     }
   }
@@ -194,7 +220,11 @@ const THRESHOLD_LINE: Record<Threshold, string> = {
 
 /** "Two-thirds of votes cast · Quorum 5 of 9 · Secret ballot" */
 export function ruleLine(vote: Pick<Vote, 'threshold' | 'quorum' | 'electorIds' | 'secret'>): string {
-  const parts = [THRESHOLD_LINE[vote.threshold], `Quorum ${vote.quorum} of ${vote.electorIds.length}`];
+  const n = vote.electorIds.length;
+  const parts =
+    vote.threshold === 'unanimous'
+      ? [`Unanimous: all ${n} must vote yes`]
+      : [THRESHOLD_LINE[vote.threshold], `Quorum ${vote.quorum} of ${n}`];
   if (vote.secret) parts.push('Secret ballot');
   return parts.join(' · ');
 }

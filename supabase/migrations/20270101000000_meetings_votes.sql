@@ -124,7 +124,29 @@ returns uuid language sql stable security definer set search_path = '' as $$
   where ended_on is null and chapter_id is not distinct from p_chapter
     and role in (case when p_chapter is null then 'nec_chair' else 'president' end::public.position_role,
                  case when p_chapter is null then 'nec_chair' else 'vice_president' end::public.position_role)
-  order by role = 'vice_president', started_on limit 1;
+  order by role = 'vice_president', started_on desc limit 1;
+$$;
+
+-- Who casts a chapter's NEC vote: its President, unless they chair the NEC; then its Vice President
+-- (constitution 11.2). The newest holder of a seat acts during a handover (9.8).
+create or replace function private.nec_voter_for(p_chapter uuid)
+returns uuid language sql stable security definer set search_path = '' as $$
+  select member_id from public.positions p
+  where p.ended_on is null and p.chapter_id = p_chapter and p.role in ('president', 'vice_president')
+    and not (p.role = 'president' and p.member_id in (
+      select member_id from public.positions where ended_on is null and role = 'nec_chair'))
+  order by p.role = 'vice_president', p.started_on desc limit 1;
+$$;
+
+-- The least quorum a vote may have, as defaultQuorum() in src/domain/votes.ts: a third of the voters
+-- for chapter and national votes (10.6), 51% for the NEC (11.5), more than half a board (inferred).
+create or replace function private.min_quorum(p_electorate public.electorate, p_electors int)
+returns int language sql immutable set search_path = '' as $$
+  select case p_electorate
+    when 'chapter_board' then p_electors / 2 + 1
+    when 'nec' then greatest(1, ceil(p_electors * 51 / 100.0)::int)
+    else greatest(1, ceil(p_electors / 3.0)::int)
+  end;
 $$;
 
 -- Everyone who gets a ballot. Legacy members and anyone not approved never vote. Nomads vote on
@@ -139,9 +161,7 @@ returns setof uuid language sql stable security definer set search_path = '' as 
         and p.role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain'))
     when 'chapter_patched' then m.chapter_id = p_chapter and m.status = 'full'
     when 'club_patched' then m.status in ('full', 'nomad')
-    when 'nec' then exists (
-      select 1 from public.positions p
-      where p.member_id = m.id and p.ended_on is null and p.role = 'president' and p.chapter_id is not null)
+    when 'nec' then m.id in (select private.nec_voter_for(c.id) from public.chapters c)
   end
   order by m.id;
 $$;
@@ -169,7 +189,8 @@ end;
 $$;
 
 revoke all on function private.require_member(), private.runs_scope(uuid), private.require_scope(uuid),
-  private.chair_of(uuid), private.electors_for(public.electorate, uuid),
+  private.chair_of(uuid), private.electors_for(public.electorate, uuid), private.nec_voter_for(uuid),
+  private.min_quorum(public.electorate, int),
   private.decide(public.vote_threshold, int, int, int, int, text, int) from public, anon, authenticated;
 
 -- Meetings -----------------------------------------------------------------------------------
@@ -337,8 +358,8 @@ begin
   end if;
   select count(*) into electors from private.electors_for(p_electorate, p_chapter);
   if electors = 0 then raise exception 'Nobody can vote in that electorate yet.'; end if;
-  if p_quorum is null or p_quorum < 1 or p_quorum > electors then
-    raise exception 'Quorum must be between 1 and %.', electors;
+  if p_quorum is null or p_quorum < private.min_quorum(p_electorate, electors) or p_quorum > electors then
+    raise exception 'Quorum must be between % and %.', private.min_quorum(p_electorate, electors), electors;
   end if;
   if p_closes_at is null or p_closes_at <= now() then raise exception 'Pick a closing time in the future.'; end if;
   if p_closes_at > now() + interval '1440 hours' then raise exception 'Votes can stay open for 60 days at most.'; end if;
@@ -425,6 +446,11 @@ begin
   if p_casting is not null and p_casting not in ('yes', 'no') then raise exception 'Pick an answer.'; end if;
   outcome := private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, p_casting, n_electors);
 
+  -- A patch vote keeps only its result (4.9): no counts, no ballots.
+  if v.subject_member_id is not null then
+    delete from public.vote_ballots where vote_id = p_vote;
+    n_yes := null; n_no := null; n_abstain := null;
+  end if;
   update public.votes set closed_at = now(), result = outcome.result, casting_vote = p_casting,
     yes_count = n_yes, no_count = n_no, abstain_count = n_abstain
   where id = p_vote;
@@ -463,7 +489,7 @@ begin
         'question', v.question, 'details', v.details, 'electorate', v.electorate, 'threshold', v.threshold,
         'secret', v.secret, 'quorum', v.quorum, 'opened_at', v.opened_at, 'closes_at', v.closes_at,
         'closed_at', v.closed_at, 'result', v.result, 'casting_vote', v.casting_vote, 'created_by', v.created_by,
-        'tally', case when v.closed_at is not null
+        'tally', case when v.closed_at is not null and v.yes_count is not null
                       then jsonb_build_object('yes', v.yes_count, 'no', v.no_count, 'abstain', v.abstain_count) end,
         'elector_ids', (select coalesce(jsonb_agg(e.member_id order by e.member_id), '[]'::jsonb)
                         from public.vote_electors e where e.vote_id = v.id),

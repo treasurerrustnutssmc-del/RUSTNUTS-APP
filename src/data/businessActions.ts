@@ -152,5 +152,9 @@ export function closeVote(ctx: DemoCtx, voteId: string, casting: 'yes' | 'no' | 
   const tally = vote ? tallyOf(vote.ballots) : null;
   refuse(closeProblem(ctx.me, vote, tally, casting, ctx.data, nowOf(ctx)));
   const { result } = decide(vote!.threshold, vote!.quorum, tally!, casting, vote!.electorIds.length);
+  // A patch vote keeps only its result (4.9).
+  if (vote!.subjectMemberId !== null) {
+    return patchVote(ctx.data, voteId, { closedAt: nowOf(ctx), result, castingVote: casting, tally: null, ballots: [] });
+  }
   return patchVote(ctx.data, voteId, { closedAt: nowOf(ctx), result, castingVote: casting, tally });
 }

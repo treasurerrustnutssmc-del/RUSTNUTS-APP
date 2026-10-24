@@ -78,6 +78,16 @@ test('a secret vote: the electorate is fixed, ballots carry no voter, and the co
   assert.ok(vote().closedAt);
 });
 
+test('a patch vote records only its result (4.9)', () => {
+  let data = DEMO_DATA;
+  for (const who of ['m-chook', 'm-gravel', 'm-spanner', 'm-sparks']) data = act.castBallot(ctx(who, data), 'v-1', 'yes');
+  data = act.closeVote(ctx('m-torque', data), 'v-1', null);
+  const v = data.votes!.find((x) => x.id === 'v-1')!;
+  assert.equal(v.result, 'carried', 'all seven said yes');
+  assert.equal(v.tally, null, 'no count kept');
+  assert.deepEqual(v.ballots, [], 'no ballots kept');
+});
+
 test('a tie goes to the chair', () => {
   const opened = act.openVote(ctx('m-torque'), {
     chapterId: 'ch-west', meetingId: null, subjectMemberId: null, question: 'Tie?', details: null,

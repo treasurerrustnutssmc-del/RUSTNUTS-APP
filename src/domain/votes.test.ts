@@ -12,6 +12,7 @@ import {
   electorsFor,
   openVoteProblem,
   patchVoteFor,
+  patchVoteTooEarly,
   ruleLine,
   type VoteInput,
 } from './votes';
@@ -50,7 +51,9 @@ test('electorates', () => {
   assert.ok(!electorsFor('chapter_patched', 'ch-north', d).includes('m-ratchet'), 'Nomads don’t vote on chapter matters (10.7)');
   assert.ok(electorsFor('club_patched', null, d).includes('m-ratchet'), 'but do on national ones');
   assert.equal(electorsFor('club_patched', null, d).length, 12);
-  assert.deepEqual(electorsFor('nec', null, d), ['m-rusty', 'm-smokey'], 'one vote per chapter, cast by its President (11.2)');
+  assert.deepEqual(electorsFor('nec', null, d), ['m-smokey'], 'one vote per chapter, cast by its President; West’s President chairs the NEC and has no VP (11.2)');
+  const westVp = { ...d, positions: [...P, { id: 'p-vp', memberId: 'm-gravel', chapterId: 'ch-west', role: 'vice_president' as const, startedOn: '2026-01-01', endedOn: null }] };
+  assert.deepEqual(electorsFor('nec', null, westVp), ['m-gravel', 'm-smokey'], 'the acting President casts the chair’s chapter vote');
   const necChairOnly = { ...d, positions: [...P.filter((p) => p.memberId !== 'm-rusty' || p.role === 'nec_chair')] };
   assert.deepEqual(electorsFor('nec', null, necChairOnly), ['m-smokey'], 'the National Chairperson has no ordinary vote');
 });
@@ -72,6 +75,8 @@ test('the chair', () => {
   assert.equal(chairOf(null, P), 'm-rusty', 'the National Chairman');
   assert.equal(chairOf('ch-north', P.filter((p) => p.role !== 'president')), 'm-jet', 'then the Vice President (10.9)');
   assert.equal(chairOf('ch-west', P.filter((p) => p.role !== 'president')), null, 'West has no Vice President');
+  const handover = [...P, { id: 'p-new', memberId: 'm-torque', chapterId: 'ch-west', role: 'president' as const, startedOn: '2026-10-01', endedOn: null }];
+  assert.equal(chairOf('ch-west', handover), 'm-torque', 'during a handover the newer President chairs (9.8)');
 });
 
 test('deciding a result', () => {
@@ -105,9 +110,10 @@ test('opening a vote', () => {
   assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 1 }), empty, NOW), null, 'a board of one can still vote');
   const noBoard = { ...d, positions: P.filter((p) => p.chapterId !== 'ch-north') };
   assert.equal(openVoteProblem(m('m-rusty'), input({ chapterId: 'ch-north', quorum: 1 }), noBoard, NOW), 'Nobody can vote in that electorate yet.');
-  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 0 }), d, NOW), 'Quorum must be between 1 and 5.');
-  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 6 }), d, NOW), 'Quorum must be between 1 and 5.');
-  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 2.5 }), d, NOW), 'Quorum must be between 1 and 5.');
+  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 0 }), d, NOW), 'Quorum must be between 3 and 5.');
+  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 2 }), d, NOW), 'Quorum must be between 3 and 5.', 'not below the minimum');
+  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 6 }), d, NOW), 'Quorum must be between 3 and 5.');
+  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 3.5 }), d, NOW), 'Quorum must be between 3 and 5.');
   assert.equal(openVoteProblem(m('m-torque'), input({ closesAt: NOW }), d, NOW), 'Pick a closing time in the future.');
   assert.equal(openVoteProblem(m('m-torque'), input({ closesAt: '' }), d, NOW), 'Pick a closing time in the future.');
   assert.equal(openVoteProblem(m('m-torque'), input({ closesAt: '2026-12-24T02:00:00.001Z' }), d, NOW), 'Votes can stay open for 60 days at most.');
@@ -134,6 +140,10 @@ test('a patch vote is secret and unanimous among the chapter’s Full Members, a
   const startedOn = (iso: string | null) => ({ ...d, members: d.members.map((x) => (x.id === 'm-throttle' ? { ...x, fngStartedOn: iso } : x)) });
   assert.equal(openVoteProblem(m('m-torque'), patch(), startedOn('2026-01-25'), NOW), early, 'eight and a bit months');
   assert.equal(openVoteProblem(m('m-torque'), patch(), startedOn('2026-01-24'), NOW), null, 'nine months to the day');
+  assert.equal(patchVoteTooEarly('2026-05-31', '2027-02-28'), false, 'month end: 31 May plus nine months is 28 Feb');
+  assert.equal(patchVoteTooEarly('2026-05-31', '2027-02-27'), true);
+  assert.equal(patchVoteTooEarly('2025-12-31', '2026-09-30'), false);
+  assert.equal(patchVoteTooEarly(null, '2026-01-01'), false);
   assert.equal(openVoteProblem(m('m-torque'), patch(), startedOn(null), NOW), null, 'a start date nobody recorded doesn’t block it');
 });
 
@@ -187,7 +197,8 @@ test('who sees a vote', () => {
 test('the rule line', () => {
   assert.equal(ruleLine(vote()), 'Majority of votes cast · Quorum 3 of 5');
   assert.equal(ruleLine(vote({ threshold: 'two_thirds', secret: true })), 'Two-thirds of votes cast · Quorum 3 of 5 · Secret ballot');
-  assert.equal(ruleLine(vote({ threshold: 'unanimous' })), 'Unanimous · Quorum 3 of 5');
+  assert.equal(ruleLine(vote({ threshold: 'unanimous' })), 'Unanimous: all 5 must vote yes', 'a quorum means nothing when everyone must vote');
+  assert.equal(ruleLine(vote({ threshold: 'unanimous', secret: true })), 'Unanimous: all 5 must vote yes · Secret ballot');
 });
 
 test('the patch vote on a member: the open one, or else the latest result', () => {

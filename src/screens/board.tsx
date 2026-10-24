@@ -5,7 +5,7 @@ import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
 import { melbourneDate } from '../domain/rides';
-import { patchVoteFor } from '../domain/votes';
+import { nineMonthsAfter, patchVoteFor, patchVoteTooEarly } from '../domain/votes';
 import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole } from '../domain/types';
@@ -238,7 +238,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
 // ---------------------------------------------------------------------------
 
 export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMember'>) {
-  const { me, data, setMemberStatus, appoint, endPosition } = useClub();
+  const { me, data, today, setMemberStatus, appoint, endPosition } = useClub();
   const member = data.members.find((m) => m.id === route.params.memberId);
   const [status, setStatus] = useState<MemberStatus | null>(member?.status ?? null);
   const [role, setRole] = useState<PositionRole | null>(null);
@@ -253,8 +253,10 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   // Stage 5: the patch vote on this FNG (open, or the latest result), or the chance to start one.
   const patchVote = patchVoteFor(member.id, data.votes ?? []);
   const patchOpen = patchVote !== null && patchVote.closedAt === null;
+  const tooEarly = patchVoteTooEarly(member.fngStartedOn, today);
   const canStartPatchVote =
     !patchOpen &&
+    !tooEarly &&
     patchVote?.result !== 'carried' &&
     member.status === 'fng' &&
     member.approval === 'approved' &&
@@ -306,6 +308,9 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
             kind="secondary"
             onPress={() => navigation.navigate('Vote', { voteId: patchVote.id })}
           />
+        ) : null}
+        {!patchVote && tooEarly && member.status === 'fng' ? (
+          <Small>{`A patch vote can open from ${formatAuDate(nineMonthsAfter(member.fngStartedOn!))}, nine months into the trial (4.7).`}</Small>
         ) : null}
         {canStartPatchVote ? (
           <Button
