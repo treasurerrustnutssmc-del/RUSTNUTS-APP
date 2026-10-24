@@ -86,6 +86,7 @@ begin
     '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000b2')) is not null, 'answer for someone else';
   assert pg_temp.try_as(rita, $q$select public.apply_ride_sync('00000000-0000-0000-0000-00000000f001', '[]')$q$) is not null, 'run the sync';
   assert pg_temp.try_as(rita, $q$select public.record_ride_sync_error('00000000-0000-0000-0000-00000000f001', 'x')$q$) is not null, 'log a sync error';
+  assert pg_temp.try_as(rita, $q$select * from public.ride_feeds_for_sync()$q$) is not null, 'list the feeds';
   assert pg_temp.try_as(null, $q$select public.set_rsvp('00000000-0000-0000-0000-0000000000c1', 'going')$q$) is not null, 'anon answers';
   assert (select count(*) from rides) = 3, 'rides untouched';
 end $$;
