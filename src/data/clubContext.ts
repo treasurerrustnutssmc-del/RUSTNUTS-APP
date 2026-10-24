@@ -7,6 +7,7 @@ import type {
   Bike,
   BikeRegistration,
   ClubData,
+  CrewRole,
   EmergencyContact,
   LicenceClass,
   Member,
@@ -14,6 +15,7 @@ import type {
   MemberStatus,
   PaymentDetails,
   PaymentMethod,
+  NotificationPrefs, // Lane E: notifications
   PositionRole,
   RsvpAnswer,
   Votes,
@@ -68,6 +70,12 @@ export interface ClubContextValue {
   loadError: string | null;
   /** A refresh failed while data is still on screen (live mode). */
   refreshError: string | null;
+  // Lane E: offline
+  /** When the data on screen was saved on the phone, while showing that copy after a failed load. */
+  savedAt?: string | null;
+  // Lane E: notifications
+  /** Saves the signed-in member's notification settings. */
+  saveNotificationPrefs?: (prefs: NotificationPrefs) => Promise<void>;
 
   // signing in
   signInAs: (memberId: string | null) => void; // demo only
@@ -115,6 +123,10 @@ export interface ClubContextValue {
   recordPayment: (chargeId: string, amountCents: number, paidOn: string, method: PaymentMethod, reference: string) => Promise<void>;
   confirmPayment: (paymentId: string) => Promise<void>;
   rejectPayment: (paymentId: string) => Promise<void>;
+  /** Puts a member in a spot on a ride's crew (yourself, or anyone if you manage the ride). They are then going. */
+  setCrew: (rideId: string, memberId: string, role: CrewRole) => Promise<void>;
+  /** Takes a member off a ride's crew (yourself, or anyone if you manage the ride). */
+  leaveCrew: (rideId: string, memberId: string) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -144,6 +156,7 @@ export const EMPTY_DATA: ClubData = {
   charges: [],
   payments: [],
   paymentDetails: [],
+  crew: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

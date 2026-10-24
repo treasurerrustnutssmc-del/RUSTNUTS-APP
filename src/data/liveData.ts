@@ -139,6 +139,13 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       answer: r.answer,
       updatedAt: instant(r.updated_at),
     })),
+    crew: (calendar.data?.crew ?? []).map((k) => ({
+      rideId: k.ride_id,
+      memberId: k.member_id,
+      role: k.role,
+      assignedBy: k.assigned_by,
+      assignedAt: instant(k.assigned_at),
+    })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
   };

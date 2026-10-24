@@ -6,11 +6,12 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
+import { offlineText } from '../data/offlineCache';
 import { colors, fonts, space } from '../theme';
 import { Small } from './primitives';
 
 export function RefreshBanner() {
-  const { refreshError, refresh } = useClub();
+  const { refreshError, refresh, savedAt } = useClub();
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   if (!refreshError) return null;
@@ -28,7 +29,7 @@ export function RefreshBanner() {
       }}
     >
       <Ionicons name="cloud-offline-outline" size={18} color={colors.danger} />
-      <Small style={{ flex: 1, color: colors.bone }}>Couldn’t refresh the club data.</Small>
+      <Small style={{ flex: 1, color: colors.bone }}>{savedAt ? offlineText(savedAt) : 'Couldn’t refresh the club data.'}</Small>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Try refreshing again"

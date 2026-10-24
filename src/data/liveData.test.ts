@@ -193,6 +193,28 @@ test('signed in: check-ins, decisions and fees load in one piece and become app 
   assert.deepEqual(data.paymentDetails, [{ chapterId: 'c1', payid: 'west@example.com', payidName: 'Rustnuts West', bsb: null, accountNo: null }]);
 });
 
+test('signed in: the crew rows become crew spots', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      ride_calendar: {
+        rides: [],
+        rsvps: [],
+        crew: [
+          { ride_id: 'r1', member_id: 'm1', role: 'road_captain', assigned_by: 'm2', assigned_at: '2026-10-24T11:00:00+00:00' },
+          { ride_id: 'r1', member_id: 'm3', role: 'officer', assigned_by: null, assigned_at: '2026-10-24T12:30:00.123+00:00' },
+        ],
+        synced_at: null,
+      },
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.crew, [
+    { rideId: 'r1', memberId: 'm1', role: 'road_captain', assignedBy: 'm2', assignedAt: '2026-10-24T11:00:00.000Z' },
+    { rideId: 'r1', memberId: 'm3', role: 'officer', assignedBy: null, assignedAt: '2026-10-24T12:30:00.123Z' },
+  ]);
+});
+
 function moneyFails(error: { code: string; message: string }) {
   const base = stubClient({ chapters: [west] }) as unknown as { from: unknown; rpc: (n: string) => Promise<unknown> };
   return {
@@ -209,4 +231,9 @@ test('before the fees and check-ins are live, the rest of the club still loads',
 
 test('any other failure loading fees and check-ins is an error, not an empty list', async () => {
   await assert.rejects(loadClub(moneyFails({ code: '57014', message: 'canceling statement due to statement timeout' }), true));
+});
+
+test('signed in: no crew key (not approved, or an older calendar) loads an empty crew', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
+  assert.deepEqual(data.crew, []);
 });

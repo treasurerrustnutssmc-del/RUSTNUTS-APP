@@ -23,6 +23,7 @@ type PositionRole =
   | 'assistant_tail_gunner'
   | 'founder';
 
+type CrewRole = 'road_captain' | 'tail_gunner' | 'assistant_tail_gunner' | 'officer';
 // Lane E: live ride
 type RideAlertKind = 'emergency' | 'out' | 'regroup';
 export type LiveStateJson = {
@@ -96,6 +97,13 @@ export type Database = {
         Row: { area: string; created_at: string; id: string; name: string; slug: string; state: string };
         Insert: { area: string; id?: string; name: string; slug: string; state?: string };
         Update: { area?: string; name?: string; slug?: string; state?: string };
+        Relationships: [];
+      };
+      // Lane E: notifications
+      notification_prefs: {
+        Row: { member_id: string; ride_reminders: boolean; ride_changes: boolean; new_rides: boolean; approvals: boolean; updated_at: string };
+        Insert: { member_id: string };
+        Update: Record<string, never>;
         Relationships: [];
       };
       emergency_contacts: {
@@ -189,6 +197,12 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      ride_crew: {
+        Row: { assigned_at: string; assigned_by: string | null; member_id: string; ride_id: string; role: CrewRole };
+        Insert: { [_ in never]: never }; // the crew changes only through set_crew and leave_crew
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -196,11 +210,15 @@ export type Database = {
       decline_member: { Args: { p_member: string }; Returns: undefined };
       set_member_status: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       set_rsvp: { Args: { p_ride: string; p_answer: RsvpAnswer }; Returns: undefined };
+      set_crew: { Args: { p_ride: string; p_member: string; p_role: CrewRole }; Returns: undefined };
+      leave_crew: { Args: { p_ride: string; p_member: string }; Returns: undefined };
       ride_calendar: {
         Args: never;
         Returns: {
           rides: Database['public']['Tables']['rides']['Row'][];
           rsvps: Database['public']['Tables']['rsvps']['Row'][];
+          /** Missing for anyone who isn't an approved member. */
+          crew?: Database['public']['Tables']['ride_crew']['Row'][];
           synced_at: string | null;
         };
       };
@@ -325,12 +343,18 @@ export type Database = {
       };
       confirm_payment: { Args: { p_payment: string }; Returns: undefined };
       reject_payment: { Args: { p_payment: string }; Returns: undefined };
+      // Lane E: notifications
+      save_notification_prefs: {
+        Args: { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean };
+        Returns: undefined;
+      };
     };
     Enums: {
       approval_state: ApprovalState;
       licence_class: LicenceClass;
       member_status: MemberStatus;
       position_role: PositionRole;
+      crew_role: CrewRole;
     };
     CompositeTypes: { [_ in never]: never };
   };

@@ -15,7 +15,8 @@
       "name": "Tania Walsh",
       "status": "full",
       "approval": "approved",
-      "sharePhone": false
+      "sharePhone": false,
+      "firstAidExpiry": "2031-01-01"
     },
     {
       "key": "spanner",
@@ -23,7 +24,8 @@
       "name": "Mick Doherty",
       "status": "full",
       "approval": "approved",
-      "sharePhone": true
+      "sharePhone": true,
+      "firstAidExpiry": "2031-01-01"
     },
     {
       "key": "gravel",
@@ -31,7 +33,8 @@
       "name": "Brett Hughes",
       "status": "full",
       "approval": "approved",
-      "sharePhone": false
+      "sharePhone": false,
+      "firstAidExpiry": null
     },
     {
       "key": "dylan",
@@ -120,6 +123,24 @@
       "status": "legacy",
       "approval": "approved",
       "sharePhone": false
+    },
+    {
+      "key": "finn",
+      "chapter": "west",
+      "name": "Finn Doyle",
+      "status": "fng",
+      "approval": "approved",
+      "sharePhone": false
+    },
+    {
+      "key": "hal",
+      "chapter": "west",
+      "name": "Hal Price",
+      "status": "full",
+      "approval": "approved",
+      "sharePhone": false,
+      "onHiatus": true,
+      "firstAidExpiry": "2031-01-01"
     }
   ],
   "positions": [
@@ -1699,6 +1720,173 @@
       "action": "rejectPayment",
       "payment": "gravel-claim",
       "allowed": false
+    },
+    {
+      "name": "A West board member puts a Full member in as Road Captain on a West ride, replacing the old one",
+      "as": "torque",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "spanner",
+      "role": "road_captain",
+      "allowed": true
+    },
+    {
+      "name": "A West board member puts a member with first aid in as Tail Gunner",
+      "as": "torque",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "spanner",
+      "role": "tail_gunner",
+      "allowed": true
+    },
+    {
+      "name": "Another chapter's board tries to crew a West ride",
+      "as": "rhys",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "spanner",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "Any chapter's board can crew a club ride",
+      "as": "rhys",
+      "action": "crew",
+      "ride": "future-club",
+      "member": "spanner",
+      "role": "officer",
+      "allowed": true
+    },
+    {
+      "name": "A member volunteers for an open crew spot",
+      "as": "spanner",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "spanner",
+      "role": "tail_gunner",
+      "allowed": true
+    },
+    {
+      "name": "A member volunteers for a spot someone already holds",
+      "as": "spanner",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "spanner",
+      "role": "road_captain",
+      "allowed": false
+    },
+    {
+      "name": "A member puts someone else on the crew",
+      "as": "spanner",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "torque",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "An FNG volunteers for the crew",
+      "as": "finn",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "finn",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "A Legacy member volunteers for the crew",
+      "as": "hacker",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "hacker",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "A member on hiatus volunteers for the crew",
+      "as": "hal",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "hal",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "A board member puts in a Tail Gunner with no first aid on file",
+      "as": "torque",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "gravel",
+      "role": "tail_gunner",
+      "allowed": false
+    },
+    {
+      "name": "A board member crews someone who said they can't make it",
+      "as": "torque",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "kim",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "An applicant volunteers for the crew",
+      "as": "dylan",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "dylan",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "A member volunteers for a ride that already happened",
+      "as": "spanner",
+      "action": "crew",
+      "ride": "past-club",
+      "member": "spanner",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "A member volunteers for a cancelled ride",
+      "as": "spanner",
+      "action": "crew",
+      "ride": "cancelled-north",
+      "member": "spanner",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "A crew member steps down",
+      "as": "gravel",
+      "action": "leaveCrew",
+      "ride": "future-west",
+      "member": "gravel",
+      "allowed": true
+    },
+    {
+      "name": "A board member takes someone off the crew",
+      "as": "torque",
+      "action": "leaveCrew",
+      "ride": "future-west",
+      "member": "gravel",
+      "allowed": true
+    },
+    {
+      "name": "A member takes someone else off the crew",
+      "as": "spanner",
+      "action": "leaveCrew",
+      "ride": "future-west",
+      "member": "gravel",
+      "allowed": false
+    },
+    {
+      "name": "A member leaves a crew they are not on",
+      "as": "spanner",
+      "action": "leaveCrew",
+      "ride": "future-west",
+      "member": "spanner",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -1734,6 +1922,42 @@
       "startsAt": "2030-01-01T00:00:00.000Z",
       "category": "north",
       "cancelled": true
+    },
+    {
+      "key": "future-club",
+      "title": "Club picnic ride",
+      "startsAt": "2030-01-01T00:00:00.000Z",
+      "category": "club",
+      "cancelled": false
+    }
+  ],
+  "crew": [
+    {
+      "ride": "future-west",
+      "member": "gravel",
+      "role": "road_captain"
+    },
+    {
+      "ride": "future-club",
+      "member": "jet",
+      "role": "officer"
+    }
+  ],
+  "rsvps": [
+    {
+      "ride": "future-west",
+      "member": "gravel",
+      "answer": "going"
+    },
+    {
+      "ride": "future-west",
+      "member": "kim",
+      "answer": "no"
+    },
+    {
+      "ride": "future-club",
+      "member": "jet",
+      "answer": "going"
     }
   ],
   "stage4": {
