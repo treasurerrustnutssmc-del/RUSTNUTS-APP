@@ -149,6 +149,15 @@
       "status": "introduced",
       "approval": "approved",
       "sharePhone": false
+    },
+    {
+      "key": "throttle",
+      "chapter": "west",
+      "name": "Tom Hale",
+      "status": "fng",
+      "approval": "approved",
+      "sharePhone": false,
+      "fngStartedOn": "2025-01-01"
     }
   ],
   "positions": [
@@ -3082,6 +3091,295 @@
       "member": "spanner",
       "blocked": true,
       "allowed": false
+    },
+    {
+      "name": "A chapter's board member calls a board meeting",
+      "as": "torque",
+      "action": "saveMeeting",
+      "chapter": "west",
+      "kind": "board",
+      "title": "March board meeting",
+      "startsAt": "2030-03-01T08:00:00Z",
+      "allowed": true
+    },
+    {
+      "name": "A member without a board seat calls a board meeting",
+      "as": "spanner",
+      "action": "saveMeeting",
+      "chapter": "west",
+      "kind": "board",
+      "title": "My meeting",
+      "startsAt": "2030-03-01T08:00:00Z",
+      "allowed": false
+    },
+    {
+      "name": "A chapter secretary calls an NEC meeting",
+      "as": "torque",
+      "action": "saveMeeting",
+      "chapter": null,
+      "kind": "nec",
+      "title": "NEC",
+      "startsAt": "2030-03-01T08:00:00Z",
+      "allowed": false
+    },
+    {
+      "name": "The National Secretary calls an NEC meeting",
+      "as": "lou",
+      "action": "saveMeeting",
+      "chapter": null,
+      "kind": "nec",
+      "title": "NEC",
+      "startsAt": "2030-03-01T08:00:00Z",
+      "allowed": true
+    },
+    {
+      "name": "A board meeting for the whole club",
+      "as": "lou",
+      "action": "saveMeeting",
+      "chapter": null,
+      "kind": "board",
+      "title": "Board",
+      "startsAt": "2030-03-01T08:00:00Z",
+      "allowed": false
+    },
+    {
+      "name": "The board approves minutes after the meeting",
+      "as": "torque",
+      "action": "approveMinutes",
+      "meeting": "west-general-past",
+      "allowed": true
+    },
+    {
+      "name": "The board approves minutes before the meeting",
+      "as": "torque",
+      "action": "approveMinutes",
+      "meeting": "west-board-future",
+      "allowed": false
+    },
+    {
+      "name": "The board approves minutes twice",
+      "as": "torque",
+      "action": "approveMinutes",
+      "meeting": "west-general-approved",
+      "allowed": false
+    },
+    {
+      "name": "Another chapter's board approves minutes",
+      "as": "crank",
+      "action": "approveMinutes",
+      "meeting": "west-general-past",
+      "allowed": false
+    },
+    {
+      "name": "The board gives a member an action item",
+      "as": "torque",
+      "action": "saveActionItem",
+      "chapter": "west",
+      "meeting": "west-general-past",
+      "title": "Book the hall",
+      "owner": "spanner",
+      "allowed": true
+    },
+    {
+      "name": "The board gives another chapter's member an action item",
+      "as": "torque",
+      "action": "saveActionItem",
+      "chapter": "west",
+      "meeting": null,
+      "title": "Book the hall",
+      "owner": "crank",
+      "allowed": false
+    },
+    {
+      "name": "The board gives a Legacy member an action item",
+      "as": "torque",
+      "action": "saveActionItem",
+      "chapter": "west",
+      "meeting": null,
+      "title": "Book the hall",
+      "owner": "hacker",
+      "allowed": false
+    },
+    {
+      "name": "The board opens a vote of the chapter's patched members",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_patched",
+      "threshold": "two_thirds",
+      "quorum": 3,
+      "days": 7,
+      "allowed": true
+    },
+    {
+      "name": "A vote whose quorum is bigger than the electorate",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 99,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "A chapter vote asks the NEC",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 1,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "The NEC opens a vote of every patched member",
+      "as": "lou",
+      "action": "openVote",
+      "chapter": null,
+      "subject": null,
+      "electorate": "club_patched",
+      "threshold": "majority",
+      "quorum": 5,
+      "days": 7,
+      "allowed": true
+    },
+    {
+      "name": "A national vote with a quorum under a third of the voters",
+      "as": "lou",
+      "action": "openVote",
+      "chapter": null,
+      "subject": null,
+      "electorate": "club_patched",
+      "threshold": "majority",
+      "quorum": 4,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "The board opens a secret patch vote on an FNG",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "throttle",
+      "electorate": "chapter_patched",
+      "threshold": "unanimous",
+      "secret": true,
+      "quorum": 3,
+      "days": 7,
+      "allowed": true
+    },
+    {
+      "name": "A patch vote in the open",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "throttle",
+      "electorate": "chapter_patched",
+      "threshold": "unanimous",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "A patch vote on someone already patched",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "spanner",
+      "electorate": "chapter_patched",
+      "threshold": "unanimous",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "A vote that stays open too long",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 1,
+      "days": 61,
+      "allowed": false
+    },
+    {
+      "name": "An elector casts a ballot",
+      "as": "rusty",
+      "action": "castBallot",
+      "vote": "west-board-open",
+      "choice": "no",
+      "allowed": true
+    },
+    {
+      "name": "An elector votes twice",
+      "as": "torque",
+      "action": "castBallot",
+      "vote": "west-board-open",
+      "choice": "no",
+      "allowed": false
+    },
+    {
+      "name": "Someone not on the vote casts a ballot",
+      "as": "spanner",
+      "action": "castBallot",
+      "vote": "west-board-open",
+      "choice": "yes",
+      "allowed": false
+    },
+    {
+      "name": "A ballot after the vote closed",
+      "as": "rusty",
+      "action": "castBallot",
+      "vote": "west-board-tied",
+      "choice": "yes",
+      "allowed": false
+    },
+    {
+      "name": "The board closes a vote before everyone has voted",
+      "as": "torque",
+      "action": "closeVote",
+      "vote": "west-board-open",
+      "casting": null,
+      "allowed": false
+    },
+    {
+      "name": "A member closes a vote",
+      "as": "spanner",
+      "action": "closeVote",
+      "vote": "west-board-tied",
+      "casting": null,
+      "allowed": false
+    },
+    {
+      "name": "The board closes a tied vote without the chair",
+      "as": "torque",
+      "action": "closeVote",
+      "vote": "west-board-tied",
+      "casting": null,
+      "allowed": false
+    },
+    {
+      "name": "A board member who isn't the chair gives a casting vote",
+      "as": "torque",
+      "action": "closeVote",
+      "vote": "west-board-tied",
+      "casting": "yes",
+      "allowed": false
+    },
+    {
+      "name": "The chair closes a tied vote with the casting vote",
+      "as": "rusty",
+      "action": "closeVote",
+      "vote": "west-board-tied",
+      "casting": "yes",
+      "allowed": true
     }
   ],
   "chapters": [
@@ -3445,6 +3743,77 @@
       "chat": "direct:rusty:torque",
       "author": "rusty",
       "body": "Got a sec?"
+    }
+  ],
+  "meetings": [
+    {
+      "key": "west-general-past",
+      "chapter": "west",
+      "kind": "general",
+      "title": "January general meeting",
+      "startsAt": "2026-01-10T08:00:00Z",
+      "minutes": "All present.",
+      "approved": false
+    },
+    {
+      "key": "west-general-approved",
+      "chapter": "west",
+      "kind": "general",
+      "title": "February general meeting",
+      "startsAt": "2026-02-14T08:00:00Z",
+      "minutes": "Christmas ride booked.",
+      "approved": true
+    },
+    {
+      "key": "west-board-future",
+      "chapter": "west",
+      "kind": "board",
+      "title": "Board meeting",
+      "startsAt": "2030-01-10T08:00:00Z",
+      "minutes": null,
+      "approved": false
+    }
+  ],
+  "votes": [
+    {
+      "key": "west-board-open",
+      "chapter": "west",
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 1,
+      "closesAt": "2030-01-01T00:00:00Z",
+      "electors": [
+        "rusty",
+        "torque"
+      ],
+      "ballots": [
+        {
+          "member": "torque",
+          "choice": "yes"
+        }
+      ]
+    },
+    {
+      "key": "west-board-tied",
+      "chapter": "west",
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 2,
+      "closesAt": "2026-01-01T00:00:00Z",
+      "electors": [
+        "rusty",
+        "torque"
+      ],
+      "ballots": [
+        {
+          "member": "rusty",
+          "choice": "yes"
+        },
+        {
+          "member": "torque",
+          "choice": "no"
+        }
+      ]
     }
   ]
 }

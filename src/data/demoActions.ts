@@ -9,7 +9,20 @@ import { NO_TRACK, readGpx } from '../domain/gpx';
 import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
 import { APPROVE_AS, NATIONAL_ROLES, TITLE_ROLES } from '../domain/labels';
-import type { ClubData, CrewRole, Member, MemberStatus, PositionRole, Route, RsvpAnswer } from '../domain/types';
+import type {
+  BallotChoice,
+  ClubData,
+  CrewRole,
+  Electorate,
+  MeetingKind,
+  Member,
+  MemberStatus,
+  PositionRole,
+  Route,
+  RsvpAnswer,
+  Threshold,
+} from '../domain/types';
+import * as business from './businessActions';
 import {
   NotAllowedError,
   validateApplicationBike,
@@ -440,6 +453,16 @@ export type DemoAction =
   | { action: 'saveContact'; contact: string | null; contactName: string; relationship: string; phone: string }
   | { action: 'apply'; chapter: string; fullName: string; make: string; model: string; year: number | null }
   | { action: 'rsvp'; ride: string; answer: RsvpAnswer }
+  // Stage 5: meetings and votes
+  | { action: 'saveMeeting'; chapter: string | null; kind: MeetingKind; title: string; startsAt: string }
+  | { action: 'approveMinutes'; meeting: string }
+  | { action: 'saveActionItem'; chapter: string | null; meeting: string | null; title: string; owner: string }
+  | {
+      action: 'openVote'; chapter: string | null; subject: string | null; electorate: Electorate; threshold: Threshold;
+      secret?: boolean; quorum: number; days: number;
+    }
+  | { action: 'castBallot'; vote: string; choice: BallotChoice }
+  | { action: 'closeVote'; vote: string; casting: 'yes' | 'no' | null }
   | { action: 'crew'; ride: string; member: string; role: CrewRole }
   | { action: 'leaveCrew'; ride: string; member: string }
   | { action: 'saveRoute'; route: string | null; routeName: string; chapter: string | null; notes?: string; gpx: string | null }
@@ -506,5 +529,26 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
         status: 'introduced',
         bike: { make: a.make, model: a.model, year: a.year },
       }).data;
+    // Stage 5: meetings and votes
+    case 'saveMeeting':
+      return business.saveMeeting(ctx, {
+        id: null, chapterId: a.chapter, kind: a.kind, title: a.title, startsAt: new Date(a.startsAt).toISOString(), location: null, agenda: [],
+      }).data;
+    case 'approveMinutes':
+      return business.approveMinutes(ctx, a.meeting);
+    case 'saveActionItem':
+      return business.saveActionItem(ctx, {
+        id: null, chapterId: a.chapter, meetingId: a.meeting, title: a.title, ownerId: a.owner, dueOn: null,
+      }).data;
+    case 'openVote':
+      return business.openVote(ctx, {
+        chapterId: a.chapter, meetingId: null, subjectMemberId: a.subject, question: 'Shall we?', details: null,
+        electorate: a.electorate, threshold: a.threshold, secret: a.secret ?? false, quorum: a.quorum,
+        closesAt: new Date(Date.now() + a.days * 86_400_000).toISOString(),
+      }).data;
+    case 'castBallot':
+      return business.castBallot(ctx, a.vote, a.choice);
+    case 'closeVote':
+      return business.closeVote(ctx, a.vote, a.casting);
   }
 }

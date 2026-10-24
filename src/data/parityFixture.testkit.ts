@@ -5,7 +5,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
-  ChargeKind, CheckinKind, ClubData, CrewRole, Member, MemberStatus, PaymentState, PositionRole, RideCategory, Route, RsvpAnswer,
+  BallotChoice, ChargeKind, CheckinKind, ClubData, CrewRole, Electorate, MeetingKind, Member, MemberStatus, PaymentState, PositionRole,
+  RideCategory, Route, RsvpAnswer, Threshold,
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -32,6 +33,7 @@ export interface ParityFixture {
   signups?: { key: string }[];
   members: {
     key: string; chapter: string; name: string; status: MemberStatus; approval: Member['approval']; sharePhone: boolean;
+    fngStartedOn?: string;
     /** On hiatus (crew checks). */
     onHiatus?: boolean;
     /** When present, the member gets a private record with this first aid date (null: none on file). */
@@ -41,6 +43,12 @@ export interface ParityFixture {
   bikes: { key: string; member: string; make: string; model: string; year: number }[];
   contacts: { key: string; member: string; name: string; relationship: string; phone: string }[];
   rides: { key: string; title: string; startsAt: string; category: RideCategory; cancelled: boolean }[];
+  // Stage 5: meetings and votes
+  meetings: { key: string; chapter: string | null; kind: MeetingKind; title: string; startsAt: string; minutes: string | null; approved: boolean }[];
+  votes: {
+    key: string; chapter: string | null; electorate: Electorate; threshold: Threshold; quorum: number; closesAt: string;
+    electors: string[]; ballots: { member: string; choice: BallotChoice }[];
+  }[];
   /** Who is already crewing which ride. */
   crew?: { ride: string; member: string; role: CrewRole }[];
   /** Answers already given. */
@@ -119,7 +127,7 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       approval: m.approval,
       joinedOn: m.approval === 'approved' ? '2024-01-01' : null,
       patchedOn: null,
-      fngStartedOn: null,
+      fngStartedOn: m.fngStartedOn ?? null,
       bio: null,
       sharePhone: m.sharePhone,
       appliedOn: '2024-01-01',
@@ -144,6 +152,20 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
     rides: fixture.rides.map((r) => ({
       id: r.key, title: r.title, startsAt: r.startsAt, endsAt: null, allDay: false, location: null, notes: null,
       category: r.category, cancelledAt: r.cancelled ? '2026-01-01T00:00:00.000Z' : null,
+    })),
+    // Stage 5: meetings and votes
+    meetings: fixture.meetings.map((x) => ({
+      id: x.key, chapterId: x.chapter, kind: x.kind, title: x.title, startsAt: new Date(x.startsAt).toISOString(),
+      location: null, agenda: [], minutes: x.minutes, minutesApprovedAt: x.approved ? '2026-03-01T00:00:00.000Z' : null,
+      minutesApprovedBy: null, cancelledAt: null, createdBy: null,
+    })),
+    actionItems: [],
+    votes: fixture.votes.map((v) => ({
+      id: v.key, chapterId: v.chapter, meetingId: null, subjectMemberId: null, question: v.key, details: null,
+      electorate: v.electorate, threshold: v.threshold, secret: false, quorum: v.quorum, openedAt: '2025-12-01T00:00:00.000Z',
+      closesAt: new Date(v.closesAt).toISOString(), closedAt: null, result: null, castingVote: null, tally: null,
+      electorIds: [...v.electors].sort(), votedIds: v.ballots.map((b) => b.member).sort(),
+      ballots: v.ballots.map((b) => ({ memberId: b.member, choice: b.choice })), createdBy: null,
     })),
     rsvps: (fixture.rsvps ?? []).map((r) => ({
       rideId: r.ride, memberId: r.member, answer: r.answer, updatedAt: '2026-10-01T00:00:00.000Z',
