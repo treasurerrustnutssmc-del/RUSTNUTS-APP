@@ -21,7 +21,9 @@ import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
 // Lane E: offline
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClubCache, isConnectionError, startupUser } from './offlineCache';
+import { Platform } from 'react-native';
+import { SUPABASE_URL } from './config';
+import { authStorageKeys, createClubCache, isConnectionError, startupUser } from './offlineCache';
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -77,6 +79,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       }
       const fresh = await loadClub(supabase(), !!uid);
       if (ticket !== latest.current) return;
+      // Lane E: offline. Signed out during the load: don't show a signed-out load as theirs.
+      if (uid && currentUser.current !== uid) return;
       setData(fresh);
       setLoadedFor(uid ?? '');
       setLoadError(null);
@@ -169,7 +173,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     needsApplication: view === 'needs-application',
     loadError: view === 'error' ? loadError : null,
     refreshError: refreshError(view, loadError),
-    savedAt: loadError ? savedAt : null, // Lane E: offline
+    savedAt: loadError && isConnectionError({ message: loadError }) ? savedAt : null, // Lane E: offline
 
     signInAs: () => {},
 
@@ -193,8 +197,16 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     signOut: async () => {
       forget(); // Lane E: offline
       currentUser.current = null;
-      setUserId(null); // Lane E: offline. Opened offline on the saved copy there's no login to sign out of.
-      await supabase().auth.signOut();
+      setUserId(null); // Lane E: offline
+      setJustApplied(false);
+      const { error } = await supabase().auth.signOut();
+      // Lane E: offline. With no signal on a login that had run out, Supabase can't sign out and keeps
+      // the login, which would sign them back in next time: remove it here.
+      if (error) {
+        const keys = authStorageKeys(SUPABASE_URL);
+        if (Platform.OS === 'web') keys.forEach((k) => globalThis.localStorage?.removeItem(k));
+        else await AsyncStorage.multiRemove(keys).catch(() => {});
+      }
       reload(null);
       await clubCache.clear(); // Lane E: offline. Again, after anything that finished meanwhile.
     },

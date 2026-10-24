@@ -57,7 +57,8 @@ export function offlineText(savedAt: string): string {
 
 /** A failed load that's only a lost connection (not the club refusing, or a server fault). */
 export function isConnectionError(error: { message?: string; code?: string } | null | undefined): boolean {
-  return friendlyError(error).message === 'No connection. Check your signal and try again.';
+  const NO_CONNECTION = 'No connection. Check your signal and try again.';
+  return error?.message === NO_CONNECTION || friendlyError(error).message === NO_CONNECTION;
 }
 
 /**
@@ -71,4 +72,11 @@ export function startupUser(
 ): string | null {
   if (sessionUserId) return sessionUserId;
   return sessionError && isConnectionError(sessionError) ? cachedUserId : null;
+}
+
+/** Where Supabase keeps the club login on the phone (its default names for this project). A sign-out
+ *  with no signal and a login that ran out can't remove it itself, so the app does. */
+export function authStorageKeys(supabaseUrl: string): string[] {
+  const key = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+  return [key, `${key}-user`, `${key}-code-verifier`];
 }

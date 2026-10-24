@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from './demoData';
 import type { KeyValue } from './liveQueue';
-import { createClubCache, isConnectionError, offlineText, startupUser } from './offlineCache';
+import { authStorageKeys, createClubCache, isConnectionError, offlineText, startupUser } from './offlineCache';
 
 function memoryStore(): KeyValue & { raw: Map<string, string> } {
   const raw = new Map<string, string>();
@@ -93,4 +93,13 @@ test('only a lost connection counts as offline', () => {
   assert.equal(isConnectionError({ message: 'Network request failed' }), true);
   assert.equal(isConnectionError({ message: 'permission denied for table rides', code: '42501' }), false);
   assert.equal(isConnectionError({ message: 'Internal server error' }), false);
+  assert.equal(isConnectionError({ message: 'No connection. Check your signal and try again.' }), true, 'already made friendly');
+});
+
+test('where the phone keeps the club login, to remove it on a sign-out with no signal', () => {
+  assert.deepEqual(authStorageKeys('https://mfhbvsybudneimgbfjpy.supabase.co'), [
+    'sb-mfhbvsybudneimgbfjpy-auth-token',
+    'sb-mfhbvsybudneimgbfjpy-auth-token-user',
+    'sb-mfhbvsybudneimgbfjpy-auth-token-code-verifier',
+  ]);
 });
