@@ -23,8 +23,6 @@ function prepare() {
 export interface CallEvents {
   onState: (state: VoiceState) => void;
   onPeople: (people: VoiceParticipant[]) => void;
-  /** The mic is allowed and the app is still on screen: the moment Android lets the screen-off service start. */
-  onMicAllowed: () => void;
 }
 
 export interface Call {
@@ -39,23 +37,30 @@ const person = (p: Participant, speaking: Set<string>): VoiceParticipant => ({
   muted: !p.isMicrophoneEnabled,
 });
 
-/** Joins the room with the microphone on. Throws when the mic is refused or the room can't be reached. */
+/**
+ * Asks for the microphone (and on Android 12 on, the helmet's Bluetooth). Run first, before any
+ * network wait, while the rider is still looking at the app: that's when Android lets the
+ * screen-off service start. Throws a NotAllowedError when the mic is refused.
+ */
+export async function prepareMic(): Promise<void> {
+  prepare();
+  if (Platform.OS !== 'android') return; // iOS asks when the mic first goes on
+  const mic = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+  if (mic !== PermissionsAndroid.RESULTS.GRANTED) throw Object.assign(new Error('Microphone permission refused'), { name: 'NotAllowedError' });
+  // Without this the phone's own mic and speaker are used instead of the helmet's.
+  if (Number(Platform.Version) >= 31) await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT).catch(() => undefined);
+}
+
+/** Joins the room with the microphone on (after prepareMic). Throws when the room can't be reached. */
 export async function joinCall(url: string, token: string, events: CallEvents): Promise<Call> {
   prepare();
   if (Platform.OS === 'android') {
-    const mic = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
-    if (mic !== PermissionsAndroid.RESULTS.GRANTED) throw Object.assign(new Error('Microphone permission refused'), { name: 'NotAllowedError' });
-    // Android 12 on asks before the helmet's Bluetooth can be used; without it the phone's own mic and speaker are used.
-    if (Number(Platform.Version) >= 31) await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT).catch(() => undefined);
-    events.onMicAllowed();
     await AudioSession.configureAudio({
       android: { preferredOutputList: ['bluetooth', 'headset', 'speaker'], audioTypeOptions: AndroidAudioTypePresets.communication },
     });
     await AudioSession.startAudioSession();
-  } else {
-    // iOS: the audio session follows the call by itself (setupIOSAudioManagement above).
-    events.onMicAllowed();
   }
+  // iOS: the audio session follows the call by itself (setupIOSAudioManagement above).
 
   const room = new Room({
     adaptiveStream: false,

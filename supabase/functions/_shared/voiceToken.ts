@@ -51,7 +51,8 @@ export async function handleVoiceToken(env: VoiceEnv, request: { rideId?: unknow
   } catch (e) {
     return { status: 403, body: { error: (e as Error).message } };
   }
-  // Never past the live window's close, so a token can't keep someone in after the ride.
+  // Never past the live window's close, so nobody can join after the ride. (Someone already in is
+  // hung up by their app; removing them from the server side is a later step.)
   const left = Math.floor((Date.parse(room.closes) - (deps.now ?? Date.now)()) / 1000);
   const ttl = Math.max(60, Math.min(TOKEN_TTL_SECONDS, left));
   const token = await deps.sign({ identity, name: room.name }, room.room, ttl);

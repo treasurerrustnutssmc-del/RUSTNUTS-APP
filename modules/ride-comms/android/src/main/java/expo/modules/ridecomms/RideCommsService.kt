@@ -87,7 +87,7 @@ class RideCommsService : Service() {
               mediaButtonIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
             } else {
               @Suppress("DEPRECATION")
-              mediaButtonIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
+              mediaButtonIntent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
             }
           ) ?: return false
           if (event.action != KeyEvent.ACTION_UP) return true

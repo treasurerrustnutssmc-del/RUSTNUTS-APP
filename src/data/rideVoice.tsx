@@ -61,6 +61,8 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
   const mutedNow = useRef(false);
   // Bumped by every disconnect: a connect that finishes after one hangs straight up again.
   const generation = useRef(0);
+  // A cancelled connect still finishing; the next one waits for it, so its hang-up can't cut the new call's audio.
+  const settling = useRef<Promise<void> | null>(null);
 
   const endNative = () => {
     try {
@@ -104,9 +106,18 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
     [mode, me?.id],
   );
 
-  const connect = useCallback(
+  const attempt = useCallback(
     async (id: string) => {
       if (busy.current || call.current) return;
+      if (settling.current) {
+        const before = generation.current;
+        busy.current = true;
+        setRideId(id);
+        setState('connecting');
+        await settling.current;
+        if (generation.current !== before) return; // cancelled while waiting
+        busy.current = false;
+      }
       setError(null);
       if (mode === 'phoneOnly' || mode === 'updateApp') {
         setError(mode === 'phoneOnly' ? VOICE_MSG.phoneOnly : VOICE_MSG.updateApp);
@@ -128,9 +139,19 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
           ]);
           call.current = { setMuted: async () => undefined, hangUp: async () => undefined };
         } else {
+          const { joinCall, prepareMic } = require('./rideVoiceLive') as typeof import('./rideVoiceLive'); // eslint-disable-line @typescript-eslint/no-require-imports
+          // The mic and the screen-off service first, while the rider's still looking at the phone.
+          await prepareMic();
+          if (cancelled()) return;
+          let started = true;
+          try {
+            started = rideCommsNative?.start('Ride comms is on') ?? true;
+          } catch {
+            // An older build: voice still works, just not the headset button.
+          }
+          if (!started && Platform.OS === 'android') setError(VOICE_MSG.screenOff);
           const { url, token } = await fetchToken(id);
           if (cancelled()) return;
-          const { joinCall } = require('./rideVoiceLive') as typeof import('./rideVoiceLive'); // eslint-disable-line @typescript-eslint/no-require-imports
           const joined = await joinCall(url, token, {
             onState: (s) => {
               if (cancelled()) return;
@@ -141,17 +162,6 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
               }
             },
             onPeople: (ps) => !cancelled() && setPeople(ps),
-            onMicAllowed: () => {
-              if (cancelled()) return;
-              let started = false;
-              try {
-                started = rideCommsNative?.start('Ride comms is on') ?? true;
-              } catch {
-                // An older build: voice still works, just not the headset button.
-                started = true;
-              }
-              if (!started && Platform.OS === 'android') setError(VOICE_MSG.screenOff);
-            },
           });
           if (cancelled()) {
             await joined.hangUp();
@@ -171,6 +181,19 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [mode, data.members, me],
+  );
+
+  const connect = useCallback(
+    async (id: string) => {
+      const run = attempt(id);
+      // Remembered while running; if it's cancelled, the next connect waits for it to wind down.
+      const tracked = run.finally(() => {
+        if (settling.current === tracked) settling.current = null;
+      });
+      settling.current = tracked;
+      await run;
+    },
+    [attempt],
   );
 
   // The headset's play/pause button mutes and unmutes.
