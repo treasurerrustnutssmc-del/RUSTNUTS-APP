@@ -9,6 +9,7 @@ import { pendingFor } from '../domain/access';
 import { BoardScreen, ManageMemberScreen } from '../screens/board';
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
+import { RideDetailScreen, RidesScreen } from '../screens/rides';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -42,7 +43,7 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const TAB_ICONS: Record<keyof TabParams, [IconName, IconName]> = {
   Home: ['home', 'home-outline'],
   Members: ['people', 'people-outline'],
-  Chapters: ['flag', 'flag-outline'],
+  Rides: ['calendar', 'calendar-outline'],
   Board: ['shield', 'shield-outline'],
   Me: ['person-circle', 'person-circle-outline'],
 };
@@ -75,7 +76,7 @@ function MainTabs() {
     >
       <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} />, tabBarLabel: 'Home' }} />
       <Tabs.Screen name="Members" component={MembersScreen} />
-      <Tabs.Screen name="Chapters" component={ChaptersScreen} />
+      <Tabs.Screen name="Rides" component={RidesScreen} />
       {isBoard ? (
         <Tabs.Screen
           name="Board"
@@ -111,7 +112,9 @@ export function RootNavigator() {
           <>
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen name="MemberDetail" component={MemberDetailScreen} options={{ title: 'Member' }} />
+            <Stack.Screen name="Chapters" component={ChaptersScreen} options={{ title: 'Chapters' }} />
             <Stack.Screen name="ChapterDetail" component={ChapterDetailScreen} options={{ title: 'Chapter' }} />
+            <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: 'Ride' }} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
