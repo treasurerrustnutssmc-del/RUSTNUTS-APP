@@ -15,21 +15,20 @@ create table public.routes (
   line jsonb not null default '[]' check (jsonb_typeof(line) = 'array'),
   stops jsonb not null default '[]' check (jsonb_typeof(stops) = 'array'),
   bounds jsonb,
-  -- Who made and last changed it, kept loosely (a plain id) so a member can still leave the club.
-  created_by uuid,
+  -- Who made and last changed it, kept loosely: a member leaving the club leaves the route.
+  created_by uuid references public.members (id) on delete set null,
   created_at timestamptz not null default now(),
-  updated_by uuid,
+  updated_by uuid references public.members (id) on delete set null,
   updated_at timestamptz not null default now(),
   archived_at timestamptz
 );
 
 -- A ride's route, apart from the rides table so the calendar sync never touches it. A cleared
--- route is a row with no route_id. The sync never removes rides (it marks them cancelled), so the
--- ride link has no cascade: a ride with a route stays until its route row is cleared away by hand.
+-- route is a row with no route_id. It goes with its ride.
 create table public.ride_routes (
-  ride_id uuid primary key references public.rides (id),
+  ride_id uuid primary key references public.rides (id) on delete cascade,
   route_id uuid references public.routes (id),
-  set_by uuid, -- kept loosely, as on routes
+  set_by uuid references public.members (id) on delete set null,
   set_at timestamptz not null default now()
 );
 create index ride_routes_route on public.ride_routes (route_id);

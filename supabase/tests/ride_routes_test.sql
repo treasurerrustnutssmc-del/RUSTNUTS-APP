@@ -628,16 +628,27 @@ begin
     'the check changed nothing';
 end $$;
 
-\echo 'Removing a member who made a route leaves the route; a ride with a route can''t be removed by accident'
+\echo 'Removing a member who made or chose a route keeps the route, without their name; a ride''s route goes with the ride'
 do $$
 declare
   tess constant uuid := '00000000-0000-0000-0000-0000000000d7';
+  chair constant uuid := '00000000-0000-0000-0000-0000000000d4';
+  rick constant uuid := '00000000-0000-0000-0000-0000000000d3';
 begin
+  assert (select created_by from routes where name = 'Tess west (old)') = tess, 'Tess made it';
+  assert exists (select 1 from routes where updated_by = rick), 'Rick changed some';
+  assert pg_temp.pick(chair, 'e9', pg_temp.rid('Club run')) is null, 'the Chairman chooses the supported run''s route';
   delete from members where id = tess;
-  assert exists (select 1 from routes where name = 'Tess west (old)'), 'Tess''s route stays';
-  begin
-    delete from rides where id = '00000000-0000-0000-0000-0000000000e1';
-    assert false, 'a ride with a route was removed';
-  exception when foreign_key_violation then null;
-  end;
+  assert exists (select 1 from routes where name = 'Tess west (old)' and created_by is null), 'Tess''s route stays, unsigned';
+  delete from members where id = chair;
+  assert exists (select 1 from ride_routes where ride_id = '00000000-0000-0000-0000-0000000000e9'
+                 and route_id = pg_temp.rid('Club run') and set_by is null), 'the choice stays, unsigned';
+  delete from members where id = rick;
+  assert not exists (select 1 from routes where updated_by = rick), 'Rick''s changes stay, unsigned';
+  assert exists (select 1 from routes where name = 'West loop (long)'), 'and the routes are all there';
+
+  assert exists (select 1 from ride_routes where ride_id = '00000000-0000-0000-0000-0000000000e1'), 'the breakfast has a route';
+  delete from rides where id = '00000000-0000-0000-0000-0000000000e1';
+  assert not exists (select 1 from ride_routes where ride_id = '00000000-0000-0000-0000-0000000000e1'), 'it went with the ride';
+  assert exists (select 1 from routes where id = pg_temp.rid('West loop (long)')), 'the route itself stays';
 end $$;
