@@ -76,7 +76,8 @@ create table public.vote_ballots (
   id uuid primary key default gen_random_uuid(),
   vote_id uuid not null references public.votes (id),
   member_id uuid references public.members (id),
-  choice public.ballot_choice not null
+  -- Null once a patch vote closes: only its result is kept (constitution 4.9).
+  choice public.ballot_choice
 );
 
 alter table public.meetings enable row level security;
@@ -446,9 +447,9 @@ begin
   if p_casting is not null and p_casting not in ('yes', 'no') then raise exception 'Pick an answer.'; end if;
   outcome := private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, p_casting, n_electors);
 
-  -- A patch vote keeps only its result (4.9): no counts, no ballots.
+  -- A patch vote keeps only its result (4.9): no counts, and its ballots are blanked.
   if v.subject_member_id is not null then
-    delete from public.vote_ballots where vote_id = p_vote;
+    update public.vote_ballots set choice = null where vote_id = p_vote;
     n_yes := null; n_no := null; n_abstain := null;
   end if;
   update public.votes set closed_at = now(), result = outcome.result, casting_vote = p_casting,

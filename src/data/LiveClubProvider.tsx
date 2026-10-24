@@ -13,9 +13,10 @@ import {
   saveMinutesProblem,
   setDoneProblem,
 } from '../domain/meetings';
+import { crewProblem, leaveProblem } from '../domain/crew';
 import { rsvpProblem } from '../domain/rides';
 import { castProblem, closeProblem, openVoteProblem } from '../domain/votes';
-import type { ClubData } from '../domain/types';
+import type { ClubData, NotificationPrefs } from '../domain/types'; // NotificationPrefs: Lane E
 import {
   ClubContext,
   EMPTY_DATA,
@@ -33,6 +34,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { SUPABASE_URL } from './config';
 import { authStorageKeys, createClubCache, isConnectionError, startupUser } from './offlineCache';
+// Lane E: notifications
+import { loadNotificationPrefs, saveNotificationPrefs } from './notificationsApi';
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -58,7 +61,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const showing = useRef<string | null>(null);
   const currentUser = useRef<string | null>(null);
   const onSavedCopy = useRef(false);
+  const knownPrefs = useRef<NotificationPrefs | null | undefined>(undefined); // Lane E: notifications
   const showSaved = useCallback((uid: string, saved: { data: ClubData; savedAt: string }) => {
+    knownPrefs.current = saved.data.notificationPrefs; // Lane E: notifications
     setData(saved.data);
     setLoadedFor(uid);
     showing.current = uid;
@@ -68,6 +73,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   /** Signed out: nothing of theirs stays on the phone or on screen, and no load still running can save it back. */
   const forget = useCallback(() => {
     latest.current++;
+    knownPrefs.current = undefined; // Lane E: notifications
     clubCache.clear();
     setData(EMPTY_DATA);
     setLoadedFor(null);
@@ -87,6 +93,10 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
         if (s.session?.user.id !== uid) throw error ?? new Error('Sign in first.');
       }
       const fresh = await loadClub(supabase(), !!uid);
+      // Lane E: notifications. If the settings can't be read, keep the last known ones (never the
+      // defaults, which could turn reminders back on); undefined means not known.
+      if (uid) fresh.notificationPrefs = await loadNotificationPrefs(supabase()).catch(() => knownPrefs.current);
+      if (uid) knownPrefs.current = fresh.notificationPrefs;
       if (ticket !== latest.current) return;
       // Lane E: offline. Signed out during the load: don't show a signed-out load as theirs.
       if (uid && currentUser.current !== uid) return;
@@ -440,6 +450,38 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('close_vote', { p_vote: voteId, p_casting: casting }));
       await after();
+    },
+
+    setCrew: async (rideId, memberId, role) => {
+      const problem = crewProblem(
+        visibleMe,
+        data.rides.find((r) => r.id === rideId),
+        data.members.find((m) => m.id === memberId),
+        role,
+        data,
+        new Date().toISOString(),
+      );
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('set_crew', { p_ride: rideId, p_member: memberId, p_role: role }));
+      await after();
+    },
+
+    leaveCrew: async (rideId, memberId) => {
+      const problem = leaveProblem(visibleMe, data.rides.find((r) => r.id === rideId), memberId, data, new Date().toISOString());
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('leave_crew', { p_ride: rideId, p_member: memberId }));
+      await after();
+    },
+
+    // Lane E: notifications
+    saveNotificationPrefs: async (prefs) => {
+      const uid = requireUser();
+      await saveNotificationPrefs(supabase(), prefs);
+      knownPrefs.current = prefs;
+      setData((d) => ({ ...d, notificationPrefs: prefs }));
+      // The copy on the phone too, so opening offline later plans reminders from the new settings.
+      const saved = await clubCache.load(uid);
+      if (saved) await clubCache.save(uid, { ...saved.data, notificationPrefs: prefs }, saved.savedAt);
     },
   };
 

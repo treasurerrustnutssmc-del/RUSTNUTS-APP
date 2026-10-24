@@ -129,6 +129,18 @@ export interface Rsvp {
   updatedAt: string;
 }
 
+/** The positions a ride's crew can hold. Officers have no limit; the others are one per ride. */
+export type CrewRole = Extract<PositionRole, 'road_captain' | 'tail_gunner' | 'assistant_tail_gunner' | 'officer'>;
+
+/** One member's spot on one ride's crew. */
+export interface CrewSpot {
+  rideId: string;
+  memberId: string;
+  role: CrewRole;
+  assignedBy: string | null;
+  assignedAt: string;
+}
+
 export interface ClubData {
   chapters: Chapter[];
   members: Member[];
@@ -139,8 +151,13 @@ export interface ClubData {
   positions: Position[];
   rides: Ride[];
   rsvps: Rsvp[];
+  /** Who is crewing which ride. Missing means none. */
+  crew?: CrewSpot[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
+  // Lane E: notifications
+  /** The signed-in member's saved notification settings, or null for the defaults. */
+  notificationPrefs?: NotificationPrefs | null;
   // Stage 5: meetings and votes
   meetings?: Meeting[];
   actionItems?: ActionItem[];
@@ -264,4 +281,14 @@ export interface LiveState {
   riders: LiveRider[];
   alerts: RideAlert[];
   contacts: EmergencyContact[];
+}
+
+// Lane E: notifications
+/** Which notifications a member wants. No saved row means DEFAULT_PREFS (src/domain/notifications.ts). */
+export interface NotificationPrefs {
+  rideReminders: boolean;
+  rideChanges: boolean;
+  newRides: boolean;
+  /** Board only: someone in the chapter is waiting for approval. */
+  approvals: boolean;
 }

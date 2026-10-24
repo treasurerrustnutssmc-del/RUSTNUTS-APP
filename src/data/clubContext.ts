@@ -10,11 +10,13 @@ import type {
   Bike,
   BikeRegistration,
   ClubData,
+  CrewRole,
   EmergencyContact,
   LicenceClass,
   Member,
   MemberPrivate,
   MemberStatus,
+  NotificationPrefs, // Lane E: notifications
   PositionRole,
   RsvpAnswer,
 } from '../domain/types';
@@ -68,6 +70,9 @@ export interface ClubContextValue {
   // Lane E: offline
   /** When the data on screen was saved on the phone, while showing that copy after a failed load. */
   savedAt?: string | null;
+  // Lane E: notifications
+  /** Saves the signed-in member's notification settings. */
+  saveNotificationPrefs?: (prefs: NotificationPrefs) => Promise<void>;
 
   // signing in
   signInAs: (memberId: string | null) => void; // demo only
@@ -105,6 +110,10 @@ export interface ClubContextValue {
   /** A ballot is final. */
   castBallot: (voteId: string, choice: BallotChoice) => Promise<void>;
   closeVote: (voteId: string, casting: 'yes' | 'no' | null) => Promise<void>;
+  /** Puts a member in a spot on a ride's crew (yourself, or anyone if you manage the ride). They are then going. */
+  setCrew: (rideId: string, memberId: string, role: CrewRole) => Promise<void>;
+  /** Takes a member off a ride's crew (yourself, or anyone if you manage the ride). */
+  leaveCrew: (rideId: string, memberId: string) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -129,6 +138,7 @@ export const EMPTY_DATA: ClubData = {
   meetings: [],
   actionItems: [],
   votes: [],
+  crew: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

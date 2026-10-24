@@ -306,7 +306,7 @@ begin
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.close_vote(%L, null)$q$, v)) is null, 'closed early: everyone voted';
   assert (select result from votes where id = v) = 'lost', 'an abstention isn''t a yes (4.9)';
   assert (select yes_count is null and no_count is null and abstain_count is null from votes where id = v), 'only the outcome is recorded (4.9)';
-  assert not exists (select 1 from vote_ballots where vote_id = v), 'and no ballots are kept';
+  assert not exists (select 1 from vote_ballots where vote_id = v and choice is not null), 'and no ballot keeps its choice';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.close_vote(%L, null)$q$, v)) = 'That vote has already closed.', 'close twice';
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.cast_ballot(%L, 'yes')$q$, v)) = 'You’ve already voted.', 'already voted beats closed';
 

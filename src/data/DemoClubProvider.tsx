@@ -81,6 +81,10 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     castBallot: async (voteId, choice) => setData(business.castBallot(ctx, voteId, choice)),
     closeVote: async (voteId, casting) => setData(business.closeVote(ctx, voteId, casting)),
+    setCrew: async (rideId, memberId, role) => setData(act.setCrew(ctx, rideId, memberId, role)),
+    leaveCrew: async (rideId, memberId) => setData(act.leaveCrew(ctx, rideId, memberId)),
+    // Lane E: notifications
+    saveNotificationPrefs: async (prefs) => setData((d) => ({ ...d, notificationPrefs: prefs })),
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;

@@ -11,8 +11,11 @@ import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteSc
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
+import { PickCrewScreen } from '../screens/pickCrew';
 // Lane E: live ride
 import { LiveRideScreen } from '../screens/liveRide';
+// Lane E: notifications
+import { ReminderSync } from '../data/reminders';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -97,6 +100,8 @@ export function RootNavigator() {
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
   return (
     <NavigationContainer theme={navTheme}>
+      {/* Lane E: notifications */}
+      <ReminderSync />
       {/* Keyed by who's signed in, so switching people always starts fresh on their home screen. */}
       <Stack.Navigator key={stackKey} screenOptions={headerOptions}>
         {loadError ? (
@@ -128,6 +133,8 @@ export function RootNavigator() {
             <Stack.Screen name="EditMeeting" component={EditMeetingScreen} options={({ route }) => ({ title: route.params?.meetingId ? 'Edit meeting' : 'Call a meeting' })} />
             <Stack.Screen name="Vote" component={VoteScreen} options={{ title: 'Vote' }} />
             <Stack.Screen name="NewVote" component={NewVoteScreen} options={{ title: 'New vote' }} />
+            {/* ride crew */}
+            <Stack.Screen name="PickCrew" component={PickCrewScreen} options={{ title: 'Pick crew' }} />
             {/* Lane E: live ride */}
             <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} />
           </>

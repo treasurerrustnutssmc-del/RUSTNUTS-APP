@@ -76,6 +76,7 @@ declare
   west uuid := (select id from chapters where slug = 'west');
 begin
   insert into members (id, chapter_id, full_name, status, approval) values (other, north, 'Other', 'full', 'approved');
+  -- The Melbourne date, which seats start on: the server's current_date can be a day behind it.
   update positions set ended_on = private.club_date() where member_id = jefe and role = 'treasurer' and chapter_id in (north, west);
   insert into positions (member_id, chapter_id, role) values (other, north, 'treasurer');
 end $$;

@@ -1,6 +1,7 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { CrewRole } from '../domain/types';
 
 export type TabParams = {
   Home: undefined;
@@ -35,6 +36,8 @@ export type RootParams = {
   EditMeeting: { meetingId?: string; chapterId?: string | null } | undefined;
   Vote: { voteId: string };
   NewVote: { chapterId?: string | null; meetingId?: string; subjectMemberId?: string } | undefined;
+  // ride crew
+  PickCrew: { rideId: string; role: CrewRole };
   // Lane E: live ride
   LiveRide: { rideId: string };
 };

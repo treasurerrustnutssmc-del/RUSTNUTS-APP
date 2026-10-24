@@ -65,6 +65,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_rides -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_rides -f "$ROOT/supabase/tests/rides_test.sql"
+# The ride crew, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_crew" >/dev/null
+"${PSQL[@]}" -d rustnuts_crew -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_crew -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_crew -f "$ROOT/supabase/tests/ride_crew_test.sql"
 
 # Stage 5: meetings and votes, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_business" >/dev/null
@@ -80,5 +87,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_live -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_live -f "$ROOT/supabase/tests/live_ride_test.sql"
+
+# Lane E: notification settings, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_notify" >/dev/null
+"${PSQL[@]}" -d rustnuts_notify -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_notify -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_notify -f "$ROOT/supabase/tests/notification_prefs_test.sql"
 
 echo 'ALL DATABASE CHECKS PASSED'
