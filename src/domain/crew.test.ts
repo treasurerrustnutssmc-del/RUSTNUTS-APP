@@ -5,6 +5,8 @@ import {
   crewFor,
   crewNeeded,
   crewProblem,
+  crewRows,
+  canVolunteer,
   eligibilityProblem,
   leaveProblem,
   managesRide,
@@ -383,4 +385,54 @@ test('the Crew needed tag: managers only, open RC or TG, starting in the next 14
   assert.equal(showsCrewNeeded(westPres, WEST_RIDE, crewed, '2026-11-01'), false, 'RC and TG filled');
   assert.equal(showsCrewNeeded(westPres, WEST_RIDE, data({ crew: undefined }), '2026-11-01'), true, 'a missing crew list is empty');
   assert.equal(showsCrewNeeded(nec, CANCELLED, d, '2026-11-01'), false, 'not on a cancelled ride');
+});
+
+test('who gets “I’ll do it” on a spot', () => {
+  const open = data();
+  assert.equal(canVolunteer(rider, WEST_RIDE, 'tail_gunner', open, NOW), true, 'an open spot you can take');
+  assert.equal(canVolunteer(rider, WEST_RIDE, 'officer', open, NOW), true, 'an Officer spot');
+  assert.equal(canVolunteer(null, WEST_RIDE, 'officer', open, NOW), false, 'signed out');
+  assert.equal(canVolunteer(fng, WEST_RIDE, 'officer', open, NOW), false, 'not eligible');
+  assert.equal(canVolunteer(rider, CANCELLED, 'officer', open, NOW), false, 'a cancelled ride');
+  const taken = data({ crew: [spot('west-ride', 'west-pres', 'tail_gunner')] });
+  assert.equal(canVolunteer(rider, WEST_RIDE, 'tail_gunner', taken, NOW), false, 'a taken spot');
+  const mine = data({ crew: [spot('west-ride', 'rider', 'tail_gunner')] });
+  assert.equal(canVolunteer(rider, WEST_RIDE, 'road_captain', mine, NOW), false, 'not when you already hold a spot on the ride');
+  assert.equal(canVolunteer(rider, WEST_RIDE, 'officer', mine, NOW), false, 'nor an Officer spot');
+  assert.equal(canVolunteer(rider, WEST_RIDE, 'tail_gunner', mine, NOW), false, 'nor your own');
+  const managerOn = data({ crew: [spot('west-ride', 'west-pres', 'officer')] });
+  assert.equal(canVolunteer(westPres, WEST_RIDE, 'road_captain', managerOn, NOW), false, 'a manager on the crew moves with Pick');
+  const elsewhere = data({ crew: [spot('club-ride', 'rider', 'tail_gunner')] });
+  assert.equal(canVolunteer(rider, WEST_RIDE, 'tail_gunner', elsewhere, NOW), true, 'a spot on another ride does not count');
+});
+
+test('the rows of the Crew section', () => {
+  const crew = [
+    spot('west-ride', 'o1', 'officer'),
+    spot('west-ride', 'tg', 'tail_gunner'),
+    spot('club-ride', 'other', 'road_captain'),
+  ];
+  const rows = (locked: boolean, offerOfficer: boolean, list = crew) =>
+    crewRows('west-ride', list, locked, offerOfficer).map((r) => `${r.key}=${r.memberId ?? 'open'}`);
+  assert.deepEqual(
+    rows(false, false),
+    ['road_captain=open', 'tail_gunner=tg', 'assistant_tail_gunner=open', 'officer:o1=o1'],
+    'every single spot, then the Officers; no open Officer row with nothing to offer',
+  );
+  assert.deepEqual(
+    rows(false, true),
+    ['road_captain=open', 'tail_gunner=tg', 'assistant_tail_gunner=open', 'officer:o1=o1', 'officer:new=open'],
+    'an open Officer row when there is an offer on it',
+  );
+  assert.deepEqual(
+    rows(false, false, []),
+    ['road_captain=open', 'tail_gunner=open', 'assistant_tail_gunner=open', 'officer:new=open'],
+    'an open Officer row says there are none yet',
+  );
+  assert.deepEqual(rows(true, true), ['tail_gunner=tg', 'officer:o1=o1'], 'a locked ride lists only who crewed');
+  assert.deepEqual(rows(true, true, []), [], 'and nothing when nobody did');
+  assert.deepEqual(
+    crewRows('west-ride', crew, false, false).map((r) => r.role),
+    ['road_captain', 'tail_gunner', 'assistant_tail_gunner', 'officer'],
+  );
 });

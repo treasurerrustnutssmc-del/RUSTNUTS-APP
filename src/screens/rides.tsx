@@ -5,7 +5,8 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { formatAuDate } from '../domain/dates';
-import { crewChangeProblem, crewFor, crewProblem, leaveProblem, managesRide, showsCrewNeeded, spotOf } from '../domain/crew';
+import { canVolunteer, crewChangeProblem, crewRows, leaveProblem, managesRide, showsCrewNeeded, spotOf } from '../domain/crew';
+import type { CrewRowSlot } from '../domain/crew';
 import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import {
@@ -408,8 +409,6 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
 // The ride's crew
 // ---------------------------------------------------------------------------
 
-const SINGLE_SPOTS: CrewRole[] = ['road_captain', 'tail_gunner', 'assistant_tail_gunner'];
-
 const only = (items: (React.ReactElement | null)[]) => items.filter((x): x is React.ReactElement => x !== null);
 
 /** One spot on the crew: the stencil short form, who holds it (or Open), and what you can do. */
@@ -466,14 +465,11 @@ function CrewSection({
   // Which row is saving ("road_captain", "officer:<member id>" or "officer:new") and its action's label.
   const [busy, setBusy] = useState<{ key: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const crew = crewFor(ride.id, data.crew ?? []);
   const now = new Date().toISOString();
+  // Cancelled, or after the ride day: the crew is a record, with no open rows and no buttons.
   const locked = crewChangeProblem(me, ride, now) !== null;
   const manages = !locked && managesRide(me, ride, data);
-  const mySpot = spotOf(ride.id, me.id, data.crew);
-
-  // A cancelled ride keeps its crew on show as a record, but an empty one has nothing to say.
-  if (ride.cancelledAt && crew.length === 0) return null;
+  const volunteers = (role: CrewRole) => !locked && canVolunteer(me, ride, role, data, now);
 
   const run = async (key: string, label: string, action: () => Promise<void>) => {
     if (busy) return;
@@ -492,7 +488,6 @@ function CrewSection({
     const m = data.members.find((x) => x.id === memberId);
     return m ? displayName(m) : 'A former member';
   };
-  const canTake = (role: CrewRole) => !locked && crewProblem(me, ride, me, role, data, now) === null;
   const canRemove = (memberId: string) => !locked && leaveProblem(me, ride, memberId, data, now) === null;
 
   const takeButton = (key: string, role: CrewRole) => (
@@ -505,12 +500,13 @@ function CrewSection({
       onPress={() => run(key, 'I’ll do it', () => setCrew(ride.id, me.id, role))}
     />
   );
+  // Keyed by member, so a confirm armed for one person never carries over to whoever holds the spot next.
   const offButton = (key: string, memberId: string) => {
     if (!canRemove(memberId)) return null;
     if (memberId === me.id) {
       return (
         <ConfirmButton
-          key="off"
+          key={`off:${memberId}`}
           label="Step down"
           confirmLabel="Yes, step down"
           kind="secondary"
@@ -520,7 +516,7 @@ function CrewSection({
     }
     return (
       <ConfirmButton
-        key="off"
+        key={`off:${memberId}`}
         label="Take off"
         confirmLabel="Yes, take off"
         kind="secondary"
@@ -534,51 +530,45 @@ function CrewSection({
     <Button key="pick" label={label} kind="secondary" disabled={!!busy} accessibilityLabel={a11y} onPress={() => onPick(role)} />
   );
 
-  const officers = crew.filter((s) => s.role === 'officer');
+  // A crew manager adds Officers, themselves included, from the pick list; everyone else can put their hand up.
   const officerActions = only([
-    mySpot !== 'officer' && canTake('officer') ? takeButton('officer:new', 'officer') : null,
     manages ? (
       <Button key="add" label="Add officer" kind="secondary" icon="add" disabled={!!busy} onPress={() => onPick('officer')} />
+    ) : volunteers('officer') ? (
+      takeButton('officer:new', 'officer')
     ) : null,
   ]);
-  // The open Officer row is there to offer a spot, or to say there are none yet.
-  const showOpenOfficer = officerActions.length > 0 || officers.length === 0;
+  const rows = crewRows(ride.id, data.crew ?? [], locked, officerActions.length > 0);
+  // A locked ride nobody crewed has nothing to say.
+  if (rows.length === 0) return null;
+
+  const actionsFor = ({ key, role, memberId }: CrewRowSlot) => {
+    if (locked) return [];
+    if (role === 'officer') return memberId ? only([offButton(key, memberId)]) : officerActions;
+    if (memberId) {
+      return only([manages ? pickButton(role, 'Change', `Change the ${ROLE_LABEL[role]}`) : null, offButton(key, memberId)]);
+    }
+    const article = /^[AEIOU]/.test(ROLE_LABEL[role]) ? 'an' : 'a';
+    return only([
+      volunteers(role) ? takeButton(key, role) : null,
+      manages ? pickButton(role, 'Pick', `Pick ${article} ${ROLE_LABEL[role]}`) : null,
+    ]);
+  };
 
   return (
     <Stack gap={space.sm}>
       <SectionTitle title="Crew" />
       <Card style={{ padding: 0, gap: 0 }}>
-        {SINGLE_SPOTS.map((role) => {
-          const holder = crew.find((s) => s.role === role);
-          const last = role === 'assistant_tail_gunner' && officers.length === 0 && !showOpenOfficer;
-          return (
-            <CrewRow
-              key={role}
-              role={role}
-              name={holder ? nameOf(holder.memberId) : null}
-              last={last}
-              saving={saving(role)}
-              actions={only(
-                holder
-                  ? [manages ? pickButton(role, 'Change', `Change the ${ROLE_LABEL[role]}`) : null, offButton(role, holder.memberId)]
-                  : [canTake(role) ? takeButton(role, role) : null, manages ? pickButton(role, 'Pick', `Pick ${/^[AEIOU]/.test(ROLE_LABEL[role]) ? 'an' : 'a'} ${ROLE_LABEL[role]}`) : null],
-              )}
-            />
-          );
-        })}
-        {officers.map((s, i) => (
+        {rows.map((r, i) => (
           <CrewRow
-            key={s.memberId}
-            role="officer"
-            name={nameOf(s.memberId)}
-            last={i === officers.length - 1 && !showOpenOfficer}
-            saving={saving(`officer:${s.memberId}`)}
-            actions={only([offButton(`officer:${s.memberId}`, s.memberId)])}
+            key={r.key}
+            role={r.role}
+            name={r.memberId ? nameOf(r.memberId) : null}
+            last={i === rows.length - 1}
+            saving={saving(r.key)}
+            actions={actionsFor(r)}
           />
         ))}
-        {showOpenOfficer ? (
-          <CrewRow role="officer" name={null} last saving={saving('officer:new')} actions={officerActions} />
-        ) : null}
       </Card>
       <View accessibilityLiveRegion="polite" role="alert">
         {error ? <Notice tone="danger">{error}</Notice> : null}

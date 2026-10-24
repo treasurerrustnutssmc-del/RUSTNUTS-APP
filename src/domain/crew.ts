@@ -101,6 +101,44 @@ export function leaveProblem(
   return null;
 }
 
+/**
+ * Whether `me` gets “I’ll do it” on a spot: they could take it, and they don't already hold a spot
+ * on this ride. Moving between spots is for the board or ride committee, with Pick or Change.
+ */
+export function canVolunteer(me: Member | null, ride: Ride, role: CrewRole, data: ClubData, now: string): boolean {
+  if (!me || spotOf(ride.id, me.id, data.crew) !== null) return false;
+  return crewProblem(me, ride, me, role, data, now) === null;
+}
+
+/** One row of the ride screen's Crew section: a spot and who holds it, or null for an open one. */
+export type CrewRowSlot = { key: string; role: CrewRole; memberId: string | null };
+
+const SINGLE_SPOTS: CrewRole[] = ['road_captain', 'tail_gunner', 'assistant_tail_gunner'];
+
+/**
+ * The rows of a ride's Crew section. While the crew can change: RC, TG and ATG (taken or open),
+ * each Officer, and an open Officer row when there's an offer on it or no Officers yet. On a
+ * locked ride (cancelled, or after the ride day) the crew is a record, so only those who crewed.
+ */
+export function crewRows(rideId: string, crew: CrewSpot[], locked: boolean, offerOfficer: boolean): CrewRowSlot[] {
+  const spots = crewFor(rideId, crew);
+  const row = (s: CrewSpot): CrewRowSlot => ({
+    key: s.role === 'officer' ? `officer:${s.memberId}` : s.role,
+    role: s.role,
+    memberId: s.memberId,
+  });
+  if (locked) return spots.map(row);
+  const officers = spots.filter((s) => s.role === 'officer');
+  return [
+    ...SINGLE_SPOTS.map((role) => {
+      const holder = spots.find((s) => s.role === role);
+      return holder ? row(holder) : { key: role, role, memberId: null };
+    }),
+    ...officers.map(row),
+    ...(offerOfficer || officers.length === 0 ? [{ key: 'officer:new', role: 'officer' as const, memberId: null }] : []),
+  ];
+}
+
 /** One ride's crew in listed order: RC, TG, ATG, then Officers, each by when they were put on. */
 export function crewFor(rideId: string, crew: CrewSpot[]): CrewSpot[] {
   return crew
