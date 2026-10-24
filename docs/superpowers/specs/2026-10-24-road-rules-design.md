@@ -141,15 +141,15 @@ No Alert dialogs, Rustnuts Stencil for labels, names, buttons, numbers and dates
   - `askedToSign(data)`
   - `signoffGroups(members, data, today)`
   - `rulesBlocks(body)`, which returns `{ kind: 'heading' | 'bullet' | 'para'; text }[]`
-- **Demo data:**
-  - Version 1, published 01/07/2025 with fresh sign-off.
-  - Version 2, published 01/10/2026 as a small fix (not fresh), with a What changed line.
+- **Demo data.** Dates count back from the day the preview is opened, so the states always hold:
+  - Version 1, published 16 months ago, with fresh sign-off.
+  - Version 2, published 24 days ago as a small fix (not fresh), with a What changed line.
   - The text is a clearly labelled sample, built from constitution 7 and plain group-riding practice. Its first line reads "# Sample Road Rules (demo only)".
   - Sign-offs:
-    - Torque signed version 2 recently.
-    - Spanner signed version 1 on 15/11/2025, so they're due soon in late October 2026.
+    - Torque signed version 2 five days ago.
+    - Spanner signed version 1 eleven months and twenty days ago, so theirs is due soon.
     - Diesel has never signed.
-    - Rusty signed on 01/09/2025, so theirs has run out.
+    - Rusty signed thirteen months ago, so theirs has run out.
 - **Navigation:** `RoadRules { version?: number }`, `EditRoadRules` and `RoadRulesSignoffs`.
 
 ## Tests
