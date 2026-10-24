@@ -5,7 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 export type TabParams = {
   Home: undefined;
   Members: undefined;
-  Chapters: undefined;
+  Rides: undefined;
   Board: undefined;
   Me: undefined;
 };
@@ -22,7 +22,9 @@ export type RootParams = {
   // signed in
   Tabs: NavigatorScreenParams<TabParams>;
   MemberDetail: { memberId: string };
+  Chapters: undefined;
   ChapterDetail: { chapterId: string };
+  RideDetail: { rideId: string };
   EditProfile: undefined;
   EditBike: { bikeId?: string };
   EditContact: { contactId?: string };

@@ -225,6 +225,15 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          left={<IconBadge icon="flag" tone="red" />}
+          title="Chapters"
+          subtitle="Boards and the National committee"
+          onPress={() => navigation.navigate('Chapters')}
+          last
+        />
+      </Card>
       <Field
         label="Search"
         value={query}
@@ -441,7 +450,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
 // Chapters
 // ---------------------------------------------------------------------------
 
-export function ChaptersScreen({ navigation }: TabScreen<'Chapters'>) {
+export function ChaptersScreen({ navigation }: RootScreen<'Chapters'>) {
   const { data } = useClub();
   const approved = data.members.filter((m) => m.approval === 'approved');
   const necSeats = data.positions.filter(
