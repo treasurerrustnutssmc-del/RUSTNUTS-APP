@@ -302,7 +302,7 @@ export type DemoAction =
   | { action: 'saveActionItem'; chapter: string | null; meeting: string | null; title: string; owner: string }
   | {
       action: 'openVote'; chapter: string | null; subject: string | null; electorate: Electorate; threshold: Threshold;
-      quorum: number; days: number;
+      secret?: boolean; quorum: number; days: number;
     }
   | { action: 'castBallot'; vote: string; choice: BallotChoice }
   | { action: 'closeVote'; vote: string; casting: 'yes' | 'no' | null };
@@ -359,7 +359,7 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
     case 'openVote':
       return business.openVote(ctx, {
         chapterId: a.chapter, meetingId: null, subjectMemberId: a.subject, question: 'Shall we?', details: null,
-        electorate: a.electorate, threshold: a.threshold, secret: false, quorum: a.quorum,
+        electorate: a.electorate, threshold: a.threshold, secret: a.secret ?? false, quorum: a.quorum,
         closesAt: new Date(Date.now() + a.days * 86_400_000).toISOString(),
       }).data;
     case 'castBallot':

@@ -904,6 +904,14 @@ function StillToVote({ vote }: { vote: Vote }) {
 
 const THRESHOLDS: Threshold[] = ['majority', 'two_thirds', 'unanimous'];
 
+/** How the default quorum is worked out, for the hint under the field. */
+const QUORUM_RULE: Record<Electorate, string> = {
+  chapter_board: 'More than half',
+  chapter_patched: 'A third, rounded up (10.6),',
+  club_patched: 'A third, rounded up (10.6),',
+  nec: '51%, rounded up (11.5),',
+};
+
 /** A week from today, at 7 pm Melbourne time. */
 function defaultClose(): { date: string; time: string } {
   const week = new Date(Date.now() + 7 * 86_400_000).toISOString();
@@ -923,7 +931,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   const [threshold, setThreshold] = useState<Threshold>(subject ? 'unanimous' : 'majority');
   const [question, setQuestion] = useState(subject ? `Patch ${displayName(subject)} as a Full member?` : '');
   const [details, setDetails] = useState('');
-  const [secret, setSecret] = useState(false);
+  const [secret, setSecret] = useState(!!subject);
   const size = electorsFor(electorate, scope, data).length;
   const [quorumText, setQuorumText] = useState<string | null>(null);
   const close = defaultClose();
@@ -932,7 +940,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   const action = useAction();
   if (!me) return null;
 
-  const quorum = quorumText === null ? defaultQuorum(size) : Number(quorumText);
+  const quorum = quorumText === null ? defaultQuorum(electorate, size) : Number(quorumText);
   const dateIso = date.trim() ? parseAuDate(date) : null;
   const hhmm = parseTime(time);
   const closesAt = dateIso && hhmm ? melbourneInstant(dateIso, hhmm) : null;
@@ -973,7 +981,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
       ) : null}
       {subject ? (
         <Notice title="Patch vote">
-          {`Every patched member of the ${scopeLabel(scope, data)} gets a ballot. A single no stops it (5.4).`}
+          {`Every Full Member of the ${scopeLabel(scope, data)} gets a secret ballot, and every one of them has to vote yes (4.9). Only the result is shown.`}
         </Notice>
       ) : null}
       <Field label="Question" value={question} onChangeText={setQuestion} placeholder="Spend up to $600 on a club gazebo?" />
@@ -995,17 +1003,17 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
               ? 'More yes than no. Abstaining counts towards quorum only. A tie goes to the chair’s casting vote.'
               : threshold === 'two_thirds'
                 ? 'At least two yes for every one no.'
-                : 'Every ballot yes or abstain, and at least one yes.'}
+                : 'Every voter has to vote yes. An abstention or a missing ballot stops it.'}
           </Small>
           <Toggle label="Secret ballot" description="Nobody, the board included, sees who voted which way." value={secret} onChange={setSecret} />
         </>
       ) : null}
       <Field
         label="Quorum"
-        value={quorumText ?? String(defaultQuorum(size))}
+        value={quorumText ?? String(defaultQuorum(electorate, size))}
         onChangeText={(t) => setQuorumText(t.replace(/\D/g, ''))}
         keyboardType="number-pad"
-        hint={`Ballots needed for the result to count, out of ${size}. More than half is ${defaultQuorum(size)}.`}
+        hint={`Ballots needed for the result to count, out of ${size}. ${QUORUM_RULE[electorate]} is ${defaultQuorum(electorate, size)}.`}
       />
       <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
         <View style={{ flex: 3 }}>

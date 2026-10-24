@@ -125,8 +125,8 @@ export function kindsFor(chapterId: string | null): MeetingKind[] {
 
 export const ELECTORATE_LABEL: Record<Electorate, string> = {
   chapter_board: 'The chapter board',
-  chapter_patched: 'The chapter’s patched members',
-  club_patched: 'Every patched member',
+  chapter_patched: 'The chapter’s Full Members',
+  club_patched: 'Every Voting Member',
   nec: 'The NEC',
 };
 

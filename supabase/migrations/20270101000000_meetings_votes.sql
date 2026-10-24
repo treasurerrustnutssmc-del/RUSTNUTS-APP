@@ -118,13 +118,17 @@ $$;
 -- Whoever has the casting vote: the chapter's President, or the National Chairman (inferred).
 create or replace function private.chair_of(p_chapter uuid)
 returns uuid language sql stable security definer set search_path = '' as $$
+  -- The chapter President, then the Vice President (constitution 10.9); the National Chairperson
+  -- for the whole club (11.2).
   select member_id from public.positions
   where ended_on is null and chapter_id is not distinct from p_chapter
-    and role = (case when p_chapter is null then 'nec_chair' else 'president' end)::public.position_role
-  order by started_on limit 1;
+    and role in (case when p_chapter is null then 'nec_chair' else 'president' end::public.position_role,
+                 case when p_chapter is null then 'nec_chair' else 'vice_president' end::public.position_role)
+  order by role = 'vice_president', started_on limit 1;
 $$;
 
--- Everyone who gets a ballot. Legacy members and anyone not approved never vote.
+-- Everyone who gets a ballot. Legacy members and anyone not approved never vote. Nomads vote on
+-- national matters only (10.7); the NEC has one vote per chapter, cast by its President (11.2).
 create or replace function private.electors_for(p_electorate public.electorate, p_chapter uuid)
 returns setof uuid language sql stable security definer set search_path = '' as $$
   select m.id from public.members m
@@ -133,21 +137,21 @@ returns setof uuid language sql stable security definer set search_path = '' as 
       select 1 from public.positions p
       where p.member_id = m.id and p.ended_on is null and p.chapter_id = p_chapter
         and p.role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain'))
-    when 'chapter_patched' then m.chapter_id = p_chapter and m.status in ('full', 'nomad')
+    when 'chapter_patched' then m.chapter_id = p_chapter and m.status = 'full'
     when 'club_patched' then m.status in ('full', 'nomad')
     when 'nec' then exists (
       select 1 from public.positions p
-      where p.member_id = m.id and p.ended_on is null
-        and p.role in ('nec_chair', 'nec_secretary', 'nec_auditor', 'president'))
+      where p.member_id = m.id and p.ended_on is null and p.role = 'president' and p.chapter_id is not null)
   end
   order by m.id;
 $$;
 
 -- The result of a count, as decide() in src/domain/votes.ts. Abstentions count to the quorum but
--- not for or against; only a majority vote can tie, and the casting vote settles it.
+-- not for or against (10.7); unanimous means every elector votes yes (4.9); only a majority vote
+-- can tie, and the casting vote settles it.
 create or replace function private.decide(
   p_threshold public.vote_threshold, p_quorum int, p_yes int, p_no int, p_abstain int, p_casting text,
-  out result public.vote_result, out tied boolean)
+  p_electors int, out result public.vote_result, out tied boolean)
 language plpgsql immutable set search_path = '' as $$
 declare carried boolean;
 begin
@@ -158,7 +162,7 @@ begin
   if tied then carried := p_casting = 'yes';
   elsif p_threshold = 'majority' then carried := p_yes > p_no;
   elsif p_threshold = 'two_thirds' then carried := p_yes > 0 and 3 * p_yes >= 2 * (p_yes + p_no);
-  else carried := p_yes > 0 and p_no = 0;
+  else carried := p_yes > 0 and p_yes = p_electors;
   end if;
   result := case when coalesce(carried, false) then 'carried' else 'lost' end;
 end;
@@ -166,7 +170,7 @@ $$;
 
 revoke all on function private.require_member(), private.runs_scope(uuid), private.require_scope(uuid),
   private.chair_of(uuid), private.electors_for(public.electorate, uuid),
-  private.decide(public.vote_threshold, int, int, int, int, text) from public, anon, authenticated;
+  private.decide(public.vote_threshold, int, int, int, int, text, int) from public, anon, authenticated;
 
 -- Meetings -----------------------------------------------------------------------------------
 
@@ -344,8 +348,12 @@ begin
        or subject.status <> 'fng' then
       raise exception 'A patch vote is for an approved FNG of that chapter.';
     end if;
-    if p_electorate <> 'chapter_patched' or p_threshold <> 'unanimous' then
-      raise exception 'A patch vote is unanimous, among the chapter’s patched members.';
+    if p_electorate <> 'chapter_patched' or p_threshold <> 'unanimous' or not coalesce(p_secret, false) then
+      raise exception 'A patch vote is a secret, unanimous vote of the chapter’s Full Members.';
+    end if;
+    -- Full Membership can't be granted before nine months (4.7).
+    if subject.fng_started_on is not null and subject.fng_started_on + interval '9 months' > private.club_date() then
+      raise exception 'A patch vote can open only nine months into the FNG’s trial (4.7).';
     end if;
   end if;
   if p_meeting is not null and not exists (
@@ -391,7 +399,7 @@ returns void language plpgsql security definer set search_path = '' as $$
 declare
   me uuid := private.require_member();
   v public.votes%rowtype;
-  n_yes int; n_no int; n_abstain int;
+  n_yes int; n_no int; n_abstain int; n_electors int;
   outcome record;
   chair uuid;
 begin
@@ -404,7 +412,8 @@ begin
   end if;
   select count(*) filter (where choice = 'yes'), count(*) filter (where choice = 'no'), count(*) filter (where choice = 'abstain')
   into n_yes, n_no, n_abstain from public.vote_ballots where vote_id = p_vote;
-  outcome := private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, null);
+  select count(*) into n_electors from public.vote_electors where vote_id = p_vote;
+  outcome := private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, null, n_electors);
   chair := private.chair_of(v.chapter_id);
   if outcome.tied and chair is not null and (p_casting is null or me <> chair) then
     raise exception 'It’s a tie. The chair closes it with the casting vote.';
@@ -414,7 +423,7 @@ begin
     raise exception 'Nobody’s in the chair, so a tie is lost. Close it without a casting vote.';
   end if;
   if p_casting is not null and p_casting not in ('yes', 'no') then raise exception 'Pick an answer.'; end if;
-  outcome := private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, p_casting);
+  outcome := private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, p_casting, n_electors);
 
   update public.votes set closed_at = now(), result = outcome.result, casting_vote = p_casting,
     yes_count = n_yes, no_count = n_no, abstain_count = n_abstain

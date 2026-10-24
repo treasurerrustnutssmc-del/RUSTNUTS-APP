@@ -151,6 +151,6 @@ export function closeVote(ctx: DemoCtx, voteId: string, casting: 'yes' | 'no' | 
   const vote = votesOf(ctx.data).find((v) => v.id === voteId);
   const tally = vote ? tallyOf(vote.ballots) : null;
   refuse(closeProblem(ctx.me, vote, tally, casting, ctx.data, nowOf(ctx)));
-  const { result } = decide(vote!.threshold, vote!.quorum, tally!, casting);
+  const { result } = decide(vote!.threshold, vote!.quorum, tally!, casting, vote!.electorIds.length);
   return patchVote(ctx.data, voteId, { closedAt: nowOf(ctx), result, castingVote: casting, tally });
 }

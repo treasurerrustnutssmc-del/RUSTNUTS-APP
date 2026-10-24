@@ -18,7 +18,10 @@ export interface ParityCase extends Record<string, unknown> {
 export interface ParityFixture {
   chapters: { slug: string; name: string; area: string }[];
   signups?: { key: string }[];
-  members: { key: string; chapter: string; name: string; status: MemberStatus; approval: Member['approval']; sharePhone: boolean }[];
+  members: {
+    key: string; chapter: string; name: string; status: MemberStatus; approval: Member['approval']; sharePhone: boolean;
+    fngStartedOn?: string;
+  }[];
   positions: { key: string; member: string; chapter: string | null; role: PositionRole; startedOn: string; endedOn: string | null }[];
   bikes: { key: string; member: string; make: string; model: string; year: number }[];
   contacts: { key: string; member: string; name: string; relationship: string; phone: string }[];
@@ -52,7 +55,7 @@ export function fixtureData(without: string[] = []): ClubData {
       approval: m.approval,
       joinedOn: m.approval === 'approved' ? '2024-01-01' : null,
       patchedOn: null,
-      fngStartedOn: null,
+      fngStartedOn: m.fngStartedOn ?? null,
       bio: null,
       sharePhone: m.sharePhone,
       appliedOn: '2024-01-01',

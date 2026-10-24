@@ -268,3 +268,16 @@ These are reached from existing screens, since the tab bar belongs to lane B.
 - Attaching files to minutes (that comes with the document library, part C).
 - Meeting attendance (Stage 4's check-in).
 - AI-written minutes (Stage 7).
+
+## Constitution alignment (24 Oct 2026)
+
+Jeff sent the constitution (29 Jul 2026 draft, in the project files at `reference/Rustnuts SMC Constitution 2026-07-29.pdf`) but can't yet confirm it's the current one. The rules now follow it:
+
+- **Minutes (10.8):** due 7 days after the meeting, not 14.
+- **Electorates:**
+  - Nomads vote on national matters only (10.7). `chapter_patched` is the chapter's Full Members, and `club_patched` is every Voting Member (Full and Nomad).
+  - The NEC has one vote per chapter, cast by its President (11.2). The National Chairperson only breaks a tie.
+- **Default quorum:** a third of voters, rounded up, for chapter and national votes (10.6). The NEC needs 51% (11.5). A board needs more than half (inferred).
+- **Unanimous (4.9):** every elector must vote yes, so an abstention or a missing ballot stops it.
+- **Patch votes (4.7, 4.9):** always secret and unanimous. They can't open before nine months into the trial, though a start date nobody recorded doesn't block one.
+- **Chair (10.9):** the President, then the Vice President. With no chair, a tie is lost (9.10).

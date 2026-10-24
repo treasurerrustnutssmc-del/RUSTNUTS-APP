@@ -23,9 +23,9 @@ for (const c of fx.chapters ?? []) {
 for (const m of fx.members) {
   sql(`insert into auth.users (id, email) values (${id('m', m.key)}, ${q(`${m.key}@example.com`)});`);
   sql(
-    `insert into public.members (id, chapter_id, full_name, status, approval, share_phone, joined_on) values (` +
+    `insert into public.members (id, chapter_id, full_name, status, approval, share_phone, joined_on, fng_started_on) values (` +
       `${id('m', m.key)}, ${chapter(m.chapter)}, ${q(m.name)}, ${q(m.status)}, ${q(m.approval)}, ${m.sharePhone}, ` +
-      `${m.approval === 'approved' ? "date '2024-01-01'" : 'null'});`,
+      `${m.approval === 'approved' ? "date '2024-01-01'" : 'null'}, ${m.fngStartedOn ? `date ${q(m.fngStartedOn)}` : 'null'});`,
   );
   sql(`insert into public.member_private (member_id, email) values (${id('m', m.key)}, ${q(`${m.key}@example.com`)});`);
 }
@@ -120,7 +120,7 @@ const call = (c: ParityCase & Record<string, any>): string => {
     case 'openVote':
       return (
         `public.open_vote(${chapter(c.chapter)}, null, ${c.subject ? id('m', c.subject) : 'null'}, 'Shall we?', null, ` +
-        `${q(c.electorate)}, ${q(c.threshold)}, false, ${c.quorum}, now() + interval '${Number(c.days) * 24} hours')`
+        `${q(c.electorate)}, ${q(c.threshold)}, ${c.secret ? 'true' : 'false'}, ${c.quorum}, now() + interval '${Number(c.days) * 24} hours')`
       );
     case 'castBallot':
       return `public.cast_ballot(${id('v', c.vote)}, ${q(c.choice)})`;

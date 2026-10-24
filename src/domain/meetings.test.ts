@@ -140,13 +140,13 @@ test('writing and approving minutes', () => {
   assert.equal(approveMinutesProblem(m('m-torque'), meeting({ minutes: 'All present.' }), d, AFTER), null);
 });
 
-test('minutes fall due 14 Melbourne days after the meeting', () => {
+test('minutes fall due 7 Melbourne days after the meeting (10.8)', () => {
   // 12:30 UTC on 3 Nov is 11:30 pm in Melbourne (AEDT): still the 3rd.
   const late = meeting({ startsAt: '2026-11-03T12:30:00.000Z' });
-  assert.equal(minutesDueOn(late), '2026-11-17');
+  assert.equal(minutesDueOn(late), '2026-11-10');
   assert.equal(minutesState(late, '2026-11-03T12:00:00.000Z'), 'upcoming');
-  assert.equal(minutesState(late, '2026-11-17T12:00:00.000Z'), 'due', 'due through the 17th');
-  assert.equal(minutesState(late, '2026-11-17T13:30:00.000Z'), 'overdue', '18th in Melbourne');
+  assert.equal(minutesState(late, '2026-11-10T12:00:00.000Z'), 'due', 'due through the 10th');
+  assert.equal(minutesState(late, '2026-11-10T13:30:00.000Z'), 'overdue', '11th in Melbourne');
   assert.equal(minutesState({ ...late, minutesApprovedAt: AFTER }, '2026-12-01T00:00:00.000Z'), 'approved');
   assert.equal(minutesState({ ...late, cancelledAt: NOW }, '2026-12-01T00:00:00.000Z'), 'cancelled');
 });

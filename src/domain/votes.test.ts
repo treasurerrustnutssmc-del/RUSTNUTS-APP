@@ -47,39 +47,50 @@ test('electorates', () => {
     ['m-chook', 'm-diesel', 'm-gravel', 'm-rusty', 'm-spanner', 'm-sparks', 'm-torque'],
     'Full members only: no FNG, Supporter, Family, Legacy, or North',
   );
-  assert.ok(electorsFor('chapter_patched', 'ch-north', d).includes('m-ratchet'), 'Nomads are patched');
+  assert.ok(!electorsFor('chapter_patched', 'ch-north', d).includes('m-ratchet'), 'Nomads don’t vote on chapter matters (10.7)');
+  assert.ok(electorsFor('club_patched', null, d).includes('m-ratchet'), 'but do on national ones');
   assert.equal(electorsFor('club_patched', null, d).length, 12);
-  assert.deepEqual(electorsFor('nec', null, d), ['m-rusty', 'm-smokey']);
+  assert.deepEqual(electorsFor('nec', null, d), ['m-rusty', 'm-smokey'], 'one vote per chapter, cast by its President (11.2)');
+  const necChairOnly = { ...d, positions: [...P.filter((p) => p.memberId !== 'm-rusty' || p.role === 'nec_chair')] };
+  assert.deepEqual(electorsFor('nec', null, necChairOnly), ['m-smokey'], 'the National Chairperson has no ordinary vote');
 });
 
-test('the default quorum is more than half', () => {
-  assert.equal(defaultQuorum(5), 3);
-  assert.equal(defaultQuorum(4), 3);
-  assert.equal(defaultQuorum(1), 1);
+test('the default quorum', () => {
+  assert.equal(defaultQuorum('chapter_patched', 7), 3, 'a third of the chapter’s Full Members, rounded up (10.6)');
+  assert.equal(defaultQuorum('chapter_patched', 9), 3);
+  assert.equal(defaultQuorum('club_patched', 12), 4, 'a third of all Voting Members (10.6)');
+  assert.equal(defaultQuorum('nec', 2), 2, '51% of the NEC’s votes, rounded up (11.5)');
+  assert.equal(defaultQuorum('nec', 3), 2);
+  assert.equal(defaultQuorum('chapter_board', 5), 3, 'more than half the board (inferred)');
+  assert.equal(defaultQuorum('chapter_board', 4), 3);
+  assert.equal(defaultQuorum('chapter_patched', 1), 1);
 });
 
 test('the chair', () => {
   assert.equal(chairOf('ch-west', P), 'm-rusty');
   assert.equal(chairOf('ch-north', P), 'm-smokey');
   assert.equal(chairOf(null, P), 'm-rusty', 'the National Chairman');
-  assert.equal(chairOf('ch-west', P.filter((p) => p.role !== 'president')), null);
+  assert.equal(chairOf('ch-north', P.filter((p) => p.role !== 'president')), 'm-jet', 'then the Vice President (10.9)');
+  assert.equal(chairOf('ch-west', P.filter((p) => p.role !== 'president')), null, 'West has no Vice President');
 });
 
 test('deciding a result', () => {
   const t = (yes: number, no: number, abstain = 0) => ({ yes, no, abstain });
-  assert.deepEqual(decide('majority', 3, t(3, 2), null), { result: 'carried', tied: false });
-  assert.deepEqual(decide('majority', 3, t(2, 3), null), { result: 'lost', tied: false });
-  assert.deepEqual(decide('two_thirds', 3, t(4, 2), null), { result: 'carried', tied: false });
-  assert.deepEqual(decide('two_thirds', 3, t(3, 2), null), { result: 'lost', tied: false });
-  assert.deepEqual(decide('unanimous', 3, t(5, 0, 1), null), { result: 'carried', tied: false }, 'abstaining doesn’t block');
-  assert.deepEqual(decide('unanimous', 3, t(4, 1), null), { result: 'lost', tied: false });
-  assert.deepEqual(decide('unanimous', 3, t(0, 0, 4), null), { result: 'lost', tied: false }, 'all abstain is lost');
-  assert.deepEqual(decide('majority', 5, t(2, 1, 1), null), { result: 'no_quorum', tied: false }, 'abstentions count to quorum');
-  assert.deepEqual(decide('majority', 3, t(2, 2), null), { result: 'lost', tied: true });
-  assert.deepEqual(decide('majority', 3, t(2, 2), 'yes'), { result: 'carried', tied: true });
-  assert.deepEqual(decide('majority', 3, t(2, 2), 'no'), { result: 'lost', tied: true });
-  assert.deepEqual(decide('two_thirds', 3, t(2, 2), null), { result: 'lost', tied: false }, 'only a majority vote can tie');
-  assert.deepEqual(decide('majority', 3, t(0, 0, 3), null), { result: 'lost', tied: false }, 'nothing for or against is lost, not tied');
+  assert.deepEqual(decide('majority', 3, t(3, 2), null, 6), { result: 'carried', tied: false });
+  assert.deepEqual(decide('majority', 3, t(2, 3), null, 6), { result: 'lost', tied: false });
+  assert.deepEqual(decide('two_thirds', 3, t(4, 2), null, 6), { result: 'carried', tied: false });
+  assert.deepEqual(decide('two_thirds', 3, t(3, 2), null, 6), { result: 'lost', tied: false });
+  assert.deepEqual(decide('unanimous', 3, t(6, 0), null, 6), { result: 'carried', tied: false }, 'every elector says yes');
+  assert.deepEqual(decide('unanimous', 3, t(5, 0, 1), null, 6), { result: 'lost', tied: false }, 'an abstention isn’t a yes (4.9)');
+  assert.deepEqual(decide('unanimous', 3, t(5, 0), null, 6), { result: 'lost', tied: false }, 'nor is a missing ballot');
+  assert.deepEqual(decide('unanimous', 3, t(4, 1), null, 6), { result: 'lost', tied: false });
+  assert.deepEqual(decide('unanimous', 3, t(0, 0, 4), null, 6), { result: 'lost', tied: false }, 'all abstain is lost');
+  assert.deepEqual(decide('majority', 5, t(2, 1, 1), null, 6), { result: 'no_quorum', tied: false }, 'abstentions count to quorum');
+  assert.deepEqual(decide('majority', 3, t(2, 2), null, 6), { result: 'lost', tied: true });
+  assert.deepEqual(decide('majority', 3, t(2, 2), 'yes', 6), { result: 'carried', tied: true });
+  assert.deepEqual(decide('majority', 3, t(2, 2), 'no', 6), { result: 'lost', tied: true });
+  assert.deepEqual(decide('two_thirds', 3, t(2, 2), null, 6), { result: 'lost', tied: false }, 'only a majority vote can tie');
+  assert.deepEqual(decide('majority', 3, t(0, 0, 3), null, 6), { result: 'lost', tied: false }, 'nothing for or against is lost, not tied');
 });
 
 test('opening a vote', () => {
@@ -106,18 +117,24 @@ test('opening a vote', () => {
   assert.equal(openVoteProblem(m('m-smokey'), input({ chapterId: null, electorate: 'club_patched', quorum: 7 }), d, NOW), null);
 });
 
-test('a patch vote is unanimous among the chapter’s patched members, about one of its FNGs', () => {
+test('a patch vote is secret and unanimous among the chapter’s Full Members, about one of its FNGs', () => {
   const patch = (over: Partial<VoteInput> = {}) =>
-    input({ subjectMemberId: 'm-throttle', electorate: 'chapter_patched', threshold: 'unanimous', quorum: 4, ...over });
+    input({ subjectMemberId: 'm-throttle', electorate: 'chapter_patched', threshold: 'unanimous', secret: true, quorum: 4, ...over });
   assert.equal(openVoteProblem(m('m-torque'), patch(), d, NOW), null);
   const wrongSubject = 'A patch vote is for an approved FNG of that chapter.';
   assert.equal(openVoteProblem(m('m-torque'), patch({ subjectMemberId: 'm-lefty' }), d, NOW), wrongSubject, 'North FNG');
   assert.equal(openVoteProblem(m('m-torque'), patch({ subjectMemberId: 'm-spanner' }), d, NOW), wrongSubject, 'already Full');
   assert.equal(openVoteProblem(m('m-torque'), patch({ subjectMemberId: 'm-nobody' }), d, NOW), wrongSubject);
-  const wrongRule = 'A patch vote is unanimous, among the chapter’s patched members.';
+  const wrongRule = 'A patch vote is a secret, unanimous vote of the chapter’s Full Members.';
   assert.equal(openVoteProblem(m('m-torque'), patch({ threshold: 'majority' }), d, NOW), wrongRule);
+  assert.equal(openVoteProblem(m('m-torque'), patch({ secret: false }), d, NOW), wrongRule, 'only the outcome is recorded (4.9)');
   assert.equal(openVoteProblem(m('m-torque'), patch({ electorate: 'chapter_board', quorum: 3 }), d, NOW), wrongRule);
   assert.equal(openVoteProblem(m('m-smokey'), patch({ chapterId: null, electorate: 'club_patched' }), d, NOW), wrongSubject, 'patch votes belong to a chapter');
+  const early = 'A patch vote can open only nine months into the FNG’s trial (4.7).';
+  const startedOn = (iso: string | null) => ({ ...d, members: d.members.map((x) => (x.id === 'm-throttle' ? { ...x, fngStartedOn: iso } : x)) });
+  assert.equal(openVoteProblem(m('m-torque'), patch(), startedOn('2026-01-25'), NOW), early, 'eight and a bit months');
+  assert.equal(openVoteProblem(m('m-torque'), patch(), startedOn('2026-01-24'), NOW), null, 'nine months to the day');
+  assert.equal(openVoteProblem(m('m-torque'), patch(), startedOn(null), NOW), null, 'a start date nobody recorded doesn’t block it');
 });
 
 test('casting a ballot', () => {

@@ -8,8 +8,8 @@ import { kindsFor } from './labels';
 import { melbourneDate } from './rides';
 import type { ActionItem, AgendaItem, ClubData, Meeting, MeetingKind, Member, Position } from './types';
 
-/** Minutes are due this many days after the meeting (inferred until the constitution says). */
-export const MINUTES_DUE_DAYS = 14;
+/** Minutes go out within seven days of the meeting (constitution 10.8). */
+export const MINUTES_DUE_DAYS = 7;
 
 export interface MeetingInput {
   id: string | null;

@@ -292,7 +292,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
           onChange={setStatus}
         />
         <Small>
-          Record the outcome once the vote is done. Full membership needs a unanimous patched-member vote (5.4).
+          Record the outcome once the vote is done. Full membership needs a yes from every Full Member of the chapter (4.9).
         </Small>
         {/* Stage 5: patch votes */}
         {patchVote && !patchOpen ? (

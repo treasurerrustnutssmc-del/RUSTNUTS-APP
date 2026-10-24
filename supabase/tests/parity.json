@@ -121,6 +121,16 @@
       "approval": "approved",
       "sharePhone": false
     }
+ ,
+    {
+      "key": "throttle",
+      "chapter": "west",
+      "name": "Tom Hale",
+      "status": "fng",
+      "approval": "approved",
+      "sharePhone": false,
+      "fngStartedOn": "2025-01-01"
+    }
   ],
   "positions": [
     {
@@ -996,6 +1006,31 @@
       "quorum": 1,
       "days": 7,
       "allowed": true
+    },
+    {
+      "name": "The board opens a secret patch vote on an FNG",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "throttle",
+      "electorate": "chapter_patched",
+      "threshold": "unanimous",
+      "secret": true,
+      "quorum": 3,
+      "days": 7,
+      "allowed": true
+    },
+    {
+      "name": "A patch vote in the open",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "throttle",
+      "electorate": "chapter_patched",
+      "threshold": "unanimous",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
     },
     {
       "name": "A patch vote on someone already patched",

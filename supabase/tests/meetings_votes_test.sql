@@ -231,10 +231,22 @@ begin
     = 'Pick a closing time in the future.', 'no closing time';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.open_vote(%L, null, null, 'Q?', null, 'chapter_board', 'majority', false, 1, now() + interval '61 days')$q$, pg_temp.west()))
     = 'Votes can stay open for 60 days at most.', 'too long';
-  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.open_vote(%L, null, %L, 'Patch?', null, 'chapter_patched', 'unanimous', false, 1, now() + interval '1 day')$q$, pg_temp.west(), pg_temp.u(3)))
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.open_vote(%L, null, %L, 'Patch?', null, 'chapter_patched', 'unanimous', true, 1, now() + interval '1 day')$q$, pg_temp.west(), pg_temp.u(3)))
     = 'A patch vote is for an approved FNG of that chapter.', 'patch a Full member';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.open_vote(%L, null, %L, 'Patch?', null, 'chapter_patched', 'majority', false, 1, now() + interval '1 day')$q$, pg_temp.west(), pg_temp.u(4)))
-    = 'A patch vote is unanimous, among the chapter’s patched members.', 'patch by majority';
+    = 'A patch vote is a secret, unanimous vote of the chapter’s Full Members.', 'patch by majority';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.open_vote(%L, null, %L, 'Patch?', null, 'chapter_patched', 'unanimous', false, 1, now() + interval '1 day')$q$, pg_temp.west(), pg_temp.u(4)))
+    = 'A patch vote is a secret, unanimous vote of the chapter’s Full Members.', 'patch vote in the open';
+  begin
+    update members set fng_started_on = private.club_date() - interval '8 months' where id = pg_temp.u(4);
+    assert pg_temp.try_as(pg_temp.u(2), format($q$select public.open_vote(%L, null, %L, 'Patch?', null, 'chapter_patched', 'unanimous', true, 1, now() + interval '1 day')$q$, pg_temp.west(), pg_temp.u(4)))
+      = 'A patch vote can open only nine months into the FNG’s trial (4.7).', 'too early in the trial';
+    update members set fng_started_on = private.club_date() - interval '9 months' where id = pg_temp.u(4);
+    assert pg_temp.try_as(pg_temp.u(2), format($q$select public.open_vote(%L, null, %L, 'Patch?', null, 'chapter_patched', 'unanimous', true, 1, now() + interval '1 day')$q$, pg_temp.west(), pg_temp.u(4)))
+      is null, 'nine months to the day';
+    raise exception 'undo';
+  exception when raise_exception then null;
+  end;
   -- North has no board seats bar its President; take that away inside a sub-transaction.
   begin
     update positions set ended_on = '2026-01-01' where member_id = pg_temp.u(6);
@@ -244,8 +256,15 @@ begin
   exception when raise_exception then null;
   end;
 
-  -- The electorate is taken when the vote opens: West's patched members are a1, a2, a3 (not the FNG or Legacy).
-  v := pg_temp.value_as(pg_temp.u(2), format($q$public.open_vote(%L, null, %L, ' Patch Fran? ', null, 'chapter_patched', 'unanimous', false, 2, now() + interval '7 days')$q$, pg_temp.west(), pg_temp.u(4)))::uuid;
+  -- Who gets a ballot (constitution 10.7, 11.2).
+  assert (select array_agg(e order by e) from private.electors_for('chapter_patched', pg_temp.north()) e) = array[pg_temp.u(6)],
+    'a Nomad doesn''t vote on chapter matters';
+  assert pg_temp.u(7) = any(select private.electors_for('club_patched', null)), 'but does on national ones';
+  assert (select array_agg(e order by e) from private.electors_for('nec', null) e) = array[pg_temp.u(1), pg_temp.u(6)],
+    'the NEC: one vote per chapter, cast by its President';
+
+  -- The electorate is taken when the vote opens: West's Full Members are a1, a2, a3 (not the FNG or Legacy).
+  v := pg_temp.value_as(pg_temp.u(2), format($q$public.open_vote(%L, null, %L, ' Patch Fran? ', null, 'chapter_patched', 'unanimous', true, 2, now() + interval '7 days')$q$, pg_temp.west(), pg_temp.u(4)))::uuid;
   assert (select array_agg(member_id order by member_id) from vote_electors where vote_id = v) = array[pg_temp.u(1), pg_temp.u(2), pg_temp.u(3)], 'electors';
   assert (select question from votes where id = v) = 'Patch Fran?', 'trimmed';
 end $$;
@@ -258,7 +277,7 @@ begin
   assert pg_temp.try_as(pg_temp.u(3), $q$select public.cast_ballot(gen_random_uuid(), 'yes')$q$) = 'No such vote.', 'missing';
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.cast_ballot(%L, 'yes')$q$, v)) is null, 'a3 votes';
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.cast_ballot(%L, 'no')$q$, v)) = 'You’ve already voted.', 'twice';
-  assert (select member_id from vote_ballots where vote_id = v) = pg_temp.u(3), 'an open ballot names its voter';
+  assert (select member_id from vote_ballots where vote_id = v) is null, 'a patch vote is secret (4.9)';
 
   -- A change of status after opening doesn't take the ballot away.
   update members set status = 'legacy' where id = pg_temp.u(1);
@@ -278,13 +297,23 @@ begin
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.cast_ballot(%L, 'abstain')$q$, v)) is null, 'a2 abstains';
   assert pg_temp.try_as(pg_temp.u(1), format($q$select public.close_vote(%L, 'yes')$q$, v)) = 'There’s no tie, so no casting vote.', 'casting without a tie';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.close_vote(%L, null)$q$, v)) is null, 'closed early: everyone voted';
-  assert (select (result, yes_count, no_count, abstain_count) from votes where id = v) = ('carried'::vote_result, 2, 0, 1), 'unanimous with an abstention';
+  assert (select (result, yes_count, no_count, abstain_count) from votes where id = v) = ('lost'::vote_result, 2, 0, 1), 'an abstention isn''t a yes (4.9)';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.close_vote(%L, null)$q$, v)) = 'That vote has already closed.', 'close twice';
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.cast_ballot(%L, 'yes')$q$, v)) = 'You’ve already voted.', 'already voted beats closed';
 
   r := pg_temp.business_as(pg_temp.u(3))->'votes'->0;
   assert r->'tally' = '{"yes": 2, "no": 0, "abstain": 1}'::jsonb, 'counts after closing';
-  assert jsonb_array_length(r->'ballots') = 3 and r->'ballots' @> jsonb_build_array(jsonb_build_object('member_id', pg_temp.u(3), 'choice', 'yes')),
+  assert r->'ballots' = '[]'::jsonb, 'never who voted which way';
+
+  -- An open vote names its voters once it closes, and unanimous carries on every elector's yes.
+  v := pg_temp.value_as(pg_temp.u(2), format($q$public.open_vote(%L, null, null, 'Board dinner?', null, 'chapter_board', 'unanimous', false, 2, now() + interval '7 days')$q$, pg_temp.west()))::uuid;
+  perform pg_temp.try_as(pg_temp.u(1), format($q$select public.cast_ballot(%L, 'yes')$q$, v));
+  assert (select member_id from vote_ballots where vote_id = v) = pg_temp.u(1), 'an open ballot names its voter';
+  perform pg_temp.try_as(pg_temp.u(2), format($q$select public.cast_ballot(%L, 'yes')$q$, v));
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.close_vote(%L, null)$q$, v)) is null, 'closed';
+  assert (select result from votes where id = v) = 'carried', 'every elector said yes';
+  r := (select x from jsonb_array_elements(pg_temp.business_as(pg_temp.u(2))->'votes') x where x->>'id' = v::text);
+  assert jsonb_array_length(r->'ballots') = 2 and r->'ballots' @> jsonb_build_array(jsonb_build_object('member_id', pg_temp.u(1), 'choice', 'yes')),
     'open ballots after closing';
 end $$;
 
@@ -335,6 +364,12 @@ begin
   perform pg_temp.try_as(pg_temp.u(1), format($q$select public.cast_ballot(%L, 'yes')$q$, v));
   perform pg_temp.try_as(pg_temp.u(2), format($q$select public.cast_ballot(%L, 'no')$q$, v));
   update positions set ended_on = '2026-01-01' where member_id = pg_temp.u(1) and role = 'president';
+  begin
+    insert into positions (member_id, chapter_id, role, started_on) values (pg_temp.u(3), pg_temp.west(), 'vice_president', '2026-01-01');
+    assert private.chair_of(pg_temp.west()) = pg_temp.u(3), 'the Vice President chairs when there''s no President (10.9)';
+    raise exception 'undo';
+  exception when raise_exception then null;
+  end;
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.close_vote(%L, 'yes')$q$, v)) = 'Nobody’s in the chair, so a tie is lost. Close it without a casting vote.', 'no casting vote without a chair';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.close_vote(%L, null)$q$, v)) is null, 'closes without a chair';
   assert (select result from votes where id = v) = 'lost', 'tie lost';
