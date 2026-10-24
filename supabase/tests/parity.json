@@ -112,6 +112,14 @@
       "status": "full",
       "approval": "approved",
       "sharePhone": false
+    },
+    {
+      "key": "hacker",
+      "chapter": "west",
+      "name": "Justin Borg",
+      "status": "legacy",
+      "approval": "approved",
+      "sharePhone": false
     }
   ],
   "positions": [
@@ -586,6 +594,47 @@
       "action": "setStatus",
       "member": "gravel",
       "status": "supporter",
+      "allowed": false
+    },
+    {
+      "name": "Board moves a member who left in good standing to Legacy",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "gravel",
+      "status": "legacy",
+      "allowed": true
+    },
+    {
+      "name": "Board moves someone still holding a position to Legacy",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "spanner",
+      "status": "legacy",
+      "allowed": false
+    },
+    {
+      "name": "Board appoints a Legacy member",
+      "as": "torque",
+      "action": "appoint",
+      "member": "hacker",
+      "chapter": "west",
+      "role": "tail_gunner",
+      "allowed": false
+    },
+    {
+      "name": "Board lets a new applicant in as Legacy",
+      "as": "torque",
+      "action": "approve",
+      "member": "dylan",
+      "status": "legacy",
+      "allowed": false
+    },
+    {
+      "name": "Board lets a new applicant in as Full",
+      "as": "torque",
+      "action": "approve",
+      "member": "dylan",
+      "status": "full",
       "allowed": false
     },
     {

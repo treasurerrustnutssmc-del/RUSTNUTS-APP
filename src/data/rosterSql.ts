@@ -106,6 +106,13 @@ export function parseRosterCsv(csv: string): RosterRow[] {
       throw new Error(`${where}: on_hiatus "${hiatus}" should be yes or no`);
     }
 
+    // Legacy members have left: an honour such as Founder stays, but no seat and no hiatus.
+    if (status === 'legacy') {
+      const seat = roles.find((r) => r !== 'founder');
+      if (seat) throw new Error(`${where}: a legacy member can't hold a position (${seat})`);
+      if (/^(y|yes|true|1)$/.test(hiatus)) throw new Error(`${where}: a legacy member can't be on hiatus`);
+    }
+
     rows.push({
       email,
       chapter,

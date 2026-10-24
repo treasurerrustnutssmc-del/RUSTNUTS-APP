@@ -1,6 +1,6 @@
 // Generated from the live Supabase schema (Stage 1). Regenerate after changing migrations.
 
-type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family';
+type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
 type ApprovalState = 'pending' | 'approved' | 'declined' | 'suspended';
 type LicenceClass = 'full_open' | 'probationary_open' | 'learner';
 type PositionRole =

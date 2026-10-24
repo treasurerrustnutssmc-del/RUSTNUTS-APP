@@ -45,6 +45,7 @@ export const DEMO_DATA: ClubData = {
     member({ id: 'm-throttle', chapterId: 'ch-west', fullName: 'Nikki Barnes', roadName: 'Throttle', status: 'fng', joinedOn: '2025-12-13', fngStartedOn: '2026-03-21', sharePhone: true }),
     member({ id: 'm-patches', chapterId: 'ch-west', fullName: 'Paul Nguyen', roadName: 'Patches', status: 'supporter', joinedOn: '2024-04-06' }),
     member({ id: 'm-kerry', chapterId: 'ch-west', fullName: 'Kerry Mercer', status: 'family', joinedOn: '2021-01-16' }),
+    member({ id: 'm-rooster', chapterId: 'ch-west', fullName: 'Rob Kennedy', roadName: 'Rooster', status: 'legacy', joinedOn: '2019-06-15', patchedOn: '2020-01-18', bio: 'Patched in 2020. Moved on in 2025, still drops in for a beer.' }),
     // North
     member({ id: 'm-smokey', chapterId: 'ch-north', fullName: 'Steve Brennan', roadName: 'Smokey', status: 'full', joinedOn: '2023-01-28', patchedOn: '2024-02-10', sharePhone: true }),
     member({ id: 'm-jet', chapterId: 'ch-north', fullName: 'Jodie Harper', roadName: 'Jet', status: 'full', joinedOn: '2023-02-25', patchedOn: '2024-03-09', sharePhone: true }),

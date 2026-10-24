@@ -22,6 +22,11 @@ test('reads the roster sheet: DD/MM/YYYY dates, roles split on semicolons, quote
   assert.equal(rows[2].onHiatus, true);
 });
 
+test('a member who left in good standing loads as Legacy', () => {
+  const rows = parseRosterCsv(`${HEADER}\nhacker@example.com,west,Justin Borg,Hacker,legacy,,,,,\n`);
+  assert.equal(rows[0].status, 'legacy');
+});
+
 test('an Excel "CSV UTF-8" file (with a byte-order mark) reads the same', () => {
   const rows = parseRosterCsv(`\uFEFF${HEADER}\r\na@b.com,west,A,,full,,,,,\r\n`);
   assert.equal(rows[0].email, 'a@b.com');
@@ -40,6 +45,9 @@ test('refuses a sheet with mistakes, naming the line', () => {
   assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full,,,,maybe,\n`), /line 2.*on_hiatus/i);
   assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full\n`), /line 2.*10 columns/i);
   assert.throws(() => parseRosterCsv(`${HEADER}\n`), /no members/i);
+  assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,legacy,,,,,president\n`), /line 2.*legacy.*position/i);
+  assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,legacy,,,,yes,\n`), /line 2.*legacy.*hiatus/i);
+  assert.doesNotThrow(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,legacy,,,,,founder\n`), 'Founder is an honour that stays');
   assert.throws(
     () => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full,,,,,president\nc@d.com,west,C,,full,,,,,president\n`),
     /line 3.*president.*west.*twice/i,

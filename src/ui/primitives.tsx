@@ -253,6 +253,7 @@ const statusTone: Record<MemberStatus, ChipTone> = {
   introduced: 'bone',
   supporter: 'steel',
   family: 'steel',
+  legacy: 'bone',
 };
 
 export function StatusChip({ status }: { status: MemberStatus }) {

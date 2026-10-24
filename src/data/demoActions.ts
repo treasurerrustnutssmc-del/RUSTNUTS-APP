@@ -3,7 +3,7 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, endTermProblem, isBoardOf } from '../domain/access';
-import { NATIONAL_ROLES } from '../domain/labels';
+import { APPROVE_AS, NATIONAL_ROLES, TITLE_ROLES } from '../domain/labels';
 import type { ClubData, Member, MemberStatus, PositionRole } from '../domain/types';
 import {
   NotAllowedError,
@@ -116,6 +116,7 @@ export function approve(ctx: DemoCtx, memberId: string, status: MemberStatus): C
     throw new NotAllowedError(`Only the ${chapterName(ctx.data, target.chapterId)} board can approve this applicant.`);
   }
   if (target.approval !== 'pending') throw new NotAllowedError('This person isn’t waiting for approval.');
+  if (!APPROVE_AS.includes(status)) throw new NotAllowedError('Let them in as Introduced, FNG, Supporter or Family.');
   return patchMember(ctx.data, memberId, {
     approval: 'approved',
     status,
@@ -140,6 +141,13 @@ export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus):
     throw new NotAllowedError('Only that chapter’s board can change this member’s status.');
   }
   if (target.approval !== 'approved') throw new NotAllowedError('Approve them first.');
+  if (status === 'legacy') {
+    const holds = ctx.data.positions.some(
+      (p) => p.memberId === memberId && p.endedOn === null && !TITLE_ROLES.includes(p.role),
+    );
+    if (holds) throw new NotAllowedError('End their positions first.');
+    return patchMember(ctx.data, memberId, { status, onHiatus: false, ...statusDates(target, status, ctx.today) });
+  }
   return patchMember(ctx.data, memberId, { status, ...statusDates(target, status, ctx.today) });
 }
 

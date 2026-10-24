@@ -6,7 +6,8 @@ export type MemberStatus =
   | 'full' // fully patched
   | 'nomad' // full member living away from an active chapter
   | 'supporter'
-  | 'family';
+  | 'family'
+  | 'legacy'; // left the club in good standing
 
 export type ApprovalState = 'pending' | 'approved' | 'declined' | 'suspended';
 

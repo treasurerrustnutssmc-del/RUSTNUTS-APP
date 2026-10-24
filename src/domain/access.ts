@@ -115,6 +115,7 @@ export function appointProblem(
   if (TITLE_ROLES.includes(role)) return HONOUR_BY_ADMIN;
   if (me.id === target.id) return 'You can’t appoint yourself.';
   if (target.approval !== 'approved') return 'Approve them first.';
+  if (target.status === 'legacy') return 'Legacy members don’t hold positions.';
   const national = NATIONAL_ROLES.includes(role);
   const seatChapter = national ? null : chapterId;
   if (national) {
