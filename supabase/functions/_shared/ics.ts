@@ -76,6 +76,13 @@ function toInstant(w: When): number {
   return second;
 }
 
+/** The instant midnight starts on this Melbourne date (month 1-12; a day past the month's end rolls over). */
+export function melbourneMidnight(y: number, mo: number, d: number): string {
+  const t = new Date(Date.UTC(y, mo - 1, d));
+  const local = { y: t.getUTCFullYear(), mo: t.getUTCMonth() + 1, d: t.getUTCDate(), h: 0, mi: 0, s: 0 };
+  return new Date(toInstant({ local, zone: CLUB_ZONE, allDay: true })).toISOString();
+}
+
 // ---------------------------------------------------------------------------
 // Lines and values
 
