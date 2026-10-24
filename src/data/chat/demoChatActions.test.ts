@@ -95,6 +95,9 @@ test('a report goes to the chat’s moderators, who remove the message or let it
   assert.equal(dismissed.messages.find((m) => m.id === 'club-crank')?.removedAt, null, 'the message stays');
   assert.throws(() => resolveReport({ ...ctxAs('rusty'), chat: dismissed }, report.id, true), /That report was already dealt with\./);
   assert.throws(() => resolveReport(ctxAs('rusty'), 'nope', true), /No such report\./);
+  const again = reportMessage({ ...ctxAs('spanner'), chat: dismissed }, 'club-crank', 'still not on');
+  assert.equal(again.id, report.id);
+  assert.equal(again.chat.reports.find((r) => r.id === report.id)?.outcome, 'dismissed', 'reporting again doesn’t reopen it');
 });
 
 test('marking a chat read needs a chat you can read', () => {

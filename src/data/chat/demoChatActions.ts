@@ -13,6 +13,7 @@ import {
   reactProblem,
   removeProblem,
   reportProblem,
+  trimWords,
   type Block,
   type Conversation,
   type Message,
@@ -93,7 +94,7 @@ export function sendMessage(
   refuse(postProblem(ctx.me, conv, body, media.length, ctx.club, ctx.chat.blocks, replyTo));
   const me = ctx.me!;
   const id = newId('msg');
-  const words = body.trim();
+  const words = trimWords(body);
   const message: Message = {
     id,
     conversationId: chatId,
@@ -157,11 +158,17 @@ export function reportMessage(ctx: ChatCtx, messageId: string, reason: string): 
   refuse(reportProblem(ctx.me, message && findChat(ctx.chat, message.conversationId), message, reason, ctx.club));
   const me = ctx.me!.id;
   const earlier = ctx.chat.reports.find((r) => r.messageId === messageId && r.reporterId === me);
+  // Reporting again updates an open report. One that's been dealt with stays dealt with.
+  if (earlier?.resolvedAt) return { chat: ctx.chat, id: earlier.id };
+  if (earlier) {
+    const updated = { ...earlier, reason: trimWords(reason) || null };
+    return { chat: { ...ctx.chat, reports: ctx.chat.reports.map((r) => (r.id === earlier.id ? updated : r)) }, id: earlier.id };
+  }
   const report: ChatReport = {
-    id: earlier?.id ?? newId('report'),
+    id: newId('report'),
     messageId,
     reporterId: me,
-    reason: reason.trim() || null,
+    reason: trimWords(reason) || null,
     body: message!.body,
     mediaCount: message!.media.length,
     createdAt: ctx.now,

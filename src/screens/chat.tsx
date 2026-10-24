@@ -11,6 +11,7 @@ import type { Attachment, ChatSummary, ReportView } from '../data/chat/chatConte
 import { pickMedia } from '../data/chat/media';
 import {
   canModerate,
+  chatTitle,
   directProblem,
   findLinks,
   groupMessages,
@@ -208,11 +209,15 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const [reason, setReason] = useState('');
   const [reported, setReported] = useState<string | null>(null);
   const input = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const sendingNow = useRef(false); // two quick taps land before the state catches up
 
-  useEffect(() => chat.open(chatId), [chatId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Only the chat on screen is marked read; one under the photo viewer or a member's page isn't.
+  useFocusEffect(useCallback(() => chat.open(chatId), [chatId])); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
-    navigation.setOptions({ title: summary?.title ?? 'Chat' });
-  }, [navigation, summary?.title]);
+    // A chat opened from a ride, photo or report may not be in the list, so its name is worked out here.
+    const title = summary?.title ?? (conv && me ? chatTitle(conv, me, data, data.rides.find((r) => r.id === conv.rideId) ?? null) : 'Chat');
+    navigation.setOptions({ title });
+  }, [navigation, summary?.title, conv, me, data]);
 
   const items = useMemo(() => {
     const out: Item[] = [];
@@ -245,7 +250,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     });
 
   const send = async () => {
-    if (sending) return;
+    if (sendingNow.current) return;
+    sendingNow.current = true;
     setSending(true);
     await run(async () => {
       await chat.send(chatId, draft, attachments, replyTo?.id ?? null);
@@ -254,6 +260,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
       setReplyTo(null);
       setGifs(false);
     });
+    sendingNow.current = false;
     setSending(false);
   };
 

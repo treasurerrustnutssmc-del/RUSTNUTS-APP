@@ -78,6 +78,11 @@ export const MAX_MEDIA = 10;
 export const MAX_VIDEO_MS = 60_000;
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 export const MAX_REASON = 500;
+
+/** Words as the database keeps them: spaces, tabs and new lines off each end (other spaces stay). */
+export const trimWords = (s: string) => s.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
+/** Characters the way the database counts them: an emoji is one, not two. */
+export const charCount = (s: string) => [...s].length;
 /** The only GIF addresses a message can hold: GIPHY's own (the database checks the same pattern). */
 export const GIF_URL = /^https:\/\/(media[0-9]?|i)\.giphy\.com\/[A-Za-z0-9_./?&=%-]+$/;
 /** Messages from one person closer together than this sit in one run. */
@@ -149,8 +154,9 @@ export function postProblem(
     if (other && blockedBetween(me.id, other, blocks)) return 'You can’t message them.';
   }
   if (replyTo && replyTo.conversationId !== conv.id) return 'No such message.';
-  if (!body.trim() && mediaCount === 0) return 'Write something or add a photo.';
-  if (body.length > MAX_BODY) return 'Keep it under 4,000 characters.';
+  const words = trimWords(body);
+  if (!words && mediaCount === 0) return 'Write something or add a photo.';
+  if (charCount(words) > MAX_BODY) return 'Keep it under 4,000 characters.';
   if (mediaCount > MAX_MEDIA) return 'Up to 10 photos or videos at a time.';
   return null;
 }
@@ -242,7 +248,7 @@ export function reportProblem(
   const cant = messageProblem(me, conv, message, data);
   if (cant || !me || !message) return cant;
   if (message.authorId === me.id) return 'You can’t report your own message.';
-  if (reason.length > MAX_REASON) return 'Keep the reason under 500 characters.';
+  if (charCount(reason) > MAX_REASON) return 'Keep the reason under 500 characters.';
   return null;
 }
 
@@ -335,6 +341,8 @@ export function findLinks(text: string): { text: string; url: string | null }[] 
 export function mediaProblem(p: PickedMedia): string | null {
   if (p.mimeType && !/^(image|video)\//.test(p.mimeType)) return 'Only photos and videos can go in.';
   if (p.kind === 'video') {
+    // The club's storage takes the two kinds every phone records: MP4 and Apple's MOV.
+    if (p.mimeType && p.mimeType !== 'video/mp4' && p.mimeType !== 'video/quicktime') return 'Videos need to be MP4 or MOV.';
     if (p.durationMs !== null && p.durationMs > MAX_VIDEO_MS) return 'Videos can be up to 60 seconds.';
     if (p.fileSize !== null && p.fileSize > MAX_FILE_BYTES) return 'That file is over 50 MB.';
   }

@@ -57,14 +57,17 @@ create table public.message_media (
   message_id uuid not null references public.messages (id) on delete cascade,
   conversation_id uuid not null references public.conversations (id) on delete cascade,
   kind public.chat_media_kind not null,
-  path text not null unique,
-  poster_path text unique,
+  path text not null,
+  poster_path text,
   width int not null default 0,
   height int not null default 0,
   duration_ms int,
   position int not null default 0
 );
 create index message_media_by_message on public.message_media (message_id);
+-- An uploaded file goes in once. A GIF is GIPHY's address, and the same one can be sent any number of times.
+create unique index message_media_path_once on public.message_media (path) where kind <> 'gif';
+create unique index message_media_poster_once on public.message_media (poster_path) where poster_path is not null;
 
 create table public.message_reactions (
   message_id uuid not null references public.messages (id) on delete cascade,
@@ -276,8 +279,11 @@ begin
 end;
 $$;
 
+-- Signed-in members reach only the helpers the access rules below call. Everything else here runs
+-- inside the club's own actions.
 revoke all on all functions in schema private from public, anon;
-grant execute on all functions in schema private to authenticated;
+grant execute on function private.can_read_chat(uuid), private.can_read_chat_file(text, text),
+  private.can_upload_chat_file(text) to authenticated;
 
 -- ---------------------------------------------------------------------------------------------
 -- Reading
@@ -397,6 +403,12 @@ begin
                 or not exists (select 1 from storage.objects o
                                where o.bucket_id = 'chat-media' and o.name = p and o.owner_id = me::text)
                 or exists (select 1 from public.message_media mm where mm.path = p or mm.poster_path = p))
+        -- and no file twice in this message, a video's still included
+        or (select count(*) from jsonb_array_elements(media) sib
+            where sib->>'kind' <> 'gif'
+              and (sib->>'path' in (item->>'path', item->>'posterPath') or sib->>'posterPath' in (item->>'path', item->>'posterPath')))
+           > 1
+        or item->>'path' = item->>'posterPath'
       into bad;
     if bad then raise exception 'That photo didn’t upload properly. Try again.'; end if;
   end loop;
@@ -408,7 +420,9 @@ begin
   for item in select value from jsonb_array_elements(media) loop
     insert into public.message_media (message_id, conversation_id, kind, path, poster_path, width, height, duration_ms, position)
     values (msg, p_chat, (item->>'kind')::public.chat_media_kind, item->>'path', item->>'posterPath',
-            coalesce((item->>'width')::int, 0), coalesce((item->>'height')::int, 0), (item->>'durationMs')::int, pos);
+            -- Phones can report sizes and lengths with fractions (an iPhone video's length always does).
+            coalesce(round((item->>'width')::numeric)::int, 0), coalesce(round((item->>'height')::numeric)::int, 0),
+            round((item->>'durationMs')::numeric)::int, pos);
     pos := pos + 1;
   end loop;
 
@@ -509,8 +523,9 @@ begin
 
   insert into public.message_reports (message_id, reporter_id, reason, body, media_count)
   values (p_message, auth.uid(), reason, m.body, (select count(*) from public.message_media where message_id = p_message))
+  -- Reporting again updates an open report. One that's been dealt with stays dealt with.
   on conflict (message_id, reporter_id) do update
-    set reason = excluded.reason, created_at = now(), resolved_at = null, resolved_by = null, outcome = null
+    set reason = excluded.reason
   returning id into out;
   return out;
 end;
@@ -814,4 +829,3 @@ grant execute on function
   to authenticated;
 
 revoke all on all functions in schema private from public, anon;
-grant execute on all functions in schema private to authenticated;

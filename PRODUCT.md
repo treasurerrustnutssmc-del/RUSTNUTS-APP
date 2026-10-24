@@ -79,3 +79,11 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 - **Touch and contrast:** touch targets of at least 44pt, and text contrast of at least 4.5:1 (3:1 for large stencil headings). Every ride colour pair already passes.
 - **Screen readers:** each list row reads as one clear label.
 - *(inferred)* Expect older eyes and bright sunlight. Don't go below 13pt for anything a member needs to read, and never carry meaning by colour alone. Ride colours always come with their name.
+
+## Stage 3 (lane B): chat and photos
+
+- **Chats:** the whole club, each chapter, each chapter's big table (its board), the NEC, the ride and charity committees, one chat per ride, and private chats between two people. Facebook Messenger is what the club uses now; this replaces it.
+- **Who sees what:** approved members see the whole-club chat, their own chapter's chat and ride chats. Board, NEC and committee chats are for the people who sit on them. People who might join (Introduced) get the whole-club and ride chats only, and no private chats until they're FNGs.
+- **Banter matters:** photos, videos, GIFs (GIPHY) and link cards are first-class. Replies, reactions, pins (moderators), reports and blocks are in.
+- **Photos:** a club-wide photo feed (never private chats) and a ride wall for each ride, built from the photos posted in its chat.
+- **Ride comms** (open-mic voice while riding, big connect and disconnect buttons) is Stage 6, not this stage.

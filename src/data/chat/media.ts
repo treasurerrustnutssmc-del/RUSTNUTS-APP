@@ -32,9 +32,10 @@ export async function pickMedia(source: 'library' | 'camera', room = MAX_MEDIA):
   const picked = result.assets.map((a): PickedMedia => ({
     uri: a.uri,
     kind: a.type === 'video' || a.type === 'pairedVideo' ? 'video' : 'photo',
-    width: a.width,
-    height: a.height,
-    durationMs: a.duration ?? null,
+    // iPhones give a video's length (and sometimes its size) with fractions; the club keeps whole numbers.
+    width: Math.round(a.width),
+    height: Math.round(a.height),
+    durationMs: a.duration == null ? null : Math.round(a.duration),
     fileSize: a.fileSize ?? a.file?.size ?? null,
     mimeType: a.mimeType ?? a.file?.type ?? null,
   }));
@@ -69,7 +70,7 @@ async function shrunkJpeg(source: Parameters<typeof ImageManipulator.manipulate>
 /** The file to upload, and for a video its still (none on the web, where the chat shows a plain tile). */
 export async function prepareUpload(p: PickedMedia): Promise<{ file: Upload; poster: Upload | null }> {
   if (p.kind === 'photo') return { file: await shrunkJpeg(p.uri, p.width, p.height), poster: null };
-  const contentType = p.mimeType === 'video/quicktime' ? 'video/quicktime' : 'video/mp4';
+  const contentType = p.mimeType === 'video/quicktime' ? 'video/quicktime' : 'video/mp4'; // others are refused when picked
   const file = { bytes: await bytesOf(p.uri), contentType, width: p.width, height: p.height };
   if (Platform.OS === 'web') return { file, poster: null };
   const player = createVideoPlayer(p.uri);

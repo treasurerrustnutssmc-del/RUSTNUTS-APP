@@ -69,3 +69,20 @@ test('every hop is checked, redirects included, and only HTML is read', async ()
   assert.equal(await fetchPreview('https://loop.example/', loop), null);
   assert.equal(hops, 4, 'gives up after three redirects');
 });
+
+test('one time limit covers the name lookups and every hop, and running out is not an answer', async () => {
+  // Node's AbortSignal.timeout doesn't keep a test alive, so a plain timer stands in for it.
+  const soon = () => {
+    const c = new AbortController();
+    setTimeout(() => c.abort(), 20);
+    return c.signal;
+  };
+  const stuck = { resolve: () => new Promise<string[]>(() => undefined), get: async () => page('<title>A</title>') };
+  await assert.rejects(fetchPreview('https://slow-dns.example/', stuck, soon()), /time/i);
+  const slowHops = {
+    resolve: async () => ['93.184.216.34'],
+    get: (_u: URL, signal?: AbortSignal) =>
+      new Promise<Response>((_, reject) => signal?.addEventListener('abort', () => reject(new Error('timed out')))),
+  };
+  await assert.rejects(fetchPreview('https://slow.example/', slowHops, soon()), /time/i);
+});

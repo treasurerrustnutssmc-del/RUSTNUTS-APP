@@ -212,6 +212,9 @@ test('photos and videos that can go in', () => {
     'That file is over 50 MB.',
   );
   assert.equal(mediaProblem(picked({ mimeType: 'application/pdf' })), 'Only photos and videos can go in.');
+  assert.equal(mediaProblem(picked({ kind: 'video', durationMs: 5_000, mimeType: 'video/quicktime' })), null, 'an iPhone video');
+  assert.equal(mediaProblem(picked({ kind: 'video', durationMs: 5_000, mimeType: 'video/webm' })), 'Videos need to be MP4 or MOV.');
+  assert.equal(mediaProblem(picked({ kind: 'video', durationMs: 5_000, mimeType: 'video/3gpp' })), 'Videos need to be MP4 or MOV.');
 });
 
 test('chat names', () => {

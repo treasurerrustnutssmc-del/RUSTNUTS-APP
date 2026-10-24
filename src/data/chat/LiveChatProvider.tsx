@@ -4,7 +4,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { chatTitle, postProblem, type Block, type Message } from '../../domain/chat';
+import { AppState } from 'react-native';
+import { chatTitle, postProblem, type Block, type Conversation, type Message } from '../../domain/chat';
 import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
 import {
@@ -17,13 +18,16 @@ import {
 } from './chatContext';
 import { sortSummaries, withoutBlocked } from './chatList';
 import {
+  goneMedia,
   mergeMessages,
+  toConversation,
   toFeedItem,
   toMessage,
   toReport,
   toRide,
   toSummaryParts,
   uploadName,
+  type ChatJson,
   type ChatListJson,
   type FeedJson,
   type MessageRow,
@@ -35,9 +39,13 @@ import { prepareUpload, type Upload } from './media';
 const PAGE = 40;
 const BUCKET = 'chat-media';
 const MESSAGE_FIELDS = '*, message_media(*), message_reactions(*)';
-// Signed addresses last an hour; use them for 55 minutes.
-const URL_LIFE_S = 3600;
-const URL_KEEP_MS = 55 * 60_000;
+// A signed address keeps working until it runs out, even after the photo is removed, so they're
+// short: five minutes, used for four. Removing a message also throws away its addresses here.
+const URL_LIFE_S = 300;
+const URL_KEEP_MS = 4 * 60_000;
+// A link that got no answer (a dropped connection, a slow site) is tried again after this long.
+const PREVIEW_RETRY_MS = 10 * 60_000;
+const CONVERSATION_FIELDS = 'id, kind, chapter_id, ride_id, committee, pinned_message_id, conversation_members(member_id)';
 
 // The chat tables and actions aren't in the generated types yet, so they go through an untyped client.
 const db = () => supabase() as unknown as SupabaseClient;
@@ -64,14 +72,18 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   const [pages, setPages] = useState<Record<string, Message[]>>({});
   const [older, setOlder] = useState<Record<string, boolean>>({});
   const [blocks, setBlocks] = useState<Block[]>([]);
+  // Chats opened from somewhere other than the list (a ride outside its week, a photo, a report).
+  const [extra, setExtra] = useState<Record<string, Conversation>>({});
   const openChats = useRef(new Map<string, number>());
-  const urls = useRef(new Map<string, { url: string; until: number }>());
-  const previews = useRef(new Map<string, LinkPreview | null>());
+  const listed = useRef(new Set<string>());
+  const urls = useRef(new Map<string, { url: Promise<string>; until: number }>());
+  const previews = useRef(new Map<string, { preview: LinkPreview | null; until: number }>());
   const meId = me?.id ?? null;
 
   const loadList = useCallback(async () => {
-    const rows = await rpc<ChatListJson[]>('chat_list');
-    setRawList((rows ?? []).map(toSummaryParts));
+    const rows = (await rpc<ChatListJson[]>('chat_list')) ?? [];
+    listed.current = new Set(rows.map((r) => r.id));
+    setRawList(rows.map(toSummaryParts));
     setReady(true);
   }, []);
 
@@ -86,18 +98,30 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     if (before) query = query.lt('created_at', before);
     const { data, error } = await query.order('created_at', { ascending: false }).limit(PAGE);
     if (error) throw friendlyError(error);
-    const rows = (data ?? []) as MessageRow[];
-    setPages((p) => ({ ...p, [chatId]: mergeMessages(p[chatId] ?? [], rows.map(toMessage)) }));
+    const incoming = ((data ?? []) as MessageRow[]).map(toMessage);
+    setPages((p) => {
+      for (const path of goneMedia(p[chatId] ?? [], incoming)) urls.current.delete(path);
+      return { ...p, [chatId]: mergeMessages(p[chatId] ?? [], incoming) };
+    });
     // The first page says whether there's more behind it; later pages say when the start is reached.
-    setOlder((o) => (before || o[chatId] === undefined ? { ...o, [chatId]: rows.length === PAGE } : o));
+    setOlder((o) => (before || o[chatId] === undefined ? { ...o, [chatId]: incoming.length === PAGE } : o));
   }, []);
 
-  const markRead = useCallback((chatId: string) => {
-    rpc('mark_chat_read', { p_chat: chatId }).then(
-      () => setRawList((list) => list.map((s) => (s.conversation.id === chatId ? { ...s, unread: 0 } : s))),
-      () => undefined,
-    );
+  const loadConversation = useCallback(async (chatId: string) => {
+    const { data, error } = await db().from('conversations').select(CONVERSATION_FIELDS).eq('id', chatId).maybeSingle();
+    if (error || !data) return;
+    const row = data as ChatJson & { conversation_members: { member_id: string }[] };
+    setExtra((x) => ({ ...x, [chatId]: toConversation({ ...row, member_ids: row.conversation_members.map((m) => m.member_id) }) }));
   }, []);
+
+  const markRead = useCallback(
+    (chatId: string) =>
+      rpc('mark_chat_read', { p_chat: chatId }).then(
+        () => setRawList((list) => list.map((s) => (s.conversation.id === chatId ? { ...s, unread: 0 } : s))),
+        () => undefined,
+      ),
+    [],
+  );
 
   // ChatProvider gives each signed-in person a fresh provider, so this only loads.
   useEffect(() => {
@@ -114,19 +138,26 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     const catchUp = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        loadList().catch(() => undefined);
-        for (const chatId of openChats.current.keys()) {
-          loadPage(chatId).catch(() => undefined);
-          markRead(chatId);
-        }
+        const open = [...openChats.current.keys()];
+        for (const chatId of open) loadPage(chatId).catch(() => undefined);
+        // Open chats are marked read before the list is fetched, so their counts don't come back.
+        Promise.all(open.map(markRead)).then(() => loadList()).catch(() => undefined);
       }, 300);
     };
+    // Also catch up whenever the feed (re)connects and when the app comes back to the front, since
+    // nothing arrives while the phone sleeps.
     const channel = db()
       .channel(`chat:${meId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, catchUp)
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') catchUp();
+      });
+    const awake = AppState.addEventListener('change', (state) => {
+      if (state === 'active') catchUp();
+    });
     return () => {
       if (timer) clearTimeout(timer);
+      awake.remove();
       db().removeChannel(channel);
     };
   }, [meId, loadList, loadPage, markRead]);
@@ -135,11 +166,12 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     () => sortSummaries(rawList.map((s) => ({ ...s, title: chatTitle(s.conversation, me, club, s.ride) }))),
     [rawList, me, club],
   );
-  const conversation = (chatId: string) => list.find((s) => s.conversation.id === chatId)?.conversation;
+  const conversation = (chatId: string) => list.find((s) => s.conversation.id === chatId)?.conversation ?? extra[chatId];
 
   const open = useCallback(
     (chatId: string) => {
       openChats.current.set(chatId, (openChats.current.get(chatId) ?? 0) + 1);
+      if (!listed.current.has(chatId)) loadConversation(chatId).catch(() => undefined);
       loadPage(chatId).catch(() => undefined);
       markRead(chatId);
       return () => {
@@ -148,11 +180,15 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
         else openChats.current.delete(chatId);
       };
     },
-    [loadPage, markRead],
+    [loadPage, markRead, loadConversation],
   );
 
   const after = async (chatId?: string) => {
-    await Promise.all([loadList(), chatId ? loadPage(chatId) : Promise.resolve()]);
+    await Promise.all([
+      loadList(),
+      chatId ? loadPage(chatId) : Promise.resolve(),
+      chatId && !listed.current.has(chatId) ? loadConversation(chatId) : Promise.resolve(),
+    ]);
   };
 
   const chatOf = (messageId: string) =>
@@ -182,7 +218,10 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
         const prepared = await prepareUpload(a);
         const path = await upload(chatId, prepared.file, uploaded);
         const posterPath = prepared.poster ? await upload(chatId, prepared.poster, uploaded) : null;
-        media.push({ kind: a.kind, path, posterPath, width: prepared.file.width, height: prepared.file.height, durationMs: a.durationMs });
+        media.push({
+          kind: a.kind, path, posterPath, width: Math.round(prepared.file.width), height: Math.round(prepared.file.height),
+          durationMs: a.durationMs === null ? null : Math.round(a.durationMs),
+        });
       }
       await rpc('send_message', { p_chat: chatId, p_body: body, p_media: media, p_reply_to: replyToId });
     } catch (e) {
@@ -193,25 +232,34 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     await after(chatId);
   };
 
-  const mediaUrl = async (path: string): Promise<MediaSource> => {
+  // One request per file however many tiles ask at once.
+  const mediaUrl = useCallback(async (path: string): Promise<MediaSource> => {
     if (path.startsWith('https://')) return path;
     const kept = urls.current.get(path);
     if (kept && kept.until > Date.now()) return kept.url;
-    const { data, error } = await db().storage.from(BUCKET).createSignedUrl(path, URL_LIFE_S);
-    if (error || !data) throw friendlyError(error);
-    urls.current.set(path, { url: data.signedUrl, until: Date.now() + URL_KEEP_MS });
-    return data.signedUrl;
-  };
+    const url = db()
+      .storage.from(BUCKET)
+      .createSignedUrl(path, URL_LIFE_S)
+      .then(({ data, error }) => {
+        if (error || !data) throw friendlyError(error);
+        return data.signedUrl;
+      });
+    urls.current.set(path, { url, until: Date.now() + URL_KEEP_MS });
+    url.catch(() => urls.current.delete(path));
+    return url;
+  }, []);
 
-  const linkPreview = async (url: string): Promise<LinkPreview | null> => {
-    if (previews.current.has(url)) return previews.current.get(url) ?? null;
+  const linkPreview = useCallback(async (url: string): Promise<LinkPreview | null> => {
+    const kept = previews.current.get(url);
+    if (kept && kept.until > Date.now()) return kept.preview;
     const { data, error } = await db().functions.invoke('link-preview', { body: { url } });
-    // A link without a card is fine; only keep answers, so a dropped connection tries again later.
-    if (error) return null;
-    const preview = (data as { preview?: LinkPreview | null } | null)?.preview ?? null;
-    previews.current.set(url, preview);
+    // A link without a card is fine. A real answer is kept; no answer is tried again later.
+    const preview = error ? null : (data as { preview?: LinkPreview | null } | null)?.preview ?? null;
+    previews.current.set(url, { preview, until: error ? Date.now() + PREVIEW_RETRY_MS : Infinity });
     return preview;
-  };
+  }, []);
+
+  const reports = useCallback(async () => ((await rpc<ReportJson[]>('chat_reports')) ?? []).map(toReport), []);
 
   const value: ChatContextValue = {
     ready,
@@ -257,7 +305,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
       await loadList();
       return id;
     },
-    reports: async () => ((await rpc<ReportJson[]>('chat_reports')) ?? []).map(toReport),
+    reports,
     resolveReport: async (reportId, remove) => {
       await rpc('resolve_report', { p_report: reportId, p_remove: remove });
       await loadList();

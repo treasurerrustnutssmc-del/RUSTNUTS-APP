@@ -111,17 +111,37 @@ export function parsePreview(html: string, pageUrl: string): LinkPreview | null 
 export interface FetchDeps {
   /** Every address the host name points to. */
   resolve: (host: string) => Promise<string[]>;
-  /** One request, redirects not followed. */
-  get: (url: URL) => Promise<Response>;
+  /** One request, redirects not followed, given up when `signal` fires. */
+  get: (url: URL, signal?: AbortSignal) => Promise<Response>;
 }
 
-/** Fetches a page's preview, checking every hop is a public address. Null when there's nothing to show. */
-export async function fetchPreview(raw: string, deps: FetchDeps): Promise<LinkPreview | null> {
+/** Waits for `work`, or fails as soon as `signal` fires. */
+function beforeDeadline<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new Error('Out of time'));
+  return new Promise<T>((resolve, reject) => {
+    const stop = () => reject(new Error('Out of time'));
+    signal.addEventListener('abort', stop, { once: true });
+    work.then(resolve, reject).finally(() => signal.removeEventListener('abort', stop));
+  });
+}
+
+/** Fetches a page's preview, checking every hop is a public address. Null when there's nothing to
+ *  show; it throws when it couldn't find out (no connection, or `signal`'s one time limit for the
+ *  name lookups, every hop and the reading ran out), so that isn't kept as an answer.
+ *
+ *  What's left: the lookup here and the one `get` makes can differ (a name that answers public, then
+ *  private). The Edge Function runs outside the club's database network and reads only the start of
+ *  HTML pages, so the most such a trick gets is a page's title on a member's chat card. */
+export async function fetchPreview(
+  raw: string,
+  deps: FetchDeps,
+  signal: AbortSignal = AbortSignal.timeout(TIMEOUT_MS),
+): Promise<LinkPreview | null> {
   let url = fetchableUrl(raw);
   for (let hop = 0; url && hop <= MAX_REDIRECTS; hop++) {
-    const addresses = IP_HOST.test(url.hostname) ? [url.hostname] : await deps.resolve(url.hostname);
+    const addresses = IP_HOST.test(url.hostname) ? [url.hostname] : await beforeDeadline(deps.resolve(url.hostname), signal);
     if (!addresses.length || addresses.some(isPrivateAddress)) return null;
-    const res = await deps.get(url);
+    const res = await beforeDeadline(deps.get(url, signal), signal);
     if (res.status >= 300 && res.status < 400) {
       const next = res.headers.get('location');
       await res.body?.cancel();
@@ -132,7 +152,7 @@ export async function fetchPreview(raw: string, deps: FetchDeps): Promise<LinkPr
       await res.body?.cancel();
       return null;
     }
-    return parsePreview(await readCapped(res), url.toString());
+    return parsePreview(await beforeDeadline(readCapped(res), signal), url.toString());
   }
   return null;
 }

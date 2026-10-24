@@ -150,6 +150,15 @@ export function mergeMessages(have: Message[], incoming: Message[]): Message[] {
   return [...byId.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
 }
 
+/** The files of messages that were there in `have` and come back removed, so any addresses handed
+ *  out for them can be thrown away. */
+export function goneMedia(have: Message[], incoming: Message[]): string[] {
+  const removed = new Set(incoming.filter((m) => m.removedAt).map((m) => m.id));
+  return have
+    .filter((m) => removed.has(m.id) && !m.removedAt)
+    .flatMap((m) => m.media.flatMap((x) => (x.posterPath ? [x.path, x.posterPath] : [x.path])));
+}
+
 const ENDINGS: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov',
 };

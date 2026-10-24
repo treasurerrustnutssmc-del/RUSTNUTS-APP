@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Message } from '../../domain/chat';
-import { mergeMessages, toFeedItem, toMessage, toReport, toRide, toSummaryParts, uploadName } from './liveChat';
+import { goneMedia, mergeMessages, toFeedItem, toMessage, toReport, toRide, toSummaryParts, uploadName } from './liveChat';
 
 const rideRow = {
   id: 'r1', title: 'Coffee run', starts_at: '2026-11-07T21:30:00+00:00', ends_at: null, all_day: false,
@@ -76,6 +76,14 @@ test('merging keeps one copy of each message, the newer copy winning, oldest fir
   const merged = mergeMessages(have, [message('c', '2026-10-24T03:00:00.000Z'), message('b', '2026-10-24T02:00:00.000Z', 'edited')]);
   assert.deepEqual(merged.map((m) => [m.id, m.body]), [['a', 'a'], ['b', 'edited'], ['c', 'c']]);
   assert.deepEqual(mergeMessages(merged, [message('z', '2026-10-23T00:00:00.000Z')]).map((m) => m.id), ['z', 'a', 'b', 'c'], 'older pages go first');
+});
+
+test('the files of a message that has just been removed, so their addresses are thrown away', () => {
+  const photo = { id: 'p', messageId: 'b', kind: 'video' as const, path: 'c1/v.mp4', posterPath: 'c1/s.jpg', width: 1, height: 1, durationMs: 1, position: 0 };
+  const have = [message('a', '2026-10-24T01:00:00.000Z'), { ...message('b', '2026-10-24T02:00:00.000Z'), media: [photo] }];
+  const removed = { ...message('b', '2026-10-24T02:00:00.000Z'), body: null, removedAt: '2026-10-24T03:00:00.000Z' };
+  assert.deepEqual(goneMedia(have, [removed]), ['c1/v.mp4', 'c1/s.jpg']);
+  assert.deepEqual(goneMedia(have, [message('b', '2026-10-24T02:00:00.000Z')]), [], 'still there');
 });
 
 test('an upload lands in its chat’s folder with a fresh name and the right ending', () => {

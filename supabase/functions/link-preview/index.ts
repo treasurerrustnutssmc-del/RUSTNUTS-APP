@@ -5,9 +5,16 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { fetchableUrl, fetchPreview, TIMEOUT_MS } from '../_shared/linkPreview.ts';
 
-const json = (body: unknown, status = 200) => Response.json(body, { status });
+// The web build calls from the browser, which asks first (OPTIONS) and needs these headers back.
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+  'access-control-allow-methods': 'POST, OPTIONS',
+};
+const json = (body: unknown, status = 200) => Response.json(body, { status, headers: CORS });
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'POST a url.' }, 405);
   const { url: raw } = await req.json().catch(() => ({ url: null }));
   const url = typeof raw === 'string' ? fetchableUrl(raw) : null;
@@ -22,21 +29,29 @@ Deno.serve(async (req) => {
   if (kept.error) return json({ error: kept.error.message }, 403);
   if (kept.data?.found) return json({ preview: kept.data.preview });
 
-  const preview = await fetchPreview(url.toString(), {
-    resolve: async (host) => {
-      const [a, aaaa] = await Promise.all([
-        Deno.resolveDns(host, 'A').catch(() => [] as string[]),
-        Deno.resolveDns(host, 'AAAA').catch(() => [] as string[]),
-      ]);
-      return [...a, ...aaaa];
-    },
-    get: (u) =>
-      fetch(u, {
-        redirect: 'manual',
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-        headers: { accept: 'text/html,application/xhtml+xml', 'user-agent': 'RustnutsLinkPreview/1.0' },
-      }),
-  }).catch(() => null);
+  // One time limit for the whole job: name lookups, every hop and the reading.
+  const deadline = AbortSignal.timeout(TIMEOUT_MS);
+  let preview;
+  try {
+    preview = await fetchPreview(url.toString(), {
+      resolve: async (host) => {
+        const [a, aaaa] = await Promise.all([
+          Deno.resolveDns(host, 'A', { signal: deadline }).catch(() => [] as string[]),
+          Deno.resolveDns(host, 'AAAA', { signal: deadline }).catch(() => [] as string[]),
+        ]);
+        return [...a, ...aaaa];
+      },
+      get: (u, signal) =>
+        fetch(u, {
+          redirect: 'manual',
+          signal,
+          headers: { accept: 'text/html,application/xhtml+xml', 'user-agent': 'RustnutsLinkPreview/1.0' },
+        }),
+    }, deadline);
+  } catch {
+    // Slow or unreachable: no card this time, and nothing kept, so the app asks again later.
+    return json({ error: 'No answer from that site.' }, 503);
+  }
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false },

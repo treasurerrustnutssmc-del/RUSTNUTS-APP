@@ -253,6 +253,45 @@ begin
   assert (select count(*) from storage.objects where name = west || '/a.jpg') = 1, 'a sent file can''t be deleted';
 end $$;
 
+\echo 'Odd uploads: phones send fractions, GIFs repeat, a file goes in once'
+do $$
+declare
+  wes constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  club uuid := pg_temp.chat('club');
+  upload text := $q$insert into storage.objects (bucket_id, name, owner, owner_id) values ('chat-media', %L, %L, %L)$q$;
+  send text := 'select public.send_message(%L, %L, %L::jsonb, null)';
+  gif jsonb := jsonb_build_object('path', 'https://media.giphy.com/media/xyz/giphy.gif', 'kind', 'gif', 'width', 200, 'height', 150);
+  m uuid;
+begin
+  perform pg_temp.try_as(wes, format(upload, club || '/iphone.mov', wes, wes));
+  perform pg_temp.try_as(wes, format(upload, club || '/iphone.jpg', wes, wes));
+  m := pg_temp.value_as(wes, format(send, club, '', jsonb_build_array(jsonb_build_object(
+    'path', club || '/iphone.mov', 'kind', 'video', 'posterPath', club || '/iphone.jpg',
+    'width', 1079.5, 'height', 1920.2, 'durationMs', 12345.666))))::uuid;
+  assert (select duration_ms from message_media where message_id = m) = 12346, 'an iPhone video length, rounded';
+  assert (select width from message_media where message_id = m) = 1080, 'and its size';
+  perform pg_temp.try_as(wes, format('select public.remove_message(%L)', m));  -- out of the photo feed checks below
+
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(gif, gif))) is null, 'the same GIF twice in one message';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(gif))) is null, 'and again later';
+
+  perform pg_temp.try_as(wes, format(upload, club || '/twice.jpg', wes, wes));
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(
+    jsonb_build_object('path', club || '/twice.jpg', 'kind', 'photo'), jsonb_build_object('path', club || '/twice.jpg', 'kind', 'photo'))))
+    = 'That photo didn’t upload properly. Try again.', 'one file twice in one message';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(
+    jsonb_build_object('path', club || '/twice.jpg', 'kind', 'video', 'posterPath', club || '/twice.jpg'))))
+    = 'That photo didn’t upload properly. Try again.', 'a video can''t be its own still';
+end $$;
+
+\echo 'Signed-in members only reach the helpers the access rules need'
+do $$
+begin
+  assert has_function_privilege('authenticated', 'private.can_read_chat(uuid)', 'execute'), 'the read rule';
+  assert not has_function_privilege('authenticated', 'private.remove_message_now(uuid, uuid)', 'execute'), 'not removing without checks';
+  assert not has_function_privilege('authenticated', 'private.add_roster_position(uuid, uuid, public.position_role)', 'execute'), 'the roster''s second lock stays';
+end $$;
+
 \echo 'Removing: your own, or as a moderator of that chat'
 do $$
 declare
@@ -426,6 +465,8 @@ begin
   assert pg_temp.try_as(sec, format('select public.resolve_report(%L, false)', r)) = 'That report was already dealt with.', 'once';
   assert pg_temp.try_as(cap, format('select public.resolve_report(%L, false)', (select id from message_reports where message_id = club_msg))) is null, 'dismissed';
   assert (select removed_at is null from messages where id = club_msg), 'kept';
+  assert pg_temp.try_as(wes, format(report, club_msg, 'Still not on, I said')) is null, 'reporting again';
+  assert (select resolved_at is not null from message_reports where message_id = club_msg), 'doesn''t reopen a dealt-with report';
   assert pg_temp.try_as(sec, format('select public.resolve_report(%L, false)', '00000000-0000-0000-0000-0000000000ff')) = 'No such report.', 'missing';
 end $$;
 

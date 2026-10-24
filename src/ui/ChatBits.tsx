@@ -35,8 +35,10 @@ export function useMediaSource(path: string | null): MediaSource | null {
   return path && source?.path === path ? source.value : null;
 }
 
-/** A picture source: a web address, or one of the app's own pictures (a number on phones, an object on the web). */
-export const asImage = (s: MediaSource | null) => (s === null ? null : typeof s === 'string' ? { uri: s } : s);
+/** A picture source: a web address, or one of the app's own pictures (a number on phones, an object on the web).
+ *  Signed addresses change every few minutes, so the file's own path is what the image cache goes by. */
+export const asImage = (s: MediaSource | null, cacheKey?: string | null) =>
+  s === null ? null : typeof s === 'string' ? { uri: s, cacheKey: cacheKey ?? undefined } : s;
 
 function seconds(ms: number | null) {
   if (!ms) return '';
@@ -67,7 +69,13 @@ export function MediaTile({
       style={({ pressed }) => [styles.tile, style, pressed && { opacity: 0.85 }]}
     >
       {shown !== null ? (
-        <Image source={asImage(shown)} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} autoplay />
+        <Image
+          source={asImage(shown, media.kind === 'video' ? media.posterPath : media.path)}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          transition={120}
+          autoplay
+        />
       ) : media.kind !== 'video' ? (
         <ActivityIndicator color={colors.boneMute} />
       ) : null}

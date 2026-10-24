@@ -1051,6 +1051,33 @@
       "allowed": true
     },
     {
+      "name": "4,000 emoji count as 4,000 characters",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "🏍",
+      "repeat": 4000,
+      "allowed": true
+    },
+    {
+      "name": "Spaces around the words don't count",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "x                                                                                                    ",
+      "repeat": 40,
+      "allowed": true
+    },
+    {
+      "name": "A message of only non-breaking spaces is still words",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "\u00a0",
+      "repeat": 3,
+      "allowed": true
+    },
+    {
       "name": "A message over 4,000 characters",
       "as": "spanner",
       "action": "chatSend",

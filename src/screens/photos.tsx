@@ -63,7 +63,7 @@ function WallCover({ item }: { item: FeedItem | null }) {
   const shown = useMediaSource(item ? (item.kind === 'video' ? item.posterPath : item.path) : null);
   return (
     <View style={styles.cover}>
-      {shown !== null ? <Image source={asImage(shown)} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+      {shown !== null ? <Image source={asImage(shown, item && (item.kind === 'video' ? item.posterPath : item.path))} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
     </View>
   );
 }
@@ -225,7 +225,7 @@ function PhotoPage({ item, width, height }: { item: FeedItem; width: number; hei
   return (
     <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
       {source !== null ? (
-        <Image source={asImage(source)} style={{ width, height }} contentFit="contain" />
+        <Image source={asImage(source, item.path)} style={{ width, height }} contentFit="contain" />
       ) : (
         <ActivityIndicator color={colors.boneMute} />
       )}

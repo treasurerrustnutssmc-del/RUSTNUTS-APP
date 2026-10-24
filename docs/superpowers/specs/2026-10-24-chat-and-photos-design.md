@@ -53,7 +53,9 @@ public and anyone suspended see nothing.
 | Private | the two people in it | nobody (each removes their own) |
 
 - Everyone can remove their own messages. A removed message shows as "Message removed", and its
-  photos and videos stop being served straight away.
+  photos and videos stop being served: straight away for new requests, and within five minutes for
+  an address the app was already given (signed addresses last five minutes, and the app throws its
+  copies away when it sees the removal).
 - A private chat is between two different approved members. Opening one with someone you
   already have one with goes back to the same chat.
 - **Ride chats tidy themselves away:** a ride's chat shows in your chat list from 7 days before
@@ -124,7 +126,8 @@ chapter's chat; a board member of either chapter can tidy the whole-club and rid
   still from `expo-video` for the grid. Videos play with `expo-video`. Images show with
   `expo-image`, which caches them.
 - **Screens** (`src/screens/chat.tsx`, `src/screens/photos.tsx`):
-  - **Chat tab**, after Home. A "Photos" strip of the latest few at the top, then your chats:
+  - **Chat tab**, after Home. A Photos button in the header (it replaced the planned strip of the
+    latest few, which pushed the chats down on a phone), then your chats:
     Whole club, your chapter, ride chats in their window, then private chats by latest message.
     Each row has the name in stencil, the last line, the time, and an unread count. A "New
     message" button picks a member. The tab shows your total unread count. Moderators see a row
@@ -137,7 +140,8 @@ chapter's chat; a board member of either chapter can tidy the whole-club and rid
     you scroll up.
   - **Photos screen:** "Latest" (a three-across grid) and "Ride walls" (rides with photos, cover
     and count).
-  - **Ride wall:** the ride's name and date, its grid, "Add photos", and a link to the ride chat.
+  - **Ride wall:** the ride's name and date, its grid, and a "Ride chat" button. Photos are added by
+    posting them in the ride chat (one way in, so every photo has a message to reply to and report).
   - **Viewer:** full screen, swipe between items, who posted it and when, video with controls.
   - **Entry points elsewhere** (one small block each): "Message" on a member's screen, and
     "Ride chat" and "Ride wall" rows on the ride screen.
@@ -218,3 +222,13 @@ manage". These replace the "Not in this spec" lines about board chat, GIFs and l
 - **Ride comms (voice while riding) is not in this stage.** Jeff wants it: open mic (hands stay on
   the bars), headset button to mute, one big Connect and one big Disconnect. It needs a voice
   service account, so it went to Stage 6 live ride mode (lane E told).
+
+## Review changes (24 Oct 2026)
+
+- Link previews: one five-second limit covers the name lookups, every redirect and the reading. A
+  site that doesn't answer in time isn't kept, so the app tries again later. What's left: the name
+  lookup the check makes and the one the fetch makes can differ. The function runs outside the
+  club's database network and reads only the start of HTML pages, so the most that gets anyone is a
+  page title on a chat card.
+- The same GIF can be sent any number of times; an uploaded file still goes in once.
+- A report a moderator has dealt with stays dealt with if the same person reports again.
