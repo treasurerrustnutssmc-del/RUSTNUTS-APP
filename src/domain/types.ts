@@ -43,8 +43,6 @@ export interface Chapter {
 }
 
 export interface Member {
-  /** On an approved break from attendance (set by the admin for now). */
-  onHiatus?: boolean;
   id: string;
   chapterId: string;
   fullName: string;
@@ -57,6 +55,8 @@ export interface Member {
   bio: string | null;
   sharePhone: boolean;
   appliedOn: string | null;
+  /** A patched member taking a break: keeps status and patch, flagged as away. */
+  onHiatus: boolean;
 }
 
 /** Contact and compliance details: the member and their chapter board only. */

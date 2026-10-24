@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoData';
-import { displayName, expiryAlerts, initials, phoneNote, profileChecklist } from './profile';
+import { displayName, expiryAlerts, hasEarnedDisc, initials, phoneNote, profileChecklist } from './profile';
 
 const d = DEMO_DATA;
 const m = (id: string) => d.members.find((x) => x.id === id)!;
@@ -49,4 +49,15 @@ test('the phone line says what is actually going on', () => {
   assert.equal(phoneNote({ isSelf: false, canSee: true, hasPhone: false, name: 'Gravel' }), 'No mobile on record for Gravel.');
   assert.equal(phoneNote({ isSelf: false, canSee: false, hasPhone: false, name: 'Gravel' }), 'Gravel hasn’t shared their number with members.');
   assert.equal(phoneNote({ isSelf: false, canSee: true, hasPhone: true, name: 'Rusty' }), null);
+});
+
+test('the member disc is earned at full membership, never given', () => {
+  const approved = { approval: 'approved' as const };
+  assert.equal(hasEarnedDisc({ ...approved, status: 'full' }), true);
+  assert.equal(hasEarnedDisc({ ...approved, status: 'nomad' }), true, 'a nomad is a full member living away');
+  for (const status of ['introduced', 'fng', 'supporter', 'family'] as const) {
+    assert.equal(hasEarnedDisc({ ...approved, status }), false, status);
+  }
+  assert.equal(hasEarnedDisc({ approval: 'suspended', status: 'full' }), false, 'not while suspended');
+  assert.equal(hasEarnedDisc({ approval: 'pending', status: 'full' }), false);
 });

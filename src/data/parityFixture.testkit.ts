@@ -49,6 +49,7 @@ export function fixtureData(without: string[] = []): ClubData {
       bio: null,
       sharePhone: m.sharePhone,
       appliedOn: '2024-01-01',
+      onHiatus: false,
     })),
     privates: [],
     bikes: fixture.bikes.map((b) => ({

@@ -84,6 +84,7 @@ export function apply(ctx: DemoCtx, input: ApplicationInput): { data: ClubData; 
         bio: null,
         sharePhone: false,
         appliedOn: ctx.today,
+        onHiatus: false,
       },
     ],
     privates: [

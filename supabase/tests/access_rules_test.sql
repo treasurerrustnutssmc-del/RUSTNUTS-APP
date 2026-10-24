@@ -483,4 +483,29 @@ do $$ begin
   end;
 end $$;
 
+\echo 'Founder is a national title with no powers; new club roles sit in a chapter'
+do $$ begin
+  insert into positions (member_id, chapter_id, role)
+    values ('00000000-0000-0000-0000-000000000007', null, 'founder');
+  insert into positions (member_id, chapter_id, role)
+    select '00000000-0000-0000-0000-000000000007', id, 'ride_committee' from chapters where slug = 'west';
+  insert into positions (member_id, chapter_id, role)
+    select '00000000-0000-0000-0000-000000000007', id, 'assistant_tail_gunner' from chapters where slug = 'west';
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000007', true);
+  assert not private.is_national(), 'Founder title alone grants no national powers';
+  begin
+    insert into positions (member_id, chapter_id, role)
+      select '00000000-0000-0000-0000-000000000007', id, 'founder' from chapters where slug = 'west';
+    raise exception 'founder tied to a chapter';
+  exception when check_violation then null;
+  end;
+  perform set_config('request.jwt.claim.sub', '', true);
+  delete from positions where member_id = '00000000-0000-0000-0000-000000000007';
+end $$;
+
+\echo 'A patched member can be on hiatus'
+do $$ begin
+  assert (select on_hiatus from members where id = '00000000-0000-0000-0000-000000000007') = false, 'off by default';
+end $$;
+
 \echo 'ALL ACCESS CHECKS PASSED'

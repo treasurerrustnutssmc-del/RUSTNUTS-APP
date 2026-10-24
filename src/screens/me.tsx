@@ -4,10 +4,10 @@ import { useClub } from '../data/ClubStore';
 import { activePositions } from '../domain/access';
 import { formatAuDate, parseAuDate, describeExpiry } from '../domain/dates';
 import { LICENCE_LABEL, ROLE_LABEL } from '../domain/labels';
-import { displayName, initials } from '../domain/profile';
+import { displayName, hasEarnedDisc, initials } from '../domain/profile';
 import type { LicenceClass } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
-import { space } from '../theme';
+import { colors, space } from '../theme';
 import {
   Avatar,
   Button,
@@ -15,12 +15,15 @@ import {
   Chip,
   Choices,
   ConfirmButton,
+  Body,
   Field,
+  Flannel,
   H1,
   H2,
   IconBadge,
   ListRow,
   LockNote,
+  MemberDisc,
   Notice,
   Row,
   Screen,
@@ -70,6 +73,21 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
             </Row>
           </View>
         </Row>
+        {hasEarnedDisc(me) ? (
+          <Flannel style={{ padding: space.md }}>
+            <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
+              <MemberDisc size={72} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Body strong>Full member</Body>
+                <Small style={{ color: colors.boneDim }}>
+                  {me.patchedOn ? `Disc earned ${formatAuDate(me.patchedOn)}` : 'Disc earned'}
+                </Small>
+              </View>
+            </Row>
+          </Flannel>
+        ) : me.status === 'introduced' || me.status === 'fng' ? (
+          <Small>Your MEMBER disc is earned at full membership.</Small>
+        ) : null}
         <Row style={{ gap: space.sm }}>
           <Button label="Edit profile" kind="secondary" icon="create-outline" onPress={() => navigation.navigate('EditProfile')} style={{ flex: 1 }} />
           <Button label="View" kind="quiet" onPress={() => navigation.navigate('MemberDetail', { memberId: me.id })} />

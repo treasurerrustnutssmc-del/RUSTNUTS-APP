@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Rustnuts",
-    "slug": "rustnuts",
+    "slug": "rustnutssmc",
     "scheme": "rustnuts",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -15,7 +15,7 @@
     "android": {
       "package": "au.com.rustnutssmc.app",
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -32,6 +32,18 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "owner": "rustnutssmcs-team",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/57ac4925-9517-41e2-8a45-4eeccd32abc5"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "57ac4925-9517-41e2-8a45-4eeccd32abc5"
+      }
+    }
   }
 }

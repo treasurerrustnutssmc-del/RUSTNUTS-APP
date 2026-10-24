@@ -27,7 +27,7 @@ let bundle = readFileSync(join(jsDir, bundleFile), 'utf8');
 
 // Assets the app actually shows. Everything else in the bundle (other icon sets,
 // the native-only font file) is never requested on the web.
-const KEEP = [/\/assets\/assets\/logo\./, /\/Fonts\/Ionicons\./, /@react-navigation\/elements\/lib\/module\/assets\//];
+const KEEP = [/\/assets\/assets\/(logo|flannel|member-disc|skull)\./, /\/Fonts\/Ionicons\./, /@react-navigation\/elements\/lib\/module\/assets\//];
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.ttf': 'font/ttf' };
 
 let inlined = 0;

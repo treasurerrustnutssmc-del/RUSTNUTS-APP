@@ -5,7 +5,7 @@ import { ROLE_ORDER } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
 import { colors, space } from '../theme';
-import { Avatar, Body, ListRow, RoleChip, Row, Small, StatusChip } from './primitives';
+import { Avatar, Body, Chip, ListRow, RoleChip, Row, Small, StatusChip } from './primitives';
 
 export function sortedPositions(memberId: string, data: ClubData) {
   return activePositions(memberId, data.positions).sort(
@@ -52,6 +52,7 @@ export function MemberRow({
         <View style={{ gap: 6 }}>
           <Row style={{ gap: 6 }}>
             <StatusChip status={member.status} />
+            {member.onHiatus ? <Chip label="On hiatus" icon="pause" /> : null}
             {positions.map((p) => (
               <RoleChip key={p.id} role={p.role} />
             ))}

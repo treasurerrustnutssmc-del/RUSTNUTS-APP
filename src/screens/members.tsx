@@ -11,7 +11,7 @@ import {
 } from '../domain/access';
 import { describeExpiry, expiryState, formatLongDate, monthsBetween } from '../domain/dates';
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
-import { displayName, expiryAlerts, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
+import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, space } from '../theme';
@@ -24,6 +24,7 @@ import {
   Chip,
   Choices,
   Field,
+  Flannel,
   H1,
   H2,
   IconBadge,
@@ -32,6 +33,7 @@ import {
   Label,
   ListRow,
   LockNote,
+  MemberDisc,
   Notice,
   RoleChip,
   Row,
@@ -79,16 +81,19 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
-      <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
-        <Avatar text={initials(me)} size={56} />
-        <View style={{ flex: 1, gap: 4 }}>
-          <H1>G’day, {displayName(me)}</H1>
-          <Small>
-            {chapter?.name} chapter
-            {positions.length ? ` · ${positions.map((p) => ROLE_LABEL[p.role]).join(', ')}` : ''}
-          </Small>
-        </View>
-      </Row>
+      <Flannel>
+        <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
+          <Avatar text={initials(me)} size={56} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <H1>G’day, {displayName(me)}</H1>
+            <Small style={{ color: colors.boneDim }}>
+              {chapter?.name} chapter
+              {positions.length ? ` · ${positions.map((p) => ROLE_LABEL[p.role]).join(', ')}` : ''}
+            </Small>
+          </View>
+          {hasEarnedDisc(me) ? <MemberDisc size={52} /> : null}
+        </Row>
+      </Flannel>
 
       {isBoard && (pending.length > 0 || boardAlerts.length > 0) ? (
         <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
@@ -294,11 +299,13 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
             {member.roadName ? <Small>{member.fullName}</Small> : null}
             <Row style={{ gap: 6 }}>
               <StatusChip status={member.status} />
+              {member.onHiatus ? <Chip label="On hiatus" icon="pause" /> : null}
               {positions.map((p) => (
                 <RoleChip key={p.id} role={p.role} />
               ))}
             </Row>
           </View>
+          {hasEarnedDisc(member) ? <MemberDisc size={60} /> : null}
         </Row>
         <Stack gap={2}>
           <KeyValue label="Chapter" value={`${chapter?.name} · ${chapter?.area}`} />

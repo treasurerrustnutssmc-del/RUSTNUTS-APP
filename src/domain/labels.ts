@@ -69,15 +69,20 @@ export const CLUB_ROLES: PositionRole[] = [
   'officer',
   'tail_gunner',
   'assistant_tail_gunner',
-  'ride_committee',
   'social_media_officer',
   'club_coach',
+  'ride_committee',
 ];
 
 export const NATIONAL_ROLES: PositionRole[] = ['nec_chair', 'nec_secretary', 'nec_auditor'];
 
-/** Honours carry no powers and are recorded by the admin, never handed out in the app. */
-export const HONOUR_ROLES: PositionRole[] = ['founder'];
+/** Honorary titles: held club-wide like national roles, but they grant no powers. */
+export const TITLE_ROLES: PositionRole[] = ['founder'];
 
-/** Order positions are listed in: President first, Officers last. */
-export const ROLE_ORDER: PositionRole[] = [...HONOUR_ROLES, ...NATIONAL_ROLES, ...BOARD_ROLES, ...CLUB_ROLES];
+/** Roles that belong to the whole club rather than one chapter. */
+export function isChapterless(role: PositionRole): boolean {
+  return NATIONAL_ROLES.includes(role) || TITLE_ROLES.includes(role);
+}
+
+/** Order positions are listed in: Founder first, Officers last. */
+export const ROLE_ORDER: PositionRole[] = [...TITLE_ROLES, ...NATIONAL_ROLES, ...BOARD_ROLES, ...CLUB_ROLES];

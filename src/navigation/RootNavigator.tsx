@@ -11,6 +11,7 @@ import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
+import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
 
 const Stack = createNativeStackNavigator<RootParams>();
@@ -71,7 +72,7 @@ function MainTabs() {
         ),
       })}
     >
-      <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Rustnuts', tabBarLabel: 'Home' }} />
+      <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} />, tabBarLabel: 'Home' }} />
       <Tabs.Screen name="Members" component={MembersScreen} />
       <Tabs.Screen name="Chapters" component={ChaptersScreen} />
       {isBoard ? (
@@ -96,7 +97,7 @@ export function RootNavigator() {
         {loadError ? (
           <Stack.Screen name="LoadError" component={LoadErrorScreen} options={{ headerShown: false }} />
         ) : needsApplication ? (
-          <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Rustnuts' }} />
+          <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
         ) : level === 'public' ? (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />

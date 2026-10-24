@@ -2,7 +2,7 @@
 // (row-level security in supabase/migrations), so the app can never show
 // more than the server would hand over.
 
-import { BOARD_ROLES, HONOUR_ROLES, NATIONAL_ROLES } from './labels';
+import { BOARD_ROLES, NATIONAL_ROLES, TITLE_ROLES } from './labels';
 import type { ClubData, Member, Position, PositionRole } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'member' | 'board' | 'national';
@@ -112,7 +112,7 @@ export function appointProblem(
 ): string | null {
   if (!me) return 'Sign in first.';
   if (me.approval !== 'approved') return 'Only approved members can do that.';
-  if (HONOUR_ROLES.includes(role)) return HONOUR_BY_ADMIN;
+  if (TITLE_ROLES.includes(role)) return HONOUR_BY_ADMIN;
   if (me.id === target.id) return 'You can’t appoint yourself.';
   if (target.approval !== 'approved') return 'Approve them first.';
   const national = NATIONAL_ROLES.includes(role);
@@ -139,7 +139,7 @@ export function endTermProblem(me: Member | null, position: Position, data: Club
   if (!me) return 'Sign in first.';
   if (me.approval !== 'approved') return 'Only approved members can do that.';
   if (position.endedOn !== null) return 'That term has already ended.';
-  if (HONOUR_ROLES.includes(position.role)) return HONOUR_BY_ADMIN;
+  if (TITLE_ROLES.includes(position.role)) return HONOUR_BY_ADMIN;
   if (position.memberId === me.id) return 'You can’t end your own term.';
   if (NATIONAL_ROLES.includes(position.role) || position.chapterId === null) {
     if (position.role === 'nec_chair') return CHAIR_BY_VOTE;
