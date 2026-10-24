@@ -4,7 +4,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ClubData, Member, MemberStatus, PositionRole } from '../domain/types';
+import type { ClubData, Member, MemberStatus, PositionRole, RideCategory } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 
 export interface ParityCase extends Record<string, unknown> {
@@ -22,6 +22,7 @@ export interface ParityFixture {
   positions: { key: string; member: string; chapter: string | null; role: PositionRole; startedOn: string; endedOn: string | null }[];
   bikes: { key: string; member: string; make: string; model: string; year: number }[];
   contacts: { key: string; member: string; name: string; relationship: string; phone: string }[];
+  rides: { key: string; title: string; startsAt: string; category: RideCategory; cancelled: boolean }[];
   cases: ParityCase[];
 }
 
@@ -62,7 +63,10 @@ export function fixtureData(without: string[] = []): ClubData {
     positions: fixture.positions
       .filter((p) => !without.includes(p.key))
       .map((p) => ({ id: p.key, memberId: p.member, chapterId: p.chapter, role: p.role, startedOn: p.startedOn, endedOn: p.endedOn })),
-    rides: [],
+    rides: fixture.rides.map((r) => ({
+      id: r.key, title: r.title, startsAt: r.startsAt, endsAt: null, allDay: false, location: null, notes: null,
+      category: r.category, cancelledAt: r.cancelled ? '2026-01-01T00:00:00.000Z' : null,
+    })),
     rsvps: [],
   };
 }

@@ -152,8 +152,36 @@ export const DEMO_DATA: ClubData = {
     { id: 'p-11', memberId: 'm-crank', chapterId: 'ch-north', role: 'road_captain', startedOn: '2025-08-16', endedOn: null },
     { id: 'p-12', memberId: 'm-ace', chapterId: 'ch-north', role: 'officer', startedOn: '2025-08-16', endedOn: null },
   ],
-  rides: [],
-  rsvps: [],
+  // Made-up rides, spread over the website's five colours. Times are Melbourne local, as instants.
+  rides: [
+    { id: 'r-1', title: 'West breakfast run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: '2026-11-08T01:00:00.000Z', allDay: false,
+      location: 'Caltex Laverton North', notes: 'KSU 8:30. Breakfast at Daylesford, home by lunch.', category: 'west', cancelledAt: null },
+    { id: 'r-2', title: 'North coffee and curves', startsAt: '2026-11-14T22:00:00.000Z', endsAt: '2026-11-15T03:00:00.000Z', allDay: false,
+      location: 'Kilmore Bakery', notes: 'Up through Pyalong and back via Lancefield.', category: 'north', cancelledAt: null },
+    { id: 'r-3', title: 'Toy Run (Non-Nuts)', startsAt: '2026-11-28T23:00:00.000Z', endsAt: null, allDay: false,
+      location: 'Werribee Racecourse', notes: 'Another club’s charity run. Bring a wrapped toy.', category: 'non_nuts', cancelledAt: null },
+    { id: 'r-4', title: 'Rustnuts Christmas ride', startsAt: '2026-12-05T23:00:00.000Z', endsAt: '2026-12-06T06:00:00.000Z', allDay: false,
+      location: 'Clubhouse, Williams Landing', notes: 'Both chapters. Lunch and the Kris Kringle after.', category: 'club', cancelledAt: null },
+    { id: 'r-5', title: 'West twisties', startsAt: '2026-12-12T22:00:00.000Z', endsAt: null, allDay: false,
+      location: 'Bacchus Marsh McDonald’s', notes: null, category: 'west', cancelledAt: '2026-12-01T00:00:00.000Z' },
+    { id: 'r-6', title: 'Ride for Kids (supported)', startsAt: '2027-01-16T23:00:00.000Z', endsAt: null, allDay: false,
+      location: 'Geelong Waterfront', notes: 'Supporting a mate’s club. Rusty Bus on recovery.', category: 'supported', cancelledAt: null },
+    { id: 'r-7', title: 'Big 4: Phillip Island weekend', startsAt: '2027-01-29T13:00:00.000Z', endsAt: '2027-01-31T13:00:00.000Z', allDay: true,
+      location: 'Phillip Island', notes: 'Two nights. Book your own room.', category: 'club', cancelledAt: null },
+    { id: 'r-8', title: 'North night ride', startsAt: '2027-02-13T08:00:00.000Z', endsAt: null, allDay: false,
+      location: 'Wallan servo', notes: null, category: 'north', cancelledAt: null },
+  ],
+  rsvps: [
+    { rideId: 'r-1', memberId: 'm-rusty', answer: 'going', updatedAt: '2026-10-20T08:00:00.000Z' },
+    { rideId: 'r-1', memberId: 'm-spanner', answer: 'going', updatedAt: '2026-10-20T09:00:00.000Z' },
+    { rideId: 'r-1', memberId: 'm-gravel', answer: 'maybe', updatedAt: '2026-10-21T09:00:00.000Z' },
+    { rideId: 'r-1', memberId: 'm-throttle', answer: 'going', updatedAt: '2026-10-21T10:00:00.000Z' },
+    { rideId: 'r-2', memberId: 'm-smokey', answer: 'going', updatedAt: '2026-10-22T10:00:00.000Z' },
+    { rideId: 'r-2', memberId: 'm-jet', answer: 'going', updatedAt: '2026-10-22T11:00:00.000Z' },
+    { rideId: 'r-4', memberId: 'm-rusty', answer: 'going', updatedAt: '2026-10-22T12:00:00.000Z' },
+    { rideId: 'r-4', memberId: 'm-crank', answer: 'going', updatedAt: '2026-10-22T12:30:00.000Z' },
+    { rideId: 'r-4', memberId: 'm-chook', answer: 'no', updatedAt: '2026-10-23T08:00:00.000Z' },
+  ],
 };
 
 /** The people you can "view as" in the demo, one per access level. */

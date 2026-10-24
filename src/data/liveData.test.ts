@@ -118,3 +118,27 @@ test('signed out: no roster claim is tried', async () => {
   await loadClub(client, false);
   assert.deepEqual(calls, []);
 });
+
+test('signed in: rides and answers load, with when the calendar last synced', async () => {
+  const ride = (id: string, synced: string, over: object = {}) => ({
+    id, source: 'feed', feed_id: 'f1', external_uid: `${id}@x`, starts_at: '2026-11-07T21:30:00+00:00',
+    ends_at: null, all_day: false, title: 'Coffee run', location: 'Laverton', notes: null, category: 'west',
+    cancelled_at: null, synced_at: synced, ...over,
+  });
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      rides: [ride('r1', '2026-10-24T10:00:00+00:00'), ride('r2', '2026-10-24T10:15:00+00:00', { cancelled_at: '2026-10-24T10:15:00+00:00', all_day: true })],
+      rsvps: [{ ride_id: 'r1', member_id: 'm1', answer: 'going', updated_at: '2026-10-24T11:00:00+00:00' }],
+    }),
+    true,
+  );
+  assert.deepEqual(data.rides[0], {
+    id: 'r1', title: 'Coffee run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: null, allDay: false,
+    location: 'Laverton', notes: null, category: 'west', cancelledAt: null,
+  });
+  assert.equal(data.rides[1].allDay, true);
+  assert.equal(data.rides[1].cancelledAt, '2026-10-24T10:15:00.000Z');
+  assert.deepEqual(data.rsvps, [{ rideId: 'r1', memberId: 'm1', answer: 'going', updatedAt: '2026-10-24T11:00:00.000Z' }]);
+  assert.equal(data.ridesSyncedAt, '2026-10-24T10:15:00.000Z');
+});

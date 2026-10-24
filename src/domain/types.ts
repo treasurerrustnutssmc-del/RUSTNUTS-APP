@@ -139,4 +139,6 @@ export interface ClubData {
   positions: Position[];
   rides: Ride[];
   rsvps: Rsvp[];
+  /** When the live calendar last synced (live mode only). */
+  ridesSyncedAt?: string | null;
 }

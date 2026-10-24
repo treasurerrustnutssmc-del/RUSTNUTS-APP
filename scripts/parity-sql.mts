@@ -52,6 +52,14 @@ for (const c of fx.contacts) {
   );
 }
 
+for (const r of fx.rides) {
+  sql(
+    `insert into public.rides (id, source, starts_at, title, category, cancelled_at) values (` +
+      `${id('r', r.key)}, 'app', ${q(r.startsAt)}::timestamptz, ${q(r.title)}, ${q(r.category)}, ` +
+      `${r.cancelled ? "'2026-01-01T00:00:00Z'" : 'null'});`,
+  );
+}
+
 const call = (c: ParityCase & Record<string, any>): string => {
   switch (c.action) {
     case 'appoint':
@@ -66,6 +74,8 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.set_member_status(${id('m', c.member)}, ${q(c.status)})`;
     case 'removeBike':
       return `public.remove_bike(${id('b', c.bike)})`;
+    case 'rsvp':
+      return `public.set_rsvp(${id('r', c.ride)}, ${q(c.answer)})`;
     case 'removeContact':
       return `public.remove_contact(${id('c', c.contact)})`;
     case 'saveBike':

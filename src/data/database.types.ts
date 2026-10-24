@@ -1,6 +1,8 @@
 // Generated from the live Supabase schema (Stage 1). Regenerate after changing migrations.
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
+type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';
+type RsvpAnswer = 'going' | 'maybe' | 'no';
 type ApprovalState = 'pending' | 'approved' | 'declined' | 'suspended';
 type LicenceClass = 'full_open' | 'probationary_open' | 'learner';
 type PositionRole =
@@ -132,12 +134,39 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      rides: {
+        Row: {
+          all_day: boolean;
+          cancelled_at: string | null;
+          category: RideCategory;
+          ends_at: string | null;
+          external_uid: string | null;
+          feed_id: string | null;
+          id: string;
+          location: string | null;
+          notes: string | null;
+          source: 'feed' | 'app';
+          starts_at: string;
+          synced_at: string;
+          title: string;
+        };
+        Insert: { [_ in never]: never }; // only the calendar sync writes rides
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      rsvps: {
+        Row: { answer: RsvpAnswer; member_id: string; ride_id: string; updated_at: string };
+        Insert: { [_ in never]: never }; // answers change only through set_rsvp
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
       approve_member: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       decline_member: { Args: { p_member: string }; Returns: undefined };
       set_member_status: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
+      set_rsvp: { Args: { p_ride: string; p_answer: RsvpAnswer }; Returns: undefined };
       shared_phones: { Args: never; Returns: { member_id: string; phone: string }[] };
       claim_roster: { Args: never; Returns: boolean };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };

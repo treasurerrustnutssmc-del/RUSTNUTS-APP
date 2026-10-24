@@ -13,6 +13,7 @@ import type {
   MemberPrivate,
   MemberStatus,
   PositionRole,
+  RsvpAnswer,
 } from '../domain/types';
 
 export class NotAllowedError extends Error {}
@@ -82,6 +83,8 @@ export interface ClubContextValue {
   removeContact: (contactId: string) => Promise<void>;
   appoint: (memberId: string, chapterId: string | null, role: PositionRole) => Promise<void>;
   endPosition: (positionId: string) => Promise<void>;
+  /** Your answer to a ride: going, maybe or no. */
+  setRsvp: (rideId: string, answer: RsvpAnswer) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
