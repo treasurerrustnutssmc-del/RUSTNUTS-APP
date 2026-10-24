@@ -21,6 +21,9 @@ export type RosterRow = {
 
 const COLUMNS = ['email', 'chapter', 'full_name', 'road_name', 'status', 'joined_on', 'patched_on', 'fng_started_on', 'on_hiatus', 'roles'] as const;
 const CHAPTERS = ['west', 'north'];
+const NATIONAL: PositionRole[] = ['nec_chair', 'nec_secretary', 'nec_auditor', 'founder'];
+// Seats only one person can hold at a time (the database enforces the same).
+const ONE_HOLDER: PositionRole[] = [...NATIONAL, 'president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain'];
 
 /** Splits one CSV line, honouring "quoted, fields" and "" escapes. */
 function splitCsvLine(line: string): string[] {
@@ -46,18 +49,23 @@ function splitCsvLine(line: string): string[] {
 }
 
 export function parseRosterCsv(csv: string): RosterRow[] {
-  const lines = csv.replace(/\r/g, '').split('\n');
+  // Quoted line breaks aren't supported; the roster sheet has none.
+  const lines = csv.replace(/^\uFEFF/, '').replace(/\r/g, '').split('\n');
   const header = splitCsvLine(lines[0] ?? '').map((h) => h.toLowerCase());
   const missing = COLUMNS.filter((c) => !header.includes(c));
   if (missing.length) throw new Error(`Missing column(s): ${missing.join(', ')}`);
   const col = (cells: string[], name: (typeof COLUMNS)[number]) => cells[header.indexOf(name)] ?? '';
 
   const seen = new Set<string>();
+  const seats = new Set<string>();
   const rows: RosterRow[] = [];
   lines.slice(1).forEach((line, index) => {
     if (!line.trim()) return;
     const where = `Line ${index + 2}`;
     const cells = splitCsvLine(line);
+    if (cells.length !== header.length) {
+      throw new Error(`${where}: has ${cells.length} cells but the sheet has ${header.length} columns`);
+    }
     const date = (name: 'joined_on' | 'patched_on' | 'fng_started_on') => {
       const raw = col(cells, name);
       if (!raw) return null;
@@ -78,14 +86,25 @@ export function parseRosterCsv(csv: string): RosterRow[] {
     if (!fullName) throw new Error(`${where}: full_name is empty`);
 
     const status = col(cells, 'status').toLowerCase() as MemberStatus;
-    if (!(status in STATUS_LABEL)) throw new Error(`${where}: status "${status}" should be one of ${Object.keys(STATUS_LABEL).join(', ')}`);
+    if (!Object.hasOwn(STATUS_LABEL, status)) throw new Error(`${where}: status "${status}" should be one of ${Object.keys(STATUS_LABEL).join(', ')}`);
 
     const roles = col(cells, 'roles')
       .split(';')
       .map((r) => r.trim().toLowerCase())
       .filter(Boolean) as PositionRole[];
-    const badRole = roles.find((r) => !(r in ROLE_LABEL));
+    const badRole = roles.find((r) => !Object.hasOwn(ROLE_LABEL, r));
     if (badRole) throw new Error(`${where}: role "${badRole}" should be one of ${Object.keys(ROLE_LABEL).join(', ')}`);
+
+    for (const role of roles.filter((r) => ONE_HOLDER.includes(r))) {
+      const seat = `${role} of ${NATIONAL.includes(role) ? 'the club' : chapter}`;
+      if (seats.has(seat)) throw new Error(`${where}: ${seat} is on the sheet twice, but only one person can hold it`);
+      seats.add(seat);
+    }
+
+    const hiatus = col(cells, 'on_hiatus').toLowerCase();
+    if (hiatus && !/^(y|yes|true|1|n|no|false|0)$/.test(hiatus)) {
+      throw new Error(`${where}: on_hiatus "${hiatus}" should be yes or no`);
+    }
 
     rows.push({
       email,
@@ -96,10 +115,11 @@ export function parseRosterCsv(csv: string): RosterRow[] {
       joinedOn: date('joined_on'),
       patchedOn: date('patched_on'),
       fngStartedOn: date('fng_started_on'),
-      onHiatus: /^(y|yes|true|1)$/i.test(col(cells, 'on_hiatus')),
+      onHiatus: /^(y|yes|true|1)$/.test(hiatus),
       roles,
     });
   });
+  if (!rows.length) throw new Error('The sheet has no members on it');
   return rows;
 }
 

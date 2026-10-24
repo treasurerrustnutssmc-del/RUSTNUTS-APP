@@ -11,7 +11,9 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('00000000-0000-0000-0000-0000000000a3', 'nobody@example.com', now()),    -- not on the roster
   ('00000000-0000-0000-0000-0000000000a4', 'sneaky@example.com', null),     -- on the roster, email not confirmed
   ('00000000-0000-0000-0000-0000000000a5', 'applied@example.com', now()),   -- on the roster, but already applied
-  ('00000000-0000-0000-0000-0000000000a6', 'holder@example.com', now());    -- holds North President already
+  ('00000000-0000-0000-0000-0000000000a6', 'holder@example.com', now()),    -- holds North President already
+  ('00000000-0000-0000-0000-0000000000a8', 'anon@example.com', now());      -- anonymous sign-in
+update auth.users set is_anonymous = true where id = '00000000-0000-0000-0000-0000000000a8';
 
 insert into private.roster (email, chapter_id, full_name, road_name, status, joined_on, patched_on, on_hiatus, roles)
 select v.email, c.id, v.full_name, v.road_name, v.status::member_status, v.joined::date, v.patched::date, v.hiatus,
@@ -20,7 +22,8 @@ from (values
   ('RockHard@Example.com', 'west',  'Rocky Hardy',  'RockHard', 'full', '2019-03-01', '2019-09-01', false, '{president}'),
   ('jiggles@example.com',  'north', 'Jim Iggles',   'Jiggles',  'full', '2020-01-01', '2020-06-01', true,  '{president}'),
   ('sneaky@example.com',   'west',  'Sam Neaky',    'Sneaky',   'fng',  '2026-01-01', null,         false, '{}'),
-  ('applied@example.com',  'west',  'Al Plied',     'Applied',  'full', '2019-01-01', '2019-01-01', false, '{road_captain}')
+  ('applied@example.com',  'west',  'Al Plied',     'Applied',  'full', '2019-01-01', '2019-01-01', false, '{road_captain}'),
+  ('anon@example.com',     'west',  'Ann On',       'Anon',     'full', '2019-01-01', '2019-01-01', false, '{}')
 ) as v(email, chapter, full_name, road_name, status, joined, patched, hiatus, roles)
 join chapters c on c.slug = v.chapter;
 
@@ -78,19 +81,44 @@ begin
   assert not pg_temp.claim_as('00000000-0000-0000-0000-0000000000a4'), 'unconfirmed email cannot claim';
   assert not exists (select 1 from members where id = '00000000-0000-0000-0000-0000000000a4'), 'no record made';
   assert not pg_temp.claim_as('00000000-0000-0000-0000-0000000000a3'), 'not on the roster';
+  assert not pg_temp.claim_as('00000000-0000-0000-0000-0000000000a8'), 'an anonymous account cannot claim';
   assert not pg_temp.claim_as('00000000-0000-0000-0000-0000000000a5'), 'already applied';
   assert (select approval from members where id = '00000000-0000-0000-0000-0000000000a5') = 'pending', 'their application is untouched';
   assert (select claimed_by from private.roster where email = 'applied@example.com') is null, 'roster row stays open';
 end $$;
 
-\echo 'The roster cannot be read through the app'
+\echo 'The roster cannot be read or changed through the app, and strangers cannot claim'
 do $$
+declare who text;
 begin
-  set local role authenticated;
+  foreach who in array array['anon', 'authenticated'] loop
+    execute format('set local role %I', who);
+    begin
+      perform 1 from private.roster;
+      raise exception '% could read the roster', who;
+    exception when insufficient_privilege then null;
+    end;
+    begin
+      update private.roster set full_name = 'x';
+      raise exception '% could change the roster', who;
+    exception when insufficient_privilege then null;
+    end;
+    reset role;
+  end loop;
+  set local role anon;
   begin
-    perform 1 from private.roster;
-    raise exception 'authenticated could read the roster';
+    perform public.claim_roster();
+    raise exception 'anon could run claim_roster';
   exception when insufficient_privilege then null;
   end;
   reset role;
+end $$;
+
+\echo 'A seat taken by someone claiming at the same moment is skipped, not fatal'
+do $$
+declare jig constant uuid := '00000000-0000-0000-0000-0000000000a2';
+begin
+  -- Simulate the race: the seat is free when checked but taken by the time of the insert.
+  assert private.add_roster_position(jig, (select id from chapters where slug = 'north'), 'president') = false,
+    'the clash is caught and skipped';
 end $$;

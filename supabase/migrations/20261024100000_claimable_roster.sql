@@ -19,8 +19,24 @@ create table private.roster (
 );
 create unique index roster_email on private.roster (lower(trim(email)));
 
--- Only an admin loads or reads it; the app never can.
+-- Only an admin loads or reads it; the app never can. Row-level security with no policies is a
+-- second lock in case the private schema is ever granted wholesale.
 revoke all on private.roster from public, anon, authenticated;
+alter table private.roster enable row level security;
+
+-- Adds one roster position. The unique indexes enforce one holder per board seat and national
+-- role, and no doubled roles; a clash (even one that appears mid-claim) is skipped, not fatal.
+create or replace function private.add_roster_position(p_member uuid, p_seat uuid, p_role public.position_role)
+returns boolean language plpgsql set search_path = '' as $$
+begin
+  insert into public.positions (member_id, chapter_id, role, started_on)
+  values (p_member, p_seat, p_role, private.club_date());
+  return true;
+exception when unique_violation then
+  return false;
+end;
+$$;
+revoke all on function private.add_roster_position(uuid, uuid, public.position_role) from public, anon, authenticated;
 
 create or replace function public.claim_roster()
 returns boolean language plpgsql security definer set search_path = '' as $$
@@ -34,7 +50,11 @@ begin
   if me is null then return false; end if;
   if exists (select 1 from public.members where id = me) then return false; end if;
 
-  select lower(trim(email)) into my_email from auth.users where id = me and email_confirmed_at is not null;
+  -- Only a confirmed email counts, and never an anonymous account. (Supabase gives email-code
+  -- accounts a random password too, so a password can't be used to tell sign-ups apart; see the
+  -- spec for the launch check on password sign-ups.)
+  select lower(trim(email)) into my_email from auth.users
+  where id = me and email_confirmed_at is not null and not coalesce(is_anonymous, false);
   if my_email is null then return false; end if;
 
   select * into entry from private.roster
@@ -52,16 +72,7 @@ begin
 
   foreach wanted in array entry.roles loop
     seat := case when wanted in ('nec_chair', 'nec_secretary', 'nec_auditor', 'founder') then null else entry.chapter_id end;
-    -- A seat someone already holds is skipped, never doubled.
-    if not exists (
-      select 1 from public.positions p
-      where p.role = wanted and p.chapter_id is not distinct from seat and p.ended_on is null
-        and (p.member_id = me or wanted in ('nec_chair', 'nec_secretary', 'nec_auditor', 'founder',
-             'president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain'))
-    ) then
-      insert into public.positions (member_id, chapter_id, role, started_on)
-      values (me, seat, wanted, private.club_date());
-    end if;
+    perform private.add_roster_position(me, seat, wanted);
   end loop;
 
   update private.roster set claimed_by = me, claimed_at = now() where id = entry.id;

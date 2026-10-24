@@ -32,3 +32,20 @@ Nobody fills in the join form or waits for the board.
 - A taken seat is skipped.
 - Someone who already applied isn't overwritten.
 - The roster can't be read through the API.
+
+## Before launch: password sign-ups
+Claiming trusts a confirmed email. The app only uses email codes, but Supabase's email provider
+also accepts password sign-ups with the public key. Before members get the app:
+- Keep **Confirm email** on (Authentication → Sign In / Providers → Email).
+- Block password sign-ups with a before-user-created hook, so nobody can register a member's
+  address with a password ahead of them.
+
+Supabase gives email-code accounts a random password as well, so `claim_roster` can't tell the
+two kinds of account apart by password. Anonymous accounts are refused.
+
+## Notes
+- Positions from the roster go in through `private.add_roster_position`. Clashes with the
+  one-holder rules are skipped, never fatal, so a claim can't fail halfway and leave a member
+  stuck on Ask to join.
+- Founder and national roles can come from the roster, unlike `appoint_position`, because only
+  an admin loads it. `appointed_by` is left empty for these.

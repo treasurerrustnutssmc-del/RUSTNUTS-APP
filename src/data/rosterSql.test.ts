@@ -22,6 +22,11 @@ test('reads the roster sheet: DD/MM/YYYY dates, roles split on semicolons, quote
   assert.equal(rows[2].onHiatus, true);
 });
 
+test('an Excel "CSV UTF-8" file (with a byte-order mark) reads the same', () => {
+  const rows = parseRosterCsv(`\uFEFF${HEADER}\r\na@b.com,west,A,,full,,,,,\r\n`);
+  assert.equal(rows[0].email, 'a@b.com');
+});
+
 test('refuses a sheet with mistakes, naming the line', () => {
   assert.throws(() => parseRosterCsv(`${HEADER}\nnot-an-email,west,A,,full,,,,,\n`), /line 2.*email/i);
   assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,south,A,,full,,,,,\n`), /line 2.*chapter/i);
@@ -30,6 +35,15 @@ test('refuses a sheet with mistakes, naming the line', () => {
   assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full,,,,,king\n`), /line 2.*role/i);
   assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full,,,,,\nA@B.com,north,B,,full,,,,,\n`), /line 3.*twice/i);
   assert.throws(() => parseRosterCsv('email,chapter\n'), /missing column/i);
+  assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,constructor,,,,,\n`), /line 2.*status/i);
+  assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full,,,,,__proto__\n`), /line 2.*role/i);
+  assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full,,,,maybe,\n`), /line 2.*on_hiatus/i);
+  assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full\n`), /line 2.*10 columns/i);
+  assert.throws(() => parseRosterCsv(`${HEADER}\n`), /no members/i);
+  assert.throws(
+    () => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full,,,,,president\nc@d.com,west,C,,full,,,,,president\n`),
+    /line 3.*president.*west.*twice/i,
+  );
 });
 
 test('makes SQL that loads the roster without sending anything and leaves claimed rows alone', () => {
