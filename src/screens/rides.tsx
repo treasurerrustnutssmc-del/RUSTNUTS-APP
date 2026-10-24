@@ -11,6 +11,7 @@ import type { CrewRowSlot } from '../domain/crew';
 import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABEL } from '../domain/labels';
 import { displayName, initials, memberName } from '../domain/profile';
 import { libraryFor, rideRouteProblem, routeOf } from '../domain/routes';
+import { roadRulesStatus, showsRoadRulesNudge } from '../domain/roadRules'; // Road Rules
 import {
   calendarFreshness,
   defaultCategories,
@@ -261,7 +262,7 @@ function RideRow({
 const ANSWERS: RsvpAnswer[] = ['going', 'maybe', 'no'];
 
 export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>) {
-  const { me, data, setRsvp } = useClub();
+  const { me, data, today, setRsvp } = useClub();
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const ride = data.rides.find((r) => r.id === route.params.rideId);
@@ -372,6 +373,11 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       {/* Lane E: share */}
       <ShareRideButton ride={ride} />
 
+      {/* Road Rules: a nudge, not a gate. Unsigned riders can still say Going. */}
+      {showsRoadRulesNudge(me, ride, data, today) ? (
+        <RoadRulesNudge me={me} data={data} today={today} onOpen={() => navigation.navigate('RoadRules')} />
+      ) : null}
+
       <Stack gap={space.sm}>
         <SectionTitle title="Your answer" />
         {problem ? <Notice tone={cancelled ? 'danger' : 'info'}>{problem}</Notice> : null}
@@ -453,6 +459,27 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       {!cancelled || going.length > 0 ? list('Going', going) : null}
       {!cancelled || maybe.length > 0 ? list('Maybe', maybe) : null}
     </Screen>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Road Rules
+// ---------------------------------------------------------------------------
+
+/** "Sign the Road Rules before you ride", for a rider who's unsigned or whose sign-off ran out. */
+function RoadRulesNudge({ me, data, today, onOpen }: { me: Member; data: ClubData; today: string; onOpen: () => void }) {
+  const status = roadRulesStatus(me, data, today);
+  return (
+    <Notice tone="warn" title="Sign the Road Rules before you ride">
+      <Stack gap={space.md}>
+        <Small style={{ color: colors.boneDim }}>
+          {status.state === 'expired'
+            ? `Your sign-off ran out on ${formatAuDate(status.goodUntil)}. Read them again and sign.`
+            : 'You haven’t signed the current Road Rules yet. They’re how the club rides together.'}
+        </Small>
+        <Button label="Read and sign" icon="document-text-outline" kind="secondary" onPress={onOpen} style={{ alignSelf: 'flex-start' }} />
+      </Stack>
+    </Notice>
   );
 }
 

@@ -2,13 +2,13 @@
 // sign-offs. These are the rules the database's publish_road_rules and sign_road_rules actions
 // apply, in the same order with the same words, so the app never offers what the server would refuse.
 
-import { isNational } from './access';
+import { isBoardOf, isNational } from './access';
 import { charCount } from './chat';
 import { byName } from './crew';
-import { expiryState } from './dates';
-import { melbourneDate } from './rides';
+import { expiryState, formatAuDate } from './dates';
+import { lastDay, melbourneDate } from './rides';
 import { signedInProblem } from './routes';
-import type { ClubData, Member, RoadRulesVersion } from './types';
+import type { ClubData, Member, Ride, RoadRulesVersion } from './types';
 
 /** The longest the Road Rules text can be, in characters (code points). */
 export const MAX_RULES_TEXT = 20000;
@@ -146,8 +146,10 @@ export function roadRulesStatus(member: Member, data: ClubData, today: string): 
 
 /** Who's asked to sign, in name order: every approved member except Legacy (riders, pillions and support alike). */
 export function askedToSign(data: ClubData): Member[] {
-  return data.members.filter((m) => m.approval === 'approved' && m.status !== 'legacy').sort(byName);
+  return data.members.filter(isAsked).sort(byName);
 }
+
+const isAsked = (m: Member): boolean => m.approval === 'approved' && m.status !== 'legacy';
 
 /**
  * The Who's signed lists for `members` (the caller picks the chapter), each in name order: Not
@@ -205,4 +207,95 @@ export function rulesBlocks(body: string): RulesBlock[] {
   }
   endPara();
   return blocks;
+}
+
+// ---------------------------------------------------------------------------
+// What the screens show
+// ---------------------------------------------------------------------------
+
+/** Unsigned or expired: the states the ride screen nudges and the briefing card lists. */
+export const needsSigning = (state: RoadRulesState): boolean => state === 'unsigned' || state === 'expired';
+
+/** Whether `member` is one of the members askedToSign covers (so not Legacy, and not an applicant). */
+export function asksToSign(member: Member | null): boolean {
+  return !!member && isAsked(member);
+}
+
+/**
+ * The ride screen's "Sign the Road Rules before you ride": for a member who's asked to sign and
+ * is unsigned or expired, on a ride that isn't cancelled and whose last day isn't over.
+ */
+export function showsRoadRulesNudge(me: Member | null, ride: Ride, data: ClubData, today: string): boolean {
+  if (!me || !asksToSign(me)) return false;
+  if (ride.cancelledAt || lastDay(ride) < today) return false;
+  return needsSigning(roadRulesStatus(me, data, today).state);
+}
+
+/** The briefing card's "Road Rules not signed": the ride's Going riders who are unsigned or expired, by name. */
+export function unsignedGoing(ride: Ride, data: ClubData, today: string): Member[] {
+  const going = new Set(data.rsvps.filter((r) => r.rideId === ride.id && r.answer === 'going').map((r) => r.memberId));
+  return data.members
+    .filter((m) => going.has(m.id) && asksToSign(m) && needsSigning(roadRulesStatus(m, data, today).state))
+    .sort(byName);
+}
+
+const chapterOrder = (slug: string) => (slug === 'north' ? 0 : slug === 'west' ? 1 : 2);
+
+/**
+ * The Who's signed chapter choices for `me`, North then West (the Rides chips' order), with null
+ * for Whole club. The NEC gets every chapter and Whole club; any other board member only the
+ * chapters they hold a board seat in. Empty for everyone else, who doesn't see the list.
+ */
+export function signoffChapters(me: Member | null, data: ClubData): (string | null)[] {
+  if (!me || me.approval !== 'approved') return [];
+  const chapters = [...data.chapters].sort((a, b) => chapterOrder(a.slug) - chapterOrder(b.slug));
+  if (isNational(me.id, data.positions)) return [...chapters.map((c) => c.id), null];
+  return chapters.filter((c) => isBoardOf(me, c.id, data.positions)).map((c) => c.id);
+}
+
+/** The members a Who's signed choice covers: one chapter, or everyone for Whole club (null). */
+export function signoffMembers(chapterId: string | null, data: ClubData): Member[] {
+  return chapterId === null ? data.members : data.members.filter((m) => m.chapterId === chapterId);
+}
+
+/** "18 of 23 signed": due soon still counts as signed. */
+export function signedCountLine(groups: ReturnType<typeof signoffGroups>): string {
+  const signed = groups.signed.length + groups.dueSoon.length;
+  return `${signed} of ${signed + groups.notSigned.length} signed`;
+}
+
+/**
+ * One Who's signed row: "Good until DD/MM/YYYY", "Ran out DD/MM/YYYY", "Never signed", or
+ * "Signed an older version" for a sign-off from before a version that needed everyone again.
+ */
+export function signoffLine(member: Member, data: ClubData, today: string): string {
+  const status = roadRulesStatus(member, data, today);
+  if (status.state === 'current' || status.state === 'due_soon') return `Good until ${formatAuDate(status.goodUntil)}`;
+  if (status.state === 'expired') return `Ran out ${formatAuDate(status.goodUntil)}`;
+  const any = (data.roadRulesSignoffs ?? []).some((s) => s.memberId === member.id);
+  return any ? 'Signed an older version' : 'Never signed';
+}
+
+/** The Me row's line, and its colour. */
+export function myRoadRulesLine(status: RoadRulesStatus): { text: string; tone: 'ok' | 'warn' | 'danger' | null } {
+  switch (status.state) {
+    case 'current':
+      return { text: `Signed until ${formatAuDate(status.goodUntil)}`, tone: 'ok' };
+    case 'due_soon':
+      return { text: `Due ${formatAuDate(status.goodUntil)}`, tone: 'warn' };
+    case 'none':
+      return { text: 'Nothing to sign yet', tone: null };
+    default:
+      return { text: 'Not signed', tone: 'danger' };
+  }
+}
+
+/**
+ * The sign box's line once you've signed: "Signed on DD/MM/YYYY. Good until DD/MM/YYYY.", or
+ * "Ran out DD/MM/YYYY." once it has expired. Null when no sign-off counts.
+ */
+export function signBoxLine(status: RoadRulesStatus, signedAt: string | null): string | null {
+  if (!signedAt || !status.goodUntil || (status.state !== 'current' && status.state !== 'due_soon' && status.state !== 'expired')) return null;
+  const until = status.state === 'expired' ? `Ran out ${formatAuDate(status.goodUntil)}.` : `Good until ${formatAuDate(status.goodUntil)}.`;
+  return `Signed on ${formatAuDate(melbourneDate(signedAt))}. ${until}`;
 }

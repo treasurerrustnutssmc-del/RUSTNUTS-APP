@@ -11,19 +11,30 @@ import {
   RULES_TOO_LONG,
   SIGN_OUTDATED,
   askedToSign,
+  asksToSign,
   cleanRoadRules,
   currentRoadRules,
   goodUntil,
+  myRoadRulesLine,
+  needsSigning,
   publishProblem,
   publishesRoadRules,
   roadRulesStatus,
   rulesBlocks,
+  showsRoadRulesNudge,
+  signBoxLine,
+  signedCountLine,
   signProblem,
   signoffBase,
+  signoffChapters,
   signoffGroups,
+  signoffLine,
+  signoffMembers,
+  unsignedGoing,
   type RoadRulesInput,
+  type RoadRulesState as RoadRulesStatusState,
 } from './roadRules';
-import type { ClubData, Member, Position, PositionRole, RoadRulesSignoff, RoadRulesVersion } from './types';
+import type { Chapter, ClubData, Member, Position, PositionRole, Ride, RoadRulesSignoff, RoadRulesVersion, Rsvp } from './types';
 
 const member = (id: string, over: Partial<Member> = {}): Member => ({
   id, chapterId: 'ch-west', fullName: `Full ${id}`, roadName: id, status: 'full', approval: 'approved',
@@ -408,4 +419,160 @@ test('rulesBlocks: empty blocks are dropped', () => {
   assert.deepEqual(rulesBlocks(''), []);
   assert.deepEqual(rulesBlocks('\n \n\t\n'), []);
   assert.deepEqual(rulesBlocks('#  \n- \n-   x'), [{ kind: 'bullet', text: 'x' }]);
+});
+
+// ---------------------------------------------------------------------------
+// What the screens show
+// ---------------------------------------------------------------------------
+
+const TODAY = '2026-10-24';
+const ride = (over: Partial<Ride> = {}): Ride => ({
+  id: 'r-1', title: 'Breakfast run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: '2026-11-08T01:00:00.000Z',
+  allDay: false, location: null, notes: null, category: 'west', cancelledAt: null, ...over,
+});
+const going = (memberId: string, answer: Rsvp['answer'] = 'going', rideId = 'r-1'): Rsvp => ({
+  rideId, memberId, answer, updatedAt: '2026-10-20T00:00:00.000Z',
+});
+const west: Chapter = { id: 'ch-west', slug: 'west', name: 'West', area: 'Western suburbs', state: 'VIC' };
+const north: Chapter = { id: 'ch-north', slug: 'north', name: 'North', area: 'Northern suburbs', state: 'VIC' };
+
+test('needsSigning: unsigned and expired, never none, current or due soon', () => {
+  assert.equal(needsSigning('unsigned'), true);
+  assert.equal(needsSigning('expired'), true);
+  assert.equal(needsSigning('none'), false);
+  assert.equal(needsSigning('current'), false);
+  assert.equal(needsSigning('due_soon'), false);
+});
+
+test('asksToSign: the members askedToSign covers, so Legacy and applicants are left out', () => {
+  const legacy = member('legacy', { status: 'legacy' });
+  const d = data({ members: [rider, legacy, pending] });
+  // The same people askedToSign lists.
+  for (const m of [rider, legacy, pending]) assert.equal(asksToSign(m), askedToSign(d).includes(m));
+  assert.equal(asksToSign(rider), true);
+  assert.equal(asksToSign(legacy), false);
+  assert.equal(asksToSign(pending), false);
+  assert.equal(asksToSign(null), false);
+});
+
+test('showsRoadRulesNudge: unsigned or expired, on a ride that is still to come', () => {
+  const expired = member('expired');
+  const due = member('due');
+  const d = data({
+    members: [rider, expired, due],
+    roadRules: [version(1)],
+    roadRulesSignoffs: [signoff('expired', 1, '2025-09-01T00:00:00.000Z'), signoff('due', 1, '2025-11-15T00:00:00.000Z')],
+  });
+  assert.equal(showsRoadRulesNudge(rider, ride(), d, TODAY), true);
+  assert.equal(showsRoadRulesNudge(expired, ride(), d, TODAY), true);
+  assert.equal(showsRoadRulesNudge(due, ride(), d, TODAY), false);
+  // Nothing published yet: nothing to sign.
+  assert.equal(showsRoadRulesNudge(rider, ride(), data({ members: [rider] }), TODAY), false);
+});
+
+test('showsRoadRulesNudge: hidden on cancelled rides, on rides that are over, and for anyone not asked', () => {
+  const legacy = member('legacy', { status: 'legacy' });
+  const d = data({ members: [rider, legacy, pending], roadRules: [version(1)] });
+  assert.equal(showsRoadRulesNudge(rider, ride({ cancelledAt: '2026-10-20T00:00:00.000Z' }), d, TODAY), false);
+  // The ride's last day is still on (it ends 8 Nov in Melbourne), the day after it isn't.
+  assert.equal(showsRoadRulesNudge(rider, ride(), d, '2026-11-08'), true);
+  assert.equal(showsRoadRulesNudge(rider, ride(), d, '2026-11-09'), false);
+  assert.equal(showsRoadRulesNudge(legacy, ride(), d, TODAY), false);
+  assert.equal(showsRoadRulesNudge(pending, ride(), d, TODAY), false);
+  assert.equal(showsRoadRulesNudge(null, ride(), d, TODAY), false);
+});
+
+test('unsignedGoing: the Going riders who are unsigned or expired, in name order', () => {
+  const zed = member('zed', { roadName: 'Zed' });
+  const amy = member('amy', { roadName: 'Amy' });
+  const bob = member('bob', { roadName: 'Bob' }); // expired
+  const cat = member('cat', { roadName: 'Cat' }); // signed
+  const dee = member('dee', { roadName: 'Dee' }); // due soon
+  const maybe = member('maybe', { roadName: 'Maybe' });
+  const legacy = member('legacy', { roadName: 'Legacy', status: 'legacy' });
+  const d = data({
+    members: [zed, amy, bob, cat, dee, maybe, legacy],
+    rsvps: [going('zed'), going('amy'), going('bob'), going('cat'), going('dee'), going('maybe', 'maybe'), going('legacy'), going('amy', 'going', 'r-2')],
+    roadRules: [version(1)],
+    roadRulesSignoffs: [
+      signoff('bob', 1, '2025-09-01T00:00:00.000Z'),
+      signoff('cat', 1, '2026-10-01T00:00:00.000Z'),
+      signoff('dee', 1, '2025-11-15T00:00:00.000Z'),
+    ],
+  });
+  assert.deepEqual(unsignedGoing(ride(), d, TODAY).map((m) => m.id), ['amy', 'bob', 'zed']);
+  // With nothing published there's nobody to list.
+  assert.deepEqual(unsignedGoing(ride(), { ...d, roadRules: [] }, TODAY), []);
+});
+
+test('signoffChapters: the NEC gets every chapter, North then West, and Whole club (null)', () => {
+  const d = data({ chapters: [west, north] });
+  assert.deepEqual(signoffChapters(nec, d), ['ch-north', 'ch-west', null]);
+  assert.deepEqual(signoffChapters(northPres, d), ['ch-north', 'ch-west', null]);
+});
+
+test('signoffChapters: a board member off the NEC gets only the chapters they sit on the board of', () => {
+  const d = data({ chapters: [west, north] });
+  assert.deepEqual(signoffChapters(westVp, d), ['ch-west']);
+  // No seat (or a seat that has ended), not approved, or not signed in: nothing.
+  assert.deepEqual(signoffChapters(rider, d), []);
+  assert.deepEqual(signoffChapters(exChair, d), []);
+  assert.deepEqual(signoffChapters(suspendedNec, d), []);
+  assert.deepEqual(signoffChapters(null, d), []);
+});
+
+test('signoffMembers: one chapter, or everyone for Whole club', () => {
+  const n = member('n', { chapterId: 'ch-north' });
+  const w = member('w');
+  const d = data({ members: [n, w] });
+  assert.deepEqual(signoffMembers('ch-north', d).map((m) => m.id), ['n']);
+  assert.deepEqual(signoffMembers(null, d).map((m) => m.id), ['n', 'w']);
+});
+
+test('signedCountLine: signed and due soon both count as signed', () => {
+  const a = member('a');
+  assert.equal(signedCountLine({ notSigned: [a, a, a, a, a], dueSoon: [a, a], signed: Array(16).fill(a) }), '18 of 23 signed');
+  assert.equal(signedCountLine({ notSigned: [], dueSoon: [], signed: [] }), '0 of 0 signed');
+});
+
+test('signoffLine: good until, never signed, an older version, or ran out', () => {
+  const signed = member('signed');
+  const due = member('due');
+  const old = member('old');
+  const expired = member('expired');
+  const d = data({
+    members: [rider, signed, due, old, expired],
+    roadRules: [version(1), version(2)],
+    roadRulesSignoffs: [
+      signoff('signed', 2, '2026-10-01T00:00:00.000Z'),
+      signoff('due', 2, '2025-11-15T00:00:00.000Z'),
+      signoff('old', 1, '2026-01-01T00:00:00.000Z'),
+      signoff('expired', 2, '2025-09-01T00:00:00.000Z'),
+    ],
+  });
+  assert.equal(signoffLine(signed, d, TODAY), 'Good until 01/10/2027');
+  assert.equal(signoffLine(due, d, TODAY), 'Good until 15/11/2026');
+  assert.equal(signoffLine(rider, d, TODAY), 'Never signed');
+  assert.equal(signoffLine(old, d, TODAY), 'Signed an older version');
+  assert.equal(signoffLine(expired, d, TODAY), 'Ran out 01/09/2026');
+});
+
+test('myRoadRulesLine: the Me row', () => {
+  const at = (state: RoadRulesStatusState, until: string | null) => ({ state, goodUntil: until, signedVersion: until ? 1 : null });
+  assert.deepEqual(myRoadRulesLine(at('current', '2027-10-01')), { text: 'Signed until 01/10/2027', tone: 'ok' });
+  assert.deepEqual(myRoadRulesLine(at('due_soon', '2026-11-10')), { text: 'Due 10/11/2026', tone: 'warn' });
+  assert.deepEqual(myRoadRulesLine(at('unsigned', null)), { text: 'Not signed', tone: 'danger' });
+  assert.deepEqual(myRoadRulesLine(at('expired', '2026-09-01')), { text: 'Not signed', tone: 'danger' });
+  assert.deepEqual(myRoadRulesLine(at('none', null)), { text: 'Nothing to sign yet', tone: null });
+});
+
+test('signBoxLine: when you signed and until when, or when it ran out', () => {
+  const at = (state: RoadRulesStatusState, until: string | null) => ({ state, goodUntil: until, signedVersion: until ? 1 : null });
+  // 09:30 UTC is the evening of that date in Melbourne.
+  assert.equal(signBoxLine(at('current', '2027-10-01'), '2026-10-01T09:30:00.000Z'), 'Signed on 01/10/2026. Good until 01/10/2027.');
+  assert.equal(signBoxLine(at('due_soon', '2026-11-10'), '2025-11-10T09:30:00.000Z'), 'Signed on 10/11/2025. Good until 10/11/2026.');
+  assert.equal(signBoxLine(at('expired', '2026-09-01'), '2025-09-01T09:30:00.000Z'), 'Signed on 01/09/2025. Ran out 01/09/2026.');
+  // A sign-off late at night UTC is the next morning in Melbourne.
+  assert.equal(signBoxLine(at('current', '2027-10-02'), '2026-10-01T20:00:00.000Z'), 'Signed on 02/10/2026. Good until 02/10/2027.');
+  assert.equal(signBoxLine(at('unsigned', null), null), null);
 });

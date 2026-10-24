@@ -34,6 +34,7 @@ import { ROLE_LABEL, ROLE_SHORT } from '../domain/labels';
 import { displayName } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
 import { routeOf, signedInProblem } from '../domain/routes';
+import { currentRoadRules, signoffLine, unsignedGoing } from '../domain/roadRules'; // Road Rules
 import type { Ride } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
@@ -113,6 +114,7 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
   const canRead = readBriefingProblem(me, ride, data, briefing.updatedAt) === null;
   const writer = writesBriefing(me, ride, data);
   const location = ride.location;
+  const rules = currentRoadRules(data);
 
   const gotIt = async () => {
     if (busy) return;
@@ -264,6 +266,22 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
           <H2>If something goes wrong</H2>
           <Text style={styles.prose}>{SAFETY_LINE}</Text>
           <Text style={styles.prose}>{STOPPED_RIDER}</Text>
+          {/* Road Rules: the club's procedures, a tap away */}
+          {rules ? (
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={`Road Rules: version ${rules.number}, open them`}
+              onPress={() => navigation.navigate('RoadRules')}
+              style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+                styles.place,
+                (pressed || hovered) && { backgroundColor: colors.steel },
+              ]}
+            >
+              <Ionicons name="document-text-outline" size={20} color={colors.redText} />
+              <Text style={[styles.factText, { flex: 1, color: colors.bone }]}>{`Road Rules: version ${rules.number}`}</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.boneMute} />
+            </Pressable>
+          ) : null}
         </Stack>
 
         <Small>{updatedLine(briefing, data, now)}</Small>
@@ -337,8 +355,9 @@ function WriterSection({
   onEdit: () => void;
   onMember: (memberId: string) => void;
 }) {
-  const { data } = useClub();
+  const { data, today } = useClub();
   const unread = unreadGoing(ride, data);
+  const unsigned = unsignedGoing(ride, data, today);
   return (
     <Stack gap={space.sm}>
       <SectionTitle title="Not read yet" action={<Text style={styles.count}>{unread.length}</Text>} />
@@ -359,6 +378,23 @@ function WriterSection({
           ))
         )}
       </Card>
+      {/* Road Rules: Going riders who are unsigned or whose sign-off ran out. Only when someone is. */}
+      {unsigned.length > 0 ? (
+        <>
+          <SectionTitle title="Road Rules not signed" action={<Text style={styles.count}>{unsigned.length}</Text>} />
+          <Card style={{ padding: 0, gap: 0 }}>
+            {unsigned.map((m, i) => (
+              <ListRow
+                key={m.id}
+                last={i === unsigned.length - 1}
+                title={displayName(m)}
+                subtitle={signoffLine(m, data, today)}
+                onPress={() => onMember(m.id)}
+              />
+            ))}
+          </Card>
+        </>
+      ) : null}
       {canEdit ? <Button label="Edit briefing" icon="create-outline" kind="secondary" onPress={onEdit} /> : null}
     </Stack>
   );

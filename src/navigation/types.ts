@@ -43,6 +43,10 @@ export type RootParams = {
   // ride briefings
   Briefing: { rideId: string };
   EditBriefing: { rideId: string };
+  // Road Rules sign-off. An older version number opens that version read-only.
+  RoadRules: { version?: number } | undefined;
+  EditRoadRules: undefined;
+  RoadRulesSignoffs: undefined;
   // Lane E: live ride
   LiveRide: { rideId: string };
   // Stage 4: members and money

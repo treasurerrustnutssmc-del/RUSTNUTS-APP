@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { activePositions } from '../domain/access';
 import { formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
@@ -9,8 +9,9 @@ import type { LicenceClass } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: notifications
 import { NotificationSettings } from './notificationSettings';
-import { colors, space } from '../theme';
+import { colors, space, type } from '../theme';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
+import { asksToSign, currentRoadRules, myRoadRulesLine, needsSigning, roadRulesStatus } from '../domain/roadRules'; // Road Rules
 import {
   Avatar,
   Button,
@@ -145,6 +146,9 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         <ListRow last left={<IconBadge icon="add" tone="red" />} title="Add a bike" onPress={() => navigation.navigate('EditBike', {})} />
       </Card>
 
+      {/* Road Rules sign-off: for everyone who's asked to sign */}
+      {asksToSign(me) ? <RoadRulesRow onOpen={() => navigation.navigate('RoadRules')} /> : null}
+
       <SectionTitle title="Fees" action={<LockNote text="You + board" />} />
       <Card style={{ padding: 0, gap: 0 }}>
         <ListRow
@@ -179,6 +183,30 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
       {isDemo ? <Small style={{ textAlign: 'center' }}>Demo build: changes reset when you reload.</Small> : null}
     </Screen>
+  );
+}
+
+/** Me: where you stand with the Road Rules ("Signed until", "Due" in amber, "Not signed" in red). */
+function RoadRulesRow({ onOpen }: { onOpen: () => void }) {
+  const { me, data, today } = useClub();
+  if (!me) return null;
+  const status = roadRulesStatus(me, data, today);
+  const line = myRoadRulesLine(status);
+  const current = currentRoadRules(data);
+  const color = line.tone === 'warn' ? colors.warn : line.tone === 'danger' ? colors.danger : colors.bone;
+  return (
+    <>
+      <SectionTitle title="Road Rules" />
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          last
+          left={<IconBadge icon="document-text-outline" tone={needsSigning(status.state) ? 'red' : 'steel'} />}
+          title={<Text style={[type.name, { color }]}>{line.text}</Text>}
+          subtitle={current ? `Version ${current.number}: read it and sign once a year` : 'The NEC publishes them here'}
+          onPress={onOpen}
+        />
+      </Card>
+    </>
   );
 }
 
