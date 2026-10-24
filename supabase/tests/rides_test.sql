@@ -24,6 +24,8 @@ insert into private.ride_feeds (id, url, category) values
   ('00000000-0000-0000-0000-00000000f001', 'https://example.com/west.ics', 'west'),
   ('00000000-0000-0000-0000-00000000f002', 'https://example.com/north.ics', 'north');
 
+-- "Already rolling" started earlier today in Melbourne: halfway between Melbourne midnight and now,
+-- so it's still today in the first hour after midnight.
 insert into rides (id, source, starts_at, title, category, cancelled_at) values
   ('00000000-0000-0000-0000-0000000000c1', 'app', now() + interval '7 days', 'Coffee run', 'west', null),
   ('00000000-0000-0000-0000-0000000000c2', 'app',

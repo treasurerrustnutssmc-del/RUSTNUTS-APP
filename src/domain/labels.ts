@@ -1,4 +1,4 @@
-import type { LicenceClass, MemberStatus, PositionRole, RideCategory, RsvpAnswer } from './types';
+import type { CrewRole, LicenceClass, MemberStatus, PositionRole, RideCategory, RsvpAnswer } from './types';
 
 export const STATUS_LABEL: Record<MemberStatus, string> = {
   introduced: 'Introduced',
@@ -55,6 +55,9 @@ export const ROLE_SHORT: Record<PositionRole, string> = {
   founder: 'FOUNDER',
   charity_committee: 'CHARITY',
 };
+
+/** The spots on a ride's crew, in the order they're listed. Labels come from ROLE_LABEL and ROLE_SHORT. */
+export const CREW_ROLES: CrewRole[] = ['road_captain', 'tail_gunner', 'assistant_tail_gunner', 'officer'];
 
 export const LICENCE_LABEL: Record<LicenceClass, string> = {
   full_open: 'Full open',

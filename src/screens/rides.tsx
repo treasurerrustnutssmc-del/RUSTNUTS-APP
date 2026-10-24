@@ -1,11 +1,13 @@
 // The ride calendar: the club website's rides by month, filtered by colour, and one ride with
-// Going / Maybe / Can't make it. Rides come from the calendar sync; nobody edits them here.
+// Going / Maybe / Can't make it and its crew. Rides come from the calendar sync; nobody edits them here.
 
 import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { formatAuDate } from '../domain/dates';
-import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, RSVP_LABEL } from '../domain/labels';
+import { canVolunteer, crewChangeProblem, crewRows, leaveProblem, managesRide, showsCrewNeeded, spotOf } from '../domain/crew';
+import type { CrewRowSlot } from '../domain/crew';
+import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import {
   calendarFreshness,
@@ -17,7 +19,7 @@ import {
   rsvpProblem,
   upcomingByMonth,
 } from '../domain/rides';
-import type { Member, Ride, RideCategory, RsvpAnswer } from '../domain/types';
+import type { ClubData, CrewRole, Member, Ride, RideCategory, RsvpAnswer } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
 import { LiveRideCard } from './liveRide';
@@ -29,8 +31,10 @@ import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import {
   Avatar,
   Body,
+  Button,
   Card,
   Chip,
+  ConfirmButton,
   H1,
   Ionicons,
   ListRow,
@@ -46,7 +50,7 @@ import {
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** The weekday of a YYYY-MM-DD calendar date. */
-function weekday(date: string): string {
+export function weekday(date: string): string {
   return WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
 }
 
@@ -141,6 +145,8 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
                 ride={ride}
                 going={rsvpCounts(ride.id, data.rsvps).going}
                 mine={data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null}
+                spot={spotOf(ride.id, me.id, data.crew)}
+                crewNeeded={showsCrewNeeded(me, ride, data, today)}
                 last={i === g.rides.length - 1}
                 onPress={() => navigation.navigate('RideDetail', { rideId: ride.id })}
               />
@@ -158,12 +164,18 @@ function RideRow({
   ride,
   going,
   mine,
+  spot,
+  crewNeeded,
   last,
   onPress,
 }: {
   ride: Ride;
   going: number;
   mine: RsvpAnswer | null;
+  /** Your own spot on the crew, if any. */
+  spot: CrewRole | null;
+  /** Shown to crew managers when the RC or TG spot is open and the ride is close. */
+  crewNeeded: boolean;
   last: boolean;
   onPress: () => void;
 }) {
@@ -178,6 +190,8 @@ function RideRow({
     RIDE_CATEGORY_LABEL[ride.category],
     !cancelled && going > 0 ? `${going} going` : null,
     !cancelled && mine ? `you: ${RSVP_LABEL[mine]}` : null,
+    !cancelled && spot ? `you’re crew: ${ROLE_LABEL[spot]}` : null,
+    !cancelled && crewNeeded ? 'crew needed' : null,
   ]
     .filter(Boolean)
     .join(', ');
@@ -212,6 +226,8 @@ function RideRow({
             <>
               {going > 0 ? <Chip label={`${going} going`} tone="bone" /> : null}
               {mine ? <Chip label={`You: ${RSVP_LABEL[mine]}`} tone={ANSWER_TONE[mine]} icon={ANSWER_ICON[mine]} /> : null}
+              {spot ? <Chip label={ROLE_SHORT[spot]} tone="bone" icon="shield-half" /> : null}
+              {crewNeeded ? <Chip label="Crew needed" tone="warn" icon="person-add" /> : null}
             </>
           )}
         </Row>
@@ -255,6 +271,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
 
   const going = people('going');
   const maybe = people('maybe');
+  const mySpot = spotOf(ride.id, me.id, data.crew);
 
   const answer = async (a: RsvpAnswer) => {
     setError(null);
@@ -341,6 +358,9 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       <Stack gap={space.sm}>
         <SectionTitle title="Your answer" />
         {problem ? <Notice tone={cancelled ? 'danger' : 'info'}>{problem}</Notice> : null}
+        {mySpot && !problem ? (
+          <Notice>{`You’re on the crew as ${ROLE_LABEL[mySpot]}. Changing your answer takes you off it.`}</Notice>
+        ) : null}
         <View style={styles.answers}>
           {ANSWERS.map((a) => {
             // While an answer saves, it shows as chosen with a spinner and the others dim.
@@ -387,6 +407,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         {counts.no > 0 ? <Small>{`${counts.no} can’t make it.`}</Small> : null}
       </Stack>
 
+      <CrewSection ride={ride} me={me} data={data} onPick={(role) => navigation.navigate('PickCrew', { rideId: ride.id, role })} />
       {/* Stage 3 (lane B): the ride's chat and photo wall */}
       <RideChatRows
         rideId={ride.id}
@@ -398,6 +419,178 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       {!cancelled || going.length > 0 ? list('Going', going) : null}
       {!cancelled || maybe.length > 0 ? list('Maybe', maybe) : null}
     </Screen>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The ride's crew
+// ---------------------------------------------------------------------------
+
+const only = (items: (React.ReactElement | null)[]) => items.filter((x): x is React.ReactElement => x !== null);
+
+/** One spot on the crew: the stencil short form, who holds it (or Open), and what you can do. */
+function CrewRow({
+  role,
+  name,
+  last,
+  saving,
+  actions,
+}: {
+  role: CrewRole;
+  name: string | null;
+  last: boolean;
+  /** The label of the action being saved on this row, shown with a spinner in place of the buttons. */
+  saving: string | null;
+  /** The buttons this viewer gets on this row; empty for none. */
+  actions: React.ReactElement[];
+}) {
+  const shown = saving ? [<Button key="saving" label={saving} kind="secondary" busy onPress={() => {}} />] : actions;
+  return (
+    <View
+      style={[styles.crewRow, last && { borderBottomWidth: 0 }]}
+      accessibilityState={{ busy: !!saving }}
+      aria-busy={!!saving}
+    >
+      <Row style={styles.crewHead}>
+        <View style={styles.crewTile} aria-hidden importantForAccessibility="no-hide-descendants">
+          <Text style={styles.crewTileText}>{ROLE_SHORT[role]}</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} style={[type.name, !name && { color: colors.boneMute }]}>
+            {name ?? 'Open'}
+          </Text>
+          <Text style={styles.crewRole}>{ROLE_LABEL[role]}</Text>
+        </View>
+      </Row>
+      {shown.length > 0 ? <Row style={styles.crewActions}>{shown}</Row> : null}
+    </View>
+  );
+}
+
+function CrewSection({
+  ride,
+  me,
+  data,
+  onPick,
+}: {
+  ride: Ride;
+  me: Member;
+  data: ClubData;
+  onPick: (role: CrewRole) => void;
+}) {
+  const { setCrew, leaveCrew } = useClub();
+  // Which row is saving ("road_captain", "officer:<member id>" or "officer:new") and its action's label.
+  const [busy, setBusy] = useState<{ key: string; label: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const now = new Date().toISOString();
+  // Cancelled, or after the ride day: the crew is a record, with no open rows and no buttons.
+  const locked = crewChangeProblem(me, ride, now) !== null;
+  const manages = !locked && managesRide(me, ride, data);
+  const volunteers = (role: CrewRole) => !locked && canVolunteer(me, ride, role, data, now);
+
+  const run = async (key: string, label: string, action: () => Promise<void>) => {
+    if (busy) return;
+    setError(null);
+    setBusy({ key, label });
+    try {
+      await action();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const saving = (key: string) => (busy?.key === key ? busy.label : null);
+  const nameOf = (memberId: string) => {
+    const m = data.members.find((x) => x.id === memberId);
+    return m ? displayName(m) : 'A former member';
+  };
+  const canRemove = (memberId: string) => !locked && leaveProblem(me, ride, memberId, data, now) === null;
+
+  const takeButton = (key: string, role: CrewRole) => (
+    <Button
+      key="take"
+      label="I’ll do it"
+      kind="secondary"
+      disabled={!!busy}
+      accessibilityLabel={`I’ll do it: ${ROLE_LABEL[role]}`}
+      onPress={() => run(key, 'I’ll do it', () => setCrew(ride.id, me.id, role))}
+    />
+  );
+  // Keyed by member, so a confirm armed for one person never carries over to whoever holds the spot next.
+  const offButton = (key: string, memberId: string) => {
+    if (!canRemove(memberId)) return null;
+    if (memberId === me.id) {
+      return (
+        <ConfirmButton
+          key={`off:${memberId}`}
+          label="Step down"
+          confirmLabel="Yes, step down"
+          kind="secondary"
+          onConfirm={() => run(key, 'Step down', () => leaveCrew(ride.id, me.id))}
+        />
+      );
+    }
+    return (
+      <ConfirmButton
+        key={`off:${memberId}`}
+        label="Take off"
+        confirmLabel="Yes, take off"
+        kind="secondary"
+        accessibilityLabel={`Take ${nameOf(memberId)} off the crew`}
+        onConfirm={() => run(key, 'Take off', () => leaveCrew(ride.id, memberId))}
+      />
+    );
+  };
+
+  const pickButton = (role: CrewRole, label: string, a11y: string) => (
+    <Button key="pick" label={label} kind="secondary" disabled={!!busy} accessibilityLabel={a11y} onPress={() => onPick(role)} />
+  );
+
+  // A crew manager adds Officers, themselves included, from the pick list; everyone else can put their hand up.
+  const officerActions = only([
+    manages ? (
+      <Button key="add" label="Add officer" kind="secondary" icon="add" disabled={!!busy} onPress={() => onPick('officer')} />
+    ) : volunteers('officer') ? (
+      takeButton('officer:new', 'officer')
+    ) : null,
+  ]);
+  const rows = crewRows(ride.id, data.crew ?? [], locked, officerActions.length > 0);
+  // A locked ride nobody crewed has nothing to say.
+  if (rows.length === 0) return null;
+
+  const actionsFor = ({ key, role, memberId }: CrewRowSlot) => {
+    if (locked) return [];
+    if (role === 'officer') return memberId ? only([offButton(key, memberId)]) : officerActions;
+    if (memberId) {
+      return only([manages ? pickButton(role, 'Change', `Change the ${ROLE_LABEL[role]}`) : null, offButton(key, memberId)]);
+    }
+    const article = /^[AEIOU]/.test(ROLE_LABEL[role]) ? 'an' : 'a';
+    return only([
+      volunteers(role) ? takeButton(key, role) : null,
+      manages ? pickButton(role, 'Pick', `Pick ${article} ${ROLE_LABEL[role]}`) : null,
+    ]);
+  };
+
+  return (
+    <Stack gap={space.sm}>
+      <SectionTitle title="Crew" />
+      <Card style={{ padding: 0, gap: 0 }}>
+        {rows.map((r, i) => (
+          <CrewRow
+            key={r.key}
+            role={r.role}
+            name={r.memberId ? nameOf(r.memberId) : null}
+            last={i === rows.length - 1}
+            saving={saving(r.key)}
+            actions={actionsFor(r)}
+          />
+        ))}
+      </Card>
+      <View accessibilityLiveRegion="polite" role="alert">
+        {error ? <Notice tone="danger">{error}</Notice> : null}
+      </View>
+    </Stack>
   );
 }
 
@@ -477,4 +670,24 @@ const styles = StyleSheet.create({
   answerSelected: { backgroundColor: colors.red, borderColor: colors.redBright },
   answerText: { fontFamily: fonts.stencil, fontSize: 14, lineHeight: 18, letterSpacing: 0, color: colors.boneDim, textAlign: 'center' },
   disabled: { opacity: 0.45 },
+  crewRow: {
+    gap: space.sm,
+    paddingVertical: space.md,
+    paddingHorizontal: space.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  crewHead: { gap: space.md, flexWrap: 'nowrap' },
+  crewTile: {
+    width: 48,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.steel,
+    borderRadius: radius.sm,
+  },
+  crewTileText: { fontFamily: fonts.stencil, fontSize: 18, letterSpacing: 1, color: colors.bone },
+  crewRole: { fontFamily: fonts.stencil, fontSize: 13, lineHeight: 18, letterSpacing: 0.4, color: colors.boneMute },
+  // Full row width, so a two-tap confirm and its Cancel fit on one line at phone size.
+  crewActions: { gap: space.sm },
 });
