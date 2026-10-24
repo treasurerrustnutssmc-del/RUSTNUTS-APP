@@ -55,7 +55,7 @@ Impeccable (design):
 
 - Access rules live in `src/domain/access.ts` and are mirrored by row-level security in `supabase/migrations`. Change both together and run `npm test` and `npm run test:db`.
 - Dates are stored as ISO `YYYY-MM-DD` and shown as `DD/MM/YYYY`.
-- Colours and fonts live in `src/theme.ts`. The logo in `assets/logo.jpg` is the club's real logo; don't redraw or recolour it.
+- Colours and fonts live in `src/theme.ts`. The logo in `assets/logo.png` is the club's real logo; don't redraw or recolour it.
 - No pop-up dialogs (`Alert`): use `ConfirmButton` for anything destructive, since the web preview can't show them.
 
 ## Building with EAS

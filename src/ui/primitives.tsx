@@ -456,8 +456,8 @@ export function Divider() {
 }
 
 // The club's real artwork. Never retype RUSTNUTS in a lookalike font: the stencil wordmark and the
-// EST 2019 logo (the version without the flag) are the club's trademarks.
-const LOGO_RATIO = 745 / 1042;
+// EST 2019 logo are the club's trademarks. The club uses the logo with the Australian flag.
+const LOGO_RATIO = 765 / 1093;
 const SKULL_RATIO = 192 / 143;
 
 export function Logo({ width = 260 }: { width?: number }) {

@@ -81,8 +81,8 @@ The look (colours, Saira Stencil One headings) comes from rustnutssmc.com.au.
 
 ## Brand rules
 
-- The RUSTNUTS stencil wordmark and the EST 2019 logo (the version **without** the flag) are the club's
-  trademarks. Show the real artwork (`assets/logo.png`, `assets/skull.png`); never type "RUSTNUTS" in a lookalike font.
+- The RUSTNUTS stencil wordmark and the EST 2019 logo are the club's trademarks (the registration covers the
+  logo without the flag). The club uses the logo **with** the Australian flag, so the app does too. Show the real artwork (`assets/logo.png`, `assets/skull.png`); never type "RUSTNUTS" in a lookalike font.
 - The MEMBER disc (`assets/member-disc.png`) is earned at full membership: only shown when `hasEarnedDisc()` says so.
 - Flannel (`assets/flannel.jpg`) is an accent only: welcome, waiting screen, Home greeting and the disc moment.
   Lists and forms stay plain dark so they read in the sun.

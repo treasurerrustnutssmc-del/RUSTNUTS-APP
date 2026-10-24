@@ -36,4 +36,12 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_parity -f "$f" >/dev/null
 done
 (cd "$ROOT" && npx tsx scripts/parity-sql.mts) | "${PSQL[@]}" -d rustnuts_parity
+
+# The founder seed, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_seed" >/dev/null
+"${PSQL[@]}" -d rustnuts_seed -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_seed -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_seed -f "$ROOT/supabase/tests/founder_seed_test.sql"
 echo 'ALL DATABASE CHECKS PASSED'

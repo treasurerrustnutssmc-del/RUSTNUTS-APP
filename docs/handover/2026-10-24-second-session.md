@@ -63,8 +63,8 @@ code. No passwords, tokens or keys are in this file, and none should ever be add
   Don't use the group photo of members. Screenshots Jeff shared that show passwords were deliberately not saved.
 - **Flag:** this session painted the flag out of the logo (`assets/logo.png`), because the trademark registration
   covers the flagless version. A later session recorded in `AGENTS.md` that **the club uses the logo with the
-  flag, so the app does too**. That's newer and wins. The README's "Brand rules" section and `assets/logo.png`
-  may still reflect the flagless version, so reconcile them.
+  flag, so the app does too**. That's newer and wins. Reconciled on 24 Oct by the third session: `assets/logo.png`, the README
+  and the Logo comment now use the with-flag logo.
 - **Wordmark font:** the RUSTNUTS wordmark is set in classic **Stencil** (Gerry Powell, 1937), sold commercially as
   Stencil Std through Adobe Fonts and Fontspring. The free open-licence near match is **Stardos Stencil**; a later
   session built "Rustnuts Stencil" from it (see `AGENTS.md`). The wordmark itself must always be the real artwork.
