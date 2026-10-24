@@ -22,13 +22,16 @@ export async function registerThisDevice(): Promise<void> {
   }
 }
 
+/** Removes this phone from the club's list. Gives up after 3 seconds so sign-out never hangs; the
+ *  token is then kept on the phone and removed next time the app opens signed out. */
 export async function forgetThisDevice(): Promise<void> {
   try {
     const token = await AsyncStorage.getItem(KEY);
     if (!token) return;
-    await supabase().rpc('forget_push_device', { p_token: token });
-    await AsyncStorage.removeItem(KEY);
+    const timeout = new Promise<{ error: Error }>((resolve) => setTimeout(() => resolve({ error: new Error('Timed out') }), 3_000));
+    const { error } = await Promise.race([supabase().rpc('forget_push_device', { p_token: token }), timeout]);
+    if (!error) await AsyncStorage.removeItem(KEY);
   } catch {
-    // With no signal the token stays with the club; the next person to sign in here takes it over.
+    // Kept for next time.
   }
 }

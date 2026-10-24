@@ -31,6 +31,22 @@ create index push_outbox_queued on private.push_outbox (id) where status = 'queu
 revoke all on private.push_outbox from public, anon, authenticated;
 alter table private.push_outbox enable row level security;
 
+-- The master switch. Rows written while it's off are held the moment they're written, so switching on
+-- (or setting the send address) never sends a backlog.
+create or replace function private.push_enabled()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select coalesce((select value = 'true' from private.app_settings where key = 'push_enabled'), false);
+$$;
+
+create or replace function private.push_hold_when_off()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if not private.push_enabled() then new.status := 'held'; end if;
+  return new;
+end;
+$$;
+create trigger push_outbox_hold before insert on private.push_outbox for each row execute function private.push_hold_when_off();
+
 -- "Sat 07/11/2026" and "8:30 am", in Melbourne time.
 create or replace function private.club_day(t timestamptz)
 returns text language sql immutable set search_path = '' as $$
@@ -52,24 +68,44 @@ declare
   t text;
   b text;
   k text;
+  opens uuid := new.id;
+  moved public.rides%rowtype;
 begin
   if new.starts_at <= now() then return new; end if;
   if old.cancelled_at is null and new.cancelled_at is not null then
-    t := 'Ride cancelled';
-    b := new.title || ' · ' || private.club_day(new.starts_at);
-    k := 'ride-cancel:' || new.id;
+    -- A calendar sync moves an event by adding it at its new time and cancelling the old row, in one
+    -- transaction: that's a time change.
+    if new.feed_id is not null then
+      select * into moved from public.rides x
+      where x.feed_id = new.feed_id and x.external_uid = new.external_uid and x.id <> new.id and x.cancelled_at is null
+        and x.xmin::text = (pg_current_xact_id()::text::bigint % 4294967296)::text
+      order by abs(extract(epoch from x.starts_at - new.starts_at)) limit 1;
+    end if;
+    if moved.id is not null then
+      t := 'Ride time changed';
+      b := new.title || ' · now ' || private.club_day(moved.starts_at) ||
+        case when moved.all_day then '' else ' ' || private.club_time(moved.starts_at) end;
+      k := 'ride-time:' || new.id || ':' || moved.starts_at;
+      opens := moved.id;
+    else
+      t := 'Ride cancelled';
+      b := new.title || ' · ' || private.club_day(new.starts_at);
+      k := 'ride-cancel:' || new.id;
+    end if;
   elsif new.cancelled_at is null and old.starts_at is distinct from new.starts_at then
     t := 'Ride time changed';
-    b := new.title || ' · now ' || private.club_day(new.starts_at) || ' ' || private.club_time(new.starts_at);
+    b := new.title || ' · now ' || private.club_day(new.starts_at) ||
+      case when new.all_day then '' else ' ' || private.club_time(new.starts_at) end;
     k := 'ride-time:' || new.id || ':' || new.starts_at;
   else
     return new;
   end if;
   insert into private.push_outbox (member_id, dedupe_key, title, body, data)
-  select r.member_id, k, t, b, jsonb_build_object('kind', 'ride', 'rideId', new.id)
+  select r.member_id, k, t, b, jsonb_build_object('kind', 'ride', 'rideId', opens)
   from public.rsvps r
   left join public.notification_prefs p on p.member_id = r.member_id
   where r.ride_id = new.id and r.answer in ('going', 'maybe') and coalesce(p.ride_changes, true)
+    and r.member_id is distinct from auth.uid() -- not whoever made the change
   on conflict (member_id, dedupe_key) do nothing;
   return new;
 end;
@@ -83,6 +119,13 @@ begin
   if new.cancelled_at is not null or new.starts_at <= now() or new.starts_at > now() + interval '60 days' then
     return new;
   end if;
+  -- A calendar event at a new time (or the next of a repeating one) isn't a new ride.
+  if new.feed_id is not null and exists (
+    select 1 from public.rides x
+    where x.feed_id = new.feed_id and x.external_uid = new.external_uid and x.id <> new.id and x.cancelled_at is null
+  ) then
+    return new;
+  end if;
   insert into private.push_outbox (member_id, dedupe_key, title, body, data)
   select m.id, 'ride-new:' || new.id, 'New ride',
     new.title || ' · ' || private.club_day(new.starts_at) ||
@@ -91,7 +134,7 @@ begin
   from public.members m
   join public.chapters c on c.id = m.chapter_id
   left join public.notification_prefs p on p.member_id = m.id
-  where m.approval = 'approved' and coalesce(p.new_rides, false)
+  where m.approval = 'approved' and coalesce(p.new_rides, false) and m.id is distinct from auth.uid()
     and (new.category in ('club', 'supported') or c.slug = new.category::text)
   on conflict (member_id, dedupe_key) do nothing;
   return new;
@@ -139,7 +182,7 @@ begin
 end;
 $$;
 
-revoke all on function private.club_day(timestamptz), private.club_time(timestamptz), private.short_name(public.members),
+revoke all on function private.push_enabled(), private.push_hold_when_off(), private.club_day(timestamptz), private.club_time(timestamptz), private.short_name(public.members),
   private.push_ride_changed(), private.push_ride_added(), private.push_applicant(), private.push_ride_alert()
   from public, anon, authenticated;
 
@@ -158,26 +201,28 @@ begin
 end;
 $$;
 
--- On sign-out: this phone stops getting that member's pushes.
+-- On sign-out: this phone stops getting pushes. Only the phone itself knows its token, so it may do this
+-- signed out too (a sign-out with no signal finishes the next time the app opens).
 create or replace function public.forget_push_device(p_token text)
-returns void language plpgsql security definer set search_path = '' as $$
-begin
-  if auth.uid() is null then raise exception 'Sign in first.'; end if;
-  delete from public.push_devices where token = p_token and member_id = auth.uid();
-end;
+returns void language sql security definer set search_path = '' as $$
+  delete from public.push_devices where token = p_token;
 $$;
 
 revoke all on function public.register_push_device(text, text), public.forget_push_device(text) from public, anon;
-grant execute on function public.register_push_device(text, text), public.forget_push_device(text) to authenticated;
+grant execute on function public.register_push_device(text, text) to authenticated;
+grant execute on function public.forget_push_device(text) to anon, authenticated;
 
 -- For the send-push function only. Claims up to p_limit queued rows with their phones. With the
 -- switch off, it holds them all and returns nothing to send. Rows for members with no phone are skipped.
 create or replace function public.push_take(p_limit int)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
-  enabled boolean := coalesce((select value = 'true' from private.app_settings where key = 'push_enabled'), false);
+  enabled boolean := private.push_enabled();
   taken bigint[];
 begin
+  -- A run that died after claiming rows (a timeout, a failed hand-back): count them as failed.
+  update private.push_outbox set status = 'failed', sent_at = now()
+  where status = 'sending' and created_at < now() - interval '10 minutes';
   if not enabled then
     update private.push_outbox set status = 'held' where status = 'queued';
     return jsonb_build_object('enabled', false, 'messages', '[]'::jsonb);
@@ -217,7 +262,7 @@ $$;
 revoke all on function private.push_url() from public, anon, authenticated;
 
 -- Every minute where pg_cron and pg_net exist (Supabase). Until an admin sets 'push_url' it does
--- nothing. Old outbox rows are cleared daily.
+-- nothing. Outbox rows are cleared after 90 days (they're what stops a repeat, so they stay a while).
 do $$
 begin
   if exists (select 1 from pg_available_extensions where name = 'pg_cron')
@@ -227,6 +272,6 @@ begin
     perform cron.schedule('send-push', '* * * * *',
       $job$select net.http_post(url := u, body := '{}'::jsonb) from private.push_url() as u where u is not null$job$);
     perform cron.schedule('push-outbox-cleanup', '17 3 * * *',
-      $job$delete from private.push_outbox where created_at < now() - interval '7 days'$job$);
+      $job$delete from private.push_outbox where created_at < now() - interval '90 days'$job$);
   end if;
 end $$;

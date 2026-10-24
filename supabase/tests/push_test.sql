@@ -51,9 +51,11 @@ begin
     execute stmt;
   exception when others then
     reset role;
+    perform set_config('request.jwt.claim.sub', '', true);
     return sqlerrm;
   end;
   reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
   return null;
 end $$;
 grant execute on function pg_temp.try_as(uuid, text, text) to anon, authenticated, service_role;
@@ -86,6 +88,47 @@ begin
   assert (select count(*) from private.push_outbox where member_id = rita) = 2, 'cancelled once';
   update rides set cancelled_at = now() where id = '00000000-0000-0000-0000-0000000000b2';
   assert (select count(*) from private.push_outbox where member_id = rita) = 2, 'a ride already over is quiet';
+end $$;
+
+\echo 'Nobody hears about their own change; nothing waits to be sent while the switch is off'
+do $$
+declare
+  rita constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  r uuid;
+begin
+  delete from private.push_outbox;
+  insert into rides (source, starts_at, title, category) values ('app', now() + interval '5 days', 'Hills run', 'north') returning id into r;
+  insert into rsvps (ride_id, member_id, answer) values (r, rita, 'going'), (r, '00000000-0000-0000-0000-0000000000a3', 'going');
+  perform set_config('request.jwt.claim.sub', rita::text, true);
+  update rides set cancelled_at = now() where id = r;
+  perform set_config('request.jwt.claim.sub', '', true);
+  assert pg_temp.outbox(rita) is null, 'Rita cancelled it herself';
+  assert pg_temp.outbox('00000000-0000-0000-0000-0000000000a3') like 'Ride cancelled / Hills run%', 'Ned hears';
+  assert (select status from private.push_outbox where member_id = '00000000-0000-0000-0000-0000000000a3') = 'held',
+    'held the moment it is written while the switch is off, so it can never go out later';
+end $$;
+
+\echo 'A calendar event that moves is a time change, not a cancellation and a new ride'
+do $$
+declare
+  rita constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  ned constant uuid := '00000000-0000-0000-0000-0000000000a3';
+  feed uuid;
+  first_id uuid;
+begin
+  delete from private.push_outbox;
+  insert into private.ride_feeds (url, category) values ('https://example.com/west.ics', 'west') returning id into feed;
+  perform public.apply_ride_sync(feed, jsonb_build_array(jsonb_build_object('uid', 'ev-1', 'startsAt', '2026-11-14T21:30:00Z',
+    'title', 'Saturday run', 'category', 'west')));
+  select id into first_id from rides where external_uid = 'ev-1';
+  insert into rsvps (ride_id, member_id, answer) values (first_id, rita, 'going');
+  delete from private.push_outbox;
+  perform public.apply_ride_sync(feed, jsonb_build_array(jsonb_build_object('uid', 'ev-1', 'startsAt', '2026-11-14T22:30:00Z',
+    'title', 'Saturday run', 'category', 'west')));
+  assert pg_temp.outbox(rita) = 'Ride time changed / Saturday run · now Sun 15/11/2026 9:30 am', pg_temp.outbox(rita);
+  assert pg_temp.outbox(ned) is null, 'not a new ride either';
+  assert (select data->>'rideId' from private.push_outbox where member_id = rita)
+    = (select id::text from rides where external_uid = 'ev-1' and cancelled_at is null), 'opens the ride where it is now';
 end $$;
 
 \echo 'New rides reach members in those colours who asked'
@@ -184,7 +227,8 @@ begin
   perform public.push_done(array[(res->'messages'->0->>'id')::bigint], '{}', array['ExponentPushToken[rita]']);
   assert (select status from private.push_outbox where id = (res->'messages'->0->>'id')::bigint) = 'sent';
   assert not exists (select 1 from push_devices where token = 'ExponentPushToken[rita]'), 'a dead token is removed';
-  assert pg_temp.try_as(tom, 'authenticated', $s$select public.forget_push_device('ExponentPushToken[shared]')$s$) is null;
+  assert pg_temp.try_as(null, 'anon', $s$select public.forget_push_device('ExponentPushToken[shared]')$s$) is null,
+    'a phone that signed out with no signal removes itself later, signed out';
   assert not exists (select 1 from push_devices where token = 'ExponentPushToken[shared]'), 'signing out removes this phone';
 end $$;
 
