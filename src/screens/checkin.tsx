@@ -70,6 +70,7 @@ export function CheckInScreen({ navigation }: RootScreen<'CheckIn'>) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const handled = useRef(false); // a held-up code fires many scans; act on the first
+  const [slow, setSlow] = useState(false);
   const { width } = useWindowDimensions();
   const camSize = Math.min(width - space.lg * 2 - space.lg * 2, 320);
 
@@ -141,6 +142,13 @@ export function CheckInScreen({ navigation }: RootScreen<'CheckIn'>) {
                 style={{ flex: 1 }}
                 facing="back"
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                onCameraReady={() => {
+                  // If the code reader can't load (it's fetched separately on the web, and the
+                  // one-file preview leaves it out), the camera shows but never scans. Offer the
+                  // typed code after a while instead of leaving them waiting.
+                  setSlow(false);
+                  setTimeout(() => setSlow(true), 10000);
+                }}
                 onMountError={() => {
                   setScanning(false);
                   setCameraError('The camera wouldn’t start here. Type the code instead.');
@@ -157,7 +165,9 @@ export function CheckInScreen({ navigation }: RootScreen<'CheckIn'>) {
                 }}
               />
             </View>
-            <Small style={{ textAlign: 'center' }}>Hold the code inside the square.</Small>
+            <Small style={{ textAlign: 'center' }}>
+              {slow ? 'Not picking it up? Type the code below instead.' : 'Hold the code inside the square.'}
+            </Small>
             <Button label="Stop scanning" kind="quiet" onPress={() => setScanning(false)} />
           </Stack>
         ) : (
