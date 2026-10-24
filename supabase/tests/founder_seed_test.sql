@@ -76,7 +76,7 @@ declare
   west uuid := (select id from chapters where slug = 'west');
 begin
   insert into members (id, chapter_id, full_name, status, approval) values (other, north, 'Other', 'full', 'approved');
-  update positions set ended_on = current_date where member_id = jefe and role = 'treasurer' and chapter_id in (north, west);
+  update positions set ended_on = private.club_date() where member_id = jefe and role = 'treasurer' and chapter_id in (north, west);
   insert into positions (member_id, chapter_id, role) values (other, north, 'treasurer');
 end $$;
 \o /dev/null

@@ -10,6 +10,8 @@ import { BoardScreen, ManageMemberScreen } from '../screens/board';
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
+// Lane E: live ride
+import { LiveRideScreen } from '../screens/liveRide';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -119,6 +121,8 @@ export function RootNavigator() {
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="ManageMember" component={ManageMemberScreen} options={{ title: 'Manage member' }} />
+            {/* Lane E: live ride */}
+            <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} />
           </>
         )}
       </Stack.Navigator>

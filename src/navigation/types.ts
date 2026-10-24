@@ -29,6 +29,8 @@ export type RootParams = {
   EditBike: { bikeId?: string };
   EditContact: { contactId?: string };
   ManageMember: { memberId: string };
+  // Lane E: live ride
+  LiveRide: { rideId: string };
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

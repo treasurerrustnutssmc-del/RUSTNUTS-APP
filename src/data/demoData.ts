@@ -1,7 +1,7 @@
 // Made-up example members for the demo build. Nobody here is a real person.
 // Replaced by the live database once Supabase is connected.
 
-import type { ClubData, Member, MemberPrivate } from '../domain/types';
+import type { ClubData, Member, MemberPrivate, Ride } from '../domain/types';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
   roadName: null,
@@ -192,3 +192,20 @@ export const DEMO_PERSONAS = [
   { level: 'board', memberId: 'm-torque', label: 'Board', blurb: 'Torque, West Secretary' },
   { level: 'national', memberId: 'm-rusty', label: 'National', blurb: 'Rusty, West President and NEC Chair' },
 ] as const;
+
+// Lane E: live ride
+/** A made-up ride that's always on now (started an hour ago, ends in three), so live mode can be shown. */
+export function demoTodayRide(now: Date = new Date()): Ride {
+  const hour = 3600_000;
+  return {
+    id: 'r-today',
+    title: 'Today’s coffee run (demo)',
+    startsAt: new Date(now.getTime() - hour).toISOString(),
+    endsAt: new Date(now.getTime() + 3 * hour).toISOString(),
+    allDay: false,
+    location: 'BP Ravenhall',
+    notes: 'A made-up ride for trying out live ride mode.',
+    category: 'west',
+    cancelledAt: null,
+  };
+}
