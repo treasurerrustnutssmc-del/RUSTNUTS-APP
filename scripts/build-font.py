@@ -87,7 +87,7 @@ def embolden(font: TTFont, extra: int, gap: int) -> None:
     for name in font.getGlyphOrder():
         width, lsb = hmtx[name]
         if glyf[name].numberOfContours == 0:
-            new_metrics[name] = (width + extra if width else 0, lsb)
+            new_metrics[name] = (width, lsb)  # spaces keep their width, so words don't drift apart
             continue
         shape = pathops.Path()
         glyph_set[name].draw(shape.getPen(glyphSet=glyph_set))  # composites are flattened here
@@ -124,10 +124,24 @@ def rename(font: TTFont) -> None:
         "made heavier for Rustnuts SMC. Licensed under the SIL Open Font License 1.1.",
         10, 3, 1, 0x409,
     )
+    name_version = table.getDebugName(5) or "Version 1.001"
+    table.setName(f"{name_version}; Rustnuts heavier build", 5, 3, 1, 0x409)
     os2 = font["OS/2"]
     os2.usWeightClass = 400
     os2.fsSelection = (os2.fsSelection & ~0b100001) | 0b1000000  # not bold, regular
     font["head"].macStyle = 0
+
+
+def fit_vertical_metrics(font: TTFont) -> None:
+    """Grown accents reach past the old clipping box, so Windows would cut their tops off."""
+    glyf = font["glyf"]
+    top = max(getattr(glyf[n], "yMax", 0) for n in font.getGlyphOrder())
+    bottom = min(getattr(glyf[n], "yMin", 0) for n in font.getGlyphOrder())
+    os2 = font["OS/2"]
+    os2.usWinAscent = max(os2.usWinAscent, top)
+    os2.usWinDescent = max(os2.usWinDescent, -bottom)
+    widths = [w for w, _ in font["hmtx"].metrics.values() if w]
+    os2.xAvgCharWidth = round(sum(widths) / len(widths))
 
 
 def main() -> None:
@@ -141,6 +155,8 @@ def main() -> None:
     embolden(font, extra, gap)
     rename(font)
     font["maxp"].recalc(font)
+    fit_vertical_metrics(font)
+    font.recalcTimestamp = False  # same input, same file
     font.save(out)
 
 

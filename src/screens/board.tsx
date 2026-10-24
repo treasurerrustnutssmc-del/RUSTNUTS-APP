@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
 import { formatLongDate, monthsBetween } from '../domain/dates';
@@ -7,7 +7,7 @@ import { BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STAT
 import { displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
-import { colors, space } from '../theme';
+import { colors, space, type } from '../theme';
 import { sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -60,10 +60,10 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
       <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
         <Avatar text={initials(applicant)} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Body strong>
+          <Text style={type.name}>
             {applicant.fullName}
             {applicant.roadName ? ` · ${applicant.roadName}` : ''}
-          </Body>
+          </Text>
           <Small>
             {chapter?.name} · asked {formatLongDate(applicant.appliedOn)} · as{' '}
             {applicant.status === 'introduced' ? 'a rider' : STATUS_LABEL[applicant.status].toLowerCase()}

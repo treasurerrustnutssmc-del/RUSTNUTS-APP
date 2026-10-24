@@ -66,7 +66,7 @@ function MainTabs() {
         },
         tabBarActiveTintColor: colors.redText,
         tabBarInactiveTintColor: colors.boneMute,
-        tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: 11.5, lineHeight: 14, letterSpacing: 0.3 },
+        tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: 11.5, lineHeight: 16, letterSpacing: 0.3 },
         tabBarIcon: ({ focused, color, size }) => (
           <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size} color={color} />
         ),
