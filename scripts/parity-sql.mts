@@ -3,6 +3,10 @@
 // with the demo's own message. Used by scripts/test-db.sh (via tsx); prints SQL to stdout.
 
 import { demoAnswer, fixture as fx, type ParityCase } from '../src/data/parityFixture.testkit';
+// Stage 4
+import { addDays } from '../src/domain/dates';
+import { fyOf } from '../src/domain/fees';
+import { fngStart, parityToday, resolveCase } from '../src/data/parityFixture.testkit';
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const id = (kind: string, key: string) => `md5(${q(`${kind}:${key}`)})::uuid`;
@@ -60,7 +64,112 @@ for (const r of fx.rides) {
   );
 }
 
+// Stage 4 fixture: check-ins, decisions and fees, dated from today.
+const today = parityToday();
+const s4 = fx.stage4;
+if (s4) {
+  for (const m of s4.members) {
+    sql(`insert into auth.users (id, email) values (${id('m', m.key)}, ${q(`${m.key}@example.com`)});`);
+    sql(
+      `insert into public.members (id, chapter_id, full_name, status, approval, joined_on, fng_started_on) values (` +
+        `${id('m', m.key)}, ${chapter(m.chapter)}, ${q(m.name)}, ${q(m.status)}, ${q(m.approval)}, ` +
+        `${m.approval === 'approved' ? "date '2024-01-01'" : 'null'}, ${date(fngStart(m.fngStartMonths, today))});`,
+    );
+  }
+  for (const p of s4.positions) {
+    sql(
+      `insert into public.positions (id, member_id, chapter_id, role, started_on) values (` +
+        `${id('p', p.key)}, ${id('m', p.member)}, ${chapter(p.chapter)}, ${q(p.role)}, date '2025-01-01');`,
+    );
+  }
+  for (const r of s4.rides) {
+    sql(
+      `insert into public.rides (id, source, starts_at, title, category, cancelled_at) values (` +
+        `${id('r', r.key)}, 'app', ${q(r.startsAt)}::timestamptz, ${q(r.title)}, ${q(r.category)}, ` +
+        `${r.cancelled ? "'2026-01-01T00:00:00Z'" : 'null'});`,
+    );
+  }
+  for (const x of s4.sessions) {
+    sql(
+      `insert into public.checkin_sessions (id, kind, chapter_id, ride_id, title, held_on, code, closed_at) values (` +
+        `${id('s', x.key)}, ${q(x.kind)}, ${chapter(x.chapter)}, ${x.ride ? id('r', x.ride) : 'null'}, ${q(x.title)}, ` +
+        `${date(addDays(today, x.heldOnDays))}, ${q(x.code)}, ${x.closed ? "'2026-01-01T00:00:00Z'" : 'null'});`,
+    );
+  }
+  for (const a of s4.attendance) {
+    sql(`insert into public.attendance (session_id, member_id) values (${id('s', a.session)}, ${id('m', a.member)});`);
+  }
+  for (const r of s4.rates) {
+    sql(
+      `insert into public.fee_rates (chapter_id, fy, status, amount_cents, due_on) values (` +
+        `${chapter(r.chapter)}, ${fyOf(today) + r.fyOffset}, ${q(r.status)}, ${r.amountCents}, ${date(addDays(today, r.dueOnDays))});`,
+    );
+  }
+  for (const c of s4.charges) {
+    sql(
+      `insert into public.charges (id, member_id, chapter_id, fy, kind, description, amount_cents, due_on, waived_at) values (` +
+        `${id('c', c.key)}, ${id('m', c.member)}, ${chapter(c.chapter)}, ${fyOf(today)}, ${q(c.kind)}, ` +
+        `${c.kind === 'other' ? "'Fixture'" : 'null'}, ${c.amountCents}, ${date(addDays(today, c.dueOnDays))}, ` +
+        `${c.waived ? "'2026-01-01T00:00:00Z'" : 'null'});`,
+    );
+  }
+  for (const p of s4.payments) {
+    sql(
+      `insert into public.payments (id, charge_id, amount_cents, paid_on, method, state, receipt_no) values (` +
+        `${id('pay', p.key)}, ${id('c', p.charge)}, ${p.amountCents}, ${date(today)}, 'payid', ${q(p.state)}, ` +
+        `${p.receiptNo ? q(p.receiptNo) : 'null'});`,
+    );
+  }
+}
+
+const int = (n: number | null | undefined) => (n === null || n === undefined ? 'null' : String(n));
+const text = (t: string | null | undefined) => (t === null || t === undefined ? 'null' : q(t));
+
+const stage4Call = (c: ParityCase & Record<string, any>): string | null => {
+  const v = c.votes ?? {};
+  switch (c.action) {
+    case 'openCheckin':
+      return `public.open_checkin(${q(c.kind)}, ${c.ride ? id('r', c.ride) : 'null'}, ${chapter(c.chapter)}, ${q(c.title)}, ${date(c.heldOn)})`;
+    case 'checkIn':
+      return `public.check_in(${q(c.code)})`;
+    case 'markAttendance':
+      return `public.mark_attendance(${id('s', c.session)}, ${id('m', c.member)}, ${c.present})`;
+    case 'closeCheckin':
+      return `public.close_checkin(${id('s', c.session)})`;
+    case 'decideApplication':
+      return `public.decide_application(${id('m', c.member)}, ${c.status ? q(c.status) : 'null'}, ${int(v.for)}, ${int(v.against)}, ${int(v.abstained)}, ${text(c.note)})`;
+    case 'fngReview':
+      return `public.record_fng_review(${id('m', c.member)}, ${c.atMonths}, ${q(c.outcome)}, ${int(v.for)}, ${int(v.against)}, ${int(v.abstained)}, ${text(c.note)})`;
+    case 'setFeeRate':
+      return `public.set_fee_rate(${chapter(c.chapter)}, ${c.fy}, ${q(c.status)}, ${c.amountCents}, ${date(c.dueOn)})`;
+    case 'setContinuationFee':
+      return `public.set_continuation_fee(${chapter(c.chapter)}, ${c.fy}, ${c.amountCents})`;
+    case 'setPaymentDetails':
+      return `public.set_payment_details(${chapter(c.chapter)}, ${text(c.payid)}, null, null, null)`;
+    case 'raiseFees':
+      return `public.raise_fees(${chapter(c.chapter)}, ${c.fy})`;
+    case 'raiseCharge':
+      return `public.raise_charge(${id('m', c.member)}, ${q(c.description)}, ${c.amountCents}, ${date(c.dueOn)})`;
+    case 'waiveCharge':
+      return `public.waive_charge(${id('c', c.charge)})`;
+    case 'claimPayment':
+    case 'recordPayment':
+      return (
+        `public.${c.action === 'claimPayment' ? 'claim_payment' : 'record_payment'}(${id('c', c.charge)}, ${c.amountCents}, ` +
+        `${date(c.paidOn)}, ${q(c.method)}, ${text(c.reference)})`
+      );
+    case 'confirmPayment':
+      return `public.confirm_payment(${id('pay', c.payment)})`;
+    case 'rejectPayment':
+      return `public.reject_payment(${id('pay', c.payment)})`;
+    default:
+      return null;
+  }
+};
+
 const call = (c: ParityCase & Record<string, any>): string => {
+  const stage4 = stage4Call(resolveCase(c, today) as ParityCase & Record<string, any>);
+  if (stage4) return stage4;
   switch (c.action) {
     case 'appoint':
       return `public.appoint_position(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)})`;

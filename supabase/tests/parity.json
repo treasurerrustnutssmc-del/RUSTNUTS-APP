@@ -840,6 +840,821 @@
       "ride": "cancelled-north",
       "answer": "no",
       "allowed": false
+    },
+    {
+      "name": "West Secretary opens a meeting check-in",
+      "as": "torque",
+      "action": "openCheckin",
+      "kind": "meeting",
+      "ride": null,
+      "chapter": "west",
+      "title": "Club meeting",
+      "heldOnDays": 0,
+      "allowed": true
+    },
+    {
+      "name": "A member opens a meeting check-in",
+      "as": "spanner",
+      "action": "openCheckin",
+      "kind": "meeting",
+      "ride": null,
+      "chapter": "west",
+      "title": "Club meeting",
+      "heldOnDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "North's Road Captain opens a West meeting check-in",
+      "as": "crank",
+      "action": "openCheckin",
+      "kind": "meeting",
+      "ride": null,
+      "chapter": "west",
+      "title": "Club meeting",
+      "heldOnDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "An applicant opens a check-in",
+      "as": "dylan",
+      "action": "openCheckin",
+      "kind": "meeting",
+      "ride": null,
+      "chapter": "west",
+      "title": "Club meeting",
+      "heldOnDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "Secretary opens a check-in for yesterday",
+      "as": "torque",
+      "action": "openCheckin",
+      "kind": "meeting",
+      "ride": null,
+      "chapter": "west",
+      "title": "Club meeting",
+      "heldOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "Secretary opens a meeting check-in with no title",
+      "as": "torque",
+      "action": "openCheckin",
+      "kind": "meeting",
+      "ride": null,
+      "chapter": "west",
+      "title": " ",
+      "heldOnDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "North's Road Captain opens a whole-club ride check-in",
+      "as": "crank",
+      "action": "openCheckin",
+      "kind": "ride",
+      "ride": "club-run",
+      "chapter": null,
+      "title": "",
+      "heldOnDays": 0,
+      "allowed": true
+    },
+    {
+      "name": "Secretary opens a second check-in for the same ride",
+      "as": "torque",
+      "action": "openCheckin",
+      "kind": "ride",
+      "ride": "past-club",
+      "chapter": null,
+      "title": "",
+      "heldOnDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "Secretary opens a check-in for a cancelled ride",
+      "as": "torque",
+      "action": "openCheckin",
+      "kind": "ride",
+      "ride": "cancelled-north",
+      "chapter": null,
+      "title": "",
+      "heldOnDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "A member checks in again",
+      "as": "gravel",
+      "action": "checkIn",
+      "code": "WEST26",
+      "allowed": true
+    },
+    {
+      "name": "A North member checks in at a West meeting",
+      "as": "jet",
+      "action": "checkIn",
+      "code": "WEST26",
+      "allowed": true
+    },
+    {
+      "name": "A member checks in with the scanned code",
+      "as": "jet",
+      "action": "checkIn",
+      "code": "rustnuts:west 26",
+      "allowed": true
+    },
+    {
+      "name": "An applicant checks in",
+      "as": "dylan",
+      "action": "checkIn",
+      "code": "WEST26",
+      "allowed": true
+    },
+    {
+      "name": "A Family applicant checks in",
+      "as": "josh",
+      "action": "checkIn",
+      "code": "WEST26",
+      "allowed": false
+    },
+    {
+      "name": "A member checks in with yesterday's code",
+      "as": "jet",
+      "action": "checkIn",
+      "code": "PAST26",
+      "allowed": false
+    },
+    {
+      "name": "A member checks in after it closed",
+      "as": "jet",
+      "action": "checkIn",
+      "code": "SHUT26",
+      "allowed": false
+    },
+    {
+      "name": "A member checks in with a wrong code",
+      "as": "jet",
+      "action": "checkIn",
+      "code": "NOPE99",
+      "allowed": false
+    },
+    {
+      "name": "Secretary ticks off an applicant",
+      "as": "torque",
+      "action": "markAttendance",
+      "session": "today-west",
+      "member": "dylan",
+      "present": true,
+      "allowed": true
+    },
+    {
+      "name": "North board ticks off a West applicant at a club ride",
+      "as": "crank",
+      "action": "markAttendance",
+      "session": "club-ride",
+      "member": "dylan",
+      "present": true,
+      "allowed": false
+    },
+    {
+      "name": "North board ticks off a West member at a club ride",
+      "as": "crank",
+      "action": "markAttendance",
+      "session": "club-ride",
+      "member": "gravel",
+      "present": true,
+      "allowed": true
+    },
+    {
+      "name": "A member ticks someone off",
+      "as": "spanner",
+      "action": "markAttendance",
+      "session": "today-west",
+      "member": "jet",
+      "present": true,
+      "allowed": false
+    },
+    {
+      "name": "Secretary ticks someone off before the meeting",
+      "as": "torque",
+      "action": "markAttendance",
+      "session": "later-west",
+      "member": "jet",
+      "present": true,
+      "allowed": false
+    },
+    {
+      "name": "Secretary un-ticks a member",
+      "as": "torque",
+      "action": "markAttendance",
+      "session": "today-west",
+      "member": "gravel",
+      "present": false,
+      "allowed": true
+    },
+    {
+      "name": "Secretary ticks off a North applicant",
+      "as": "torque",
+      "action": "markAttendance",
+      "session": "today-west",
+      "member": "josh",
+      "present": true,
+      "allowed": false
+    },
+    {
+      "name": "Secretary ticks someone off at an old meeting",
+      "as": "torque",
+      "action": "markAttendance",
+      "session": "yesterday-west",
+      "member": "gravel",
+      "present": true,
+      "allowed": true
+    },
+    {
+      "name": "Secretary closes the check-in",
+      "as": "torque",
+      "action": "closeCheckin",
+      "session": "today-west",
+      "allowed": true
+    },
+    {
+      "name": "Secretary closes a closed check-in",
+      "as": "torque",
+      "action": "closeCheckin",
+      "session": "closed-west",
+      "allowed": false
+    },
+    {
+      "name": "A member closes a check-in",
+      "as": "spanner",
+      "action": "closeCheckin",
+      "session": "today-west",
+      "allowed": false
+    },
+    {
+      "name": "West board lets an applicant in as FNG with the tally",
+      "as": "torque",
+      "action": "decideApplication",
+      "member": "dylan",
+      "status": "fng",
+      "votes": {
+        "for": 5,
+        "against": 0,
+        "abstained": 1
+      },
+      "note": "Rode well",
+      "allowed": true
+    },
+    {
+      "name": "West board declines an applicant",
+      "as": "torque",
+      "action": "decideApplication",
+      "member": "dylan",
+      "status": null,
+      "votes": {
+        "for": 2,
+        "against": 4,
+        "abstained": 0
+      },
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "North board decides a West applicant",
+      "as": "crank",
+      "action": "decideApplication",
+      "member": "dylan",
+      "status": "fng",
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "North board declines a West applicant with a tally",
+      "as": "crank",
+      "action": "decideApplication",
+      "member": "dylan",
+      "status": null,
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Board records a negative vote count",
+      "as": "torque",
+      "action": "decideApplication",
+      "member": "dylan",
+      "status": "fng",
+      "votes": {
+        "for": -1,
+        "against": 0,
+        "abstained": 0
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Board decides on someone already in",
+      "as": "torque",
+      "action": "decideApplication",
+      "member": "gravel",
+      "status": "fng",
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Board records an FNG's 12-month review: continue",
+      "as": "torque",
+      "action": "fngReview",
+      "member": "fred",
+      "atMonths": 12,
+      "outcome": "continue",
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Board patches an FNG on a unanimous vote",
+      "as": "torque",
+      "action": "fngReview",
+      "member": "fred",
+      "atMonths": 12,
+      "outcome": "patch",
+      "votes": {
+        "for": 6,
+        "against": 0,
+        "abstained": 0
+      },
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Board patches an FNG with one vote against",
+      "as": "torque",
+      "action": "fngReview",
+      "member": "fred",
+      "atMonths": 12,
+      "outcome": "patch",
+      "votes": {
+        "for": 6,
+        "against": 1,
+        "abstained": 0
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Board records an FNG who isn't continuing",
+      "as": "torque",
+      "action": "fngReview",
+      "member": "fred",
+      "atMonths": 12,
+      "outcome": "not_continuing",
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Board records the wrong review",
+      "as": "torque",
+      "action": "fngReview",
+      "member": "fred",
+      "atMonths": 9,
+      "outcome": "continue",
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Board records a review months early",
+      "as": "smokey",
+      "action": "fngReview",
+      "member": "nina",
+      "atMonths": 6,
+      "outcome": "continue",
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A member records an FNG review",
+      "as": "spanner",
+      "action": "fngReview",
+      "member": "fred",
+      "atMonths": 12,
+      "outcome": "continue",
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An FNG records their own review",
+      "as": "fred",
+      "action": "fngReview",
+      "member": "fred",
+      "atMonths": 12,
+      "outcome": "continue",
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Board reviews someone who isn't an FNG",
+      "as": "torque",
+      "action": "fngReview",
+      "member": "gravel",
+      "atMonths": 6,
+      "outcome": "continue",
+      "votes": {
+        "for": null,
+        "against": null,
+        "abstained": null
+      },
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Treasurer sets the Full fee",
+      "as": "penny",
+      "action": "setFeeRate",
+      "chapter": "west",
+      "fyOffset": 0,
+      "status": "full",
+      "amountCents": 25000,
+      "dueOnDays": 30,
+      "allowed": true
+    },
+    {
+      "name": "Secretary sets a fee",
+      "as": "torque",
+      "action": "setFeeRate",
+      "chapter": "west",
+      "fyOffset": 0,
+      "status": "full",
+      "amountCents": 25000,
+      "dueOnDays": 30,
+      "allowed": false
+    },
+    {
+      "name": "Treasurer sets a Legacy fee",
+      "as": "penny",
+      "action": "setFeeRate",
+      "chapter": "west",
+      "fyOffset": 0,
+      "status": "legacy",
+      "amountCents": 25000,
+      "dueOnDays": 30,
+      "allowed": false
+    },
+    {
+      "name": "Treasurer sets a $0 fee",
+      "as": "penny",
+      "action": "setFeeRate",
+      "chapter": "west",
+      "fyOffset": 0,
+      "status": "fng",
+      "amountCents": 0,
+      "dueOnDays": 30,
+      "allowed": false
+    },
+    {
+      "name": "National Chairman sets a West fee",
+      "as": "chair",
+      "action": "setFeeRate",
+      "chapter": "west",
+      "fyOffset": 1,
+      "status": "fng",
+      "amountCents": 15000,
+      "dueOnDays": 300,
+      "allowed": true
+    },
+    {
+      "name": "National Auditor sets a fee",
+      "as": "kim",
+      "action": "setFeeRate",
+      "chapter": "west",
+      "fyOffset": 0,
+      "status": "full",
+      "amountCents": 25000,
+      "dueOnDays": 30,
+      "allowed": false
+    },
+    {
+      "name": "West Treasurer sets a North fee",
+      "as": "penny",
+      "action": "setFeeRate",
+      "chapter": "north",
+      "fyOffset": 0,
+      "status": "full",
+      "amountCents": 25000,
+      "dueOnDays": 30,
+      "allowed": false
+    },
+    {
+      "name": "Treasurer sets the continuation fee",
+      "as": "penny",
+      "action": "setContinuationFee",
+      "chapter": "west",
+      "fyOffset": 0,
+      "amountCents": 5000,
+      "allowed": true
+    },
+    {
+      "name": "Treasurer sets a $0 continuation fee",
+      "as": "penny",
+      "action": "setContinuationFee",
+      "chapter": "west",
+      "fyOffset": 0,
+      "amountCents": 0,
+      "allowed": false
+    },
+    {
+      "name": "Treasurer sets the PayID",
+      "as": "penny",
+      "action": "setPaymentDetails",
+      "chapter": "west",
+      "payid": "west@example.com",
+      "allowed": true
+    },
+    {
+      "name": "Secretary sets the PayID",
+      "as": "torque",
+      "action": "setPaymentDetails",
+      "chapter": "west",
+      "payid": "mine@example.com",
+      "allowed": false
+    },
+    {
+      "name": "Treasurer raises this year's fees",
+      "as": "penny",
+      "action": "raiseFees",
+      "chapter": "west",
+      "fyOffset": 0,
+      "allowed": true
+    },
+    {
+      "name": "Treasurer raises next year's fees before setting them",
+      "as": "penny",
+      "action": "raiseFees",
+      "chapter": "west",
+      "fyOffset": 1,
+      "allowed": false
+    },
+    {
+      "name": "Secretary raises fees",
+      "as": "torque",
+      "action": "raiseFees",
+      "chapter": "west",
+      "fyOffset": 0,
+      "allowed": false
+    },
+    {
+      "name": "Treasurer raises a one-off charge",
+      "as": "penny",
+      "action": "raiseCharge",
+      "member": "gravel",
+      "description": "Patches",
+      "amountCents": 14750,
+      "dueOnDays": 14,
+      "allowed": true
+    },
+    {
+      "name": "Treasurer charges an applicant",
+      "as": "penny",
+      "action": "raiseCharge",
+      "member": "dylan",
+      "description": "Patches",
+      "amountCents": 14750,
+      "dueOnDays": 14,
+      "allowed": false
+    },
+    {
+      "name": "Treasurer raises a charge with no description",
+      "as": "penny",
+      "action": "raiseCharge",
+      "member": "gravel",
+      "description": " ",
+      "amountCents": 14750,
+      "dueOnDays": 14,
+      "allowed": false
+    },
+    {
+      "name": "North board charges a West member",
+      "as": "crank",
+      "action": "raiseCharge",
+      "member": "gravel",
+      "description": "Patches",
+      "amountCents": 14750,
+      "dueOnDays": 14,
+      "allowed": false
+    },
+    {
+      "name": "Treasurer waives a charge",
+      "as": "penny",
+      "action": "waiveCharge",
+      "charge": "gravel-annual",
+      "allowed": true
+    },
+    {
+      "name": "Treasurer waives a waived charge",
+      "as": "penny",
+      "action": "waiveCharge",
+      "charge": "gravel-waived",
+      "allowed": false
+    },
+    {
+      "name": "Treasurer waives a paid charge",
+      "as": "penny",
+      "action": "waiveCharge",
+      "charge": "spanner-annual",
+      "allowed": false
+    },
+    {
+      "name": "A member waives their own charge",
+      "as": "gravel",
+      "action": "waiveCharge",
+      "charge": "gravel-annual",
+      "allowed": false
+    },
+    {
+      "name": "A member says they've paid the rest",
+      "as": "gravel",
+      "action": "claimPayment",
+      "charge": "gravel-annual",
+      "amountCents": 15000,
+      "paidOnDays": 0,
+      "method": "payid",
+      "reference": "GRAVEL FEES",
+      "allowed": true
+    },
+    {
+      "name": "A member says they've paid more than they owe",
+      "as": "gravel",
+      "action": "claimPayment",
+      "charge": "gravel-annual",
+      "amountCents": 15001,
+      "paidOnDays": 0,
+      "method": "payid",
+      "reference": "GRAVEL FEES",
+      "allowed": false
+    },
+    {
+      "name": "A member says they've paid someone else's fees",
+      "as": "gravel",
+      "action": "claimPayment",
+      "charge": "spanner-annual",
+      "amountCents": 100,
+      "paidOnDays": 0,
+      "method": "payid",
+      "reference": "GRAVEL FEES",
+      "allowed": false
+    },
+    {
+      "name": "A member says they've paid by card",
+      "as": "gravel",
+      "action": "claimPayment",
+      "charge": "gravel-annual",
+      "amountCents": 100,
+      "paidOnDays": 0,
+      "method": "card",
+      "reference": "GRAVEL FEES",
+      "allowed": false
+    },
+    {
+      "name": "A member says they'll pay tomorrow",
+      "as": "gravel",
+      "action": "claimPayment",
+      "charge": "gravel-annual",
+      "amountCents": 100,
+      "paidOnDays": 1,
+      "method": "payid",
+      "reference": "GRAVEL FEES",
+      "allowed": false
+    },
+    {
+      "name": "A member pays a waived charge",
+      "as": "gravel",
+      "action": "claimPayment",
+      "charge": "gravel-waived",
+      "amountCents": 100,
+      "paidOnDays": 0,
+      "method": "payid",
+      "reference": "GRAVEL FEES",
+      "allowed": false
+    },
+    {
+      "name": "A member says they've paid a charge that's paid",
+      "as": "spanner",
+      "action": "claimPayment",
+      "charge": "spanner-annual",
+      "amountCents": 100,
+      "paidOnDays": 0,
+      "method": "payid",
+      "reference": "GRAVEL FEES",
+      "allowed": false
+    },
+    {
+      "name": "Treasurer records a cash payment",
+      "as": "penny",
+      "action": "recordPayment",
+      "charge": "gravel-annual",
+      "amountCents": 15000,
+      "paidOnDays": 0,
+      "method": "cash",
+      "reference": "GRAVEL FEES",
+      "allowed": true
+    },
+    {
+      "name": "Treasurer records more than they owe",
+      "as": "penny",
+      "action": "recordPayment",
+      "charge": "gravel-annual",
+      "amountCents": 20000,
+      "paidOnDays": 0,
+      "method": "cash",
+      "reference": "GRAVEL FEES",
+      "allowed": false
+    },
+    {
+      "name": "Secretary records a payment",
+      "as": "torque",
+      "action": "recordPayment",
+      "charge": "gravel-annual",
+      "amountCents": 100,
+      "paidOnDays": 0,
+      "method": "cash",
+      "reference": "GRAVEL FEES",
+      "allowed": false
+    },
+    {
+      "name": "Treasurer confirms a PayID claim",
+      "as": "penny",
+      "action": "confirmPayment",
+      "payment": "gravel-claim",
+      "allowed": true
+    },
+    {
+      "name": "Treasurer rejects a PayID claim",
+      "as": "penny",
+      "action": "rejectPayment",
+      "payment": "gravel-claim",
+      "allowed": true
+    },
+    {
+      "name": "Secretary confirms a claim",
+      "as": "torque",
+      "action": "confirmPayment",
+      "payment": "gravel-claim",
+      "allowed": false
+    },
+    {
+      "name": "Treasurer confirms a payment twice",
+      "as": "penny",
+      "action": "confirmPayment",
+      "payment": "gravel-part",
+      "allowed": false
+    },
+    {
+      "name": "National Auditor rejects a claim",
+      "as": "kim",
+      "action": "rejectPayment",
+      "payment": "gravel-claim",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -876,5 +1691,176 @@
       "category": "north",
       "cancelled": true
     }
-  ]
+  ],
+  "stage4": {
+    "about": "Stage 4 fixture (check-ins, decisions, fees). Dates are days from today (…Days), FNG starts are months from today, and fyOffset is financial years from this one, so the demo and the database agree on any day.",
+    "members": [
+      {
+        "key": "penny",
+        "chapter": "west",
+        "name": "Penny Lane",
+        "status": "full",
+        "approval": "approved"
+      },
+      {
+        "key": "fred",
+        "chapter": "west",
+        "name": "Fred Nash",
+        "status": "fng",
+        "approval": "approved",
+        "fngStartMonths": -12
+      },
+      {
+        "key": "nina",
+        "chapter": "north",
+        "name": "Nina Park",
+        "status": "fng",
+        "approval": "approved",
+        "fngStartMonths": -2
+      },
+      {
+        "key": "sally",
+        "chapter": "west",
+        "name": "Sally Moss",
+        "status": "supporter",
+        "approval": "pending"
+      }
+    ],
+    "positions": [
+      {
+        "key": "penny-treasurer",
+        "member": "penny",
+        "chapter": "west",
+        "role": "treasurer"
+      }
+    ],
+    "rides": [
+      {
+        "key": "club-run",
+        "title": "Club run",
+        "startsAt": "2030-02-01T00:00:00.000Z",
+        "category": "club",
+        "cancelled": false
+      }
+    ],
+    "sessions": [
+      {
+        "key": "today-west",
+        "kind": "meeting",
+        "chapter": "west",
+        "ride": null,
+        "title": "Club meeting",
+        "heldOnDays": 0,
+        "code": "WEST26",
+        "closed": false
+      },
+      {
+        "key": "yesterday-west",
+        "kind": "meeting",
+        "chapter": "west",
+        "ride": null,
+        "title": "Last night",
+        "heldOnDays": -1,
+        "code": "PAST26",
+        "closed": false
+      },
+      {
+        "key": "closed-west",
+        "kind": "meeting",
+        "chapter": "west",
+        "ride": null,
+        "title": "Closed meeting",
+        "heldOnDays": 0,
+        "code": "SHUT26",
+        "closed": true
+      },
+      {
+        "key": "later-west",
+        "kind": "meeting",
+        "chapter": "west",
+        "ride": null,
+        "title": "Next meeting",
+        "heldOnDays": 5,
+        "code": "NEXT26",
+        "closed": false
+      },
+      {
+        "key": "club-ride",
+        "kind": "ride",
+        "chapter": null,
+        "ride": "past-club",
+        "title": "Christmas ride",
+        "heldOnDays": 0,
+        "code": "CLUB26",
+        "closed": false
+      }
+    ],
+    "attendance": [
+      {
+        "session": "today-west",
+        "member": "gravel"
+      }
+    ],
+    "rates": [
+      {
+        "chapter": "west",
+        "fyOffset": 0,
+        "status": "full",
+        "amountCents": 25000,
+        "dueOnDays": 30
+      }
+    ],
+    "charges": [
+      {
+        "key": "gravel-annual",
+        "member": "gravel",
+        "chapter": "west",
+        "kind": "annual",
+        "amountCents": 25000,
+        "dueOnDays": 30,
+        "waived": false
+      },
+      {
+        "key": "gravel-waived",
+        "member": "gravel",
+        "chapter": "west",
+        "kind": "other",
+        "amountCents": 1000,
+        "dueOnDays": 30,
+        "waived": true
+      },
+      {
+        "key": "spanner-annual",
+        "member": "spanner",
+        "chapter": "west",
+        "kind": "annual",
+        "amountCents": 25000,
+        "dueOnDays": 30,
+        "waived": false
+      }
+    ],
+    "payments": [
+      {
+        "key": "gravel-part",
+        "charge": "gravel-annual",
+        "amountCents": 10000,
+        "state": "confirmed",
+        "receiptNo": "TEST-0001"
+      },
+      {
+        "key": "gravel-claim",
+        "charge": "gravel-annual",
+        "amountCents": 15000,
+        "state": "claimed",
+        "receiptNo": null
+      },
+      {
+        "key": "spanner-full",
+        "charge": "spanner-annual",
+        "amountCents": 25000,
+        "state": "confirmed",
+        "receiptNo": "TEST-0002"
+      }
+    ]
+  }
 }

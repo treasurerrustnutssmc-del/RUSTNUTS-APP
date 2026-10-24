@@ -9,6 +9,7 @@ import { ClubContext, type ClubContextValue } from './clubContext';
 import * as act from './demoActions';
 import { DEMO_DATA, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
+import * as s4 from './demoStage4';
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
@@ -61,6 +62,40 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     appoint: async (memberId, chapterId, role) => setData(act.appoint(ctx, memberId, chapterId, role)),
     endPosition: async (positionId) => setData(act.endTerm(ctx, positionId)),
     setRsvp: async (rideId, answer) => setData(act.setRsvp(ctx, rideId, answer)),
+
+    // Stage 4
+    openCheckin: async (input) => {
+      const result = s4.openCheckin(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    checkinCode: async (sessionId) => s4.checkinCode(ctx, sessionId),
+    checkIn: async (code) => {
+      const result = s4.checkIn(ctx, code);
+      setData(result.data);
+      return result.id;
+    },
+    markAttendance: async (sessionId, memberId, present) => setData(s4.markAttendance(ctx, sessionId, memberId, present)),
+    closeCheckin: async (sessionId) => setData(s4.closeCheckin(ctx, sessionId)),
+    decideApplication: async (memberId, status, votes, note) => setData(s4.decideApplication(ctx, memberId, status, votes, note)),
+    recordFngReview: async (memberId, atMonths, outcome, votes, note) =>
+      setData(s4.recordFngReview(ctx, memberId, atMonths, outcome, votes, note)),
+    setFeeRate: async (chapterId, fy, status, amountCents, dueOn) => setData(s4.setFeeRate(ctx, chapterId, fy, status, amountCents, dueOn)),
+    setContinuationFee: async (chapterId, fy, amountCents) => setData(s4.setContinuationFee(ctx, chapterId, fy, amountCents)),
+    setPaymentDetails: async (details) => setData(s4.setPaymentDetails(ctx, details)),
+    raiseFees: async (chapterId, fy) => {
+      const result = s4.raiseFees(ctx, chapterId, fy);
+      setData(result.data);
+      return result.count;
+    },
+    raiseCharge: async (memberId, description, amountCents, dueOn) => setData(s4.raiseCharge(ctx, memberId, description, amountCents, dueOn)),
+    waiveCharge: async (chargeId) => setData(s4.waiveCharge(ctx, chargeId)),
+    claimPayment: async (chargeId, amountCents, paidOn, method, reference) =>
+      setData(s4.claimPayment(ctx, chargeId, amountCents, paidOn, method, reference)),
+    recordPayment: async (chargeId, amountCents, paidOn, method, reference) =>
+      setData(s4.recordPayment(ctx, chargeId, amountCents, paidOn, method, reference)),
+    confirmPayment: async (paymentId) => setData(s4.confirmPayment(ctx, paymentId)),
+    rejectPayment: async (paymentId) => setData(s4.rejectPayment(ctx, paymentId)),
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;

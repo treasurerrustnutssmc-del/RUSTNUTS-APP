@@ -270,6 +270,61 @@ export type Database = {
       };
       resolve_ride_alert: { Args: { p_alert: string }; Returns: undefined };
       stop_live_ride: { Args: { p_ride: string }; Returns: undefined };
+      // Stage 4: members and money
+      members_money: { Args: never; Returns: MembersMoneyRows };
+      open_checkin: {
+        Args: { p_kind: string; p_ride: string | null; p_chapter: string | null; p_title: string | null; p_held_on: string | null };
+        Returns: string;
+      };
+      checkin_code: { Args: { p_session: string }; Returns: string };
+      check_in: { Args: { p_code: string }; Returns: string };
+      mark_attendance: { Args: { p_session: string; p_member: string; p_present: boolean }; Returns: undefined };
+      close_checkin: { Args: { p_session: string }; Returns: undefined };
+      decide_application: {
+        Args: {
+          p_member: string;
+          p_status: MemberStatus | null;
+          p_for: number | null;
+          p_against: number | null;
+          p_abstained: number | null;
+          p_note: string | null;
+        };
+        Returns: undefined;
+      };
+      record_fng_review: {
+        Args: {
+          p_member: string;
+          p_at_months: number;
+          p_outcome: string;
+          p_for: number | null;
+          p_against: number | null;
+          p_abstained: number | null;
+          p_note: string | null;
+        };
+        Returns: undefined;
+      };
+      set_fee_rate: {
+        Args: { p_chapter: string; p_fy: number; p_status: MemberStatus; p_amount_cents: number; p_due_on: string };
+        Returns: undefined;
+      };
+      set_continuation_fee: { Args: { p_chapter: string; p_fy: number; p_amount_cents: number }; Returns: undefined };
+      set_payment_details: {
+        Args: { p_chapter: string; p_payid: string | null; p_payid_name: string | null; p_bsb: string | null; p_account_no: string | null };
+        Returns: undefined;
+      };
+      raise_fees: { Args: { p_chapter: string; p_fy: number }; Returns: number };
+      raise_charge: { Args: { p_member: string; p_description: string; p_amount_cents: number; p_due_on: string }; Returns: string };
+      waive_charge: { Args: { p_charge: string }; Returns: undefined };
+      claim_payment: {
+        Args: { p_charge: string; p_amount_cents: number; p_paid_on: string; p_method: string; p_reference: string | null };
+        Returns: string;
+      };
+      record_payment: {
+        Args: { p_charge: string; p_amount_cents: number; p_paid_on: string; p_method: string; p_reference: string | null };
+        Returns: string;
+      };
+      confirm_payment: { Args: { p_payment: string }; Returns: undefined };
+      reject_payment: { Args: { p_payment: string }; Returns: undefined };
     };
     Enums: {
       approval_state: ApprovalState;
@@ -279,4 +334,60 @@ export type Database = {
     };
     CompositeTypes: { [_ in never]: never };
   };
+};
+
+// Stage 4: what members_money() returns (rows as JSON, so dates are strings).
+export type MembersMoneyRows = {
+  sessions: {
+    id: string;
+    kind: 'ride' | 'meeting';
+    chapter_id: string | null;
+    ride_id: string | null;
+    title: string;
+    held_on: string;
+    opened_by: string | null;
+    closed_at: string | null;
+  }[];
+  attendance: { session_id: string; member_id: string; checked_in_at: string; marked_by: string | null }[];
+  decisions: {
+    id: string;
+    member_id: string;
+    kind: 'application' | 'fng_review';
+    at_months: number | null;
+    outcome: 'approved' | 'declined' | 'continue' | 'patch' | 'not_continuing';
+    status: MemberStatus | null;
+    votes_for: number | null;
+    votes_against: number | null;
+    votes_abstained: number | null;
+    note: string | null;
+    decided_on: string;
+    recorded_by: string | null;
+  }[];
+  rates: { chapter_id: string; fy: number; status: MemberStatus; amount_cents: number; due_on: string }[];
+  continuation: { chapter_id: string; fy: number; amount_cents: number }[];
+  charges: {
+    id: string;
+    member_id: string;
+    chapter_id: string;
+    fy: number;
+    kind: 'annual' | 'continuation' | 'other';
+    description: string | null;
+    amount_cents: number;
+    due_on: string;
+    created_at: string;
+    waived_at: string | null;
+  }[];
+  payments: {
+    id: string;
+    charge_id: string;
+    amount_cents: number;
+    paid_on: string;
+    method: 'payid' | 'bank' | 'cash' | 'card';
+    reference: string | null;
+    state: 'claimed' | 'confirmed' | 'rejected';
+    claimed_by: string | null;
+    receipt_no: string | null;
+    decided_at: string | null;
+  }[];
+  details: { chapter_id: string; payid: string | null; payid_name: string | null; bsb: string | null; account_no: string | null }[];
 };

@@ -11,7 +11,10 @@ function stubClient(tables: Record<string, unknown[]>, phones: unknown[] = []) {
     return { select: () => chain };
   };
   const rpc = (name: string) =>
-    Promise.resolve({ data: name === 'shared_phones' ? phones : name === 'ride_calendar' ? tables.ride_calendar ?? null : null, error: null });
+    Promise.resolve({
+      data: name === 'shared_phones' ? phones : name === 'ride_calendar' || name === 'members_money' ? tables[name] ?? null : null,
+      error: null,
+    });
   return { from: query, rpc } as never;
 }
 
@@ -151,4 +154,50 @@ test('signed in: the calendar loads in one piece, with when every feed last sync
 test('signed in: a calendar not synced yet loads empty', async () => {
   const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
   assert.deepEqual([data.rides, data.rsvps, data.ridesSyncedAt], [[], [], null]);
+});
+
+// Stage 4
+test('signed in: check-ins, decisions and fees load in one piece and become app records', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      members_money: {
+        sessions: [{ id: 's1', kind: 'meeting', chapter_id: 'c1', ride_id: null, title: 'Club meeting', held_on: '2026-10-24',
+          opened_by: 'm1', closed_at: null }],
+        attendance: [{ session_id: 's1', member_id: 'm1', checked_in_at: '2026-10-24T09:00:00+00:00', marked_by: null }],
+        decisions: [{ id: 'd1', member_id: 'm2', kind: 'fng_review', at_months: 6, outcome: 'continue', status: null, votes_for: 5,
+          votes_against: 0, votes_abstained: null, note: null, decided_on: '2026-10-24', recorded_by: 'm1', created_at: '' }],
+        rates: [{ chapter_id: 'c1', fy: 2026, status: 'full', amount_cents: 25000, due_on: '2026-07-31' }],
+        continuation: [{ chapter_id: 'c1', fy: 2026, amount_cents: 5000 }],
+        charges: [{ id: 'c1', member_id: 'm1', chapter_id: 'c1', fy: 2026, kind: 'annual', description: null, amount_cents: 25000,
+          due_on: '2026-07-31', raised_by: 'm9', created_at: '2026-07-01T00:00:00+00:00', waived_at: null, waived_by: null }],
+        payments: [{ id: 'p1', charge_id: 'c1', amount_cents: 10000, paid_on: '2026-07-10', method: 'payid', reference: 'X',
+          state: 'confirmed', claimed_by: 'm1', decided_by: 'm9', decided_at: '2026-07-11T00:00:00+00:00', receipt_no: 'W26-0001',
+          created_at: '' }],
+        details: [{ chapter_id: 'c1', payid: 'west@example.com', payid_name: 'Rustnuts West', bsb: null, account_no: null, updated_at: '' }],
+      },
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.checkinSessions, [{ id: 's1', kind: 'meeting', chapterId: 'c1', rideId: null, title: 'Club meeting',
+    heldOn: '2026-10-24', openedBy: 'm1', closedAt: null }]);
+  assert.deepEqual(data.attendance, [{ sessionId: 's1', memberId: 'm1', checkedInAt: '2026-10-24T09:00:00.000Z', markedBy: null }]);
+  assert.deepEqual(data.decisions, [{ id: 'd1', memberId: 'm2', kind: 'fng_review', atMonths: 6, outcome: 'continue', status: null,
+    votesFor: 5, votesAgainst: 0, votesAbstained: null, note: null, decidedOn: '2026-10-24', recordedBy: 'm1' }]);
+  assert.deepEqual(data.feeRates, [{ chapterId: 'c1', fy: 2026, status: 'full', amountCents: 25000, dueOn: '2026-07-31' }]);
+  assert.deepEqual(data.continuationFees, [{ chapterId: 'c1', fy: 2026, amountCents: 5000 }]);
+  assert.deepEqual(data.charges, [{ id: 'c1', memberId: 'm1', chapterId: 'c1', fy: 2026, kind: 'annual', description: null,
+    amountCents: 25000, dueOn: '2026-07-31', createdAt: '2026-07-01T00:00:00.000Z', waivedAt: null }]);
+  assert.deepEqual(data.payments, [{ id: 'p1', chargeId: 'c1', amountCents: 10000, paidOn: '2026-07-10', method: 'payid',
+    reference: 'X', state: 'confirmed', claimedBy: 'm1', receiptNo: 'W26-0001', decidedAt: '2026-07-11T00:00:00.000Z' }]);
+  assert.deepEqual(data.paymentDetails, [{ chapterId: 'c1', payid: 'west@example.com', payidName: 'Rustnuts West', bsb: null, accountNo: null }]);
+});
+
+test('signed in: a database without Stage 4 yet still loads, with nothing for it', async () => {
+  const client = stubClient({ chapters: [west] }) as unknown as { rpc: (n: string) => Promise<unknown> };
+  const rpc = client.rpc;
+  client.rpc = (name: string) =>
+    name === 'members_money' ? Promise.resolve({ data: null, error: { message: 'function public.members_money() does not exist' } }) : rpc(name);
+  const data = await loadClub(client as never, true);
+  assert.deepEqual([data.checkinSessions, data.charges], [[], []]);
 });

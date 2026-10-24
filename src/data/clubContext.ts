@@ -15,6 +15,10 @@ import type {
   PositionRole,
   RsvpAnswer,
 } from '../domain/types';
+// Stage 4
+import type { OpenCheckinInput } from '../domain/attendance';
+import type { FngOutcome } from '../domain/joining';
+import type { PaymentDetails, PaymentMethod, Votes } from '../domain/types';
 
 export class NotAllowedError extends Error {}
 
@@ -85,6 +89,30 @@ export interface ClubContextValue {
   endPosition: (positionId: string) => Promise<void>;
   /** Your answer to a ride: going, maybe or no. */
   setRsvp: (rideId: string, answer: RsvpAnswer) => Promise<void>;
+
+  // Stage 4: members and money
+  /** Opens a check-in at a ride or meeting. Resolves to the new session's id. */
+  openCheckin: (input: OpenCheckinInput) => Promise<string>;
+  /** The session's code, for the people running it. */
+  checkinCode: (sessionId: string) => Promise<string>;
+  /** Checks you in with a typed or scanned code. Resolves to the session's id. */
+  checkIn: (code: string) => Promise<string>;
+  markAttendance: (sessionId: string, memberId: string, present: boolean) => Promise<void>;
+  closeCheckin: (sessionId: string) => Promise<void>;
+  /** Approves an applicant as `status`, or declines them (null), recording the board's tally. */
+  decideApplication: (memberId: string, status: MemberStatus | null, votes: Votes, note: string) => Promise<void>;
+  recordFngReview: (memberId: string, atMonths: number, outcome: FngOutcome, votes: Votes, note: string) => Promise<void>;
+  setFeeRate: (chapterId: string, fy: number, status: MemberStatus, amountCents: number, dueOn: string) => Promise<void>;
+  setContinuationFee: (chapterId: string, fy: number, amountCents: number) => Promise<void>;
+  setPaymentDetails: (details: PaymentDetails) => Promise<void>;
+  /** Resolves to how many charges were added. */
+  raiseFees: (chapterId: string, fy: number) => Promise<number>;
+  raiseCharge: (memberId: string, description: string, amountCents: number, dueOn: string) => Promise<void>;
+  waiveCharge: (chargeId: string) => Promise<void>;
+  claimPayment: (chargeId: string, amountCents: number, paidOn: string, method: PaymentMethod, reference: string) => Promise<void>;
+  recordPayment: (chargeId: string, amountCents: number, paidOn: string, method: PaymentMethod, reference: string) => Promise<void>;
+  confirmPayment: (paymentId: string) => Promise<void>;
+  rejectPayment: (paymentId: string) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -105,6 +133,15 @@ export const EMPTY_DATA: ClubData = {
   positions: [],
   rides: [],
   rsvps: [],
+  // Stage 4
+  checkinSessions: [],
+  attendance: [],
+  decisions: [],
+  feeRates: [],
+  continuationFees: [],
+  charges: [],
+  payments: [],
+  paymentDetails: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */
