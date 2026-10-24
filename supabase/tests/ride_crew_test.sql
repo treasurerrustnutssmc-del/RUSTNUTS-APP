@@ -442,6 +442,54 @@ begin
   assert pg_temp.calendar_as(null) ? 'error', 'the public can''t ask';
 end $$;
 
+\echo 'set_crew, leave_crew and set_rsvp all lock the ride the same way first, so they queue instead of deadlocking'
+create extension if not exists pgrowlocks;
+-- The row locks held on a ride (by its last two hex digits) right now.
+create function pg_temp.ride_locks(ride text) returns text[] language sql as $$
+  select l.modes from pgrowlocks('public.rides') l join public.rides r on r.ctid = l.locked_row
+  where r.id = ('00000000-0000-0000-0000-0000000000' || ride)::uuid;
+$$;
+-- Nina is on the supported run's crew for the leave_crew check below.
+do $$
+begin
+  assert pg_temp.crew('00000000-0000-0000-0000-0000000000de', 'e9', '00000000-0000-0000-0000-0000000000de', 'officer') is null,
+    'Nina volunteers';
+end $$;
+do $$
+declare
+  nina constant uuid := '00000000-0000-0000-0000-0000000000de';
+  gail constant uuid := '00000000-0000-0000-0000-0000000000dc';
+  rsvp_locks text[];
+  crew_locks text[];
+  leave_locks text[];
+begin
+  -- Each action runs in a block that is then undone, which also lets go of its locks.
+  begin
+    assert pg_temp.try_as(gail, $q$select public.set_rsvp('00000000-0000-0000-0000-0000000000e9', 'maybe')$q$) is null, 'Gail answers';
+    rsvp_locks := pg_temp.ride_locks('e9');
+    raise sqlstate 'U0001';
+  exception when sqlstate 'U0001' then null;
+  end;
+  begin
+    assert pg_temp.crew(gail, 'e9', gail, 'road_captain') is null, 'Gail volunteers';
+    crew_locks := pg_temp.ride_locks('e9');
+    raise sqlstate 'U0001';
+  exception when sqlstate 'U0001' then null;
+  end;
+  begin
+    assert pg_temp.leave(nina, 'e9', nina) is null, 'Nina steps down';
+    leave_locks := pg_temp.ride_locks('e9');
+    raise sqlstate 'U0001';
+  exception when sqlstate 'U0001' then null;
+  end;
+  assert rsvp_locks = '{"For No Key Update"}', format('set_rsvp locks the ride first, not %s', rsvp_locks);
+  assert crew_locks = '{"For No Key Update"}', format('set_crew locks it the same way, not %s', crew_locks);
+  assert leave_locks = '{"For No Key Update"}', format('and so does leave_crew, not %s', leave_locks);
+  assert exists (select 1 from ride_crew where member_id = nina and ride_id = '00000000-0000-0000-0000-0000000000e9'),
+    'the checks changed nothing';
+  assert pg_temp.leave(nina, 'e9', nina) is null, 'Nina steps down for real';
+end $$;
+
 \echo 'A crew spot goes with its ride and its member; who put them there is kept loosely'
 do $$
 declare

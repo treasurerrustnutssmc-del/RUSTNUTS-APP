@@ -58,8 +58,10 @@ declare
 begin
   if me is null then raise exception 'Sign in first.'; end if;
   if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
-  -- Locking the ride keeps two changes to the same crew from crossing.
-  select * into ride from public.rides where id = p_ride for update;
+  -- Lock order: the ride row first, before rsvps or ride_crew, the same way as leave_crew and
+  -- set_rsvp, so two changes to one ride's crew and answers queue instead of deadlocking.
+  -- "No key update" still lets other members' answers reference the ride.
+  select * into ride from public.rides where id = p_ride for no key update;
   if not found then raise exception 'No such ride.'; end if;
   if ride.cancelled_at is not null then raise exception 'That ride was cancelled.'; end if;
   ride_date := date(ride.starts_at at time zone 'Australia/Melbourne');
@@ -118,7 +120,8 @@ declare
 begin
   if me is null then raise exception 'Sign in first.'; end if;
   if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
-  select * into ride from public.rides where id = p_ride for update;
+  -- The ride row first, the same lock as set_crew and set_rsvp take (see set_crew).
+  select * into ride from public.rides where id = p_ride for no key update;
   if not found then raise exception 'No such ride.'; end if;
   if ride.cancelled_at is not null then raise exception 'That ride was cancelled.'; end if;
   first_day_end := ((date(ride.starts_at at time zone 'Australia/Melbourne') + 1)::timestamp at time zone 'Australia/Melbourne');
@@ -145,7 +148,9 @@ declare
 begin
   if me is null then raise exception 'Sign in first.'; end if;
   if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
-  select * into ride from public.rides where id = p_ride;
+  -- The ride row first, before rsvps or ride_crew, the same lock as set_crew and leave_crew take:
+  -- otherwise a manager moving a member while that member answers could deadlock.
+  select * into ride from public.rides where id = p_ride for no key update;
   if not found then raise exception 'No such ride.'; end if;
   if ride.cancelled_at is not null then raise exception 'That ride was cancelled.'; end if;
   -- An all-day ride takes answers until its first day is over.
