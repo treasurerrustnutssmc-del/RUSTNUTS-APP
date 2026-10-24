@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
+import { attendanceCount } from '../domain/attendance';
 import { formatAuDate, monthsBetween } from '../domain/dates';
 import { formatCents, fyOf } from '../domain/fees';
-import { INTRO, fngDue, fngOutcomeStatus, fngReviewProblem, fngReviews, introProgress, type FngOutcome } from '../domain/joining';
+import { INTRO, REVIEW_EARLY_DAYS, fngDue, fngOutcomeStatus, fngReviewProblem, fngReviews, introProgress, type FngOutcome } from '../domain/joining';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { Member, MemberDecision, Votes } from '../domain/types';
@@ -80,6 +81,7 @@ export function IntroProgressCard({ member, self, bare }: { member: Member; self
       />
       <Step done={p.ridesDone} title="A ride with members" detail={`${p.rides} of ${INTRO.rides} so far`} />
       {self && !p.ready ? <Small>Check in at each meeting and ride so they count.</Small> : null}
+      {!self && !p.ready ? <Small>Not finished yet. The board can still vote early if it wants to.</Small> : null}
     </Box>
   );
 }
@@ -151,6 +153,8 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
   const past = fngReviews(member.id, data.decisions ?? []);
   const due = fngDue(member, data.decisions ?? [], today);
   const fee = (data.continuationFees ?? []).find((f) => f.chapterId === member.chapterId && f.fy === fyOf(today));
+  const since = member.fngStartedOn ? attendanceCount(member.id, data, member.fngStartedOn) : null;
+  const tooEarly = due ? fngReviewProblem(me, member, due.atMonths, 'continue', { for: null, against: null, abstained: null }, data, today) === 'That review isn’t due yet.' : false;
 
   const save = async () => {
     if (!outcome || !due) return;
@@ -180,7 +184,9 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
           <H1>{displayName(member)}</H1>
           <Row style={{ gap: 6 }}>
             <StatusChip status={member.status} />
-            {member.fngStartedOn ? <Small>{monthsBetween(member.fngStartedOn, today)} months in</Small> : null}
+            {member.fngStartedOn ? (
+              <Text style={[type.name, { color: colors.boneMute }]}>{`${monthsBetween(member.fngStartedOn, today)} months in`}</Text>
+            ) : null}
           </Row>
         </View>
       </Row>
@@ -199,6 +205,9 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
             {due.overdue ? <Chip label="Overdue" tone="warn" /> : null}
           </Row>
           <KeyValue label="Due" value={formatAuDate(due.date)} tone={due.overdue ? 'warn' : undefined} />
+          {since ? <KeyValue label="Since starting" value={`${plural(since.meetings, 'meeting', 'meetings')} · ${plural(since.rides, 'ride', 'rides')}`} /> : null}
+          <Small>Reviews fall at 6, 9 and 12 months, then every 3 months.</Small>
+          {tooEarly ? <Notice tone="info">{`This one can be recorded from ${REVIEW_EARLY_DAYS} days before it’s due.`}</Notice> : null}
           <Choices<FngOutcome>
             label="What the board decided"
             options={(Object.keys(OUTCOME_LABEL) as FngOutcome[]).map((o) => ({ value: o, label: OUTCOME_LABEL[o] }))}
@@ -215,7 +224,7 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
           <VotesFields onChange={setVotes} />
           <Field label="Note for the board" value={note} onChangeText={setNote} multiline maxLength={500} hint="Only the board sees this." />
           {error ? <Notice tone="danger">{error}</Notice> : null}
-          <Button label="Record the review" disabled={!outcome} busy={busy} onPress={save} />
+          <Button label="Record the review" disabled={!outcome || tooEarly} busy={busy} onPress={save} />
         </Card>
       ) : (
         <Notice tone="info">{`${displayName(member)} isn’t an FNG any more.`}</Notice>

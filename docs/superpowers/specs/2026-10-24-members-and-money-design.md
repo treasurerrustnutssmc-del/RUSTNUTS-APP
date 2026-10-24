@@ -156,12 +156,18 @@ what they owe, pay by PayID, and get a receipt once the treasurer confirms it.
 1. **Big 4 eligibility:** what attendance makes someone eligible? *Default: not computed yet;
    attendance is recorded.*
 2. **Continuation fee:** how much, and is it paid when an FNG goes past 12 months? *Default: the
-   treasurer sets an amount per year; it's raised when a 12-month or later review says Continue.*
+   board sets an amount per year; it's raised when a 12-month or later review says Continue.*
 3. **An FNG who doesn't continue:** Supporter, or out of the club? *Default: Supporter.*
-4. **Members on hiatus:** do they pay that year? *Default: yes, at their status's rate. The
-   treasurer can waive it.*
+4. **Members on hiatus:** ~~do they pay that year?~~ **Decided by Jeff (24 Oct 2026): they don't
+   pay.** No yearly fee and no continuation fee while on hiatus. Fee amounts are set by the
+   chapter board.
 5. **PayID details** for each chapter: Jeff (or the treasurer) types them in the app. That's real
    club data, so it waits for him.
+
+## Added after review (24 Oct 2026)
+- Nobody waives, records, confirms or rejects money on their own fees. A treasurer claims their own
+  like any member, and the National Chairman or Secretary confirms it.
+- A decision's vote tally and note are the board's only.
 
 ## Not in this spec
 - Card payments (needs Jeff's yes for an account), the treasurer ledger and budgets (Stage 5),

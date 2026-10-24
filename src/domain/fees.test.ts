@@ -21,6 +21,7 @@ import {
   SET_FEES_ONLY,
   paysFees,
   nextReceiptNo,
+  NOT_YOUR_OWN,
   receiptNo,
   recordPaymentProblem,
   waiveProblem,
@@ -194,4 +195,18 @@ test('the next receipt follows the highest issued, so a gap never repeats a numb
   assert.equal(nextReceiptNo('west', 2026, ['W26-0001', 'W26-0002']), 'W26-0003');
   assert.equal(nextReceiptNo('west', 2026, ['W26-0002']), 'W26-0003', 'one went missing');
   assert.equal(nextReceiptNo('west', 2026, ['W25-0009', 'N26-0004']), 'W26-0001', 'other years and chapters');
+});
+
+test('nobody waives, records or confirms money on their own fees', () => {
+  const own = charge({ id: 'own', memberId: 'tre' });
+  const claim = payment({ id: 'own-claim', chargeId: 'own', amountCents: 5000, state: 'claimed', receiptNo: null, decidedAt: null });
+  const data = club({ charges: [own], payments: [claim] });
+  const tre = who(data, 'tre');
+  assert.equal(waiveProblem(tre, own, data), NOT_YOUR_OWN);
+  assert.equal(recordPaymentProblem(tre, own, 100, today, 'cash', data, today), NOT_YOUR_OWN);
+  assert.equal(decidePaymentProblem(tre, claim, 'confirm', data), NOT_YOUR_OWN);
+  assert.equal(decidePaymentProblem(tre, claim, 'reject', data), NOT_YOUR_OWN);
+  // They claim like everyone else, and the National Chairman or Secretary confirms it.
+  assert.equal(claimProblem(tre, own, 100, today, 'payid', data, today), null);
+  assert.equal(decidePaymentProblem(who(data, 'chair'), claim, 'confirm', data), null);
 });

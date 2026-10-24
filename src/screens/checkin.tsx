@@ -74,6 +74,7 @@ export function CheckInScreen({ navigation }: RootScreen<'CheckIn'>) {
   const camSize = Math.min(width - space.lg * 2 - space.lg * 2, 320);
 
   const submit = async (raw: string) => {
+    if (busy) return;
     const typed = normalizeCode(raw);
     if (!typed) {
       setError('Type the code from the board’s screen.');
@@ -86,6 +87,8 @@ export function CheckInScreen({ navigation }: RootScreen<'CheckIn'>) {
       setScanning(false);
       setDone(sessionId);
     } catch (e) {
+      // Stop the camera, or it would send the same bad code again on every frame.
+      setScanning(false);
       setError((e as Error).message);
       handled.current = false;
     } finally {
@@ -145,6 +148,11 @@ export function CheckInScreen({ navigation }: RootScreen<'CheckIn'>) {
                 onBarcodeScanned={({ data: scanned }) => {
                   if (handled.current || busy) return;
                   handled.current = true;
+                  if (!scanned.toUpperCase().startsWith(qrPayload(''))) {
+                    setScanning(false);
+                    setError('That’s not a club check-in code.');
+                    return;
+                  }
                   submit(scanned);
                 }}
               />
@@ -198,16 +206,19 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
 
   const sessionId = session?.id;
   const closed = !!session?.closedAt;
+  // The provider's actions aren't memoised, so keep the one from when the screen opened: the code
+  // is fetched once per session, not again on every refresh.
+  const fetchCode = useRef(checkinCode);
   useEffect(() => {
     if (!sessionId || closed) return;
     let live = true;
-    checkinCode(sessionId)
+    fetchCode.current(sessionId)
       .then((c) => live && setCode(c))
       .catch((e) => live && setError((e as Error).message));
     return () => {
       live = false;
     };
-  }, [sessionId, closed, checkinCode]);
+  }, [sessionId, closed]);
 
   if (!session || !me) {
     return (
@@ -557,7 +568,7 @@ export function AttendanceSummary({ member }: { member: Member }) {
   const { rides, meetings } = attendanceCount(member.id, data, `${fy}-07-01`);
   return (
     <>
-      <SectionTitle title="Turned up" action={<Small>{fyLabel(fy)}</Small>} />
+      <SectionTitle title="Turned up" action={<Text style={[type.name, { color: colors.boneMute }]}>{fyLabel(fy)}</Text>} />
       <Card>
         <Row style={{ gap: space.xxl }}>
           <View style={{ gap: 2 }}>

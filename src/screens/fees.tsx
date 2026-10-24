@@ -99,7 +99,7 @@ export function HomeFeesCard() {
     <Card>
       <Row style={{ justifyContent: 'space-between' }}>
         <H2>Fees</H2>
-        {overdue ? <Chip label="Overdue" tone="danger" /> : <Small>{`Due ${formatAuDate(firstDue)}`}</Small>}
+        {overdue ? <Chip label="Overdue" tone="danger" /> : <Text style={[type.name, { color: colors.boneDim }]}>{`Due ${formatAuDate(firstDue)}`}</Text>}
       </Row>
       <Text style={[type.h1, { fontVariant: ['tabular-nums'] }]}>{formatCents(owing)}</Text>
       {claimed.length > 0 ? (
@@ -167,12 +167,12 @@ function PaymentForm({
         <Field label="Bank reference (optional)" value={reference} onChangeText={setReference} autoCapitalize="characters" maxLength={40} />
       ) : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      <Button label={mode === 'claim' ? 'Tell the treasurer' : 'Record payment'} busy={busy} onPress={send} />
+      <Button label={mode === 'claim' ? 'Tell the treasurer' : 'Record payment'} kind={mode === 'claim' ? 'primary' : 'secondary'} busy={busy} onPress={send} />
     </Stack>
   );
 }
 
-function ChargeCard({ charge, member, onDone }: { charge: Charge; member: Member; onDone: (msg: string) => void }) {
+function ChargeCard({ charge, member, lead, onDone }: { charge: Charge; member: Member; lead: boolean; onDone: (msg: string) => void }) {
   const { me, data, today, waiveCharge, confirmPayment, rejectPayment } = useClub();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,12 +181,22 @@ function ChargeCard({ charge, member, onDone }: { charge: Charge; member: Member
   const isSelf = me?.id === member.id;
   const manager = canManageFees(me, charge.chapterId, data.positions);
   const pendingCents = payments.filter((p) => p.state === 'claimed').reduce((sum, p) => sum + p.amountCents, 0);
-  const claimMode = isSelf && !manager;
+  // Your own fees are always claimed, even by a treasurer: someone else confirms them.
+  const claimMode = isSelf;
+  const [busyId, setBusyId] = useState<string | null>(null);
   // A member can't say they've paid more than is left once their waiting claims are counted.
   const leftCents = claimMode ? Math.max(0, balance.owingCents - pendingCents) : balance.owingCents;
-  const act = (fn: () => Promise<void>, msg: string) => {
+  const act = (fn: () => Promise<void>, msg: string, id: string | null = null) => {
+    if (busyId) return;
     setError(null);
-    fn().then(() => onDone(msg), (e) => setError((e as Error).message));
+    setBusyId(id ?? 'any');
+    fn().then(
+      () => onDone(msg),
+      (e) => {
+        setError((e as Error).message);
+        setBusyId(null);
+      },
+    );
   };
 
   return (
@@ -215,9 +225,9 @@ function ChargeCard({ charge, member, onDone }: { charge: Charge; member: Member
             )}
           </Row>
           <Small>{[METHOD_LABEL[p.method], p.reference].filter(Boolean).join(' · ')}</Small>
-          {manager && p.state === 'claimed' ? (
+          {manager && !isSelf && p.state === 'claimed' ? (
             <Stack gap={space.xs}>
-              <Button label="It’s in the account" icon="checkmark" onPress={() => act(() => confirmPayment(p.id), 'Payment confirmed, with a receipt.')} />
+              <Button label="It’s in the account" kind="secondary" icon="checkmark" busy={busyId === p.id} onPress={() => act(() => confirmPayment(p.id), 'Payment confirmed, with a receipt.', p.id)} />
               <ConfirmButton label="Not received" confirmLabel="Mark not received" kind="quiet" onConfirm={() => act(() => rejectPayment(p.id), 'Marked as not received.')} />
             </Stack>
           ) : null}
@@ -228,10 +238,10 @@ function ChargeCard({ charge, member, onDone }: { charge: Charge; member: Member
         open ? (
           <PaymentForm charge={charge} mode={claimMode ? 'claim' : 'record'} defaultCents={leftCents} onDone={onDone} />
         ) : (
-          <Button label={claimMode ? 'I’ve paid this' : 'Record a payment'} kind={claimMode ? 'primary' : 'secondary'} onPress={() => setOpen(true)} />
+          <Button label={claimMode ? 'I’ve paid this' : 'Record a payment'} kind={claimMode && lead ? 'primary' : 'secondary'} onPress={() => setOpen(true)} />
         )
       ) : null}
-      {manager && balance.owingCents > 0 ? (
+      {manager && !isSelf && balance.owingCents > 0 ? (
         <ConfirmButton label="Waive it" confirmLabel={`Waive ${formatCents(balance.owingCents)}`} kind="quiet" onConfirm={() => act(() => waiveCharge(charge.id), 'Charge waived.')} />
       ) : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
@@ -339,6 +349,11 @@ export function MemberFeesScreen({ route }: RootScreen<'MemberFees'>) {
   const waiting = (data.payments ?? [])
     .filter((p) => p.state === 'claimed' && charges.some((c) => c.id === p.chargeId))
     .reduce((sum, p) => sum + p.amountCents, 0);
+  // Only the first charge with money left on it gets the red "I've paid this".
+  const leadId = charges.find((c) => {
+    const pending = (data.payments ?? []).filter((p) => p.chargeId === c.id && p.state === 'claimed').reduce((sum, p) => sum + p.amountCents, 0);
+    return chargeBalance(c, data.payments ?? []).owingCents - pending > 0;
+  })?.id;
   const done = (m: string) => {
     setMsg(m);
     setKey((k) => k + 1);
@@ -373,7 +388,7 @@ export function MemberFeesScreen({ route }: RootScreen<'MemberFees'>) {
           <Small>{isSelf ? 'Nothing to pay. Fees show up here once the treasurer raises them each July.' : 'No charges yet.'}</Small>
         </Card>
       ) : (
-        charges.map((c) => <ChargeCard key={`${c.id}-${key}`} charge={c} member={member} onDone={done} />)
+        charges.map((c) => <ChargeCard key={`${c.id}-${key}`} charge={c} member={member} lead={c.id === leadId} onDone={done} />)
       )}
 
       {manager && member.approval === 'approved' ? <AddChargeForm key={`add-${key}`} member={member} onDone={done} /> : null}
@@ -417,9 +432,14 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
   const save = async () => {
     setError(null);
     if (!due.iso) return setError('Use DD/MM/YYYY, like 31/07/2027.');
-    const toSave = PAYING_STATUSES.flatMap((s) => {
-      const t = (amounts[s] ?? '').trim();
-      return t ? [{ s, cents: parseDollars(t) }] : [];
+    // A rate that's already set can be changed but not cleared (there's no way to un-set one yet).
+    const cleared = PAYING_STATUSES.filter((st) => !(amounts[st] ?? '').trim() && rates.some((r) => r.status === st));
+    if (cleared.length || (!contText.trim() && cont)) {
+      return setError('A fee that’s already set can’t be left blank. Put the amount back in, or ask Claude to add a way to stop charging it.');
+    }
+    const toSave = PAYING_STATUSES.flatMap((st) => {
+      const t = (amounts[st] ?? '').trim();
+      return t ? [{ s: st, cents: parseDollars(t) }] : [];
     });
     if (toSave.some((x) => x.cents === null)) return setError('Enter amounts like 250 or 125.50.');
     const contCents = contText.trim() ? parseDollars(contText) : undefined;
@@ -439,7 +459,7 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
   return (
     <Card>
       <H2>{`Fees ${fyLabel(fy)}`}</H2>
-      <Small>The board sets these. Leave a status blank if it doesn’t pay.</Small>
+      <Small>The board sets these. Leave a status blank if it doesn’t pay. Members on hiatus aren’t charged.</Small>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.md, rowGap: space.md }}>
         {PAYING_STATUSES.map((st) => (
           <View key={st} style={{ width: '47%', flexGrow: 1 }}>
@@ -512,6 +532,7 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
   const [fy, setFy] = useState(thisFy);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'danger'; text: string } | null>(null);
   const [key, setKey] = useState(0);
+  const [busyId, setBusyId] = useState<string | null>(null);
   if (!chapter || !me || !canSeeFees(me, chapter.id, data.positions)) {
     return (
       <Screen>
@@ -522,6 +543,10 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
   const manager = canManageFees(me, chapter.id, data.positions);
   const payments = data.payments ?? [];
   const charges = (data.charges ?? []).filter((c) => c.chapterId === chapter.id);
+  // This year and next, plus any earlier year someone still owes for.
+  const years = [
+    ...new Set([...charges.filter((c) => c.fy < thisFy && chargeBalance(c, payments).owingCents > 0).map((c) => c.fy), thisFy, thisFy + 1]),
+  ].sort((a, b) => a - b);
   const chargeById = new Map(charges.map((c) => [c.id, c]));
   const memberById = new Map(data.members.map((m) => [m.id, m]));
   const claims = payments.filter((p) => p.state === 'claimed' && chargeById.has(p.chargeId));
@@ -553,7 +578,7 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
       <Stack gap={space.sm}>
         <H1>{`${chapter.name} fees`}</H1>
         <Choices<string>
-          options={[thisFy, thisFy + 1].map((y) => ({ value: String(y), label: fyLabel(y) }))}
+          options={years.map((y) => ({ value: String(y), label: fyLabel(y) }))}
           value={String(fy)}
           onChange={(v) => setFy(Number(v))}
         />
@@ -590,7 +615,7 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
 
       {claims.length > 0 ? (
         <>
-          <SectionTitle title="Check the account" action={<Small>{claims.length}</Small>} />
+          <SectionTitle title="Check the account" action={<Text style={[type.name, { color: colors.boneMute }]}>{claims.length}</Text>} />
           {claims.map((p) => {
             const c = chargeById.get(p.chargeId)!;
             const m = memberById.get(c.memberId);
@@ -602,9 +627,22 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
                 </Row>
                 <Small>{[`Says paid ${formatAuDate(p.paidOn)}`, METHOD_LABEL[p.method], p.reference].filter(Boolean).join(' · ')}</Small>
                 {!manager ? <Small>The treasurer confirms these.</Small> : null}
-                {manager ? (
+                {manager && c.memberId === me.id ? <Small>Your own: the National Chairman or Secretary confirms it.</Small> : null}
+                {manager && c.memberId !== me.id ? (
                   <Stack gap={space.xs}>
-                    <Button label="It’s in the account" kind="secondary" icon="checkmark" onPress={() => confirmPayment(p.id).then(() => done('Payment confirmed, with a receipt.'), fail)} />
+                    <Button
+                      label="It’s in the account"
+                      kind="secondary"
+                      icon="checkmark"
+                      busy={busyId === p.id}
+                      onPress={() => {
+                        if (busyId) return;
+                        setBusyId(p.id);
+                        confirmPayment(p.id)
+                          .then(() => done('Payment confirmed, with a receipt.'), fail)
+                          .finally(() => setBusyId(null));
+                      }}
+                    />
                     <ConfirmButton label="Not received" confirmLabel="Mark not received" kind="quiet" onConfirm={() => rejectPayment(p.id).then(() => done('Marked as not received.'), fail)} />
                   </Stack>
                 ) : null}
@@ -614,7 +652,7 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
         </>
       ) : null}
 
-      <SectionTitle title="Still owing" action={<Small>{outstanding.length}</Small>} />
+      <SectionTitle title="Still owing" action={<Text style={[type.name, { color: colors.boneMute }]}>{outstanding.length}</Text>} />
       <Card style={{ padding: 0, gap: 0 }}>
         {outstanding.length === 0 ? (
           <View style={{ padding: space.lg }}>

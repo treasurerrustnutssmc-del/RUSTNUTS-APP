@@ -583,6 +583,7 @@ begin
   if not private.can_manage_fees(c.chapter_id) then
     raise exception 'Only the chapter treasurer, or the National Chairman or Secretary, handles fees.';
   end if;
+  if c.member_id = auth.uid() then raise exception 'Someone else with money rights has to handle your own fees.'; end if;
   if c.waived_at is not null then raise exception 'That charge is already waived.'; end if;
   if private.owing(p_charge) = 0 then raise exception 'That charge is already paid.'; end if;
   update public.charges set waived_at = now(), waived_by = auth.uid() where id = p_charge;
@@ -634,6 +635,7 @@ begin
   if not private.can_manage_fees(c.chapter_id) then
     raise exception 'Only the chapter treasurer, or the National Chairman or Secretary, handles fees.';
   end if;
+  if c.member_id = auth.uid() then raise exception 'Someone else with money rights has to handle your own fees.'; end if;
   perform private.check_payment(c, p_amount_cents, p_paid_on, p_method, 'That’s more than they owe.');
   insert into public.payments (charge_id, amount_cents, paid_on, method, reference, state, decided_by, decided_at, receipt_no)
   values (p_charge, p_amount_cents, p_paid_on, p_method, nullif(trim(p_reference), ''), 'confirmed', auth.uid(), now(),
@@ -655,6 +657,7 @@ begin
   if not private.can_manage_fees(c.chapter_id) then
     raise exception 'Only the chapter treasurer, or the National Chairman or Secretary, handles fees.';
   end if;
+  if c.member_id = auth.uid() then raise exception 'Someone else with money rights has to handle your own fees.'; end if;
   select * into p from public.payments where id = p_payment for update;
   if p.state <> 'claimed' then raise exception 'That payment has already been dealt with.'; end if;
   if p.amount_cents > private.owing(c.id) then raise exception 'That’s more than they owe.'; end if;
@@ -676,6 +679,7 @@ begin
   if not private.can_manage_fees(c.chapter_id) then
     raise exception 'Only the chapter treasurer, or the National Chairman or Secretary, handles fees.';
   end if;
+  if c.member_id = auth.uid() then raise exception 'Someone else with money rights has to handle your own fees.'; end if;
   if p.state <> 'claimed' then raise exception 'That payment has already been dealt with.'; end if;
   update public.payments set state = 'rejected', decided_by = auth.uid(), decided_at = now() where id = p_payment;
 end;

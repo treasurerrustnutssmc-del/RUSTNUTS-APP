@@ -15,6 +15,7 @@ export function paysFees(member: Member): boolean {
 
 export const MONEY_ONLY = 'Only the chapter treasurer, or the National Chairman or Secretary, handles fees.';
 export const SET_FEES_ONLY = 'Only that chapter’s board sets its fees.';
+export const NOT_YOUR_OWN = 'Someone else with money rights has to handle your own fees.';
 const AMOUNT = 'Enter an amount over $0.';
 
 /** The financial year an ISO date falls in, by the year it starts (2026 = FY26–27). */
@@ -133,6 +134,7 @@ export function raiseChargeProblem(me: Member | null, target: Member, descriptio
 
 export function waiveProblem(me: Member | null, charge: Charge, data: ClubData): string | null {
   if (!canManageFees(me, charge.chapterId, data.positions)) return MONEY_ONLY;
+  if (me!.id === charge.memberId) return NOT_YOUR_OWN;
   if (charge.waivedAt) return 'That charge is already waived.';
   return chargeBalance(charge, data.payments ?? []).owingCents === 0 ? 'That charge is already paid.' : null;
 }
@@ -181,12 +183,14 @@ export function recordPaymentProblem(
   today: string,
 ): string | null {
   if (!canManageFees(me, charge.chapterId, data.positions)) return MONEY_ONLY;
+  if (me!.id === charge.memberId) return NOT_YOUR_OWN;
   return paymentProblem(charge, amountCents, paidOn, method, data, today, 'That’s more than they owe.');
 }
 
 export function decidePaymentProblem(me: Member | null, payment: Payment, decision: 'confirm' | 'reject', data: ClubData): string | null {
   const charge = (data.charges ?? []).find((c) => c.id === payment.chargeId);
   if (!charge || !canManageFees(me, charge.chapterId, data.positions)) return MONEY_ONLY;
+  if (me!.id === charge.memberId) return NOT_YOUR_OWN;
   if (payment.state !== 'claimed') return 'That payment has already been dealt with.';
   if (decision === 'confirm' && payment.amountCents > chargeBalance(charge, data.payments ?? []).owingCents) {
     return 'That’s more than they owe.';

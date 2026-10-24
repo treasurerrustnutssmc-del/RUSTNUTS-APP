@@ -149,7 +149,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
           last
           left={<IconBadge icon="cash-outline" tone={totalOwing(me.id, data) > 0 ? 'red' : 'steel'} />}
           title={totalOwing(me.id, data) > 0 ? `${formatCents(totalOwing(me.id, data))} owing` : 'All paid up'}
-          subtitle={me.onHiatus ? 'On hiatus: no fees while you’re away' : 'Charges, payments and receipts'}
+          subtitle={me.onHiatus && totalOwing(me.id, data) === 0 ? 'On hiatus: no new fees while you’re away' : 'Charges, payments and receipts'}
           onPress={() => navigation.navigate('MemberFees', { memberId: me.id })}
         />
       </Card>

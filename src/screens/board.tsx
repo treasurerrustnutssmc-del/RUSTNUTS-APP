@@ -22,6 +22,7 @@ import {
   Chip,
   Choices,
   ConfirmButton,
+  Field,
   H1,
   H2,
   IconBadge,
@@ -42,6 +43,7 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
   const { data, decideApplication } = useClub();
   const [status, setStatus] = useState<MemberStatus>(applicant.status);
   const [votes, setVotes] = useState<Votes>({ for: null, against: null, abstained: null });
+  const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const priv = data.privates.find((p) => p.memberId === applicant.id);
   const chapter = data.chapters.find((c) => c.id === applicant.chapterId);
@@ -90,6 +92,7 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
       ) : null}
       {applicant.status === 'introduced' ? <IntroProgressCard member={applicant} bare /> : null}
       <VotesFields onChange={setVotes} />
+      <Field label="Note for the board" value={note} onChangeText={setNote} multiline maxLength={500} hint="Only the board sees this." />
       <Choices<MemberStatus>
         label="Let them in as"
         options={APPROVE_AS.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
@@ -103,14 +106,14 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
           icon="checkmark"
           busy={busy}
           style={{ flex: 1 }}
-          onPress={() => act(() => decideApplication(applicant.id, status, votes, ''), `${applicant.fullName} is in as ${STATUS_LABEL[status]}.`)}
+          onPress={() => act(() => decideApplication(applicant.id, status, votes, note), `${applicant.fullName} is in as ${STATUS_LABEL[status]}.`)}
         />
       </Row>
       <ConfirmButton
         label="Decline"
         confirmLabel={`Decline ${applicant.fullName.split(' ')[0]}`}
         kind="quiet"
-        onConfirm={() => act(() => decideApplication(applicant.id, null, votes, ''), `Declined ${applicant.fullName}.`)}
+        onConfirm={() => act(() => decideApplication(applicant.id, null, votes, note), `Declined ${applicant.fullName}.`)}
       />
     </Card>
   );

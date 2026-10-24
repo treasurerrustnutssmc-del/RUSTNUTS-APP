@@ -201,6 +201,7 @@ declare
   claim uuid;
   late_claim uuid;
   extra uuid;
+  own_claim uuid;
 begin
   assert pg_temp.try_as(tre, format($q$select public.set_fee_rate(%L, %s, 'full', 25000, %L)$q$, west, fy, private.club_date() + 30)) is null, 'full rate';
   assert pg_temp.try_as(tre, format($q$select public.set_fee_rate(%L, %s, 'fng', 15000, %L)$q$, west, fy, private.club_date() + 30)) is null, 'fng rate';
@@ -234,6 +235,12 @@ begin
     assert false, 'deleting a member with charges is refused';
   exception when foreign_key_violation then null;
   end;
+  -- Nobody deals with money on their own fees.
+  assert pg_temp.try_as(tre, format('select public.waive_charge(%L)', (select id from charges where member_id = tre and kind = 'annual'))) = 'Someone else with money rights has to handle your own fees.', 'no self-waive';
+  assert pg_temp.try_as(tre, format($q$select public.record_payment(%L, 100, %L, 'cash', null)$q$, (select id from charges where member_id = tre and kind = 'annual'), private.club_date())) = 'Someone else with money rights has to handle your own fees.', 'no self-record';
+  own_claim := pg_temp.value_as(tre, format($q$select public.claim_payment(%L, 100, %L, 'payid', 'TRE FEES')$q$, (select id from charges where member_id = tre and kind = 'annual'), private.club_date()));
+  assert pg_temp.try_as(tre, format('select public.confirm_payment(%L)', own_claim)) = 'Someone else with money rights has to handle your own fees.', 'no self-confirm';
+  assert pg_temp.try_as(tre, format('select public.reject_payment(%L)', own_claim)) = 'Someone else with money rights has to handle your own fees.', 'no self-reject';
   -- Numbers carry on from the highest issued, so a gap in the book can never cause a repeat.
   update payments set receipt_no = replace(receipt_no, '-0001', '-0007') where receipt_no like '%-0001';
   extra := pg_temp.value_as(tre, format($q$select public.raise_charge(%L, 'Patches', 2000, %L)$q$, '00000000-0000-0000-0000-0000000000a1', private.club_date() + 30));
