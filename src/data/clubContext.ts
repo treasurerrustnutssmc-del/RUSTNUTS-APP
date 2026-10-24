@@ -7,6 +7,7 @@ import type {
   Bike,
   BikeRegistration,
   ClubData,
+  CrewRole,
   EmergencyContact,
   LicenceClass,
   Member,
@@ -85,6 +86,10 @@ export interface ClubContextValue {
   endPosition: (positionId: string) => Promise<void>;
   /** Your answer to a ride: going, maybe or no. */
   setRsvp: (rideId: string, answer: RsvpAnswer) => Promise<void>;
+  /** Puts a member in a spot on a ride's crew (yourself, or anyone if you manage the ride). They are then going. */
+  setCrew: (rideId: string, memberId: string, role: CrewRole) => Promise<void>;
+  /** Takes a member off a ride's crew (yourself, or anyone if you manage the ride). */
+  leaveCrew: (rideId: string, memberId: string) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -105,6 +110,7 @@ export const EMPTY_DATA: ClubData = {
   positions: [],
   rides: [],
   rsvps: [],
+  crew: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

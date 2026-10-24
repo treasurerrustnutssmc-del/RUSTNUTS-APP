@@ -23,6 +23,8 @@ type PositionRole =
   | 'assistant_tail_gunner'
   | 'founder';
 
+type CrewRole = 'road_captain' | 'tail_gunner' | 'assistant_tail_gunner' | 'officer';
+
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '14.18' };
   public: {
@@ -160,6 +162,12 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      ride_crew: {
+        Row: { assigned_at: string; assigned_by: string | null; member_id: string; ride_id: string; role: CrewRole };
+        Insert: { [_ in never]: never }; // the crew changes only through set_crew and leave_crew
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -167,11 +175,15 @@ export type Database = {
       decline_member: { Args: { p_member: string }; Returns: undefined };
       set_member_status: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       set_rsvp: { Args: { p_ride: string; p_answer: RsvpAnswer }; Returns: undefined };
+      set_crew: { Args: { p_ride: string; p_member: string; p_role: CrewRole }; Returns: undefined };
+      leave_crew: { Args: { p_ride: string; p_member: string }; Returns: undefined };
       ride_calendar: {
         Args: never;
         Returns: {
           rides: Database['public']['Tables']['rides']['Row'][];
           rsvps: Database['public']['Tables']['rsvps']['Row'][];
+          /** Missing for anyone who isn't an approved member. */
+          crew?: Database['public']['Tables']['ride_crew']['Row'][];
           synced_at: string | null;
         };
       };
@@ -234,6 +246,7 @@ export type Database = {
       licence_class: LicenceClass;
       member_status: MemberStatus;
       position_role: PositionRole;
+      crew_role: CrewRole;
     };
     CompositeTypes: { [_ in never]: never };
   };

@@ -176,11 +176,22 @@ export const DEMO_DATA: ClubData = {
     { rideId: 'r-1', memberId: 'm-spanner', answer: 'going', updatedAt: '2026-10-20T09:00:00.000Z' },
     { rideId: 'r-1', memberId: 'm-gravel', answer: 'maybe', updatedAt: '2026-10-21T09:00:00.000Z' },
     { rideId: 'r-1', memberId: 'm-throttle', answer: 'going', updatedAt: '2026-10-21T10:00:00.000Z' },
+    { rideId: 'r-1', memberId: 'm-diesel', answer: 'going', updatedAt: '2026-10-21T11:00:00.000Z' },
+    { rideId: 'r-1', memberId: 'm-chook', answer: 'going', updatedAt: '2026-10-21T12:00:00.000Z' },
+    { rideId: 'r-2', memberId: 'm-crank', answer: 'going', updatedAt: '2026-10-22T09:00:00.000Z' },
     { rideId: 'r-2', memberId: 'm-smokey', answer: 'going', updatedAt: '2026-10-22T10:00:00.000Z' },
     { rideId: 'r-2', memberId: 'm-jet', answer: 'going', updatedAt: '2026-10-22T11:00:00.000Z' },
     { rideId: 'r-4', memberId: 'm-rusty', answer: 'going', updatedAt: '2026-10-22T12:00:00.000Z' },
     { rideId: 'r-4', memberId: 'm-crank', answer: 'going', updatedAt: '2026-10-22T12:30:00.000Z' },
     { rideId: 'r-4', memberId: 'm-chook', answer: 'no', updatedAt: '2026-10-23T08:00:00.000Z' },
+  ],
+  // The West breakfast run is fully crewed; North coffee and curves still needs a Tail Gunner.
+  // Tail Gunners here have first aid dates that pass.
+  crew: [
+    { rideId: 'r-1', memberId: 'm-diesel', role: 'road_captain', assignedBy: 'm-torque', assignedAt: '2026-10-21T11:30:00.000Z' },
+    { rideId: 'r-1', memberId: 'm-spanner', role: 'tail_gunner', assignedBy: 'm-spanner', assignedAt: '2026-10-20T09:30:00.000Z' },
+    { rideId: 'r-1', memberId: 'm-chook', role: 'officer', assignedBy: 'm-torque', assignedAt: '2026-10-21T12:30:00.000Z' },
+    { rideId: 'r-2', memberId: 'm-crank', role: 'road_captain', assignedBy: 'm-smokey', assignedAt: '2026-10-22T09:30:00.000Z' },
   ],
 };
 

@@ -58,6 +58,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     appoint: async (memberId, chapterId, role) => setData(act.appoint(ctx, memberId, chapterId, role)),
     endPosition: async (positionId) => setData(act.endTerm(ctx, positionId)),
     setRsvp: async (rideId, answer) => setData(act.setRsvp(ctx, rideId, answer)),
+    setCrew: async (rideId, memberId, role) => setData(act.setCrew(ctx, rideId, memberId, role)),
+    leaveCrew: async (rideId, memberId) => setData(act.leaveCrew(ctx, rideId, memberId)),
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;
