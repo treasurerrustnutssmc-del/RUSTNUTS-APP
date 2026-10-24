@@ -34,10 +34,13 @@ export function sharedDraft(items: SharedItem[]): SharedDraft {
   const media: SharedMedia[] = [];
   let tooMany = false;
   let leftOut = false;
+  let sameName = false;
   for (const item of items) {
     if (item.kind === 'image' || item.kind === 'video') {
       const uri = item.uri || item.value;
       if (!uri) continue;
+      // The share sheet saves files by name, so two with one name are the same file by now.
+      if (media.some((m) => m.uri === uri)) { sameName = true; continue; }
       if (media.length >= MAX_MEDIA) { tooMany = true; continue; }
       media.push({ uri, kind: item.kind === 'image' ? 'photo' : 'video', mimeType: item.mimeType, fileSize: item.size });
     } else if (item.kind === 'audio' || item.kind === 'file') {
@@ -49,6 +52,7 @@ export function sharedDraft(items: SharedItem[]): SharedDraft {
   }
   const notes: string[] = [];
   if (tooMany) notes.push(`Only the first ${MAX_MEDIA} photos and videos came across.`);
+  if (sameName) notes.push('Two of those had the same name, so only one came across. Share the other on its own.');
   if (leftOut) notes.push('Files and voice notes can’t go in a chat, so they were left out.');
   let text = lines.join('\n');
   if ([...text].length > MAX_BODY) {

@@ -82,3 +82,10 @@ test('a shared link stays the link the member shared, whatever the page turns ou
   assert.deepEqual(draft.media, []);
   assert.deepEqual(draft.notes, []);
 });
+
+test('two photos the phone saved under one name come across once, and say so', () => {
+  const same: SharedItem = { kind: 'image', value: 'FullSizeRender.jpg', uri: 'file:///group/FullSizeRender.jpg', mimeType: 'image/jpeg', size: 10 };
+  const draft = sharedDraft([same, { ...same }, photo(2)]);
+  assert.deepEqual(draft.media.map((m) => m.uri), ['file:///group/FullSizeRender.jpg', 'file:///p2.jpg']);
+  assert.deepEqual(draft.notes, ['Two of those had the same name, so only one came across. Share the other on its own.']);
+});

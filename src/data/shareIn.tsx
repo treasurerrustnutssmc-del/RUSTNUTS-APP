@@ -51,10 +51,12 @@ function videoLength(uri: string): Promise<{ durationMs: number | null; width: n
     const done = (seconds: number | null) => {
       clearTimeout(timer);
       sub.remove();
+      failed.remove();
       resolve(seconds != null && seconds > 0 ? Math.round(seconds * 1000) : null);
     };
     const timer = setTimeout(() => done(player.duration || null), 8000);
     const sub = player.addListener('sourceLoad', (e) => done(e.duration));
+    const failed = player.addListener('statusChange', (e) => e.status === 'error' && done(null));
     if (player.duration > 0) done(player.duration);
   })
     .then(async (durationMs) => {
@@ -89,6 +91,12 @@ async function readyDraft(items: SharedItem[]): Promise<RootParams['ShareIn']> {
   };
   const media: PickedMedia[] = [];
   for (const [i, m] of draft.media.entries()) {
+    // Too big is refused before a copy is made.
+    const early = m.fileSize != null ? mediaProblem({ ...m, width: 0, height: 0, durationMs: null }) : null;
+    if (early) {
+      note(early);
+      continue;
+    }
     try {
       const measured = await measure(await ownCopy(m, i));
       const problem = measured.kind === 'video' && measured.durationMs === null ? VIDEO_LENGTH_UNKNOWN : mediaProblem(measured);
