@@ -1,6 +1,7 @@
 // Rides from the club calendar: Melbourne-time display, the default filter, month grouping and
 // who can answer. The database's set_rsvp action applies the same rules with the same words.
 
+import { formatAuDate } from './dates';
 import type { Chapter, Member, Ride, RideCategory, Rsvp, RsvpAnswer } from './types';
 
 const ZONE = 'Australia/Melbourne';
@@ -35,7 +36,7 @@ export function defaultCategories(me: Member, chapters: Chapter[]): RideCategory
 }
 
 /** The Melbourne date a ride's last day falls on (a calendar's all-day end is the midnight after). */
-function lastDay(ride: Ride): string {
+export function lastDay(ride: Ride): string {
   if (!ride.endsAt) return melbourneDate(ride.startsAt);
   return melbourneDate(new Date(new Date(ride.endsAt).getTime() - (ride.allDay ? 1 : 0)).toISOString());
 }
@@ -86,4 +87,23 @@ export function rsvpCounts(rideId: string, rsvps: Rsvp[]): Record<RsvpAnswer, nu
   const counts: Record<RsvpAnswer, number> = { going: 0, maybe: 0, no: 0 };
   for (const r of rsvps) if (r.rideId === rideId) counts[r.answer] += 1;
   return counts;
+}
+
+/** The sync runs every 15 minutes; past an hour behind, the calendar is out of date. */
+const STALE_AFTER_MS = 60 * 60_000;
+
+/**
+ * What the Rides tab says about the calendar. `syncedAt` is the oldest feed's last good read (null
+ * when a feed has never been read). Stale means it's worth a warning above the list.
+ */
+export function calendarFreshness(syncedAt: string | null, hasRides: boolean, now: string): { stale: boolean; text: string } {
+  if (!syncedAt) {
+    return hasRides
+      ? { stale: true, text: 'Part of the club calendar hasn’t loaded yet. Some rides may be missing.' }
+      : { stale: false, text: 'Not updated from the club calendar yet' };
+  }
+  const when = `${formatAuDate(melbourneDate(syncedAt))} ${melbourneTime(syncedAt)}`;
+  return new Date(now).getTime() - new Date(syncedAt).getTime() > STALE_AFTER_MS
+    ? { stale: true, text: `Club calendar last updated ${when}. Some rides may be out of date.` }
+    : { stale: false, text: `Updated ${when} from the club calendar` };
 }

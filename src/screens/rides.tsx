@@ -2,12 +2,21 @@
 // Going / Maybe / Can't make it. Rides come from the calendar sync; nobody edits them here.
 
 import React, { useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { formatAuDate } from '../domain/dates';
 import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, RSVP_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
-import { defaultCategories, melbourneDate, melbourneTime, rsvpCounts, rsvpProblem, upcomingByMonth } from '../domain/rides';
+import {
+  calendarFreshness,
+  defaultCategories,
+  lastDay,
+  melbourneDate,
+  melbourneTime,
+  rsvpCounts,
+  rsvpProblem,
+  upcomingByMonth,
+} from '../domain/rides';
 import type { Member, Ride, RideCategory, RsvpAnswer } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
@@ -35,18 +44,11 @@ function weekday(date: string): string {
   return WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
 }
 
-/** The last calendar day of an all-day ride (its end is the start of the day after). */
-function lastDay(ride: Ride): string | null {
-  if (!ride.endsAt) return null;
-  const last = melbourneDate(new Date(Date.parse(ride.endsAt) - 1).toISOString());
-  return last > melbourneDate(ride.startsAt) ? last : null;
-}
-
 /** "7:30 am", "All day", or "All day, to 31/01/2027". */
 function startLabel(ride: Ride): string {
   if (!ride.allDay) return melbourneTime(ride.startsAt);
   const last = lastDay(ride);
-  return last ? `All day, to ${formatAuDate(last)}` : 'All day';
+  return last > melbourneDate(ride.startsAt) ? `All day, to ${formatAuDate(last)}` : 'All day';
 }
 
 /** "7:30 am – 12:00 pm", or the end's date too when it finishes on another day. */
@@ -80,6 +82,8 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
   if (!me) return null;
   const categories = shown ?? defaultCategories(me, data.chapters);
   const months = upcomingByMonth(data.rides, categories, today);
+  const anyComing = upcomingByMonth(data.rides, RIDE_CATEGORIES, today).length > 0;
+  const freshness = isDemo ? null : calendarFreshness(data.ridesSyncedAt ?? null, data.rides.length > 0, new Date().toISOString());
   const toggle = (c: RideCategory) =>
     setShown(categories.includes(c) ? categories.filter((x) => x !== c) : [...categories, c]);
 
@@ -94,6 +98,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
               key={c}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: on }}
+              aria-checked={on}
               accessibilityLabel={`${RIDE_CATEGORY_LABEL[c]} rides`}
               onPress={() => toggle(c)}
               style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
@@ -112,9 +117,11 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
         })}
       </View>
 
+      {freshness?.stale ? <Notice tone="warn">{freshness.text}</Notice> : null}
+
       {months.length === 0 ? (
         <Notice title="No rides coming up.">
-          {categories.length < RIDE_CATEGORIES.length ? 'Turn on more colours above to see other rides.' : 'New rides show up here once they’re on the club calendar.'}
+          {anyComing ? 'Turn on more colours above to see other rides.' : 'New rides show up here once they’re on the club calendar.'}
         </Notice>
       ) : null}
 
@@ -136,13 +143,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
         </Stack>
       ))}
 
-      {!isDemo ? (
-        <Small style={{ textAlign: 'center' }}>
-          {data.ridesSyncedAt
-            ? `Updated ${formatAuDate(melbourneDate(data.ridesSyncedAt))} ${melbourneTime(data.ridesSyncedAt)} from the club calendar`
-            : 'Not updated from the club calendar yet'}
-        </Small>
-      ) : null}
+      {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
     </Screen>
   );
 }
@@ -169,8 +170,8 @@ function RideRow({
     startLabel(ride),
     ride.location,
     RIDE_CATEGORY_LABEL[ride.category],
-    `${going} going`,
-    mine ? `you: ${RSVP_LABEL[mine]}` : null,
+    !cancelled && going > 0 ? `${going} going` : null,
+    !cancelled && mine ? `you: ${RSVP_LABEL[mine]}` : null,
   ]
     .filter(Boolean)
     .join(', ');
@@ -203,7 +204,7 @@ function RideRow({
             <Chip label="Cancelled" tone="danger" />
           ) : (
             <>
-              <Chip label={`${going} going`} tone="bone" />
+              {going > 0 ? <Chip label={`${going} going`} tone="bone" /> : null}
               {mine ? <Chip label={`You: ${RSVP_LABEL[mine]}`} tone={ANSWER_TONE[mine]} icon={ANSWER_ICON[mine]} /> : null}
             </>
           )}
@@ -281,7 +282,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
               last={i === members.length - 1}
               left={<Avatar text={initials(m)} size={40} />}
               title={displayName(m)}
-              subtitle={m.roadName ? m.fullName : undefined}
+              subtitle={m.fullName !== displayName(m) ? m.fullName : undefined}
               onPress={() => navigation.navigate('MemberDetail', { memberId: m.id })}
             />
           ))
@@ -292,7 +293,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
 
   return (
     <Screen>
-      <Card style={{ borderTopWidth: 4, borderTopColor: rideColors[ride.category].bg }}>
+      <Card>
         <Row style={{ gap: 6 }}>
           <RideChip category={ride.category} />
           {cancelled ? <Chip label="Cancelled" tone="danger" /> : null}
@@ -331,27 +332,37 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         {problem ? <Notice tone={cancelled ? 'danger' : 'info'}>{problem}</Notice> : null}
         <View style={styles.answers}>
           {ANSWERS.map((a) => {
-            const selected = mine === a;
+            // While an answer saves, it shows as chosen with a spinner and the others dim.
+            const saving = busy === a;
+            const selected = busy ? saving : mine === a;
             const disabled = !!problem || busy !== null;
             return (
               <Pressable
                 key={a}
                 accessibilityRole="radio"
-                accessibilityState={{ selected, disabled }}
+                accessibilityState={{ checked: selected, disabled, busy: saving }}
+                aria-checked={selected}
+                aria-disabled={disabled}
+                aria-busy={saving}
                 accessibilityLabel={RSVP_LABEL[a]}
-                onPress={disabled ? undefined : () => answer(a)}
+                disabled={disabled}
+                onPress={() => answer(a)}
                 style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                   styles.answer,
                   selected && styles.answerSelected,
                   !selected && !disabled && (pressed || hovered) && { backgroundColor: colors.steelHi },
-                  !!problem && styles.disabled,
+                  (!!problem || (busy !== null && !saving)) && styles.disabled,
                 ]}
               >
-                <Ionicons
-                  name={selected ? ANSWER_ICON[a] : (`${ANSWER_ICON[a]}-outline` as IconName)}
-                  size={22}
-                  color={selected ? colors.bone : colors.boneDim}
-                />
+                {saving ? (
+                  <ActivityIndicator size="small" color={colors.bone} style={{ height: 22 }} />
+                ) : (
+                  <Ionicons
+                    name={selected ? ANSWER_ICON[a] : (`${ANSWER_ICON[a]}-outline` as IconName)}
+                    size={22}
+                    color={selected ? colors.bone : colors.boneDim}
+                  />
+                )}
                 <Text numberOfLines={2} style={[styles.answerText, selected && { color: colors.bone }]}>
                   {RSVP_LABEL[a]}
                 </Text>
@@ -359,7 +370,9 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
             );
           })}
         </View>
-        {error ? <Notice tone="danger">{error}</Notice> : null}
+        <View accessibilityLiveRegion="polite" role="alert">
+          {error ? <Notice tone="danger">{error}</Notice> : null}
+        </View>
         {counts.no > 0 ? <Small>{`${counts.no} can’t make it.`}</Small> : null}
       </Stack>
 

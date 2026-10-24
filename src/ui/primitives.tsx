@@ -299,7 +299,9 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled, busy: !!busy }}
+      aria-disabled={!!disabled}
+      aria-busy={!!busy}
       onPress={disabled || busy ? undefined : onPress}
       style={({ pressed, hovered, focused }: { pressed: boolean; hovered?: boolean; focused?: boolean }) => [
         styles.button,
@@ -398,7 +400,7 @@ export function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <Pressable onPress={() => onChange(!value)} style={styles.toggle} accessibilityRole="switch" accessibilityState={{ checked: value }}>
+    <Pressable onPress={() => onChange(!value)} style={styles.toggle} accessibilityRole="switch" accessibilityState={{ checked: value }} aria-checked={value}>
       <View style={{ flex: 1, gap: 2 }}>
         <Body strong>{label}</Body>
         {description ? <Small>{description}</Small> : null}
@@ -435,7 +437,8 @@ export function Choices<T extends string>({
             <Pressable
               key={o.value}
               accessibilityRole="radio"
-              accessibilityState={{ selected }}
+              accessibilityState={{ checked: selected }}
+              aria-checked={selected}
               onPress={() => onChange(o.value)}
               style={({ pressed }) => [
                 styles.choice,

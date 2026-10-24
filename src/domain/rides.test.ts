@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultCategories, melbourneDate, melbourneTime, rsvpCounts, rsvpProblem, upcomingByMonth } from './rides';
+import { calendarFreshness, defaultCategories, lastDay, melbourneDate, melbourneTime, rsvpCounts, rsvpProblem, upcomingByMonth } from './rides';
 import type { Chapter, Member, Ride, Rsvp } from './types';
 
 const chapters: Chapter[] = [
@@ -74,4 +74,21 @@ test('a weekend away stays listed, and takes answers, until it should', () => {
   assert.deepEqual(upcomingByMonth([weekend], ['west'], '2026-11-23'), [], 'gone Monday');
   assert.equal(rsvpProblem(member(), weekend, '2026-11-20T09:00:00.000Z'), null, 'Friday evening: still answering');
   assert.equal(rsvpProblem(member(), weekend, '2026-11-20T13:00:00.000Z'), 'That ride has already started.', 'from Saturday');
+});
+
+test('the last day of a ride', () => {
+  assert.equal(lastDay(ride()), '2026-11-08', 'a timed ride: its own day');
+  assert.equal(lastDay(ride({ allDay: true, startsAt: '2026-11-19T13:00:00.000Z', endsAt: '2026-11-22T13:00:00.000Z' })), '2026-11-22');
+  assert.equal(lastDay(ride({ allDay: true, startsAt: '2026-11-19T13:00:00.000Z', endsAt: null })), '2026-11-20');
+});
+
+test('how fresh the calendar is, and when to say so loudly', () => {
+  const now = '2026-11-01T02:00:00.000Z'; // 1:00 pm, 1 Nov in Melbourne
+  assert.deepEqual(calendarFreshness('2026-11-01T01:50:00.000Z', true, now),
+    { stale: false, text: 'Updated 01/11/2026 12:50 pm from the club calendar' });
+  assert.deepEqual(calendarFreshness('2026-10-31T23:00:00.000Z', true, now),
+    { stale: true, text: 'Club calendar last updated 01/11/2026 10:00 am. Some rides may be out of date.' });
+  assert.deepEqual(calendarFreshness(null, true, now),
+    { stale: true, text: 'Part of the club calendar hasn’t loaded yet. Some rides may be missing.' });
+  assert.deepEqual(calendarFreshness(null, false, now), { stale: false, text: 'Not updated from the club calendar yet' });
 });
