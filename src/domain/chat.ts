@@ -2,13 +2,14 @@
 // Who can read, post, remove and react. The database's chat actions apply the same rules with
 // the same words (supabase/migrations/20261101000000_chat.sql).
 
-import { accessLevel, isBoardOf, isNational } from './access';
+import { accessLevel, activePositions, isBoardOf, isNational } from './access';
 import { daysBetween, formatAuDate } from './dates';
 import { displayName } from './profile';
 import { lastDay, melbourneDate } from './rides';
 import type { ClubData, Member, Ride, RsvpAnswer } from './types';
 
-export type ChatKind = 'club' | 'chapter' | 'ride' | 'direct';
+export type ChatKind = 'club' | 'chapter' | 'committee' | 'ride' | 'direct';
+export type ChatCommittee = 'ride';
 export type MediaKind = 'photo' | 'video';
 
 export interface Conversation {
@@ -16,6 +17,8 @@ export interface Conversation {
   kind: ChatKind;
   chapterId: string | null; // chapter chats
   rideId: string | null; // ride chats
+  committee: ChatCommittee | null; // committee chats
+  pinnedMessageId: string | null;
   memberIds: string[]; // private chats: the two people in it
 }
 
@@ -46,6 +49,8 @@ export interface Message {
   body: string | null;
   createdAt: string;
   removedAt: string | null;
+  /** The earlier message in the same chat that this one answers. */
+  replyToId: string | null;
   media: MessageMedia[];
   reactions: Reaction[];
 }
@@ -61,11 +66,17 @@ export interface PickedMedia {
   mimeType: string | null;
 }
 
+export interface Block {
+  blockerId: string;
+  blockedId: string;
+}
+
 export const REACTIONS = ['👍', '❤️', '😂', '🔥', '🍺', '😮'] as const;
 export const MAX_BODY = 4000;
 export const MAX_MEDIA = 10;
 export const MAX_VIDEO_MS = 60_000;
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
+export const MAX_REASON = 500;
 /** Messages from one person closer together than this sit in one run. */
 const RUN_GAP_MS = 5 * 60_000;
 
@@ -85,9 +96,20 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
     const name = data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'that';
     return `That chat is for ${name} chapter members.`;
   }
+  if (conv.kind === 'committee') {
+    return isRideCommittee(me.id, data) || isNational(me.id, data.positions) ? null : 'That chat is for the ride committee.';
+  }
   if (conv.kind === 'direct') return conv.memberIds.includes(me.id) ? null : 'That’s a private chat.';
   return null;
 }
+
+/** Holds a Road Captain or Ride Committee seat in any chapter. */
+export function isRideCommittee(memberId: string, data: Pick<ClubData, 'positions'>): boolean {
+  return activePositions(memberId, data.positions).some((p) => p.role === 'ride_committee' || p.role === 'road_captain');
+}
+
+const blockedBetween = (a: string, b: string, blocks: Block[]) =>
+  blocks.some((x) => (x.blockerId === a && x.blockedId === b) || (x.blockerId === b && x.blockedId === a));
 
 /** Why `me` can't send this message here, or null. Mirrors public.send_message. */
 export function postProblem(
@@ -96,9 +118,16 @@ export function postProblem(
   body: string,
   mediaCount: number,
   data: ClubData,
+  blocks: Block[] = [],
+  replyTo: Message | null = null,
 ): string | null {
   const cant = readProblem(me, conv, data);
-  if (cant) return cant;
+  if (cant || !me || !conv) return cant;
+  if (conv.kind === 'direct') {
+    const other = conv.memberIds.find((id) => id !== me.id);
+    if (other && blockedBetween(me.id, other, blocks)) return 'You can’t message them.';
+  }
+  if (replyTo && replyTo.conversationId !== conv.id) return 'No such message.';
   if (!body.trim() && mediaCount === 0) return 'Write something or add a photo.';
   if (body.length > MAX_BODY) return 'Keep it under 4,000 characters.';
   if (mediaCount > MAX_MEDIA) return 'Up to 10 photos or videos at a time.';
@@ -111,6 +140,7 @@ export function canModerate(me: Member | null, conv: Conversation, data: ClubDat
   if (!me || me.approval !== 'approved') return false;
   if (conv.kind === 'chapter') return !!conv.chapterId && isBoardOf(me, conv.chapterId, data.positions);
   if (conv.kind === 'direct') return false;
+  if (conv.kind === 'committee' && readProblem(me, conv, data)) return false;
   const level = accessLevel(me, data.positions);
   return level === 'board' || level === 'national';
 }
@@ -149,12 +179,58 @@ export function reactProblem(
 }
 
 /** Why `me` can't start a private chat with `target`, or null. Mirrors public.open_direct_chat. */
-export function directProblem(me: Member | null, target: Member | undefined): string | null {
+export function directProblem(me: Member | null, target: Member | undefined, blocks: Block[] = []): string | null {
   const notApproved = isApproved(me);
   if (notApproved || !me) return notApproved;
   if (!target) return 'That member no longer exists.';
   if (target.id === me.id) return 'You can’t message yourself.';
   if (target.approval !== 'approved') return 'They’re not an approved member.';
+  if (blockedBetween(me.id, target.id, blocks)) return 'You can’t message them.';
+  return null;
+}
+
+/** Why `me` can't pin this message (or, with none, take the pin down). Mirrors public.pin_message. */
+export function pinProblem(
+  me: Member | null,
+  conv: Conversation | undefined,
+  message: Message | undefined,
+  data: ClubData,
+): string | null {
+  const cant = readProblem(me, conv, data);
+  if (cant || !conv) return cant;
+  if (!canModerate(me, conv, data)) return 'Only moderators can pin messages.';
+  if (message?.removedAt) return 'That message was removed.';
+  return null;
+}
+
+/** Why `me` can't report this message, or null. Mirrors public.report_message. */
+export function reportProblem(
+  me: Member | null,
+  conv: Conversation | undefined,
+  message: Message | undefined,
+  reason: string,
+  data: ClubData,
+): string | null {
+  const cant = readProblem(me, conv, data) ?? messageProblem(message);
+  if (cant || !me || !message) return cant;
+  if (message.authorId === me.id) return 'You can’t report your own message.';
+  if (reason.length > MAX_REASON) return 'Keep the reason under 500 characters.';
+  return null;
+}
+
+/** Who acts on a report: whoever moderates the chat, or for a private chat (which nobody
+ *  moderates) the reporter's chapter board and the NEC. */
+export function canSeeReport(me: Member | null, conv: Conversation, reporter: Member | undefined, data: ClubData): boolean {
+  if (conv.kind !== 'direct') return canModerate(me, conv, data);
+  return !!reporter && isBoardOf(me, reporter.chapterId, data.positions);
+}
+
+/** Why `me` can't block (or unblock) `target`, or null. Mirrors public.set_block. */
+export function blockProblem(me: Member | null, target: Member | undefined): string | null {
+  const notApproved = isApproved(me);
+  if (notApproved || !me) return notApproved;
+  if (!target) return 'That member no longer exists.';
+  if (target.id === me.id) return 'You can’t block yourself.';
   return null;
 }
 
@@ -244,6 +320,8 @@ export function chatTitle(conv: Conversation, me: Member | null, data: ClubData,
       return 'Whole club';
     case 'chapter':
       return `${data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'Chapter'} chapter`;
+    case 'committee':
+      return 'Ride committee';
     case 'ride':
       return ride?.title ?? 'Ride chat';
     case 'direct': {

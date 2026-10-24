@@ -1,7 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  blockProblem,
   canModerate,
+  canSeeReport,
+  pinProblem,
+  reportProblem,
   chatTitle,
   dayLabel,
   directProblem,
@@ -43,12 +47,17 @@ const data: ClubData = {
   ],
   members: [westie, secretary, northie, northPres, legacy, applicant],
   privates: [], bikes: [], registrations: [], emergencyContacts: [],
-  positions: [seat('p1', 'secretary', 'ch-west', 'secretary'), seat('p2', 'northpres', 'ch-north', 'president')],
+  positions: [
+    seat('p1', 'secretary', 'ch-west', 'secretary'),
+    seat('p2', 'northpres', 'ch-north', 'president'),
+    seat('p3', 'westie', 'ch-west', 'ride_committee'),
+    seat('p4', 'northie', 'ch-north', 'road_captain'),
+  ],
   rides: [], rsvps: [],
 };
 
 const chat = (over: Partial<Conversation> & Pick<Conversation, 'kind'>): Conversation => ({
-  id: `c-${over.kind}`, chapterId: null, rideId: null, memberIds: [], ...over,
+  id: `c-${over.kind}`, chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], ...over,
 });
 const club = chat({ kind: 'club' });
 const west = chat({ kind: 'chapter', id: 'c-west', chapterId: 'ch-west' });
@@ -58,7 +67,7 @@ const direct = chat({ kind: 'direct', memberIds: ['westie', 'northie'] });
 
 const message = (over: Partial<Message> = {}): Message => ({
   id: 'msg-1', conversationId: 'c-club', authorId: 'westie', body: 'G’day', createdAt: '2026-11-01T00:00:00.000Z',
-  removedAt: null, media: [], reactions: [], ...over,
+  removedAt: null, replyToId: null, media: [], reactions: [], ...over,
 });
 
 test('every approved member reads the whole-club and ride chats; nobody else does', () => {
@@ -199,7 +208,70 @@ test('chat names', () => {
   };
   assert.equal(chatTitle(club, westie, data), 'Whole club');
   assert.equal(chatTitle(west, westie, data), 'West chapter');
+  assert.equal(chatTitle(chat({ kind: 'committee', committee: 'ride' }), westie, data), 'Ride committee');
   assert.equal(chatTitle(rideChat, westie, data, ride), 'Coffee run');
   assert.equal(chatTitle(direct, westie, data), 'northie', 'the other person, by road name');
   assert.equal(chatTitle(direct, northie, data), 'westie');
+});
+
+const committee = chat({ kind: 'committee', committee: 'ride' });
+
+test('the ride committee chat is for Road Captains, the Ride Committee and the NEC', () => {
+  assert.equal(readProblem(westie, committee, data), null, 'ride committee');
+  assert.equal(readProblem(northie, committee, data), null, 'road captain');
+  assert.equal(readProblem(northPres, committee, data), null, 'NEC');
+  assert.equal(readProblem(secretary, committee, data), 'That chat is for the ride committee.');
+  const ended = { ...data, positions: data.positions.map((p) => (p.id === 'p3' ? { ...p, endedOn: '2026-01-01' } : p)) };
+  assert.equal(readProblem(westie, committee, ended), 'That chat is for the ride committee.', 'only while the seat is held');
+  assert.equal(canModerate(northPres, committee, data), true, 'the NEC tidies it');
+  assert.equal(canModerate(northie, committee, data), true, 'a Road Captain is on the board and in it');
+  assert.equal(canModerate(westie, committee, data), false, 'the Ride Committee is not a board seat');
+});
+
+test('a reply answers a message in the same chat', () => {
+  assert.equal(postProblem(westie, club, 'yep', 0, data, [], message({ conversationId: 'c-club' })), null);
+  assert.equal(postProblem(westie, club, 'yep', 0, data, [], message({ conversationId: 'c-west' })), 'No such message.');
+  assert.equal(
+    postProblem(westie, club, 'yep', 0, data, [], message({ conversationId: 'c-club', removedAt: '2026-11-01T01:00:00.000Z' })),
+    null,
+    'replying to a removed message is fine',
+  );
+});
+
+test('who can pin', () => {
+  assert.equal(pinProblem(secretary, west, message({ conversationId: 'c-west' }), data), null);
+  assert.equal(pinProblem(westie, west, message({ conversationId: 'c-west' }), data), 'Only moderators can pin messages.');
+  assert.equal(pinProblem(westie, direct, message({ conversationId: 'c-direct' }), data), 'Only moderators can pin messages.');
+  assert.equal(
+    pinProblem(secretary, west, message({ conversationId: 'c-west', removedAt: '2026-11-01T01:00:00.000Z' }), data),
+    'That message was removed.',
+  );
+  assert.equal(pinProblem(secretary, west, undefined, data), null, 'no message = take the pin down');
+});
+
+test('reporting a message, and who sees the report', () => {
+  const theirs = message({ authorId: 'northie' });
+  assert.equal(reportProblem(westie, club, theirs, 'Not on', data), null);
+  assert.equal(reportProblem(westie, club, theirs, '', data), null, 'a reason is optional');
+  assert.equal(reportProblem(westie, club, message({ authorId: 'westie' }), '', data), 'You can’t report your own message.');
+  assert.equal(reportProblem(westie, club, theirs, 'x'.repeat(501), data), 'Keep the reason under 500 characters.');
+  assert.equal(reportProblem(northie, west, theirs, '', data), 'That chat is for West chapter members.');
+  assert.equal(reportProblem(westie, club, { ...theirs, removedAt: '2026-11-01T01:00:00.000Z' }, '', data), 'That message was removed.');
+  assert.equal(canSeeReport(secretary, west, westie, data), true, 'the chapter board, in its chat');
+  assert.equal(canSeeReport(westie, west, northie, data), false);
+  assert.equal(canSeeReport(secretary, direct, westie, data), true, 'a private chat: the reporter’s chapter board');
+  assert.equal(canSeeReport(secretary, direct, northie, data), false, 'not the other chapter’s');
+  assert.equal(canSeeReport(northPres, direct, westie, data), true, 'the NEC');
+});
+
+test('blocking', () => {
+  assert.equal(blockProblem(westie, northie), null);
+  assert.equal(blockProblem(westie, westie), 'You can’t block yourself.');
+  assert.equal(blockProblem(westie, undefined), 'That member no longer exists.');
+  assert.equal(blockProblem(applicant, westie), 'Only approved members can do that.');
+  const blocks = [{ blockerId: 'northie', blockedId: 'westie' }];
+  assert.equal(directProblem(westie, northie, blocks), 'You can’t message them.', 'blocked by them');
+  assert.equal(directProblem(northie, westie, blocks), 'You can’t message them.', 'you blocked them');
+  assert.equal(postProblem(westie, direct, 'hi', 0, data, blocks), 'You can’t message them.');
+  assert.equal(postProblem(westie, club, 'hi', 0, data, blocks), null, 'group chats carry on');
 });
