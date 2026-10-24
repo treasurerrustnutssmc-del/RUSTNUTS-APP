@@ -249,6 +249,7 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
               rider={r}
               me={me.id === r.memberId}
               behind={splitOff.has(r.memberId)}
+              needsHelp={urgent.some((a) => a.kind === 'emergency' && a.memberId === r.memberId)}
               myPos={myPos}
               now={now}
               last={i === state.riders.length - 1}
@@ -334,6 +335,7 @@ function RiderRow({
   rider,
   me,
   behind,
+  needsHelp,
   myPos,
   now,
   last,
@@ -341,6 +343,7 @@ function RiderRow({
   rider: LiveRider;
   me: boolean;
   behind: boolean;
+  needsHelp: boolean;
   myPos: LatLng | null;
   now: string;
   last: boolean;
@@ -348,7 +351,7 @@ function RiderRow({
   const stale = !rider.updatedAt || isStale(rider.updatedAt, now);
   const where = me ? 'You' : (awayText(myPos, rider.position) ?? 'Finding them…');
   const seen = rider.updatedAt ? lastSeen(rider.updatedAt, now) : 'no fix yet';
-  const label = [rider.name, rider.leader ? 'leader' : null, behind ? 'split off from the group' : null, where, seen].filter(Boolean).join(', ');
+  const label = [rider.name, needsHelp ? 'needs help' : null, rider.leader ? 'leader' : null, behind ? 'split off from the group' : null, where, seen].filter(Boolean).join(', ');
   const pos = rider.position;
   return (
     <View style={[styles.rider, last && { borderBottomWidth: 0 }]}>
@@ -365,6 +368,7 @@ function RiderRow({
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <Row style={{ gap: 6 }}>
             <Text style={type.name} numberOfLines={1}>{rider.name}</Text>
+            {needsHelp ? <Chip label="Help" tone="danger" icon="warning" /> : null}
             {rider.leader ? <Chip label="Leader" tone="bone" /> : null}
             {behind ? <Chip label="Split off" tone="warn" /> : null}
           </Row>
