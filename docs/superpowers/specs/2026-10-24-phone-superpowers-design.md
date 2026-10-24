@@ -53,9 +53,9 @@ Each phase is its own plan and its own pull request from this lane's branch.
 - Opens **2 hours before** a ride starts.
 - Closes **2 hours after** it ends. With no end time, it closes at Melbourne midnight at the end of the
   ride's last day. An all-day ride's window is its days, midnight to midnight.
-- Never longer than **16 hours** from opening.
 - A cancelled ride has no window.
-- Your own sharing also stops after **12 hours**, whichever comes first.
+- Your own sharing stops after **12 hours** or when the window closes, whichever comes first. On a
+  weekend away, that means switching it back on each morning, so it's always ride day only.
 
 `liveProblem(me, ride, now)` says why you can't switch on, or null: sign in first, approved members only,
 cancelled, "Live ride opens 2 hours before the start", "This ride's finished". The database's
