@@ -3,12 +3,12 @@
 // switches itself off, nothing kept. The rules are in src/domain/liveRide.ts.
 
 import React, { useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { activeRide } from '../data/liveTracker';
+import { smsUrl } from '../data/liveQueue';
 import { useLiveRide } from '../data/useLiveRide';
-import { awayText, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, splitWarning } from '../domain/liveRide';
-import { melbourneTime } from '../domain/rides';
+import { awayText, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, offTime, splitGroups, splitWarning } from '../domain/liveRide';
 import { initials } from '../domain/profile';
 import type { LatLng, LiveRider, Ride, RideAlert } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
@@ -55,7 +55,7 @@ export function LiveRideCard({ ride, onOpen }: { ride: Ride; onOpen: () => void 
         <H2>Live ride</H2>
       </Row>
       <Body>
-        {`Share your location with riders on this ride. Only riders sharing can see it. Switches off by ${melbourneTime(w.closes)}. Nothing is kept.`}
+        {`Share your location with riders on this ride. Only riders sharing can see it. Switches off by ${offTime(w.closes, now)}. Nothing is kept.`}
       </Body>
       <Button label={sharingHere ? 'Open live ride' : 'Share my location'} icon="navigate" onPress={onOpen} />
     </Card>
@@ -96,6 +96,21 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
     }
   };
 
+  const unsentNotice =
+    live.unsent.length > 0 ? (
+      <Notice tone="danger" title="Alert not sent">
+        <Stack gap={space.sm}>
+          <Small style={{ color: colors.boneDim }}>
+            {`An alert you raised with no signal couldn’t be sent: ${live.unsent[0].reason} Call 000 if you still need help.`}
+          </Small>
+          <Row style={{ gap: space.sm }}>
+            <Button label="Call 000" icon="call" onPress={() => open('tel:000')} style={{ flexGrow: 1 }} />
+            <Button label="Dismiss" kind="quiet" onPress={live.clearUnsent} />
+          </Row>
+        </Stack>
+      </Notice>
+    ) : null;
+
   const errorNotice = live.error ? (
     <View accessibilityLiveRegion="polite" role="alert">
       <Notice tone="danger">{live.error}</Notice>
@@ -120,13 +135,18 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
           <Body>Share where you are with the riders on this ride, so the Road Captain and Tail Gunner can keep the group together and find you if something goes wrong.</Body>
           <Stack gap={space.xs}>
             <Fact icon="eye-outline" text="Only riders sharing on this ride can see you." />
-            <Fact icon="time-outline" text={w ? `Switches itself off by ${melbourneTime(w.closes)}.` : 'Switches itself off when the ride ends.'} />
+            <Fact icon="time-outline" text={w ? `Switches itself off by ${offTime(w.closes, now)}.` : 'Switches itself off when the ride ends.'} />
             <Fact icon="trash-outline" text="Nothing is kept. It’s all deleted when the ride’s over." />
           </Stack>
           {problem ? <Notice tone="info">{problem}</Notice> : null}
           <Button label="Share my location" icon="navigate" busy={busy === 'start'} disabled={!!problem} onPress={run('start', live.start)} />
         </Card>
-        {live.offline ? <Notice tone="warn">No signal. Try again when you’re back in range.</Notice> : null}
+        {unsentNotice}
+        {live.stopPending ? (
+          <Notice tone="warn">You’ve stopped sharing on this phone. The other riders will see it when you’re back in range.</Notice>
+        ) : live.offline ? (
+          <Notice tone="warn">No signal. Try again when you’re back in range.</Notice>
+        ) : null}
         {errorNotice}
       </Screen>
     );
@@ -140,14 +160,17 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
   const regroup = others.find((a) => a.kind === 'regroup') ?? state.alerts.find((a) => a.kind === 'regroup' && !a.resolvedAt);
   const urgent = others.filter((a) => a.kind !== 'regroup');
   const split = leader ? splitWarning(state.riders, now) : null;
+  // Riders away from the main group, marked for leaders so they know who to wait for.
+  const splitOff = new Set(split ? splitGroups(state.riders, now).slice(1).flat().map((r) => r.memberId) : []);
   const leaderPhones = state.riders.filter((r) => r.leader && r.phone && r.memberId !== me.id).map((r) => r.phone as string);
+  const textUrl = smsUrl(Platform.OS, leaderPhones, `Rustnuts emergency. I'm here: ${myPos ? mapsUrl(myPos) : 'location unknown'}`);
 
   return (
     <Screen>
       <Card>
         <Row style={{ gap: space.sm, justifyContent: 'space-between' }}>
           <Chip label="Sharing" tone="ok" icon="radio-button-on" />
-          <Text style={styles.stops}>{`Switches off ${melbourneTime(meStops.stopsAt)}`}</Text>
+          <Text style={styles.stops}>{`Switches off ${offTime(meStops.stopsAt, now)}`}</Text>
         </Row>
         <Text style={type.name} numberOfLines={2}>{ride.title}</Text>
         {live.mode === 'foreground' ? (
@@ -157,6 +180,7 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
         <ConfirmButton label="Stop sharing" confirmLabel="Stop now" kind="secondary" onConfirm={run('stop', live.stop)} />
       </Card>
 
+      {unsentNotice}
       {live.offline ? (
         <Notice tone="warn" title="No signal">
           {live.held > 0
@@ -171,16 +195,7 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
           <H2 style={{ color: colors.danger }}>Emergency sent</H2>
           <Body>The riders sharing on this ride can see where you are.</Body>
           <Button label="Call 000" icon="call" onPress={() => open('tel:000')} style={styles.big} />
-          {leaderPhones.length > 0 ? (
-            <Button
-              label="Text my location"
-              icon="chatbubble-outline"
-              kind="secondary"
-              onPress={() =>
-                open(`sms:${leaderPhones.join(',')}?body=${encodeURIComponent(`Rustnuts emergency. I'm here: ${myPos ? mapsUrl(myPos) : 'location unknown'}`)}`)
-              }
-            />
-          ) : null}
+          {textUrl ? <Button label="Text my location" icon="chatbubble-outline" kind="secondary" onPress={() => open(textUrl)} /> : null}
           <Button label="I’m OK, cancel" kind="quiet" busy={busy === myEmergency.id} onPress={run(myEmergency.id, () => live.resolve(myEmergency.id))} />
         </Card>
       ) : null}
@@ -226,7 +241,15 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
         <SectionTitle title="Riders" action={<Text style={styles.count}>{state.riders.length}</Text>} />
         <Card style={{ padding: 0, gap: 0 }}>
           {state.riders.map((r, i) => (
-            <RiderRow key={r.memberId} rider={r} me={me.id === r.memberId} myPos={myPos} now={now} last={i === state.riders.length - 1} />
+            <RiderRow
+              key={r.memberId}
+              rider={r}
+              me={me.id === r.memberId}
+              behind={splitOff.has(r.memberId)}
+              myPos={myPos}
+              now={now}
+              last={i === state.riders.length - 1}
+            />
           ))}
         </Card>
       </Stack>
@@ -304,11 +327,25 @@ function AlertBlock({
   );
 }
 
-function RiderRow({ rider, me, myPos, now, last }: { rider: LiveRider; me: boolean; myPos: LatLng | null; now: string; last: boolean }) {
+function RiderRow({
+  rider,
+  me,
+  behind,
+  myPos,
+  now,
+  last,
+}: {
+  rider: LiveRider;
+  me: boolean;
+  behind: boolean;
+  myPos: LatLng | null;
+  now: string;
+  last: boolean;
+}) {
   const stale = !rider.updatedAt || isStale(rider.updatedAt, now);
   const where = me ? 'You' : (awayText(myPos, rider.position) ?? 'Finding them…');
   const seen = rider.updatedAt ? lastSeen(rider.updatedAt, now) : 'no fix yet';
-  const label = [rider.name, rider.leader ? 'leader' : null, where, seen].filter(Boolean).join(', ');
+  const label = [rider.name, rider.leader ? 'leader' : null, behind ? 'split off from the group' : null, where, seen].filter(Boolean).join(', ');
   const pos = rider.position;
   return (
     <View style={[styles.rider, last && { borderBottomWidth: 0 }]}>
@@ -326,6 +363,7 @@ function RiderRow({ rider, me, myPos, now, last }: { rider: LiveRider; me: boole
           <Row style={{ gap: 6 }}>
             <Text style={type.name} numberOfLines={1}>{rider.name}</Text>
             {rider.leader ? <Chip label="Leader" tone="bone" /> : null}
+            {behind ? <Chip label="Split off" tone="warn" /> : null}
           </Row>
           <Text style={[styles.where, stale && { color: colors.boneMute }]} numberOfLines={1}>{`${where} · ${seen}`}</Text>
         </View>

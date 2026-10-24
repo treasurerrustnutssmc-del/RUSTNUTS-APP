@@ -21,30 +21,100 @@ export function alertNotice(alert: RideAlert, myPos: LatLng | null): { title: st
   return { title: TITLE[alert.kind](alert.name), body: `${where} · ${melbourneTime(alert.createdAt)}` };
 }
 
+/** Something to send when signal comes back: an alert, or a stop the club hasn't heard yet. */
 export interface QueuedAlert {
   rideId: string;
-  kind: AlertKind;
+  kind: AlertKind | 'stop';
   at: LatLng | null;
+  /** When it was first pressed. */
   queuedAt: string;
 }
 
-/** Adds an alert to send later. Pressing the same button again replaces the waiting one. */
+/** Adds an item to send later. Pressing the same button again updates the waiting one, keeping
+ *  when it was first pressed. */
 export function queueAlert(queue: QueuedAlert[], item: QueuedAlert): QueuedAlert[] {
-  return [...queue.filter((q) => !(q.rideId === item.rideId && q.kind === item.kind)), item];
+  const same = (q: QueuedAlert) => q.rideId === item.rideId && q.kind === item.kind;
+  const earlier = queue.find(same);
+  return [...queue.filter((q) => !same(q)), earlier ? { ...item, queuedAt: earlier.queuedAt, at: item.at ?? earlier.at } : item];
 }
 
-const REFUSALS: string[] = Object.values(LIVE_MSG);
+/** A refusal from the club won't change on a retry. "Sign in first." can: the app may still be starting. */
+const REFUSALS: string[] = Object.values(LIVE_MSG).filter((m) => m !== LIVE_MSG.signIn);
 
-/** Tries each waiting alert in order; returns the ones still waiting. A refusal from the club
- *  (rather than no signal) won't change on a retry, so that one is let go. */
-export async function drainQueue(queue: QueuedAlert[], send: (item: QueuedAlert) => Promise<void>): Promise<QueuedAlert[]> {
+export interface Refused {
+  item: QueuedAlert;
+  reason: string;
+}
+
+/** Tries each waiting item in order. What the club refused for good is handed back, so the rider
+ *  can be told; everything else that failed stays waiting. */
+export async function drainQueue(
+  queue: QueuedAlert[],
+  send: (item: QueuedAlert) => Promise<void>,
+): Promise<{ left: QueuedAlert[]; refused: Refused[] }> {
   const left: QueuedAlert[] = [];
+  const refused: Refused[] = [];
   for (const item of queue) {
     try {
       await send(item);
     } catch (e) {
-      if (!REFUSALS.includes((e as Error).message)) left.push(item);
+      const reason = (e as Error).message;
+      if (REFUSALS.includes(reason)) refused.push({ item, reason });
+      else left.push(item);
     }
   }
-  return left;
+  return { left, refused };
+}
+
+export interface KeyValue {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+}
+
+const QUEUE_KEY = 'live.queue';
+
+/** The waiting items, kept on the phone. One change at a time, so an alert held while others are
+ *  being sent is never written over. */
+export function createAlertQueue(store: KeyValue, send: (item: QueuedAlert) => Promise<void>) {
+  let chain: Promise<unknown> = Promise.resolve();
+  const serial = <T>(fn: () => Promise<T>): Promise<T> => {
+    const next = chain.then(fn, fn);
+    chain = next.catch(() => {});
+    return next;
+  };
+  const read = async (): Promise<QueuedAlert[]> => {
+    try {
+      const raw = await store.getItem(QUEUE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+  const write = (q: QueuedAlert[]) => store.setItem(QUEUE_KEY, JSON.stringify(q)).catch(() => {});
+
+  return {
+    list: () => serial(read),
+    hold: (item: QueuedAlert) => serial(async () => write(queueAlert(await read(), item))),
+    /** Sends what's waiting; resolves to what the club refused for good. */
+    flush: () =>
+      serial(async () => {
+        const queue = await read();
+        if (queue.length === 0) return [] as Refused[];
+        const { left, refused } = await drainQueue(queue, send);
+        await write(left);
+        return refused;
+      }),
+  };
+}
+
+const digits = (phone: string) => phone.replace(/[^\d+]/g, '');
+
+/** An SMS link to these numbers with this text. iPhones take one number and "&body"; Android takes
+ *  several, comma-separated, and "?body". Null with no numbers. */
+export function smsUrl(platform: string, phones: string[], body: string): string | null {
+  if (phones.length === 0) return null;
+  const text = encodeURIComponent(body);
+  return platform === 'ios' ? `sms:${digits(phones[0])}&body=${text}` : `sms:${phones.map(digits).join(',')}?body=${text}`;
 }

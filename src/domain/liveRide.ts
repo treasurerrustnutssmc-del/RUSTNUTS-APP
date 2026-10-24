@@ -2,6 +2,7 @@
 // distance, direction and split-group sums the live screen shows. The database's live ride actions
 // (supabase/migrations/20270201000000_live_ride.sql) apply the same rules with the same words.
 
+import { formatAuDate } from './dates';
 import { BOARD_ROLES, NATIONAL_ROLES } from './labels';
 import { lastDay, melbourneDate, melbourneTime } from './rides';
 import { activePositions } from './access';
@@ -19,6 +20,7 @@ export const LIVE_MSG = {
   notYours: 'Only the rider or a ride leader can clear this.',
   cleared: 'Already cleared.',
   noAlert: 'That alert has gone.',
+  badFix: 'That location doesn’t look right.',
 } as const;
 
 const HOUR = 3600_000;
@@ -81,12 +83,40 @@ export function isRideLeader(memberId: string, positions: Position[]): boolean {
   return activePositions(memberId, positions).some((p) => LEADER_ROLES.includes(p.role));
 }
 
-export function alertProblem(kind: AlertKind, sharing: boolean, leader: boolean): string | null {
-  if (!sharing) return LIVE_MSG.notSharing;
-  if (kind === 'regroup' && !leader) return LIVE_MSG.leadersOnly;
-  return null;
+/** A fix has to be a real place (null, for "the phone doesn't know", is fine). */
+export function fixProblem(at: LatLng | null | undefined): string | null {
+  if (!at) return null;
+  const ok = Number.isFinite(at.lat) && Number.isFinite(at.lng) && Math.abs(at.lat) <= 90 && Math.abs(at.lng) <= 180;
+  return ok ? null : LIVE_MSG.badFix;
 }
 
+/**
+ * Why this alert can't be raised, or null. `live` is liveProblem for the ride now. An emergency or
+ * dropping out needs only the ride's window to be open, so one raised with no signal still goes
+ * through after your own sharing has switched off. A regroup pin needs a leader who is sharing.
+ * Mirrors raise_ride_alert.
+ */
+export function alertProblem(
+  kind: AlertKind,
+  ctx: { sharing: boolean; leader: boolean; live: string | null; at?: LatLng | null },
+): string | null {
+  if (kind === 'regroup') {
+    if (ctx.live) return ctx.live;
+    if (!ctx.sharing) return LIVE_MSG.notSharing;
+    if (!ctx.leader) return LIVE_MSG.leadersOnly;
+  } else if (ctx.live) {
+    return ctx.live;
+  }
+  return fixProblem(ctx.at);
+}
+
+/** "4:30 pm" when it's today in Melbourne, otherwise "08/11/2026 1:00 am". */
+export function offTime(at: string, now: string): string {
+  const time = melbourneTime(at);
+  return melbourneDate(at) === melbourneDate(now) ? time : `${formatAuDate(melbourneDate(at))} ${time}`;
+}
+
+/** `leader`: a ride leader who is sharing on that ride. Mirrors resolve_ride_alert. */
 export function resolveProblem(alert: RideAlert, meId: string, leader: boolean): string | null {
   if (alert.resolvedAt) return LIVE_MSG.cleared;
   if (alert.memberId !== meId && !leader) return LIVE_MSG.notYours;

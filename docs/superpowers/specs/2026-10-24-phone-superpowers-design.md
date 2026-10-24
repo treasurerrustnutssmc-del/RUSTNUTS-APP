@@ -45,6 +45,7 @@ Each phase is its own plan and its own pull request from this lane's branch.
 2. **Offline and share out**: cached club data with an offline banner, plus a Share button on a ride.
 3. **Notifications**: local ride reminders, notification settings, and the held push pipeline.
 4. **Share in**: after lane B's chat is on `main`.
+5. **Ride comms (voice)**: added 24 Oct 2026 at Jeff's request (relayed by lane B). See section 5.
 
 ## 1. Live ride
 
@@ -219,6 +220,26 @@ The display-only helpers live there too:
 - **Flow:** a shared item opens "Share to the club", which lets you pick a chat or the feed. That list
   comes from lane B's code.
 - **Not before lane B:** it isn't built until lane B is on `main`, and it gets its own short spec then.
+
+## 5. Ride comms (voice)
+
+Jeff's ask:
+- It replaces the Discord "Ride-Comms" voice channel.
+- **Open mic, never push-to-talk**, because hands stay on the bars.
+- **Noise suppression** for wind and engine.
+- **Mute from the headset:** riders mute with their Cardo or Sena button.
+- **Big buttons:** one big **Connect** before rolling out and one big **Disconnect** after, so nobody
+  touches the phone while riding.
+
+Design outline (its own short spec before building):
+- **Rooms:** one voice room per ride, open during the live window. Only approved members can join, and
+  the server hands out a short-lived token through an Edge Function.
+- **Service:** LiveKit Cloud (Jeff chose it on 24 Oct 2026).
+  Creating that account and its key is Jeff's call.
+- **Building:** a development build is needed, plus the provider's Expo config plugin.
+- **Headset mute:** the button is read as the media play/pause key while connected.
+- **Nothing is recorded.**
+- **Ride chat:** voice can link to lane B's ride chat (kind `ride`) once that's on `main`.
 
 ## Testing
 

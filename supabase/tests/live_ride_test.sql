@@ -197,6 +197,41 @@ begin
   s := pg_temp.get_as(tom, $s$public.live_ride_state('00000000-0000-0000-0000-0000000000e1')$s$);
   assert jsonb_array_length(s->'contacts') = 0, 'contacts go once the emergency is cleared';
   assert jsonb_array_length(s->'alerts') = 1, 'the cleared alert shows for a while';
+  assert s->'alerts'->0->>'phone' is null, 'but her number goes with it';
+  assert (select r->>'phone' from jsonb_array_elements(s->'riders') r where r->>'name' = 'Rita') is null,
+    'everywhere';
+end $$;
+
+\echo 'An emergency gets through after your own sharing has stopped, while the ride is on'
+do $$
+declare
+  ned constant uuid := '00000000-0000-0000-0000-0000000000d4';
+  tom constant uuid := '00000000-0000-0000-0000-0000000000d2';
+  a uuid;
+begin
+  a := (pg_temp.get_as(ned, $s$public.raise_ride_alert('00000000-0000-0000-0000-0000000000e1', 'emergency', -37.9, 144.8,
+        now() - interval '20 minutes')$s$) #>> '{}')::uuid;
+  assert a is not null, 'Ned isn''t sharing but his emergency goes through';
+  assert (select created_at from public.ride_alerts where id = a) < now() - interval '19 minutes',
+    'stamped with when he pressed it, not when signal came back';
+  assert pg_temp.try_as(ned, $s$select public.raise_ride_alert('00000000-0000-0000-0000-0000000000e3', 'emergency', null, null)$s$)
+    = 'This ride’s finished.', 'not once the ride is over';
+  assert pg_temp.try_as(ned, $s$select public.raise_ride_alert('00000000-0000-0000-0000-0000000000e1', 'emergency', 95, 144)$s$)
+    = 'That location doesn’t look right.', 'a fix has to be a real place';
+  assert pg_temp.try_as(tom, $s$select public.update_live_position('00000000-0000-0000-0000-0000000000e1', -37.8, 200, 10, 0, 0)$s$)
+    = 'That location doesn’t look right.', 'positions too';
+  -- One open emergency per rider, even if two arrive at once.
+  begin
+    insert into public.ride_alerts (ride_id, member_id, kind) values ('00000000-0000-0000-0000-0000000000e1', ned, 'emergency');
+    assert false, 'a second open emergency is refused by the table itself';
+  exception when unique_violation then null;
+  end;
+  -- A leader who isn't sharing on the ride can't clear it.
+  perform pg_temp.get_as(tom, $s$public.stop_live_ride('00000000-0000-0000-0000-0000000000e1')$s$);
+  assert pg_temp.try_as(tom, format('select public.resolve_ride_alert(%L)', a)) = 'Only the rider or a ride leader can clear this.',
+    'a leader at home can''t clear it';
+  perform pg_temp.get_as(tom, $s$public.start_live_ride('00000000-0000-0000-0000-0000000000e1')$s$);
+  assert pg_temp.try_as(tom, format('select public.resolve_ride_alert(%L)', a)) is null, 'a leader on the ride can';
 end $$;
 
 \echo 'Regroup pins: leaders only, and a new one replaces the last'
@@ -246,6 +281,11 @@ begin
   assert exists (select 1 from public.live_riders where ride_id = '00000000-0000-0000-0000-0000000000e1'), 'live ride untouched';
   assert pg_temp.try_as(tom, $s$select public.live_ride_state('00000000-0000-0000-0000-0000000000e5')$s$)
     = 'Share your location first.', 'an expired row is never shown, even before cleanup';
+  -- A ride cancelled while people are sharing stops at once, before cleanup runs.
+  update public.rides set cancelled_at = now() where id = '00000000-0000-0000-0000-0000000000e1';
+  assert pg_temp.try_as(tom, $s$select public.live_ride_state('00000000-0000-0000-0000-0000000000e1')$s$)
+    = 'Share your location first.', 'a cancelled ride shows nothing';
+  update public.rides set cancelled_at = null where id = '00000000-0000-0000-0000-0000000000e1';
   -- The ride finished hours ago.
   update public.rides set starts_at = now() - interval '9 hours', ends_at = now() - interval '6 hours'
   where id = '00000000-0000-0000-0000-0000000000e1';

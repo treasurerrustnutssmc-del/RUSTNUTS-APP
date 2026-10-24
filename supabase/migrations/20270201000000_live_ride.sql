@@ -33,6 +33,9 @@ create table public.ride_alerts (
   resolved_by uuid references public.members (id) on delete set null
 );
 create index ride_alerts_ride on public.ride_alerts (ride_id);
+-- One open emergency (and one open "out") per rider per ride, even if two sends arrive at once.
+create unique index ride_alerts_one_open on public.ride_alerts (ride_id, member_id, kind)
+  where resolved_at is null and kind <> 'regroup';
 
 alter table public.live_riders enable row level security;
 alter table public.ride_alerts enable row level security;
@@ -68,13 +71,48 @@ returns boolean language sql stable security definer set search_path = '' as $$
   );
 $$;
 
--- Whether the caller is sharing on this ride right now.
+-- Whether the caller is sharing on this ride right now: still approved, the ride not cancelled, and
+-- not past their switch-off time (so nothing old shows even before cleanup runs).
 create or replace function private.is_sharing(p_ride uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
-  select exists (select 1 from public.live_riders where ride_id = p_ride and member_id = auth.uid() and stops_at > now());
+  select private.is_approved_member() and exists (
+    select 1 from public.live_riders lr join public.rides r on r.id = lr.ride_id
+    where lr.ride_id = p_ride and lr.member_id = auth.uid() and lr.stops_at > now() and r.cancelled_at is null
+  );
 $$;
 
-revoke all on function private.live_window(public.rides), private.is_ride_leader(uuid), private.is_sharing(uuid)
+-- Why the caller can't use live mode on this ride right now, or null. The same words as the app.
+create or replace function private.live_problem(p_ride uuid)
+returns text language plpgsql stable security definer set search_path = '' as $$
+declare
+  ride public.rides%rowtype;
+  w record;
+begin
+  if auth.uid() is null then return 'Sign in first.'; end if;
+  if not private.is_approved_member() then return 'Only approved members can do that.'; end if;
+  select * into ride from public.rides where id = p_ride;
+  if not found then return 'No such ride.'; end if;
+  if ride.cancelled_at is not null then return 'That ride was cancelled.'; end if;
+  select * into w from private.live_window(ride);
+  if now() < w.opens then return 'Live ride opens 2 hours before the start.'; end if;
+  if now() >= w.closes then return 'This ride’s finished.'; end if;
+  return null;
+end;
+$$;
+
+-- A fix has to be a real place (null, for "the phone doesn't know", is fine).
+create or replace function private.fix_problem(p_lat double precision, p_lng double precision)
+returns text language sql immutable set search_path = '' as $$
+  select case
+    when p_lat is null and p_lng is null then null
+    when p_lat is null or p_lng is null or p_lat not between -90 and 90 or p_lng not between -180 and 180
+      or p_lat = 'NaN'::float8 or p_lng = 'NaN'::float8
+      then 'That location doesn’t look right.'
+  end;
+$$;
+
+revoke all on function private.live_window(public.rides), private.is_ride_leader(uuid), private.is_sharing(uuid),
+  private.live_problem(uuid), private.fix_problem(double precision, double precision)
   from public, anon, authenticated;
 
 -- Switch sharing on (or renew it). Returns when it switches itself off: 12 hours on, or the
@@ -82,21 +120,12 @@ revoke all on function private.live_window(public.rides), private.is_ride_leader
 create or replace function public.start_live_ride(p_ride uuid)
 returns timestamptz language plpgsql security definer set search_path = '' as $$
 declare
-  me uuid := auth.uid();
-  ride public.rides%rowtype;
-  w record;
+  problem text := private.live_problem(p_ride);
   stops timestamptz;
 begin
-  if me is null then raise exception 'Sign in first.'; end if;
-  if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
-  select * into ride from public.rides where id = p_ride;
-  if not found then raise exception 'No such ride.'; end if;
-  if ride.cancelled_at is not null then raise exception 'That ride was cancelled.'; end if;
-  select * into w from private.live_window(ride);
-  if now() < w.opens then raise exception 'Live ride opens 2 hours before the start.'; end if;
-  if now() >= w.closes then raise exception 'This ride’s finished.'; end if;
-  stops := least(now() + interval '12 hours', w.closes);
-  insert into public.live_riders (ride_id, member_id, started_at, stops_at) values (p_ride, me, now(), stops)
+  if problem is not null then raise exception '%', problem; end if;
+  stops := least(now() + interval '12 hours', (select w.closes from public.rides r, private.live_window(r) w where r.id = p_ride));
+  insert into public.live_riders (ride_id, member_id, started_at, stops_at) values (p_ride, auth.uid(), now(), stops)
   on conflict (ride_id, member_id) do update set started_at = now(), stops_at = excluded.stops_at;
   return stops;
 end;
@@ -147,7 +176,7 @@ begin
         select jsonb_agg(jsonb_build_object(
           'id', a.id, 'ride_id', a.ride_id, 'member_id', a.member_id, 'kind', a.kind, 'name', a.name,
           'lat', a.lat, 'lng', a.lng, 'created_at', a.created_at, 'resolved_at', a.resolved_at,
-          'phone', case when leader and a.kind in ('emergency', 'out') then a.raw_phone end
+          'phone', case when leader and a.kind in ('emergency', 'out') and a.resolved_at is null then a.raw_phone end
         ) order by a.created_at desc) from alerts a), '[]'::jsonb),
       'contacts', case when leader then coalesce((
         select jsonb_agg(jsonb_build_object(
@@ -166,6 +195,7 @@ returns jsonb language plpgsql security definer set search_path = '' as $$
 begin
   if auth.uid() is null then raise exception 'Sign in first.'; end if;
   if not private.is_sharing(p_ride) then raise exception 'Share your location first.'; end if;
+  if private.fix_problem(p_lat, p_lng) is not null then raise exception '%', private.fix_problem(p_lat, p_lng); end if;
   update public.live_riders
   set lat = p_lat, lng = p_lng, accuracy_m = p_accuracy, heading = p_heading, speed_kmh = p_speed, updated_at = now()
   where ride_id = p_ride and member_id = auth.uid();
@@ -173,36 +203,39 @@ begin
 end;
 $$;
 
--- Raise an alert where you are (the position may be unknown). An emergency or leaving the ride while
--- one of yours is already open returns that one, so a resend can't double up. A new regroup pin
--- clears the last. Leaving the ride also stops your sharing.
+-- Raise an alert where you are (the position may be unknown). An emergency or leaving the ride needs
+-- only the ride to be on, so one raised with no signal still goes through after the rider's own
+-- sharing has switched off; p_at is when it was pressed. A second one from the same rider while one
+-- is open updates that one instead. A regroup pin needs a leader who is sharing, and clears the last.
+-- Leaving the ride also stops your sharing.
 create or replace function public.raise_ride_alert(
-  p_ride uuid, p_kind public.ride_alert_kind, p_lat double precision, p_lng double precision)
+  p_ride uuid, p_kind public.ride_alert_kind, p_lat double precision, p_lng double precision,
+  p_at timestamptz default null)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare
   me uuid := auth.uid();
-  existing uuid;
+  problem text := private.live_problem(p_ride);
+  pressed timestamptz := least(now(), greatest(coalesce(p_at, now()), now() - interval '12 hours'));
   new_id uuid;
 begin
-  if me is null then raise exception 'Sign in first.'; end if;
-  if not private.is_sharing(p_ride) then raise exception 'Share your location first.'; end if;
-  if p_kind = 'regroup' and not private.is_ride_leader(me) then
-    raise exception 'Only ride leaders can set a regroup pin.';
+  if problem is not null then raise exception '%', problem; end if;
+  if p_kind = 'regroup' then
+    if not private.is_sharing(p_ride) then raise exception 'Share your location first.'; end if;
+    if not private.is_ride_leader(me) then raise exception 'Only ride leaders can set a regroup pin.'; end if;
   end if;
+  problem := private.fix_problem(p_lat, p_lng);
+  if problem is not null then raise exception '%', problem; end if;
 
   if p_kind = 'regroup' then
     update public.ride_alerts set resolved_at = now(), resolved_by = me
     where ride_id = p_ride and kind = 'regroup' and resolved_at is null;
-  else
-    select id into existing from public.ride_alerts
-    where ride_id = p_ride and member_id = me and kind = p_kind and resolved_at is null;
-  end if;
-
-  if existing is not null then
-    update public.ride_alerts set lat = coalesce(p_lat, lat), lng = coalesce(p_lng, lng) where id = existing;
-    new_id := existing;
-  else
     insert into public.ride_alerts (ride_id, member_id, kind, lat, lng) values (p_ride, me, p_kind, p_lat, p_lng)
+    returning id into new_id;
+  else
+    insert into public.ride_alerts as a (ride_id, member_id, kind, lat, lng, created_at)
+    values (p_ride, me, p_kind, p_lat, p_lng, pressed)
+    on conflict (ride_id, member_id, kind) where resolved_at is null and kind <> 'regroup'
+    do update set lat = coalesce(excluded.lat, a.lat), lng = coalesce(excluded.lng, a.lng)
     returning id into new_id;
   end if;
 
@@ -213,7 +246,7 @@ begin
 end;
 $$;
 
--- "I'm OK" or "Got them": the rider who raised it, or a ride leader.
+-- "I'm OK" or "Got them": the rider who raised it, or a ride leader sharing on that ride.
 create or replace function public.resolve_ride_alert(p_alert uuid)
 returns void language plpgsql security definer set search_path = '' as $$
 declare
@@ -224,7 +257,7 @@ begin
   select * into a from public.ride_alerts where id = p_alert;
   if not found then raise exception 'That alert has gone.'; end if;
   if a.resolved_at is not null then raise exception 'Already cleared.'; end if;
-  if a.member_id <> me and not private.is_ride_leader(me) then
+  if a.member_id <> me and not (private.is_ride_leader(me) and private.is_sharing(a.ride_id)) then
     raise exception 'Only the rider or a ride leader can clear this.';
   end if;
   update public.ride_alerts set resolved_at = now(), resolved_by = me where id = p_alert;
@@ -242,12 +275,12 @@ $$;
 
 revoke all on function public.start_live_ride(uuid), public.live_ride_state(uuid),
   public.update_live_position(uuid, double precision, double precision, real, real, real),
-  public.raise_ride_alert(uuid, public.ride_alert_kind, double precision, double precision),
+  public.raise_ride_alert(uuid, public.ride_alert_kind, double precision, double precision, timestamptz),
   public.resolve_ride_alert(uuid), public.stop_live_ride(uuid)
   from public, anon;
 grant execute on function public.start_live_ride(uuid), public.live_ride_state(uuid),
   public.update_live_position(uuid, double precision, double precision, real, real, real),
-  public.raise_ride_alert(uuid, public.ride_alert_kind, double precision, double precision),
+  public.raise_ride_alert(uuid, public.ride_alert_kind, double precision, double precision, timestamptz),
   public.resolve_ride_alert(uuid), public.stop_live_ride(uuid)
   to authenticated;
 
@@ -273,5 +306,7 @@ begin
   if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
     create extension if not exists pg_cron;
     perform cron.schedule('live-ride-cleanup', '*/5 * * * *', 'select private.live_ride_cleanup()');
+  else
+    raise warning 'pg_cron is missing, so live ride cleanup is not scheduled. Nothing would be deleted.';
   end if;
 end $$;

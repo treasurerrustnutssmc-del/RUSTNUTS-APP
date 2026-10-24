@@ -31,8 +31,16 @@ export const liveRideApi: LiveRideBackend = {
     const r = ok(await supabase().rpc('live_ride_state', { p_ride: rideId }));
     return stateFromJson(rideId, r.data!);
   },
-  async raise(rideId, kind, at) {
-    const r = ok(await supabase().rpc('raise_ride_alert', { p_ride: rideId, p_kind: kind, p_lat: at?.lat ?? null, p_lng: at?.lng ?? null }));
+  async raise(rideId, kind, at, pressedAt) {
+    const r = ok(
+      await supabase().rpc('raise_ride_alert', {
+        p_ride: rideId,
+        p_kind: kind,
+        p_lat: at?.lat ?? null,
+        p_lng: at?.lng ?? null,
+        p_at: pressedAt ?? null,
+      }),
+    );
     return r.data as string;
   },
   async resolve(alertId) {

@@ -7,6 +7,8 @@ import {
   alertProblem,
   awayText,
   compass,
+  fixProblem,
+  offTime,
   distanceKm,
   isRideLeader,
   isStale,
@@ -108,11 +110,31 @@ test('ride leaders: road captains, tail gunners, the board and the NEC', () => {
 });
 
 test('who can raise which alert', () => {
-  assert.equal(alertProblem('emergency', false, true), 'Share your location first.');
-  assert.equal(alertProblem('emergency', true, false), null);
-  assert.equal(alertProblem('out', true, false), null);
-  assert.equal(alertProblem('regroup', true, false), 'Only ride leaders can set a regroup pin.');
-  assert.equal(alertProblem('regroup', true, true), null);
+  const open = { sharing: true, leader: false, live: null };
+  assert.equal(alertProblem('emergency', open), null);
+  assert.equal(alertProblem('out', open), null);
+  // An emergency or dropping out still goes through after your own sharing has switched off (say it
+  // was raised with no signal and sent later), as long as the ride is still on.
+  assert.equal(alertProblem('emergency', { ...open, sharing: false }), null);
+  assert.equal(alertProblem('out', { ...open, sharing: false }), null);
+  assert.equal(alertProblem('emergency', { ...open, live: 'This ride’s finished.' }), 'This ride’s finished.');
+  assert.equal(alertProblem('regroup', open), 'Only ride leaders can set a regroup pin.');
+  assert.equal(alertProblem('regroup', { ...open, leader: true }), null);
+  assert.equal(alertProblem('regroup', { ...open, leader: true, sharing: false }), 'Share your location first.');
+  assert.equal(alertProblem('emergency', { ...open, at: { lat: 95, lng: 144 } }), 'That location doesn’t look right.');
+  assert.equal(alertProblem('emergency', { ...open, at: { lat: -37.8, lng: Number.NaN } }), 'That location doesn’t look right.');
+  assert.equal(alertProblem('emergency', { ...open, at: null }), null, 'no fix is fine');
+});
+
+test('a fix has to be somewhere on Earth', () => {
+  assert.equal(fixProblem({ lat: -37.8, lng: 144.9 }), null);
+  assert.equal(fixProblem({ lat: -91, lng: 0 }), 'That location doesn’t look right.');
+  assert.equal(fixProblem({ lat: 0, lng: 181 }), 'That location doesn’t look right.');
+});
+
+test('switch-off time: just the time today, with the date on another day', () => {
+  assert.equal(offTime('2026-11-07T05:30:00.000Z', '2026-11-06T23:00:00.000Z'), '4:30 pm');
+  assert.equal(offTime('2026-11-07T14:00:00.000Z', '2026-11-06T23:00:00.000Z'), '08/11/2026 1:00 am');
 });
 
 const alert = (over: Partial<RideAlert> = {}): RideAlert => ({

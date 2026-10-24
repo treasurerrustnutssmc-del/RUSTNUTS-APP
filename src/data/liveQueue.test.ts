@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alertNotice, drainQueue, queueAlert, unseenAlerts, type QueuedAlert } from './liveQueue';
+import { alertNotice, createAlertQueue, drainQueue, queueAlert, smsUrl, unseenAlerts, type QueuedAlert } from './liveQueue';
 import type { RideAlert } from '../domain/types';
 
 const alert = (over: Partial<RideAlert> = {}): RideAlert => ({
@@ -36,21 +36,72 @@ test('alerts raised with no signal wait, once each, until they send', async () =
   q = queueAlert(q, item({ at: { lat: 1, lng: 2 }, queuedAt: '2026-11-06T22:43:00.000Z' }));
   assert.equal(q.length, 1, 'pressing again replaces the waiting one');
   assert.deepEqual(q[0].at, { lat: 1, lng: 2 });
+  assert.equal(q[0].queuedAt, '2026-11-06T22:42:00.000Z', 'but keeps when it was first pressed');
   q = queueAlert(q, item({ kind: 'out' }));
   assert.equal(q.length, 2);
 
   const sent: string[] = [];
-  const left = await drainQueue(q, async (a) => {
-    if (a.kind === 'out') throw new Error('Network request failed');
+  const { left, refused } = await drainQueue(q, async (a) => {
+    if (a.kind === 'out') throw new Error('No connection. Check your signal and try again.');
     sent.push(a.kind);
   });
   assert.deepEqual(sent, ['emergency']);
   assert.deepEqual(left.map((a) => a.kind), ['out'], 'a failure stays queued');
+  assert.deepEqual(refused, []);
 });
 
-test('a queued alert the server refuses for good is not retried forever', async () => {
-  const left = await drainQueue([item()], async () => {
-    throw new Error('Share your location first.');
+test('an alert the club refuses for good is handed back, never dropped quietly', async () => {
+  const { left, refused } = await drainQueue([item()], async () => {
+    throw new Error('This ride’s finished.');
   });
   assert.deepEqual(left, []);
+  assert.deepEqual(refused.map((r) => [r.item.kind, r.reason]), [['emergency', 'This ride’s finished.']]);
+});
+
+test('not signed in yet (the app is still starting) is worth another go', async () => {
+  const { left } = await drainQueue([item()], async () => {
+    throw new Error('Sign in first.');
+  });
+  assert.equal(left.length, 1);
+});
+
+function memoryStore() {
+  const m = new Map<string, string>();
+  return {
+    getItem: async (k: string) => m.get(k) ?? null,
+    setItem: async (k: string, v: string) => void m.set(k, v),
+    removeItem: async (k: string) => void m.delete(k),
+  };
+}
+
+test('holding an alert while the queue is being sent never loses it', async () => {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((r) => (release = r));
+  const sent: string[] = [];
+  const q = createAlertQueue(memoryStore(), async (a) => {
+    await gate;
+    sent.push(a.kind);
+  });
+  await q.hold(item());
+  const flushing = q.flush();
+  const holding = q.hold(item({ kind: 'out' }));
+  release();
+  await Promise.all([flushing, holding]);
+  assert.deepEqual(sent, ['emergency']);
+  assert.deepEqual((await q.list()).map((a) => a.kind), ['out'], 'the one held mid-send is still waiting');
+  await q.flush();
+  assert.deepEqual(sent, ['emergency', 'out']);
+  assert.deepEqual(await q.list(), []);
+});
+
+test('a stop that couldn’t reach the club waits like an alert', async () => {
+  const q = queueAlert([], item({ kind: 'stop' }));
+  assert.equal(q[0].kind, 'stop');
+});
+
+test('the text-my-location link suits the phone', () => {
+  const body = 'Rustnuts emergency. I’m here: https://maps.google.com/?q=-37.8,144.9';
+  assert.equal(smsUrl('android', ['0400 000 002', '+61 400 000 003'], body), `sms:0400000002,+61400000003?body=${encodeURIComponent(body)}`);
+  assert.equal(smsUrl('ios', ['0400 000 002', '0400 000 003'], body), `sms:0400000002&body=${encodeURIComponent(body)}`);
+  assert.equal(smsUrl('android', [], body), null);
 });

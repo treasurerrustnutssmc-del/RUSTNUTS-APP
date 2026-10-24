@@ -13,8 +13,9 @@ export interface LiveRideBackend {
   /** Post your latest fix and get back what you can see. */
   update(rideId: string, fix: Fix): Promise<LiveState>;
   state(rideId: string): Promise<LiveState>;
-  /** Raise an alert where you are (null when the phone has no fix). Resolves to the alert's id. */
-  raise(rideId: string, kind: AlertKind, at: LatLng | null): Promise<string>;
+  /** Raise an alert where you are (null when the phone has no fix), pressed at `pressedAt` (default
+   *  now; earlier when it waited for signal). Resolves to the alert's id. */
+  raise(rideId: string, kind: AlertKind, at: LatLng | null, pressedAt?: string): Promise<string>;
   resolve(alertId: string): Promise<void>;
   stop(rideId: string): Promise<void>;
 }

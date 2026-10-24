@@ -1,7 +1,7 @@
 // Demo build: live ride mode in memory, with made-up riders placed around you who move a little
 // each time your phone reports in. It applies the same rules as the database's live ride actions.
 
-import { LIVE_MSG, alertProblem, isRideLeader, liveProblem, personalStop, resolveProblem } from '../domain/liveRide';
+import { LIVE_MSG, alertProblem, fixProblem, isRideLeader, liveProblem, personalStop, resolveProblem } from '../domain/liveRide';
 import { displayName } from '../domain/profile';
 import type { AlertKind, ClubData, LatLng, LiveRider, LiveState, Member, RideAlert } from '../domain/types';
 import { NotAllowedError } from './clubContext';
@@ -63,14 +63,14 @@ export function createDemoLiveBackend(
     const m = get().data.members.find((x) => x.id === memberId);
     return m ? displayName(m) : 'Rider';
   };
-  const isSharing = (r: DemoRide, memberId: string) => {
-    const s = r.sharers.get(memberId);
-    return !!s && s.stopsAt > now();
+  const isSharing = (rideId: string, memberId: string) => {
+    const s = rideOf(rideId).sharers.get(memberId);
+    return !!s && s.stopsAt > now() && !get().data.rides.find((x) => x.id === rideId)?.cancelledAt;
   };
   const requireSharing = (rideId: string): { me: Member; ride: DemoRide } => {
     const me = requireMe();
     const ride = rideOf(rideId);
-    if (!isSharing(ride, me.id)) throw new NotAllowedError(LIVE_MSG.notSharing);
+    if (!isSharing(rideId, me.id)) throw new NotAllowedError(LIVE_MSG.notSharing);
     return { me, ride };
   };
 
@@ -108,7 +108,7 @@ export function createDemoLiveBackend(
       .sort((a, b) => a.name.localeCompare(b.name));
     const alerts = ride.alerts
       .filter((a) => !a.resolvedAt || a.resolvedAt > tenMinutesAgo)
-      .map((a) => ({ ...a, phone: viewerLeads && a.kind !== 'regroup' ? phoneOf(a.memberId) : null }))
+      .map((a) => ({ ...a, phone: viewerLeads && a.kind !== 'regroup' && !a.resolvedAt ? phoneOf(a.memberId) : null }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const contacts = viewerLeads ? get().data.emergencyContacts.filter((c) => openEmergency.has(c.memberId)) : [];
     return { rideId, me: { stopsAt: (ride.sharers.get(me.id) as Sharer).stopsAt }, riders, alerts, contacts };
@@ -134,6 +134,8 @@ export function createDemoLiveBackend(
 
     async update(rideId, fix: Fix) {
       const { me, ride } = requireSharing(rideId);
+      const bad = fixProblem(fix);
+      if (bad) throw new NotAllowedError(bad);
       const mine = ride.sharers.get(me.id) as Sharer;
       ride.sharers.set(me.id, { ...mine, position: { lat: fix.lat, lng: fix.lng }, accuracyM: fix.accuracyM, updatedAt: now() });
       moveRideAlong(ride, fix, me.id, mine.stopsAt);
@@ -145,12 +147,19 @@ export function createDemoLiveBackend(
       return stateFor(rideId, me, ride);
     },
 
-    async raise(rideId, kind: AlertKind, at) {
-      const me = requireMe();
+    async raise(rideId, kind: AlertKind, at, pressedAt) {
+      const { data, me } = get();
       const ride = rideOf(rideId);
-      const problem = alertProblem(kind, isSharing(ride, me.id), leader(me.id));
-      if (problem) throw new NotAllowedError(problem);
+      const problem = alertProblem(kind, {
+        sharing: !!me && isSharing(rideId, me.id),
+        leader: !!me && leader(me.id),
+        live: liveProblem(me, data.rides.find((r) => r.id === rideId), now()),
+        at,
+      });
+      if (problem || !me) throw new NotAllowedError(problem ?? LIVE_MSG.signIn);
       const t = now();
+      const twelveHoursAgo = new Date(new Date(t).getTime() - 12 * 3600_000).toISOString();
+      const pressed = [pressedAt ?? t, t, twelveHoursAgo].sort()[1];
       let id: string;
       if (kind === 'regroup') {
         ride.alerts = ride.alerts.map((a) => (a.kind === 'regroup' && !a.resolvedAt ? { ...a, resolvedAt: t } : a));
@@ -161,7 +170,10 @@ export function createDemoLiveBackend(
         if (at) ride.alerts = ride.alerts.map((a) => (a.id === id ? { ...a, position: at } : a));
       } else {
         id = `a-demo-${++alertCount}`;
-        ride.alerts.push({ id, rideId, memberId: me.id, kind, name: nameOf(me.id), position: at, phone: null, createdAt: t, resolvedAt: null });
+        ride.alerts.push({
+          id, rideId, memberId: me.id, kind, name: nameOf(me.id), position: at, phone: null,
+          createdAt: kind === 'regroup' ? t : pressed, resolvedAt: null,
+        });
       }
       if (kind === 'out') ride.sharers.delete(me.id);
       return id;
@@ -171,8 +183,8 @@ export function createDemoLiveBackend(
       const me = requireMe();
       const ride = [...rides.values()].find((r) => r.alerts.some((a) => a.id === alertId));
       const alert = ride?.alerts.find((a) => a.id === alertId);
-      if (!ride || !alert) throw new Error(LIVE_MSG.noAlert);
-      const problem = resolveProblem(alert, me.id, leader(me.id));
+      if (!ride || !alert) throw new NotAllowedError(LIVE_MSG.noAlert);
+      const problem = resolveProblem(alert, me.id, leader(me.id) && isSharing(alert.rideId, me.id));
       if (problem) throw new NotAllowedError(problem);
       ride.alerts = ride.alerts.map((a) => (a.id === alertId ? { ...a, resolvedAt: now() } : a));
     },

@@ -2,25 +2,28 @@
 // notification for any new alert so a phone in a pocket still hears it. On a phone with a
 // development build it keeps going with the screen off (a background task, with Android's
 // "Sharing your location" notification); on the web and in Expo Go only while the app is open.
-// It switches itself off at the time the club gave, even if the app was closed. This file must be
-// imported at start-up (index.ts) so the background task is defined before the phone wakes it.
+// It switches itself off at the time the club gave: on the next fix past it (fixes come at least
+// every 30 seconds on Android, even standing still), when the app opens, or on a timer while it's
+// running. This file must be imported at start-up (index.ts) so the background task is defined
+// before the phone wakes it.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { AndroidImportance } from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import { LIVE_MSG } from '../domain/liveRide';
 import { melbourneTime } from '../domain/rides';
 import type { LiveState } from '../domain/types';
 import type { Fix } from './liveRideBackend';
 import { liveBackend } from './liveRideSource';
-import { alertNotice, drainQueue, queueAlert, unseenAlerts, type QueuedAlert } from './liveQueue';
+import { alertNotice, createAlertQueue, unseenAlerts, type QueuedAlert, type Refused } from './liveQueue';
 
 export const LIVE_TASK = 'rustnuts-live-ride';
 const ACTIVE = 'live.active';
 const SEEN = 'live.seen';
-const QUEUE = 'live.queue';
+const UNSENT = 'live.unsent';
 const CHANNEL = 'ride-alerts';
 const NATIVE = Platform.OS !== 'web';
 
@@ -33,6 +36,7 @@ interface Active {
 type Listener = (fix: Fix, state: LiveState | null, error: Error | null) => void;
 const listeners = new Set<Listener>();
 let watch: Location.LocationSubscription | null = null;
+let offTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** The screen hears each fix and the state that came back with it. */
 export function onTrack(listener: Listener): () => void {
@@ -51,6 +55,23 @@ async function read<T>(key: string, fallback: T): Promise<T> {
 
 const write = (key: string, value: unknown) => AsyncStorage.setItem(key, JSON.stringify(value)).catch(() => {});
 
+/** Gives up on a request that hasn't answered in time, so weak signal counts as no signal. */
+export function withTimeout<T>(promise: Promise<T>, ms = 8_000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('Timed out. No connection.')), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
 function toFix(loc: Location.LocationObject): Fix {
   const { latitude, longitude, accuracy, heading, speed } = loc.coords;
   return {
@@ -62,8 +83,12 @@ function toFix(loc: Location.LocationObject): Fix {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Alerts: notifications, and the ones waiting for signal
+// ---------------------------------------------------------------------------
+
 /** Tells the phone's owner about alerts they haven't heard yet. */
-async function notifyNew(state: LiveState, fix: Fix, meId: string): Promise<void> {
+export async function noticeAlerts(state: LiveState, fix: Fix | null, meId: string): Promise<void> {
   if (!NATIVE) return;
   const seen = await read<string[]>(SEEN, []);
   const fresh = unseenAlerts(seen, state.alerts, meId);
@@ -78,24 +103,28 @@ async function notifyNew(state: LiveState, fix: Fix, meId: string): Promise<void
   await write(SEEN, [...seen, ...fresh.map((a) => a.id)]);
 }
 
-/** Sends alerts that were raised with no signal. */
+const queue = createAlertQueue(AsyncStorage, async (item) => {
+  if (item.kind === 'stop') await withTimeout(liveBackend().stop(item.rideId));
+  else await withTimeout(liveBackend().raise(item.rideId, item.kind, item.at, item.queuedAt));
+});
+
+/** Sends what's waiting for signal. An emergency or dropping out the club refused (say the ride
+ *  ended before signal came back) is kept to show the rider, never dropped quietly. */
 export async function flushQueue(): Promise<void> {
-  const queue = await read<QueuedAlert[]>(QUEUE, []);
-  if (queue.length === 0) return;
-  const left = await drainQueue(queue, async (q) => {
-    await liveBackend().raise(q.rideId, q.kind, q.at);
-  });
-  await write(QUEUE, left);
+  const refused = await queue.flush();
+  const tell = refused.filter((r) => r.item.kind === 'emergency' || r.item.kind === 'out');
+  if (tell.length > 0) await write(UNSENT, [...(await read<Refused[]>(UNSENT, [])), ...tell]);
 }
 
-/** Keeps an alert to send when signal comes back. */
-export async function holdAlert(item: QueuedAlert): Promise<void> {
-  await write(QUEUE, queueAlert(await read<QueuedAlert[]>(QUEUE, []), item));
-}
+/** Keeps an alert (or a stop) to send when signal comes back. */
+export const holdAlert = (item: QueuedAlert) => queue.hold(item);
+export const heldAlerts = () => queue.list();
+export const unsentAlerts = () => read<Refused[]>(UNSENT, []);
+export const dismissUnsent = () => AsyncStorage.removeItem(UNSENT).catch(() => {});
 
-export async function heldAlerts(): Promise<QueuedAlert[]> {
-  return read<QueuedAlert[]>(QUEUE, []);
-}
+// ---------------------------------------------------------------------------
+// Tracking
+// ---------------------------------------------------------------------------
 
 async function handleFix(fix: Fix): Promise<void> {
   const active = await read<Active | null>(ACTIVE, null);
@@ -105,13 +134,41 @@ async function handleFix(fix: Fix): Promise<void> {
     return;
   }
   try {
-    const state = await liveBackend().update(active.rideId, fix);
-    await notifyNew(state, fix, active.meId);
+    const state = await withTimeout(liveBackend().update(active.rideId, fix));
+    await noticeAlerts(state, fix, active.meId);
     await flushQueue();
     listeners.forEach((l) => l(fix, state, null));
   } catch (e) {
+    // The club has stopped this rider sharing (ride cancelled, switched off, cleaned up): stop the GPS too.
+    if ((e as Error).message === LIVE_MSG.notSharing) await stopTracking();
     listeners.forEach((l) => l(fix, null, e as Error));
   }
+}
+
+/** Stops a share that has run past its switch-off time, or a location service left running. */
+async function checkSwitchOff(): Promise<void> {
+  const active = await read<Active | null>(ACTIVE, null);
+  if (active && Date.now() >= new Date(active.stopsAt).getTime()) {
+    await stopTracking();
+    return;
+  }
+  if (!active && NATIVE) {
+    try {
+      if (await Location.hasStartedLocationUpdatesAsync(LIVE_TASK)) await Location.stopLocationUpdatesAsync(LIVE_TASK);
+    } catch {
+      // Not running.
+    }
+  }
+  if (active) armOffTimer(active.stopsAt);
+}
+
+function armOffTimer(stopsAt: string): void {
+  if (offTimer) clearTimeout(offTimer);
+  const ms = new Date(stopsAt).getTime() - Date.now();
+  // Timers past about 24 days overflow; a share never runs more than 12 hours.
+  offTimer = setTimeout(() => {
+    stopTracking();
+  }, Math.max(0, Math.min(ms, 13 * 3600_000)));
 }
 
 if (NATIVE) {
@@ -124,6 +181,15 @@ if (NATIVE) {
   });
 }
 
+// On opening the app, and each time it comes back to the front: switch off anything overdue and
+// send what's been waiting for signal (after a moment, so the sign-in has loaded).
+setTimeout(() => {
+  checkSwitchOff().then(flushQueue).catch(() => {});
+}, 3_000);
+AppState.addEventListener('change', (s) => {
+  if (s === 'active') checkSwitchOff().then(flushQueue).catch(() => {});
+});
+
 async function ensureChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(CHANNEL, {
@@ -134,7 +200,16 @@ async function ensureChannel(): Promise<void> {
   }).catch(() => {});
 }
 
-const OPTIONS = { accuracy: Location.Accuracy.Balanced, timeInterval: 20_000, distanceInterval: 50 };
+// distanceInterval 0: a fix every 30 seconds even standing still, so a parked phone still hears
+// alerts and still switches itself off on time.
+const OPTIONS = { accuracy: Location.Accuracy.Balanced, timeInterval: 30_000, distanceInterval: 0 };
+
+async function startWatch(): Promise<void> {
+  watch?.remove();
+  watch = await Location.watchPositionAsync(OPTIONS, (loc) => {
+    handleFix(toFix(loc));
+  });
+}
 
 /**
  * Starts reading the location for this ride until `stopsAt`. Says how: 'background' (keeps going
@@ -144,6 +219,7 @@ export async function startTracking(rideId: string, stopsAt: string, meId: strin
   const fg = await Location.requestForegroundPermissionsAsync().catch(() => null);
   if (!fg?.granted) return 'denied';
   await write(ACTIVE, { rideId, stopsAt, meId } satisfies Active);
+  armOffTimer(stopsAt);
 
   if (NATIVE) {
     await ensureChannel();
@@ -172,14 +248,36 @@ export async function startTracking(rideId: string, stopsAt: string, meId: strin
     }
   }
 
-  watch?.remove();
-  watch = await Location.watchPositionAsync(OPTIONS, (loc) => {
-    handleFix(toFix(loc));
-  });
+  await startWatch();
+  return 'foreground';
+}
+
+/**
+ * After the app restarts: how this phone is sharing on this ride now, picking the location back up
+ * if it had stopped (an app closed while sharing only in the foreground). Null when not sharing here.
+ */
+export async function resumeTracking(rideId: string): Promise<'background' | 'foreground' | null> {
+  const active = await activeRide();
+  if (!active || active.rideId !== rideId) return null;
+  armOffTimer(active.stopsAt);
+  if (NATIVE) {
+    try {
+      if (await Location.hasStartedLocationUpdatesAsync(LIVE_TASK)) return 'background';
+    } catch {
+      // Fall through to the foreground.
+    }
+  }
+  if (!watch) {
+    const fg = await Location.getForegroundPermissionsAsync().catch(() => null);
+    if (!fg?.granted) return null;
+    await startWatch();
+  }
   return 'foreground';
 }
 
 export async function stopTracking(): Promise<void> {
+  if (offTimer) clearTimeout(offTimer);
+  offTimer = null;
   watch?.remove();
   watch = null;
   if (NATIVE) {
@@ -198,6 +296,16 @@ export async function activeRide(): Promise<Active | null> {
   return active && Date.now() < new Date(active.stopsAt).getTime() ? active : null;
 }
 
+/** The phone's last known spot, straight away (for an emergency, which mustn't wait for a fix). */
+export async function quickFix(): Promise<Fix | null> {
+  try {
+    const last = await Location.getLastKnownPositionAsync();
+    return last ? toFix(last) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Where the phone is now, as best it can tell within 10 seconds; null if it can't. */
 export async function currentFix(): Promise<Fix | null> {
   try {
@@ -207,10 +315,5 @@ export async function currentFix(): Promise<Fix | null> {
   } catch {
     // Fall back to the last known spot.
   }
-  try {
-    const last = await Location.getLastKnownPositionAsync();
-    return last ? toFix(last) : null;
-  } catch {
-    return null;
-  }
+  return quickFix();
 }

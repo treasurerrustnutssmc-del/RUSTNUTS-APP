@@ -264,7 +264,10 @@ export type Database = {
         Args: { p_ride: string; p_lat: number; p_lng: number; p_accuracy: number | null; p_heading: number | null; p_speed: number | null };
         Returns: LiveStateJson;
       };
-      raise_ride_alert: { Args: { p_ride: string; p_kind: RideAlertKind; p_lat: number | null; p_lng: number | null }; Returns: string };
+      raise_ride_alert: {
+        Args: { p_ride: string; p_kind: RideAlertKind; p_lat: number | null; p_lng: number | null; p_at?: string | null };
+        Returns: string;
+      };
       resolve_ride_alert: { Args: { p_alert: string }; Returns: undefined };
       stop_live_ride: { Args: { p_ride: string }; Returns: undefined };
     };
