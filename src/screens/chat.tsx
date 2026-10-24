@@ -200,8 +200,9 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const messages = chat.messages(chatId);
   const [selected, setSelected] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
-  const [draft, setDraft] = useState('');
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Lane E: share in. Something shared from another app starts in the message box.
+  const [draft, setDraft] = useState(route.params.shared?.text ?? '');
+  const [attachments, setAttachments] = useState<Attachment[]>(route.params.shared?.media ?? []);
   const [gifs, setGifs] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
