@@ -4,7 +4,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
-import { todayIso } from '../domain/dates';
 import {
   actionItemProblem,
   approveMinutesProblem,
@@ -14,10 +13,10 @@ import {
   setDoneProblem,
 } from '../domain/meetings';
 import { crewProblem, leaveProblem } from '../domain/crew';
+import { melbourneDate, rsvpProblem } from '../domain/rides';
 import { NO_TRACK, readGpx, type GpxSummary } from '../domain/gpx';
 import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem } from '../domain/routes';
-import { rsvpProblem } from '../domain/rides';
-import { castProblem, closeProblem, openVoteProblem } from '../domain/votes';
+import { castProblem, closeProblem as closeVoteProblem, openVoteProblem } from '../domain/votes';
 import type { ClubData, NotificationPrefs } from '../domain/types'; // NotificationPrefs: Lane E
 import {
   ClubContext,
@@ -29,6 +28,20 @@ import {
   type ClubContextValue,
 } from './clubContext';
 import { loadClub } from './liveData';
+// Stage 4
+import { canCheckIn, closeProblem, markProblem, openCheckinProblem } from '../domain/attendance';
+import {
+  claimProblem,
+  continuationFeeProblem,
+  decidePaymentProblem,
+  feeRateProblem,
+  paymentDetailsProblem,
+  raiseChargeProblem,
+  raiseFeesProblem,
+  recordPaymentProblem,
+  waiveProblem,
+} from '../domain/fees';
+import { decideApplicationProblem, fngReviewProblem } from '../domain/joining';
 import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
 // Lane E: offline
@@ -41,6 +54,10 @@ import { loadNotificationPrefs, saveNotificationPrefs } from './notificationsApi
 import { forgetThisDevice } from './pushDevice';
 
 const clubCache = createClubCache(AsyncStorage);
+
+const deny = (problem: string | null) => {
+  if (problem) throw new NotAllowedError(problem);
+};
 
 const ok = <T extends { error: { message?: string; code?: string } | null }>(r: T): T => {
   if (r.error) throw friendlyError(r.error);
@@ -57,7 +74,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [justApplied, setJustApplied] = useState(false);
   const latest = useRef(0);
-  const today = todayIso();
+  const today = melbourneDate(new Date().toISOString()); // the club's day, wherever the phone is
   // Lane E: offline. When the data on screen is the copy saved on the phone, when it was saved.
   const [savedAt, setSavedAt] = useState<string | null>(null);
   /** Whose data is on screen, the signed-in person, and whether it's the saved copy (read in callbacks). */
@@ -450,9 +467,139 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
     closeVote: async (voteId, casting) => {
       // The count stays in the database until the vote closes, so it decides on a tie.
-      const problem = closeProblem(visibleMe, (data.votes ?? []).find((v) => v.id === voteId), null, casting, data, new Date().toISOString());
+      const problem = closeVoteProblem(visibleMe, (data.votes ?? []).find((v) => v.id === voteId), null, casting, data, new Date().toISOString());
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('close_vote', { p_vote: voteId, p_casting: casting }));
+      await after();
+    },
+
+    // Stage 4: each checks the same rule first (for a quick, clear answer), then asks the database.
+    openCheckin: async (input) => {
+      deny(openCheckinProblem(visibleMe, input, data, today));
+      const r = ok(
+        await supabase().rpc('open_checkin', {
+          p_kind: input.kind,
+          p_ride: input.rideId,
+          p_chapter: input.chapterId,
+          p_title: input.title.trim() || null,
+          p_held_on: input.kind === 'meeting' ? input.heldOn : null,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    checkinCode: async (sessionId) => (ok(await supabase().rpc('checkin_code', { p_session: sessionId })).data as string) ?? '',
+    checkIn: async (code) => {
+      if (!visibleMe) throw new NotAllowedError('Sign in first.');
+      if (!canCheckIn(visibleMe)) throw new NotAllowedError('Only members and applicants can check in.');
+      const r = ok(await supabase().rpc('check_in', { p_code: code }));
+      await after();
+      return r.data as string;
+    },
+    markAttendance: async (sessionId, memberId, present) => {
+      const session = (data.checkinSessions ?? []).find((s) => s.id === sessionId);
+      if (session) deny(markProblem(visibleMe, session, data.members.find((m) => m.id === memberId), data, today));
+      ok(await supabase().rpc('mark_attendance', { p_session: sessionId, p_member: memberId, p_present: present }));
+      await after();
+    },
+    closeCheckin: async (sessionId) => {
+      const session = (data.checkinSessions ?? []).find((s) => s.id === sessionId);
+      if (session) deny(closeProblem(visibleMe, session, data));
+      ok(await supabase().rpc('close_checkin', { p_session: sessionId }));
+      await after();
+    },
+    decideApplication: async (memberId, status, votes, note) => {
+      const target = data.members.find((m) => m.id === memberId);
+      if (!target) throw new Error('No such applicant.');
+      deny(decideApplicationProblem(visibleMe, target, status, votes, data));
+      ok(
+        await supabase().rpc('decide_application', {
+          p_member: memberId, p_status: status, p_for: votes.for, p_against: votes.against, p_abstained: votes.abstained,
+          p_note: note.trim() || null,
+        }),
+      );
+      await after();
+    },
+    recordFngReview: async (memberId, atMonths, outcome, votes, note) => {
+      const target = data.members.find((m) => m.id === memberId);
+      if (!target) throw new Error('That member no longer exists.');
+      deny(fngReviewProblem(visibleMe, target, atMonths, outcome, votes, data, today));
+      ok(
+        await supabase().rpc('record_fng_review', {
+          p_member: memberId, p_at_months: atMonths, p_outcome: outcome, p_for: votes.for, p_against: votes.against,
+          p_abstained: votes.abstained, p_note: note.trim() || null,
+        }),
+      );
+      await after();
+    },
+    setFeeRate: async (chapterId, fy, status, amountCents, dueOn) => {
+      deny(feeRateProblem(visibleMe, chapterId, status, amountCents, data));
+      ok(await supabase().rpc('set_fee_rate', { p_chapter: chapterId, p_fy: fy, p_status: status, p_amount_cents: amountCents, p_due_on: dueOn }));
+      await after();
+    },
+    setContinuationFee: async (chapterId, fy, amountCents) => {
+      deny(continuationFeeProblem(visibleMe, chapterId, amountCents, data));
+      ok(await supabase().rpc('set_continuation_fee', { p_chapter: chapterId, p_fy: fy, p_amount_cents: amountCents }));
+      await after();
+    },
+    setPaymentDetails: async (d) => {
+      deny(paymentDetailsProblem(visibleMe, d.chapterId, data));
+      ok(
+        await supabase().rpc('set_payment_details', {
+          p_chapter: d.chapterId, p_payid: d.payid, p_payid_name: d.payidName, p_bsb: d.bsb, p_account_no: d.accountNo,
+        }),
+      );
+      await after();
+    },
+    raiseFees: async (chapterId, fy) => {
+      deny(raiseFeesProblem(visibleMe, chapterId, fy, data));
+      const r = ok(await supabase().rpc('raise_fees', { p_chapter: chapterId, p_fy: fy }));
+      await after();
+      return (r.data as number) ?? 0;
+    },
+    raiseCharge: async (memberId, description, amountCents, dueOn) => {
+      const target = data.members.find((m) => m.id === memberId);
+      if (!target) throw new Error('That member no longer exists.');
+      deny(raiseChargeProblem(visibleMe, target, description, amountCents, data));
+      ok(await supabase().rpc('raise_charge', { p_member: memberId, p_description: description.trim(), p_amount_cents: amountCents, p_due_on: dueOn }));
+      await after();
+    },
+    waiveCharge: async (chargeId) => {
+      const charge = (data.charges ?? []).find((c) => c.id === chargeId);
+      if (charge) deny(waiveProblem(visibleMe, charge, data));
+      ok(await supabase().rpc('waive_charge', { p_charge: chargeId }));
+      await after();
+    },
+    claimPayment: async (chargeId, amountCents, paidOn, method, reference) => {
+      const charge = (data.charges ?? []).find((c) => c.id === chargeId);
+      if (charge) deny(claimProblem(visibleMe, charge, amountCents, paidOn, method, data, today));
+      ok(
+        await supabase().rpc('claim_payment', {
+          p_charge: chargeId, p_amount_cents: amountCents, p_paid_on: paidOn, p_method: method, p_reference: reference.trim() || null,
+        }),
+      );
+      await after();
+    },
+    recordPayment: async (chargeId, amountCents, paidOn, method, reference) => {
+      const charge = (data.charges ?? []).find((c) => c.id === chargeId);
+      if (charge) deny(recordPaymentProblem(visibleMe, charge, amountCents, paidOn, method, data, today));
+      ok(
+        await supabase().rpc('record_payment', {
+          p_charge: chargeId, p_amount_cents: amountCents, p_paid_on: paidOn, p_method: method, p_reference: reference.trim() || null,
+        }),
+      );
+      await after();
+    },
+    confirmPayment: async (paymentId) => {
+      const payment = (data.payments ?? []).find((p) => p.id === paymentId);
+      if (payment) deny(decidePaymentProblem(visibleMe, payment, 'confirm', data));
+      ok(await supabase().rpc('confirm_payment', { p_payment: paymentId }));
+      await after();
+    },
+    rejectPayment: async (paymentId) => {
+      const payment = (data.payments ?? []).find((p) => p.id === paymentId);
+      if (payment) deny(decidePaymentProblem(visibleMe, payment, 'reject', data));
+      ok(await supabase().rpc('reject_payment', { p_payment: paymentId }));
       await after();
     },
 

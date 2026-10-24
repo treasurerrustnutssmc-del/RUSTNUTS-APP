@@ -48,6 +48,13 @@ export type RootParams = {
   PickRoute: { rideId: string };
   // Lane E: live ride
   LiveRide: { rideId: string };
+  // Stage 4: members and money
+  CheckIn: undefined;
+  RunCheckin: { sessionId: string };
+  OpenMeeting: undefined;
+  FngReview: { memberId: string };
+  MemberFees: { memberId: string };
+  ChapterFees: { chapterId: string };
   // Stage 3 (lane B): chats and photos
   Chat: { chatId: string; /** Lane E: share in. What was shared, as the starting draft. */ shared?: { text: string; media: PickedMedia[] } };
   NewChat: undefined;

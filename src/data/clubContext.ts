@@ -16,10 +16,16 @@ import type {
   Member,
   MemberPrivate,
   MemberStatus,
+  PaymentDetails,
+  PaymentMethod,
   NotificationPrefs, // Lane E: notifications
   PositionRole,
   RsvpAnswer,
+  Votes,
 } from '../domain/types';
+// Stage 4
+import type { OpenCheckinInput } from '../domain/attendance';
+import type { FngOutcome } from '../domain/joining';
 
 export class NotAllowedError extends Error {}
 
@@ -122,6 +128,29 @@ export interface ClubContextValue {
   /** A ballot is final. */
   castBallot: (voteId: string, choice: BallotChoice) => Promise<void>;
   closeVote: (voteId: string, casting: 'yes' | 'no' | null) => Promise<void>;
+  // Stage 4: members and money
+  /** Opens a check-in at a ride or meeting. Resolves to the new session's id. */
+  openCheckin: (input: OpenCheckinInput) => Promise<string>;
+  /** The session's code, for the people running it. */
+  checkinCode: (sessionId: string) => Promise<string>;
+  /** Checks you in with a typed or scanned code. Resolves to the session's id. */
+  checkIn: (code: string) => Promise<string>;
+  markAttendance: (sessionId: string, memberId: string, present: boolean) => Promise<void>;
+  closeCheckin: (sessionId: string) => Promise<void>;
+  /** Approves an applicant as `status`, or declines them (null), recording the board's tally. */
+  decideApplication: (memberId: string, status: MemberStatus | null, votes: Votes, note: string) => Promise<void>;
+  recordFngReview: (memberId: string, atMonths: number, outcome: FngOutcome, votes: Votes, note: string) => Promise<void>;
+  setFeeRate: (chapterId: string, fy: number, status: MemberStatus, amountCents: number, dueOn: string) => Promise<void>;
+  setContinuationFee: (chapterId: string, fy: number, amountCents: number) => Promise<void>;
+  setPaymentDetails: (details: PaymentDetails) => Promise<void>;
+  /** Resolves to how many charges were added. */
+  raiseFees: (chapterId: string, fy: number) => Promise<number>;
+  raiseCharge: (memberId: string, description: string, amountCents: number, dueOn: string) => Promise<void>;
+  waiveCharge: (chargeId: string) => Promise<void>;
+  claimPayment: (chargeId: string, amountCents: number, paidOn: string, method: PaymentMethod, reference: string) => Promise<void>;
+  recordPayment: (chargeId: string, amountCents: number, paidOn: string, method: PaymentMethod, reference: string) => Promise<void>;
+  confirmPayment: (paymentId: string) => Promise<void>;
+  rejectPayment: (paymentId: string) => Promise<void>;
   /** Puts a member in a spot on a ride's crew (yourself, or anyone if you manage the ride). They are then going. */
   setCrew: (rideId: string, memberId: string, role: CrewRole) => Promise<void>;
   /** Takes a member off a ride's crew (yourself, or anyone if you manage the ride). */
@@ -158,6 +187,15 @@ export const EMPTY_DATA: ClubData = {
   meetings: [],
   actionItems: [],
   votes: [],
+  // Stage 4
+  checkinSessions: [],
+  attendance: [],
+  decisions: [],
+  feeRates: [],
+  continuationFees: [],
+  charges: [],
+  payments: [],
+  paymentDetails: [],
   crew: [],
   routes: [],
   rideRoutes: [],

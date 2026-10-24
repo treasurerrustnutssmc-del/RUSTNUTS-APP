@@ -17,6 +17,11 @@ import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { MemberChatButtons } from './chat';
 import { colors, space } from '../theme';
+// Stage 4
+import { canSeeFees } from '../domain/fees';
+import { AttendanceSummary, HomeCheckinCard } from './checkin';
+import { HomeFeesCard } from './fees';
+import { IntroProgressCard } from './fng';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -100,6 +105,10 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
           {hasEarnedDisc(me) ? <MemberDisc size={52} /> : null}
         </Row>
       </Flannel>
+
+      {/* Stage 4: today's check-in and what you owe */}
+      <HomeCheckinCard />
+      <HomeFeesCard />
 
       {isBoard && (pending.length > 0 || boardAlerts.length > 0) ? (
         <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
@@ -203,7 +212,6 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         <Label>On the way</Label>
         {[
           ['map', 'Locked routes, ride roles and briefings', 'Stage 2'],
-          ['card', 'Fees, check-ins and the FNG tracker', 'Stage 4'],
         ].map(([icon, text, stage]) => (
           <Row key={text} style={{ gap: space.md, flexWrap: 'nowrap' }}>
             <Ionicons name={icon as 'calendar'} size={18} color={colors.boneMute} />
@@ -364,6 +372,13 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
         <Notice tone="warn" title="Waiting for approval">
           Approve or decline from the Board tab.
         </Notice>
+      ) : null}
+
+      {/* Stage 4: the way in, turn-up and fees */}
+      {member.approval === 'pending' && member.status === 'introduced' && canManage ? <IntroProgressCard member={member} /> : null}
+      {member.approval === 'approved' ? <AttendanceSummary member={member} /> : null}
+      {!isSelf && member.approval === 'approved' && canSeeFees(me, member.chapterId, data.positions) ? (
+        <Button label="Fees" kind="secondary" icon="cash-outline" onPress={() => navigation.navigate('MemberFees', { memberId: member.id })} />
       ) : null}
 
       <SectionTitle title="Garage" />

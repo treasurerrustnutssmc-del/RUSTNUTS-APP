@@ -62,3 +62,10 @@ test('typing a date on the number pad puts the slashes in for you', () => {
   assert.equal(typeDate('8/11/2026'), '8/11/2026', 'a pasted date with its own slashes is left alone');
   assert.equal(typeDate('08/1/2026'), '08/1/2026', 'deleting a digit in the middle doesn\'t shuffle the rest');
 });
+
+test('adding days, across months and years', async () => {
+  const { addDays } = await import('./dates');
+  assert.equal(addDays('2026-10-24', 30), '2026-11-23');
+  assert.equal(addDays('2026-12-31', 1), '2027-01-01');
+  assert.equal(addDays('2026-03-01', -1), '2026-02-28');
+});
