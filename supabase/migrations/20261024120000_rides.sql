@@ -55,13 +55,19 @@ returns void language plpgsql security definer set search_path = '' as $$
 declare
   me uuid := auth.uid();
   ride public.rides%rowtype;
+  closes timestamptz;
 begin
   if me is null then raise exception 'Sign in first.'; end if;
   if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
   select * into ride from public.rides where id = p_ride;
   if not found then raise exception 'No such ride.'; end if;
   if ride.cancelled_at is not null then raise exception 'That ride was cancelled.'; end if;
-  if ride.starts_at <= now() then raise exception 'That ride has already started.'; end if;
+  -- An all-day ride takes answers until its first day is over.
+  closes := case when ride.all_day
+                 then ((ride.starts_at at time zone 'Australia/Melbourne') + interval '1 day') at time zone 'Australia/Melbourne'
+                 else ride.starts_at end;
+  if closes <= now() then raise exception 'That ride has already started.'; end if;
+  if p_answer is null then raise exception 'Pick an answer.'; end if;
 
   insert into public.rsvps (ride_id, member_id, answer) values (p_ride, me, p_answer)
   on conflict (ride_id, member_id) do update set answer = excluded.answer, updated_at = now();
@@ -71,7 +77,8 @@ revoke all on function public.set_rsvp(uuid, public.rsvp_answer) from public, an
 grant execute on function public.set_rsvp(uuid, public.rsvp_answer) to authenticated;
 
 -- One feed's rides, as the sync read them: [{uid, startsAt, endsAt, allDay, title, location,
--- notes, category}]. Upserts them, then cancels this feed's rides from today on that weren't in
+-- notes, category}]. Upserts them (a ride listed twice goes in once, the later listing winning;
+-- an unchanged ride isn't rewritten), then cancels this feed's rides from today on that weren't in
 -- the list (never deletes, so answers are kept). Rides before today are left as they were.
 create or replace function public.apply_ride_sync(p_feed uuid, p_events jsonb)
 returns int language plpgsql security definer set search_path = '' as $$
@@ -80,21 +87,26 @@ declare
   n int;
 begin
   create temporary table incoming on commit drop as
-  select e.uid, e."startsAt" as starts_at, e."endsAt" as ends_at, coalesce(e."allDay", false) as all_day,
+  select distinct on (e.uid, e."startsAt") e.uid, e."startsAt" as starts_at, e."endsAt" as ends_at, coalesce(e."allDay", false) as all_day,
          coalesce(nullif(trim(e.title), ''), 'Ride') as title, nullif(trim(e.location), '') as location,
          nullif(trim(e.notes), '') as notes, e.category
-  from jsonb_to_recordset(coalesce(p_events, '[]'::jsonb)) as e(
+  from jsonb_array_elements(coalesce(p_events, '[]'::jsonb)) with ordinality as x(ev, pos)
+  cross join lateral jsonb_to_record(x.ev) as e(
     uid text, "startsAt" timestamptz, "endsAt" timestamptz, "allDay" boolean, title text, location text,
     notes text, category public.ride_category)
-  where e.uid is not null and e."startsAt" is not null and e.category is not null;
+  where e.uid is not null and e."startsAt" is not null and e.category is not null
+  order by e.uid, e."startsAt", x.pos desc;
 
-  insert into public.rides (source, feed_id, external_uid, starts_at, ends_at, all_day, title, location, notes, category,
+  insert into public.rides as r (source, feed_id, external_uid, starts_at, ends_at, all_day, title, location, notes, category,
                             cancelled_at, synced_at)
   select 'feed', p_feed, uid, starts_at, ends_at, all_day, title, location, notes, category, null, now()
   from incoming
   on conflict (feed_id, external_uid, starts_at) do update set
     ends_at = excluded.ends_at, all_day = excluded.all_day, title = excluded.title, location = excluded.location,
-    notes = excluded.notes, category = excluded.category, cancelled_at = null, synced_at = now();
+    notes = excluded.notes, category = excluded.category, cancelled_at = null, synced_at = now()
+  where (r.ends_at, r.all_day, r.title, r.location, r.notes, r.category, r.cancelled_at)
+    is distinct from (excluded.ends_at, excluded.all_day, excluded.title, excluded.location, excluded.notes,
+                      excluded.category, null::timestamptz);
   get diagnostics n = row_count;
 
   update public.rides r set cancelled_at = now(), synced_at = now()
@@ -115,3 +127,31 @@ $$;
 revoke all on function public.apply_ride_sync(uuid, jsonb), public.record_ride_sync_error(uuid, text)
   from public, anon, authenticated;
 grant execute on function public.apply_ride_sync(uuid, jsonb), public.record_ride_sync_error(uuid, text) to service_role;
+
+-- Everything the Rides tab shows, in one piece so no row limit cuts it short: rides from today on
+-- (Melbourne time; a multi-day ride until its last day is over), their answers, and when the
+-- calendar was last fully read (the oldest feed's last good sync; null if any feed never synced).
+create or replace function public.ride_calendar()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  today_start timestamptz := private.club_date()::timestamp at time zone 'Australia/Melbourne';
+begin
+  if not private.is_approved_member() then
+    return jsonb_build_object('rides', '[]'::jsonb, 'rsvps', '[]'::jsonb, 'synced_at', null);
+  end if;
+  return (
+    with shown as (
+      select * from public.rides
+      where starts_at >= today_start or ends_at > today_start
+    )
+    select jsonb_build_object(
+      'rides', coalesce((select jsonb_agg(to_jsonb(s) order by s.starts_at, s.id) from shown s), '[]'::jsonb),
+      'rsvps', coalesce((select jsonb_agg(to_jsonb(a) order by a.ride_id, a.member_id)
+                         from public.rsvps a where a.ride_id in (select id from shown)), '[]'::jsonb),
+      'synced_at', (select case when bool_and(last_ok_at is not null) then min(last_ok_at) end from private.ride_feeds)
+    )
+  );
+end;
+$$;
+revoke all on function public.ride_calendar() from public, anon;
+grant execute on function public.ride_calendar() to authenticated;

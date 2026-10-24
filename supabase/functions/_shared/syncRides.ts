@@ -46,7 +46,8 @@ export async function syncAllFeeds(deps: SyncDeps): Promise<{ ok: number; failed
       ok += 1;
     } catch (e) {
       failed += 1;
-      await deps.recordError(feed.id, e instanceof Error ? e.message : String(e));
+      // If even that fails, carry on: the feed's rides are left as they were either way.
+      await deps.recordError(feed.id, e instanceof Error ? e.message : String(e)).catch(() => {});
     }
   }
   return { ok, failed };

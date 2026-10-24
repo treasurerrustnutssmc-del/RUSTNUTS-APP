@@ -138,3 +138,81 @@ test('ride colour: the feed’s own colour, then a title prefix, then its catego
   assert.equal(categoryFor(null, ev('Charity run', 'Something else')), 'club');
   assert.equal(categoryFor(null, ev('Breakfast')), 'club');
 });
+
+// Review findings, 24 Oct 2026.
+
+test('a date that comes out twice is only listed once, and a moved ride wins', () => {
+  const moved = parseIcs(cal(`
+    UID:d1
+    DTSTART;TZID=Australia/Melbourne:20261101T090000
+    RRULE:FREQ=WEEKLY;COUNT=3
+    SUMMARY:Sunday ride
+  `, `
+    UID:d1
+    RECURRENCE-ID;TZID=Australia/Melbourne:20261108T090000
+    DTSTART;TZID=Australia/Melbourne:20261115T090000
+    SUMMARY:Doubled up
+  `), FROM, TO);
+  assert.deepEqual(moved.map((e) => [e.startsAt, e.title]), [
+    ['2026-10-31T22:00:00.000Z', 'Sunday ride'],
+    ['2026-11-14T22:00:00.000Z', 'Doubled up'],
+  ]);
+  const fourthAndLast = parseIcs(cal(`
+    UID:d2
+    DTSTART;TZID=Australia/Melbourne:20261122T090000
+    RRULE:FREQ=MONTHLY;BYDAY=4SU,-1SU;COUNT=4
+    SUMMARY:Late-month ride
+  `), FROM, TO);
+  assert.equal(new Set(fourthAndLast.map((e) => e.startsAt)).size, fourthAndLast.length, 'no repeats');
+  assert.ok(fourthAndLast.some((e) => e.startsAt === '2026-12-26T22:00:00.000Z'), '27 Dec is there once');
+});
+
+test('a stray quote mark in the text doesn’t lose the text', () => {
+  const [ev] = parseIcs(cal(`
+    UID:q1
+    DTSTART:20261108T000000Z
+    SUMMARY:Bring 6" spacers
+    DESCRIPTION:Meet 7:30. Bring 2" spacers
+    LOCATION;ALTREP="http://example.com:80/map":Caltex: out the front
+  `), FROM, TO);
+  assert.equal(ev.title, 'Bring 6" spacers');
+  assert.equal(ev.notes, 'Meet 7:30. Bring 2" spacers');
+  assert.equal(ev.location, 'Caltex: out the front');
+});
+
+test('fortnightly weeks start on the calendar’s own week start (WKST)', () => {
+  const events = parseIcs(cal(`
+    UID:k1
+    DTSTART;TZID=Australia/Melbourne:20261107T090000
+    RRULE:FREQ=WEEKLY;WKST=SU;INTERVAL=2;BYDAY=SA,SU;COUNT=4
+    SUMMARY:Weekend
+  `), FROM, TO);
+  assert.deepEqual(events.map((e) => melbDay(e.startsAt)), ['2026-11-07', '2026-11-15', '2026-11-21', '2026-11-29']);
+});
+
+test('a daily repeat that began years ago still reaches today', () => {
+  const events = parseIcs(cal('UID:old-daily\nDTSTART;TZID=Australia/Melbourne:20190101T070000\nRRULE:FREQ=DAILY\nSUMMARY:Coffee'),
+    FROM, '2026-10-27T00:00:00.000Z');
+  assert.deepEqual(events.map((e) => melbDay(e.startsAt)), ['2026-10-25', '2026-10-26', '2026-10-27']);
+  const weekly = parseIcs(cal('UID:old-weekly\nDTSTART;TZID=Australia/Melbourne:20000105T190000\nRRULE:FREQ=WEEKLY\nSUMMARY:Meeting'),
+    FROM, '2026-11-01T00:00:00.000Z');
+  assert.deepEqual(weekly.map((e) => melbDay(e.startsAt)), ['2026-10-28'], 'Wednesdays, as it began');
+});
+
+test('monthly rules: every Sunday, the last Sunday (BYSETPOS) and a day of the month', () => {
+  const every = parseIcs(cal('UID:e1\nDTSTART;TZID=Australia/Melbourne:20261101T090000\nRRULE:FREQ=MONTHLY;BYDAY=SU;COUNT=5\nSUMMARY:x'), FROM, TO);
+  assert.deepEqual(every.map((e) => melbDay(e.startsAt)), ['2026-11-01', '2026-11-08', '2026-11-15', '2026-11-22', '2026-11-29']);
+  const last = parseIcs(cal('UID:e2\nDTSTART;TZID=Australia/Melbourne:20261129T090000\nRRULE:FREQ=MONTHLY;BYDAY=SU;BYSETPOS=-1;COUNT=2\nSUMMARY:x'), FROM, TO);
+  assert.deepEqual(last.map((e) => melbDay(e.startsAt)), ['2026-11-29', '2026-12-27']);
+  const dated = parseIcs(cal('UID:e3\nDTSTART;TZID=Australia/Melbourne:20261115T190000\nRRULE:FREQ=MONTHLY;BYMONTHDAY=15,-1;COUNT=3\nSUMMARY:x'), FROM, TO);
+  assert.deepEqual(dated.map((e) => melbDay(e.startsAt)), ['2026-11-15', '2026-11-30', '2026-12-15']);
+});
+
+test('a feed that starts with a byte-order mark is still a calendar', () => {
+  assert.equal(parseIcs('﻿' + cal('UID:b1\nDTSTART:20261108T000000Z\nSUMMARY:x'), FROM, TO).length, 1);
+});
+
+/** The Melbourne date an instant falls on. */
+function melbDay(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Melbourne' }).format(new Date(iso));
+}

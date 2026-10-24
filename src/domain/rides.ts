@@ -34,7 +34,23 @@ export function defaultCategories(me: Member, chapters: Chapter[]): RideCategory
   return [...own, 'club', 'supported'];
 }
 
-/** Rides from today on (cancelled ones too, so people see they're off), by Melbourne month. */
+/** The Melbourne date a ride's last day falls on (a calendar's all-day end is the midnight after). */
+function lastDay(ride: Ride): string {
+  if (!ride.endsAt) return melbourneDate(ride.startsAt);
+  return melbourneDate(new Date(new Date(ride.endsAt).getTime() - (ride.allDay ? 1 : 0)).toISOString());
+}
+
+/** When answers close: at the start, or for an all-day ride when its first day is over. */
+function answersClose(ride: Ride): number {
+  const start = new Date(ride.startsAt).getTime();
+  if (!ride.allDay) return start;
+  // The next Melbourne midnight: a day on, give or take the daylight saving hour.
+  const next = [23, 24, 25].map((h) => start + h * 3600_000).find((t) => melbourneTime(new Date(t).toISOString()) === '12:00 am');
+  return next ?? start + 24 * 3600_000;
+}
+
+/** Rides from today on, a multi-day one until its last day (cancelled ones too, so people see
+ *  they're off), by the Melbourne month they start in. */
 export function upcomingByMonth(
   rides: Ride[],
   categories: RideCategory[],
@@ -42,7 +58,7 @@ export function upcomingByMonth(
 ): { month: string; rides: Ride[] }[] {
   const months: { key: string; month: string; rides: Ride[] }[] = [];
   const shown = rides
-    .filter((r) => categories.includes(r.category) && melbourneDate(r.startsAt) >= today)
+    .filter((r) => categories.includes(r.category) && lastDay(r) >= today)
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   for (const ride of shown) {
     const key = melbourneDate(ride.startsAt).slice(0, 7);
@@ -62,7 +78,7 @@ export function rsvpProblem(me: Member | null, ride: Ride | undefined, now: stri
   if (me.approval !== 'approved') return 'Only approved members can do that.';
   if (!ride) return 'No such ride.';
   if (ride.cancelledAt) return 'That ride was cancelled.';
-  if (new Date(now).getTime() >= new Date(ride.startsAt).getTime()) return 'That ride has already started.';
+  if (new Date(now).getTime() >= answersClose(ride)) return 'That ride has already started.';
   return null;
 }
 

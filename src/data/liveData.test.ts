@@ -10,7 +10,9 @@ function stubClient(tables: Record<string, unknown[]>, phones: unknown[] = []) {
     const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
     return { select: () => chain };
   };
-  return { from: query, rpc: () => Promise.resolve({ data: phones, error: null }) } as never;
+  const rpc = (name: string) =>
+    Promise.resolve({ data: name === 'shared_phones' ? phones : name === 'ride_calendar' ? tables.ride_calendar ?? null : null, error: null });
+  return { from: query, rpc } as never;
 }
 
 const west = { id: 'c1', slug: 'west', name: 'West', area: 'Western Melbourne', state: 'VIC', created_at: '' };
@@ -119,18 +121,21 @@ test('signed out: no roster claim is tried', async () => {
   assert.deepEqual(calls, []);
 });
 
-test('signed in: rides and answers load, with when the calendar last synced', async () => {
-  const ride = (id: string, synced: string, over: object = {}) => ({
+test('signed in: the calendar loads in one piece, with when every feed last synced', async () => {
+  const ride = (id: string, over: object = {}) => ({
     id, source: 'feed', feed_id: 'f1', external_uid: `${id}@x`, starts_at: '2026-11-07T21:30:00+00:00',
     ends_at: null, all_day: false, title: 'Coffee run', location: 'Laverton', notes: null, category: 'west',
-    cancelled_at: null, synced_at: synced, ...over,
+    cancelled_at: null, synced_at: '2026-10-24T10:00:00+00:00', ...over,
   });
   const data = await loadClub(
     stubClient({
       chapters: [west],
-      rides: [ride('r1', '2026-10-24T10:00:00+00:00'), ride('r2', '2026-10-24T10:15:00+00:00', { cancelled_at: '2026-10-24T10:15:00+00:00', all_day: true })],
-      rsvps: [{ ride_id: 'r1', member_id: 'm1', answer: 'going', updated_at: '2026-10-24T11:00:00+00:00' }],
-    }),
+      ride_calendar: {
+        rides: [ride('r1'), ride('r2', { cancelled_at: '2026-10-24T10:15:00+00:00', all_day: true })],
+        rsvps: [{ ride_id: 'r1', member_id: 'm1', answer: 'going', updated_at: '2026-10-24T11:00:00+00:00' }],
+        synced_at: '2026-10-24T09:45:00+00:00',
+      },
+    } as never),
     true,
   );
   assert.deepEqual(data.rides[0], {
@@ -140,5 +145,10 @@ test('signed in: rides and answers load, with when the calendar last synced', as
   assert.equal(data.rides[1].allDay, true);
   assert.equal(data.rides[1].cancelledAt, '2026-10-24T10:15:00.000Z');
   assert.deepEqual(data.rsvps, [{ rideId: 'r1', memberId: 'm1', answer: 'going', updatedAt: '2026-10-24T11:00:00.000Z' }]);
-  assert.equal(data.ridesSyncedAt, '2026-10-24T10:15:00.000Z');
+  assert.equal(data.ridesSyncedAt, '2026-10-24T09:45:00.000Z', 'the oldest feed, from the database');
+});
+
+test('signed in: a calendar not synced yet loads empty', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
+  assert.deepEqual([data.rides, data.rsvps, data.ridesSyncedAt], [[], [], null]);
 });

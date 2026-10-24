@@ -43,3 +43,26 @@ test('each good feed is applied with coloured rides; a failing one is recorded a
   assert.deepEqual(applied[0].events.map((e) => [e.uid, e.category]), [['a@x', 'north'], ['b@x', 'club']]);
   assert.deepEqual(errors, [['f-down', 'fetch failed: 503'], ['f-html', 'Not a calendar']]);
 });
+
+test('if recording an error fails too, the other feeds still sync', async () => {
+  const applied: string[] = [];
+  const result = await syncAllFeeds({
+    feeds: [
+      { id: 'f-down', url: 'https://example.com/down.ics', category: 'west' },
+      { id: 'f-ok', url: 'https://example.com/ok.ics', category: 'north' },
+    ],
+    fetchText: async (url) => {
+      if (url.endsWith('down.ics')) throw new Error('fetch failed: 503');
+      return ICS;
+    },
+    apply: async (feedId) => {
+      applied.push(feedId);
+    },
+    recordError: async () => {
+      throw new Error('database unreachable');
+    },
+    now: NOW,
+  });
+  assert.deepEqual(result, { ok: 1, failed: 1 });
+  assert.deepEqual(applied, ['f-ok']);
+});

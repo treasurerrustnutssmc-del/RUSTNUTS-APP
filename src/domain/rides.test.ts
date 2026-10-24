@@ -66,3 +66,12 @@ test('answer counts for one ride', () => {
   ];
   assert.deepEqual(rsvpCounts('r-1', rsvps), { going: 2, maybe: 1, no: 0 });
 });
+
+test('a weekend away stays listed, and takes answers, until it should', () => {
+  // All-day, Fri 20 to Sun 22 Nov in Melbourne (the end is the midnight after, as calendars give it).
+  const weekend = ride({ id: 'island', allDay: true, startsAt: '2026-11-19T13:00:00.000Z', endsAt: '2026-11-22T13:00:00.000Z' });
+  assert.deepEqual(upcomingByMonth([weekend], ['west'], '2026-11-22')[0].rides.map((r) => r.id), ['island'], 'still on, Sunday');
+  assert.deepEqual(upcomingByMonth([weekend], ['west'], '2026-11-23'), [], 'gone Monday');
+  assert.equal(rsvpProblem(member(), weekend, '2026-11-20T09:00:00.000Z'), null, 'Friday evening: still answering');
+  assert.equal(rsvpProblem(member(), weekend, '2026-11-20T13:00:00.000Z'), 'That ride has already started.', 'from Saturday');
+});

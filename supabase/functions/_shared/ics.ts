@@ -91,7 +91,13 @@ function unescapeText(v: string): string {
 }
 
 function parseLine(line: string): Prop | null {
-  const colon = line.search(/:(?=(?:[^"]*"[^"]*")*[^"]*$)/);
+  // The value starts at the first colon outside a quoted parameter; quotes in the value don't count.
+  let colon = -1;
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') quoted = !quoted;
+    else if (line[i] === ':' && !quoted) { colon = i; break; }
+  }
   if (colon < 0) return null;
   const [name, ...paramParts] = line.slice(0, colon).split(';');
   const params: Record<string, string> = {};
@@ -144,8 +150,14 @@ function nthWeekday(y: number, mo: number, day: number, n: number): number | nul
   return count - ((lastDow - day + 7) % 7) + (n + 1) * 7;
 }
 
-/** Every start of a repeating event, as wall-clock times in its own zone, until `limit`. */
-function expand(start: When, rule: string, limit: number): Local[] {
+const DAY = 24 * HOUR;
+
+/**
+ * Every start of a repeating event, as wall-clock times in its own zone, from about `from` until
+ * `limit`. Without a COUNT it jumps ahead to the window, so a repeat that began years ago still
+ * reaches today.
+ */
+function expand(start: When, rule: string, from: number, limit: number): Local[] {
   const r: Record<string, string> = {};
   for (const part of rule.split(';')) {
     const [k, v] = part.split('=');
@@ -160,6 +172,9 @@ function expand(start: When, rule: string, limit: number): Local[] {
     const m = t.match(/^([+-]?\d)?(SU|MO|TU|WE|TH|FR|SA)$/);
     return m ? { n: m[1] ? Number(m[1]) : 0, day: DAYS.indexOf(m[2]) } : null;
   }).filter((x): x is { n: number; day: number } => x !== null);
+  const byMonthDay = (r.BYMONTHDAY ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n !== 0 && Math.abs(n) <= 31);
+  const bySetPos = (r.BYSETPOS ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n !== 0);
+  const wkst = Math.max(0, DAYS.indexOf(r.WKST ?? 'MO'));
 
   const out: Local[] = [];
   const s = start.local;
@@ -171,31 +186,32 @@ function expand(start: When, rule: string, limit: number): Local[] {
     out.push(l);
     return true;
   };
+  /** The first period worth looking at: 0 with a COUNT (every one counts), else just before the window. */
+  const firstStep = (periodMs: number) =>
+    count === Infinity ? Math.max(0, Math.floor((from - startMs) / (periodMs * interval)) - 1) : 0;
 
   if (freq === 'DAILY') {
-    for (let i = 0; i < MAX_STEPS && take(addDays(s, i * interval)); i++);
+    for (let i = firstStep(DAY), n = 0; n < MAX_STEPS && take(addDays(s, i * interval)); i++, n++);
   } else if (freq === 'WEEKLY') {
-    const days = byDay.length ? byDay.map((b) => b.day).sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)) : [weekday(s)];
-    const monday = addDays(s, -((weekday(s) + 6) % 7));
-    outer: for (let w = 0; w < MAX_STEPS; w++) {
+    const offset = (day: number) => (day - wkst + 7) % 7;
+    const days = byDay.length ? [...new Set(byDay.map((b) => b.day))].sort((a, b) => offset(a) - offset(b)) : [weekday(s)];
+    const weekStart = addDays(s, -offset(weekday(s)));
+    outer: for (let w = firstStep(7 * DAY), n = 0; n < MAX_STEPS; w++, n++) {
       for (const day of days) {
-        if (!take(addDays(monday, w * 7 * interval + ((day + 6) % 7)))) break outer;
+        if (!take(addDays(weekStart, w * 7 * interval + offset(day)))) break outer;
       }
     }
   } else if (freq === 'MONTHLY') {
-    for (let i = 0; i < MAX_STEPS; i++) {
+    for (let i = firstStep(30 * DAY), n = 0; n < MAX_STEPS; i++, n++) {
       const total = s.mo - 1 + i * interval;
       const y = s.y + Math.floor(total / 12);
       const mo = (total % 12) + 1;
-      const dates = byDay.length
-        ? byDay.map((b) => nthWeekday(y, mo, b.day, b.n || 1)).filter((d): d is number => d !== null).sort((a, b) => a - b)
-        : s.d <= daysInMonth(y, mo) ? [s.d] : [];
       let keepGoing = true;
-      for (const d of dates) if (!(keepGoing = take({ ...s, y, mo, d }))) break;
+      for (const d of monthDates(y, mo, s.d, byDay, byMonthDay, bySetPos)) if (!(keepGoing = take({ ...s, y, mo, d }))) break;
       if (!keepGoing) break;
     }
   } else if (freq === 'YEARLY') {
-    for (let i = 0; i < MAX_STEPS; i++) {
+    for (let i = firstStep(365 * DAY), n = 0; n < MAX_STEPS; i++, n++) {
       const y = s.y + i * interval;
       if (s.d > daysInMonth(y, s.mo)) continue;
       if (!take({ ...s, y })) break;
@@ -206,11 +222,38 @@ function expand(start: When, rule: string, limit: number): Local[] {
   return out;
 }
 
+/** The days of one month a MONTHLY rule picks, in order and without repeats. */
+function monthDates(
+  y: number, mo: number, startDay: number,
+  byDay: { n: number; day: number }[], byMonthDay: number[], bySetPos: number[],
+): number[] {
+  const count = daysInMonth(y, mo);
+  let dates: number[];
+  if (byMonthDay.length) {
+    dates = byMonthDay.map((n) => (n > 0 ? n : count + 1 + n)).filter((d) => d >= 1 && d <= count);
+    if (byDay.length) dates = dates.filter((d) => byDay.some((b) => b.day === weekday({ y, mo, d, h: 0, mi: 0, s: 0 })));
+  } else if (byDay.length) {
+    dates = byDay.flatMap((b) => {
+      if (b.n !== 0) return [nthWeekday(y, mo, b.day, b.n)].filter((d): d is number => d !== null && d >= 1);
+      const all: number[] = [];
+      for (let d = 1; d <= count; d++) if (weekday({ y, mo, d, h: 0, mi: 0, s: 0 }) === b.day) all.push(d);
+      return all;
+    });
+  } else {
+    dates = startDay <= count ? [startDay] : [];
+  }
+  dates = [...new Set(dates)].sort((a, b) => a - b);
+  if (!bySetPos.length) return dates;
+  const picked = bySetPos.map((p) => dates[p > 0 ? p - 1 : dates.length + p]).filter((d): d is number => d !== undefined);
+  return [...new Set(picked)].sort((a, b) => a - b);
+}
+
 // ---------------------------------------------------------------------------
 // The feed
 
 /** Rides starting in [windowStart, windowEnd), in start order. Throws 'Not a calendar'. */
 export function parseIcs(text: string, windowStart: string, windowEnd: string): FeedEvent[] {
+  text = text.replace(/^\uFEFF/, '');
   if (!/^BEGIN:VCALENDAR/m.test(text)) throw new Error('Not a calendar');
   const lines = text.replace(/\r\n|\r/g, '\n').replace(/\n[ \t]/g, '').split('\n');
 
@@ -247,12 +290,14 @@ export function parseIcs(text: string, windowStart: string, windowEnd: string): 
     else masters.set(uid, b);
   }
 
-  const events: FeedEvent[] = [];
+  // Keyed by uid and start, so a date a rule makes twice (or a ride moved onto another one's date)
+  // is listed once; overrides come last, so a moved ride wins.
+  const events = new Map<string, FeedEvent>();
   const emit = (uid: string, b: Prop[], startMs: number, allDay: boolean, lengthMs: number | null) => {
     if (startMs < from || startMs >= to) return;
     if ((one(b, 'STATUS')?.value ?? '').toUpperCase() === 'CANCELLED') return;
     const categories = one(b, 'CATEGORIES')?.value;
-    events.push({
+    events.set(`${uid}\n${startMs}`, {
       uid,
       startsAt: new Date(startMs).toISOString(),
       endsAt: lengthMs === null ? null : new Date(startMs + lengthMs).toISOString(),
@@ -290,7 +335,7 @@ export function parseIcs(text: string, windowStart: string, windowEnd: string): 
       }
     }
     for (const o of overrides) if (o.uid === uid) skip.add(o.at);
-    const locals = rule ? expand(start, rule, to) : [start.local];
+    const locals = rule ? expand(start, rule, from, to) : [start.local];
     for (const local of locals) {
       const ms = toInstant({ ...start, local });
       if (!skip.has(ms)) emit(uid, b, ms, start.allDay, length);
@@ -303,7 +348,7 @@ export function parseIcs(text: string, windowStart: string, windowEnd: string): 
     if (start) emit(o.uid, o.block, toInstant(start), start.allDay, lengthOf(o.block, start));
   }
 
-  return events.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.uid.localeCompare(b.uid));
+  return [...events.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.uid.localeCompare(b.uid));
 }
 
 const PREFIXES: [RegExp, RideCategory][] = [

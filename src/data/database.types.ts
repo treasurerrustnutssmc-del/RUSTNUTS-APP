@@ -167,6 +167,14 @@ export type Database = {
       decline_member: { Args: { p_member: string }; Returns: undefined };
       set_member_status: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       set_rsvp: { Args: { p_ride: string; p_answer: RsvpAnswer }; Returns: undefined };
+      ride_calendar: {
+        Args: never;
+        Returns: {
+          rides: Database['public']['Tables']['rides']['Row'][];
+          rsvps: Database['public']['Tables']['rsvps']['Row'][];
+          synced_at: string | null;
+        };
+      };
       shared_phones: { Args: never; Returns: { member_id: string; phone: string }[] };
       claim_roster: { Args: never; Returns: boolean };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };

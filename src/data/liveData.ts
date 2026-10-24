@@ -29,7 +29,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     () => undefined,
   );
 
-  const [members, privates, phones, bikes, regos, contacts, positions, rides, rsvps] = await Promise.all([
+  const [members, privates, phones, bikes, regos, contacts, positions, calendar] = await Promise.all([
     db.from('members').select('*'),
     db.from('member_private').select('*'),
     db.rpc('shared_phones'),
@@ -37,10 +37,11 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     db.from('bike_registrations').select('*'),
     db.from('emergency_contacts').select('*').order('created_at'),
     db.from('positions').select('*'),
-    db.from('rides').select('*').order('starts_at'),
-    db.from('rsvps').select('*'),
+    // Rides from today on, their answers and the calendar's freshness, as one value so the API's
+    // row limit can't cut the list short.
+    db.rpc('ride_calendar'),
   ]);
-  for (const r of [members, privates, phones, bikes, regos, contacts, positions, rides, rsvps]) {
+  for (const r of [members, privates, phones, bikes, regos, contacts, positions, calendar]) {
     if (r.error) throw toError(r.error);
   }
 
@@ -113,7 +114,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       startedOn: p.started_on,
       endedOn: p.ended_on,
     })),
-    rides: (rides.data ?? []).map((r) => ({
+    rides: (calendar.data?.rides ?? []).map((r) => ({
       id: r.id,
       title: r.title,
       startsAt: instant(r.starts_at),
@@ -124,16 +125,13 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       category: r.category,
       cancelledAt: r.cancelled_at ? instant(r.cancelled_at) : null,
     })),
-    rsvps: (rsvps.data ?? []).map((r) => ({
+    rsvps: (calendar.data?.rsvps ?? []).map((r) => ({
       rideId: r.ride_id,
       memberId: r.member_id,
       answer: r.answer,
       updatedAt: instant(r.updated_at),
     })),
-    ridesSyncedAt: (rides.data ?? []).reduce<string | null>(
-      (latest, r) => (latest === null || instant(r.synced_at) > latest ? instant(r.synced_at) : latest),
-      null,
-    ),
+    ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
   };
 }
 

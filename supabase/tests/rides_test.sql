@@ -166,3 +166,104 @@ begin
   assert (select last_error from private.ride_feeds where id = west) = 'Not a calendar', 'error recorded';
   assert (select count(*) from rides where feed_id = west and cancelled_at is null) = 2, 'an error cancels nothing';
 end $$;
+
+\echo 'A ride listed twice in one sync goes in once'
+do $$
+declare
+  north constant uuid := '00000000-0000-0000-0000-00000000f002';
+  t timestamptz := date_trunc('minute', now()) + interval '12 days';
+  ev jsonb := jsonb_build_object('uid', 'dup@x', 'startsAt', t, 'endsAt', null, 'allDay', false, 'title', 'Twice',
+                                 'location', null, 'notes', null, 'category', 'north');
+begin
+  perform public.apply_ride_sync(north, jsonb_build_array(ev, ev || '{"title": "Twice (moved here)"}'));
+  assert (select count(*) from rides where external_uid = 'dup@x') = 1, 'one row';
+end $$;
+
+\echo 'Today starts at midnight in Melbourne: last night''s ride stays, this morning''s is cancelled'
+do $$
+declare
+  north constant uuid := '00000000-0000-0000-0000-00000000f002';
+  midnight timestamptz := private.club_date()::timestamp at time zone 'Australia/Melbourne';
+begin
+  insert into rides (feed_id, external_uid, starts_at, title, category) values
+    (north, 'last-night@x', midnight - interval '1 minute', 'Last night', 'north'),
+    (north, 'this-morning@x', midnight + interval '1 minute', 'This morning', 'north');
+  perform public.apply_ride_sync(north, '[]');
+  assert (select cancelled_at is null from rides where external_uid = 'last-night@x'), 'yesterday is left alone';
+  assert (select cancelled_at is not null from rides where external_uid = 'this-morning@x'), 'today is synced';
+end $$;
+
+\o /dev/null
+select public.apply_ride_sync('00000000-0000-0000-0000-00000000f002', jsonb_build_array(
+  jsonb_build_object('uid', 'same@x', 'startsAt', date_trunc('minute', now()) + interval '30 days', 'endsAt', null,
+                     'allDay', false, 'title', 'Same', 'location', null, 'notes', null, 'category', 'north')));
+\o
+\echo 'A sync that changes nothing rewrites nothing'
+do $$
+declare
+  north constant uuid := '00000000-0000-0000-0000-00000000f002';
+  before timestamptz := (select synced_at from rides where external_uid = 'same@x');
+begin
+  assert before < now(), 'the first sync was an earlier transaction';
+  perform public.apply_ride_sync(north, jsonb_build_array(
+    jsonb_build_object('uid', 'same@x', 'startsAt', date_trunc('minute', now()) + interval '30 days', 'endsAt', null,
+                       'allDay', false, 'title', 'Same', 'location', null, 'notes', null, 'category', 'north')));
+  assert (select synced_at from rides where external_uid = 'same@x') = before, 'row untouched';
+end $$;
+
+\echo 'An answer has to be one of the three, and an all-day ride takes answers all its first day'
+do $$
+declare
+  rita constant uuid := '00000000-0000-0000-0000-0000000000b1';
+  midnight timestamptz := private.club_date()::timestamp at time zone 'Australia/Melbourne';
+begin
+  insert into rides (id, source, starts_at, ends_at, all_day, title, category) values
+    ('00000000-0000-0000-0000-0000000000c4', 'app', midnight, midnight + interval '3 days', true, 'Island weekend', 'club'),
+    ('00000000-0000-0000-0000-0000000000c5', 'app', midnight - interval '1 day', midnight, true, 'Yesterday''s toy run', 'club');
+  assert pg_temp.try_as(rita, $q$select public.set_rsvp('00000000-0000-0000-0000-0000000000c1', null)$q$) = 'Pick an answer.', 'no answer';
+  assert pg_temp.try_as(rita, $q$select public.set_rsvp('00000000-0000-0000-0000-0000000000c4', 'going')$q$) is null, 'first day';
+  assert pg_temp.try_as(rita, $q$select public.set_rsvp('00000000-0000-0000-0000-0000000000c5', 'going')$q$)
+    = 'That ride has already started.', 'the day after';
+end $$;
+
+-- Reads ride_calendar() as someone, or the error.
+create function pg_temp.calendar_as(who uuid) returns jsonb language plpgsql as $$
+declare out jsonb;
+begin
+  perform set_config('request.jwt.claim.sub', coalesce(who::text, ''), true);
+  if who is null then set local role anon; else set local role authenticated; end if;
+  begin
+    select public.ride_calendar() into out;
+  exception when others then
+    out := jsonb_build_object('error', sqlerrm);
+  end;
+  reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
+  return out;
+end $$;
+grant execute on function pg_temp.calendar_as(uuid) to anon, authenticated;
+
+\echo 'The calendar comes in one piece: rides from today on, their answers, and the oldest feed update'
+do $$
+declare
+  rita constant uuid := '00000000-0000-0000-0000-0000000000b1';
+  cal jsonb := pg_temp.calendar_as(rita);
+  titles text[] := array(select r->>'title' from jsonb_array_elements(cal->'rides') r);
+begin
+  assert 'Coffee run' = any(titles), 'next week';
+  assert 'Island weekend' = any(titles), 'a weekend that started today';
+  assert 'Already rolling' = any(titles), 'earlier today';
+  assert not ('Last week' = any(titles)), 'not last week';
+  assert not ('Yesterday''s toy run' = any(titles)), 'not one that ended at midnight';
+  assert (select bool_and((a->>'ride_id')::uuid in (select (r->>'id')::uuid from jsonb_array_elements(cal->'rides') r))
+          from jsonb_array_elements(cal->'rsvps') a), 'answers only for those rides';
+  assert jsonb_array_length(cal->'rsvps') >= 2, 'with the answers';
+  assert (cal->>'synced_at')::timestamptz = (select min(last_ok_at) from private.ride_feeds), 'the oldest feed';
+
+  update private.ride_feeds set last_ok_at = null where id = '00000000-0000-0000-0000-00000000f002';
+  assert pg_temp.calendar_as(rita)->'synced_at' = 'null'::jsonb, 'a feed that never synced means not up to date';
+
+  assert pg_temp.calendar_as('00000000-0000-0000-0000-0000000000b3') = '{"rides": [], "rsvps": [], "synced_at": null}',
+    'an applicant gets nothing';
+  assert pg_temp.calendar_as(null) ? 'error', 'the public can''t ask';
+end $$;
