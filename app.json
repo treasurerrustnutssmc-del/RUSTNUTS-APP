@@ -33,6 +33,17 @@
     "plugins": [
       "expo-font"
     ],
-    "owner": "rustnutssmcs-team"
+    "owner": "rustnutssmcs-team",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/57ac4925-9517-41e2-8a45-4eeccd32abc5"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "57ac4925-9517-41e2-8a45-4eeccd32abc5"
+      }
+    }
   }
 }
