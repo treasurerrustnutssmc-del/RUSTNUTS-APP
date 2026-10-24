@@ -2,7 +2,7 @@
 // is and hand back the club as it should be, or throw when the person isn't allowed. The
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
-import { appointProblem, canApprove, canManageMember, endTermProblem } from '../domain/access';
+import { appointProblem, endTermProblem, isBoardOf } from '../domain/access';
 import { NATIONAL_ROLES } from '../domain/labels';
 import type { ClubData, Member, MemberStatus, PositionRole } from '../domain/types';
 import {
@@ -104,11 +104,17 @@ export function apply(ctx: DemoCtx, input: ApplicationInput): { data: ClubData; 
   return { data, id };
 }
 
+// Same checks, in the same order and with the same words, as the database actions.
+function chapterName(data: ClubData, chapterId: string): string {
+  return data.chapters.find((c) => c.id === chapterId)?.name ?? 'that chapter’s';
+}
+
 export function approve(ctx: DemoCtx, memberId: string, status: MemberStatus): ClubData {
   const target = findMember(ctx.data, memberId);
-  if (!canApprove(ctx.me, target, ctx.data.positions)) {
-    throw new NotAllowedError('Only that chapter’s board can approve this applicant.');
+  if (!isBoardOf(ctx.me, target.chapterId, ctx.data.positions)) {
+    throw new NotAllowedError(`Only the ${chapterName(ctx.data, target.chapterId)} board can approve this applicant.`);
   }
+  if (target.approval !== 'pending') throw new NotAllowedError('This person isn’t waiting for approval.');
   return patchMember(ctx.data, memberId, {
     approval: 'approved',
     status,
@@ -119,17 +125,20 @@ export function approve(ctx: DemoCtx, memberId: string, status: MemberStatus): C
 
 export function decline(ctx: DemoCtx, memberId: string): ClubData {
   const target = findMember(ctx.data, memberId);
-  if (!canApprove(ctx.me, target, ctx.data.positions)) {
+  if (!isBoardOf(ctx.me, target.chapterId, ctx.data.positions)) {
     throw new NotAllowedError('Only that chapter’s board can decline this applicant.');
   }
+  if (target.approval !== 'pending') throw new NotAllowedError('This person isn’t waiting for approval.');
   return patchMember(ctx.data, memberId, { approval: 'declined' });
 }
 
 export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus): ClubData {
+  if (ctx.me?.id === memberId) throw new NotAllowedError('You can’t change your own status.');
   const target = findMember(ctx.data, memberId);
-  if (!canManageMember(ctx.me, target, ctx.data.positions)) {
-    throw new NotAllowedError('Only that chapter’s board can change this, and never for themselves.');
+  if (!isBoardOf(ctx.me, target.chapterId, ctx.data.positions)) {
+    throw new NotAllowedError('Only that chapter’s board can change this member’s status.');
   }
+  if (target.approval !== 'approved') throw new NotAllowedError('Approve them first.');
   return patchMember(ctx.data, memberId, { status, ...statusDates(target, status, ctx.today) });
 }
 

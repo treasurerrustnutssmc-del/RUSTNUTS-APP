@@ -32,6 +32,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   // Whose data is loaded right now ('' = loaded while signed out), and why the last load failed.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [justApplied, setJustApplied] = useState(false);
   const latest = useRef(0);
   const today = todayIso();
 
@@ -67,6 +68,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const uid = session?.user.id ?? null;
       setUserId(uid);
       setAuthEmail(session?.user.email ?? null);
+      if (!uid) setJustApplied(false);
       // Run outside the auth callback, as Supabase recommends.
       setTimeout(() => {
         reload(uid);
@@ -80,7 +82,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
 
   const me = useMemo(() => data.members.find((m) => m.id === userId) ?? null, [data.members, userId]);
   const loadedForUser = loadedFor === '' ? null : loadedFor;
-  const view = sessionView({ userId, loadedFor: loadedForUser, loadError, hasMe: !!me });
+  const view = sessionView({ userId, loadedFor: loadedForUser, loadError, hasMe: !!me, justApplied });
   // Until this person's own data arrives, treat them as signed out-but-waiting rather than
   // giving them someone else's (or nobody's) access level.
   const visibleMe = view === 'ready' ? me : null;
@@ -137,20 +139,21 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const bikeProblem = validateApplicationBike(input.bike ?? null, today);
       if (bikeProblem) throw new Error(bikeProblem);
       const bike = input.bike && input.bike.make.trim() ? input.bike : null;
-      ok(
-        await supabase().rpc('apply_to_join', {
-          p_chapter: input.chapterId,
-          p_full_name: input.fullName.trim(),
-          p_road_name: input.roadName.trim() || undefined,
-          p_phone: input.phone.trim() || undefined,
-          p_introduced_by: input.introducedBy.trim() || undefined,
-          p_note: input.note.trim() || undefined,
-          p_status: input.status,
-          p_bike_make: bike?.make.trim() || undefined,
-          p_bike_model: bike?.model.trim() || undefined,
-          p_bike_year: bike?.year ?? undefined,
-        }),
-      );
+      const result = await supabase().rpc('apply_to_join', {
+        p_chapter: input.chapterId,
+        p_full_name: input.fullName.trim(),
+        p_road_name: input.roadName.trim() || undefined,
+        p_phone: input.phone.trim() || undefined,
+        p_introduced_by: input.introducedBy.trim() || undefined,
+        p_note: input.note.trim() || undefined,
+        p_status: input.status,
+        p_bike_make: bike?.make.trim() || undefined,
+        p_bike_model: bike?.model.trim() || undefined,
+        p_bike_year: bike?.year ?? undefined,
+      });
+      // "Already applied" means an earlier try went through but its answer got lost on the way back.
+      if (result.error && !/already applied/i.test(result.error.message ?? '')) throw friendlyError(result.error);
+      setJustApplied(true);
       await after();
     },
 

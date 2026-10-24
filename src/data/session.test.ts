@@ -2,8 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { refreshError, sessionView } from './session';
 
-const view = (userId: string | null, loadedFor: string | null, loadError: string | null, hasMe: boolean) =>
-  sessionView({ userId, loadedFor, loadError, hasMe });
+const view = (
+  userId: string | null,
+  loadedFor: string | null,
+  loadError: string | null,
+  hasMe: boolean,
+  justApplied = false,
+) => sessionView({ userId, loadedFor, loadError, hasMe, justApplied });
 
 test('nobody signed in', () => {
   assert.equal(view(null, null, null, false), 'signed-out');
@@ -32,7 +37,11 @@ test('a failed first load is an error with a way to retry, never the join form',
 });
 
 test('a reload that fails right after applying shows Try again, not the join form again', () => {
-  assert.equal(view('u1', 'u1', 'No connection', false), 'error');
+  assert.equal(view('u1', 'u1', 'No connection', false, true), 'error');
+});
+
+test('a refresh that fails while someone is still filling in the join form keeps the form', () => {
+  assert.equal(view('u1', 'u1', 'No connection', false, false), 'needs-application');
 });
 
 test('a failed refresh while data is on screen is reported as a small notice, not hidden', () => {

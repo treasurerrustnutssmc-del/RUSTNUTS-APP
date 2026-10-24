@@ -22,9 +22,9 @@ export const ROLE_LABEL: Record<PositionRole, string> = {
   tail_gunner: 'Tail Gunner',
   social_media_officer: 'Social Media Officer',
   club_coach: 'Club Coach',
-  nec_chair: 'National Chairperson',
+  nec_chair: 'National Chairman',
   nec_secretary: 'National Secretary',
-  nec_auditor: 'NEC Auditor',
+  nec_auditor: 'National Auditor',
 };
 
 /** Short forms used on chips, matching the Road Rules formation labels. */

@@ -104,6 +104,14 @@
       "status": "full",
       "approval": "approved",
       "sharePhone": false
+    },
+    {
+      "key": "kim",
+      "chapter": "west",
+      "name": "Kim Nguyen",
+      "status": "full",
+      "approval": "approved",
+      "sharePhone": false
     }
   ],
   "positions": [
@@ -176,6 +184,14 @@
       "member": "lou",
       "chapter": null,
       "role": "nec_secretary",
+      "startedOn": "2025-08-16",
+      "endedOn": null
+    },
+    {
+      "key": "kim-nec-auditor",
+      "member": "kim",
+      "chapter": null,
+      "role": "nec_auditor",
       "startedOn": "2025-08-16",
       "endedOn": null
     }
@@ -258,7 +274,10 @@
       "member": "spanner",
       "chapter": null,
       "role": "nec_auditor",
-      "allowed": false
+      "allowed": false,
+      "without": [
+        "kim-nec-auditor"
+      ]
     },
     {
       "name": "A President hands out a national role",
@@ -267,7 +286,10 @@
       "member": "torque",
       "chapter": null,
       "role": "nec_auditor",
-      "allowed": false
+      "allowed": false,
+      "without": [
+        "kim-nec-auditor"
+      ]
     },
     {
       "name": "Secretary fills a seat she already holds",
@@ -405,7 +427,10 @@
       "member": "torque",
       "chapter": null,
       "role": "nec_auditor",
-      "allowed": true
+      "allowed": true,
+      "without": [
+        "kim-nec-auditor"
+      ]
     },
     {
       "name": "The National Secretary appoints a National Auditor",
@@ -414,7 +439,10 @@
       "member": "torque",
       "chapter": null,
       "role": "nec_auditor",
-      "allowed": false
+      "allowed": false,
+      "without": [
+        "kim-nec-auditor"
+      ]
     },
     {
       "name": "The Chairman ends the National Secretary's role",
@@ -436,6 +464,43 @@
       "action": "endTerm",
       "position": "lou-nec-secretary",
       "allowed": false
+    },
+    {
+      "name": "The National Secretary ends the National Auditor's role",
+      "as": "lou",
+      "action": "endTerm",
+      "position": "kim-nec-auditor",
+      "allowed": false
+    },
+    {
+      "name": "The National Auditor ends the National Secretary's role",
+      "as": "kim",
+      "action": "endTerm",
+      "position": "lou-nec-secretary",
+      "allowed": false
+    },
+    {
+      "name": "The Chairman ends the National Auditor's role",
+      "as": "chair",
+      "action": "endTerm",
+      "position": "kim-nec-auditor",
+      "allowed": true
+    },
+    {
+      "name": "The National Secretary seats an East President (seat free)",
+      "as": "lou",
+      "action": "appoint",
+      "member": "ash",
+      "chapter": "east",
+      "role": "president",
+      "allowed": true
+    },
+    {
+      "name": "The National Auditor ends the North President's term",
+      "as": "kim",
+      "action": "endTerm",
+      "position": "smokey-president",
+      "allowed": true
     },
     {
       "name": "West board approves a West applicant",
@@ -641,6 +706,17 @@
       "make": "",
       "model": "",
       "year": null,
+      "allowed": false
+    },
+    {
+      "name": "A new sign-up applies with only a bike year",
+      "as": "newbie",
+      "action": "apply",
+      "chapter": "west",
+      "fullName": "New Person",
+      "make": "",
+      "model": "",
+      "year": 2019,
       "allowed": false
     }
   ],

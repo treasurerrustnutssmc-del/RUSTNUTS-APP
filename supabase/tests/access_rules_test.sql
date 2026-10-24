@@ -448,6 +448,29 @@ insert into auth.users (id, email) values ('00000000-0000-0000-0000-000000000099
 set local role service_role;
 insert into members (id, chapter_id, full_name, approval) select '00000000-0000-0000-0000-000000000099', id, 'Added By Admin', 'approved' from chapters where slug = 'west';
 insert into positions (member_id, chapter_id, role) select '00000000-0000-0000-0000-000000000099', id, 'officer' from chapters where slug = 'west';
+insert into bikes (member_id, make, model, year) values ('00000000-0000-0000-0000-000000000099', 'Triumph', 'Bonneville', 2020);
+do $$ begin
+  begin
+    insert into bikes (member_id, make, model, year) values ('00000000-0000-0000-0000-000000000099', 'Triumph', 'Bonneville', 2099);
+    raise exception 'the admin added a bike from 2099';
+  exception when raise_exception then
+    if sqlerrm = 'the admin added a bike from 2099' then raise; end if;
+  end;
+end $$;
+rollback;
+
+\echo 'Emergency contacts need a name and number however they are written'
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-000000000007'); -- Gravel
+set local role authenticated;
+do $$ begin
+  begin
+    insert into emergency_contacts (member_id, name, relationship, phone) values (auth.uid(), ' ', 'Wife', '');
+    raise exception 'a blank emergency contact went straight in';
+  exception when raise_exception then
+    if sqlerrm = 'a blank emergency contact went straight in' then raise; end if;
+  end;
+end $$;
 rollback;
 
 \echo 'One holder per board seat'

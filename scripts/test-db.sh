@@ -35,5 +35,5 @@ done
 for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_parity -f "$f" >/dev/null
 done
-node "$ROOT/scripts/parity-sql.mjs" | "${PSQL[@]}" -d rustnuts_parity
+(cd "$ROOT" && npx tsx scripts/parity-sql.mts) | "${PSQL[@]}" -d rustnuts_parity
 echo 'ALL DATABASE CHECKS PASSED'

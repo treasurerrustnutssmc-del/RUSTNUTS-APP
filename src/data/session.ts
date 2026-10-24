@@ -10,12 +10,15 @@ export function sessionView(s: {
   loadedFor: string | null;
   loadError: string | null;
   hasMe: boolean;
+  /** They've just sent their application, so the join form must not come back. */
+  justApplied?: boolean;
 }): SessionView {
   if (!s.userId) return 'signed-out';
   if (s.loadedFor === s.userId) {
     if (s.hasMe) return 'ready';
-    // Data from before they applied: if the reload since then failed, don't show the join form again.
-    return s.loadError ? 'error' : 'needs-application';
+    // Just applied but the reload failed: never show the join form again. Otherwise a failed
+    // refresh keeps the form (and what they've typed), with the refresh strip showing.
+    return s.loadError && s.justApplied ? 'error' : 'needs-application';
   }
   return s.loadError ? 'error' : 'loading';
 }

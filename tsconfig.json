@@ -3,5 +3,11 @@
   "compilerOptions": {
     "strict": true
   },
-  "exclude": ["node_modules", "src/**/*.test.ts", "scripts", "preview"]
+  "exclude": [
+    "node_modules",
+    "src/**/*.test.ts",
+    "src/**/*.testkit.ts",
+    "scripts",
+    "preview"
+  ]
 }

@@ -463,7 +463,7 @@ export function LoadErrorScreen() {
       </View>
       <Stack gap={space.sm}>
         <H1>Couldn’t reach the club</H1>
-        <Body>{loadError ?? 'Something went wrong.'} Your details are safe; nothing was changed.</Body>
+        <Body>{loadError ?? 'Something went wrong.'} Nothing you’ve already sent is lost.</Body>
       </Stack>
       <Button
         label="Try again"

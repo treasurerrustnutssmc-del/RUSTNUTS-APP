@@ -2,7 +2,7 @@
 --
 -- 1. Positions change only through two checked actions, appoint_position and end_position.
 --    Nobody appoints or ends their own position, a chapter seat only goes to a member of that
---    chapter, a President is seated or unseated only by the National Chair, Secretary or Auditor,
+--    chapter, a President is seated or unseated only by the National Chairman, Secretary or Auditor,
 --    only the National Chairman hands out or ends the other national roles, the Chairman's own
 --    seat changes after the vote (recorded by the admin), an ended term stays ended, and every
 --    change records who made it.
@@ -51,6 +51,20 @@ $$;
 create trigger bikes_check before insert or update on public.bikes
   for each row execute function private.check_bike();
 
+-- Same for emergency contacts: a blank contact would hide the board's "no emergency contact" alert.
+create or replace function private.check_contact()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if nullif(trim(new.name), '') is null or nullif(trim(new.phone), '') is null then
+    raise exception 'Add their name and number.';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger emergency_contacts_check before insert or update on public.emergency_contacts
+  for each row execute function private.check_contact();
+
 -- ---------------------------------------------------------------------------
 -- "Who is asking?" helpers, now with an empty search_path
 -- ---------------------------------------------------------------------------
@@ -69,7 +83,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
   );
 $$;
 
--- National Chair, Secretary or Auditor. Sitting Presidents are on the NEC but are not officers.
+-- National Chairman, Secretary or Auditor. Sitting Presidents are on the NEC but are not officers.
 create or replace function private.is_nec_officer()
 returns boolean language sql stable security definer set search_path = '' as $$
   select private.is_approved_member() and exists (
@@ -113,7 +127,7 @@ revoke all on all functions in schema private from public, anon;
 grant execute on all functions in schema private to authenticated;
 -- Admin tools (service key) write bikes too, so they need the bike checks.
 grant usage on schema private to service_role;
-grant execute on function private.check_bike(), private.check_bike_year(int), private.club_date(timestamptz) to service_role;
+grant execute on function private.check_bike_year(int), private.club_date(timestamptz) to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Positions: only through the two actions below
@@ -159,7 +173,7 @@ begin
     if seat is null or seat <> target.chapter_id then raise exception 'They’re not a member of that chapter.'; end if;
     if p_role = 'president' then
       if not private.is_nec_officer() then
-        raise exception 'Only the National Chair, Secretary or Auditor can seat a President.';
+        raise exception 'Only the National Chairman, Secretary or Auditor can seat a President.';
       end if;
     elsif not private.is_board_of(seat) then
       raise exception 'Only that chapter’s board can appoint here.';
@@ -206,7 +220,7 @@ begin
     if not private.is_chairman() then raise exception 'Only the National Chairman can end a national role.'; end if;
   elsif pos.role = 'president' then
     if not private.is_nec_officer() then
-      raise exception 'Only the National Chair, Secretary or Auditor can end a President’s term.';
+      raise exception 'Only the National Chairman, Secretary or Auditor can end a President’s term.';
     end if;
   elsif not private.is_board_of(pos.chapter_id) then
     raise exception 'Only that chapter’s board can end this term.';
@@ -250,6 +264,9 @@ begin
   if not exists (select 1 from public.chapters where id = p_chapter) then raise exception 'Pick a chapter.'; end if;
   if (bike_make is null) <> (bike_model is null) then
     raise exception 'Add the bike’s make and model, or leave both blank.';
+  end if;
+  if bike_make is null and p_bike_year is not null then
+    raise exception 'Add the bike’s make and model too, or clear the year.';
   end if;
   if bike_make is not null then perform private.check_bike_year(p_bike_year); end if;
 

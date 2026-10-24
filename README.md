@@ -15,7 +15,7 @@ owned by the club. One codebase builds the iPhone app, the Android app and a web
 - Chapters, board line-ups and the NEC
 - Board tab: approve or decline applicants, renewals due, missing emergency contacts, FNG reviews
 - Manage a member: change status, appoint to or end positions (never your own; only the
-  National Chair, Secretary or Auditor can seat or unseat a President)
+  National Chairman, Secretary or Auditor can seat or unseat a President)
 - Me: edit profile, bikes, emergency contacts, phone sharing
 
 Four access levels (public, member, board, national) plus applicants. The rules are in
@@ -40,6 +40,17 @@ reset when you reload. Nobody in the demo data is a real person.
   own team and sends a few emails an hour).
 - The first member (the founder) is approved and given positions directly in the database;
   everyone after that goes through Ask to join and the Board tab.
+- Who can change positions: a chapter's board (or any President or national role holder) for
+  that chapter's roles; only the National Chairman, Secretary or Auditor for a chapter President;
+  only the National Chairman for the National Secretary and Auditor. Nobody changes their own.
+- **Recording a new National Chairman after the vote** (admin only, in the Supabase SQL editor):
+
+  ```sql
+  update public.positions set ended_on = (now() at time zone 'Australia/Melbourne')::date
+    where role = 'nec_chair' and ended_on is null;
+  insert into public.positions (member_id, role)
+    select id, 'nec_chair' from public.members where full_name = 'NEW CHAIRMAN''S FULL NAME';
+  ```
 
 ## Commands
 

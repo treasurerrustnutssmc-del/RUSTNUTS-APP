@@ -28,7 +28,7 @@ export function RefreshBanner() {
       }}
     >
       <Ionicons name="cloud-offline-outline" size={18} color={colors.danger} />
-      <Small style={{ flex: 1, color: colors.bone }}>Couldn’t refresh. {refreshError}</Small>
+      <Small style={{ flex: 1, color: colors.bone }}>Couldn’t refresh the club data.</Small>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Try refreshing again"

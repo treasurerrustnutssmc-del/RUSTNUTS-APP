@@ -86,7 +86,7 @@ export function canManageMember(viewer: Member | null, target: Member, positions
   return isBoardOf(viewer, target.chapterId, positions);
 }
 
-/** National Chair, Secretary or Auditor. Sitting Presidents are on the NEC but are not officers. */
+/** National Chairman, Secretary or Auditor. Sitting Presidents are on the NEC but are not officers. */
 export function isNecOfficer(memberId: string, positions: Position[]): boolean {
   return activePositions(memberId, positions).some((p) => NATIONAL_ROLES.includes(p.role));
 }
@@ -121,7 +121,7 @@ export function appointProblem(
   } else {
     if (!seatChapter || seatChapter !== target.chapterId) return 'They’re not a member of that chapter.';
     if (role === 'president') {
-      if (!isNecOfficer(me.id, data.positions)) return 'Only the National Chair, Secretary or Auditor can seat a President.';
+      if (!isNecOfficer(me.id, data.positions)) return 'Only the National Chairman, Secretary or Auditor can seat a President.';
     } else if (!isBoardOf(me, seatChapter, data.positions)) {
       return 'Only that chapter’s board can appoint here.';
     }
@@ -145,7 +145,7 @@ export function endTermProblem(me: Member | null, position: Position, data: Club
   if (position.role === 'president') {
     return isNecOfficer(me.id, data.positions)
       ? null
-      : 'Only the National Chair, Secretary or Auditor can end a President’s term.';
+      : 'Only the National Chairman, Secretary or Auditor can end a President’s term.';
   }
   return isBoardOf(me, position.chapterId, data.positions) ? null : 'Only that chapter’s board can end this term.';
 }

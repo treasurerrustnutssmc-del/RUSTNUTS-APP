@@ -1,21 +1,16 @@
 // Turns the shared who-can-do-what cases (supabase/tests/parity.json) into SQL that runs each
-// case against the real database rules. Used by scripts/test-db.sh; prints SQL to stdout.
-// src/data/parity.test.ts runs the same cases against the demo.
+// case against the real database rules, expecting exactly the demo's answer: allowed, or refused
+// with the demo's own message. Used by scripts/test-db.sh (via tsx); prints SQL to stdout.
 
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { demoAnswer, fixture as fx, type ParityCase } from '../src/data/parityFixture.testkit';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const fx = JSON.parse(readFileSync(join(root, 'supabase/tests/parity.json'), 'utf8'));
+const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
+const id = (kind: string, key: string) => `md5(${q(`${kind}:${key}`)})::uuid`;
+const chapter = (slug: string | null) => (slug === null ? 'null' : `(select id from public.chapters where slug = ${q(slug)})`);
+const date = (d: string | null) => (d === null ? 'null' : `date ${q(d)}`);
 
-const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
-const id = (kind, key) => `md5(${q(`${kind}:${key}`)})::uuid`;
-const chapter = (slug) => (slug === null ? 'null' : `(select id from public.chapters where slug = ${q(slug)})`);
-const date = (d) => (d === null ? 'null' : `date ${q(d)}`);
-
-const out = [];
-const sql = (s) => out.push(s);
+const out: string[] = [];
+const sql = (s: string) => out.push(s);
 
 sql('\\set ON_ERROR_STOP 1');
 sql('\\set QUIET 1');
@@ -57,7 +52,7 @@ for (const c of fx.contacts) {
   );
 }
 
-const call = (c) => {
+const call = (c: ParityCase & Record<string, any>): string => {
   switch (c.action) {
     case 'appoint':
       return `public.appoint_position(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)})`;
@@ -90,25 +85,33 @@ const call = (c) => {
 sql('\\echo Parity: the demo and the database agree on who can do what');
 for (const c of fx.cases) {
   const name = q(c.name);
+  const expected = demoAnswer(c);
+  if ((expected === null) !== c.allowed) {
+    throw new Error(`The demo doesn't give the listed answer for "${c.name}" (npm test shows which).`);
+  }
   sql('begin;');
+  for (const key of c.without ?? []) sql(`delete from public.positions where id = ${id('p', key)};`);
   sql(`select set_config('request.jwt.claim.sub', ${id('m', c.as)}::text, true);`);
   sql('set local role authenticated;');
   sql('do $parity$ begin');
   sql('  begin');
-  sql(`    perform ${call(c)};`);
+  sql(`    perform ${call(c as ParityCase & Record<string, any>)};`);
   sql('  exception when others then');
-  if (c.allowed) {
+  if (expected === null) {
     sql(`    raise exception 'PARITY: "%" should be allowed (as in the demo) but the database refused: %', ${name}, sqlerrm;`);
   } else {
+    sql(`    if sqlerrm <> ${q(expected)} then`);
+    sql(`      raise exception 'PARITY: "%" refused for a different reason. Demo: "%" Database: "%"', ${name}, ${q(expected)}, sqlerrm;`);
+    sql('    end if;');
     sql('    return;');
   }
   sql('  end;');
-  if (!c.allowed) {
+  if (expected !== null) {
     sql(`  raise exception 'PARITY: "%" should be refused (as in the demo) but the database allowed it', ${name};`);
   }
   sql('end $parity$;');
   sql('rollback;');
 }
-sql(`\\echo '  ${fx.cases.length} cases agree'`);
+sql(`\\echo '  ${fx.cases.length} cases agree, with the same refusal messages'`);
 
 process.stdout.write(out.join('\n') + '\n');

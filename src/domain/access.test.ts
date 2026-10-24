@@ -96,7 +96,7 @@ test('a board cannot manage an applicant who has not been approved yet', () => {
   assert.equal(canManageMember(m('m-torque'), m('m-dylan'), P), false);
 });
 
-test('only National Chair, Secretary or Auditor count as NEC officers', () => {
+test('only National Chairman, Secretary or Auditor count as NEC officers', () => {
   assert.equal(isNecOfficer('m-rusty', P), true); // NEC chair
   assert.equal(isNecOfficer('m-smokey', P), false); // a President sits on the NEC but is not an officer
   assert.equal(isNecOfficer('m-torque', P), false);
