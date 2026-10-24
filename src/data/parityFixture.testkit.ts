@@ -4,14 +4,13 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ClubData, Member, MemberStatus, PositionRole, RideCategory } from '../domain/types';
+import type { ChargeKind, CheckinKind, ClubData, Member, MemberStatus, PaymentState, PositionRole, RideCategory } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
 import { addDays } from '../domain/dates';
 import { fyOf } from '../domain/fees';
 import { addMonths } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
-import type { ChargeKind, CheckinKind, PaymentState } from '../domain/types';
 import { runStage4Action, STAGE4_ACTIONS, type Stage4Action } from './demoStage4';
 
 export interface ParityCase extends Record<string, unknown> {

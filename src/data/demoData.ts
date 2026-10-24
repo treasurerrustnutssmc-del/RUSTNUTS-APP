@@ -1,11 +1,10 @@
 // Made-up example members for the demo build. Nobody here is a real person.
 // Replaced by the live database once Supabase is connected.
 
-import type { ClubData, Member, MemberPrivate, Ride } from '../domain/types';
+import type { ClubData, Member, MemberPrivate, MemberStatus, Ride } from '../domain/types';
 // Stage 4
 import { addDays, todayIso } from '../domain/dates';
 import { fyOf, receiptNo } from '../domain/fees';
-import type { MemberStatus } from '../domain/types';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
   roadName: null,

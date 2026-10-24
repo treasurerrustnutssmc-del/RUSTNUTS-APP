@@ -12,13 +12,15 @@ import type {
   Member,
   MemberPrivate,
   MemberStatus,
+  PaymentDetails,
+  PaymentMethod,
   PositionRole,
   RsvpAnswer,
+  Votes,
 } from '../domain/types';
 // Stage 4
 import type { OpenCheckinInput } from '../domain/attendance';
 import type { FngOutcome } from '../domain/joining';
-import type { PaymentDetails, PaymentMethod, Votes } from '../domain/types';
 
 export class NotAllowedError extends Error {}
 
