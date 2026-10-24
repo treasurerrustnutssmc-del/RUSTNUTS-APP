@@ -381,7 +381,7 @@ export function ListRow({
     <>
       {left}
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        {typeof title === 'string' ? <Body strong numberOfLines={1}>{title}</Body> : title}
+        {typeof title === 'string' ? <Text numberOfLines={1} style={type.name}>{title}</Text> : title}
         {typeof subtitle === 'string' ? <Small numberOfLines={2}>{subtitle}</Small> : subtitle}
       </View>
       {right}
@@ -421,7 +421,7 @@ export function Notice({ tone = 'info', title, children }: { tone?: NoticeTone; 
     <View style={[styles.notice, { backgroundColor: t.bg }]}>
       <Ionicons name={t.icon} size={20} color={t.fg} style={{ marginTop: 1 }} />
       <View style={{ flex: 1, gap: 2 }}>
-        {title ? <Body strong style={{ color: t.fg }}>{title}</Body> : null}
+        {title ? <Text style={[type.name, { color: t.fg }]}>{title}</Text> : null}
         {typeof children === 'string' ? <Small style={{ color: colors.boneDim }}>{children}</Small> : children}
       </View>
     </View>
@@ -443,7 +443,7 @@ export function KeyValue({ label, value, tone }: { label: string; value: React.R
     <View style={styles.kv}>
       <Small style={{ flexShrink: 0 }}>{label}</Small>
       {typeof value === 'string' ? (
-        <Text style={[type.body, { color, textAlign: 'right', flexShrink: 1 }]}>{value}</Text>
+        <Text style={[type.name, { color, textAlign: 'right', flexShrink: 1 }]}>{value}</Text>
       ) : (
         value
       )}
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
-  chipText: { fontFamily: fonts.body, fontSize: 10.5, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+  chipText: { fontFamily: fonts.stencil, fontSize: 11.5, letterSpacing: 1, textTransform: 'uppercase' },
   avatar: {
     backgroundColor: colors.red,
     alignItems: 'center',
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   choiceSelected: { backgroundColor: colors.red, borderColor: colors.redBright },
-  choiceText: { fontFamily: fonts.body, fontSize: 14, fontWeight: '600', color: colors.boneDim },
+  choiceText: { fontFamily: fonts.stencil, fontSize: 15, letterSpacing: 0.4, color: colors.boneDim },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',

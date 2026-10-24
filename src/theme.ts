@@ -1,5 +1,5 @@
 // The Rustnuts look, taken from the club website (rustnutssmc.com.au/styles.css):
-// ink background, bone text, the club red, Saira Stencil One for headings.
+// ink background, bone text, the club red, Rustnuts Stencil for headings.
 
 import { Platform } from 'react-native';
 
@@ -27,8 +27,8 @@ export const colors = {
 
 export const fonts = {
   stencil: Platform.select({
-    web: '"Saira Stencil One", "Arial Black", "Helvetica Neue", sans-serif',
-    default: 'SairaStencilOne_400Regular',
+    web: '"RustnutsStencil", "Arial Black", "Helvetica Neue", sans-serif',
+    default: 'RustnutsStencil',
   }),
   body: Platform.select({
     web: '"Helvetica Neue", Helvetica, Arial, sans-serif',
@@ -44,6 +44,8 @@ export const type = {
   display: { fontFamily: fonts.stencil, fontSize: 34, letterSpacing: 1.5, color: colors.bone },
   h1: { fontFamily: fonts.stencil, fontSize: 26, letterSpacing: 1, color: colors.bone },
   h2: { fontFamily: fonts.stencil, fontSize: 19, letterSpacing: 1, color: colors.bone },
+  /** Names, dates and numbers on cards: the stencil at reading size. */
+  name: { fontFamily: fonts.stencil, fontSize: 16, lineHeight: 22, letterSpacing: 0.4, color: colors.bone },
   label: {
     fontFamily: fonts.body,
     fontSize: 11,

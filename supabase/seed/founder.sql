@@ -44,3 +44,10 @@ and not exists ( -- someone else holds it now
   select 1 from public.positions p
   where p.role = w.role and p.chapter_id is not distinct from w.chapter_id and p.ended_on is null
 );
+
+-- His contact and licence record, which the profile screen saves into.
+insert into public.member_private (member_id, email)
+select m.id, u.email
+from auth.users u join public.members m on m.id = u.id
+where u.email = 'treasurer.rustnutssmc@gmail.com'
+on conflict (member_id) do nothing;

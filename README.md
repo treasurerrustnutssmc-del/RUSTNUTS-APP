@@ -77,7 +77,9 @@ npm run build:preview   # one-file web preview in preview/
 | `supabase` | Database tables, security rules and their tests |
 | `assets` | The club logo and app icons made from it |
 
-The look (colours, Saira Stencil One headings) comes from rustnutssmc.com.au.
+The colours come from rustnutssmc.com.au. Headings, buttons, names and numbers use the club typeface,
+Rustnuts Stencil (`assets/fonts/`), a heavier, renamed build of the open-licence Stardos Stencil made by
+`scripts/build-font.py`. Its OFL licence ships beside it.
 
 ## Brand rules
 
