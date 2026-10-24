@@ -44,4 +44,18 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_seed -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_seed -f "$ROOT/supabase/tests/founder_seed_test.sql"
+
+# The claimable roster, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_roster" >/dev/null
+"${PSQL[@]}" -d rustnuts_roster -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_roster -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_roster -f "$ROOT/supabase/tests/roster_claim_test.sql"
+# The loader script's SQL runs against the real schema, twice (the second run refreshes, not duplicates).
+for _ in 1 2; do
+  (cd "$ROOT" && npx tsx scripts/roster-sql.mts supabase/tests/roster_sample.csv) | "${PSQL[@]}" -d rustnuts_roster >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_roster -tAc "select count(*) from private.roster where email = 'sample@example.com' and on_hiatus and status = 'nomad' and roles = '{ride_committee,tail_gunner}'" | grep -qx 1
+echo 'The roster loader script loads the sheet and can be re-run'
 echo 'ALL DATABASE CHECKS PASSED'
