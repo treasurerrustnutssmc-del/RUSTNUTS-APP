@@ -10,7 +10,12 @@
     "backgroundColor": "#111010",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "au.com.rustnutssmc.app"
+      "bundleIdentifier": "au.com.rustnutssmc.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
     },
     "android": {
       "package": "au.com.rustnutssmc.app",
@@ -39,7 +44,7 @@
         {
           "photosPermission": "Rustnuts uses your photos so you can share them in club chats.",
           "cameraPermission": "Rustnuts uses your camera so you can take photos and videos for club chats.",
-          "microphonePermission": "Rustnuts uses your microphone to record sound with videos for club chats."
+          "microphonePermission": "Rustnuts uses your microphone for ride comms, and to record sound with videos for club chats."
         }
       ],
       [
@@ -81,6 +86,14 @@
               "video/*",
               "*/*"
             ]
+          }
+        }
+      ],
+      [
+        "@livekit/react-native-expo-plugin",
+        {
+          "android": {
+            "audioType": "communication"
           }
         }
       ]

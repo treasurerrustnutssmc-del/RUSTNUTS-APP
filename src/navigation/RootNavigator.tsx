@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
@@ -21,6 +21,8 @@ import { ReminderSync } from '../data/reminders';
 // Lane E: share in
 import { IncomingShare } from '../data/shareIn';
 import { ShareInScreen } from '../screens/shareIn';
+// Lane E: ride comms
+import { OnAirBar } from '../screens/rideComms';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -71,6 +73,13 @@ function MainTabs() {
       {/* Lane E: share in */}
       <IncomingShare />
       <Tabs.Navigator
+        // Lane E: ride comms. While a call is on, its bar sits just above the tabs.
+        tabBar={(props) => (
+          <>
+            <OnAirBar />
+            <BottomTabBar {...props} />
+          </>
+        )}
         screenOptions={({ route }) => ({
           ...headerOptions,
           tabBarAccessibilityLabel:

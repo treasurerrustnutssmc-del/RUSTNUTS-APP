@@ -105,4 +105,12 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_push -f "$ROOT/supabase/tests/push_test.sql"
 
+# Lane E: ride comms, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_voice" >/dev/null
+"${PSQL[@]}" -d rustnuts_voice -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_voice -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_voice -f "$ROOT/supabase/tests/ride_voice_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'

@@ -12,6 +12,8 @@ import { awayText, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, off
 import { initials } from '../domain/profile';
 import type { LatLng, LiveRider, Ride, RideAlert } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
+// Lane E: ride comms
+import { RideCommsCard } from './rideComms';
 import { colors, fonts, radius, space, type } from '../theme';
 import {
   Avatar,
@@ -54,10 +56,11 @@ export function LiveRideCard({ ride, onOpen }: { ride: Ride; onOpen: () => void 
         <Ionicons name="navigate-circle" size={22} color={colors.redText} />
         <H2>Live ride</H2>
       </Row>
+      {/* Lane E: ride comms. This card now opens voice as well as location sharing. */}
       <Body>
-        {`Share your location with riders on this ride. Only riders sharing can see it. Switches off by ${offTime(w.closes, now)}. Nothing is kept.`}
+        {`Ride comms and location sharing for riders on this ride. Both switch off by ${offTime(w.closes, now)}. Nothing is kept or recorded.`}
       </Body>
-      <Button label={sharingHere ? 'Open live ride' : 'Share my location'} icon="navigate" onPress={onOpen} />
+      <Button label={sharingHere ? 'Open live ride (sharing)' : 'Open live ride'} icon="navigate" onPress={onOpen} />
     </Card>
   );
 }
@@ -130,6 +133,8 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
     const w = liveWindow(ride);
     return (
       <Screen>
+        {/* Lane E: ride comms */}
+        <RideCommsCard rideId={ride.id} problem={problem} />
         <Card>
           <H2>{ride.title}</H2>
           <Body>Share where you are with the riders on this ride, so the Road Captain and Tail Gunner can keep the group together and find you if something goes wrong.</Body>
@@ -170,6 +175,8 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
 
   return (
     <Screen>
+      {/* Lane E: ride comms */}
+      <RideCommsCard rideId={ride.id} problem={liveProblem(me, ride, now)} />
       <Card>
         <Row style={{ gap: space.sm, justifyContent: 'space-between' }}>
           <Chip label="Sharing" tone="ok" icon="radio-button-on" />

@@ -4,6 +4,8 @@ import { ActivityIndicator, Platform, View } from 'react-native';
 import { SafeAreaInsetsContext, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ClubProvider, useClub } from './src/data/ClubStore';
 import { ChatProvider } from './src/data/chat/ChatProvider';
+// Lane E: ride comms
+import { RideVoiceProvider } from './src/data/rideVoice';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/theme';
 import { DemoBar } from './src/ui/DemoBar';
@@ -57,7 +59,10 @@ export default function App() {
   const content = fontsReady ? (
     <ClubProvider>
       <ChatProvider>
-        <Shell />
+        {/* Lane E: ride comms */}
+        <RideVoiceProvider>
+          <Shell />
+        </RideVoiceProvider>
       </ChatProvider>
     </ClubProvider>
   ) : null;
