@@ -62,6 +62,8 @@ export function fixtureData(without: string[] = []): ClubData {
     positions: fixture.positions
       .filter((p) => !without.includes(p.key))
       .map((p) => ({ id: p.key, memberId: p.member, chapterId: p.chapter, role: p.role, startedOn: p.startedOn, endedOn: p.endedOn })),
+    rides: [],
+    rsvps: [],
   };
 }
 

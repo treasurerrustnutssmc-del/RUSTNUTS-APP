@@ -108,6 +108,8 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       startedOn: p.started_on,
       endedOn: p.ended_on,
     })),
+    rides: [],
+    rsvps: [],
   };
 }
 

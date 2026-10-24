@@ -106,6 +106,29 @@ export interface Position {
   endedOn: string | null;
 }
 
+export type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';
+export type RsvpAnswer = 'going' | 'maybe' | 'no';
+
+/** A ride from the club calendar. Times are instants (ISO with Z); shown in Melbourne time. */
+export interface Ride {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string | null;
+  allDay: boolean;
+  location: string | null;
+  notes: string | null;
+  category: RideCategory;
+  cancelledAt: string | null;
+}
+
+export interface Rsvp {
+  rideId: string;
+  memberId: string;
+  answer: RsvpAnswer;
+  updatedAt: string;
+}
+
 export interface ClubData {
   chapters: Chapter[];
   members: Member[];
@@ -114,4 +137,6 @@ export interface ClubData {
   registrations: BikeRegistration[];
   emergencyContacts: EmergencyContact[];
   positions: Position[];
+  rides: Ride[];
+  rsvps: Rsvp[];
 }

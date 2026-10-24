@@ -100,6 +100,8 @@ export const EMPTY_DATA: ClubData = {
   registrations: [],
   emergencyContacts: [],
   positions: [],
+  rides: [],
+  rsvps: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

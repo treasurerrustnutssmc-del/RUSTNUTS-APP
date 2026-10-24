@@ -152,6 +152,8 @@ export const DEMO_DATA: ClubData = {
     { id: 'p-11', memberId: 'm-crank', chapterId: 'ch-north', role: 'road_captain', startedOn: '2025-08-16', endedOn: null },
     { id: 'p-12', memberId: 'm-ace', chapterId: 'ch-north', role: 'officer', startedOn: '2025-08-16', endedOn: null },
   ],
+  rides: [],
+  rsvps: [],
 };
 
 /** The people you can "view as" in the demo, one per access level. */
