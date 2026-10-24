@@ -25,6 +25,15 @@ export const colors = {
   dangerBg: 'rgba(242,102,111,0.12)',
 } as const;
 
+/** Ride calendar colour key, matching the website's. Each label colour is at least 4.5:1 on its chip. */
+export const rideColors = {
+  north: { bg: '#2B64A8', fg: '#FFFFFF' },
+  west: { bg: '#8C1C24', fg: '#F4F1EA' },
+  club: { bg: '#F4F1EA', fg: '#111010' },
+  supported: { bg: '#2A7048', fg: '#FFFFFF' },
+  non_nuts: { bg: '#55555A', fg: '#FFFFFF' },
+} as const;
+
 export const fonts = {
   stencil: Platform.select({
     web: '"RustnutsStencil", "Arial Black", "Helvetica Neue", sans-serif',

@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { todayIso } from '../domain/dates';
+import { rsvpProblem } from '../domain/rides';
 import type { ClubData } from '../domain/types';
 import {
   ClubContext,
@@ -251,6 +252,13 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const problem = endTermProblem(visibleMe, position, data);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('end_position', { p_position: positionId }));
+      await after();
+    },
+
+    setRsvp: async (rideId, answer) => {
+      const problem = rsvpProblem(visibleMe, data.rides.find((r) => r.id === rideId), new Date().toISOString());
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('set_rsvp', { p_ride: rideId, p_answer: answer }));
       await after();
     },
   };

@@ -49,3 +49,4 @@ preview/
 # Real member data never goes in the repo
 /roster.csv
 /roster.sql
+/.claude/worktrees/

@@ -1,4 +1,4 @@
-import type { LicenceClass, MemberStatus, PositionRole } from './types';
+import type { LicenceClass, MemberStatus, PositionRole, RideCategory, RsvpAnswer } from './types';
 
 export const STATUS_LABEL: Record<MemberStatus, string> = {
   introduced: 'Introduced',
@@ -90,3 +90,20 @@ export function isChapterless(role: PositionRole): boolean {
 
 /** Order positions are listed in: Founder first, Officers last. */
 export const ROLE_ORDER: PositionRole[] = [...TITLE_ROLES, ...NATIONAL_ROLES, ...BOARD_ROLES, ...CLUB_ROLES];
+
+/** The website's Ride Calendar colour key, in its order. */
+export const RIDE_CATEGORIES: RideCategory[] = ['north', 'west', 'club', 'supported', 'non_nuts'];
+
+export const RIDE_CATEGORY_LABEL: Record<RideCategory, string> = {
+  north: 'North',
+  west: 'West',
+  club: 'Rustnuts',
+  supported: 'Supported',
+  non_nuts: 'Non-Nuts',
+};
+
+export const RSVP_LABEL: Record<RsvpAnswer, string> = {
+  going: 'Going',
+  maybe: 'Maybe',
+  no: 'Can’t make it',
+};

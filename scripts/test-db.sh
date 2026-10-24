@@ -58,4 +58,12 @@ for _ in 1 2; do
 done
 "${PSQL[@]}" -d rustnuts_roster -tAc "select count(*) from private.roster where email = 'sample@example.com' and on_hiatus and status = 'nomad' and roles = '{ride_committee,tail_gunner}'" | grep -qx 1
 echo 'The roster loader script loads the sheet and can be re-run'
+# The ride calendar, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_rides" >/dev/null
+"${PSQL[@]}" -d rustnuts_rides -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_rides -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_rides -f "$ROOT/supabase/tests/rides_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'

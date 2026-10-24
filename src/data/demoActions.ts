@@ -3,8 +3,9 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, endTermProblem, isBoardOf } from '../domain/access';
+import { rsvpProblem } from '../domain/rides';
 import { APPROVE_AS, NATIONAL_ROLES, TITLE_ROLES } from '../domain/labels';
-import type { ClubData, Member, MemberStatus, PositionRole } from '../domain/types';
+import type { ClubData, Member, MemberStatus, PositionRole, RsvpAnswer } from '../domain/types';
 import {
   NotAllowedError,
   validateApplicationBike,
@@ -22,6 +23,8 @@ export interface DemoCtx {
   data: ClubData;
   me: Member | null;
   today: string;
+  /** The current instant (ISO). Defaults to the clock. */
+  now?: string;
 }
 
 let idCounter = 0;
@@ -270,6 +273,15 @@ export function endTerm(ctx: DemoCtx, positionId: string): ClubData {
   };
 }
 
+export function setRsvp(ctx: DemoCtx, rideId: string, answer: RsvpAnswer): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const problem = rsvpProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), now);
+  if (problem) throw new NotAllowedError(problem);
+  const memberId = ctx.me!.id;
+  const others = ctx.data.rsvps.filter((r) => !(r.rideId === rideId && r.memberId === memberId));
+  return { ...ctx.data, rsvps: [...others, { rideId, memberId, answer, updatedAt: now }] };
+}
+
 /** The actions the shared parity cases use, by name. */
 export type DemoAction =
   | { action: 'appoint'; member: string; chapter: string | null; role: PositionRole }
@@ -281,7 +293,8 @@ export type DemoAction =
   | { action: 'removeContact'; contact: string }
   | { action: 'saveBike'; bike: string | null; make: string; model: string; year: number | null }
   | { action: 'saveContact'; contact: string | null; contactName: string; relationship: string; phone: string }
-  | { action: 'apply'; chapter: string; fullName: string; make: string; model: string; year: number | null };
+  | { action: 'apply'; chapter: string; fullName: string; make: string; model: string; year: number | null }
+  | { action: 'rsvp'; ride: string; answer: RsvpAnswer };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -297,6 +310,8 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return setStatus(ctx, a.member, a.status);
     case 'removeBike':
       return removeBike(ctx, a.bike);
+    case 'rsvp':
+      return setRsvp(ctx, a.ride, a.answer);
     case 'removeContact':
       return removeContact(ctx, a.contact);
     case 'saveBike':

@@ -800,6 +800,46 @@
       "chapter": "west",
       "role": "ride_committee",
       "allowed": true
+    },
+    {
+      "name": "A member says they're going to an upcoming ride",
+      "as": "spanner",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "going",
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member answers an upcoming ride",
+      "as": "hacker",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "maybe",
+      "allowed": true
+    },
+    {
+      "name": "An applicant answers a ride",
+      "as": "dylan",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "going",
+      "allowed": false
+    },
+    {
+      "name": "A member answers a ride that already started",
+      "as": "spanner",
+      "action": "rsvp",
+      "ride": "past-club",
+      "answer": "going",
+      "allowed": false
+    },
+    {
+      "name": "A member answers a cancelled ride",
+      "as": "spanner",
+      "action": "rsvp",
+      "ride": "cancelled-north",
+      "answer": "no",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -812,6 +852,29 @@
   "signups": [
     {
       "key": "newbie"
+    }
+  ],
+  "rides": [
+    {
+      "key": "future-west",
+      "title": "Coffee run",
+      "startsAt": "2030-01-01T00:00:00.000Z",
+      "category": "west",
+      "cancelled": false
+    },
+    {
+      "key": "past-club",
+      "title": "Christmas ride",
+      "startsAt": "2020-01-01T00:00:00.000Z",
+      "category": "club",
+      "cancelled": false
+    },
+    {
+      "key": "cancelled-north",
+      "title": "Called off",
+      "startsAt": "2030-01-01T00:00:00.000Z",
+      "category": "north",
+      "cancelled": true
     }
   ]
 }

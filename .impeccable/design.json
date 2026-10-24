@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-24T12:00:00Z",
+  "title": "Design System: Rustnuts SMC",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "neutral", "displayName": "Ink" },
+      "ink-raised": { "role": "neutral", "displayName": "Raised Ink" },
+      "steel": { "role": "neutral", "displayName": "Steel" },
+      "bone": { "role": "neutral", "displayName": "Bone" },
+      "bone-dim": { "role": "neutral", "displayName": "Dim Bone" },
+      "bone-mute": { "role": "neutral", "displayName": "Muted Bone" },
+      "club-red": { "role": "primary", "displayName": "Club Red" },
+      "club-red-bright": { "role": "primary", "displayName": "Bright Club Red" },
+      "red-text": { "role": "primary", "displayName": "Red Text" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Welcome and big moments." },
+      "name": { "displayName": "Name", "purpose": "Names, ride titles, dates and numbers on cards; buttons." },
+      "body": { "displayName": "Body", "purpose": "Running sentences and typed input only." }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [{ "name": "max-content", "value": "640px" }]
+  },
+  "components": [
+    {
+      "name": "Primary Button", "kind": "button", "refersTo": "button-primary",
+      "description": "The one main action on a screen.",
+      "html": "<button class=\"ds-btn-primary\">I'M GOING</button>",
+      "css": ".ds-btn-primary{background:#B92632;color:#F4F1EA;border:1px solid #B92632;border-radius:4px;min-height:48px;padding:0 16px;font-family:'RustnutsStencil','Arial Black',sans-serif;font-size:16px;letter-spacing:1.2px;text-transform:uppercase}.ds-btn-primary:hover,.ds-btn-primary:active{background:#8C1C24}.ds-btn-primary:focus-visible{outline:2px solid #F2666F}"
+    },
+    {
+      "name": "Secondary Button", "kind": "button", "refersTo": "button-secondary",
+      "description": "Other actions beside the main one.",
+      "html": "<button class=\"ds-btn-secondary\">EDIT</button>",
+      "css": ".ds-btn-secondary{background:transparent;color:#F4F1EA;border:1px solid rgba(244,241,234,0.22);border-radius:4px;min-height:48px;padding:0 16px;font-family:'RustnutsStencil','Arial Black',sans-serif;font-size:16px;letter-spacing:1.2px;text-transform:uppercase}.ds-btn-secondary:hover{background:#2a2a2c}.ds-btn-secondary:focus-visible{outline:2px solid #F2666F}"
+    },
+    {
+      "name": "Rank Chip", "kind": "chip", "refersTo": "chip-red",
+      "description": "Full and Nomad rank.",
+      "html": "<span class=\"ds-chip-red\">FULL</span>",
+      "css": ".ds-chip-red{display:inline-block;background:#8C1C24;color:#F4F1EA;border-radius:4px;padding:2px 7px;font-family:'RustnutsStencil','Arial Black',sans-serif;font-size:11.5px;letter-spacing:1px}"
+    },
+    {
+      "name": "Card", "kind": "card", "refersTo": "card",
+      "description": "Flat raised-ink container with a hairline.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-t\">COFFEE RUN</div><p>Caltex Laverton, 7:30 am</p></div>",
+      "css": ".ds-card{background:#171515;border:1px solid rgba(244,241,234,0.10);border-radius:8px;padding:16px;color:#d8d3c7;font-family:'Helvetica Neue',Arial,sans-serif;font-size:15px}.ds-card-t{font-family:'RustnutsStencil','Arial Black',sans-serif;font-size:16px;color:#F4F1EA;letter-spacing:.4px}"
+    },
+    {
+      "name": "Text Field", "kind": "input", "refersTo": "input",
+      "description": "Steel field with a label above.",
+      "html": "<input class=\"ds-input\" placeholder=\"Road name\">",
+      "css": ".ds-input{background:#2a2a2c;color:#F4F1EA;border:1px solid rgba(244,241,234,0.10);border-radius:4px;min-height:48px;padding:0 12px;font-size:15px}.ds-input:focus-visible{outline:2px solid #F2666F}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Stencilled on Steel",
+    "keyCharacteristics": [
+      "Ink background, bone text, one club red.",
+      "Rustnuts Stencil wherever a word is short enough to be a label.",
+      "Flat surfaces separated by hairlines and tone, not shadows.",
+      "Real club artwork only: logo, disc, skull, flannel.",
+      "Ride colours are the website's key, always shown with their name."
+    ],
+    "rules": [
+      { "name": "The One Red Rule", "section": "colors", "body": "Red marks the one thing that matters on a screen: the action, the earned rank, the chosen answer." },
+      { "name": "The Website Key Rule", "section": "colors", "body": "Ride colours match the club website's calendar key exactly, and always appear with their name." },
+      { "name": "The Stencil First Rule", "section": "typography", "body": "Titles, headings, names, buttons, tabs, chips, badges, numbers and dates are Rustnuts Stencil." },
+      { "name": "The Real Wordmark Rule", "section": "typography", "body": "RUSTNUTS as a wordmark is always the artwork, never styled text." },
+      { "name": "The Flat Clubhouse Rule", "section": "elevation", "body": "Nothing floats. To stand out, use red or the stencil, never a shadow." }
+    ]
+  }
+}

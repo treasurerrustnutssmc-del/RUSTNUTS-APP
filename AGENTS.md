@@ -33,7 +33,7 @@ Run lint and typecheck before declaring any task done.
 Every piece of work on this app goes through **Superpowers** and **Impeccable**. No exceptions, no "too small to bother".
 
 Superpowers (process):
-- Brainstorm first and say whether the work is a spike, bounded or architectural. Jeff approves the design before any code: a short design in chat for bounded work, a written spec in `docs/superpowers/specs/` (then a plan in `docs/superpowers/plans/`) for architectural work.
+- Brainstorm first and say whether the work is a spike, bounded or architectural. Write the design before any code: a short design in chat for bounded work, a written spec in `docs/superpowers/specs/` (then a plan in `docs/superpowers/plans/`) for architectural work. Since 24 Oct 2026 Claude approves its own designs, specs and plans (Jeff's call) and shows each one to Jeff, who can veto. Accounts, money, real member data, going public and anything irreversible still need Jeff's yes.
 - Test first: write the failing test, watch it fail, then write the code (`npm test` for app rules, `npm run test:db` for database rules, including the shared demo/database cases in `supabase/tests/parity.json`).
 - An independent reviewer (a fresh subagent given only the diff and the requirements) checks every major piece before it ships. Fix Critical and Important findings first.
 - Never say something is done without running the checks and showing the result: `npm test`, `npm run test:db`, `npm run typecheck`, `npx expo lint`, and a look at the changed screens.
