@@ -1,8 +1,12 @@
 // Made-up example members for the demo build. Nobody here is a real person.
 // Replaced by the live database once Supabase is connected.
 
+// Stage 4
+import { addDays } from '../domain/dates';
+import { melbourneDate } from '../domain/rides';
+import { fyOf, receiptNo } from '../domain/fees';
 import { readGpx } from '../domain/gpx';
-import type { ClubData, Member, MemberPrivate, Ride, Route } from '../domain/types';
+import type { ClubData, Member, MemberPrivate, MemberStatus, Ride, Route } from '../domain/types';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
   roadName: null,
@@ -356,3 +360,68 @@ export function demoTodayRide(now: Date = new Date()): Ride {
     cancelledAt: null,
   };
 }
+// ---------------------------------------------------------------------------
+// Stage 4: check-ins, decisions and fees, dated from today so the demo always has a meeting on.
+// ---------------------------------------------------------------------------
+
+const s4Today = melbourneDate(new Date().toISOString()); // the same "today" as the app
+const s4Fy = fyOf(s4Today);
+const s4Due = `${s4Fy}-07-31`;
+const ago = (days: number) => addDays(s4Today, -days);
+const at = (date: string, time = '09:30:00') => `${date}T${time}.000Z`;
+const went = (sessionId: string, memberIds: string[], date: string) =>
+  memberIds.map((memberId) => ({ sessionId, memberId, checkedInAt: at(date), markedBy: null }));
+const annual = (id: string, memberId: string, chapterId: string, amountCents: number) => ({
+  id, memberId, chapterId, fy: s4Fy, kind: 'annual' as const, description: null, amountCents, dueOn: s4Due,
+  createdAt: at(`${s4Fy}-07-01`), waivedAt: null,
+});
+const rate = (chapterId: string, status: MemberStatus, amountCents: number) => ({ chapterId, fy: s4Fy, status, amountCents, dueOn: s4Due });
+
+Object.assign(DEMO_DATA, {
+  checkinSessions: [
+    { id: 'cs-today', kind: 'meeting', chapterId: 'ch-west', rideId: null, title: 'West monthly meeting', heldOn: s4Today,
+      openedBy: 'm-torque', closedAt: null, code: 'RN2026' },
+    { id: 'cs-week', kind: 'meeting', chapterId: 'ch-west', rideId: null, title: 'West committee catch-up', heldOn: ago(2),
+      openedBy: 'm-torque', closedAt: at(ago(2), '11:00:00'), code: 'WK8M4Q' },
+    { id: 'cs-month', kind: 'meeting', chapterId: 'ch-west', rideId: null, title: 'West monthly meeting', heldOn: ago(28),
+      openedBy: 'm-torque', closedAt: at(ago(28), '11:00:00'), code: 'MN3X7P' },
+    { id: 'cs-north', kind: 'meeting', chapterId: 'ch-north', rideId: null, title: 'North monthly meeting', heldOn: ago(21),
+      openedBy: 'm-smokey', closedAt: at(ago(21), '11:00:00'), code: 'NT5R2K' },
+  ],
+  attendance: [
+    ...went('cs-today', ['m-torque', 'm-rusty'], s4Today),
+    ...went('cs-week', ['m-torque', 'm-rusty', 'm-dylan', 'm-sparks'], ago(2)),
+    ...went('cs-month', ['m-rusty', 'm-torque', 'm-diesel', 'm-sparks', 'm-gravel', 'm-spanner', 'm-chook', 'm-throttle'], ago(28)),
+    ...went('cs-north', ['m-smokey', 'm-jet', 'm-crank', 'm-ace', 'm-lefty', 'm-ben'], ago(21)),
+  ],
+  decisions: [],
+  feeRates: ['ch-west', 'ch-north'].flatMap((c) => [
+    rate(c, 'full', 25000), rate(c, 'nomad', 25000), rate(c, 'fng', 15000), rate(c, 'supporter', 5000), rate(c, 'family', 5000),
+  ]),
+  continuationFees: [{ chapterId: 'ch-west', fy: s4Fy, amountCents: 5000 }],
+  charges: [
+    annual('ch-1', 'm-rusty', 'ch-west', 25000),
+    annual('ch-2', 'm-torque', 'ch-west', 25000),
+    annual('ch-3', 'm-spanner', 'ch-west', 25000),
+    annual('ch-4', 'm-gravel', 'ch-west', 25000),
+    annual('ch-5', 'm-throttle', 'ch-west', 15000),
+    { ...annual('ch-6', 'm-patches', 'ch-west', 5000), waivedAt: at(`${s4Fy}-08-02`) },
+    annual('ch-7', 'm-jet', 'ch-north', 25000),
+    annual('ch-8', 'm-crank', 'ch-north', 25000),
+  ],
+  payments: [
+    { id: 'pay-1', chargeId: 'ch-1', amountCents: 25000, paidOn: `${s4Fy}-07-02`, method: 'payid', reference: 'RUSTY FEES',
+      state: 'confirmed', claimedBy: 'm-rusty', receiptNo: receiptNo('west', s4Fy, 1), decidedAt: at(`${s4Fy}-07-03`) },
+    { id: 'pay-2', chargeId: 'ch-3', amountCents: 12500, paidOn: `${s4Fy}-07-10`, method: 'cash', reference: null,
+      state: 'confirmed', claimedBy: null, receiptNo: receiptNo('west', s4Fy, 2), decidedAt: at(`${s4Fy}-07-10`) },
+    { id: 'pay-3', chargeId: 'ch-4', amountCents: 10000, paidOn: `${s4Fy}-08-01`, method: 'payid', reference: 'GRAVEL FEES',
+      state: 'confirmed', claimedBy: 'm-gravel', receiptNo: receiptNo('west', s4Fy, 3), decidedAt: at(`${s4Fy}-08-02`) },
+    { id: 'pay-4', chargeId: 'ch-4', amountCents: 15000, paidOn: ago(1), method: 'payid', reference: 'GRAVEL FEES',
+      state: 'claimed', claimedBy: 'm-gravel', receiptNo: null, decidedAt: null },
+    { id: 'pay-5', chargeId: 'ch-7', amountCents: 25000, paidOn: `${s4Fy}-07-15`, method: 'payid', reference: 'JET FEES',
+      state: 'confirmed', claimedBy: 'm-jet', receiptNo: receiptNo('north', s4Fy, 1), decidedAt: at(`${s4Fy}-07-16`) },
+  ],
+  paymentDetails: [
+    { chapterId: 'ch-west', payid: 'west@rustnuts.example', payidName: 'Rustnuts SMC West', bsb: null, accountNo: null },
+  ],
+} satisfies Partial<ClubData>);

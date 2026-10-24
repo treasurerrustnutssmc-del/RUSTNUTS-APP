@@ -63,6 +63,14 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Scan the club’s check-in code at rides and meetings.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-sharing",
         {
           "ios": {

@@ -84,7 +84,7 @@ export function initials(m: Pick<Member, 'roadName' | 'fullName'>): string {
   return (parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : src.slice(0, 2)).toUpperCase();
 }
 
-function addMonths(iso: string, months: number): string {
+export function addMonths(iso: string, months: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   const total = y * 12 + (m - 1) + months;
   const ny = Math.floor(total / 12);

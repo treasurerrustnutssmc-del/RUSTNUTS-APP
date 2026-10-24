@@ -10,6 +10,7 @@ import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: notifications
 import { NotificationSettings } from './notificationSettings';
 import { colors, space } from '../theme';
+import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import {
   Avatar,
   Button,
@@ -144,6 +145,16 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         <ListRow last left={<IconBadge icon="add" tone="red" />} title="Add a bike" onPress={() => navigation.navigate('EditBike', {})} />
       </Card>
 
+      <SectionTitle title="Fees" action={<LockNote text="You + board" />} />
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          last
+          left={<IconBadge icon="cash-outline" tone={totalOwing(me.id, data) > 0 ? 'red' : 'steel'} />}
+          title={totalOwing(me.id, data) > 0 ? `${formatCents(totalOwing(me.id, data))} owing` : 'All paid up'}
+          subtitle={me.onHiatus && totalOwing(me.id, data) === 0 ? 'On hiatus: no new fees while you’re away' : 'Charges, payments and receipts'}
+          onPress={() => navigation.navigate('MemberFees', { memberId: me.id })}
+        />
+      </Card>
       {/* Lane E: notifications */}
       <NotificationSettings />
 

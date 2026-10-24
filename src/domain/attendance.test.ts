@@ -1,0 +1,126 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  attendanceCount,
+  canCheckIn,
+  canRunCheckin,
+  checkInProblem,
+  closeProblem,
+  markProblem,
+  normalizeCode,
+  openCheckinProblem,
+  qrPayload,
+  rideChapterId,
+} from './attendance';
+import { club, member, ride, session, who } from './stage4.testkit';
+
+const today = '2026-10-24';
+
+test('codes are read however they were typed or scanned', () => {
+  assert.equal(normalizeCode('rustnuts: ab c12 3'), 'ABC123');
+  assert.equal(normalizeCode(qrPayload('RN2026')), 'RN2026');
+  assert.equal(normalizeCode(' rn2026 '), 'RN2026');
+});
+
+test('a ride belongs to its chapter, or to the whole club', () => {
+  const data = club();
+  assert.equal(rideChapterId(ride('a', { category: 'north' }), data.chapters), 'north');
+  assert.equal(rideChapterId(ride('b', { category: 'west' }), data.chapters), 'west');
+  assert.equal(rideChapterId(ride('c', { category: 'club' }), data.chapters), null);
+  assert.equal(rideChapterId(ride('d', { category: 'supported' }), data.chapters), null);
+});
+
+test('who runs a check-in: that chapter’s board, any board for a whole-club ride, and the NEC', () => {
+  const data = club();
+  assert.equal(canRunCheckin(who(data, 'sec'), 'west', data.positions), true);
+  assert.equal(canRunCheckin(who(data, 'northsec'), 'west', data.positions), false);
+  assert.equal(canRunCheckin(who(data, 'northsec'), null, data.positions), true);
+  assert.equal(canRunCheckin(who(data, 'chair'), 'west', data.positions), true);
+  assert.equal(canRunCheckin(who(data, 'rider'), null, data.positions), false);
+  assert.equal(canRunCheckin(null, null, data.positions), false);
+});
+
+test('who can check in: approved members and applicants in their introduction phase', () => {
+  const data = club();
+  assert.equal(canCheckIn(who(data, 'rider')), true);
+  assert.equal(canCheckIn(who(data, 'legacy')), true);
+  assert.equal(canCheckIn(who(data, 'applicant')), true);
+  assert.equal(canCheckIn(who(data, 'supporterapp')), false);
+  assert.equal(canCheckIn(member('gone', { approval: 'declined', status: 'introduced' })), false);
+  assert.equal(canCheckIn(null), false);
+});
+
+test('opening a check-in', () => {
+  const data = club({ checkinSessions: [session('s-ride', { kind: 'ride', rideId: 'r-club', chapterId: null })] });
+  const sec = who(data, 'sec');
+  const meeting = { kind: 'meeting' as const, rideId: null, chapterId: 'west', title: 'Club meeting', heldOn: today };
+  assert.equal(openCheckinProblem(null, meeting, data, today), 'Sign in first.');
+  assert.equal(openCheckinProblem(who(data, 'applicant'), meeting, data, today), 'Only approved members can do that.');
+  assert.equal(openCheckinProblem(sec, meeting, data, today), null);
+  assert.equal(openCheckinProblem(sec, { ...meeting, heldOn: '2026-11-02' }, data, today), null);
+  assert.equal(openCheckinProblem(sec, { ...meeting, chapterId: null }, data, today), 'Pick a chapter.');
+  assert.equal(openCheckinProblem(sec, { ...meeting, title: '  ' }, data, today), 'Add a title.');
+  assert.equal(openCheckinProblem(sec, { ...meeting, heldOn: '2026-10-23' }, data, today), 'Pick today or a later date.');
+  assert.equal(openCheckinProblem(who(data, 'rider'), meeting, data, today), 'Only that chapter’s board can open a check-in.');
+  assert.equal(openCheckinProblem(who(data, 'northsec'), meeting, data, today), 'Only that chapter’s board can open a check-in.');
+
+  const forRide = (rideId: string) => ({ kind: 'ride' as const, rideId, chapterId: null, title: '', heldOn: today });
+  assert.equal(openCheckinProblem(sec, forRide('r-west'), data, today), null);
+  assert.equal(openCheckinProblem(sec, forRide('nope'), data, today), 'No such ride.');
+  assert.equal(openCheckinProblem(sec, forRide('r-off'), data, today), 'That ride was cancelled.');
+  assert.equal(openCheckinProblem(sec, forRide('r-club'), data, today), 'Check-in for this ride is already open.');
+  assert.equal(openCheckinProblem(who(data, 'northsec'), forRide('r-west'), data, today), 'Only that chapter’s board can open a check-in.');
+});
+
+test('checking in', () => {
+  const data = club();
+  const open = session('s1');
+  assert.equal(checkInProblem(null, open, today), 'Sign in first.');
+  assert.equal(checkInProblem(who(data, 'rider'), open, today), null);
+  assert.equal(checkInProblem(who(data, 'applicant'), open, today), null);
+  assert.equal(checkInProblem(who(data, 'supporterapp'), open, today), 'Only members and applicants can check in.');
+  assert.equal(checkInProblem(who(data, 'rider'), undefined, today), 'That code doesn’t match a check-in.');
+  assert.equal(checkInProblem(who(data, 'rider'), session('s2', { closedAt: '2026-10-24T09:00:00.000Z' }), today), 'That check-in has closed.');
+  assert.equal(checkInProblem(who(data, 'rider'), session('s3', { heldOn: '2026-10-23' }), today), 'That check-in isn’t for today.');
+});
+
+test('ticking people off by hand', () => {
+  const data = club();
+  const s = session('s1');
+  const sec = who(data, 'sec');
+  assert.equal(markProblem(sec, s, who(data, 'rider'), data, today), null);
+  assert.equal(markProblem(sec, s, who(data, 'applicant'), data, today), null);
+  assert.equal(markProblem(sec, session('old', { heldOn: '2026-10-01', closedAt: '2026-10-01T10:00:00.000Z' }), who(data, 'rider'), data, today), null);
+  assert.equal(markProblem(who(data, 'rider'), s, who(data, 'rider'), data, today), 'Only that chapter’s board can run this check-in.');
+  assert.equal(markProblem(sec, s, undefined, data, today), 'That member no longer exists.');
+  assert.equal(markProblem(sec, s, who(data, 'supporterapp'), data, today), 'They can’t be checked in.');
+  // North's board can't tick a West applicant, even at a whole-club ride it runs.
+  const clubRide = session('cr', { kind: 'ride', chapterId: null, rideId: 'r-club' });
+  assert.equal(markProblem(who(data, 'northsec'), clubRide, who(data, 'applicant'), data, today), 'They can’t be checked in.');
+  assert.equal(markProblem(who(data, 'northsec'), clubRide, who(data, 'rider'), data, today), null);
+  assert.equal(markProblem(sec, session('later', { heldOn: '2026-11-01' }), who(data, 'rider'), data, today), 'That check-in hasn’t started yet.');
+});
+
+test('closing a check-in', () => {
+  const data = club();
+  assert.equal(closeProblem(who(data, 'sec'), session('s1'), data), null);
+  assert.equal(closeProblem(who(data, 'rider'), session('s1'), data), 'Only that chapter’s board can run this check-in.');
+  assert.equal(closeProblem(who(data, 'sec'), session('s1', { closedAt: '2026-10-24T09:00:00.000Z' }), data), 'That check-in is already closed.');
+});
+
+test('attendance counts rides and meetings by the date they were held', () => {
+  const data = club({
+    checkinSessions: [
+      session('m1', { heldOn: '2026-07-10' }),
+      session('m2', { heldOn: '2026-08-10' }),
+      session('r1', { kind: 'ride', rideId: 'r-west', heldOn: '2026-09-01' }),
+      session('old', { heldOn: '2026-06-30' }),
+    ],
+    attendance: ['m1', 'm2', 'r1', 'old'].map((sessionId) => ({
+      sessionId, memberId: 'rider', checkedInAt: '2026-07-10T09:00:00.000Z', markedBy: null,
+    })),
+  });
+  assert.deepEqual(attendanceCount('rider', data, '2026-07-01'), { rides: 1, meetings: 2 });
+  assert.deepEqual(attendanceCount('rider', data, '2026-07-01', '2026-08-31'), { rides: 0, meetings: 2 });
+  assert.deepEqual(attendanceCount('sec', data, '2026-07-01'), { rides: 0, meetings: 0 });
+});
