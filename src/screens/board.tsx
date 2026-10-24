@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { canAssignRole, isNational, pendingFor } from '../domain/access';
+import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
 import { formatLongDate, monthsBetween } from '../domain/dates';
 import { BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
@@ -235,8 +235,10 @@ export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
   if (!member || !me) return null;
   const chapter = data.chapters.find((c) => c.id === member.chapterId);
   const positions = sortedPositions(member.id, data);
-  const canNational = isNational(me.id, data.positions);
-  const roleOptions: PositionRole[] = [...BOARD_ROLES, ...CLUB_ROLES, ...(canNational ? NATIONAL_ROLES : [])];
+  // Only the roles this person could actually fill right now (seat free, allowed to appoint it).
+  const roleOptions = [...BOARD_ROLES, ...CLUB_ROLES, ...NATIONAL_ROLES].filter(
+    (r) => appointProblem(me, member, member.chapterId, r, data) === null,
+  );
 
   const run = async (fn: () => Promise<void>, ok: string) => {
     try {
@@ -286,7 +288,7 @@ export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
         {positions.map((p) => (
           <View key={p.id} style={{ gap: space.sm }}>
             <KeyValue label={ROLE_LABEL[p.role]} value={`Since ${formatLongDate(p.startedOn)}`} />
-            {canAssignRole(me, p.chapterId, data.positions) ? (
+            {endTermProblem(me, p, data) === null ? (
               <ConfirmButton
                 label="End term"
                 confirmLabel={`End ${ROLE_LABEL[p.role]} term`}
@@ -296,20 +298,30 @@ export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
             ) : null}
           </View>
         ))}
-        <Label>Appoint to</Label>
-        <Choices<PositionRole>
-          options={roleOptions.map((r) => ({ value: r, label: ROLE_LABEL[r] }))}
-          value={role}
-          onChange={setRole}
-        />
-        <Button
-          label="Appoint"
-          kind="secondary"
-          disabled={!role}
-          onPress={() =>
-            role && run(() => appoint(member.id, member.chapterId, role), `${displayName(member)} is now ${ROLE_LABEL[role]}.`)
-          }
-        />
+        {roleOptions.length > 0 ? (
+          <>
+            <Label>Appoint to</Label>
+            <Choices<PositionRole>
+              options={roleOptions.map((r) => ({ value: r, label: ROLE_LABEL[r] }))}
+              value={role}
+              onChange={setRole}
+            />
+            <Button
+              label="Appoint"
+              kind="secondary"
+              disabled={!role}
+              onPress={() =>
+                role &&
+                run(async () => {
+                  await appoint(member.id, member.chapterId, role);
+                  setRole(null);
+                }, `${displayName(member)} is now ${ROLE_LABEL[role]}.`)
+              }
+            />
+          </>
+        ) : (
+          <Small>No open roles you can fill for {displayName(member)}. Seats that are taken free up when the current term ends.</Small>
+        )}
       </Card>
     </Screen>
   );

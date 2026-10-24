@@ -28,11 +28,34 @@ Run lint and typecheck before declaring any task done.
 - This project uses **React Navigation** (native stack + bottom tabs), not Expo Router. The web build is previewed inside a page whose URL path the app doesn't control, and Expo Router picks the screen from the URL. Keep navigation state-based (no `linking` on web). Native deep links can be added with a `linking` config limited to iOS/Android.
 - Screens live in `src/screens/`, navigators in `src/navigation/`, shared UI in `src/ui/`, rules in `src/domain/`, data in `src/data/`.
 
+## How every change is made (standing rule from Jeff)
+
+Every piece of work on this app goes through **Superpowers** and **Impeccable**. No exceptions, no "too small to bother".
+
+Superpowers (process):
+- Brainstorm first and say whether the work is a spike, bounded or architectural. Jeff approves the design before any code: a short design in chat for bounded work, a written spec in `docs/superpowers/specs/` (then a plan in `docs/superpowers/plans/`) for architectural work.
+- Test first: write the failing test, watch it fail, then write the code (`npm test` for app rules, `npm run test:db` for database rules, including the shared demo/database cases in `supabase/tests/parity.json`).
+- An independent reviewer (a fresh subagent given only the diff and the requirements) checks every major piece before it ships. Fix Critical and Important findings first.
+- Never say something is done without running the checks and showing the result: `npm test`, `npm run test:db`, `npm run typecheck`, `npx expo lint`, and a look at the changed screens.
+- Work on a branch; merge to `main` when the review is clean.
+
+Impeccable (design):
+- `PRODUCT.md` (what the app is for, who uses it) and `DESIGN.md` (the design system) are the design authority. Keep them current.
+- Before any UI edit, read Impeccable's craft floor. After UI changes, run its critique, audit and polish passes on the changed screens, and check them at phone size (390×844) in both the demo and live builds.
+- Impeccable's helper program can't run in the cloud workspace, so its reference rules are followed by hand there.
+
+## Brand rules
+
+- The RUSTNUTS stencil wordmark and the EST 2019 logo (the version **without** the flag) are the club's trademarks. Always use the real artwork; never retype "RUSTNUTS" as styled text to imitate it, never redraw or recolour it.
+- Use the club stencil typeface as much as possible: screen titles, headings, names, buttons, tab labels, chips, badges, numbers and dates on cards. The plain body font is only for running sentences, typed input and fine print, where a stencil stops being readable.
+- The member disc (round "MEMBER" patch) is earned at Full membership. Never show it on anyone who isn't Full.
+- The Rusty Bus (the club van) is used for charity rides and vehicle recovery.
+
 ## Project rules
 
 - Access rules live in `src/domain/access.ts` and are mirrored by row-level security in `supabase/migrations`. Change both together and run `npm test` and `npm run test:db`.
 - Dates are stored as ISO `YYYY-MM-DD` and shown as `DD/MM/YYYY`.
-- The look comes from the club website: colours and fonts in `src/theme.ts`. The logo in `assets/logo.jpg` is the club's real logo; don't redraw or recolour it.
+- Colours and fonts live in `src/theme.ts`. The logo in `assets/logo.jpg` is the club's real logo; don't redraw or recolour it.
 - No pop-up dialogs (`Alert`): use `ConfirmButton` for anything destructive, since the web preview can't show them.
 
 ## Building with EAS

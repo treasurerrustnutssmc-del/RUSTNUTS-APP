@@ -17,6 +17,8 @@ export type RootParams = {
   Join: undefined;
   // waiting for approval
   Pending: undefined;
+  // signed in, but the club data couldn't be loaded
+  LoadError: undefined;
   // signed in
   Tabs: NavigatorScreenParams<TabParams>;
   MemberDetail: { memberId: string };

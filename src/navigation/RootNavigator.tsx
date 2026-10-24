@@ -9,7 +9,7 @@ import { pendingFor } from '../domain/access';
 import { BoardScreen, ManageMemberScreen } from '../screens/board';
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
-import { JoinScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
+import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
 import type { RootParams, TabParams } from './types';
 
@@ -87,12 +87,15 @@ function MainTabs() {
 }
 
 export function RootNavigator() {
-  const { level, me, needsApplication } = useClub();
+  const { level, me, needsApplication, loadError } = useClub();
+  const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
   return (
     <NavigationContainer theme={navTheme}>
       {/* Keyed by who's signed in, so switching people always starts fresh on their home screen. */}
-      <Stack.Navigator key={me?.id ?? (needsApplication ? 'applying' : 'signed-out')} screenOptions={headerOptions}>
-        {needsApplication ? (
+      <Stack.Navigator key={stackKey} screenOptions={headerOptions}>
+        {loadError ? (
+          <Stack.Screen name="LoadError" component={LoadErrorScreen} options={{ headerShown: false }} />
+        ) : needsApplication ? (
           <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Rustnuts' }} />
         ) : level === 'public' ? (
           <>

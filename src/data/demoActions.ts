@@ -1,0 +1,281 @@
+// What each action does to the made-up demo club. Plain functions: they take the club as it
+// is and hand back the club as it should be, or throw when the person isn't allowed. The
+// demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
+
+import { appointProblem, canApprove, canManageMember, endTermProblem } from '../domain/access';
+import { NATIONAL_ROLES } from '../domain/labels';
+import type { ClubData, Member, MemberStatus, PositionRole } from '../domain/types';
+import {
+  NotAllowedError,
+  validateApplicationBike,
+  validateBike,
+  validateContact,
+  type ApplicationInput,
+  type BikeInput,
+  type ContactInput,
+  type PrivateInput,
+  type ProfileInput,
+  type RegoInput,
+} from './clubContext';
+
+export interface DemoCtx {
+  data: ClubData;
+  me: Member | null;
+  today: string;
+}
+
+let idCounter = 0;
+const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(idCounter++).toString(36)}`;
+
+function requireMe(ctx: DemoCtx): Member {
+  if (!ctx.me) throw new NotAllowedError('Sign in first.');
+  return ctx.me;
+}
+
+function findMember(data: ClubData, id: string): Member {
+  const m = data.members.find((x) => x.id === id);
+  if (!m) throw new Error('That member no longer exists.');
+  return m;
+}
+
+function patchMember(data: ClubData, id: string, patch: Partial<Member>): ClubData {
+  return { ...data, members: data.members.map((m) => (m.id === id ? { ...m, ...patch } : m)) };
+}
+
+function statusDates(target: Member, status: MemberStatus, today: string): Partial<Member> {
+  return {
+    fngStartedOn: status === 'fng' ? target.fngStartedOn ?? today : target.fngStartedOn,
+    patchedOn: status === 'full' || status === 'nomad' ? target.patchedOn ?? today : target.patchedOn,
+  };
+}
+
+export function apply(ctx: DemoCtx, input: ApplicationInput): { data: ClubData; id: string } {
+  if (!input.fullName.trim()) throw new Error('Add your name.');
+  const bikeProblem = validateApplicationBike(input.bike ?? null, ctx.today);
+  if (bikeProblem) throw new Error(bikeProblem);
+  const id = newId('m');
+  const bikes = [...ctx.data.bikes];
+  if (input.bike && input.bike.make.trim()) {
+    bikes.push({
+      id: newId('b'),
+      memberId: id,
+      make: input.bike.make.trim(),
+      model: input.bike.model.trim(),
+      year: input.bike.year,
+      nickname: null,
+      isProject: false,
+    });
+  }
+  const data: ClubData = {
+    ...ctx.data,
+    members: [
+      ...ctx.data.members,
+      {
+        id,
+        chapterId: input.chapterId,
+        fullName: input.fullName.trim(),
+        roadName: input.roadName.trim() || null,
+        status: input.status,
+        approval: 'pending',
+        joinedOn: null,
+        patchedOn: null,
+        fngStartedOn: null,
+        bio: null,
+        sharePhone: false,
+        appliedOn: ctx.today,
+      },
+    ],
+    privates: [
+      ...ctx.data.privates,
+      {
+        memberId: id,
+        email: input.email.trim() || null,
+        phone: input.phone.trim() || null,
+        licenceClass: null,
+        licenceExpiry: null,
+        firstAidExpiry: null,
+        introducedBy: input.introducedBy.trim() || null,
+        applicationNote: input.note.trim() || null,
+      },
+    ],
+    bikes,
+  };
+  return { data, id };
+}
+
+export function approve(ctx: DemoCtx, memberId: string, status: MemberStatus): ClubData {
+  const target = findMember(ctx.data, memberId);
+  if (!canApprove(ctx.me, target, ctx.data.positions)) {
+    throw new NotAllowedError('Only that chapter’s board can approve this applicant.');
+  }
+  return patchMember(ctx.data, memberId, {
+    approval: 'approved',
+    status,
+    joinedOn: target.joinedOn ?? ctx.today,
+    ...statusDates(target, status, ctx.today),
+  });
+}
+
+export function decline(ctx: DemoCtx, memberId: string): ClubData {
+  const target = findMember(ctx.data, memberId);
+  if (!canApprove(ctx.me, target, ctx.data.positions)) {
+    throw new NotAllowedError('Only that chapter’s board can decline this applicant.');
+  }
+  return patchMember(ctx.data, memberId, { approval: 'declined' });
+}
+
+export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus): ClubData {
+  const target = findMember(ctx.data, memberId);
+  if (!canManageMember(ctx.me, target, ctx.data.positions)) {
+    throw new NotAllowedError('Only that chapter’s board can change this, and never for themselves.');
+  }
+  return patchMember(ctx.data, memberId, { status, ...statusDates(target, status, ctx.today) });
+}
+
+export function saveProfile(ctx: DemoCtx, profile: ProfileInput, priv: PrivateInput | null): ClubData {
+  const self = requireMe(ctx);
+  if (!profile.fullName.trim()) throw new Error('Your name can’t be blank.');
+  let data = patchMember(ctx.data, self.id, {
+    fullName: profile.fullName.trim(),
+    roadName: profile.roadName?.trim() || null,
+    bio: profile.bio?.trim() || null,
+    sharePhone: profile.sharePhone,
+  });
+  if (priv) {
+    data = {
+      ...data,
+      privates: data.privates.map((p) =>
+        p.memberId === self.id
+          ? {
+              ...p,
+              email: priv.email?.trim() || null,
+              phone: priv.phone?.trim() || null,
+              licenceClass: priv.licenceClass,
+              licenceExpiry: priv.licenceExpiry,
+              firstAidExpiry: priv.firstAidExpiry,
+            }
+          : p,
+      ),
+    };
+  }
+  return data;
+}
+
+export function saveBike(ctx: DemoCtx, bike: BikeInput, reg: RegoInput): { data: ClubData; id: string } {
+  const self = requireMe(ctx);
+  const invalid = validateBike(bike, ctx.today);
+  if (invalid) throw new Error(invalid);
+  if (bike.id) {
+    const existing = ctx.data.bikes.find((b) => b.id === bike.id);
+    if (!existing || existing.memberId !== self.id) throw new NotAllowedError('You can only edit your own bikes.');
+  }
+  const id = bike.id ?? newId('b');
+  const record = {
+    ...bike,
+    id,
+    memberId: self.id,
+    make: bike.make.trim(),
+    model: bike.model.trim(),
+    nickname: bike.nickname?.trim() || null,
+  };
+  const bikes = bike.id ? ctx.data.bikes.map((b) => (b.id === id ? record : b)) : [...ctx.data.bikes, record];
+  const registrations = [
+    ...ctx.data.registrations.filter((r) => r.bikeId !== id),
+    { bikeId: id, rego: reg.rego?.trim().toUpperCase() || null, regoExpiry: reg.regoExpiry },
+  ];
+  return { data: { ...ctx.data, bikes, registrations }, id };
+}
+
+export function removeBike(ctx: DemoCtx, bikeId: string): ClubData {
+  const self = requireMe(ctx);
+  const bike = ctx.data.bikes.find((b) => b.id === bikeId);
+  if (!bike || bike.memberId !== self.id) throw new NotAllowedError('You can only remove your own bikes.');
+  return {
+    ...ctx.data,
+    bikes: ctx.data.bikes.filter((b) => b.id !== bikeId),
+    registrations: ctx.data.registrations.filter((r) => r.bikeId !== bikeId),
+  };
+}
+
+export function saveContact(ctx: DemoCtx, contact: ContactInput): ClubData {
+  const self = requireMe(ctx);
+  const invalid = validateContact(contact);
+  if (invalid) throw new Error(invalid);
+  if (contact.id) {
+    const existing = ctx.data.emergencyContacts.find((c) => c.id === contact.id);
+    if (!existing || existing.memberId !== self.id) throw new NotAllowedError('You can only edit your own contacts.');
+  }
+  const id = contact.id ?? newId('e');
+  const record = {
+    id,
+    memberId: self.id,
+    name: contact.name.trim(),
+    relationship: contact.relationship.trim(),
+    phone: contact.phone.trim(),
+  };
+  const emergencyContacts = contact.id
+    ? ctx.data.emergencyContacts.map((c) => (c.id === id ? record : c))
+    : [...ctx.data.emergencyContacts, record];
+  return { ...ctx.data, emergencyContacts };
+}
+
+export function removeContact(ctx: DemoCtx, contactId: string): ClubData {
+  const self = requireMe(ctx);
+  const c = ctx.data.emergencyContacts.find((x) => x.id === contactId);
+  if (!c || c.memberId !== self.id) throw new NotAllowedError('You can only remove your own contacts.');
+  return { ...ctx.data, emergencyContacts: ctx.data.emergencyContacts.filter((x) => x.id !== contactId) };
+}
+
+export function appoint(ctx: DemoCtx, memberId: string, chapterId: string | null, role: PositionRole): ClubData {
+  const target = findMember(ctx.data, memberId);
+  const problem = appointProblem(ctx.me, target, chapterId, role, ctx.data);
+  if (problem) throw new NotAllowedError(problem);
+  const seatChapter = NATIONAL_ROLES.includes(role) ? null : chapterId;
+  return {
+    ...ctx.data,
+    positions: [
+      ...ctx.data.positions,
+      { id: newId('p'), memberId, chapterId: seatChapter, role, startedOn: ctx.today, endedOn: null },
+    ],
+  };
+}
+
+export function endTerm(ctx: DemoCtx, positionId: string): ClubData {
+  const position = ctx.data.positions.find((p) => p.id === positionId);
+  if (!position) throw new Error('That position no longer exists.');
+  const problem = endTermProblem(ctx.me, position, ctx.data);
+  if (problem) throw new NotAllowedError(problem);
+  return {
+    ...ctx.data,
+    positions: ctx.data.positions.map((p) => (p.id === positionId ? { ...p, endedOn: ctx.today } : p)),
+  };
+}
+
+/** The actions the shared parity cases use, by name. */
+export type DemoAction =
+  | { action: 'appoint'; member: string; chapter: string | null; role: PositionRole }
+  | { action: 'endTerm'; position: string }
+  | { action: 'approve'; member: string; status: MemberStatus }
+  | { action: 'decline'; member: string }
+  | { action: 'setStatus'; member: string; status: MemberStatus }
+  | { action: 'removeBike'; bike: string }
+  | { action: 'removeContact'; contact: string };
+
+export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
+  switch (a.action) {
+    case 'appoint':
+      return appoint(ctx, a.member, a.chapter, a.role);
+    case 'endTerm':
+      return endTerm(ctx, a.position);
+    case 'approve':
+      return approve(ctx, a.member, a.status);
+    case 'decline':
+      return decline(ctx, a.member);
+    case 'setStatus':
+      return setStatus(ctx, a.member, a.status);
+    case 'removeBike':
+      return removeBike(ctx, a.bike);
+    case 'removeContact':
+      return removeContact(ctx, a.contact);
+  }
+}

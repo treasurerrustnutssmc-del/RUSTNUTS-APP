@@ -44,7 +44,8 @@ function useDateField(initialIso: string | null) {
 // ---------------------------------------------------------------------------
 
 export function MeScreen({ navigation }: TabScreen<'Me'>) {
-  const { me, data, today, updateProfile, signOut, isDemo } = useClub();
+  const { me, data, today, saveProfile, signOut, isDemo } = useClub();
+  const [shareError, setShareError] = useState<string | null>(null);
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const bikes = data.bikes.filter((b) => b.memberId === me.id);
@@ -129,9 +130,13 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
           description="Your chapter board can always see it. Turn this on so other members can call you too."
           value={me.sharePhone}
           onChange={(v) => {
-            updateProfile({ fullName: me.fullName, roadName: me.roadName, bio: me.bio, sharePhone: v }).catch(() => {});
+            setShareError(null);
+            saveProfile({ fullName: me.fullName, roadName: me.roadName, bio: me.bio, sharePhone: v }, null).catch((e) =>
+              setShareError(`Couldn’t change that: ${(e as Error).message}`),
+            );
           }}
         />
+        {shareError ? <Notice tone="danger">{shareError}</Notice> : null}
         <Small>
           Ride-day location sharing (coming in Stage 6) will always be your choice, switch off when the ride ends,
           and keep nothing afterwards.
@@ -149,7 +154,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
 // ---------------------------------------------------------------------------
 
 export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
-  const { me, data, updateProfile, updatePrivate } = useClub();
+  const { me, data, saveProfile } = useClub();
   const priv = data.privates.find((p) => p.memberId === me?.id);
   const [fullName, setFullName] = useState(me?.fullName ?? '');
   const [roadName, setRoadName] = useState(me?.roadName ?? '');
@@ -164,14 +169,17 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
   if (!me) return null;
 
   const save = async () => {
+    setError(null);
     if (licence.error || firstAid.error) {
       setError('Fix the dates marked in red.');
       return;
     }
     setBusy(true);
     try {
-      await updateProfile({ fullName, roadName, bio, sharePhone: me.sharePhone });
-      await updatePrivate({ email, phone, licenceClass, licenceExpiry: licence.iso, firstAidExpiry: firstAid.iso });
+      await saveProfile(
+        { fullName, roadName, bio, sharePhone: me.sharePhone },
+        { email, phone, licenceClass, licenceExpiry: licence.iso, firstAidExpiry: firstAid.iso },
+      );
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -244,6 +252,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
   const yearError = year.trim() && !/^\d{4}$/.test(year.trim()) ? 'Use a four-digit year.' : null;
 
   const save = async () => {
+    setError(null);
     if (yearError || expiry.error) {
       setError('Fix the fields marked in red.');
       return;
@@ -320,6 +329,7 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
+    setError(null);
     setBusy(true);
     try {
       await saveContact({ id: contact?.id ?? null, name, relationship, phone });

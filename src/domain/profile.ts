@@ -89,3 +89,11 @@ export function nextFngReview(fngStartedOn: string, today: string): { atMonths: 
   while (addMonths(fngStartedOn, months) < today) months += 3;
   return { atMonths: months, date: addMonths(fngStartedOn, months), overdue12: months > 12 };
 }
+
+/** What to say in the Contact card when there's no number to show. Null when there is one. */
+export function phoneNote(s: { isSelf: boolean; canSee: boolean; hasPhone: boolean; name: string }): string | null {
+  if (s.canSee && s.hasPhone) return null;
+  if (s.isSelf) return 'You haven’t added a mobile yet. Add it in Edit profile.';
+  if (s.canSee) return `No mobile on record for ${s.name}.`;
+  return `${s.name} hasn’t shared their number with members.`;
+}

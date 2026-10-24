@@ -28,3 +28,12 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts -f "$ROOT/supabase/tests/access_rules_test.sql"
+
+# The shared demo-vs-database cases, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_parity" >/dev/null
+"${PSQL[@]}" -d rustnuts_parity -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_parity -f "$f" >/dev/null
+done
+node "$ROOT/scripts/parity-sql.mjs" | "${PSQL[@]}" -d rustnuts_parity
+echo 'ALL DATABASE CHECKS PASSED'

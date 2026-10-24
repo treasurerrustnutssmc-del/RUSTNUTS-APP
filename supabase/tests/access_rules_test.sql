@@ -139,11 +139,11 @@ end $$;
 select public.approve_member('00000000-0000-0000-0000-000000000005', 'introduced');
 do $$ begin
   assert (select approval from members where id = '00000000-0000-0000-0000-000000000005') = 'approved', 'approved';
-  assert (select joined_on from members where id = '00000000-0000-0000-0000-000000000005') = current_date, 'joined today';
+  assert (select joined_on from members where id = '00000000-0000-0000-0000-000000000005') = private.club_date(), 'joined today, Melbourne time';
 end $$;
 select public.set_member_status('00000000-0000-0000-0000-000000000005', 'fng');
 do $$ begin
-  assert (select fng_started_on from members where id = '00000000-0000-0000-0000-000000000005') = current_date, 'FNG clock started';
+  assert (select fng_started_on from members where id = '00000000-0000-0000-0000-000000000005') = private.club_date(), 'FNG clock started';
   begin
     perform public.set_member_status('00000000-0000-0000-0000-000000000002', 'nomad');
     raise exception 'board changed own status';
@@ -151,11 +151,43 @@ do $$ begin
     if sqlerrm = 'board changed own status' then raise; end if;
   end;
 end $$;
--- West board can hand out West roles, not national ones
-insert into positions (member_id, chapter_id, role)
-  select '00000000-0000-0000-0000-000000000003', id, 'officer' from chapters where slug = 'west';
-savepoint s2;
+-- West board hands out West roles through the appoint action, which records who did it
+select public.appoint_position('00000000-0000-0000-0000-000000000003', (select id from chapters where slug = 'west'), 'officer');
 do $$ begin
+  assert (select appointed_by from positions where member_id = '00000000-0000-0000-0000-000000000003' and role = 'officer')
+    = '00000000-0000-0000-0000-000000000002', 'appointment records who made it';
+  assert (select started_on from positions where member_id = '00000000-0000-0000-0000-000000000003' and role = 'officer')
+    = private.club_date(), 'started today, Melbourne time';
+  begin
+    perform public.appoint_position('00000000-0000-0000-0000-000000000003', (select id from chapters where slug = 'west'), 'officer');
+    raise exception 'same person appointed Officer twice';
+  exception when raise_exception or unique_violation then
+    if sqlerrm = 'same person appointed Officer twice' then raise; end if;
+  end;
+end $$;
+select public.end_position((select id from positions where member_id = '00000000-0000-0000-0000-000000000003' and role = 'officer'));
+do $$ begin
+  assert (select ended_by from positions where member_id = '00000000-0000-0000-0000-000000000003' and role = 'officer')
+    = '00000000-0000-0000-0000-000000000002', 'ending a term records who did it';
+end $$;
+rollback;
+
+\echo 'Nobody writes positions directly (the board self-promotion hole)'
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-000000000002'); -- West Secretary
+set local role authenticated;
+do $$ begin
+  begin
+    update positions set ended_on = current_date where role = 'president';
+    raise exception 'Secretary ended the President''s term directly';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into positions (member_id, chapter_id, role)
+      select auth.uid(), id, 'president' from chapters where slug = 'west';
+    raise exception 'Secretary seated herself as President';
+  exception when insufficient_privilege then null;
+  end;
   begin
     insert into positions (member_id, chapter_id, role)
       values ('00000000-0000-0000-0000-000000000003', null, 'nec_secretary');
@@ -163,10 +195,15 @@ do $$ begin
   exception when insufficient_privilege then null;
   end;
   begin
-    insert into positions (member_id, chapter_id, role)
-      select '00000000-0000-0000-0000-000000000004', id, 'officer' from chapters where slug = 'north';
-    raise exception 'West board appointed in North';
+    update positions set ended_on = null where member_id = auth.uid();
+    raise exception 'Secretary reopened a term';
   exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.appoint_position(auth.uid(), (select id from chapters where slug = 'west'), 'club_coach');
+    raise exception 'Secretary appointed herself';
+  exception when raise_exception then
+    if sqlerrm = 'Secretary appointed herself' then raise; end if;
   end;
 end $$;
 rollback;
@@ -193,26 +230,154 @@ set local role authenticated;
 do $$ begin
   assert (select count(*) from member_private) = 6, 'NEC sees every private row';
 end $$;
-insert into positions (member_id, chapter_id, role)
-  values ('00000000-0000-0000-0000-000000000002', null, 'nec_secretary');
+select public.appoint_position('00000000-0000-0000-0000-000000000002', null, 'nec_secretary');
+do $$ begin
+  begin
+    insert into chapters (slug, name, area) values ('east', 'East', 'Eastern Melbourne');
+    raise exception 'national added a chapter directly';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    delete from chapters where slug = 'north';
+    raise exception 'national deleted a chapter';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
 rollback;
 
-\echo 'A new sign-up can apply once'
+\echo 'A new sign-up can apply once, bike and all'
 begin;
 select pg_temp.act_as('00000000-0000-0000-0000-000000000006');
 set local role authenticated;
-select public.submit_application((select id from chapters where slug = 'north'), 'Josh Tran', null, '0492 555 939', 'Jet', 'Partner of a member', 'family');
+do $$ begin
+  begin
+    perform public.apply_to_join((select id from chapters where slug = 'north'), 'Josh Tran', null, '0492 555 939', 'Jet',
+      'Partner of a member', 'family', 'Triumph', 'Bonneville', 1234);
+    raise exception 'a bike from 1234 was accepted';
+  exception when raise_exception then
+    if sqlerrm = 'a bike from 1234 was accepted' then raise; end if;
+  end;
+  assert (select count(*) from members where id = auth.uid()) = 0, 'a refused bike leaves no half application behind';
+  begin
+    perform public.apply_to_join((select id from chapters where slug = 'north'), 'Josh Tran', null, null, null,
+      null, 'family', 'Triumph', null, null);
+    raise exception 'a bike with no model was accepted';
+  exception when raise_exception then
+    if sqlerrm = 'a bike with no model was accepted' then raise; end if;
+  end;
+end $$;
+select public.apply_to_join((select id from chapters where slug = 'north'), 'Josh Tran', null, '0492 555 939', 'Jet',
+  'Partner of a member', 'family', 'Triumph', 'Bonneville', 2020);
 do $$ begin
   assert (select approval from members where id = auth.uid()) = 'pending', 'lands as pending';
+  assert (select applied_on from members where id = auth.uid()) = private.club_date(), 'applied today, Melbourne time';
   assert (select email from member_private where member_id = auth.uid()) = 'newbie@example.com', 'email copied from sign-up';
+  assert (select count(*) from bikes where member_id = auth.uid() and model = 'Bonneville') = 1, 'bike saved with the application';
   begin
-    perform public.submit_application((select id from chapters where slug = 'north'), 'Josh Again');
+    perform public.apply_to_join((select id from chapters where slug = 'north'), 'Josh Again');
     raise exception 'applied twice';
   exception when raise_exception then
     if sqlerrm = 'applied twice' then raise; end if;
   end;
+  begin
+    update members set approval = 'approved' where id = auth.uid();
+    raise exception 'applicant approved themselves';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 rollback;
+
+\echo 'Saving a bike and its rego is one step'
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-000000000003'); -- Spanner
+set local role authenticated;
+do $$
+declare new_bike uuid;
+begin
+  new_bike := public.save_bike(null, 'Triumph', 'Bonneville', 2020, null, false, 'abc 123', date '2027-01-01');
+  assert (select rego from bike_registrations where bike_id = new_bike) = 'ABC 123', 'rego saved with the bike';
+  begin
+    perform public.save_bike(null, 'Triumph', 'Bonneville', 1234, null, false, 'XYZ', null);
+    raise exception 'a bike from 1234 was accepted';
+  exception when raise_exception then
+    if sqlerrm = 'a bike from 1234 was accepted' then raise; end if;
+  end;
+  assert (select count(*) from bikes where member_id = auth.uid()) = 2, 'the refused bike left nothing behind';
+  begin
+    perform public.save_bike('10000000-0000-0000-0000-000000000005', 'Hacked', 'Bike', null, null, false, null, null);
+    raise exception 'edited someone else''s bike';
+  exception when raise_exception then
+    if sqlerrm = 'edited someone else''s bike' then raise; end if;
+  end;
+  begin
+    truncate bikes;
+    raise exception 'a member emptied the bikes table';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+rollback;
+
+\echo 'Saving a profile is one step; contacts only change for their owner'
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-000000000003'); -- Spanner
+set local role authenticated;
+select public.save_profile('Mick Doherty', 'Spanner', 'Softail man', false, true,
+  'mick@example.com', '0400 111 222', 'full_open', date '2029-02-01', null);
+do $$ begin
+  assert (select bio from members where id = auth.uid()) = 'Softail man', 'profile saved';
+  assert (select phone from member_private where member_id = auth.uid()) = '0400 111 222', 'private details saved with it';
+end $$;
+select public.save_profile('Mick Doherty', 'Spanner', 'Softail man', true, false, null, null, null, null, null);
+do $$ begin
+  assert (select share_phone from members where id = auth.uid()), 'sharing switched on';
+  assert (select phone from member_private where member_id = auth.uid()) = '0400 111 222', 'private details untouched when not included';
+end $$;
+-- remember Spanner's contact, then try to change it as Gravel (who can't even see it)
+select set_config('test.contact', (select id::text from emergency_contacts where member_id = auth.uid() limit 1), true);
+select pg_temp.act_as('00000000-0000-0000-0000-000000000007'); -- Gravel
+do $$ begin
+  begin
+    perform public.save_contact(current_setting('test.contact')::uuid, 'Hacked', 'None', '000');
+    raise exception 'edited someone else''s contact';
+  exception when raise_exception then
+    if sqlerrm = 'edited someone else''s contact' then raise; end if;
+  end;
+end $$;
+rollback;
+
+\echo 'Phones in the directory follow the share setting'
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-000000000003'); -- Spanner, a member
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.shared_phones()) = 2, 'own number plus Rusty, who shares';
+  assert not exists (select 1 from public.shared_phones() where member_id = '00000000-0000-0000-0000-000000000007'), 'not Gravel''s';
+end $$;
+select pg_temp.act_as('00000000-0000-0000-0000-000000000002'); -- West Secretary
+do $$ begin
+  assert exists (select 1 from public.shared_phones() where member_id = '00000000-0000-0000-0000-000000000007'), 'West board sees Gravel''s';
+  assert not exists (select 1 from public.shared_phones() where member_id = '00000000-0000-0000-0000-000000000004'), 'but not North''s';
+end $$;
+select pg_temp.act_as('00000000-0000-0000-0000-000000000005'); -- applicant
+do $$ begin
+  assert (select count(*) from public.shared_phones()) = 1, 'an applicant sees only their own';
+end $$;
+rollback;
+begin;
+set local role anon;
+do $$ begin
+  perform public.shared_phones();
+  raise exception 'the public read phone numbers';
+exception when insufficient_privilege then null;
+end $$;
+rollback;
+
+\echo 'Dates follow the club''s clock in Melbourne, not UTC'
+do $$ begin
+  assert private.club_date(timestamptz '2026-10-24 22:30:00+00') = date '2026-10-25', '9:30am Sunday in Melbourne (daylight time)';
+  assert private.club_date(timestamptz '2026-06-30 13:59:00+00') = date '2026-06-30', '11:59pm in winter';
+  assert private.club_date(timestamptz '2026-06-30 14:00:00+00') = date '2026-07-01', 'midnight in winter';
+end $$;
 
 \echo 'One holder per board seat'
 do $$ begin

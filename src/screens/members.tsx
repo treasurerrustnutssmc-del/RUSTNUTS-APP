@@ -7,11 +7,12 @@ import {
   canSeePrivate,
   pendingFor,
   visibleMembers,
+  withHolders,
 } from '../domain/access';
 import { describeExpiry, expiryState, formatLongDate, monthsBetween } from '../domain/dates';
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
-import { displayName, expiryAlerts, initials, nextFngReview, profileChecklist } from '../domain/profile';
-import type { Member } from '../domain/types';
+import { displayName, expiryAlerts, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
+import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, space } from '../theme';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
@@ -362,7 +363,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
             ) : null}
           </Row>
         ) : (
-          <Small>{displayName(member)} hasn’t shared their number with members.</Small>
+          <Small>{phoneNote({ isSelf, canSee: showPhone, hasPhone: !!priv?.phone, name: displayName(member) })}</Small>
         )}
         {showPrivate && priv?.email ? (
           <View style={{ gap: 2 }}>
@@ -499,19 +500,16 @@ export function ChapterDetailScreen({ route, navigation }: RootScreen<'ChapterDe
   const club = seats.filter((p) => CLUB_ROLES.includes(p.role)).sort((a, b) => CLUB_ROLES.indexOf(a.role) - CLUB_ROLES.indexOf(b.role));
   const counts = STATUS_ORDER.map((s) => [s, members.filter((m) => m.status === s).length] as const).filter(([, n]) => n > 0);
 
-  const seatRow = (p: (typeof seats)[number], i: number, arr: typeof seats) => {
-    const m = data.members.find((x) => x.id === p.memberId)!;
-    return (
-      <ListRow
-        key={p.id}
-        last={i === arr.length - 1}
-        left={<Avatar text={initials(m)} size={40} />}
-        title={displayName(m)}
-        subtitle={ROLE_LABEL[p.role]}
-        onPress={() => navigation.navigate('MemberDetail', { memberId: m.id })}
-      />
-    );
-  };
+  const seatRow = ({ position: p, member: m }: { position: Position; member: Member }, i: number, arr: unknown[]) => (
+    <ListRow
+      key={p.id}
+      last={i === arr.length - 1}
+      left={<Avatar text={initials(m)} size={40} />}
+      title={displayName(m)}
+      subtitle={ROLE_LABEL[p.role]}
+      onPress={() => navigation.navigate('MemberDetail', { memberId: m.id })}
+    />
+  );
 
   return (
     <Screen>
@@ -525,11 +523,11 @@ export function ChapterDetailScreen({ route, navigation }: RootScreen<'ChapterDe
         </Row>
       </Stack>
       <SectionTitle title="Board" />
-      <Card style={{ padding: 0, gap: 0 }}>{board.map(seatRow)}</Card>
+      <Card style={{ padding: 0, gap: 0 }}>{withHolders(board, data.members).map(seatRow)}</Card>
       {club.length > 0 ? (
         <>
           <SectionTitle title="Club positions" />
-          <Card style={{ padding: 0, gap: 0 }}>{club.map(seatRow)}</Card>
+          <Card style={{ padding: 0, gap: 0 }}>{withHolders(club, data.members).map(seatRow)}</Card>
         </>
       ) : null}
       <SectionTitle title="Members" action={<Small>{members.length}</Small>} />

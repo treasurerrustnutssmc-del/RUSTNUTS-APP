@@ -14,12 +14,15 @@ owned by the club. One codebase builds the iPhone app, the Android app and a web
 - Member profiles: garage, contact, licence, first aid, regos, emergency contacts
 - Chapters, board line-ups and the NEC
 - Board tab: approve or decline applicants, renewals due, missing emergency contacts, FNG reviews
-- Manage a member: change status, appoint to or end positions
+- Manage a member: change status, appoint to or end positions (never your own; only the
+  National Chair, Secretary or Auditor can seat or unseat a President)
 - Me: edit profile, bikes, emergency contacts, phone sharing
 
 Four access levels (public, member, board, national) plus applicants. The rules are in
 `src/domain/access.ts` and the same rules are enforced by the database in
 `supabase/migrations/`, so the app can never show more than the server hands over.
+`supabase/tests/parity.json` is one list of who-can-do-what cases that runs against both
+the demo and the database, so the two can't drift apart.
 
 The demo build has a strip across the top to view the app as each level. Demo changes
 reset when you reload. Nobody in the demo data is a real person.
@@ -43,8 +46,8 @@ reset when you reload. Nobody in the demo data is a real person.
 ```bash
 npm install
 npm start               # run it; scan the QR code with Expo Go on your phone
-npm test                # access rules, dates, profile checks
-npm run test:db         # database security checks on a throwaway Postgres
+npm test                # access rules, dates, profile checks, demo side of the parity cases
+npm run test:db         # database security checks and the parity cases on a throwaway Postgres
 npm run check:live      # can this build reach the club database, and is it locked down?
 npm run typecheck
 npx expo lint

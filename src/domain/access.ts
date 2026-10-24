@@ -2,8 +2,8 @@
 // (row-level security in supabase/migrations), so the app can never show
 // more than the server would hand over.
 
-import { BOARD_ROLES, NATIONAL_ROLES } from './labels';
-import type { ClubData, Member, Position } from './types';
+import { BOARD_ROLES, NATIONAL_ROLES, ROLE_LABEL } from './labels';
+import type { ClubData, Member, Position, PositionRole } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'member' | 'board' | 'national';
 
@@ -80,21 +80,65 @@ export function canApprove(viewer: Member | null, applicant: Member, positions: 
   return applicant.approval === 'pending' && isBoardOf(viewer, applicant.chapterId, positions);
 }
 
-/** Board can change a member's status, but nobody can change their own. */
+/** Board can change an approved member's status, but nobody can change their own. */
 export function canManageMember(viewer: Member | null, target: Member, positions: Position[]): boolean {
-  if (!viewer || viewer.id === target.id) return false;
+  if (!viewer || viewer.id === target.id || target.approval !== 'approved') return false;
   return isBoardOf(viewer, target.chapterId, positions);
 }
 
-/** Chapter positions are set by that chapter's board; national roles by the NEC. */
-export function canAssignRole(
-  viewer: Member | null,
+/** National Chair, Secretary or Auditor. Sitting Presidents are on the NEC but are not officers. */
+export function isNecOfficer(memberId: string, positions: Position[]): boolean {
+  return activePositions(memberId, positions).some((p) => NATIONAL_ROLES.includes(p.role));
+}
+
+/**
+ * Why `me` can't appoint `target` to `role`, or null when they can. The database's
+ * appoint_position action applies exactly the same rules.
+ */
+export function appointProblem(
+  me: Member | null,
+  target: Member,
   chapterId: string | null,
-  positions: Position[],
-): boolean {
-  if (!viewer || viewer.approval !== 'approved') return false;
-  if (chapterId === null) return isNational(viewer.id, positions);
-  return isBoardOf(viewer, chapterId, positions);
+  role: PositionRole,
+  data: ClubData,
+): string | null {
+  if (!me || me.approval !== 'approved') return 'Sign in first.';
+  if (me.id === target.id) return 'You can’t appoint yourself.';
+  if (target.approval !== 'approved') return 'Approve them first.';
+  const national = NATIONAL_ROLES.includes(role);
+  const seatChapter = national ? null : chapterId;
+  if (national) {
+    if (!isNational(me.id, data.positions)) return 'Only the NEC hands out national roles.';
+  } else {
+    if (!seatChapter || seatChapter !== target.chapterId) return 'They’re not a member of that chapter.';
+    if (role === 'president') {
+      if (!isNecOfficer(me.id, data.positions)) return 'Only the National Chair, Secretary or Auditor can seat a President.';
+    } else if (!isBoardOf(me, seatChapter, data.positions)) {
+      return 'Only that chapter’s board can appoint here.';
+    }
+  }
+  const open = data.positions.filter((p) => p.endedOn === null && p.role === role && p.chapterId === seatChapter);
+  if (open.some((p) => p.memberId === target.id)) return 'They already hold that role.';
+  if ((BOARD_ROLES.includes(role) || national) && open.length > 0) {
+    return `There’s already a sitting ${ROLE_LABEL[role]}. End their term first.`;
+  }
+  return null;
+}
+
+/** Why `me` can't end this term, or null when they can. Mirrors the database's end_position. */
+export function endTermProblem(me: Member | null, position: Position, data: ClubData): string | null {
+  if (!me || me.approval !== 'approved') return 'Sign in first.';
+  if (position.endedOn !== null) return 'That term has already ended.';
+  if (position.memberId === me.id) return 'You can’t end your own term.';
+  if (NATIONAL_ROLES.includes(position.role) || position.chapterId === null) {
+    return isNational(me.id, data.positions) ? null : 'Only the NEC can end a national role.';
+  }
+  if (position.role === 'president') {
+    return isNecOfficer(me.id, data.positions)
+      ? null
+      : 'Only the National Chair, Secretary or Auditor can end a President’s term.';
+  }
+  return isBoardOf(me, position.chapterId, data.positions) ? null : 'Only that chapter’s board can end this term.';
 }
 
 export function visibleMembers(viewer: Member | null, data: ClubData): Member[] {
@@ -103,4 +147,12 @@ export function visibleMembers(viewer: Member | null, data: ClubData): Member[] 
 
 export function pendingFor(viewer: Member | null, data: ClubData): Member[] {
   return data.members.filter((m) => canApprove(viewer, m, data.positions));
+}
+
+/** Pairs each position with its holder, leaving out holders this viewer can't see. */
+export function withHolders(positions: Position[], members: Member[]): { position: Position; member: Member }[] {
+  return positions.flatMap((position) => {
+    const member = members.find((m) => m.id === position.memberId);
+    return member ? [{ position, member }] : [];
+  });
 }

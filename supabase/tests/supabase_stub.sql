@@ -1,8 +1,15 @@
 -- Just enough of Supabase's built-ins to test the migration on a plain Postgres.
 -- Not used in production: Supabase provides the real auth schema and roles.
 
-create role anon nologin;
-create role authenticated nologin;
+-- Roles belong to the whole server, so a second test database finds them already there.
+do $$ begin
+  create role anon nologin;
+exception when duplicate_object then null;
+end $$;
+do $$ begin
+  create role authenticated nologin;
+exception when duplicate_object then null;
+end $$;
 
 create schema auth;
 grant usage on schema auth to anon, authenticated;

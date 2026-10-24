@@ -1,17 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoData';
+import type { Position } from './types';
 import {
   accessLevel,
+  appointProblem,
   canApprove,
-  canAssignRole,
   canManageMember,
   canSeeMember,
   canSeePhone,
   canSeePrivate,
+  endTermProblem,
   isBoardOf,
+  isNecOfficer,
   pendingFor,
   visibleMembers,
+  withHolders,
 } from './access';
 
 const d = DEMO_DATA;
@@ -87,9 +91,89 @@ test('approvals and member changes', () => {
   assert.equal(canManageMember(m('m-spanner'), m('m-chook'), P), false);
 });
 
-test('national roles are only handed out by the NEC', () => {
-  assert.equal(canAssignRole(m('m-torque'), 'ch-west', P), true);
-  assert.equal(canAssignRole(m('m-torque'), null, P), false);
-  assert.equal(canAssignRole(m('m-smokey'), null, P), true);
-  assert.equal(canAssignRole(m('m-dylan'), 'ch-west', P), false);
+
+test('a board cannot manage an applicant who has not been approved yet', () => {
+  assert.equal(canManageMember(m('m-torque'), m('m-dylan'), P), false);
+});
+
+test('only National Chair, Secretary or Auditor count as NEC officers', () => {
+  assert.equal(isNecOfficer('m-rusty', P), true); // NEC chair
+  assert.equal(isNecOfficer('m-smokey', P), false); // a President sits on the NEC but is not an officer
+  assert.equal(isNecOfficer('m-torque', P), false);
+});
+
+const allowed = (problem: string | null) => problem === null;
+
+test('a chapter board appoints its own members to non-President roles', () => {
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), 'ch-west', 'officer', d)), true);
+});
+
+test('nobody appoints themselves', () => {
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-torque'), 'ch-west', 'officer', d)), false);
+  assert.equal(allowed(appointProblem(m('m-rusty'), m('m-rusty'), null, 'nec_auditor', d)), false);
+});
+
+test('a chapter seat only goes to a member of that chapter', () => {
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-jet'), 'ch-west', 'officer', d)), false);
+  // not even when national does the appointing
+  assert.equal(allowed(appointProblem(m('m-rusty'), m('m-jet'), 'ch-west', 'officer', d)), false);
+});
+
+test('applicants cannot be appointed', () => {
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-dylan'), 'ch-west', 'officer', d)), false);
+});
+
+test('a member cannot hold the same open role twice', () => {
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-chook'), 'ch-west', 'officer', d)), false);
+});
+
+test('national roles come from the NEC only', () => {
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), null, 'nec_auditor', d)), false);
+  assert.equal(allowed(appointProblem(m('m-smokey'), m('m-spanner'), null, 'nec_auditor', d)), true);
+});
+
+// West President seat vacated: Rusty's term ended, he stays National Chair.
+const vacantWest = {
+  ...d,
+  positions: P.map((p): Position => (p.id === 'p-1' ? { ...p, endedOn: '2026-10-01' } : p)),
+};
+
+test('only NEC officers seat a President', () => {
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), 'ch-west', 'president', vacantWest)), false);
+  assert.equal(allowed(appointProblem(m('m-smokey'), m('m-spanner'), 'ch-west', 'president', vacantWest)), false);
+  assert.equal(allowed(appointProblem(m('m-rusty'), m('m-spanner'), 'ch-west', 'president', vacantWest)), true);
+});
+
+const pos = (id: string) => {
+  const found = P.find((p) => p.id === id);
+  if (!found) throw new Error(`no position ${id}`);
+  return found;
+};
+
+test('a chapter board ends other people\'s chapter terms, never its own', () => {
+  assert.equal(allowed(endTermProblem(m('m-torque'), pos('p-7'), d)), true); // Spanner, Tail Gunner
+  assert.equal(allowed(endTermProblem(m('m-torque'), pos('p-3'), d)), false); // her own Secretary term
+  assert.equal(allowed(endTermProblem(m('m-crank'), pos('p-7'), d)), false); // North board, West seat
+  assert.equal(allowed(endTermProblem(m('m-smokey'), pos('p-7'), d)), true); // national reaches every chapter
+});
+
+test('only NEC officers end a President\'s term, and never their own', () => {
+  assert.equal(allowed(endTermProblem(m('m-torque'), pos('p-9'), d)), false); // Smokey, North President
+  assert.equal(allowed(endTermProblem(m('m-smokey'), pos('p-1'), d)), false); // a President is not an officer
+  assert.equal(allowed(endTermProblem(m('m-rusty'), pos('p-9'), d)), true); // NEC chair
+  assert.equal(allowed(endTermProblem(m('m-rusty'), pos('p-1'), d)), false); // his own
+});
+
+test('an ended term cannot be ended again', () => {
+  const ended = { ...pos('p-7'), endedOn: '2026-09-01' };
+  const data = { ...d, positions: P.map((p) => (p.id === 'p-7' ? ended : p)) };
+  assert.equal(allowed(endTermProblem(m('m-torque'), ended, data)), false);
+});
+
+test('seat holders the viewer cannot see are left out instead of crashing', () => {
+  const seats = [
+    { id: 's1', memberId: 'm-torque', chapterId: 'ch-west', role: 'secretary' as const, startedOn: '2025-08-16', endedOn: null },
+    { id: 's2', memberId: 'm-gone', chapterId: 'ch-west', role: 'officer' as const, startedOn: '2025-08-16', endedOn: null },
+  ];
+  assert.deepEqual(withHolders(seats, d.members).map((x) => [x.position.id, x.member.id]), [['s1', 'm-torque']]);
 });

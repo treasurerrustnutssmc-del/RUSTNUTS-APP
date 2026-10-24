@@ -2,8 +2,7 @@
 // the demo members in memory, or the live Supabase database.
 
 import { createContext, useContext } from 'react';
-import { canAssignRole, type AccessLevel } from '../domain/access';
-import { BOARD_ROLES, NATIONAL_ROLES, ROLE_LABEL } from '../domain/labels';
+import type { AccessLevel } from '../domain/access';
 import type {
   Bike,
   BikeRegistration,
@@ -58,6 +57,8 @@ export interface ClubContextValue {
   authEmail: string | null;
   /** Signed in with a confirmed email, but hasn't asked to join yet (live mode). */
   needsApplication: boolean;
+  /** The club data couldn't be loaded for whoever is signed in (live mode). Retry with refresh(). */
+  loadError: string | null;
 
   // signing in
   signInAs: (memberId: string | null) => void; // demo only
@@ -71,8 +72,8 @@ export interface ClubContextValue {
   approveMember: (memberId: string, status: MemberStatus) => Promise<void>;
   declineMember: (memberId: string) => Promise<void>;
   setMemberStatus: (memberId: string, status: MemberStatus) => Promise<void>;
-  updateProfile: (input: ProfileInput) => Promise<void>;
-  updatePrivate: (input: PrivateInput) => Promise<void>;
+  /** Saves profile and (when given) private details together: both or neither. */
+  saveProfile: (profile: ProfileInput, priv: PrivateInput | null) => Promise<void>;
   saveBike: (bike: BikeInput, reg: RegoInput) => Promise<void>;
   removeBike: (bikeId: string) => Promise<void>;
   saveContact: (contact: ContactInput) => Promise<void>;
@@ -99,30 +100,27 @@ export const EMPTY_DATA: ClubData = {
   positions: [],
 };
 
-/** Plain-English checks shared by both sources, so mistakes get a clear message before the server says no. */
-export function checkAppoint(
-  me: Member | null,
-  target: Member,
-  chapterId: string | null,
-  role: PositionRole,
-  data: ClubData,
-): string | null {
-  const national = NATIONAL_ROLES.includes(role);
-  const seatChapter = national ? null : chapterId;
-  if (target.approval !== 'approved') return 'Approve them first.';
-  if (!canAssignRole(me, seatChapter, data.positions)) {
-    return national ? 'Only the NEC hands out national roles.' : 'Only that chapter’s board can appoint here.';
-  }
-  const seatTaken =
-    (BOARD_ROLES.includes(role) || national) &&
-    data.positions.some((p) => p.endedOn === null && p.role === role && p.chapterId === seatChapter);
-  if (seatTaken) return `There’s already a sitting ${ROLE_LABEL[role]}. End their term first.`;
+/** Oldest motorcycle ever made, to next year's models. The database checks the same range. */
+function bikeYearProblem(year: number | null, today: string): string | null {
+  if (year === null) return null;
+  const latest = Number(today.slice(0, 4)) + 1;
+  if (!Number.isInteger(year) || year < 1885 || year > latest) return `Check the year: 1885 to ${latest}.`;
   return null;
 }
 
-export function validateBike(bike: BikeInput): string | null {
+export function validateBike(bike: Pick<BikeInput, 'make' | 'model' | 'year'>, today: string): string | null {
   if (!bike.make.trim() || !bike.model.trim()) return 'Add the make and model.';
-  return null;
+  return bikeYearProblem(bike.year, today);
+}
+
+/** The join form's bike is optional, but it's all or nothing. */
+export function validateApplicationBike(
+  bike: { make: string; model: string; year: number | null } | null,
+  today: string,
+): string | null {
+  if (!bike || (!bike.make.trim() && !bike.model.trim())) return null;
+  if (!bike.make.trim() || !bike.model.trim()) return 'Add the bike’s make and model, or leave both blank.';
+  return bikeYearProblem(bike.year, today);
 }
 
 export function validateContact(contact: ContactInput): string | null {

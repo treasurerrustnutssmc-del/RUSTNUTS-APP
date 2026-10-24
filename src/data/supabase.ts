@@ -29,16 +29,4 @@ export function supabase(): SupabaseClient<Database> {
   return client;
 }
 
-/** Turns database errors into something a member can act on. */
-export function friendlyError(error: { message?: string; code?: string } | null | undefined): Error {
-  const msg = error?.message ?? 'Something went wrong. Try again.';
-  if (error?.code === '42501' || /row-level security|permission denied/i.test(msg)) {
-    return new Error("You're not allowed to do that.");
-  }
-  if (error?.code === '23505') return new Error('That’s already taken. Refresh and try again.');
-  if (/network|fetch/i.test(msg)) return new Error('No connection. Check your signal and try again.');
-  if (/token has expired|invalid/i.test(msg) && /otp|token/i.test(msg)) {
-    return new Error('That code didn’t work. Check it, or ask for a new one.');
-  }
-  return new Error(msg);
-}
+export { friendlyError } from './friendlyError';

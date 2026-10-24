@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Linking, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { AppState, Linking, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
+import { validateApplicationBike } from '../data/clubContext';
 import { DEMO_PERSONAS } from '../data/demoData';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
@@ -219,7 +220,7 @@ export function SignInScreen({ route }: RootScreen<'SignIn'>) {
 type JoinAs = 'introduced' | 'supporter' | 'family';
 
 export function JoinScreen() {
-  const { data, submitApplication, isDemo, authEmail, signOut } = useClub();
+  const { data, submitApplication, isDemo, authEmail, signOut, today } = useClub();
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -243,10 +244,13 @@ export function JoinScreen() {
     email: !isDemo || /^\S+@\S+\.\S+$/.test(form.email.trim()) ? null : 'Add an email address we can send your code to.',
     phone: form.phone.replace(/\D/g, '').length >= 8 ? null : 'Add a mobile number.',
     chapter: chapterId ? null : 'Pick the chapter you ride with.',
-    year:
-      !form.year.trim() || (/^\d{4}$/.test(form.year.trim()) && Number(form.year) >= 1900)
-        ? null
-        : 'Use a four-digit year, like 2019.',
+    // Make and model go together; the year has its own rule. Same checks the database makes.
+    bikeParts: validateApplicationBike({ make: form.make, model: form.model, year: null }, today),
+    year: !form.year.trim()
+      ? null
+      : !/^\d{4}$/.test(form.year.trim())
+        ? 'Use a four-digit year, like 2019.'
+        : validateApplicationBike({ make: 'any', model: 'any', year: Number(form.year) }, today),
   };
   const valid = Object.values(errors).every((e) => e === null);
   const err = (k: keyof typeof errors) => (showErrors ? errors[k] : null);
@@ -268,9 +272,7 @@ export function JoinScreen() {
       introducedBy: form.introducedBy,
       note: form.note,
       status: joinAs,
-      bike: form.make.trim()
-        ? { make: form.make, model: form.model, year: form.year.trim() ? Number(form.year) : null }
-        : null,
+      bike: { make: form.make, model: form.model, year: form.year.trim() ? Number(form.year) : null },
       });
     } catch (e) {
       setSubmitError((e as Error).message);
@@ -339,7 +341,7 @@ export function JoinScreen() {
             <Field label="Make" value={form.make} onChangeText={set('make')} placeholder="Harley-Davidson" />
           </View>
           <View style={{ flex: 1, minWidth: 140 }}>
-            <Field label="Model" value={form.model} onChangeText={set('model')} placeholder="Street Bob" />
+            <Field label="Model" value={form.model} onChangeText={set('model')} placeholder="Street Bob" error={err('bikeParts')} />
           </View>
         </Row>
         <Field label="Year" value={form.year} onChangeText={set('year')} keyboardType="number-pad" inputMode="numeric" maxLength={4} error={err('year')} />
@@ -362,14 +364,23 @@ export function JoinScreen() {
 }
 
 export function PendingScreen() {
-  const { me, data, signOut } = useClub();
+  const { me, data, signOut, refresh, isDemo } = useClub();
+  const [checking, setChecking] = useState(false);
+  // Coming back to the app checks again, so an approval shows up without restarting.
+  useEffect(() => {
+    if (isDemo) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [isDemo, refresh]);
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const declined = me.approval === 'declined';
   const priv = data.privates.find((p) => p.memberId === me.id);
 
   return (
-    <Screen padTop>
+    <Screen padTop onRefresh={isDemo ? undefined : refresh}>
       <View style={{ alignItems: 'center' }}>
         <Logo width={180} />
       </View>
@@ -385,8 +396,8 @@ export function PendingScreen() {
         <Stack gap={space.sm}>
           <H1>Thanks, {me.fullName.split(' ')[0]}</H1>
           <Body>
-            The {chapter?.name} chapter board has your request. Once they approve it, you’ll get a notification and
-            the rest of the app opens up.
+            The {chapter?.name} chapter board has your request. Once they approve it, the rest of the app opens up
+            here.{isDemo ? '' : ' Pull down or tap Check again to see if it’s happened.'}
           </Body>
         </Stack>
       )}
@@ -421,7 +432,47 @@ export function PendingScreen() {
         </Row>
       </Card>
 
+      {!declined && !isDemo ? (
+        <Button
+          label="Check again"
+          icon="refresh"
+          busy={checking}
+          onPress={async () => {
+            setChecking(true);
+            await refresh().catch(() => {});
+            setChecking(false);
+          }}
+        />
+      ) : null}
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
+    </Screen>
+  );
+}
+
+/** Signed in, but the club data didn't come through (no signal, usually). */
+export function LoadErrorScreen() {
+  const { loadError, refresh, signOut } = useClub();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Screen padTop>
+      <View style={{ alignItems: 'center' }}>
+        <Logo width={160} />
+      </View>
+      <Stack gap={space.sm}>
+        <H1>Couldn’t reach the club</H1>
+        <Body>{loadError ?? 'Something went wrong.'} Your details are safe; nothing was changed.</Body>
+      </Stack>
+      <Button
+        label="Try again"
+        icon="refresh"
+        busy={busy}
+        onPress={async () => {
+          setBusy(true);
+          await refresh().catch(() => {});
+          setBusy(false);
+        }}
+      />
+      <Button label="Sign out" kind="quiet" onPress={() => signOut()} />
     </Screen>
   );
 }

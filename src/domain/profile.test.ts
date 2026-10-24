@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoData';
-import { displayName, expiryAlerts, initials, profileChecklist } from './profile';
+import { displayName, expiryAlerts, initials, phoneNote, profileChecklist } from './profile';
 
 const d = DEMO_DATA;
 const m = (id: string) => d.members.find((x) => x.id === id)!;
@@ -42,4 +42,11 @@ test('FNG review schedule', async () => {
   assert.deepEqual(nextFngReview('2026-03-21', '2026-10-24'), { atMonths: 9, date: '2026-12-21', overdue12: false });
   assert.deepEqual(nextFngReview('2026-07-25', '2026-10-24'), { atMonths: 6, date: '2027-01-25', overdue12: false });
   assert.deepEqual(nextFngReview('2025-08-31', '2026-10-24'), { atMonths: 15, date: '2026-11-30', overdue12: true });
+});
+
+test('the phone line says what is actually going on', () => {
+  assert.equal(phoneNote({ isSelf: true, canSee: true, hasPhone: false, name: 'Spanner' }), 'You haven’t added a mobile yet. Add it in Edit profile.');
+  assert.equal(phoneNote({ isSelf: false, canSee: true, hasPhone: false, name: 'Gravel' }), 'No mobile on record for Gravel.');
+  assert.equal(phoneNote({ isSelf: false, canSee: false, hasPhone: false, name: 'Gravel' }), 'Gravel hasn’t shared their number with members.');
+  assert.equal(phoneNote({ isSelf: false, canSee: true, hasPhone: true, name: 'Rusty' }), null);
 });

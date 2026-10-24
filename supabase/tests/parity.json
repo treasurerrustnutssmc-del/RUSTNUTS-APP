@@ -1,0 +1,71 @@
+{
+  "about": "One list of who-can-do-what cases, run against the demo (src/data/parity.test.ts) and the real database (scripts/parity-sql.mjs via npm run test:db). If the two ever disagree, a test fails.",
+  "members": [
+    { "key": "rusty", "chapter": "west", "name": "Gary Kowalski", "status": "full", "approval": "approved", "sharePhone": true },
+    { "key": "torque", "chapter": "west", "name": "Tania Walsh", "status": "full", "approval": "approved", "sharePhone": false },
+    { "key": "spanner", "chapter": "west", "name": "Mick Doherty", "status": "full", "approval": "approved", "sharePhone": true },
+    { "key": "gravel", "chapter": "west", "name": "Brett Hughes", "status": "full", "approval": "approved", "sharePhone": false },
+    { "key": "dylan", "chapter": "west", "name": "Dylan Pryce", "status": "introduced", "approval": "pending", "sharePhone": false },
+    { "key": "crank", "chapter": "north", "name": "Craig Morrison", "status": "full", "approval": "approved", "sharePhone": false },
+    { "key": "jet", "chapter": "north", "name": "Jess Tran", "status": "full", "approval": "approved", "sharePhone": true },
+    { "key": "chair", "chapter": "north", "name": "Sam Ellis", "status": "full", "approval": "approved", "sharePhone": false },
+    { "key": "josh", "chapter": "north", "name": "Josh Tran", "status": "family", "approval": "pending", "sharePhone": false }
+  ],
+  "positions": [
+    { "key": "rusty-president", "member": "rusty", "chapter": "west", "role": "president", "startedOn": "2025-08-16", "endedOn": null },
+    { "key": "torque-secretary", "member": "torque", "chapter": "west", "role": "secretary", "startedOn": "2025-08-16", "endedOn": null },
+    { "key": "torque-old-vp", "member": "torque", "chapter": "west", "role": "vice_president", "startedOn": "2024-08-16", "endedOn": "2025-08-16" },
+    { "key": "spanner-tail-gunner", "member": "spanner", "chapter": "west", "role": "tail_gunner", "startedOn": "2025-08-16", "endedOn": null },
+    { "key": "crank-road-captain", "member": "crank", "chapter": "north", "role": "road_captain", "startedOn": "2025-08-16", "endedOn": null },
+    { "key": "chair-nec-chair", "member": "chair", "chapter": null, "role": "nec_chair", "startedOn": "2025-08-16", "endedOn": null }
+  ],
+  "bikes": [
+    { "key": "spanner-softail", "member": "spanner", "make": "Harley-Davidson", "model": "Softail Slim", "year": 2016 },
+    { "key": "dylan-street-bob", "member": "dylan", "make": "Harley-Davidson", "model": "Street Bob", "year": 2019 }
+  ],
+  "contacts": [
+    { "key": "spanner-jen", "member": "spanner", "name": "Jen Doherty", "relationship": "Wife", "phone": "0427 555 604" }
+  ],
+  "cases": [
+    { "name": "Secretary appoints a West member as Officer", "as": "torque", "action": "appoint", "member": "spanner", "chapter": "west", "role": "officer", "allowed": true },
+    { "name": "Secretary appoints herself as Officer", "as": "torque", "action": "appoint", "member": "torque", "chapter": "west", "role": "officer", "allowed": false },
+    { "name": "Secretary seats a North member in a West role", "as": "torque", "action": "appoint", "member": "jet", "chapter": "west", "role": "officer", "allowed": false },
+    { "name": "National seats a North member in a West role", "as": "rusty", "action": "appoint", "member": "jet", "chapter": "west", "role": "officer", "allowed": false },
+    { "name": "Secretary appoints an applicant", "as": "torque", "action": "appoint", "member": "dylan", "chapter": "west", "role": "officer", "allowed": false },
+    { "name": "Secretary hands out a national role", "as": "torque", "action": "appoint", "member": "spanner", "chapter": null, "role": "nec_auditor", "allowed": false },
+    { "name": "A President hands out a national role", "as": "rusty", "action": "appoint", "member": "torque", "chapter": null, "role": "nec_secretary", "allowed": true },
+    { "name": "Secretary fills a seat she already holds", "as": "torque", "action": "appoint", "member": "gravel", "chapter": "west", "role": "secretary", "allowed": false },
+    { "name": "North Road Captain seats a North President", "as": "crank", "action": "appoint", "member": "jet", "chapter": "north", "role": "president", "allowed": false },
+    { "name": "A West President seats a North President", "as": "rusty", "action": "appoint", "member": "jet", "chapter": "north", "role": "president", "allowed": false },
+    { "name": "National Chair seats a North President", "as": "chair", "action": "appoint", "member": "jet", "chapter": "north", "role": "president", "allowed": true },
+    { "name": "National Chair seats herself as North President", "as": "chair", "action": "appoint", "member": "chair", "chapter": "north", "role": "president", "allowed": false },
+
+    { "name": "Secretary ends the President's term", "as": "torque", "action": "endTerm", "position": "rusty-president", "allowed": false },
+    { "name": "National Chair ends the West President's term", "as": "chair", "action": "endTerm", "position": "rusty-president", "allowed": true },
+    { "name": "Secretary ends her own term", "as": "torque", "action": "endTerm", "position": "torque-secretary", "allowed": false },
+    { "name": "Secretary ends the Tail Gunner's term", "as": "torque", "action": "endTerm", "position": "spanner-tail-gunner", "allowed": true },
+    { "name": "North board ends a West term", "as": "crank", "action": "endTerm", "position": "spanner-tail-gunner", "allowed": false },
+    { "name": "A President ends a term in another chapter", "as": "rusty", "action": "endTerm", "position": "crank-road-captain", "allowed": true },
+    { "name": "A term that already ended is ended again", "as": "chair", "action": "endTerm", "position": "torque-old-vp", "allowed": false },
+    { "name": "A President ends the National Chair's role", "as": "rusty", "action": "endTerm", "position": "chair-nec-chair", "allowed": true },
+    { "name": "A member ends the National Chair's role", "as": "spanner", "action": "endTerm", "position": "chair-nec-chair", "allowed": false },
+
+    { "name": "West board approves a West applicant", "as": "torque", "action": "approve", "member": "dylan", "status": "introduced", "allowed": true },
+    { "name": "North board approves a West applicant", "as": "crank", "action": "approve", "member": "dylan", "status": "introduced", "allowed": false },
+    { "name": "A West President approves a North applicant", "as": "rusty", "action": "approve", "member": "josh", "status": "family", "allowed": true },
+    { "name": "A member approves an applicant", "as": "spanner", "action": "approve", "member": "dylan", "status": "introduced", "allowed": false },
+    { "name": "West board declines a West applicant", "as": "torque", "action": "decline", "member": "dylan", "allowed": true },
+    { "name": "North board declines a West applicant", "as": "crank", "action": "decline", "member": "dylan", "allowed": false },
+
+    { "name": "Board changes an applicant's status before approving", "as": "torque", "action": "setStatus", "member": "dylan", "status": "fng", "allowed": false },
+    { "name": "Board changes a member's status", "as": "torque", "action": "setStatus", "member": "gravel", "status": "supporter", "allowed": true },
+    { "name": "Board changes her own status", "as": "torque", "action": "setStatus", "member": "torque", "status": "nomad", "allowed": false },
+    { "name": "A member changes another member's status", "as": "spanner", "action": "setStatus", "member": "gravel", "status": "supporter", "allowed": false },
+
+    { "name": "A member removes their own bike", "as": "spanner", "action": "removeBike", "bike": "spanner-softail", "allowed": true },
+    { "name": "A member removes an applicant's bike", "as": "spanner", "action": "removeBike", "bike": "dylan-street-bob", "allowed": false },
+    { "name": "Board removes a member's bike", "as": "torque", "action": "removeBike", "bike": "spanner-softail", "allowed": false },
+    { "name": "A member removes their own emergency contact", "as": "spanner", "action": "removeContact", "contact": "spanner-jen", "allowed": true },
+    { "name": "A member removes someone else's emergency contact", "as": "gravel", "action": "removeContact", "contact": "spanner-jen", "allowed": false }
+  ]
+}

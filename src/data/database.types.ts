@@ -115,22 +115,17 @@ export type Database = {
       };
       positions: {
         Row: {
+          appointed_by: string | null;
           chapter_id: string | null;
+          ended_by: string | null;
           ended_on: string | null;
           id: string;
           member_id: string;
           role: PositionRole;
           started_on: string;
         };
-        Insert: {
-          chapter_id?: string | null;
-          ended_on?: string | null;
-          id?: string;
-          member_id: string;
-          role: PositionRole;
-          started_on?: string;
-        };
-        Update: { ended_on?: string | null };
+        Insert: { [_ in never]: never }; // positions change only through appoint_position / end_position
+        Update: { [_ in never]: never };
         Relationships: [];
       };
     };
@@ -141,18 +136,57 @@ export type Database = {
       member_phone: { Args: { p_member: string }; Returns: string };
       set_member_status: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       shared_phones: { Args: never; Returns: { member_id: string; phone: string }[] };
-      submit_application: {
+      appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
+      end_position: { Args: { p_position: string }; Returns: undefined };
+      apply_to_join: {
         Args: {
           p_chapter: string;
           p_full_name: string;
+          p_road_name?: string;
+          p_phone?: string;
           p_introduced_by?: string;
           p_note?: string;
-          p_phone?: string;
-          p_road_name?: string;
           p_status?: MemberStatus;
+          p_bike_make?: string;
+          p_bike_model?: string;
+          p_bike_year?: number;
         };
         Returns: undefined;
       };
+      save_profile: {
+        Args: {
+          p_full_name: string;
+          p_road_name: string | null;
+          p_bio: string | null;
+          p_share_phone: boolean;
+          p_with_private?: boolean;
+          p_email?: string | null;
+          p_phone?: string | null;
+          p_licence_class?: LicenceClass | null;
+          p_licence_expiry?: string | null;
+          p_first_aid_expiry?: string | null;
+        };
+        Returns: undefined;
+      };
+      save_bike: {
+        Args: {
+          p_bike: string | null;
+          p_make: string;
+          p_model: string;
+          p_year: number | null;
+          p_nickname: string | null;
+          p_is_project: boolean;
+          p_rego: string | null;
+          p_rego_expiry: string | null;
+        };
+        Returns: string;
+      };
+      remove_bike: { Args: { p_bike: string }; Returns: undefined };
+      save_contact: {
+        Args: { p_contact: string | null; p_name: string; p_relationship: string; p_phone: string };
+        Returns: string;
+      };
+      remove_contact: { Args: { p_contact: string }; Returns: undefined };
     };
     Enums: {
       approval_state: ApprovalState;
