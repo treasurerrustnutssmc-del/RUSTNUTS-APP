@@ -29,6 +29,7 @@ import { ShareRideButton } from './shareRide';
 // Stage 3 (lane B): ride chat and wall
 import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
+import { RideCheckinCard } from './checkin'; // Stage 4
 import {
   Avatar,
   Body,
@@ -429,6 +430,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         {counts.no > 0 ? <Small>{`${counts.no} can’t make it.`}</Small> : null}
       </Stack>
 
+      <RideCheckinCard ride={ride} />
       <RouteSection
         ride={ride}
         me={me}

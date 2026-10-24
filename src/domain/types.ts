@@ -188,6 +188,127 @@ export interface ClubData {
   // Lane E: notifications
   /** The signed-in member's saved notification settings, or null for the defaults. */
   notificationPrefs?: NotificationPrefs | null;
+
+  // Stage 4: members and money
+  checkinSessions?: CheckinSession[];
+  attendance?: Attendance[];
+  decisions?: MemberDecision[];
+  feeRates?: FeeRate[];
+  continuationFees?: ContinuationFee[];
+  charges?: Charge[];
+  payments?: Payment[];
+  paymentDetails?: PaymentDetails[];
+}
+
+// ---------------------------------------------------------------------------
+// Stage 4: members and money (attendance, joining, FNG reviews, fees)
+// ---------------------------------------------------------------------------
+
+export type CheckinKind = 'ride' | 'meeting';
+
+/** A check-in opened at a ride or meeting. The code is only ever loaded for people who run it. */
+export interface CheckinSession {
+  id: string;
+  kind: CheckinKind;
+  chapterId: string | null; // null = a whole-club ride
+  rideId: string | null;
+  title: string;
+  heldOn: string; // Melbourne date
+  openedBy: string | null;
+  closedAt: string | null;
+  code?: string | null;
+}
+
+export interface Attendance {
+  sessionId: string;
+  memberId: string;
+  checkedInAt: string;
+  /** Who ticked them off; null when they checked themselves in. */
+  markedBy: string | null;
+}
+
+export type DecisionKind = 'application' | 'fng_review';
+export type DecisionOutcome = 'approved' | 'declined' | 'continue' | 'patch' | 'not_continuing';
+
+/** A vote's tally as the board took it. Any count can be left out. */
+export interface Votes {
+  for: number | null;
+  against: number | null;
+  abstained: number | null;
+}
+
+/** What the board decided about an applicant or at an FNG review: the member's board only. */
+export interface MemberDecision {
+  id: string;
+  memberId: string;
+  kind: DecisionKind;
+  atMonths: number | null; // the FNG review slot (6, 9, 12, 15 …)
+  outcome: DecisionOutcome;
+  status: MemberStatus | null; // what an applicant was let in as
+  votesFor: number | null;
+  votesAgainst: number | null;
+  votesAbstained: number | null;
+  note: string | null;
+  decidedOn: string;
+  recordedBy: string | null;
+}
+
+export type ChargeKind = 'annual' | 'continuation' | 'other';
+export type PaymentMethod = 'payid' | 'bank' | 'cash' | 'card';
+export type PaymentState = 'claimed' | 'confirmed' | 'rejected';
+
+/** A chapter's fee for one status in one financial year (fy 2026 = 1 Jul 2026 to 30 Jun 2027). */
+export interface FeeRate {
+  chapterId: string;
+  fy: number;
+  status: MemberStatus;
+  amountCents: number;
+  dueOn: string;
+}
+
+export interface ContinuationFee {
+  chapterId: string;
+  fy: number;
+  amountCents: number;
+}
+
+/** Something a member owes: the member and their chapter's board only. */
+export interface Charge {
+  id: string;
+  memberId: string;
+  chapterId: string;
+  fy: number;
+  kind: ChargeKind;
+  description: string | null;
+  amountCents: number;
+  dueOn: string;
+  createdAt: string;
+  waivedAt: string | null;
+}
+
+export interface Payment {
+  id: string;
+  chargeId: string;
+  amountCents: number;
+  paidOn: string;
+  method: PaymentMethod;
+  reference: string | null;
+  state: PaymentState;
+  claimedBy: string | null;
+  receiptNo: string | null;
+  decidedAt: string | null;
+}
+
+/** Where members pay a chapter: shown to approved members. */
+export interface PaymentDetails {
+  chapterId: string;
+  payid: string | null;
+  payidName: string | null;
+  bsb: string | null;
+  accountNo: string | null;
+  // Lane E: notifications
+  /** The signed-in member's saved notification settings, or null for the defaults. */
+  notificationPrefs?: NotificationPrefs | null;
 }
 
 // Lane E: live ride

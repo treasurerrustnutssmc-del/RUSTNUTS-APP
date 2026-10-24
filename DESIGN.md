@@ -259,6 +259,12 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - **Member disc:** the real round MEMBER patch art, shown only on Full members and Nomads.
 - **Flannel:** a flannel photo under a 76% ink wash. It's an accent only, used for the welcome, the waiting screen, the Home greeting and the disc moment.
 - **Logo and skull:** the real artwork, never redrawn or recoloured.
+- **Check-in code (Stage 4):** the QR sits on a bone plate (scanners need dark on light), with the code under it in the stencil at 40 and wide tracking. Besides the logo plate, it's the only bright surface in the app.
+
+### Money (Stage 4)
+- Amounts are always stencil numbers as `$250.00`. A paid amount is OK green; what's owing stays bone, and a charge's state is a chip (Paid, Part paid, Due soon, Overdue, Waived).
+- One red action per money card: "I've paid this" for the member. Treasurer actions on a chapter screen are secondary, so a page of claims doesn't turn red.
+- Receipts show as an OK chip with the receipt number.
 
 ## Do's and Don'ts
 
