@@ -79,6 +79,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_routes -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_routes -f "$ROOT/supabase/tests/ride_routes_test.sql"
+# Ride briefings, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_briefings" >/dev/null
+"${PSQL[@]}" -d rustnuts_briefings -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_briefings -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_briefings -f "$ROOT/supabase/tests/ride_briefings_test.sql"
 
 # Lane E: live ride, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_live" >/dev/null
