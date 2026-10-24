@@ -230,6 +230,11 @@ begin
   assert pg_temp.save(fergus, null, '', 'west', 'nonsense') = nobody, 'who may change it comes before the name and file';
   assert pg_temp.save(rick, null, '', 'west', pg_temp.good_gpx()) = no_name, 'a blank name';
   assert pg_temp.save(rick, null, '   ', 'west', pg_temp.good_gpx()) = no_name, 'spaces only';
+  assert pg_temp.save(rick, null, E'\t\n', 'west', pg_temp.good_gpx()) = no_name, 'a tab and a newline only';
+  assert pg_temp.save(rick, null, E'\u00a0\u3000\ufeff', 'west', pg_temp.good_gpx()) = no_name,
+    'other whitespace the app trims';
+  assert pg_temp.save(rick, null, E'\t' || repeat('x', 81) || E'\n', 'west', pg_temp.good_gpx()) = no_name,
+    'too long once trimmed';
   assert pg_temp.save(rick, null, null, 'west', pg_temp.good_gpx()) = no_name, 'no name at all';
   assert pg_temp.save(rick, null, repeat('x', 81), 'west', pg_temp.good_gpx()) = no_name, '81 characters';
   assert pg_temp.save(rick, null, '', 'west', 'nonsense') = no_name, 'the name comes before the file';
@@ -278,10 +283,20 @@ begin
   assert pg_temp.save(rick, null, 'Prefixed', 'west',
     '<g:gpx xmlns:g="http://www.topografix.com/GPX/1/1"><g:trk><g:trkseg><g:trkpt lat=''1'' lon=''2''/>'
     || '<g:trkpt lat=''3'' lon=''4''/></g:trkseg></g:trk></g:gpx>') is null, 'a gpx:-prefixed file';
+  -- A leading byte order mark is dropped before the checks, and not kept.
+  assert pg_temp.save(rick, null, 'With BOM', 'west', chr(65279) || pg_temp.good_gpx()) is null, 'a file with a BOM';
+  assert (select gpx from routes where name = 'With BOM') = pg_temp.good_gpx(), 'kept without it';
+  assert pg_temp.save(rick, null, 'Two BOMs', 'west', chr(65279) || chr(65279) || pg_temp.good_gpx()) = not_gpx,
+    'only one is dropped';
+  assert pg_temp.save(rick, null, 'BOM too big', 'west', chr(65279) || repeat('x', 5242881)) = too_big,
+    'a big file with a BOM';
   -- Exactly 5 MB passes.
   assert pg_temp.save(rick, null, 'Just fits', 'west',
     head || repeat(' ', 5242880 - octet_length(head) - 6) || '</gpx>') is null, 'exactly 5 MB';
   assert octet_length((select gpx from routes where name = 'Just fits')) = 5242880, 'all of it was kept';
+  assert pg_temp.save(rick, null, 'Just fits with BOM', 'west',
+    chr(65279) || head || repeat(' ', 5242880 - octet_length(head) - 6) || '</gpx>') is null,
+    'the BOM doesn''t count towards 5 MB';
 end $$;
 
 \echo 'A route manager adds a route; everything is kept, and save_route returns its id'
@@ -303,6 +318,8 @@ begin
     and r.bounds = '{"minLat":-37.81,"minLng":144.9,"maxLat":-37.8,"maxLng":144.91}', 'the summary';
   assert r.created_by = rick and r.updated_by = rick, 'Rick made it';
   assert r.created_at is not null and r.updated_at is not null and r.archived_at is null, 'the times';
+  assert pg_temp.save(rick, null, E'\t\u00a0Tabbed loop\r\n', 'west', pg_temp.good_gpx()) is null, 'a name with tabs';
+  assert pg_temp.rid('Tabbed loop') is not null, 'trimmed like the app trims';
 
   perform set_config('request.jwt.claim.sub', rick::text, true);
   set local role authenticated;
@@ -533,11 +550,13 @@ begin
   assert pg_temp.value_as(fergus, $q$select count(*) from routes where archived_at is null and distance_m > 0
     and line is not null and stops is not null and created_by is not null$q$) not like 'error:%', 'the summary columns';
   assert pg_temp.value_as(fergus, $q$select max(length(gpx)) from routes$q$) like 'error:%', 'but the file only through route_gpx';
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d9', 'routes') in (0, -1), 'an applicant can''t';
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d9', 'ride_routes') in (0, -1), 'nor their rides'' routes';
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000db', 'routes') in (0, -1), 'nor a stranger';
-  assert pg_temp.count_as(null, 'routes') in (0, -1), 'nor the public';
-  assert pg_temp.count_as(null, 'ride_routes') in (0, -1), 'nor the public, rides';
+  -- Applicants and strangers can ask, but the policy shows them nothing; the public can't ask at all.
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d9', 'routes') = 0, 'an applicant sees no routes';
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d9', 'ride_routes') = 0, 'nor any ride''s route';
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000db', 'routes') = 0, 'nor a stranger';
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000db', 'ride_routes') = 0, 'nor a stranger, rides';
+  assert pg_temp.count_as(null, 'routes') = -1, 'the public has no grant';
+  assert pg_temp.count_as(null, 'ride_routes') = -1, 'nor on ride routes';
 end $$;
 
 \echo 'The table rules hold even for a direct write: a name of 1 to 80, a file up to 5 MB'
@@ -546,6 +565,11 @@ begin
   begin
     insert into routes (name, gpx) values ('  ', pg_temp.good_gpx());
     assert false, 'a blank name got in';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into routes (name, gpx) values (E'\t\n', pg_temp.good_gpx());
+    assert false, 'a tab-and-newline name got in';
   exception when check_violation then null;
   end;
   begin

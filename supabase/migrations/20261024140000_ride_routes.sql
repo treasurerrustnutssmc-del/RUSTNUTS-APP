@@ -3,9 +3,19 @@
 -- same rules with the same words as src/domain/routes.ts, checked in the same order. Nothing is ever
 -- removed: archiving hides a route from the library and from choosing, and rides that use it keep it.
 
+-- Trims a name the way the app's String.trim() does: every kind of whitespace and line break,
+-- not only spaces.
+create or replace function private.trim_like_app(p_text text)
+returns text language sql immutable set search_path = '' as $$
+  select regexp_replace(p_text,
+    '^[ \t\n\v\f\r\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+|[ \t\n\v\f\r\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+$',
+    '', 'g');
+$$;
+revoke all on function private.trim_like_app(text) from public, anon, authenticated;
+
 create table public.routes (
   id uuid primary key default gen_random_uuid(),
-  name text not null check (char_length(btrim(name)) between 1 and 80),
+  name text not null check (char_length(private.trim_like_app(name)) between 1 and 80),
   chapter_id uuid references public.chapters (id), -- null: the whole club
   notes text,
   gpx text not null check (octet_length(gpx) <= 5242880),
@@ -74,6 +84,9 @@ returns uuid language plpgsql security definer set search_path = '' as $$
 declare
   me uuid := auth.uid();
   existing public.routes%rowtype;
+  route_name text := private.trim_like_app(p_name);
+  -- A leading byte order mark (some apps write one) is cut off and not kept, as the app's reader skips it.
+  file text := case when left(p_gpx, 1) = chr(65279) then substr(p_gpx, 2) else p_gpx end;
   doc xml;
   saved uuid;
 begin
@@ -87,16 +100,16 @@ begin
      or (p_id is not null and not private.manages_chapter_rides(existing.chapter_id)) then
     raise exception 'Only the board or ride committee can change routes.';
   end if;
-  if p_name is null or char_length(btrim(p_name)) not between 1 and 80 then
+  if route_name is null or char_length(route_name) not between 1 and 80 then
     raise exception 'Give the route a name.';
   end if;
 
-  if p_gpx is null then
+  if file is null then
     if p_id is null then raise exception 'That route has no track in it.'; end if;
   else
-    if octet_length(p_gpx) > 5242880 then raise exception 'That file is too big (5 MB at most).'; end if;
-    if not xml_is_well_formed_document(p_gpx) then raise exception 'That isn’t a GPX file.'; end if;
-    doc := xmlparse(document p_gpx);
+    if octet_length(file) > 5242880 then raise exception 'That file is too big (5 MB at most).'; end if;
+    if not xml_is_well_formed_document(file) then raise exception 'That isn’t a GPX file.'; end if;
+    doc := xmlparse(document file);
     if (xpath('local-name(/*)', doc))[1]::text is distinct from 'gpx' then
       raise exception 'That isn’t a GPX file.';
     end if;
@@ -108,19 +121,19 @@ begin
   if p_id is null then
     insert into public.routes (name, chapter_id, notes, gpx, distance_m, climb_m, line, stops, bounds,
                                created_by, updated_by)
-    values (btrim(p_name), p_chapter, nullif(btrim(p_notes), ''), p_gpx, coalesce(p_distance_m, 0), p_climb_m,
+    values (route_name, p_chapter, nullif(private.trim_like_app(p_notes), ''), file, coalesce(p_distance_m, 0), p_climb_m,
             coalesce(p_line, '[]'::jsonb), coalesce(p_stops, '[]'::jsonb), p_bounds, me, me)
     returning id into saved;
-  elsif p_gpx is null then
+  elsif file is null then
     update public.routes
-    set name = btrim(p_name), chapter_id = p_chapter, notes = nullif(btrim(p_notes), ''),
+    set name = route_name, chapter_id = p_chapter, notes = nullif(private.trim_like_app(p_notes), ''),
         updated_by = me, updated_at = now()
     where id = p_id
     returning id into saved;
   else
     update public.routes
-    set name = btrim(p_name), chapter_id = p_chapter, notes = nullif(btrim(p_notes), ''),
-        gpx = p_gpx, distance_m = coalesce(p_distance_m, 0), climb_m = p_climb_m,
+    set name = route_name, chapter_id = p_chapter, notes = nullif(private.trim_like_app(p_notes), ''),
+        gpx = file, distance_m = coalesce(p_distance_m, 0), climb_m = p_climb_m,
         line = coalesce(p_line, '[]'::jsonb), stops = coalesce(p_stops, '[]'::jsonb), bounds = p_bounds,
         updated_by = me, updated_at = now()
     where id = p_id
