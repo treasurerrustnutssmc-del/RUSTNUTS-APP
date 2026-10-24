@@ -108,7 +108,12 @@ The display-only helpers live there too:
 ### On the phone (`src/data/liveTracker.ts`)
 
 - **Native:** expo-location background updates, run by an expo-task-manager task.
-  - Updates every 20 seconds or 50 metres, at balanced accuracy.
+  - Updates every 30 seconds, even standing still, at balanced accuracy (Android). iPhones only send a
+    fix when the phone moves, and pause timers in the background.
+  - **Known limit on iPhones:** a phone that's stopped, with the screen off, hears no new alert until it
+    moves or the app is opened, and switches off late on the same terms. Part 3 fixes this with a server
+    push for each new live-ride alert (`ride_alerts` joins the push outbox, sent even while the master
+    switch holds other pushes once Jeff turns pushes on). Until then this goes on Jeff's phone test list.
   - Android shows a foreground-service notification: "Sharing your location with the ride".
   - The task reads the active ride and its `stops_at` from AsyncStorage. Past `stops_at`, it stops itself,
     even if the app was closed.
@@ -206,7 +211,9 @@ The display-only helpers live there too:
 - **`private.push_outbox`:** filled by triggers in three cases:
   - a ride is cancelled or changes time: everyone going or maybe, with that preference on;
   - a new ride: members whose chapter colours match, with that preference on;
-  - a new applicant: that chapter's board.
+  - a new applicant: that chapter's board;
+  - a new live-ride emergency, dropped-out rider or regroup pin: everyone sharing on that ride (for
+    iPhones standing still, see part 1's known limit).
 - **The `send-push` Edge Function** reads the outbox, applies the preferences, and posts to Expo's push
   service. pg_cron runs it every minute.
 - **Master switch:** `private.app_settings.push_enabled` defaults to off. While it's off, the function

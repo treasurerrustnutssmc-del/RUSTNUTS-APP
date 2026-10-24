@@ -64,3 +64,14 @@ test('demo live ride: alerts follow the same rules', async () => {
   await b.raise('r-today', 'out', FIX);
   await assert.rejects(b.state('r-today'), /Share your location first\./, 'dropping out stops sharing');
 });
+
+test('demo live ride: a resent press is the same alert, even once cleared', async () => {
+  const { b } = backend();
+  await b.start('r-today');
+  const pressed = new Date(NOW.getTime() - 5 * 60_000).toISOString();
+  const id = await b.raise('r-today', 'emergency', { lat: -37.77, lng: 144.75 }, pressed);
+  await b.resolve(id);
+  assert.equal(await b.raise('r-today', 'emergency', null, pressed), id);
+  const s = await b.state('r-today');
+  assert.equal(s.alerts.filter((a) => a.kind === 'emergency' && !a.resolvedAt).length, 0);
+});

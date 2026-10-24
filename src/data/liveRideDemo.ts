@@ -164,6 +164,11 @@ export function createDemoLiveBackend(
       if (kind === 'regroup') {
         ride.alerts = ride.alerts.map((a) => (a.kind === 'regroup' && !a.resolvedAt ? { ...a, resolvedAt: t } : a));
       }
+      // A phone that lost the answer sends the same press again: the same alert, even once cleared.
+      const resent = kind !== 'regroup' && pressedAt
+        ? ride.alerts.find((a) => a.memberId === me.id && a.kind === kind && a.createdAt === pressed && a.resolvedAt)
+        : undefined;
+      if (resent) return resent.id;
       const open = kind === 'regroup' ? undefined : ride.alerts.find((a) => a.memberId === me.id && a.kind === kind && !a.resolvedAt);
       if (open) {
         id = open.id;

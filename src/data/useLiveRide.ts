@@ -14,6 +14,7 @@ import {
   currentFix,
   dismissUnsent,
   flushQueue,
+  forgetHeld,
   heldAlerts,
   holdAlert,
   noticeAlerts,
@@ -89,19 +90,30 @@ export function useLiveRide(rideId: string) {
     }
   }, [rideId, mode, meId, fail, syncQueue]);
 
-  // Already sharing on this ride (from an earlier visit, or with the screen off)?
+  // Already sharing on this ride (from an earlier visit, or with the screen off)? The phone picks
+  // its own sharing back up first, so it carries on even with no signal.
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const local = isDemo ? null : await activeRide();
+      const resumed = local?.rideId === rideId ? await resumeTracking(rideId).catch(() => null) : null;
+      if (!cancelled && resumed) setMode(resumed);
       try {
         const s = await withTimeout(liveBackend().state(rideId));
         if (cancelled) return;
         setState(s);
-        setMode(isDemo ? 'demo' : await resumeTracking(rideId));
+        setMode(isDemo ? 'demo' : resumed);
       } catch (e) {
         // The club says this phone isn't sharing here: make sure the GPS agrees.
-        if (notSharing(e) && (await activeRide())?.rideId === rideId) await stopTracking();
-        if (isOffline(e)) setOffline(true);
+        if (notSharing(e) && resumed) {
+          await stopTracking();
+          if (!cancelled) setMode(null);
+        }
+        if (isOffline(e)) {
+          setOffline(true);
+          // Still sharing as far as this phone knows: show it, and let the poll catch up.
+          if (!cancelled && resumed && local) setState({ rideId, me: { stopsAt: local.stopsAt }, riders: [], alerts: [], contacts: [] });
+        }
       } finally {
         if (!cancelled) setChecking(false);
       }
@@ -151,14 +163,28 @@ export function useLiveRide(rideId: string) {
     return () => clearInterval(timer);
   }, [stopsAt, refresh]);
 
+  // Not sharing, but an alert or a stop is still waiting for signal: keep trying to send it.
+  const waiting = !stopsAt && (held > 0 || stopPending);
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setInterval(() => {
+      syncQueue().catch(() => {});
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [waiting, syncQueue]);
+
   const start = useCallback(async () => {
     if (!meId) return;
     setError(null);
+    // A stop still waiting for signal would switch this new share off once it sent.
+    const hadStop = (await heldAlerts()).some((q) => q.rideId === rideId && q.kind === 'stop');
+    if (hadStop) await forgetHeld(rideId, 'stop');
+    const holdStop = () => holdAlert({ rideId, kind: 'stop', at: null, queuedAt: new Date().toISOString() });
     try {
       const until = await withTimeout(liveBackend().start(rideId));
       const tracking = await startTracking(rideId, until, meId).catch(() => 'denied' as const);
       if (tracking === 'denied' && !isDemo) {
-        await liveBackend().stop(rideId).catch(() => {});
+        await withTimeout(liveBackend().stop(rideId)).catch(holdStop);
         setError('Location is off for Rustnuts. Turn it on in Settings to share.');
         return;
       }
@@ -172,6 +198,8 @@ export function useLiveRide(rideId: string) {
       }
       setStopPending(false);
     } catch (e) {
+      // Didn't get through: the earlier stop still needs sending.
+      if (hadStop) await holdStop();
       fail(e);
     }
   }, [meId, rideId, isDemo, fail, keepFix]);

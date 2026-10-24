@@ -87,20 +87,27 @@ function toFix(loc: Location.LocationObject): Fix {
 // Alerts: notifications, and the ones waiting for signal
 // ---------------------------------------------------------------------------
 
-/** Tells the phone's owner about alerts they haven't heard yet. */
-export async function noticeAlerts(state: LiveState, fix: Fix | null, meId: string): Promise<void> {
-  if (!NATIVE) return;
-  const seen = await read<string[]>(SEEN, []);
-  const fresh = unseenAlerts(seen, state.alerts, meId);
-  if (fresh.length === 0) return;
-  for (const a of fresh) {
-    const { title, body } = alertNotice(a, fix);
-    await Notifications.scheduleNotificationAsync({
-      content: { title, body, sound: true, data: { rideId: state.rideId }, priority: Notifications.AndroidNotificationPriority.MAX },
-      trigger: Platform.OS === 'android' ? { channelId: CHANNEL } : null,
-    }).catch(() => {});
-  }
-  await write(SEEN, [...seen, ...fresh.map((a) => a.id)]);
+// One at a time, so a fix and a poll arriving together don't both notify about the same alert.
+let noticing: Promise<unknown> = Promise.resolve();
+
+/** Tells the phone's owner about alerts they haven't heard yet (once each, even across shares). */
+export function noticeAlerts(state: LiveState, fix: Fix | null, meId: string): Promise<void> {
+  if (!NATIVE) return Promise.resolve();
+  const next = noticing.then(async () => {
+    const seen = await read<string[]>(SEEN, []);
+    const fresh = unseenAlerts(seen, state.alerts, meId);
+    if (fresh.length === 0) return;
+    for (const a of fresh) {
+      const { title, body } = alertNotice(a, fix);
+      await Notifications.scheduleNotificationAsync({
+        content: { title, body, sound: true, data: { rideId: state.rideId }, priority: Notifications.AndroidNotificationPriority.MAX },
+        trigger: Platform.OS === 'android' ? { channelId: CHANNEL } : null,
+      }).catch(() => {});
+    }
+    await write(SEEN, [...seen, ...fresh.map((a) => a.id)].slice(-200));
+  });
+  noticing = next.catch(() => {});
+  return next;
 }
 
 const queue = createAlertQueue(AsyncStorage, async (item) => {
@@ -119,6 +126,7 @@ export async function flushQueue(): Promise<void> {
 /** Keeps an alert (or a stop) to send when signal comes back. */
 export const holdAlert = (item: QueuedAlert) => queue.hold(item);
 export const heldAlerts = () => queue.list();
+export const forgetHeld = (rideId: string, kind: QueuedAlert['kind']) => queue.forget(rideId, kind);
 export const unsentAlerts = () => read<Refused[]>(UNSENT, []);
 export const dismissUnsent = () => AsyncStorage.removeItem(UNSENT).catch(() => {});
 
@@ -287,7 +295,7 @@ export async function stopTracking(): Promise<void> {
       // Not running.
     }
   }
-  await AsyncStorage.multiRemove([ACTIVE, SEEN]).catch(() => {});
+  await AsyncStorage.removeItem(ACTIVE).catch(() => {});
 }
 
 /** Which ride this phone is sharing on, if any (and it hasn't switched itself off). */

@@ -232,6 +232,12 @@ begin
     'a leader at home can''t clear it';
   perform pg_temp.get_as(tom, $s$public.start_live_ride('00000000-0000-0000-0000-0000000000e1')$s$);
   assert pg_temp.try_as(tom, format('select public.resolve_ride_alert(%L)', a)) is null, 'a leader on the ride can';
+  -- The phone never heard the first send went through, so it sends the same press again.
+  assert (pg_temp.get_as(ned, $s$public.raise_ride_alert('00000000-0000-0000-0000-0000000000e1', 'emergency', -37.9, 144.8,
+        now() - interval '20 minutes')$s$) #>> '{}')::uuid = a, 'a resend of the same press is the same alert';
+  assert (select resolved_at from public.ride_alerts where id = a) is not null, 'and stays cleared';
+  assert (select count(*) from public.ride_alerts where member_id = ned and resolved_at is null) = 0,
+    'no fresh emergency comes back after a leader cleared it';
 end $$;
 
 \echo 'Regroup pins: leaders only, and a new one replaces the last'

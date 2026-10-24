@@ -232,6 +232,13 @@ begin
     insert into public.ride_alerts (ride_id, member_id, kind, lat, lng) values (p_ride, me, p_kind, p_lat, p_lng)
     returning id into new_id;
   else
+    -- A phone that lost the answer sends the same press again: that's the same alert, even if a
+    -- leader has cleared it since.
+    if p_at is not null then
+      select id into new_id from public.ride_alerts
+      where ride_id = p_ride and member_id = me and kind = p_kind and created_at = pressed and resolved_at is not null;
+      if found then return new_id; end if;
+    end if;
     insert into public.ride_alerts as a (ride_id, member_id, kind, lat, lng, created_at)
     values (p_ride, me, p_kind, p_lat, p_lng, pressed)
     on conflict (ride_id, member_id, kind) where resolved_at is null and kind <> 'regroup'

@@ -105,3 +105,17 @@ test('the text-my-location link suits the phone', () => {
   assert.equal(smsUrl('ios', ['0400 000 002', '0400 000 003'], body), `sms:0400000002&body=${encodeURIComponent(body)}`);
   assert.equal(smsUrl('android', [], body), null);
 });
+
+test('sharing again forgets a stop still waiting for signal, so it can’t switch the new share off', async () => {
+  const sent: string[] = [];
+  const q = createAlertQueue(memoryStore(), async (a) => {
+    sent.push(a.kind);
+  });
+  await q.hold(item({ kind: 'stop' }));
+  await q.hold(item({ kind: 'stop', rideId: 'r-2' }));
+  await q.hold(item());
+  await q.forget('r-1', 'stop');
+  assert.deepEqual((await q.list()).map((a) => `${a.rideId}:${a.kind}`), ['r-2:stop', 'r-1:emergency']);
+  await q.flush();
+  assert.deepEqual(sent, ['stop', 'emergency']);
+});

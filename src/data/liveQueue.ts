@@ -97,6 +97,9 @@ export function createAlertQueue(store: KeyValue, send: (item: QueuedAlert) => P
   return {
     list: () => serial(read),
     hold: (item: QueuedAlert) => serial(async () => write(queueAlert(await read(), item))),
+    /** Takes back what's waiting of this kind for this ride (a stop, once you share again). */
+    forget: (rideId: string, kind: QueuedAlert['kind']) =>
+      serial(async () => write((await read()).filter((q) => !(q.rideId === rideId && q.kind === kind)))),
     /** Sends what's waiting; resolves to what the club refused for good. */
     flush: () =>
       serial(async () => {

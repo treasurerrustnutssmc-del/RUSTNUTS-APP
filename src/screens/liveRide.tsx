@@ -142,9 +142,12 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
           <Button label="Share my location" icon="navigate" busy={busy === 'start'} disabled={!!problem} onPress={run('start', live.start)} />
         </Card>
         {unsentNotice}
+        {live.held > 0 ? (
+          <Notice tone="warn" title="No signal">Your alert will send when you’re back in range. Calls to 000 can still work.</Notice>
+        ) : null}
         {live.stopPending ? (
           <Notice tone="warn">You’ve stopped sharing on this phone. The other riders will see it when you’re back in range.</Notice>
-        ) : live.offline ? (
+        ) : live.offline && live.held === 0 ? (
           <Notice tone="warn">No signal. Try again when you’re back in range.</Notice>
         ) : null}
         {errorNotice}
