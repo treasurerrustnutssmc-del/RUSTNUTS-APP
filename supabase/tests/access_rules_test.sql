@@ -230,8 +230,13 @@ set local role authenticated;
 do $$ begin
   assert (select count(*) from member_private) = 6, 'NEC sees every private row';
 end $$;
-select public.appoint_position('00000000-0000-0000-0000-000000000002', null, 'nec_secretary');
 do $$ begin
+  begin
+    perform public.appoint_position('00000000-0000-0000-0000-000000000002', null, 'nec_secretary');
+    raise exception 'a President handed out a national role';
+  exception when raise_exception then
+    if sqlerrm = 'a President handed out a national role' then raise; end if;
+  end;
   begin
     insert into chapters (slug, name, area) values ('east', 'East', 'Eastern Melbourne');
     raise exception 'national added a chapter directly';

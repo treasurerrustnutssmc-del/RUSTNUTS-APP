@@ -91,6 +91,13 @@ export function isNecOfficer(memberId: string, positions: Position[]): boolean {
   return activePositions(memberId, positions).some((p) => NATIONAL_ROLES.includes(p.role));
 }
 
+/** The sitting National Chairman. */
+export function isChairman(memberId: string, positions: Position[]): boolean {
+  return activePositions(memberId, positions).some((p) => p.role === 'nec_chair');
+}
+
+const CHAIR_BY_VOTE = 'The National Chairman changes after the vote, and the club’s admin records it.';
+
 /**
  * Why `me` can't appoint `target` to `role`, or null when they can. The database's
  * appoint_position action applies exactly the same rules.
@@ -109,7 +116,8 @@ export function appointProblem(
   const national = NATIONAL_ROLES.includes(role);
   const seatChapter = national ? null : chapterId;
   if (national) {
-    if (!isNational(me.id, data.positions)) return 'Only the NEC hands out national roles.';
+    if (role === 'nec_chair') return CHAIR_BY_VOTE;
+    if (!isChairman(me.id, data.positions)) return 'Only the National Chairman hands out national roles.';
   } else {
     if (!seatChapter || seatChapter !== target.chapterId) return 'They’re not a member of that chapter.';
     if (role === 'president') {
@@ -131,7 +139,8 @@ export function endTermProblem(me: Member | null, position: Position, data: Club
   if (position.endedOn !== null) return 'That term has already ended.';
   if (position.memberId === me.id) return 'You can’t end your own term.';
   if (NATIONAL_ROLES.includes(position.role) || position.chapterId === null) {
-    return isNational(me.id, data.positions) ? null : 'Only the NEC can end a national role.';
+    if (position.role === 'nec_chair') return CHAIR_BY_VOTE;
+    return isChairman(me.id, data.positions) ? null : 'Only the National Chairman can end a national role.';
   }
   if (position.role === 'president') {
     return isNecOfficer(me.id, data.positions)

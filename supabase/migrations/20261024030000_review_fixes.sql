@@ -3,7 +3,9 @@
 -- 1. Positions change only through two checked actions, appoint_position and end_position.
 --    Nobody appoints or ends their own position, a chapter seat only goes to a member of that
 --    chapter, a President is seated or unseated only by the National Chair, Secretary or Auditor,
---    an ended term stays ended, and every change records who made it.
+--    only the National Chairman hands out or ends the other national roles, the Chairman's own
+--    seat changes after the vote (recorded by the admin), an ended term stays ended, and every
+--    change records who made it.
 -- 2. Dates the server writes follow the club's clock in Melbourne, not UTC.
 -- 3. Joining with a bike, saving a bike with its rego, and saving a profile each happen in one step,
 --    and removing or editing something that isn't yours says so instead of quietly doing nothing.
@@ -77,6 +79,15 @@ returns boolean language sql stable security definer set search_path = '' as $$
   );
 $$;
 
+-- The sitting National Chairman: the only one who hands out or ends the other national roles.
+create or replace function private.is_chairman()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from public.positions
+    where member_id = auth.uid() and ended_on is null and role = 'nec_chair'
+  );
+$$;
+
 create or replace function private.is_board_of(target_chapter uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
   select private.is_approved_member() and (
@@ -140,7 +151,10 @@ begin
 
   seat := case when is_national_role then null else p_chapter end;
   if is_national_role then
-    if not private.is_national() then raise exception 'Only the NEC hands out national roles.'; end if;
+    if p_role = 'nec_chair' then
+      raise exception 'The National Chairman changes after the vote, and the club’s admin records it.';
+    end if;
+    if not private.is_chairman() then raise exception 'Only the National Chairman hands out national roles.'; end if;
   else
     if seat is null or seat <> target.chapter_id then raise exception 'They’re not a member of that chapter.'; end if;
     if p_role = 'president' then
@@ -186,7 +200,10 @@ begin
   if pos.member_id = me then raise exception 'You can’t end your own term.'; end if;
 
   if pos.chapter_id is null then
-    if not private.is_national() then raise exception 'Only the NEC can end a national role.'; end if;
+    if pos.role = 'nec_chair' then
+      raise exception 'The National Chairman changes after the vote, and the club’s admin records it.';
+    end if;
+    if not private.is_chairman() then raise exception 'Only the National Chairman can end a national role.'; end if;
   elsif pos.role = 'president' then
     if not private.is_nec_officer() then
       raise exception 'Only the National Chair, Secretary or Auditor can end a President’s term.';

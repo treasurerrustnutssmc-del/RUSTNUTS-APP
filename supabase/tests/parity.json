@@ -96,6 +96,14 @@
       "status": "full",
       "approval": "approved",
       "sharePhone": false
+    },
+    {
+      "key": "lou",
+      "chapter": "north",
+      "name": "Lou Martin",
+      "status": "full",
+      "approval": "approved",
+      "sharePhone": false
     }
   ],
   "positions": [
@@ -160,6 +168,14 @@
       "member": "rhys",
       "chapter": "east",
       "role": "secretary",
+      "startedOn": "2025-08-16",
+      "endedOn": null
+    },
+    {
+      "key": "lou-nec-secretary",
+      "member": "lou",
+      "chapter": null,
+      "role": "nec_secretary",
       "startedOn": "2025-08-16",
       "endedOn": null
     }
@@ -250,8 +266,8 @@
       "action": "appoint",
       "member": "torque",
       "chapter": null,
-      "role": "nec_secretary",
-      "allowed": true
+      "role": "nec_auditor",
+      "allowed": false
     },
     {
       "name": "Secretary fills a seat she already holds",
@@ -373,13 +389,52 @@
       "as": "rusty",
       "action": "endTerm",
       "position": "chair-nec-chair",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "A member ends the National Chair's role",
       "as": "spanner",
       "action": "endTerm",
       "position": "chair-nec-chair",
+      "allowed": false
+    },
+    {
+      "name": "The Chairman appoints a National Auditor",
+      "as": "chair",
+      "action": "appoint",
+      "member": "torque",
+      "chapter": null,
+      "role": "nec_auditor",
+      "allowed": true
+    },
+    {
+      "name": "The National Secretary appoints a National Auditor",
+      "as": "lou",
+      "action": "appoint",
+      "member": "torque",
+      "chapter": null,
+      "role": "nec_auditor",
+      "allowed": false
+    },
+    {
+      "name": "The Chairman ends the National Secretary's role",
+      "as": "chair",
+      "action": "endTerm",
+      "position": "lou-nec-secretary",
+      "allowed": true
+    },
+    {
+      "name": "The National Secretary ends the Chairman's role",
+      "as": "lou",
+      "action": "endTerm",
+      "position": "chair-nec-chair",
+      "allowed": false
+    },
+    {
+      "name": "A President ends the National Secretary's role",
+      "as": "rusty",
+      "action": "endTerm",
+      "position": "lou-nec-secretary",
       "allowed": false
     },
     {

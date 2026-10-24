@@ -127,9 +127,27 @@ test('a member cannot hold the same open role twice', () => {
   assert.equal(allowed(appointProblem(m('m-torque'), m('m-chook'), 'ch-west', 'officer', d)), false);
 });
 
-test('national roles come from the NEC only', () => {
+test('only the National Chairman hands out the other national roles', () => {
   assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), null, 'nec_auditor', d)), false);
-  assert.equal(allowed(appointProblem(m('m-smokey'), m('m-spanner'), null, 'nec_auditor', d)), true);
+  assert.equal(allowed(appointProblem(m('m-smokey'), m('m-spanner'), null, 'nec_auditor', d)), false); // a President
+  assert.equal(allowed(appointProblem(m('m-rusty'), m('m-spanner'), null, 'nec_auditor', d)), true); // the Chairman
+});
+
+test('nobody seats a National Chairman in the app; that follows the vote, recorded by the admin', () => {
+  const noChair = { ...d, positions: P.map((p): Position => (p.id === 'p-2' ? { ...p, endedOn: '2026-10-01' } : p)) };
+  assert.equal(allowed(appointProblem(m('m-smokey'), m('m-jet'), null, 'nec_chair', noChair)), false);
+});
+
+test('only the Chairman ends a national role, and nobody ends the Chairman\'s', () => {
+  const withSecretary = {
+    ...d,
+    positions: [...P, { id: 'p-sec', memberId: 'm-jet', chapterId: null, role: 'nec_secretary' as const, startedOn: '2025-08-16', endedOn: null }],
+  };
+  const sec = withSecretary.positions.find((p) => p.id === 'p-sec')!;
+  assert.equal(allowed(endTermProblem(m('m-rusty'), sec, withSecretary)), true); // Chairman ends the Secretary's
+  assert.equal(allowed(endTermProblem(m('m-smokey'), sec, withSecretary)), false); // a President can't
+  assert.equal(allowed(endTermProblem(m('m-jet'), pos('p-2'), withSecretary)), false); // Secretary can't end the Chairman's
+  assert.equal(allowed(endTermProblem(m('m-smokey'), pos('p-2'), d)), false); // nor can a President
 });
 
 // West President seat vacated: Rusty's term ended, he stays National Chair.
