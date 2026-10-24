@@ -2,7 +2,7 @@
 // rules the database's set_crew and leave_crew actions apply, in the same order with the same
 // words, so the app never offers what the server would refuse.
 
-import { activePositions, holdsBoardSeat, isNational } from './access';
+import { activePositions, isNational, managesChapterRides } from './access';
 import { daysBetween } from './dates';
 import { CREW_ROLES } from './labels';
 import { endOfFirstDay, melbourneDate } from './rides';
@@ -16,17 +16,13 @@ function rideChapterId(ride: Ride, data: ClubData): string | null {
 
 /** The board, ride committee and National Executive Committee run the crew. */
 export function managesRide(me: Member | null, ride: Ride, data: ClubData): boolean {
-  if (!me || me.approval !== 'approved') return false;
-  if (isNational(me.id, data.positions)) return true;
-  const committee = (chapterId: string | null) =>
-    activePositions(me.id, data.positions).some(
-      (p) => p.role === 'ride_committee' && (chapterId === null || p.chapterId === chapterId),
-    );
   if (ride.category === 'north' || ride.category === 'west') {
     const chapterId = rideChapterId(ride, data);
-    return chapterId !== null && (holdsBoardSeat(me.id, chapterId, data.positions) || committee(chapterId));
+    if (chapterId !== null) return managesChapterRides(me, chapterId, data);
+    // A North or West ride whose chapter isn't in the data: only the NEC.
+    return me?.approval === 'approved' && isNational(me.id, data.positions);
   }
-  return data.chapters.some((c) => holdsBoardSeat(me.id, c.id, data.positions)) || committee(null);
+  return managesChapterRides(me, null, data);
 }
 
 /** Why `target` can't crew this ride in this role, or null when they can. */

@@ -33,6 +33,27 @@ export function isNational(memberId: string, positions: Position[]): boolean {
   );
 }
 
+/**
+ * Who runs a chapter's rides (crew and routes): an approved member on the National Executive
+ * Committee, or with a board seat or a sitting Ride Committee place in that chapter. With no
+ * chapter (a whole-club thing), any chapter's board seat or any Ride Committee place will do.
+ * Mirrors private.manages_chapter_rides.
+ */
+export function managesChapterRides(me: Member | null, chapterId: string | null, data: ClubData): boolean {
+  if (!me || me.approval !== 'approved') return false;
+  if (isNational(me.id, data.positions)) return true;
+  if (chapterId === null) {
+    return (
+      data.chapters.some((c) => holdsBoardSeat(me.id, c.id, data.positions)) ||
+      activePositions(me.id, data.positions).some((p) => p.role === 'ride_committee')
+    );
+  }
+  return (
+    holdsBoardSeat(me.id, chapterId, data.positions) ||
+    activePositions(me.id, data.positions).some((p) => p.role === 'ride_committee' && p.chapterId === chapterId)
+  );
+}
+
 export function accessLevel(viewer: Member | null, positions: Position[]): AccessLevel {
   if (!viewer) return 'public';
   if (viewer.approval !== 'approved') return 'pending';

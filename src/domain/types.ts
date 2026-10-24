@@ -143,6 +143,30 @@ export interface CrewSpot {
   assignedAt: string;
 }
 
+/** A GPX route in the club's library. The file itself stays on the server; this is its summary. */
+export interface Route {
+  id: string;
+  name: string;
+  /** The chapter it belongs to, or null for the whole club. */
+  chapterId: string | null;
+  notes: string;
+  distanceM: number;
+  /** Total ascent in metres, when the file has elevation. */
+  climbM: number | null;
+  /** The simplified line for drawing, `[lat, lng]` pairs. */
+  line: [number, number][];
+  stops: { name: string; lat: number; lng: number }[];
+  bounds: { minLat: number; minLng: number; maxLat: number; maxLng: number };
+  archivedAt: string | null;
+  updatedAt: string;
+}
+
+/** The route a ride uses. A ride has at most one. */
+export interface RideRoute {
+  rideId: string;
+  routeId: string;
+}
+
 export interface ClubData {
   chapters: Chapter[];
   members: Member[];
@@ -155,6 +179,10 @@ export interface ClubData {
   rsvps: Rsvp[];
   /** Who is crewing which ride. Missing means none. */
   crew?: CrewSpot[];
+  /** The club's route library. Missing means none. */
+  routes?: Route[];
+  /** Which route each ride uses. Missing means none. */
+  rideRoutes?: RideRoute[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
   // Lane E: notifications

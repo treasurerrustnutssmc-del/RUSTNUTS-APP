@@ -1038,6 +1038,349 @@
       "allowed": false
     },
     {
+      "name": "A West board member adds a West route",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "  Werribee loop  ",
+      "chapter": "west",
+      "file": "valid",
+      "notes": " Fuel at Bacchus Marsh. ",
+      "allowed": true
+    },
+    {
+      "name": "A North Road Captain adds a whole-club route",
+      "as": "crank",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Two chapters run",
+      "chapter": null,
+      "file": "valid",
+      "allowed": true
+    },
+    {
+      "name": "A member who isn't a route manager adds a route",
+      "as": "gravel",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "My loop",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "An applicant adds a route",
+      "as": "dylan",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "My loop",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "A board member edits a route that no longer exists",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": "gone",
+      "routeName": "Renamed",
+      "chapter": "west",
+      "file": null,
+      "allowed": false
+    },
+    {
+      "name": "A North-only manager moves a West route to the whole club",
+      "as": "crank",
+      "action": "saveRoute",
+      "route": "west-loop",
+      "routeName": "West loop",
+      "chapter": null,
+      "file": null,
+      "allowed": false
+    },
+    {
+      "name": "A North-only manager adds a West route",
+      "as": "crank",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "West loop",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "The NEC renames a route in another chapter",
+      "as": "chair",
+      "action": "saveRoute",
+      "route": "west-loop",
+      "routeName": "West loop (long way)",
+      "chapter": "west",
+      "file": null,
+      "allowed": true
+    },
+    {
+      "name": "A board member replaces a route's file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": "west-loop",
+      "routeName": "West loop",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": true
+    },
+    {
+      "name": "A route name of 80 emoji",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": true
+    },
+    {
+      "name": "A route name of 81 emoji",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "A blank route name",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "   ",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "A blank route name with a broken file is a name problem first",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": " ",
+      "chapter": "west",
+      "file": "malformed",
+      "allowed": false
+    },
+    {
+      "name": "A file that isn't GPX",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "malformed",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with a line break before its XML declaration isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "spaceBeforeDeclaration",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with a bare & in a name isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "bareAmpersand",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file using &nbsp; (undefined in XML) isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "undefinedEntity",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with a < inside an attribute isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "ltInAttribute",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with the same attribute twice isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "duplicateAttribute",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with text after </gpx> isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "junkAfterRoot",
+      "allowed": false
+    },
+    {
+      "name": "Replacing a route’s file with one that has a bare & isn’t allowed",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": "west-loop",
+      "routeName": "West loop",
+      "chapter": "west",
+      "file": "bareAmpersand",
+      "allowed": false
+    },
+    {
+      "name": "A new route with no file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "No file",
+      "chapter": "west",
+      "file": null,
+      "allowed": false
+    },
+    {
+      "name": "A board member archives a route in their chapter",
+      "as": "torque",
+      "action": "archiveRoute",
+      "route": "west-loop",
+      "allowed": true
+    },
+    {
+      "name": "A North-only manager archives a West route",
+      "as": "crank",
+      "action": "archiveRoute",
+      "route": "west-loop",
+      "allowed": false
+    },
+    {
+      "name": "The NEC archives a route in another chapter",
+      "as": "chair",
+      "action": "archiveRoute",
+      "route": "west-loop",
+      "allowed": true
+    },
+    {
+      "name": "A member who isn't a route manager archives a route",
+      "as": "spanner",
+      "action": "archiveRoute",
+      "route": "club-run",
+      "allowed": false
+    },
+    {
+      "name": "A board member archives a route that no longer exists",
+      "as": "torque",
+      "action": "archiveRoute",
+      "route": "gone",
+      "allowed": false
+    },
+    {
+      "name": "Archiving an archived route again",
+      "as": "torque",
+      "action": "archiveRoute",
+      "route": "old-west",
+      "allowed": true
+    },
+    {
+      "name": "A board member chooses a ride's route",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "club-run",
+      "allowed": true
+    },
+    {
+      "name": "A board member clears a ride's route",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": null,
+      "allowed": true
+    },
+    {
+      "name": "A North Road Captain chooses a route for a club ride",
+      "as": "crank",
+      "action": "setRideRoute",
+      "ride": "future-club",
+      "route": "club-run",
+      "allowed": true
+    },
+    {
+      "name": "An archived route chosen for a ride",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "old-west",
+      "allowed": false
+    },
+    {
+      "name": "A route that no longer exists chosen for a ride",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "gone",
+      "allowed": false
+    },
+    {
+      "name": "A member who isn't a manager chooses a ride's route",
+      "as": "spanner",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "club-run",
+      "allowed": false
+    },
+    {
+      "name": "A North-only manager chooses a West ride's route",
+      "as": "crank",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "north-hills",
+      "allowed": false
+    },
+    {
+      "name": "A ride's route after the ride day",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "past-club",
+      "route": "club-run",
+      "allowed": false
+    },
+    {
+      "name": "A cancelled ride's route",
+      "as": "crank",
+      "action": "setRideRoute",
+      "ride": "cancelled-north",
+      "route": "north-hills",
+      "allowed": false
+    },
+    {
+      "name": "An applicant chooses a ride's route",
+      "as": "dylan",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": null,
+      "allowed": false
+    },
+    {
       "name": "A member posts in the whole-club chat",
       "as": "spanner",
       "action": "chatSend",
@@ -1519,6 +1862,48 @@
       "ride": "future-club",
       "member": "jet",
       "answer": "going"
+    }
+  ],
+  "gpxFiles": {
+    "valid": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "malformed": "<gpx version=\"1.1\"><trk><trkseg><trkpt lat=\"-37.8\" lon=\"144.7\"></trkseg></trk></gpx>",
+    "spaceBeforeDeclaration": "\n<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "bareAmpersand": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel & pies, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "undefinedEntity": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel,&nbsp;Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "ltInAttribute": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity <v2>\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "duplicateAttribute": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" creator=\"again\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "junkAfterRoot": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>\nThanks for riding!"
+  },
+  "routes": [
+    {
+      "key": "west-loop",
+      "name": "West loop",
+      "chapter": "west",
+      "archived": false
+    },
+    {
+      "key": "north-hills",
+      "name": "North hills",
+      "chapter": "north",
+      "archived": false
+    },
+    {
+      "key": "club-run",
+      "name": "Club run",
+      "chapter": null,
+      "archived": false
+    },
+    {
+      "key": "old-west",
+      "name": "Old West loop",
+      "chapter": "west",
+      "archived": true
+    }
+  ],
+  "rideRoutes": [
+    {
+      "ride": "future-west",
+      "route": "west-loop"
     }
   ],
   "directs": [

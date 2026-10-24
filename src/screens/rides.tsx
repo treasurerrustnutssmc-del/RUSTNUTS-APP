@@ -1,5 +1,5 @@
 // The ride calendar: the club website's rides by month, filtered by colour, and one ride with
-// Going / Maybe / Can't make it and its crew. Rides come from the calendar sync; nobody edits them here.
+// Going / Maybe / Can't make it, its route and its crew. Rides come from the calendar sync; nobody edits them here.
 
 import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,6 +9,7 @@ import { canVolunteer, crewChangeProblem, crewRows, leaveProblem, managesRide, s
 import type { CrewRowSlot } from '../domain/crew';
 import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
+import { libraryFor, rideRouteProblem, routeOf } from '../domain/routes';
 import {
   calendarFreshness,
   defaultCategories,
@@ -36,6 +37,7 @@ import {
   Chip,
   ConfirmButton,
   H1,
+  IconBadge,
   Ionicons,
   ListRow,
   Notice,
@@ -46,6 +48,8 @@ import {
   Stack,
   type IconName,
 } from '../ui/primitives';
+import { ChapterChip, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
+import { RouteShape } from '../ui/RouteShape';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -97,8 +101,26 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
   const toggle = (c: RideCategory) =>
     setShown(categories.includes(c) ? categories.filter((x) => x !== c) : [...categories, c]);
 
+  const routeCount = libraryFor(data, 'all').length;
+
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
+      {me.approval === 'approved' ? (
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            last
+            left={<IconBadge icon="map-outline" />}
+            title="Route library"
+            subtitle={
+              <Text style={styles.metaTime}>
+                {routeCount === 0 ? 'GPX routes for OsmAnd and MyRoute' : `${routeCount} ${routeCount === 1 ? 'route' : 'routes'} for OsmAnd and MyRoute`}
+              </Text>
+            }
+            onPress={() => navigation.navigate('Routes')}
+          />
+        </Card>
+      ) : null}
+
       <View style={styles.filters} accessibilityLabel="Show rides by colour">
         {RIDE_CATEGORIES.map((c) => {
           const on = categories.includes(c);
@@ -407,6 +429,14 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         {counts.no > 0 ? <Small>{`${counts.no} can’t make it.`}</Small> : null}
       </Stack>
 
+      <RouteSection
+        ride={ride}
+        me={me}
+        data={data}
+        onOpen={(routeId) => navigation.navigate('Route', { routeId })}
+        onChoose={() => navigation.navigate('PickRoute', { rideId: ride.id })}
+      />
+
       <CrewSection ride={ride} me={me} data={data} onPick={(role) => navigation.navigate('PickCrew', { rideId: ride.id, role })} />
       {/* Stage 3 (lane B): the ride's chat and photo wall */}
       <RideChatRows
@@ -419,6 +449,114 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       {!cancelled || going.length > 0 ? list('Going', going) : null}
       {!cancelled || maybe.length > 0 ? list('Maybe', maybe) : null}
     </Screen>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The ride's route
+// ---------------------------------------------------------------------------
+
+/**
+ * The ride's route: its shape, distance, climb and stops, and the hand-off to a maps app. Crew
+ * managers choose, change or remove it until the ride day is over. Hidden when there's no route
+ * and nothing this viewer can do about it.
+ */
+function RouteSection({
+  ride,
+  me,
+  data,
+  onOpen,
+  onChoose,
+}: {
+  ride: Ride;
+  me: Member;
+  data: ClubData;
+  onOpen: (routeId: string) => void;
+  onChoose: () => void;
+}) {
+  const { setRideRoute } = useClub();
+  const [removing, setRemoving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const route = routeOf(ride.id, data);
+  // Managers inside the window; after the ride day (or on a cancelled ride) the route is a record.
+  const canChange = rideRouteProblem(me, ride, null, data, new Date().toISOString()) === null;
+  if (!route && !canChange) return null;
+
+  const remove = async () => {
+    setError(null);
+    setRemoving(true);
+    try {
+      await setRideRoute(ride.id, null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  return (
+    <Stack gap={space.sm}>
+      <SectionTitle title="Route" />
+      <Card>
+        {route ? (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${route.name}, see the route`}
+              onPress={() => onOpen(route.id)}
+              style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+                styles.place,
+                (pressed || hovered) && { backgroundColor: colors.steel },
+              ]}
+            >
+              <View style={{ flex: 1, minWidth: 0, gap: 4, paddingVertical: space.xs }}>
+                <Text style={type.name}>{route.name}</Text>
+                <Row style={{ gap: 6 }}>
+                  <ChapterChip chapterId={route.chapterId} data={data} />
+                  {route.archivedAt ? <Chip label="Archived" tone="warn" /> : null}
+                </Row>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.boneMute} />
+            </Pressable>
+            <RouteShape route={route} />
+            <RouteFacts route={route} />
+            {route.stops.length > 0 ? (
+              <Stack gap={space.xs}>
+                <Text style={styles.crewRole}>{route.stops.length === 1 ? '1 STOP' : `${route.stops.length} STOPS`}</Text>
+                <StopList stops={route.stops} flat />
+              </Stack>
+            ) : null}
+            <OpenInMapsButton route={route} kind="secondary" />
+            {canChange ? (
+              <Row style={styles.crewActions}>
+                {removing ? (
+                  <Button label="Remove" kind="secondary" busy onPress={() => {}} />
+                ) : (
+                  <>
+                    <Button label="Change" kind="secondary" accessibilityLabel="Change the route" onPress={onChoose} />
+                    <ConfirmButton
+                      label="Remove"
+                      confirmLabel="Yes, remove"
+                      kind="secondary"
+                      accessibilityLabel="Remove the route from this ride"
+                      onConfirm={remove}
+                    />
+                  </>
+                )}
+              </Row>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Body>No route yet. Choose one from the club’s library, so riders can load it before the day.</Body>
+            <Button label="Choose route" icon="map-outline" kind="secondary" onPress={onChoose} />
+          </>
+        )}
+      </Card>
+      <View accessibilityLiveRegion="polite" role="alert">
+        {error ? <Notice tone="danger">{error}</Notice> : null}
+      </View>
+    </Stack>
   );
 }
 

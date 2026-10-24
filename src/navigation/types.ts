@@ -35,6 +35,11 @@ export type RootParams = {
   ManageMember: { memberId: string };
   // ride crew
   PickCrew: { rideId: string; role: CrewRole };
+  // ride routes
+  Routes: undefined;
+  Route: { routeId: string };
+  EditRoute: { routeId?: string } | undefined;
+  PickRoute: { rideId: string };
   // Lane E: live ride
   LiveRide: { rideId: string };
   // Stage 3 (lane B): chats and photos
