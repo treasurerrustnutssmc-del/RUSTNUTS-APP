@@ -41,13 +41,27 @@ export function lastDay(ride: Ride): string {
   return melbourneDate(new Date(new Date(ride.endsAt).getTime() - (ride.allDay ? 1 : 0)).toISOString());
 }
 
+const HOUR = 3600_000;
+
+function isMelbourneMidnight(t: number): boolean {
+  return melbourneTime(new Date(t).toISOString()) === '12:00 am';
+}
+
+/** The first Melbourne midnight after the ride's Melbourne start date, as epoch ms. */
+export function endOfFirstDay(ride: Ride): number {
+  const startsAt = new Date(ride.startsAt).getTime();
+  // Back to the midnight that opened the start date (Melbourne is UTC+10 or +11).
+  const [y, m, d] = melbourneDate(ride.startsAt).split('-').map(Number);
+  const utcMidnight = Date.UTC(y, m - 1, d);
+  const dayStart = [11, 10].map((h) => utcMidnight - h * HOUR).find(isMelbourneMidnight) ?? startsAt;
+  // The next Melbourne midnight: a day on, give or take the daylight saving hour.
+  const next = [23, 24, 25].map((h) => dayStart + h * HOUR).find(isMelbourneMidnight);
+  return next ?? dayStart + 24 * HOUR;
+}
+
 /** When answers close: at the start, or for an all-day ride when its first day is over. */
 function answersClose(ride: Ride): number {
-  const start = new Date(ride.startsAt).getTime();
-  if (!ride.allDay) return start;
-  // The next Melbourne midnight: a day on, give or take the daylight saving hour.
-  const next = [23, 24, 25].map((h) => start + h * 3600_000).find((t) => melbourneTime(new Date(t).toISOString()) === '12:00 am');
-  return next ?? start + 24 * 3600_000;
+  return ride.allDay ? endOfFirstDay(ride) : new Date(ride.startsAt).getTime();
 }
 
 /** Rides from today on, a multi-day one until its last day (cancelled ones too, so people see
