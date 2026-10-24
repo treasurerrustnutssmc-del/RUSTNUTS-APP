@@ -31,7 +31,22 @@
       "backgroundColor": "#111010"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Rustnuts uses your location during a live ride, so the riders you're with can find you.",
+          "locationAlwaysAndWhenInUsePermission": "Rustnuts keeps sharing your location with your ride while the screen is off. It switches itself off when the ride ends.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#B92632"
+        }
+      ]
     ],
     "owner": "rustnutssmcs-team",
     "runtimeVersion": {
