@@ -81,4 +81,12 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_live -f "$ROOT/supabase/tests/live_ride_test.sql"
 
+# Lane E: notification settings, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_notify" >/dev/null
+"${PSQL[@]}" -d rustnuts_notify -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_notify -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_notify -f "$ROOT/supabase/tests/notification_prefs_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
