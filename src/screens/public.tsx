@@ -250,7 +250,9 @@ export function JoinScreen() {
       ? null
       : !/^\d{4}$/.test(form.year.trim())
         ? 'Use a four-digit year, like 2019.'
-        : validateApplicationBike({ make: 'any', model: 'any', year: Number(form.year) }, today),
+        : !form.make.trim() && !form.model.trim()
+          ? validateApplicationBike({ make: '', model: '', year: Number(form.year) }, today)
+          : validateApplicationBike({ make: 'any', model: 'any', year: Number(form.year) }, today),
   };
   const valid = Object.values(errors).every((e) => e === null);
   const err = (k: keyof typeof errors) => (showErrors ? errors[k] : null);
@@ -276,6 +278,7 @@ export function JoinScreen() {
       });
     } catch (e) {
       setSubmitError((e as Error).message);
+    } finally {
       setBusy(false);
     }
   };

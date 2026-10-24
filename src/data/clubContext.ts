@@ -59,6 +59,8 @@ export interface ClubContextValue {
   needsApplication: boolean;
   /** The club data couldn't be loaded for whoever is signed in (live mode). Retry with refresh(). */
   loadError: string | null;
+  /** A refresh failed while data is still on screen (live mode). */
+  refreshError: string | null;
 
   // signing in
   signInAs: (memberId: string | null) => void; // demo only
@@ -118,7 +120,10 @@ export function validateApplicationBike(
   bike: { make: string; model: string; year: number | null } | null,
   today: string,
 ): string | null {
-  if (!bike || (!bike.make.trim() && !bike.model.trim())) return null;
+  if (!bike) return null;
+  if (!bike.make.trim() && !bike.model.trim()) {
+    return bike.year === null ? null : 'Add the bike’s make and model too, or clear the year.';
+  }
   if (!bike.make.trim() || !bike.model.trim()) return 'Add the bike’s make and model, or leave both blank.';
   return bikeYearProblem(bike.year, today);
 }

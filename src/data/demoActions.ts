@@ -50,6 +50,7 @@ function statusDates(target: Member, status: MemberStatus, today: string): Parti
 }
 
 export function apply(ctx: DemoCtx, input: ApplicationInput): { data: ClubData; id: string } {
+  if (ctx.me) throw new NotAllowedError('You have already applied.');
   if (!input.fullName.trim()) throw new Error('Add your name.');
   const bikeProblem = validateApplicationBike(input.bike ?? null, ctx.today);
   if (bikeProblem) throw new Error(bikeProblem);
@@ -259,7 +260,10 @@ export type DemoAction =
   | { action: 'decline'; member: string }
   | { action: 'setStatus'; member: string; status: MemberStatus }
   | { action: 'removeBike'; bike: string }
-  | { action: 'removeContact'; contact: string };
+  | { action: 'removeContact'; contact: string }
+  | { action: 'saveBike'; bike: string | null; make: string; model: string; year: number | null }
+  | { action: 'saveContact'; contact: string | null; contactName: string; relationship: string; phone: string }
+  | { action: 'apply'; chapter: string; fullName: string; make: string; model: string; year: number | null };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -277,5 +281,25 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return removeBike(ctx, a.bike);
     case 'removeContact':
       return removeContact(ctx, a.contact);
+    case 'saveBike':
+      return saveBike(
+        ctx,
+        { id: a.bike, make: a.make, model: a.model, year: a.year, nickname: null, isProject: false },
+        { rego: null, regoExpiry: null },
+      ).data;
+    case 'saveContact':
+      return saveContact(ctx, { id: a.contact, name: a.contactName, relationship: a.relationship, phone: a.phone });
+    case 'apply':
+      return apply(ctx, {
+        chapterId: a.chapter,
+        fullName: a.fullName,
+        roadName: '',
+        email: '',
+        phone: '',
+        introducedBy: '',
+        note: '',
+        status: 'introduced',
+        bike: { make: a.make, model: a.model, year: a.year },
+      }).data;
   }
 }

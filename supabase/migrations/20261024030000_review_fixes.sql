@@ -30,8 +30,24 @@ begin
 end;
 $$;
 
-alter table public.members alter column applied_on set default private.club_date();
-alter table public.positions alter column started_on set default private.club_date();
+-- Written out in full (not via club_date) so admin tools with the service key can rely on them too.
+alter table public.members alter column applied_on set default ((now() at time zone 'Australia/Melbourne')::date);
+alter table public.positions alter column started_on set default ((now() at time zone 'Australia/Melbourne')::date);
+
+-- The bike rules hold however a bike is written, not just through save_bike.
+create or replace function private.check_bike()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if nullif(trim(new.make), '') is null or nullif(trim(new.model), '') is null then
+    raise exception 'Add the make and model.';
+  end if;
+  perform private.check_bike_year(new.year);
+  return new;
+end;
+$$;
+
+create trigger bikes_check before insert or update on public.bikes
+  for each row execute function private.check_bike();
 
 -- ---------------------------------------------------------------------------
 -- "Who is asking?" helpers, now with an empty search_path
@@ -84,6 +100,9 @@ $$;
 
 revoke all on all functions in schema private from public, anon;
 grant execute on all functions in schema private to authenticated;
+-- Admin tools (service key) write bikes too, so they need the bike checks.
+grant usage on schema private to service_role;
+grant execute on function private.check_bike(), private.check_bike_year(int), private.club_date(timestamptz) to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Positions: only through the two actions below
@@ -112,7 +131,8 @@ declare
   seat uuid;
   new_id uuid;
 begin
-  if me is null or not private.is_approved_member() then raise exception 'Sign in first.'; end if;
+  if me is null then raise exception 'Sign in first.'; end if;
+  if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
   if p_member = me then raise exception 'You can’t appoint yourself.'; end if;
   select * into target from public.members where id = p_member;
   if not found then raise exception 'That member no longer exists.'; end if;
@@ -158,7 +178,8 @@ declare
   me uuid := auth.uid();
   pos public.positions%rowtype;
 begin
-  if me is null or not private.is_approved_member() then raise exception 'Sign in first.'; end if;
+  if me is null then raise exception 'Sign in first.'; end if;
+  if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
   select * into pos from public.positions where id = p_position for update;
   if not found then raise exception 'That position no longer exists.'; end if;
   if pos.ended_on is not null then raise exception 'That term has already ended.'; end if;
@@ -264,7 +285,7 @@ declare
 begin
   select * into target from public.members where id = p_member for update;
   if not found then raise exception 'No such applicant.'; end if;
-  if not private.is_board_of(target.chapter_id) then raise exception 'That applicant isn’t in your chapter.'; end if;
+  if not private.is_board_of(target.chapter_id) then raise exception 'Only that chapter’s board can decline this applicant.'; end if;
   if target.approval <> 'pending' then raise exception 'This person isn’t waiting for approval.'; end if;
   update public.members set approval = 'declined', updated_at = now() where id = p_member;
 end;
@@ -279,7 +300,7 @@ begin
   if p_member = auth.uid() then raise exception 'You can’t change your own status.'; end if;
   select * into target from public.members where id = p_member for update;
   if not found then raise exception 'No such member.'; end if;
-  if not private.is_board_of(target.chapter_id) then raise exception 'That member isn’t in your chapter.'; end if;
+  if not private.is_board_of(target.chapter_id) then raise exception 'Only that chapter’s board can change this member’s status.'; end if;
   if target.approval <> 'approved' then raise exception 'Approve them first.'; end if;
 
   update public.members set
@@ -291,17 +312,6 @@ begin
 end;
 $$;
 
-create or replace function public.member_phone(p_member uuid)
-returns text language sql stable security definer set search_path = '' as $$
-  select mp.phone
-  from public.member_private mp join public.members m on m.id = mp.member_id
-  where mp.member_id = p_member
-    and (
-      p_member = auth.uid()
-      or private.is_board_of(m.chapter_id)
-      or (m.share_phone and m.approval = 'approved' and private.is_approved_member())
-    );
-$$;
 
 create or replace function public.shared_phones()
 returns table (member_id uuid, phone text)
@@ -352,6 +362,9 @@ begin
       licence_expiry = p_licence_expiry,
       first_aid_expiry = p_first_aid_expiry
     where member_id = auth.uid();
+    if not found then
+      raise exception 'Your contact and licence record is missing. Ask your chapter board to sort it out.';
+    end if;
   end if;
 end;
 $$;
@@ -471,6 +484,8 @@ to authenticated;
 
 -- Replaced or no longer used.
 drop function if exists public.submit_application(uuid, text, text, text, text, text, public.member_status);
+drop function if exists public.member_phone(uuid); -- replaced by shared_phones()
+drop policy if exists chapters_manage on public.chapters; -- chapters are read-only to the app
 drop function if exists public.is_board_of(uuid);
 drop function if exists public.is_national();
 drop function if exists public.is_approved_member();

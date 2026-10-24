@@ -12,6 +12,15 @@ export function sessionView(s: {
   hasMe: boolean;
 }): SessionView {
   if (!s.userId) return 'signed-out';
-  if (s.loadedFor === s.userId) return s.hasMe ? 'ready' : 'needs-application';
+  if (s.loadedFor === s.userId) {
+    if (s.hasMe) return 'ready';
+    // Data from before they applied: if the reload since then failed, don't show the join form again.
+    return s.loadError ? 'error' : 'needs-application';
+  }
   return s.loadError ? 'error' : 'loading';
+}
+
+/** A refresh that failed while the person's data is still on screen: worth a small notice. */
+export function refreshError(view: SessionView, loadError: string | null): string | null {
+  return view === 'ready' || view === 'needs-application' ? loadError : null;
 }

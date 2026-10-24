@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sessionView } from './session';
+import { refreshError, sessionView } from './session';
 
 const view = (userId: string | null, loadedFor: string | null, loadError: string | null, hasMe: boolean) =>
   sessionView({ userId, loadedFor, loadError, hasMe });
@@ -29,4 +29,15 @@ test('a member whose data loaded is ready', () => {
 test('a failed first load is an error with a way to retry, never the join form', () => {
   assert.equal(view('u1', null, 'No connection', false), 'error');
   assert.equal(view('u1', 'u0', 'No connection', false), 'error');
+});
+
+test('a reload that fails right after applying shows Try again, not the join form again', () => {
+  assert.equal(view('u1', 'u1', 'No connection', false), 'error');
+});
+
+test('a failed refresh while data is on screen is reported as a small notice, not hidden', () => {
+  assert.equal(refreshError('ready', 'No connection.'), 'No connection.');
+  assert.equal(refreshError('needs-application', 'No connection.'), 'No connection.');
+  assert.equal(refreshError('error', 'No connection.'), null); // the full error screen covers it
+  assert.equal(refreshError('ready', null), null);
 });

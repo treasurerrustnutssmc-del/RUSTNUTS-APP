@@ -9,6 +9,7 @@ import type { ClubData, Member, MemberStatus, PositionRole } from '../domain/typ
 import { runDemoAction, type DemoAction } from './demoActions';
 
 interface Fixture {
+  chapters: { slug: string; name: string; area: string }[];
   members: { key: string; chapter: string; name: string; status: MemberStatus; approval: Member['approval']; sharePhone: boolean }[];
   positions: { key: string; member: string; chapter: string | null; role: PositionRole; startedOn: string; endedOn: string | null }[];
   bikes: { key: string; member: string; make: string; model: string; year: number }[];
@@ -23,6 +24,7 @@ function fixtureData(): ClubData {
     chapters: [
       { id: 'west', slug: 'west', name: 'West', area: 'Western Melbourne', state: 'VIC' },
       { id: 'north', slug: 'north', name: 'North', area: 'Northern Melbourne', state: 'VIC' },
+      ...fixture.chapters.map((c) => ({ id: c.slug, slug: c.slug, name: c.name, area: c.area, state: 'VIC' })),
     ],
     members: fixture.members.map((m) => ({
       id: m.key,

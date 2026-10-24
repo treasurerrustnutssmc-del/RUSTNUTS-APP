@@ -29,3 +29,7 @@ test('the join form takes a whole bike or none at all', () => {
   assert.equal(ok(validateApplicationBike({ make: 'Triumph', model: 'Bonneville', year: 9999 }, TODAY)), false);
   assert.equal(ok(validateApplicationBike({ make: 'Triumph', model: 'Bonneville', year: 2020 }, TODAY)), true);
 });
+
+test('a year on its own, with no make or model, is flagged rather than dropped', () => {
+  assert.equal(ok(validateApplicationBike({ make: '', model: '', year: 2019 }, TODAY)), false);
+});

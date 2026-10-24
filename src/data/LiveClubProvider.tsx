@@ -16,7 +16,7 @@ import {
   type ClubContextValue,
 } from './clubContext';
 import { loadClub } from './liveData';
-import { sessionView } from './session';
+import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
 
 const ok = <T extends { error: { message?: string; code?: string } | null }>(r: T): T => {
@@ -86,6 +86,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const visibleMe = view === 'ready' ? me : null;
   const level = accessLevel(visibleMe, data.positions);
 
+  const refresh = useCallback(() => reload(userId), [reload, userId]);
+
   const requireUser = () => {
     if (!userId) throw new NotAllowedError('Sign in first.');
     return userId;
@@ -103,6 +105,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     authEmail,
     needsApplication: view === 'needs-application',
     loadError: view === 'error' ? loadError : null,
+    refreshError: refreshError(view, loadError),
 
     signInAs: () => {},
 
@@ -127,7 +130,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       await supabase().auth.signOut();
     },
 
-    refresh: async () => reload(userId),
+    refresh,
 
     submitApplication: async (input) => {
       requireUser();

@@ -133,7 +133,6 @@ export type Database = {
     Functions: {
       approve_member: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       decline_member: { Args: { p_member: string }; Returns: undefined };
-      member_phone: { Args: { p_member: string }; Returns: string };
       set_member_status: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       shared_phones: { Args: never; Returns: { member_id: string; phone: string }[] };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };

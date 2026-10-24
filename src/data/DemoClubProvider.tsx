@@ -1,7 +1,7 @@
 // Demo build: made-up members held in memory. Every action goes through demoActions, which
 // applies the same rules the database enforces (checked by src/data/parity.test.ts).
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { accessLevel } from '../domain/access';
 import { todayIso } from '../domain/dates';
 import type { ClubData } from '../domain/types';
@@ -17,6 +17,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   const me = useMemo(() => data.members.find((m) => m.id === meId) ?? null, [data.members, meId]);
   const level = accessLevel(me, data.positions);
   const ctx: act.DemoCtx = { data, me, today };
+  const refresh = useCallback(async () => {}, []);
 
   const value: ClubContextValue = {
     mode: 'demo',
@@ -29,6 +30,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     authEmail: null,
     needsApplication: false,
     loadError: null,
+    refreshError: null,
 
     signInAs: (memberId) => setMeId(memberId),
     sendCode: async () => {
@@ -38,7 +40,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       throw new Error('No emails go out in the demo. Pick someone below instead.');
     },
     signOut: async () => setMeId(null),
-    refresh: async () => {},
+    refresh,
 
     submitApplication: async (input) => {
       const result = act.apply(ctx, input);

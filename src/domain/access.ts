@@ -2,7 +2,7 @@
 // (row-level security in supabase/migrations), so the app can never show
 // more than the server would hand over.
 
-import { BOARD_ROLES, NATIONAL_ROLES, ROLE_LABEL } from './labels';
+import { BOARD_ROLES, NATIONAL_ROLES } from './labels';
 import type { ClubData, Member, Position, PositionRole } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'member' | 'board' | 'national';
@@ -102,7 +102,8 @@ export function appointProblem(
   role: PositionRole,
   data: ClubData,
 ): string | null {
-  if (!me || me.approval !== 'approved') return 'Sign in first.';
+  if (!me) return 'Sign in first.';
+  if (me.approval !== 'approved') return 'Only approved members can do that.';
   if (me.id === target.id) return 'You can’t appoint yourself.';
   if (target.approval !== 'approved') return 'Approve them first.';
   const national = NATIONAL_ROLES.includes(role);
@@ -119,15 +120,14 @@ export function appointProblem(
   }
   const open = data.positions.filter((p) => p.endedOn === null && p.role === role && p.chapterId === seatChapter);
   if (open.some((p) => p.memberId === target.id)) return 'They already hold that role.';
-  if ((BOARD_ROLES.includes(role) || national) && open.length > 0) {
-    return `There’s already a sitting ${ROLE_LABEL[role]}. End their term first.`;
-  }
+  if ((BOARD_ROLES.includes(role) || national) && open.length > 0) return 'That seat is taken. End the current term first.';
   return null;
 }
 
 /** Why `me` can't end this term, or null when they can. Mirrors the database's end_position. */
 export function endTermProblem(me: Member | null, position: Position, data: ClubData): string | null {
-  if (!me || me.approval !== 'approved') return 'Sign in first.';
+  if (!me) return 'Sign in first.';
+  if (me.approval !== 'approved') return 'Only approved members can do that.';
   if (position.endedOn !== null) return 'That term has already ended.';
   if (position.memberId === me.id) return 'You can’t end your own term.';
   if (NATIONAL_ROLES.includes(position.role) || position.chapterId === null) {

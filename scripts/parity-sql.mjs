@@ -22,6 +22,9 @@ sql('\\set QUIET 1');
 sql('\\o /dev/null');
 sql("set client_min_messages = warning;");
 sql('-- Fixture (as the database owner, so row-level security does not apply while setting up)');
+for (const c of fx.chapters ?? []) {
+  sql(`insert into public.chapters (slug, name, area) values (${q(c.slug)}, ${q(c.name)}, ${q(c.area)});`);
+}
 for (const m of fx.members) {
   sql(`insert into auth.users (id, email) values (${id('m', m.key)}, ${q(`${m.key}@example.com`)});`);
   sql(
@@ -30,6 +33,10 @@ for (const m of fx.members) {
       `${m.approval === 'approved' ? "date '2024-01-01'" : 'null'});`,
   );
   sql(`insert into public.member_private (member_id, email) values (${id('m', m.key)}, ${q(`${m.key}@example.com`)});`);
+}
+for (const u of fx.signups ?? []) {
+  // Signed up (email confirmed) but not applied yet.
+  sql(`insert into auth.users (id, email) values (${id('m', u.key)}, ${q(`${u.key}@example.com`)});`);
 }
 for (const p of fx.positions) {
   sql(
@@ -66,6 +73,15 @@ const call = (c) => {
       return `public.remove_bike(${id('b', c.bike)})`;
     case 'removeContact':
       return `public.remove_contact(${id('c', c.contact)})`;
+    case 'saveBike':
+      return `public.save_bike(${c.bike ? id('b', c.bike) : 'null'}, ${q(c.make)}, ${q(c.model)}, ${c.year ?? 'null'}, null, false, null, null)`;
+    case 'saveContact':
+      return `public.save_contact(${c.contact ? id('c', c.contact) : 'null'}, ${q(c.contactName)}, ${q(c.relationship)}, ${q(c.phone)})`;
+    case 'apply':
+      return (
+        `public.apply_to_join(${chapter(c.chapter)}, ${q(c.fullName)}, null, null, null, null, 'introduced', ` +
+        `${c.make ? q(c.make) : 'null'}, ${c.model ? q(c.model) : 'null'}, ${c.year ?? 'null'})`
+      );
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }

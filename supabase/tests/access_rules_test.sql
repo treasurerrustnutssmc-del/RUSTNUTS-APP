@@ -97,8 +97,8 @@ do $$ begin
   assert (select count(*) from emergency_contacts) = 1, 'member sees own emergency contact';
   assert (select count(*) from bikes) = 1, 'member sees approved bikes only (not the applicant''s)';
   assert (select count(*) from positions) = 4, 'member sees who holds what';
-  assert public.member_phone('00000000-0000-0000-0000-000000000001') is not null, 'Rusty shares his phone';
-  assert public.member_phone('00000000-0000-0000-0000-000000000007') is null, 'Gravel does not';
+  assert exists (select 1 from public.shared_phones() where member_id = '00000000-0000-0000-0000-000000000001'), 'Rusty shares his phone';
+  assert not exists (select 1 from public.shared_phones() where member_id = '00000000-0000-0000-0000-000000000007'), 'Gravel does not';
 end $$;
 -- can edit own sharing but not own status
 update members set share_phone = false where id = '00000000-0000-0000-0000-000000000003';
@@ -133,8 +133,8 @@ do $$ begin
   assert (select count(*) from member_private) = 5, 'West board sees West private rows only';
   assert (select count(*) from bike_registrations) = 1, 'West board sees West regos';
   assert (select count(*) from emergency_contacts) = 1, 'West board sees West emergency contacts';
-  assert public.member_phone('00000000-0000-0000-0000-000000000007') is not null, 'board sees an unshared West phone';
-  assert public.member_phone('00000000-0000-0000-0000-000000000004') is null, 'but not North''s';
+  assert exists (select 1 from public.shared_phones() where member_id = '00000000-0000-0000-0000-000000000007'), 'board sees an unshared West phone';
+  assert not exists (select 1 from public.shared_phones() where member_id = '00000000-0000-0000-0000-000000000004'), 'but not North''s';
 end $$;
 select public.approve_member('00000000-0000-0000-0000-000000000005', 'introduced');
 do $$ begin
@@ -378,6 +378,72 @@ do $$ begin
   assert private.club_date(timestamptz '2026-06-30 13:59:00+00') = date '2026-06-30', '11:59pm in winter';
   assert private.club_date(timestamptz '2026-06-30 14:00:00+00') = date '2026-07-01', 'midnight in winter';
 end $$;
+
+\echo 'Every date the server writes comes from the club clock'
+begin;
+-- Pretend the club clock says 1 July 2031, whatever the real date is.
+create or replace function private.club_date(at_time timestamptz default now())
+returns date language sql stable set search_path = '' as $$ select date '2031-07-01'; $$;
+select pg_temp.act_as('00000000-0000-0000-0000-000000000002'); -- West Secretary
+set local role authenticated;
+select public.approve_member('00000000-0000-0000-0000-000000000005', 'introduced');
+select public.set_member_status('00000000-0000-0000-0000-000000000005', 'fng');
+select public.appoint_position('00000000-0000-0000-0000-000000000007', (select id from chapters where slug = 'west'), 'officer');
+select public.end_position((select id from positions where member_id = '00000000-0000-0000-0000-000000000003' and role = 'tail_gunner'));
+select pg_temp.act_as('00000000-0000-0000-0000-000000000006'); -- a new sign-up
+select public.apply_to_join((select id from chapters where slug = 'west'), 'New Person');
+reset role;
+do $$ begin
+  assert (select joined_on from members where id = '00000000-0000-0000-0000-000000000005') = date '2031-07-01', 'approval date';
+  assert (select fng_started_on from members where id = '00000000-0000-0000-0000-000000000005') = date '2031-07-01', 'FNG start';
+  assert (select started_on from positions where member_id = '00000000-0000-0000-0000-000000000007' and role = 'officer') = date '2031-07-01', 'appointment date';
+  assert (select ended_on from positions where member_id = '00000000-0000-0000-0000-000000000003' and role = 'tail_gunner') = date '2031-07-01', 'term end date';
+  assert (select applied_on from members where id = '00000000-0000-0000-0000-000000000006') = date '2031-07-01', 'application date';
+end $$;
+rollback;
+
+\echo 'Bike rules hold even for direct table writes'
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-000000000003'); -- Spanner
+set local role authenticated;
+do $$ begin
+  begin
+    insert into bikes (member_id, make, model, year) values (auth.uid(), 'Triumph', 'Bonneville', 2099);
+    raise exception 'a bike from 2099 went straight in';
+  exception when raise_exception then
+    if sqlerrm = 'a bike from 2099 went straight in' then raise; end if;
+  end;
+  begin
+    update bikes set make = ' ' where member_id = auth.uid();
+    raise exception 'a bike lost its make';
+  exception when raise_exception then
+    if sqlerrm = 'a bike lost its make' then raise; end if;
+  end;
+end $$;
+rollback;
+
+\echo 'Saving private details says so when there is nothing to save into'
+begin;
+delete from member_private where member_id = '00000000-0000-0000-0000-000000000003';
+select pg_temp.act_as('00000000-0000-0000-0000-000000000003'); -- Spanner, private row missing
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.save_profile('Mick Doherty', 'Spanner', null, true, true, 'mick@example.com', '0400 111 222', null, null, null);
+    raise exception 'private details vanished without a word';
+  exception when raise_exception then
+    if sqlerrm = 'private details vanished without a word' then raise; end if;
+  end;
+end $$;
+rollback;
+
+\echo 'Admin tools (service key) can add records without naming the date'
+begin;
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-000000000099', 'admin-added@example.com');
+set local role service_role;
+insert into members (id, chapter_id, full_name, approval) select '00000000-0000-0000-0000-000000000099', id, 'Added By Admin', 'approved' from chapters where slug = 'west';
+insert into positions (member_id, chapter_id, role) select '00000000-0000-0000-0000-000000000099', id, 'officer' from chapters where slug = 'west';
+rollback;
 
 \echo 'One holder per board seat'
 do $$ begin
