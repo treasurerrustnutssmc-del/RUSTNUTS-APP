@@ -127,7 +127,7 @@ function PickRow({
   onPress,
 }: {
   member: Member;
-  /** Their spot on this ride's crew already, if any. */
+  /** Their spot on this ride's crew already, if any: shown as "Now RC" so it doesn't read as a standing position. */
   spot: ReturnType<typeof spotOf>;
   /** They hold the spot being picked. */
   current: boolean;
@@ -141,7 +141,7 @@ function PickRow({
   const label = [
     name,
     member.fullName !== name ? member.fullName : null,
-    current ? 'has this spot now' : spot ? `on the crew as ${ROLE_LABEL[spot]}` : null,
+    current ? 'has this spot now' : spot ? `currently ${ROLE_LABEL[spot]} on this ride, picking moves them` : null,
   ]
     .filter(Boolean)
     .join(', ');
@@ -176,7 +176,7 @@ function PickRow({
           </Row>
           <Row style={{ gap: 6 }}>
             <StatusChip status={member.status} />
-            {current ? <Chip label="Has it now" tone="ok" icon="checkmark" /> : spot ? <Chip label={ROLE_SHORT[spot]} tone="bone" icon="shield-half" /> : null}
+            {current ? <Chip label="Has it now" tone="ok" icon="checkmark" /> : spot ? <Chip label={`Now ${ROLE_SHORT[spot]}`} tone="bone" icon="shield-half" /> : null}
           </Row>
         </View>
         {saving ? (
