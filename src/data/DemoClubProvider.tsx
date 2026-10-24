@@ -63,6 +63,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     setRsvp: async (rideId, answer) => setData(act.setRsvp(ctx, rideId, answer)),
     setCrew: async (rideId, memberId, role) => setData(act.setCrew(ctx, rideId, memberId, role)),
     leaveCrew: async (rideId, memberId) => setData(act.leaveCrew(ctx, rideId, memberId)),
+    // Lane E: notifications
+    saveNotificationPrefs: async (prefs) => setData((d) => ({ ...d, notificationPrefs: prefs })),
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;

@@ -99,6 +99,13 @@ export type Database = {
         Update: { area?: string; name?: string; slug?: string; state?: string };
         Relationships: [];
       };
+      // Lane E: notifications
+      notification_prefs: {
+        Row: { member_id: string; ride_reminders: boolean; ride_changes: boolean; new_rides: boolean; approvals: boolean; updated_at: string };
+        Insert: { member_id: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       emergency_contacts: {
         Row: { created_at: string; id: string; member_id: string; name: string; phone: string; relationship: string };
         Insert: { id?: string; member_id: string; name: string; phone: string; relationship: string };
@@ -281,6 +288,11 @@ export type Database = {
       };
       resolve_ride_alert: { Args: { p_alert: string }; Returns: undefined };
       stop_live_ride: { Args: { p_ride: string }; Returns: undefined };
+      // Lane E: notifications
+      save_notification_prefs: {
+        Args: { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean };
+        Returns: undefined;
+      };
     };
     Enums: {
       approval_state: ApprovalState;

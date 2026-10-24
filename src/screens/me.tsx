@@ -7,6 +7,8 @@ import { LICENCE_LABEL, ROLE_LABEL } from '../domain/labels';
 import { displayName, hasEarnedDisc, initials } from '../domain/profile';
 import type { LicenceClass } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
+// Lane E: notifications
+import { NotificationSettings } from './notificationSettings';
 import { colors, space } from '../theme';
 import {
   Avatar,
@@ -142,6 +144,9 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         <ListRow last left={<IconBadge icon="add" tone="red" />} title="Add a bike" onPress={() => navigation.navigate('EditBike', {})} />
       </Card>
 
+      {/* Lane E: notifications */}
+      <NotificationSettings />
+
       <SectionTitle title="Privacy" />
       <Card>
         <Toggle
@@ -156,10 +161,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
           }}
         />
         {shareError ? <Notice tone="danger">{shareError}</Notice> : null}
-        <Small>
-          Ride-day location sharing (coming in Stage 6) will always be your choice, switch off when the ride ends,
-          and keep nothing afterwards.
-        </Small>
+        {/* Lane E: live ride */}
+        <Small>Live ride location sharing is always your choice, switches off after the ride, and keeps nothing.</Small>
       </Card>
 
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />

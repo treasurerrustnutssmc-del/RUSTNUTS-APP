@@ -155,6 +155,9 @@ export interface ClubData {
   crew?: CrewSpot[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
+  // Lane E: notifications
+  /** The signed-in member's saved notification settings, or null for the defaults. */
+  notificationPrefs?: NotificationPrefs | null;
 }
 
 // Lane E: live ride
@@ -199,4 +202,14 @@ export interface LiveState {
   riders: LiveRider[];
   alerts: RideAlert[];
   contacts: EmergencyContact[];
+}
+
+// Lane E: notifications
+/** Which notifications a member wants. No saved row means DEFAULT_PREFS (src/domain/notifications.ts). */
+export interface NotificationPrefs {
+  rideReminders: boolean;
+  rideChanges: boolean;
+  newRides: boolean;
+  /** Board only: someone in the chapter is waiting for approval. */
+  approvals: boolean;
 }
