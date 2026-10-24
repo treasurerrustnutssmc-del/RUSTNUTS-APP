@@ -13,7 +13,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const out = join(root, 'preview');
 
-execSync('npx expo export --platform web --output-dir dist --clear', { cwd: root, stdio: 'inherit' });
+// The preview page always runs on the made-up demo members, even when .env points at the live database.
+execSync('npx expo export --platform web --output-dir dist --clear', {
+  cwd: root,
+  stdio: 'inherit',
+  env: { ...process.env, EXPO_PUBLIC_FORCE_DEMO: '1', EXPO_PUBLIC_SUPABASE_URL: '', EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: '' },
+});
 
 const jsDir = join(dist, '_expo/static/js/web');
 const bundleFile = readdirSync(jsDir).find((f) => f.endsWith('.js'));

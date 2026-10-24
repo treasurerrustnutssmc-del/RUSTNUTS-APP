@@ -93,12 +93,12 @@ export function RootNavigator() {
       {/* Keyed by who's signed in, so switching people always starts fresh on their home screen. */}
       <Stack.Navigator key={me?.id ?? (needsApplication ? 'applying' : 'signed-out')} screenOptions={headerOptions}>
         {needsApplication ? (
-          <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
+          <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Rustnuts' }} />
         ) : level === 'public' ? (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign in' }} />
-            <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
+            <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: '' }} />
+            <Stack.Screen name="Join" component={JoinScreen} options={{ title: '' }} />
           </>
         ) : level === 'pending' ? (
           <Stack.Screen name="Pending" component={PendingScreen} options={{ headerShown: false }} />

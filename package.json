@@ -37,7 +37,8 @@
     "test:db": "bash scripts/test-db.sh",
     "typecheck": "tsc --noEmit",
     "build:preview": "node scripts/build-preview.mjs",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "check:live": "tsx scripts/check-live.mts"
   },
   "private": true
 }
