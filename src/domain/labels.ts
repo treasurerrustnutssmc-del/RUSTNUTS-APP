@@ -1,4 +1,4 @@
-import type { LicenceClass, MemberStatus, PositionRole, RideCategory, RsvpAnswer } from './types';
+import type { BallotChoice, Electorate, LicenceClass, MeetingKind, MemberStatus, PositionRole, RideCategory, RsvpAnswer, Threshold, VoteResult } from './types';
 
 export const STATUS_LABEL: Record<MemberStatus, string> = {
   introduced: 'Introduced',
@@ -106,4 +106,49 @@ export const RSVP_LABEL: Record<RsvpAnswer, string> = {
   going: 'Going',
   maybe: 'Maybe',
   no: 'Can’t make it',
+};
+
+// Stage 5: meetings and votes ----------------------------------------------------------------
+
+export const MEETING_KIND_LABEL: Record<MeetingKind, string> = {
+  board: 'Board meeting',
+  general: 'General meeting',
+  agm: 'AGM',
+  special: 'Special meeting',
+  nec: 'NEC meeting',
+};
+
+/** The kinds of meeting a chapter (or the whole club, when null) holds. */
+export function kindsFor(chapterId: string | null): MeetingKind[] {
+  return chapterId === null ? ['nec', 'general', 'agm', 'special'] : ['board', 'general', 'agm', 'special'];
+}
+
+export const ELECTORATE_LABEL: Record<Electorate, string> = {
+  chapter_board: 'The chapter board',
+  chapter_patched: 'The chapter’s patched members',
+  club_patched: 'Every patched member',
+  nec: 'The NEC',
+};
+
+/** Who can be asked to vote on a chapter's question, or the whole club's (null). */
+export function electoratesFor(chapterId: string | null): Electorate[] {
+  return chapterId === null ? ['club_patched', 'nec'] : ['chapter_board', 'chapter_patched'];
+}
+
+export const THRESHOLD_LABEL: Record<Threshold, string> = {
+  majority: 'Majority',
+  two_thirds: 'Two-thirds',
+  unanimous: 'Unanimous',
+};
+
+export const BALLOT_LABEL: Record<BallotChoice, string> = {
+  yes: 'Yes',
+  no: 'No',
+  abstain: 'Abstain',
+};
+
+export const RESULT_LABEL: Record<VoteResult, string> = {
+  carried: 'Carried',
+  lost: 'Lost',
+  no_quorum: 'No quorum',
 };
