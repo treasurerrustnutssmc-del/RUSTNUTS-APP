@@ -148,3 +148,15 @@ No Alert dialogs are used. The edit screen has nothing destructive, because clea
 - Push reminders ("Read the briefing for tomorrow's ride"). Lane E owns push.
 - Weather. That needs a weather provider, which means Jeff's say-so on an account.
 - Hazard pins on the route shape. Hazards are text lines for now.
+
+## Amendment after the final review (24 Oct 2026)
+The final review found that Got it didn't record which version of the briefing the rider saw. A rider with an old card open could tap Got it after the RC's update and drop off the unread list. Claude ruled on these changes:
+- **Got it carries the version seen.** `read_briefing(p_ride uuid, p_seen timestamptz)`, where `p_seen` is the `updated_at` of the briefing on screen.
+  - It is refused when the stored briefing was updated more than 1 ms after `p_seen`, because the app holds milliseconds and Postgres holds microseconds.
+  - Message, checked after `There’s no briefing for this ride yet.`: `The briefing changed while you had it open. Read the new version, then tap Got it.`
+- **Saving carries the version the editor started from.** `save_briefing(p_ride, p_hazards, p_changes, p_notes, p_seen timestamptz)`, where `p_seen` is null when there was no briefing yet.
+  - It is refused when a briefing exists and `p_seen` is null, or the stored one is more than 1 ms newer.
+  - Message, checked right after the writer check (step 6): `Someone else saved this briefing while you were editing. Your changes aren’t saved: copy them, then open the briefing again.`
+- **A save also stamps the writer's own read** at the same time, so writers don't see their own update as unread.
+- **The card shows the read count to every approved member**, not only writers.
+- **In the live app**, after either of these two refusals, the calendar reloads so the screen shows the newer briefing.
