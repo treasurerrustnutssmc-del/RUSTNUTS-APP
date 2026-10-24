@@ -233,13 +233,12 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
           value={licenceClass}
           onChange={setLicenceClass}
         />
-        <Field label="Licence expiry" value={licence.text} onChangeText={licence.setText} placeholder="DD/MM/YYYY" keyboardType="number-pad" inputMode="numeric" maxLength={10} error={licence.error} />
+        <Field label="Licence expiry" value={licence.text} onChangeText={licence.setText} placeholder="DD/MM/YYYY" inputMode="numeric" maxLength={10} error={licence.error} />
         <Field
           label="First aid certificate expiry"
           value={firstAid.text}
           onChangeText={firstAid.setText}
           placeholder="DD/MM/YYYY"
-          keyboardType="number-pad"
           inputMode="numeric"
           maxLength={10}
           error={firstAid.error}
@@ -313,7 +312,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
             <LockNote text="You + board" />
           </Row>
           <Field label="Rego" value={rego} onChangeText={setRego} autoCapitalize="characters" placeholder="1AB 2CD" />
-          <Field label="Rego expiry" value={expiry.text} onChangeText={expiry.setText} placeholder="DD/MM/YYYY" keyboardType="number-pad" inputMode="numeric" maxLength={10} error={expiry.error} hint="You'll get a reminder 30 days before." />
+          <Field label="Rego expiry" value={expiry.text} onChangeText={expiry.setText} placeholder="DD/MM/YYYY" inputMode="numeric" maxLength={10} error={expiry.error} hint="You'll get a reminder 30 days before." />
         </Card>
       ) : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}

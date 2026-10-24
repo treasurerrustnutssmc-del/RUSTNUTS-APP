@@ -59,4 +59,6 @@ test('typing a date on the number pad puts the slashes in for you', () => {
   assert.equal(typeDate('08/11/20267'), '08/11/2026', 'no more than eight digits');
   assert.equal(typeDate('08/1'), '08/1', 'backspacing works digit by digit');
   assert.equal(typeDate('ab08x11'), '08/11', 'only digits count');
+  assert.equal(typeDate('8/11/2026'), '8/11/2026', 'a pasted date with its own slashes is left alone');
+  assert.equal(typeDate('08/1/2026'), '08/1/2026', 'deleting a digit in the middle doesn\'t shuffle the rest');
 });

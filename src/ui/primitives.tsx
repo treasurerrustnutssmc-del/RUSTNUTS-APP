@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -33,7 +33,8 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 // ---------------------------------------------------------------------------
 
 /** Lets a text box inside a Screen ask to be scrolled clear of the on-screen keyboard. */
-const RevealFieldContext = createContext<((field: HostInstance | null) => void) | null>(null);
+type RevealField = { reveal: (field: HostInstance | null) => void; forget: (field: HostInstance | null) => void };
+const RevealFieldContext = createContext<RevealField | null>(null);
 
 /**
  * Phones only: while the keyboard is up, the page gets that much extra room at the bottom and
@@ -44,6 +45,7 @@ function useKeyboardRoom() {
   const scrollRef = useRef<ScrollViewInstance>(null);
   const contentRef = useRef<HostInstance>(null);
   const pending = useRef<HostInstance | null>(null);
+  const waitingForRoom = useRef(false);
   const [keyboard, setKeyboard] = useState(0);
 
   const scrollTo = useCallback((field: HostInstance | null) => {
@@ -58,19 +60,30 @@ function useKeyboardRoom() {
 
   useEffect(() => {
     if (Platform.OS === 'web') return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const shown = Keyboard.addListener('keyboardDidShow', (e) => {
       setKeyboard(e.endCoordinates.height);
-      // Wait a frame so the extra room exists before scrolling into it.
-      setTimeout(() => scrollTo(pending.current), 50);
+      // Scroll once the extra room is laid out (onContentSizeChange), with a timer as a backstop.
+      waitingForRoom.current = true;
+      timer = setTimeout(() => {
+        if (waitingForRoom.current) scrollTo(pending.current);
+        waitingForRoom.current = false;
+      }, 120);
     });
-    const hidden = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboard(0);
-      pending.current = null;
-    });
+    // The box can stay focused when the keyboard is closed with the back gesture, so the field
+    // is only forgotten when it loses focus, not here; tapping it again still scrolls to it.
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboard(0));
     return () => {
       shown.remove();
       hidden.remove();
+      clearTimeout(timer);
     };
+  }, [scrollTo]);
+
+  const onContentSizeChange = useCallback(() => {
+    if (!waitingForRoom.current) return;
+    waitingForRoom.current = false;
+    scrollTo(pending.current);
   }, [scrollTo]);
 
   const reveal = useCallback(
@@ -82,7 +95,12 @@ function useKeyboardRoom() {
     [scrollTo],
   );
 
-  return { scrollRef, contentRef, keyboard, reveal };
+  const forget = useCallback((field: HostInstance | null) => {
+    if (pending.current === field) pending.current = null;
+  }, []);
+
+  const field = useMemo(() => ({ reveal, forget }), [reveal, forget]);
+  return { scrollRef, contentRef, keyboard, field, onContentSizeChange };
 }
 
 export function Screen({
@@ -98,7 +116,7 @@ export function Screen({
   onRefresh?: () => Promise<void>;
 }) {
   const insets = useSafeAreaInsets();
-  const { scrollRef, contentRef, keyboard, reveal } = useKeyboardRoom();
+  const { scrollRef, contentRef, keyboard, field, onContentSizeChange } = useKeyboardRoom();
   const [refreshing, setRefreshing] = useState(false);
   const refreshControl = onRefresh ? (
     <RefreshControl
@@ -123,7 +141,7 @@ export function Screen({
     </View>
   );
   return (
-    <RevealFieldContext.Provider value={scroll ? reveal : null}>
+    <RevealFieldContext.Provider value={scroll ? field : null}>
       <View style={styles.screen}>
         {scroll ? (
           <ScrollView
@@ -131,6 +149,7 @@ export function Screen({
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             refreshControl={refreshControl}
+            onContentSizeChange={onContentSizeChange}
           >
             {inner}
           </ScrollView>
@@ -345,11 +364,12 @@ export function Field({
         {...input}
         onFocus={(e) => {
           setFocused(true);
-          reveal?.(box.current); // the label comes into view too, not just the box
+          reveal?.reveal(box.current); // the label comes into view too, not just the box
           input.onFocus?.(e);
         }}
         onBlur={(e) => {
           setFocused(false);
+          reveal?.forget(box.current);
           input.onBlur?.(e);
         }}
         style={[

@@ -79,6 +79,8 @@ export function monthsBetween(fromIso: string, toIso: string): number {
  * the number pad (which has no / key).
  */
 export function typeDate(input: string): string {
+  // Already split into day/month/year (pasted, autofilled, or edited in the middle): leave it be.
+  if (/^\d{1,2}\/\d{1,2}\/\d{0,4}$/.test(input)) return input;
   const digits = input.replace(/\D/g, '').slice(0, 8);
   if (digits.length <= 2) return digits;
   if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
