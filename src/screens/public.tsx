@@ -14,6 +14,7 @@ import {
   Choices,
   Display,
   Field,
+  Flannel,
   H1,
   H2,
   IconBadge,
@@ -33,9 +34,9 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
   const { data, isDemo } = useClub();
   return (
     <Screen padTop>
-      <View style={{ alignItems: 'center', paddingTop: space.md }}>
+      <Flannel style={{ alignItems: 'center', paddingVertical: space.xl }}>
         <Logo width={280} />
-      </View>
+      </Flannel>
       <Stack gap={space.sm}>
         <Display>Rust Till Dust</Display>
         <Body>
@@ -370,9 +371,9 @@ export function PendingScreen() {
 
   return (
     <Screen padTop>
-      <View style={{ alignItems: 'center' }}>
+      <Flannel style={{ alignItems: 'center' }}>
         <Logo width={180} />
-      </View>
+      </Flannel>
       {declined ? (
         <Stack gap={space.sm}>
           <H1>Request not approved</H1>

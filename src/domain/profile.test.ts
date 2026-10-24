@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoData';
-import { displayName, expiryAlerts, initials, profileChecklist } from './profile';
+import { displayName, expiryAlerts, hasEarnedDisc, initials, profileChecklist } from './profile';
 
 const d = DEMO_DATA;
 const m = (id: string) => d.members.find((x) => x.id === id)!;
@@ -42,4 +42,15 @@ test('FNG review schedule', async () => {
   assert.deepEqual(nextFngReview('2026-03-21', '2026-10-24'), { atMonths: 9, date: '2026-12-21', overdue12: false });
   assert.deepEqual(nextFngReview('2026-07-25', '2026-10-24'), { atMonths: 6, date: '2027-01-25', overdue12: false });
   assert.deepEqual(nextFngReview('2025-08-31', '2026-10-24'), { atMonths: 15, date: '2026-11-30', overdue12: true });
+});
+
+test('the member disc is earned at full membership, never given', () => {
+  const approved = { approval: 'approved' as const };
+  assert.equal(hasEarnedDisc({ ...approved, status: 'full' }), true);
+  assert.equal(hasEarnedDisc({ ...approved, status: 'nomad' }), true, 'a nomad is a full member living away');
+  for (const status of ['introduced', 'fng', 'supporter', 'family'] as const) {
+    assert.equal(hasEarnedDisc({ ...approved, status }), false, status);
+  }
+  assert.equal(hasEarnedDisc({ approval: 'suspended', status: 'full' }), false, 'not while suspended');
+  assert.equal(hasEarnedDisc({ approval: 'pending', status: 'full' }), false);
 });

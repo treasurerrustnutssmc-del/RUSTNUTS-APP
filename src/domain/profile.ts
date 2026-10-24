@@ -61,6 +61,11 @@ export function expiryAlerts(members: Member[], data: ClubData, today: string): 
   return alerts.sort((a, b) => a.expiry.localeCompare(b.expiry));
 }
 
+/** The MEMBER disc is earned at full membership (nomads are full members living away), never given. */
+export function hasEarnedDisc(m: Pick<Member, 'status' | 'approval'>): boolean {
+  return m.approval === 'approved' && (m.status === 'full' || m.status === 'nomad');
+}
+
 export function displayName(m: Pick<Member, 'roadName' | 'fullName'>): string {
   return m.roadName ?? m.fullName.split(' ')[0];
 }

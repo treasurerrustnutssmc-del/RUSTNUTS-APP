@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  ImageBackground,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -454,17 +455,63 @@ export function Divider() {
   return <View style={styles.divider} />;
 }
 
+// The club's real artwork. Never retype RUSTNUTS in a lookalike font: the stencil wordmark and the
+// EST 2019 logo (the version without the flag) are the club's trademarks.
+const LOGO_RATIO = 745 / 1042;
+const SKULL_RATIO = 192 / 143;
+
 export function Logo({ width = 260 }: { width?: number }) {
   const inner = width - space.md * 2;
   return (
     <View style={styles.logoPlate}>
       <Image
-        source={require('../../assets/logo.jpg')}
-        style={{ width: inner, height: Math.round((inner * 766) / 1093) }}
+        source={require('../../assets/logo.png')}
+        style={{ width: inner, height: Math.round(inner * LOGO_RATIO) }}
         resizeMode="contain"
         accessibilityLabel="Rustnuts SMC, established 2019"
       />
     </View>
+  );
+}
+
+/** The skull on its own, for headers and small spaces. */
+export function Skull({ size = 28 }: { size?: number }) {
+  return (
+    <Image
+      source={require('../../assets/skull.png')}
+      style={{ width: size, height: Math.round(size * SKULL_RATIO) }}
+      resizeMode="contain"
+      accessibilityLabel="Rustnuts"
+    />
+  );
+}
+
+/**
+ * Club flannel, used as an accent only (splash, headers, the disc moment). A dark wash keeps
+ * whatever sits on top readable in the sun.
+ */
+export function Flannel({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  return (
+    <ImageBackground
+      source={require('../../assets/flannel.jpg')}
+      resizeMode="repeat"
+      imageStyle={{ borderRadius: radius.md }}
+      style={[styles.flannel, style]}
+    >
+      <View style={styles.flannelWash} pointerEvents="none" />
+      {children}
+    </ImageBackground>
+  );
+}
+
+/** The embroidered MEMBER disc. Only shown once someone is a full member (see hasEarnedDisc). */
+export function MemberDisc({ size = 64 }: { size?: number }) {
+  return (
+    <Image
+      source={require('../../assets/member-disc.png')}
+      style={{ width: size, height: size }}
+      accessibilityLabel="Full member disc"
+    />
   );
 }
 
@@ -571,6 +618,8 @@ const styles = StyleSheet.create({
   notice: { flexDirection: 'row', gap: space.md, padding: space.md, borderRadius: radius.md },
   kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: space.lg, paddingVertical: 2 },
   divider: { height: 1, backgroundColor: colors.line },
+  flannel: { borderRadius: radius.md, overflow: 'hidden', padding: space.lg, gap: space.md },
+  flannelWash: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(17,16,16,0.76)' },
   logoPlate: { backgroundColor: '#FFFFFF', borderRadius: radius.md, padding: space.md, alignSelf: 'center' },
   iconBadge: { width: 36, height: 36, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
 });

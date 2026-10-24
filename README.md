@@ -64,3 +64,12 @@ npm run build:preview   # one-file web preview in preview/
 | `assets` | The club logo and app icons made from it |
 
 The look (colours, Saira Stencil One headings) comes from rustnutssmc.com.au.
+
+## Brand rules
+
+- The RUSTNUTS stencil wordmark and the EST 2019 logo (the version **without** the flag) are the club's
+  trademarks. Show the real artwork (`assets/logo.png`, `assets/skull.png`); never type "RUSTNUTS" in a lookalike font.
+- The MEMBER disc (`assets/member-disc.png`) is earned at full membership: only shown when `hasEarnedDisc()` says so.
+- Flannel (`assets/flannel.jpg`) is an accent only: welcome, waiting screen, Home greeting and the disc moment.
+  Lists and forms stay plain dark so they read in the sun.
+- App icons use the skull on black. Original artwork is kept in the project files under `brand/`.
