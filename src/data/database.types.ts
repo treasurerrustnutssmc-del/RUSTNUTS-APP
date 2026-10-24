@@ -25,6 +25,35 @@ type PositionRole =
   // Stage 3 (lane B)
   | 'charity_committee';
 
+// Lane E: live ride
+type RideAlertKind = 'emergency' | 'out' | 'regroup';
+export type LiveStateJson = {
+  me: { stops_at: string } | null;
+  riders: {
+    member_id: string;
+    name: string;
+    leader: boolean;
+    lat: number | null;
+    lng: number | null;
+    accuracy_m: number | null;
+    updated_at: string | null;
+    phone: string | null;
+  }[];
+  alerts: {
+    id: string;
+    ride_id: string;
+    member_id: string;
+    kind: RideAlertKind;
+    name: string;
+    lat: number | null;
+    lng: number | null;
+    created_at: string;
+    resolved_at: string | null;
+    phone: string | null;
+  }[];
+  contacts: { id: string; member_id: string; name: string; relationship: string; phone: string }[];
+};
+
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '14.18' };
   public: {
@@ -230,6 +259,19 @@ export type Database = {
         Returns: string;
       };
       remove_contact: { Args: { p_contact: string }; Returns: undefined };
+      // Lane E: live ride
+      start_live_ride: { Args: { p_ride: string }; Returns: string };
+      live_ride_state: { Args: { p_ride: string }; Returns: LiveStateJson };
+      update_live_position: {
+        Args: { p_ride: string; p_lat: number; p_lng: number; p_accuracy: number | null; p_heading: number | null; p_speed: number | null };
+        Returns: LiveStateJson;
+      };
+      raise_ride_alert: {
+        Args: { p_ride: string; p_kind: RideAlertKind; p_lat: number | null; p_lng: number | null; p_at?: string | null };
+        Returns: string;
+      };
+      resolve_ride_alert: { Args: { p_alert: string }; Returns: undefined };
+      stop_live_ride: { Args: { p_ride: string }; Returns: undefined };
     };
     Enums: {
       approval_state: ApprovalState;

@@ -41,6 +41,21 @@
           "cameraPermission": "Rustnuts uses your camera so you can take photos and videos for club chats.",
           "microphonePermission": "Rustnuts uses your microphone to record sound with videos for club chats."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Rustnuts uses your location during a live ride, so the riders you're with can find you.",
+          "locationAlwaysAndWhenInUsePermission": "Rustnuts keeps sharing your location with your ride while the screen is off. It switches itself off when the ride ends.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#B92632"
+        }
       ]
     ],
     "owner": "rustnutssmcs-team",

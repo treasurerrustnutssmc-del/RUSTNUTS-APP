@@ -31,6 +31,8 @@ export type RootParams = {
   EditBike: { bikeId?: string };
   EditContact: { contactId?: string };
   ManageMember: { memberId: string };
+  // Lane E: live ride
+  LiveRide: { rideId: string };
   // Stage 3 (lane B): chats and photos
   Chat: { chatId: string };
   NewChat: undefined;
