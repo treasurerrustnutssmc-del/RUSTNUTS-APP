@@ -19,6 +19,11 @@ import {
 import { loadClub } from './liveData';
 import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
+// Lane E: offline
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClubCache } from './offlineCache';
+
+const clubCache = createClubCache(AsyncStorage);
 
 const ok = <T extends { error: { message?: string; code?: string } | null }>(r: T): T => {
   if (r.error) throw friendlyError(r.error);
@@ -36,6 +41,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const [justApplied, setJustApplied] = useState(false);
   const latest = useRef(0);
   const today = todayIso();
+  // Lane E: offline. When the data on screen is the copy saved on the phone, when it was saved.
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const showing = useRef<string | null>(null);
 
   /** Loads what this person may see. Only the newest request wins, so a slow old load can't overwrite a newer one. */
   const reload = useCallback(async (uid: string | null) => {
@@ -46,8 +54,22 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       setData(fresh);
       setLoadedFor(uid ?? '');
       setLoadError(null);
+      showing.current = uid ?? '';
+      setSavedAt(null);
+      if (uid) clubCache.save(uid, fresh, new Date().toISOString());
     } catch (e) {
       if (ticket !== latest.current) return;
+      // No signal and nothing of theirs on screen yet: show the copy saved on the phone.
+      if (uid && showing.current !== uid) {
+        const saved = await clubCache.load(uid);
+        if (ticket !== latest.current) return;
+        if (saved) {
+          setData(saved.data);
+          setLoadedFor(uid);
+          showing.current = uid;
+          setSavedAt(saved.savedAt);
+        }
+      }
       setLoadError(friendlyError(e as { message?: string }).message);
     }
   }, []);
@@ -61,6 +83,16 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const uid = s.session?.user.id ?? null;
       setUserId(uid);
       setAuthEmail(s.session?.user.email ?? null);
+      // Lane E: offline. Open on the copy saved on the phone while the fresh load comes in.
+      const saved = uid ? await clubCache.load(uid) : null;
+      if (cancelled) return;
+      if (uid && saved && showing.current === null) {
+        setData(saved.data);
+        setLoadedFor(uid);
+        showing.current = uid;
+        setSavedAt(saved.savedAt);
+        setStarted(true);
+      }
       await reload(uid);
       if (!cancelled) setStarted(true);
     });
@@ -70,6 +102,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       setUserId(uid);
       setAuthEmail(session?.user.email ?? null);
       if (!uid) setJustApplied(false);
+      if (!uid) clubCache.clear(); // Lane E: offline
       // Run outside the auth callback, as Supabase recommends.
       setTimeout(() => {
         reload(uid);
@@ -109,6 +142,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     needsApplication: view === 'needs-application',
     loadError: view === 'error' ? loadError : null,
     refreshError: refreshError(view, loadError),
+    savedAt: loadError ? savedAt : null, // Lane E: offline
 
     signInAs: () => {},
 
@@ -130,6 +164,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
 
     signOut: async () => {
+      await clubCache.clear(); // Lane E: offline
       await supabase().auth.signOut();
     },
 
