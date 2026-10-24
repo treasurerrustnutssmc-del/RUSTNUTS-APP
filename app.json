@@ -46,7 +46,8 @@
         {
           "color": "#B92632"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "owner": "rustnutssmcs-team",
     "runtimeVersion": {

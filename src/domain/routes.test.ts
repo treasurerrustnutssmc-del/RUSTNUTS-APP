@@ -2,10 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   archiveRouteProblem,
+  formatClimb,
+  formatKm,
   libraryFor,
   managesChapterRoutes,
+  rideRouteChapters,
   rideRouteProblem,
+  routeChapterName,
+  routeFileName,
   routeOf,
+  ridesUsingRoute,
   saveRouteProblem,
 } from './routes';
 import { endOfFirstDay } from './rides';
@@ -241,4 +247,65 @@ test('the library', () => {
   const before = d.routes!.map((r) => r.id);
   libraryFor(d, 'all');
   assert.deepEqual(d.routes!.map((r) => r.id), before, 'does not reorder the data');
+});
+
+test('a route’s file name is safe to save', () => {
+  assert.equal(routeFileName('Daylesford breakfast loop'), 'Daylesford breakfast loop.gpx');
+  assert.equal(routeFileName('Kinglake / Healesville (v2)'), 'Kinglake  Healesville v2.gpx', 'slashes and brackets go');
+  assert.equal(routeFileName('  Two-chapters_run  '), 'Two-chapters_run.gpx', 'trimmed; hyphens and underscores stay');
+  assert.equal(routeFileName('../../etc/passwd'), 'etcpasswd.gpx', 'no path tricks');
+  assert.equal(routeFileName('☕️ ☕️'), 'route.gpx', 'nothing left: route');
+  assert.equal(routeFileName(''), 'route.gpx');
+});
+
+test('distance in km to one decimal place', () => {
+  assert.equal(formatKm(84213), '84.2 km');
+  assert.equal(formatKm(84250), '84.3 km', 'rounds half up');
+  assert.equal(formatKm(0), '0.0 km');
+  assert.equal(formatKm(960), '1.0 km');
+  assert.equal(formatKm(312049), '312.0 km');
+});
+
+test('climb in whole metres', () => {
+  assert.equal(formatClimb(642.6), '643 m');
+  assert.equal(formatClimb(0), '0 m');
+  assert.equal(formatClimb(1240), '1,240 m', 'thousands grouped');
+  assert.equal(formatClimb(12345), '12,345 m');
+  assert.equal(formatClimb(null), null, 'no elevation in the file');
+});
+
+test('a route’s chapter name', () => {
+  const d = data();
+  assert.equal(routeChapterName('ch-west', d), 'West');
+  assert.equal(routeChapterName(null, d), 'Whole club');
+  assert.equal(routeChapterName('ch-gone', d), 'Whole club', 'an unknown chapter reads as the whole club');
+});
+
+test('the routes a ride chooses from', () => {
+  const d = data();
+  assert.deepEqual(rideRouteChapters(WEST_RIDE, d), ['ch-west', null], 'its chapter plus whole-club');
+  assert.deepEqual(rideRouteChapters(ride('n', { category: 'north' }), d), ['ch-north', null]);
+  assert.deepEqual(rideRouteChapters(CLUB_RIDE, d), [null], 'a club ride: whole-club routes');
+  assert.deepEqual(rideRouteChapters(ride('s', { category: 'supported' }), d), [null]);
+  assert.deepEqual(rideRouteChapters(WEST_RIDE, data({ chapters: [] })), [null], 'a chapter that isn’t in the data');
+});
+
+test('the upcoming rides that use a route', () => {
+  const later = ride('later', { startsAt: '2026-12-01T08:00:00.000Z' });
+  const past = ride('past', { startsAt: '2026-10-01T08:00:00.000Z' });
+  const d = data({
+    rides: [later, WEST_RIDE, CLUB_RIDE, CANCELLED, past],
+    rideRoutes: [
+      { rideId: 'later', routeId: 'west-route' },
+      { rideId: 'west-ride', routeId: 'west-route' },
+      { rideId: 'club-ride', routeId: 'club-route' },
+      { rideId: 'cancelled', routeId: 'west-route' },
+      { rideId: 'past', routeId: 'west-route' },
+    ],
+  });
+  assert.deepEqual(ridesUsingRoute('west-route', d, '2026-11-01').map((r) => r.id), ['west-ride', 'later'], 'soonest first; past and cancelled left out');
+  assert.deepEqual(ridesUsingRoute('west-route', d, '2026-11-08').map((r) => r.id), ['later']);
+  assert.deepEqual(ridesUsingRoute('west-route', d, '2026-11-07').map((r) => r.id), ['west-ride', 'later'], 'still upcoming on the day');
+  assert.deepEqual(ridesUsingRoute('north-route', d, '2026-11-01'), []);
+  assert.deepEqual(ridesUsingRoute('west-route', data({ rideRoutes: undefined }), '2026-11-01'), []);
 });

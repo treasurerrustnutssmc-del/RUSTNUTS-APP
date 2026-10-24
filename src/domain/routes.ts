@@ -5,7 +5,7 @@
 
 import { managesChapterRides } from './access';
 import { managesRide } from './crew';
-import { endOfFirstDay } from './rides';
+import { endOfFirstDay, lastDay } from './rides';
 import type { ClubData, Member, Ride, Route } from './types';
 
 const NAME_MAX = 80;
@@ -99,4 +99,42 @@ export function libraryFor(data: ClubData, chapterIds: (string | null)[] | 'all'
   return (data.routes ?? [])
     .filter((r) => r.archivedAt === null && (chapterIds === 'all' || chapterIds.includes(r.chapterId)))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+// ---- Showing routes ----
+
+/** The chapters a ride's route is chosen from: the ride's own chapter (North or West rides) plus whole-club routes. */
+export function rideRouteChapters(ride: Ride, data: ClubData): (string | null)[] {
+  if (ride.category !== 'north' && ride.category !== 'west') return [null];
+  const chapter = data.chapters.find((c) => c.slug === ride.category);
+  return chapter ? [chapter.id, null] : [null];
+}
+
+/** "West", "North", or "Whole club" for a route with no chapter. */
+export function routeChapterName(chapterId: string | null, data: ClubData): string {
+  return (chapterId && data.chapters.find((c) => c.id === chapterId)?.name) || 'Whole club';
+}
+
+/** The rides still to come that use this route, soonest first. Cancelled rides are left out. */
+export function ridesUsingRoute(routeId: string, data: ClubData, today: string): Ride[] {
+  const rideIds = new Set((data.rideRoutes ?? []).filter((r) => r.routeId === routeId).map((r) => r.rideId));
+  return data.rides
+    .filter((r) => rideIds.has(r.id) && !r.cancelledAt && lastDay(r) >= today)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+/** The file name a route is saved or shared as: letters, digits, spaces, hyphens and underscores only. */
+export function routeFileName(name: string): string {
+  return `${name.replace(/[^\w\- ]+/g, '').trim() || 'route'}.gpx`;
+}
+
+/** A distance in km to one decimal place: "84.2 km". */
+export function formatKm(distanceM: number): string {
+  return `${(Math.round(distanceM / 100) / 10).toFixed(1)} km`;
+}
+
+/** Total climb in whole metres, "1,240 m", or null when the file had no elevation. */
+export function formatClimb(climbM: number | null): string | null {
+  if (climbM === null) return null;
+  return `${String(Math.round(climbM)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} m`;
 }
