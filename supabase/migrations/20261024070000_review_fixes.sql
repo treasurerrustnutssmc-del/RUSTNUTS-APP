@@ -9,7 +9,7 @@
 -- 2. Dates the server writes follow the club's clock in Melbourne, not UTC.
 -- 3. Joining with a bike, saving a bike with its rego, and saving a profile each happen in one step,
 --    and removing or editing something that isn't yours says so instead of quietly doing nothing.
--- 4. Tidy-ups: explicit table rights, an empty search_path on every function, unused functions removed.
+-- 4. Tidy-ups: explicit table rights, an empty search_path on every function, unused functions switched off.
 
 -- ---------------------------------------------------------------------------
 -- The club's clock
@@ -518,12 +518,8 @@ grant execute on function
   public.remove_contact(uuid)
 to authenticated;
 
--- Replaced or no longer used.
-drop function if exists public.submit_application(uuid, text, text, text, text, text, public.member_status);
-drop function if exists public.member_phone(uuid); -- replaced by shared_phones()
-drop policy if exists chapters_manage on public.chapters; -- chapters are read-only to the app
-drop function if exists public.is_board_of(uuid);
-drop function if exists public.is_national();
-drop function if exists public.is_approved_member();
-drop function if exists public.chapter_of(uuid);
-drop function if exists public.is_approved(uuid);
+-- Replaced or no longer used: switched off rather than deleted, so nothing is destroyed.
+revoke all on function public.submit_application(uuid, text, text, text, text, text, public.member_status)
+  from public, anon, authenticated; -- replaced by apply_to_join
+revoke all on function public.member_phone(uuid) from public, anon, authenticated; -- replaced by shared_phones()
+alter policy chapters_manage on public.chapters to authenticated using (false) with check (false); -- chapters are read-only to the app
