@@ -19,6 +19,7 @@ import {
 } from '../domain/rides';
 import type { Member, Ride, RideCategory, RsvpAnswer } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
+import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import {
   Avatar,
@@ -375,6 +376,13 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         </View>
         {counts.no > 0 ? <Small>{`${counts.no} can’t make it.`}</Small> : null}
       </Stack>
+
+      {/* Stage 3 (lane B): the ride's chat and photo wall */}
+      <RideChatRows
+        rideId={ride.id}
+        onOpenChat={(chatId) => navigation.navigate('Chat', { chatId })}
+        onOpenWall={() => navigation.navigate('RideWall', { rideId: ride.id })}
+      />
 
       {/* On a cancelled ride, only show who had said yes, so they can be told. */}
       {!cancelled || going.length > 0 ? list('Going', going) : null}

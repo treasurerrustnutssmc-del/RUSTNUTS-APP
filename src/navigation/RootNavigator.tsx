@@ -5,8 +5,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
+import { useChat } from '../data/chat/ChatProvider';
 import { pendingFor } from '../domain/access';
 import { BoardScreen, ManageMemberScreen } from '../screens/board';
+import { ChatListScreen, ChatReportsScreen, ChatScreen, NewChatScreen } from '../screens/chat';
+import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
@@ -42,6 +45,7 @@ const headerOptions = {
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const TAB_ICONS: Record<keyof TabParams, [IconName, IconName]> = {
   Home: ['home', 'home-outline'],
+  Chats: ['chatbubbles', 'chatbubbles-outline'],
   Members: ['people', 'people-outline'],
   Rides: ['calendar', 'calendar-outline'],
   Board: ['shield', 'shield-outline'],
@@ -52,12 +56,18 @@ function MainTabs() {
   const { level, me, data } = useClub();
   const isBoard = level === 'board' || level === 'national';
   const waiting = isBoard ? pendingFor(me, data).length : 0;
+  const { unreadTotal } = useChat();
   const insets = useSafeAreaInsets();
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => ({
         ...headerOptions,
-        tabBarAccessibilityLabel: route.name === 'Board' && waiting > 0 ? `Board, ${waiting} waiting` : route.name,
+        tabBarAccessibilityLabel:
+          route.name === 'Board' && waiting > 0
+            ? `Board, ${waiting} waiting`
+            : route.name === 'Chats'
+              ? unreadTotal > 0 ? `Chat, ${unreadTotal} unread` : 'Chat'
+              : route.name,
         tabBarStyle: {
           backgroundColor: colors.ink2,
           borderTopColor: colors.line,
@@ -75,8 +85,18 @@ function MainTabs() {
       })}
     >
       <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} />, tabBarLabel: 'Home' }} />
-      <Tabs.Screen name="Members" component={MembersScreen} />
+      <Tabs.Screen
+        name="Chats"
+        component={ChatListScreen}
+        options={{
+          title: 'Chat',
+          tabBarLabel: 'Chat',
+          tabBarBadge: unreadTotal > 0 ? (unreadTotal > 99 ? '99+' : unreadTotal) : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.redBright, fontFamily: fonts.stencil },
+        }}
+      />
       <Tabs.Screen name="Rides" component={RidesScreen} />
+      <Tabs.Screen name="Members" component={MembersScreen} />
       {isBoard ? (
         <Tabs.Screen
           name="Board"
@@ -119,6 +139,12 @@ export function RootNavigator() {
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="ManageMember" component={ManageMemberScreen} options={{ title: 'Manage member' }} />
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+            <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'New private chat' }} />
+            <Stack.Screen name="ChatReports" component={ChatReportsScreen} options={{ title: 'Reports' }} />
+            <Stack.Screen name="Photos" component={PhotosScreen} options={{ title: 'Photos' }} />
+            <Stack.Screen name="RideWall" component={RideWallScreen} options={{ title: 'Ride wall' }} />
+            <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}
       </Stack.Navigator>
