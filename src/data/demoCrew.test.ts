@@ -49,6 +49,8 @@ test('a member volunteers themselves, and a maybe becomes going', () => {
 test('a manager replacing a single spot removes the old holder', () => {
   const data = setCrew(ctxFor('m-torque', [spot('m-diesel', 'road_captain')]), 'r-1', 'm-sparks', 'road_captain');
   assert.deepEqual(spotsOf(data), ['m-sparks:road_captain']);
+  assert.equal(answerOf(DEMO_DATA, 'm-diesel'), 'going');
+  assert.equal(answerOf(data, 'm-diesel'), 'going', 'the replaced holder’s answer stays as it was');
 });
 
 test('officers add up, and never replace each other', () => {
@@ -111,7 +113,7 @@ test('a refusal passes crewProblem’s words through NotAllowedError', () => {
   assert.equal(refusal(() => setCrew({ ...ctxFor('m-torque'), me: null }, 'r-1', 'm-diesel', 'officer')), 'Sign in first.');
 });
 
-test('a refusal leaves a leave-side message too', () => {
+test('leave refusals pass leaveProblem’s words through', () => {
   assert.equal(refusal(() => leaveCrew(ctxFor('m-spanner'), 'r-1', 'm-spanner')), 'They’re not on the crew.');
   assert.equal(
     refusal(() => leaveCrew(ctxFor('m-spanner', [spot('m-diesel', 'road_captain')]), 'r-1', 'm-diesel')),
@@ -136,7 +138,8 @@ test('the demo club has crew: an RC and TG on one ride, only an RC on another, a
   assert.ok(complete.length >= 1 && partial.length >= 1);
   assert.equal(crewNeeded(complete[0], crew), false);
   assert.equal(crewNeeded(partial[0], crew), true);
-  assert.ok(crewNeeded(ride('r-2'), crew) || crewNeeded(ride('r-8'), crew));
+  assert.deepEqual(roles('r-2'), ['road_captain'], 'North coffee and curves has an RC and no TG');
+  assert.equal(crewNeeded(ride('r-2'), crew), true, 'so it needs crew');
   // Everyone crewing is a Full or Nomad member, going, with first aid for the Tail Gunner spots.
   for (const s of crew) {
     const m = DEMO_DATA.members.find((x) => x.id === s.memberId)!;
