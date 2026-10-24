@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
+import { useChat } from '../data/chat/ChatProvider';
 import { pendingFor } from '../domain/access';
 import { BoardScreen, ManageMemberScreen } from '../screens/board';
+import { ChatListScreen, ChatReportsScreen, ChatScreen, NewChatScreen } from '../screens/chat';
+import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
@@ -16,6 +19,11 @@ import { EditRouteScreen, PickRouteScreen, RouteScreen, RoutesScreen } from '../
 import { LiveRideScreen } from '../screens/liveRide';
 // Lane E: notifications
 import { ReminderSync } from '../data/reminders';
+// Lane E: share in
+import { IncomingShare } from '../data/shareIn';
+import { ShareInScreen } from '../screens/shareIn';
+// Lane E: ride comms
+import { OnAirBar } from '../screens/rideComms';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -48,6 +56,7 @@ const headerOptions = {
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const TAB_ICONS: Record<keyof TabParams, [IconName, IconName]> = {
   Home: ['home', 'home-outline'],
+  Chats: ['chatbubbles', 'chatbubbles-outline'],
   Members: ['people', 'people-outline'],
   Rides: ['calendar', 'calendar-outline'],
   Board: ['shield', 'shield-outline'],
@@ -58,40 +67,67 @@ function MainTabs() {
   const { level, me, data } = useClub();
   const isBoard = level === 'board' || level === 'national';
   const waiting = isBoard ? pendingFor(me, data).length : 0;
+  const { unreadTotal } = useChat();
   const insets = useSafeAreaInsets();
   return (
-    <Tabs.Navigator
-      screenOptions={({ route }) => ({
-        ...headerOptions,
-        tabBarAccessibilityLabel: route.name === 'Board' && waiting > 0 ? `Board, ${waiting} waiting` : route.name,
-        tabBarStyle: {
-          backgroundColor: colors.ink2,
-          borderTopColor: colors.line,
-          height: 66 + insets.bottom,
-          paddingTop: 6,
-          paddingBottom: insets.bottom + 6,
-        },
-        tabBarHideOnKeyboard: true, // otherwise Android lifts the tab bar on top of the keyboard
-        tabBarActiveTintColor: colors.redText,
-        tabBarInactiveTintColor: colors.boneMute,
-        tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: 11.5, lineHeight: 16, letterSpacing: 0.3 },
-        tabBarIcon: ({ focused, color, size }) => (
-          <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size} color={color} />
-        ),
-      })}
-    >
-      <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} />, tabBarLabel: 'Home' }} />
-      <Tabs.Screen name="Members" component={MembersScreen} />
-      <Tabs.Screen name="Rides" component={RidesScreen} />
-      {isBoard ? (
+    <>
+      {/* Lane E: share in */}
+      <IncomingShare />
+      <Tabs.Navigator
+        // Lane E: ride comms. While a call is on, its bar sits just above the tabs.
+        tabBar={(props) => (
+          <>
+            <OnAirBar />
+            <BottomTabBar {...props} />
+          </>
+        )}
+        screenOptions={({ route }) => ({
+          ...headerOptions,
+          tabBarAccessibilityLabel:
+            route.name === 'Board' && waiting > 0
+              ? `Board, ${waiting} waiting`
+              : route.name === 'Chats'
+                ? unreadTotal > 0 ? `Chat, ${unreadTotal} unread` : 'Chat'
+                : route.name,
+          tabBarStyle: {
+            backgroundColor: colors.ink2,
+            borderTopColor: colors.line,
+            height: 66 + insets.bottom,
+            paddingTop: 6,
+            paddingBottom: insets.bottom + 6,
+          },
+          tabBarHideOnKeyboard: true, // otherwise Android lifts the tab bar on top of the keyboard
+          tabBarActiveTintColor: colors.redText,
+          tabBarInactiveTintColor: colors.boneMute,
+          tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: 11.5, lineHeight: 16, letterSpacing: 0.3 },
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size} color={color} />
+          ),
+        })}
+      >
+        <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} />, tabBarLabel: 'Home' }} />
         <Tabs.Screen
-          name="Board"
-          component={BoardScreen}
-          options={{ tabBarBadge: waiting > 0 ? waiting : undefined, tabBarBadgeStyle: { backgroundColor: colors.redBright } }}
+          name="Chats"
+          component={ChatListScreen}
+          options={{
+            title: 'Chat',
+            tabBarLabel: 'Chat',
+            tabBarBadge: unreadTotal > 0 ? (unreadTotal > 99 ? '99+' : unreadTotal) : undefined,
+            tabBarBadgeStyle: { backgroundColor: colors.redBright, fontFamily: fonts.stencil },
+          }}
         />
-      ) : null}
-      <Tabs.Screen name="Me" component={MeScreen} />
-    </Tabs.Navigator>
+        <Tabs.Screen name="Rides" component={RidesScreen} />
+        <Tabs.Screen name="Members" component={MembersScreen} />
+        {isBoard ? (
+          <Tabs.Screen
+            name="Board"
+            component={BoardScreen}
+            options={{ tabBarBadge: waiting > 0 ? waiting : undefined, tabBarBadgeStyle: { backgroundColor: colors.redBright } }}
+          />
+        ) : null}
+        <Tabs.Screen name="Me" component={MeScreen} />
+      </Tabs.Navigator>
+    </>
   );
 }
 
@@ -136,6 +172,15 @@ export function RootNavigator() {
             <Stack.Screen name="PickRoute" component={PickRouteScreen} options={{ title: 'Choose route' }} />
             {/* Lane E: live ride */}
             <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} />
+            {/* Stage 3 (lane B): chats and photos */}
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+            <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'New private chat' }} />
+            <Stack.Screen name="ChatReports" component={ChatReportsScreen} options={{ title: 'Reports' }} />
+            <Stack.Screen name="Photos" component={PhotosScreen} options={{ title: 'Photos' }} />
+            <Stack.Screen name="RideWall" component={RideWallScreen} options={{ title: 'Ride wall' }} />
+            {/* Lane E: share in */}
+            <Stack.Screen name="ShareIn" component={ShareInScreen} options={{ title: 'Share to the club' }} />
+            <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}
       </Stack.Navigator>

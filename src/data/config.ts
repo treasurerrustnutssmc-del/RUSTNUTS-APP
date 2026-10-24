@@ -7,3 +7,6 @@ export const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISH
 const FORCE_DEMO = process.env.EXPO_PUBLIC_FORCE_DEMO === '1';
 
 export const USE_LIVE_DATA = !FORCE_DEMO && SUPABASE_URL.length > 0 && SUPABASE_PUBLISHABLE_KEY.length > 0;
+
+// Stage 3 (lane B): GIF search (EXPO_PUBLIC_GIPHY_KEY). Empty means no GIF button.
+export const GIPHY_KEY = process.env.EXPO_PUBLIC_GIPHY_KEY ?? '';
