@@ -45,6 +45,9 @@ test('refuses a sheet with mistakes, naming the line', () => {
   assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full,,,,maybe,\n`), /line 2.*on_hiatus/i);
   assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full\n`), /line 2.*10 columns/i);
   assert.throws(() => parseRosterCsv(`${HEADER}\n`), /no members/i);
+  assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,legacy,,,,,president\n`), /line 2.*legacy.*position/i);
+  assert.throws(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,legacy,,,,yes,\n`), /line 2.*legacy.*hiatus/i);
+  assert.doesNotThrow(() => parseRosterCsv(`${HEADER}\na@b.com,west,A,,legacy,,,,,founder\n`), 'Founder is an honour that stays');
   assert.throws(
     () => parseRosterCsv(`${HEADER}\na@b.com,west,A,,full,,,,,president\nc@d.com,west,C,,full,,,,,president\n`),
     /line 3.*president.*west.*twice/i,

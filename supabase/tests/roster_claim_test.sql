@@ -159,3 +159,16 @@ begin
   assert (select status from members where id = rock) = 'legacy', 'moved to Legacy once his term ended';
   assert not (select on_hiatus from members where id = rock), 'no longer on hiatus';
 end $$;
+
+\echo 'A Legacy roster row never seats its holder or puts them on hiatus, even if the sheet says so'
+do $$
+declare foggy constant uuid := '00000000-0000-0000-0000-0000000000aa';
+begin
+  insert into auth.users (id, email, email_confirmed_at) values (foggy, 'foggy@example.com', now());
+  insert into private.roster (email, chapter_id, full_name, status, on_hiatus, roles)
+  select 'foggy@example.com', id, 'Richard Fogden', 'legacy', true, '{tail_gunner,founder}' from chapters where slug = 'west';
+  assert pg_temp.claim_as(foggy), 'claim links them';
+  assert not (select on_hiatus from members where id = foggy), 'not on hiatus';
+  assert not exists (select 1 from positions where member_id = foggy and role <> 'founder'), 'no seat';
+  assert exists (select 1 from positions where member_id = foggy and role = 'founder'), 'an honour stays';
+end $$;
