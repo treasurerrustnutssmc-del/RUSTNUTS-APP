@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { haversineM, NO_TRACK, NOT_GPX, readGpx, simplify, TOO_BIG } from './gpx';
+import { haversineM, MAX_BYTES, NO_TRACK, NOT_GPX, readGpx, simplify, TOO_BIG, UNREADABLE } from './gpx';
 import type { GpxSummary } from './gpx';
 
 type Pt = [number, number, number?];
@@ -169,10 +169,16 @@ test('readGpx: more than 5 MB is refused first, counted in UTF-8 bytes', () => {
   assert.equal(readGpx('é'.repeat(limit / 2)), NOT_GPX);
 });
 
-test('readGpx: a large real-sized file reads quickly', () => {
+test('readGpx: a 100k-point file reads quickly', () => {
+  // Five decimal places, and a height on every fourth point, so 100k points fit under 5 MB.
   const pts: string[] = [];
-  for (let i = 0; i < 40000; i++) pts.push(trkpt([-37 - i * 0.00001, 144 + Math.sin(i / 500) * 0.01, 50 + (i % 40)]));
+  for (let i = 0; i < 100000; i++) {
+    const lat = (-37 - i * 0.00001).toFixed(5);
+    const lon = (144 + Math.sin(i / 500) * 0.01).toFixed(5);
+    pts.push(i % 4 === 0 ? `<trkpt lat="${lat}" lon="${lon}"><ele>${50 + (i % 40)}</ele></trkpt>` : `<trkpt lat="${lat}" lon="${lon}"/>`);
+  }
   const text = gpx(`<trk><trkseg>${pts.join('')}</trkseg></trk>`);
+  assert.ok(text.length <= MAX_BYTES, `the test file is ${text.length} bytes`);
   const t0 = Date.now();
   const s = summary(readGpx(text));
   assert.ok(Date.now() - t0 < 1000, `took ${Date.now() - t0} ms`);
@@ -233,4 +239,51 @@ test('readGpx: at most 100 stops, the first ones in the file, numbered by their 
   assert.equal(s.stops[99].name, 'Stop 100');
   const hundred = summary(readGpx(gpx(wpts.split('<wpt').slice(0, 101).join('<wpt') + track([[-37.8, 144.9], [-37.9, 145.0]]))));
   assert.equal(hundred.stops.length, 100, 'exactly 100 are all kept');
+});
+
+test('readGpx: the gap between two track segments counts towards the distance', () => {
+  // Segment one ends at -37.1, segment two starts at -37.2: the 0.1 degree hop between them is ridden too.
+  const text = gpx(track([[-37.0, 144.0], [-37.1, 144.0]], [[-37.2, 144.0], [-37.3, 144.0]]));
+  const s = summary(readGpx(text));
+  const expected = 0.3 * DEGREE_M;
+  assert.ok(Math.abs(s.distanceM - expected) / expected < 0.005, `${s.distanceM} vs ${expected}`);
+});
+
+test('readGpx: a gpx:-prefixed, route-only file with heights in CDATA', () => {
+  const text =
+    `<?xml version="1.0"?><gpx:gpx xmlns:gpx="http://www.topografix.com/GPX/1/1" version="1.1">` +
+    `<gpx:rte><gpx:name>Odd one</gpx:name>` +
+    `<gpx:rtept lat="-37.0" lon="144.0"><gpx:ele><![CDATA[100]]></gpx:ele></gpx:rtept>` +
+    `<gpx:rtept lat="-37.1" lon="144.0"><gpx:ele><![CDATA[ 140 ]]></gpx:ele></gpx:rtept>` +
+    `<gpx:rtept lat="-37.2" lon="144.0"><gpx:ele><![CDATA[120]]></gpx:ele></gpx:rtept>` +
+    `</gpx:rte></gpx:gpx>`;
+  const s = summary(readGpx(text));
+  assert.deepEqual(s.line, [[-37.0, 144.0], [-37.1, 144.0], [-37.2, 144.0]]);
+  assert.equal(s.climbM, 40);
+});
+
+test('readGpx: coordinates must be plain decimals', () => {
+  const two = (a: string, b = 'lon="144"') => gpx(`<trk><trkseg><trkpt lat="${a}" ${b}/><trkpt lat="-37.1" lon="144"/></trkseg></trk>`);
+  for (const bad of ['0x10', '1e0', '-3.7e1', 'Infinity', '+', '.', '1.2.3', '--1', '']) {
+    assert.equal(readGpx(two(bad)), NOT_GPX, `lat="${bad}"`);
+  }
+  assert.equal(readGpx(two('-37', 'lon="0x90"')), NOT_GPX, 'hex longitude');
+  assert.equal(readGpx(two('-37', 'lon="1.44e2"')), NOT_GPX, 'exponent longitude');
+  for (const good of ['-37', '-37.', '-37.0', '+37.5', '.5', '-.5', ' -37.0 ']) {
+    assert.equal(typeof readGpx(two(good)), 'object', `lat="${good}"`);
+  }
+});
+
+test('readGpx: a height that isn’t a plain decimal is left out, like a missing one', () => {
+  const pts = (eles: string[]) =>
+    gpx(`<trk><trkseg>${eles.map((e, i) => `<trkpt lat="${-37 - i * 0.01}" lon="144"><ele>${e}</ele></trkpt>`).join('')}</trkseg></trk>`);
+  assert.equal(summary(readGpx(pts(['10', '1e3', '30']))).climbM, 20, 'the 1e3 is skipped');
+  assert.equal(summary(readGpx(pts(['10', '0x20', '15.5']))).climbM, 6, 'the 0x20 is skipped');
+  assert.equal(summary(readGpx(pts(['1e1', '0x20', 'high']))).climbM, null, 'no usable heights');
+});
+
+test('the file limits and messages shared with the pickers', () => {
+  assert.equal(MAX_BYTES, 5 * 1024 * 1024);
+  assert.equal(TOO_BIG, 'That file is too big (5 MB at most).');
+  assert.equal(UNREADABLE, 'That file couldn’t be read. Try picking it again.');
 });

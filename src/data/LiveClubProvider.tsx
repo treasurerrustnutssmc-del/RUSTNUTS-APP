@@ -7,7 +7,7 @@ import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { todayIso } from '../domain/dates';
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { NO_TRACK, readGpx, type GpxSummary } from '../domain/gpx';
-import { archiveRouteProblem, rideRouteProblem, saveRouteProblem } from '../domain/routes';
+import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
 import type { ClubData, NotificationPrefs } from '../domain/types'; // NotificationPrefs: Lane E
 import {
@@ -420,7 +420,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
 
     routeGpx: async (routeId) => {
       const result = ok(await supabase().rpc('route_gpx', { p_route: routeId }));
-      if (typeof result.data !== 'string') throw new Error('That route no longer exists.');
+      if (typeof result.data !== 'string') throw new Error(NO_ROUTE);
       return result.data;
     },
 

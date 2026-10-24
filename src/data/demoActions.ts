@@ -5,7 +5,7 @@
 import { appointProblem, endTermProblem, isBoardOf } from '../domain/access';
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { NO_TRACK, readGpx } from '../domain/gpx';
-import { archiveRouteProblem, rideRouteProblem, saveRouteProblem } from '../domain/routes';
+import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
 import { APPROVE_AS, NATIONAL_ROLES, TITLE_ROLES } from '../domain/labels';
 import type { ClubData, CrewRole, Member, MemberStatus, PositionRole, Route, RsvpAnswer } from '../domain/types';
@@ -383,10 +383,10 @@ export function setRideRoute(ctx: DemoCtx, rideId: string, routeId: string | nul
 
 /** One route's GPX file from the demo's files. Mirrors public.route_gpx. */
 export function routeGpx(ctx: DemoCtx, files: ReadonlyMap<string, string>, routeId: string): string {
-  const self = requireMe(ctx);
-  if (self.approval !== 'approved') throw new NotAllowedError('Only approved members can do that.');
+  const problem = signedInProblem(ctx.me);
+  if (problem) throw new NotAllowedError(problem);
   const file = (ctx.data.routes ?? []).some((r) => r.id === routeId) ? files.get(routeId) : undefined;
-  if (file === undefined) throw new Error('That route no longer exists.');
+  if (file === undefined) throw new Error(NO_ROUTE);
   return file;
 }
 

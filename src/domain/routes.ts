@@ -9,8 +9,9 @@ import { endOfFirstDay, lastDay } from './rides';
 import type { ClubData, Member, Ride, Route } from './types';
 
 const NAME_MAX = 80;
-const NO_ROUTE = 'That route no longer exists.';
-const NOT_MANAGER = 'Only the board or ride committee can change routes.';
+/** Refusals the screens and demo also show, in the database's words. */
+export const NO_ROUTE = 'That route no longer exists.';
+export const NOT_MANAGER = 'Only the board or ride committee can change routes.';
 
 /**
  * Who can add, change or archive a route in this chapter (null: a whole-club route): that
@@ -22,7 +23,7 @@ export function managesChapterRoutes(me: Member | null, chapterId: string | null
 }
 
 /** The first two checks every action starts with. */
-function signedInProblem(me: Member | null): string | null {
+export function signedInProblem(me: Member | null): string | null {
   if (!me) return 'Sign in first.';
   if (me.approval !== 'approved') return 'Only approved members can do that.';
   return null;
@@ -42,6 +43,7 @@ export function saveRouteProblem(
 ): string | null {
   const opening = signedInProblem(me);
   if (opening) return opening;
+  // When both are given, `existing` wins: an edit of that route, whatever `input.id` says.
   const editing = existing !== undefined || (input.id !== undefined && input.id !== null);
   if (editing && !existing) return NO_ROUTE;
   // The target chapter, and when editing also the one it is leaving.
@@ -98,7 +100,7 @@ export function routeOf(rideId: string, data: ClubData): Route | undefined {
 export function libraryFor(data: ClubData, chapterIds: (string | null)[] | 'all'): Route[] {
   return (data.routes ?? [])
     .filter((r) => r.archivedAt === null && (chapterIds === 'all' || chapterIds.includes(r.chapterId)))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
 
 // ---- Showing routes ----

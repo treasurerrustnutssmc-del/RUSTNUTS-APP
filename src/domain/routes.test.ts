@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   archiveRouteProblem,
+  NO_ROUTE,
+  NOT_MANAGER,
   formatClimb,
   formatKm,
   libraryFor,
@@ -13,6 +15,7 @@ import {
   routeOf,
   ridesUsingRoute,
   saveRouteProblem,
+  signedInProblem,
 } from './routes';
 import { endOfFirstDay } from './rides';
 import type { Chapter, ClubData, Member, Position, PositionRole, Ride, Route } from './types';
@@ -308,4 +311,19 @@ test('the upcoming rides that use a route', () => {
   assert.deepEqual(ridesUsingRoute('west-route', d, '2026-11-07').map((r) => r.id), ['west-ride', 'later'], 'still upcoming on the day');
   assert.deepEqual(ridesUsingRoute('north-route', d, '2026-11-01'), []);
   assert.deepEqual(ridesUsingRoute('west-route', data({ rideRoutes: undefined }), '2026-11-01'), []);
+});
+
+test('the library sorts by time, not by the text of the timestamp', () => {
+  // 09:00 at +10:00 is 23:00 the day before in UTC, so it's older, though its text sorts later.
+  const early = route('early', { updatedAt: '2026-10-02T09:00:00+10:00' });
+  const late = route('late', { updatedAt: '2026-10-02T00:00:00.000Z' });
+  assert.deepEqual(libraryFor(data({ routes: [early, late] }), 'all').map((r) => r.id), ['late', 'early']);
+});
+
+test('the opening checks and shared refusals', () => {
+  assert.equal(signedInProblem(null), 'Sign in first.');
+  assert.equal(signedInProblem(pending), 'Only approved members can do that.');
+  assert.equal(signedInProblem(rider), null);
+  assert.equal(NOT_MANAGER, WORDS);
+  assert.equal(NO_ROUTE, GONE);
 });

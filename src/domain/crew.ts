@@ -20,7 +20,7 @@ export function managesRide(me: Member | null, ride: Ride, data: ClubData): bool
     const chapterId = rideChapterId(ride, data);
     if (chapterId !== null) return managesChapterRides(me, chapterId, data);
     // A North or West ride whose chapter isn't in the data: only the NEC.
-    return me !== null && me.approval === 'approved' && isNational(me.id, data.positions);
+    return me?.approval === 'approved' && isNational(me.id, data.positions);
   }
   return managesChapterRides(me, null, data);
 }

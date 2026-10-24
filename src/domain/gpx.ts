@@ -14,9 +14,12 @@ export interface GpxSummary {
 export const NOT_GPX = 'That isn’t a GPX file.';
 export const NO_TRACK = 'That route has no track in it.';
 export const TOO_BIG = 'That file is too big (5 MB at most).';
+/** When the phone or browser can't hand over the picked file's text. */
+export const UNREADABLE = 'That file couldn’t be read. Try picking it again.';
+/** The biggest GPX file a route can have, in UTF-8 bytes. The database has the same limit. */
+export const MAX_BYTES = 5 * 1024 * 1024;
 /** The most stops a route keeps: the first ones in the file. */
 const MAX_STOPS = 100;
-const MAX_BYTES = 5 * 1024 * 1024;
 const EARTH_RADIUS_M = 6371008.8;
 
 /** Great-circle distance in metres between two [lat, lng] points. */
@@ -53,6 +56,23 @@ interface RawPoint {
 }
 
 type PointTag = 'trkpt' | 'rtept' | 'wpt';
+
+/** Which list each kind of point goes into. */
+const BUCKET: Record<PointTag, keyof Scanned> = { trkpt: 'trk', rtept: 'rte', wpt: 'wpt' };
+
+/**
+ * A plain decimal, as GPX's xsd:decimal allows: an optional sign, digits and an optional point.
+ * No hex, no exponent, no Infinity, which Number() would otherwise accept.
+ */
+const DECIMAL = /^[+-]?(\d+\.?\d*|\.\d+)$/;
+
+/** The number in a coordinate or height, or null when it isn't a plain decimal. */
+function readDecimal(text: string): number | null {
+  const t = text.trim();
+  if (!DECIMAL.test(t)) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
 
 const isSpace = (c: number) => c === 32 || c === 9 || c === 10 || c === 13;
 
@@ -115,10 +135,10 @@ function readLatLon(attrs: string): [number, number] | null {
     if (name === 'lat') lat = value;
     else if (name === 'lon') lon = value;
   }
-  if (lat === null || lon === null || lat.trim() === '' || lon.trim() === '') return null;
-  const la = Number(lat);
-  const lo = Number(lon);
-  if (!Number.isFinite(la) || !Number.isFinite(lo) || Math.abs(la) > 90 || Math.abs(lo) > 180) return null;
+  if (lat === null || lon === null) return null;
+  const la = readDecimal(lat);
+  const lo = readDecimal(lon);
+  if (la === null || lo === null || Math.abs(la) > 90 || Math.abs(lo) > 180) return null;
   return [la, lo];
 }
 
@@ -202,7 +222,7 @@ function scan(text: string): Scanned | null {
     if (closing) {
       if (stack.pop() !== rawName) return null;
       if (cur && cur.depth === stack.length && cur.tag === local) {
-        out[cur.tag === 'trkpt' ? 'trk' : cur.tag === 'rtept' ? 'rte' : 'wpt'].push(cur.point);
+        out[BUCKET[cur.tag]].push(cur.point);
         cur = null;
       }
       if (stack.length === 0) rootClosed = true;
@@ -219,16 +239,17 @@ function scan(text: string): Scanned | null {
       const at = readLatLon(inner.slice(nameEnd));
       if (!at) return null;
       const point: RawPoint = { lat: at[0], lng: at[1], ele: null, name: '' };
-      if (selfClose) out[local === 'trkpt' ? 'trk' : local === 'rtept' ? 'rte' : 'wpt'].push(point);
+      if (selfClose) out[BUCKET[local]].push(point);
       else cur = { tag: local, depth: stack.length, point };
     } else if (cur && !selfClose && (local === 'ele' || local === 'name') && parent === cur.tag) {
       const read = readText(text, i);
       if (!read) return null;
       i = read.next;
       if (local === 'name') cur.point.name = read.value;
-      else if (read.value !== '') {
-        const ele = Number(read.value);
-        if (Number.isFinite(ele)) cur.point.ele = ele;
+      else {
+        // A height that isn't a plain decimal is left out, as if the point had none.
+        const ele = readDecimal(read.value);
+        if (ele !== null) cur.point.ele = ele;
       }
     }
 

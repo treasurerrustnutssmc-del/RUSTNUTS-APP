@@ -2,17 +2,19 @@
 // ride's route. Only the board, ride committee and NEC change routes; every approved member can
 // see them and send them to OsmAnd or MyRoute.
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import type { RouteInput } from '../data/clubContext';
-import { pickGpxFile } from '../data/routeFiles';
+import { createPickGuard, type PickGuard } from '../data/pickGuard';
+import { pickGpxFile, releaseOnReturn } from '../data/routeFiles';
 import { formatAuDate } from '../domain/dates';
 import { readGpx, type GpxSummary } from '../domain/gpx';
 import {
   archiveRouteProblem,
   libraryFor,
   managesChapterRoutes,
+  NOT_MANAGER,
   rideRouteChapters,
   rideRouteProblem,
   ridesUsingRoute,
@@ -47,7 +49,6 @@ import { ChapterChip, chapterColours, OpenInMapsButton, RouteFacts, RouteRow, St
 import { RouteShape } from '../ui/RouteShape';
 import { weekday } from './rides';
 
-const NOT_MANAGER = 'Only the board or ride committee can change routes.';
 /** Chapter filters and choices use this for "Whole club" (a route with no chapter). */
 const WHOLE_CLUB = 'whole-club';
 type ChapterKey = string; // a chapter id, or WHOLE_CLUB
@@ -277,6 +278,10 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
   const [fileError, setFileError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // One pick at a time: a double tap would otherwise ask the phone for a second picker.
+  const [picking, setPicking] = useState(false);
+  const guard = useRef<PickGuard | null>(null);
+  if (guard.current == null) guard.current = createPickGuard(setPicking);
 
   if (!me) return null;
   if (routeId && !existing) {
@@ -304,6 +309,11 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
   const needsFile = !existing && !picked;
 
   const pick = async () => {
+    const pickGuard = guard.current!;
+    const token = pickGuard.start();
+    if (token === null) return;
+    // On the web a backed-out pick may never settle, so the window getting focus back frees it too.
+    const stopWatching = releaseOnReturn(() => pickGuard.release(token));
     setFileError(null);
     try {
       const file = await pickGpxFile();
@@ -314,9 +324,13 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
         return;
       }
       setPicked({ fileName: file.name, text: file.text, summary });
-      if (name.trim() === '') setName(nameFromFile(file.name));
+      setFileError(null);
+      setName((now) => (now.trim() === '' ? nameFromFile(file.name) : now));
     } catch (e) {
       setFileError((e as Error).message);
+    } finally {
+      stopWatching();
+      pickGuard.release(token);
     }
   };
 
@@ -365,7 +379,7 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
             {picked ? (
               <Small>{existing ? `New file: ${picked.fileName}. It replaces the old one when you save.` : `From ${picked.fileName}.`}</Small>
             ) : null}
-            <Button label="Replace file" icon="document-outline" kind="secondary" onPress={pick} />
+            <Button label="Replace file" icon="document-outline" kind="secondary" busy={picking} onPress={pick} />
           </Card>
         ) : (
           <Card>
@@ -373,7 +387,7 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
               <Ionicons name="map-outline" size={28} color={colors.boneMute} />
               <Body style={{ textAlign: 'center' }}>Pick the GPX file you planned in MyRoute, OsmAnd or another route planner.</Body>
             </View>
-            <Button label="Pick GPX file" icon="document-outline" onPress={pick} />
+            <Button label="Pick GPX file" icon="document-outline" busy={picking} onPress={pick} />
             <Small>It’s checked on your phone first, so you can see the route before saving it. 5 MB at most.</Small>
           </Card>
         )}
@@ -384,7 +398,7 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
 
       <Stack gap={space.md}>
         <SectionTitle title="Details" />
-        <Field label="Name" value={name} onChangeText={setName} placeholder="Daylesford breakfast loop" maxLength={80} autoCapitalize="sentences" />
+        <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Daylesford breakfast loop" maxLength={80} autoCapitalize="sentences" />
         {options.length > 1 ? (
           <Choices label="Chapter" options={options} value={chapterKey} onChange={setChapterKey} />
         ) : (

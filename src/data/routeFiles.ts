@@ -8,11 +8,16 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { TOO_BIG } from '../domain/gpx';
+import { MAX_BYTES, TOO_BIG, UNREADABLE } from '../domain/gpx';
 import { routeFileName } from '../domain/routes';
 
-const MAX_BYTES = 5 * 1024 * 1024;
-const UNREADABLE = 'That file couldn’t be read. Try picking it again.';
+/**
+ * Calls `release` if the file chooser may have closed without telling us. On a phone the pick
+ * always settles, so there's nothing to watch. Returns a function that stops watching.
+ */
+export function releaseOnReturn(release: () => void): () => void {
+  return () => {};
+}
 
 /** Lets the member pick a file and reads it as text. Null when they back out. */
 export async function pickGpxFile(): Promise<{ name: string; text: string } | null> {
