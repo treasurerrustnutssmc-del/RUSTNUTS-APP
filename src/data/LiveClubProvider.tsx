@@ -21,7 +21,7 @@ import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
 // Lane E: offline
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClubCache } from './offlineCache';
+import { createClubCache, isConnectionError, startupUser } from './offlineCache';
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -43,66 +43,93 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const today = todayIso();
   // Lane E: offline. When the data on screen is the copy saved on the phone, when it was saved.
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  /** Whose data is on screen, the signed-in person, and whether it's the saved copy (read in callbacks). */
   const showing = useRef<string | null>(null);
+  const currentUser = useRef<string | null>(null);
+  const onSavedCopy = useRef(false);
+  const showSaved = useCallback((uid: string, saved: { data: ClubData; savedAt: string }) => {
+    setData(saved.data);
+    setLoadedFor(uid);
+    showing.current = uid;
+    onSavedCopy.current = true;
+    setSavedAt(saved.savedAt);
+  }, []);
+  /** Signed out: nothing of theirs stays on the phone or on screen, and no load still running can save it back. */
+  const forget = useCallback(() => {
+    latest.current++;
+    clubCache.clear();
+    setData(EMPTY_DATA);
+    setLoadedFor(null);
+    setSavedAt(null);
+    showing.current = null;
+    onSavedCopy.current = false;
+  }, []);
 
   /** Loads what this person may see. Only the newest request wins, so a slow old load can't overwrite a newer one. */
   const reload = useCallback(async (uid: string | null) => {
     const ticket = ++latest.current;
     try {
+      // Lane E: offline. Opened offline on a login that had run out: renew it before loading, so the
+      // load is never made signed out (which would look like someone who hasn't joined).
+      if (uid) {
+        const { data: s, error } = await supabase().auth.getSession();
+        if (s.session?.user.id !== uid) throw error ?? new Error('Sign in first.');
+      }
       const fresh = await loadClub(supabase(), !!uid);
       if (ticket !== latest.current) return;
       setData(fresh);
       setLoadedFor(uid ?? '');
       setLoadError(null);
       showing.current = uid ?? '';
+      onSavedCopy.current = false;
       setSavedAt(null);
-      if (uid) clubCache.save(uid, fresh, new Date().toISOString());
+      if (uid && currentUser.current === uid) clubCache.save(uid, fresh, new Date().toISOString());
     } catch (e) {
       if (ticket !== latest.current) return;
       // No signal and nothing of theirs on screen yet: show the copy saved on the phone.
-      if (uid && showing.current !== uid) {
+      if (uid && showing.current !== uid && isConnectionError(e as { message?: string })) {
         const saved = await clubCache.load(uid);
         if (ticket !== latest.current) return;
-        if (saved) {
-          setData(saved.data);
-          setLoadedFor(uid);
-          showing.current = uid;
-          setSavedAt(saved.savedAt);
-        }
+        if (saved) showSaved(uid, saved);
       }
       setLoadError(friendlyError(e as { message?: string }).message);
     }
-  }, []);
+  }, [showSaved]);
 
   // Follow the sign-in state, and load whatever this person is allowed to see.
   useEffect(() => {
     const db = supabase();
     let cancelled = false;
-    db.auth.getSession().then(async ({ data: s }) => {
+    db.auth.getSession().then(async ({ data: s, error }) => {
       if (cancelled) return;
-      const uid = s.session?.user.id ?? null;
+      // Lane E: offline. With no signal and a login that has run out, open as the person whose copy
+      // is on the phone, on that copy, until signal comes back.
+      const uid = startupUser(s.session?.user.id ?? null, error, await clubCache.lastUser());
+      if (cancelled) return;
       setUserId(uid);
+      currentUser.current = uid;
       setAuthEmail(s.session?.user.email ?? null);
-      // Lane E: offline. Open on the copy saved on the phone while the fresh load comes in.
+      // Open on the copy saved on the phone while the fresh load comes in.
       const saved = uid ? await clubCache.load(uid) : null;
       if (cancelled) return;
-      if (uid && saved && showing.current === null) {
-        setData(saved.data);
-        setLoadedFor(uid);
-        showing.current = uid;
-        setSavedAt(saved.savedAt);
+      if (uid && saved && currentUser.current === uid && showing.current === null) {
+        showSaved(uid, saved);
         setStarted(true);
       }
       await reload(uid);
       if (!cancelled) setStarted(true);
     });
     const { data: sub } = db.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') return;
+      if (event === 'INITIAL_SESSION') return;
+      // Lane E: offline. A renewed login matters only when signal is back after opening on the saved copy.
+      if (event === 'TOKEN_REFRESHED' && !onSavedCopy.current) return;
       const uid = session?.user.id ?? null;
+      if (uid !== currentUser.current) setSavedAt(null);
+      currentUser.current = uid;
       setUserId(uid);
       setAuthEmail(session?.user.email ?? null);
       if (!uid) setJustApplied(false);
-      if (!uid) clubCache.clear(); // Lane E: offline
+      if (!uid) forget(); // Lane E: offline
       // Run outside the auth callback, as Supabase recommends.
       setTimeout(() => {
         reload(uid);
@@ -112,7 +139,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       sub.subscription.unsubscribe();
     };
-  }, [reload]);
+  }, [reload, showSaved, forget]);
 
   const me = useMemo(() => data.members.find((m) => m.id === userId) ?? null, [data.members, userId]);
   const loadedForUser = loadedFor === '' ? null : loadedFor;
@@ -164,8 +191,12 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
 
     signOut: async () => {
-      await clubCache.clear(); // Lane E: offline
+      forget(); // Lane E: offline
+      currentUser.current = null;
+      setUserId(null); // Lane E: offline. Opened offline on the saved copy there's no login to sign out of.
       await supabase().auth.signOut();
+      reload(null);
+      await clubCache.clear(); // Lane E: offline. Again, after anything that finished meanwhile.
     },
 
     refresh,

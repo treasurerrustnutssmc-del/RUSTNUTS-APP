@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from './demoData';
 import type { KeyValue } from './liveQueue';
-import { createClubCache, offlineText } from './offlineCache';
+import { createClubCache, isConnectionError, offlineText, startupUser } from './offlineCache';
 
 function memoryStore(): KeyValue & { raw: Map<string, string> } {
   const raw = new Map<string, string>();
@@ -69,4 +69,28 @@ test('a phone whose storage fails never breaks the app', async () => {
 
 test('what the offline strip says', () => {
   assert.equal(offlineText(SAVED), 'Offline. Showing what was saved 24/10/2026 7:30 am.');
+});
+
+test('the last person signed in on this phone, for opening offline once their login has run out', async () => {
+  const cache = createClubCache(memoryStore());
+  assert.equal(await cache.lastUser(), null);
+  await cache.save('u-1', DEMO_DATA, SAVED);
+  assert.equal(await cache.lastUser(), 'u-1');
+  await cache.clear();
+  assert.equal(await cache.lastUser(), null, 'nobody once they sign out');
+});
+
+test('who the app opens as', () => {
+  const offline = { message: 'Failed to fetch' };
+  assert.equal(startupUser('u-1', null, 'u-2'), 'u-1', 'a good login wins');
+  assert.equal(startupUser(null, offline, 'u-1'), 'u-1', 'login ran out with no signal: the person whose copy this is');
+  assert.equal(startupUser(null, null, 'u-1'), null, 'signed out');
+  assert.equal(startupUser(null, { message: 'Invalid Refresh Token' }, 'u-1'), null, 'a login refused by the club is signed out');
+});
+
+test('only a lost connection counts as offline', () => {
+  assert.equal(isConnectionError({ message: 'TypeError: Failed to fetch' }), true);
+  assert.equal(isConnectionError({ message: 'Network request failed' }), true);
+  assert.equal(isConnectionError({ message: 'permission denied for table rides', code: '42501' }), false);
+  assert.equal(isConnectionError({ message: 'Internal server error' }), false);
 });

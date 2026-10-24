@@ -29,6 +29,6 @@ test('no location, and cancelled', () => {
   assert.equal(rideShareText(ride({ location: '  ' })), 'West breakfast run · Sat 07/11/2026 8:30 am. Answer in the Rustnuts app.');
   assert.equal(
     rideShareText(ride({ cancelledAt: '2026-11-01T00:00:00.000Z' })),
-    'CANCELLED: West breakfast run · Sat 07/11/2026 8:30 am · BP Ravenhall. Answer in the Rustnuts app.',
+    'CANCELLED: West breakfast run · Sat 07/11/2026 8:30 am · BP Ravenhall.',
   );
 });

@@ -20,5 +20,5 @@ export function rideShareText(ride: Ride): string {
     : `${dayAndDate(first)} ${melbourneTime(ride.startsAt)}`;
   const where = ride.location?.trim();
   const parts = [ride.title, when, where].filter(Boolean).join(' · ');
-  return `${ride.cancelledAt ? 'CANCELLED: ' : ''}${parts}. Answer in the Rustnuts app.`;
+  return ride.cancelledAt ? `CANCELLED: ${parts}.` : `${parts}. Answer in the Rustnuts app.`;
 }
