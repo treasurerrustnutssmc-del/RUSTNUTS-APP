@@ -12,19 +12,20 @@ import type { RootParams } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import { Card, H2, Ionicons, Notice, Row, Small, type IconName } from '../ui/primitives';
 
-function BigButton({ label, icon, tone, busy, disabled, onPress }: {
+function BigButton({ label, icon, tone, busy, disabled, checked, onPress }: {
   label: string;
   icon: IconName;
   tone: 'go' | 'stop' | 'plain';
   busy?: boolean;
   disabled?: boolean;
+  checked?: boolean;
   onPress: () => void;
 }) {
   const t = tones[tone];
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: !!disabled, busy: !!busy }}
+      accessibilityRole={checked === undefined ? 'button' : 'switch'}
+      accessibilityState={{ disabled: !!disabled, busy: !!busy, checked }}
       onPress={disabled || busy ? undefined : onPress}
       style={({ pressed }) => [styles.big, { backgroundColor: pressed ? t.active : t.bg, borderColor: t.border }, disabled && { opacity: 0.45 }]}
     >
@@ -53,11 +54,15 @@ export function RideCommsCard({ rideId, problem }: { rideId: string; problem: st
     <Card style={{ gap: space.md }}>
       <Row style={{ justifyContent: 'space-between', gap: space.sm }}>
         <H2>Ride comms</H2>
-        {here ? <Text style={[styles.status, on && !voice.muted && styles.statusOn]}>{voiceStatus(voice.state, voice.people.length, voice.muted)}</Text> : null}
+        {here ? (
+          <Text accessibilityLiveRegion="polite" style={[styles.status, on && !voice.muted && styles.statusOn]}>
+            {voiceStatus(voice.state, voice.people.length, voice.muted)}
+          </Text>
+        ) : null}
       </Row>
       {!on ? (
         <>
-          <Small>Open mic with everyone on this ride. Mute with your headset’s play button. Nothing is recorded.</Small>
+          <Small>Open mic with everyone on this ride. Nothing is recorded. Your headset’s play button may mute it too.</Small>
           {voice.mode === 'demo' ? <Small>Demo: the other riders are made up.</Small> : null}
           {problem ? <Notice>{problem}</Notice> : null}
           {elsewhere ? <Notice>You’re on another ride’s comms. Disconnect there first.</Notice> : null}
@@ -69,24 +74,33 @@ export function RideCommsCard({ rideId, problem }: { rideId: string; problem: st
             disabled={!!problem || elsewhere}
             onPress={() => void voice.connect(rideId)}
           />
+          {here && voice.state === 'connecting' ? (
+            <BigButton label="Cancel" icon="close" tone="plain" onPress={() => void voice.disconnect()} />
+          ) : null}
         </>
       ) : (
         <>
-          <View style={styles.roster}>
-            {roster.map((p) => (
-              <Row key={p.id} style={styles.person}>
-                <View style={[styles.dot, p.speaking && !p.muted && styles.dotOn]} />
-                <Text style={[type.name, { flex: 1 }]} numberOfLines={1}>{p.id === me?.id ? `${p.name} (you)` : p.name}</Text>
-                {p.muted ? <Ionicons name="mic-off" size={18} color={colors.boneMute} accessibilityLabel="Muted" /> : null}
-              </Row>
-            ))}
-          </View>
           <BigButton
             label={voice.muted ? 'Unmute' : 'Mute'}
             icon={voice.muted ? 'mic-off' : 'mic'}
             tone={voice.muted ? 'go' : 'plain'}
+            checked={voice.muted}
             onPress={() => void voice.setMuted(!voice.muted)}
           />
+          <View style={styles.roster}>
+            {roster.map((p) => (
+              <View
+                key={p.id}
+                style={styles.person}
+                accessible
+                accessibilityLabel={`${p.id === me?.id ? `${p.name}, you` : p.name}${p.muted ? ', muted' : p.speaking ? ', speaking' : ''}`}
+              >
+                <View style={[styles.dot, p.speaking && !p.muted && styles.dotOn]} />
+                <Text style={[type.name, { flex: 1 }]} numberOfLines={1}>{p.id === me?.id ? `${p.name} (you)` : p.name}</Text>
+                {p.muted ? <Ionicons name="mic-off" size={18} color={colors.boneMute} /> : null}
+              </View>
+            ))}
+          </View>
           <BigButton label="Disconnect" icon="close-circle" tone="stop" onPress={() => void voice.disconnect()} />
         </>
       )}
@@ -132,8 +146,8 @@ const styles = StyleSheet.create({
   bigText: { fontFamily: fonts.stencil, fontSize: 28, letterSpacing: 1.5, textTransform: 'uppercase' },
   status: { fontFamily: fonts.stencil, fontSize: 14, letterSpacing: 0.4, color: colors.boneMute },
   statusOn: { color: colors.ok },
-  roster: { gap: space.xs },
-  person: { gap: space.sm, alignItems: 'center', minHeight: 32 },
+  roster: { gap: space.xs, paddingVertical: space.sm },
+  person: { flexDirection: 'row', gap: space.sm, alignItems: 'center', minHeight: 32 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.lineStrong },
   dotOn: { backgroundColor: colors.ok },
   bar: {
@@ -141,7 +155,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
     paddingHorizontal: space.md,
-    minHeight: 36,
+    minHeight: 44,
     backgroundColor: colors.red,
   },
   barMuted: { backgroundColor: colors.steel },

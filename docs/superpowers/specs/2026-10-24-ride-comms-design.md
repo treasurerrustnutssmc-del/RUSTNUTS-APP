@@ -139,3 +139,32 @@ On the Live ride screen, a "Ride comms" card sits above location sharing:
 - **LiveKit Cloud:** the account, and the URL, key and secret, set as Edge Function secrets.
 - **Going live:** applying the migration and deploying the function.
 - **A new build:** a development build to test.
+
+## Changes from the review
+
+- **Disconnect always wins.** A Disconnect (or a sign-out, a cancelled ride, or the window closing)
+  while still connecting always wins: a connection that finishes afterwards hangs straight up. While
+  connecting there's a Cancel.
+- **Tokens end with the window.** A token lasts until the live window closes or for 3 hours, whichever
+  comes first, so it can't be used after the ride.
+- **Known limit: people already in a room stay until their app hangs up.** That happens at the window's
+  close, on sign-out, or when the ride is cancelled. Removing them from the server side (LiveKit's
+  RoomService) is a later step.
+- **Android screen-off service:**
+  - **When it starts:** right after the microphone is allowed, while the app is still on screen.
+    Android 14 only allows it then.
+  - **If Android refuses it:** the rider is told to reconnect with the app open, and the service never
+    crashes the app.
+- **A dropped call** now puts the phone's audio back to normal, so music and maps work again.
+- **The headset button is unproven.**
+  - **Why:** with a helmet headset on its call channel (Bluetooth HFP), the button may be sent as a call
+    command that apps can't see.
+  - **The wording:** the card says the button "may" mute it.
+  - **The main control:** on-screen Mute.
+  - **If the real-phone test fails:** the next step is a self-managed phone call (Android's
+    ConnectionService and iOS CallKit), which do get those buttons.
+- **Card order:** status, Mute, who's on, Disconnect. That puts the roster between the two big buttons,
+  so a gloved tap doesn't hang up by mistake.
+- **Android permissions:** the microphone service only needs `FOREGROUND_SERVICE_MICROPHONE`, not media
+  playback. It and `BLUETOOTH_CONNECT` are in the module's own manifest, not in `app.json`.
+- **Package versions:** pinned exactly in `package.json`.

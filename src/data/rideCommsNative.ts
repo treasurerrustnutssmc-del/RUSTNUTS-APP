@@ -7,7 +7,8 @@ import { NativeModule, requireOptionalNativeModule } from 'expo';
 type RideCommsEvents = { onHeadsetToggle: () => void };
 
 declare class RideCommsModule extends NativeModule<RideCommsEvents> {
-  start(title: string): void;
+  /** False when the phone refused the screen-off service. */
+  start(title: string): boolean;
   stop(): void;
 }
 

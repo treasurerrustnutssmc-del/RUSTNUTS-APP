@@ -10,6 +10,8 @@ begin
   if problem is not null then raise exception '%', problem; end if;
   return jsonb_build_object(
     'room', 'ride-' || p_ride::text,
+    -- The token is cut to end here, so it never outlives the live window.
+    'closes', (select w.closes from public.rides r, private.live_window(r) w where r.id = p_ride),
     'name', (select private.short_name(m) from public.members m where m.id = auth.uid())
   );
 end;

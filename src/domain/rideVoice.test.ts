@@ -33,4 +33,5 @@ test('the call ends itself when the live window closes or the ride is called off
 test('the words for a refused microphone and an old build', () => {
   assert.equal(VOICE_MSG.micDenied, 'Rustnuts needs the microphone for ride comms. Turn it on in your phone’s settings.');
   assert.equal(VOICE_MSG.updateApp, 'Ride comms needs the latest version of the app.');
+  assert.equal(VOICE_MSG.screenOff, 'Your phone didn’t let ride comms carry on with the screen off. Disconnect, then Connect again with Rustnuts open.');
 });

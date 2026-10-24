@@ -2,11 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleVoiceToken, NOT_SWITCHED_ON, TOKEN_TTL_SECONDS, voiceGrant } from '../../supabase/functions/_shared/voiceToken';
 
+const RIDE = '00000000-0000-0000-0000-0000000000b1';
+const NOW = Date.parse('2026-11-07T22:00:00.000Z');
 const env = { LIVEKIT_URL: 'wss://rustnuts.livekit.cloud', LIVEKIT_API_KEY: 'key', LIVEKIT_API_SECRET: 'secret' };
 const deps = {
   userId: async () => 'm-1',
-  room: async (rideId: string) => ({ room: `ride-${rideId}`, name: 'Rusty' }),
-  sign: async (who: { identity: string; name: string }, room: string) => `token:${who.identity}:${who.name}:${room}`,
+  room: async (rideId: string) => ({ room: `ride-${rideId}`, name: 'Rusty', closes: '2026-11-08T03:00:00.000Z' }),
+  sign: async (who: { identity: string; name: string }, room: string, ttl: number) => `token:${who.identity}:${who.name}:${room}:${ttl}`,
+  now: () => NOW,
 };
 
 test('the grant is audio only, for one room, with nothing recorded', () => {
@@ -22,18 +25,24 @@ test('the grant is audio only, for one room, with nothing recorded', () => {
 });
 
 test('a member allowed in gets the server address and a token for their ride', async () => {
-  const res = await handleVoiceToken(env, { rideId: 'r1' }, deps);
-  assert.deepEqual(res, { status: 200, body: { url: 'wss://rustnuts.livekit.cloud', token: 'token:m-1:Rusty:ride-r1' } });
+  const res = await handleVoiceToken(env, { rideId: RIDE }, deps);
+  assert.deepEqual(res, { status: 200, body: { url: 'wss://rustnuts.livekit.cloud', token: `token:m-1:Rusty:ride-${RIDE}:${TOKEN_TTL_SECONDS}` } });
+});
+
+test('a token never outlives the live window', async () => {
+  const late = { ...deps, now: () => Date.parse('2026-11-08T02:30:00.000Z') };
+  const res = await handleVoiceToken(env, { rideId: RIDE }, late);
+  assert.equal(res.status === 200 && res.body.token.split(':').pop(), String(30 * 60));
 });
 
 test('before Jeff sets the LiveKit secrets, it says so', async () => {
-  const res = await handleVoiceToken({ ...env, LIVEKIT_API_SECRET: '' }, { rideId: 'r1' }, deps);
+  const res = await handleVoiceToken({ ...env, LIVEKIT_API_SECRET: '' }, { rideId: RIDE }, deps);
   assert.deepEqual(res, { status: 503, body: { error: NOT_SWITCHED_ON } });
   assert.equal(NOT_SWITCHED_ON, 'Ride comms isn’t switched on yet.');
 });
 
 test('the database’s words come back when the member can’t join', async () => {
-  const res = await handleVoiceToken(env, { rideId: 'r1' }, {
+  const res = await handleVoiceToken(env, { rideId: RIDE }, {
     ...deps,
     room: async () => {
       throw new Error('Live ride opens 2 hours before the start.');
@@ -43,9 +52,10 @@ test('the database’s words come back when the member can’t join', async () =
 });
 
 test('signed out, or no ride named, is refused', async () => {
-  assert.deepEqual(await handleVoiceToken(env, { rideId: 'r1' }, { ...deps, userId: async () => null }), {
+  assert.deepEqual(await handleVoiceToken(env, { rideId: RIDE }, { ...deps, userId: async () => null }), {
     status: 401,
     body: { error: 'Sign in first.' },
   });
   assert.deepEqual(await handleVoiceToken(env, {}, deps), { status: 400, body: { error: 'Which ride?' } });
+  assert.deepEqual(await handleVoiceToken(env, { rideId: 'not-a-ride' }, deps), { status: 400, body: { error: 'Which ride?' } });
 });

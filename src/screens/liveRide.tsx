@@ -56,6 +56,7 @@ export function LiveRideCard({ ride, onOpen }: { ride: Ride; onOpen: () => void 
         <Ionicons name="navigate-circle" size={22} color={colors.redText} />
         <H2>Live ride</H2>
       </Row>
+      {/* Lane E: ride comms. This card now opens voice as well as location sharing. */}
       <Body>
         {`Ride comms and location sharing for riders on this ride. Both switch off by ${offTime(w.closes, now)}. Nothing is kept or recorded.`}
       </Body>

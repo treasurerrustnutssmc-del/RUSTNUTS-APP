@@ -6,24 +6,34 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 class RideCommsModule : Module() {
+  private val onToggle: () -> Unit = { sendEvent("onHeadsetToggle", emptyMap<String, Any>()) }
+
   override fun definition() = ModuleDefinition {
     Name("RideComms")
 
     Events("onHeadsetToggle")
 
     OnCreate {
-      RideCommsService.onHeadsetToggle = { sendEvent("onHeadsetToggle", emptyMap<String, Any>()) }
+      RideCommsService.onHeadsetToggle = onToggle
     }
 
     OnDestroy {
-      RideCommsService.onHeadsetToggle = null
+      // A reload makes a new module before this one goes; only clear what's still ours.
+      if (RideCommsService.onHeadsetToggle === onToggle) RideCommsService.onHeadsetToggle = null
+      appContext.reactContext?.let { it.stopService(Intent(it, RideCommsService::class.java)) }
     }
 
+    // Called once the microphone is allowed and while the app is on screen: Android 14 only lets
+    // a microphone service start then. Returns false when Android refused it.
     Function("start") { title: String ->
-      val context = appContext.reactContext ?: return@Function
+      val context = appContext.reactContext ?: return@Function false
       val intent = Intent(context, RideCommsService::class.java).putExtra(RideCommsService.EXTRA_TITLE, title)
-      // Started after the microphone is on: Android 14 refuses a microphone service without it.
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
+      try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent) else context.startService(intent)
+        true
+      } catch (e: Exception) {
+        false
+      }
     }
 
     Function("stop") {

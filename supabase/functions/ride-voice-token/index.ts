@@ -4,7 +4,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { AccessToken, TrackSource } from 'npm:livekit-server-sdk@2.19.1';
-import { handleVoiceToken, TOKEN_TTL_SECONDS, voiceGrant } from '../_shared/voiceToken.ts';
+import { handleVoiceToken, voiceGrant } from '../_shared/voiceToken.ts';
 
 Deno.serve(async (req) => {
   const env = {
@@ -23,10 +23,10 @@ Deno.serve(async (req) => {
     room: async (rideId) => {
       const r = await db.rpc('ride_voice_room', { p_ride: rideId });
       if (r.error) throw new Error(r.error.message);
-      return r.data as { room: string; name: string };
+      return r.data as { room: string; name: string; closes: string };
     },
-    sign: async (who, room) => {
-      const at = new AccessToken(env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET, { ...who, ttl: TOKEN_TTL_SECONDS });
+    sign: async (who, room, ttl) => {
+      const at = new AccessToken(env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET, { ...who, ttl });
       // The SDK writes the sources as "microphone" in the token; it takes them as its enum.
       at.addGrant({ ...voiceGrant(room), canPublishSources: [TrackSource.MICROPHONE] });
       return at.toJwt();

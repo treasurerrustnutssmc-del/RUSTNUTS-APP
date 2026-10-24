@@ -12,8 +12,9 @@ public class RideCommsModule: Module {
 
     Events("onHeadsetToggle")
 
-    Function("start") { (title: String) in
+    Function("start") { (title: String) -> Bool in
       DispatchQueue.main.async { self.register(title: title) }
+      return true
     }
 
     Function("stop") {
@@ -42,6 +43,7 @@ public class RideCommsModule: Module {
   private func unregister() {
     for (command, target) in targets {
       command.removeTarget(target)
+      command.isEnabled = false
     }
     targets.removeAll()
     MPNowPlayingInfoCenter.default().nowPlayingInfo = nil

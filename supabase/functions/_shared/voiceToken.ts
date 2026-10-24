@@ -27,9 +27,13 @@ export interface VoiceDeps {
   /** The signed-in member's id, or null. */
   userId: () => Promise<string | null>;
   /** public.ride_voice_room as the member: throws the database's words when they can't join. */
-  room: (rideId: string) => Promise<{ room: string; name: string }>;
-  sign: (who: { identity: string; name: string }, room: string) => Promise<string>;
+  room: (rideId: string) => Promise<{ room: string; name: string; closes: string }>;
+  /** `ttl` in seconds. */
+  sign: (who: { identity: string; name: string }, room: string, ttl: number) => Promise<string>;
+  now?: () => number;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type VoiceAnswer =
   | { status: 200; body: { url: string; token: string } }
@@ -38,15 +42,18 @@ export type VoiceAnswer =
 export async function handleVoiceToken(env: VoiceEnv, request: { rideId?: unknown }, deps: VoiceDeps): Promise<VoiceAnswer> {
   if (!env.LIVEKIT_URL || !env.LIVEKIT_API_KEY || !env.LIVEKIT_API_SECRET) return { status: 503, body: { error: NOT_SWITCHED_ON } };
   const rideId = typeof request.rideId === 'string' ? request.rideId : '';
-  if (!rideId) return { status: 400, body: { error: 'Which ride?' } };
+  if (!UUID.test(rideId)) return { status: 400, body: { error: 'Which ride?' } };
   const identity = await deps.userId();
   if (!identity) return { status: 401, body: { error: 'Sign in first.' } };
-  let room: { room: string; name: string };
+  let room: { room: string; name: string; closes: string };
   try {
     room = await deps.room(rideId);
   } catch (e) {
     return { status: 403, body: { error: (e as Error).message } };
   }
-  const token = await deps.sign({ identity, name: room.name }, room.room);
+  // Never past the live window's close, so a token can't keep someone in after the ride.
+  const left = Math.floor((Date.parse(room.closes) - (deps.now ?? Date.now)()) / 1000);
+  const ttl = Math.max(60, Math.min(TOKEN_TTL_SECONDS, left));
+  const token = await deps.sign({ identity, name: room.name }, room.room, ttl);
   return { status: 200, body: { url: env.LIVEKIT_URL, token } };
 }

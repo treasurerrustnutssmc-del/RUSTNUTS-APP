@@ -17,6 +17,7 @@ export const VOICE_MSG = {
   micDenied: 'Rustnuts needs the microphone for ride comms. Turn it on in your phone’s settings.',
   updateApp: 'Ride comms needs the latest version of the app.',
   phoneOnly: 'Ride comms works in the app on your phone.',
+  screenOff: 'Your phone didn’t let ride comms carry on with the screen off. Disconnect, then Connect again with Rustnuts open.',
 } as const;
 
 /** Me first, then whoever's talking, then by name. */
