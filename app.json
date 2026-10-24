@@ -1,17 +1,21 @@
 {
   "expo": {
-    "name": "rustnuts-app",
-    "slug": "rustnuts-app",
-    "version": "1.0.0",
+    "name": "Rustnuts",
+    "slug": "rustnuts",
+    "scheme": "rustnuts",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#111010",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "au.com.rustnutssmc.app"
     },
     "android": {
+      "package": "au.com.rustnutssmc.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -19,7 +23,15 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "Rustnuts",
+      "themeColor": "#8C1C24",
+      "backgroundColor": "#111010"
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

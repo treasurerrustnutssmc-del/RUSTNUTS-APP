@@ -1,20 +1,54 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { ActivityIndicator, Platform, View } from 'react-native';
+import { SafeAreaInsetsContext, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ClubProvider, useClub } from './src/data/ClubStore';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { colors } from './src/theme';
+import { DemoBar } from './src/ui/DemoBar';
+import { useAppFonts } from './src/useAppFonts';
 
-export default function App() {
+function Shell() {
+  const { isDemo } = useClub();
+  const insets = useSafeAreaInsets();
+  if (!isDemo) return <RootNavigator />;
+  // The demo strip takes the top safe area, so screens below it don't pad for the notch twice.
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
+    <View style={{ flex: 1, backgroundColor: colors.ink }}>
+      <DemoBar />
+      <SafeAreaInsetsContext.Provider value={{ ...insets, top: 0 }}>
+        <View style={{ flex: 1 }}>
+          <RootNavigator />
+        </View>
+      </SafeAreaInsetsContext.Provider>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+// The phone-preview page already pads itself clear of the notch, so the app mustn't add it again.
+const IN_PREVIEW_PAGE =
+  Platform.OS === 'web' && (globalThis as { __RUSTNUTS_PREVIEW__?: boolean }).__RUSTNUTS_PREVIEW__ === true;
+const NO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
+
+export default function App() {
+  const fontsReady = useAppFonts();
+  const content = fontsReady ? (
+    <ClubProvider>
+      <Shell />
+    </ClubProvider>
+  ) : null;
+  return (
+    <SafeAreaProvider style={{ backgroundColor: colors.ink }}>
+      <StatusBar style="light" />
+      {content && IN_PREVIEW_PAGE ? (
+        <SafeAreaInsetsContext.Provider value={NO_INSETS}>{content}</SafeAreaInsetsContext.Provider>
+      ) : content ? (
+        content
+      ) : (
+        <View style={{ flex: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={colors.redText} />
+        </View>
+      )}
+    </SafeAreaProvider>
+  );
+}

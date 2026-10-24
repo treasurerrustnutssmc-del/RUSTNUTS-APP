@@ -1,0 +1,117 @@
+import { Ionicons } from '@expo/vector-icons';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useClub } from '../data/ClubStore';
+import { pendingFor } from '../domain/access';
+import { BoardScreen, ManageMemberScreen } from '../screens/board';
+import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
+import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
+import { JoinScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
+import { colors, fonts } from '../theme';
+import type { RootParams, TabParams } from './types';
+
+const Stack = createNativeStackNavigator<RootParams>();
+const Tabs = createBottomTabNavigator<TabParams>();
+
+const navTheme: Theme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: colors.redText,
+    background: colors.ink,
+    card: colors.ink,
+    text: colors.bone,
+    border: colors.line,
+    notification: colors.redBright,
+  },
+};
+
+const headerOptions = {
+  headerStyle: { backgroundColor: colors.ink },
+  headerTintColor: colors.bone,
+  headerTitleStyle: { fontFamily: fonts.stencil, fontSize: 20, color: colors.bone },
+  headerShadowVisible: false,
+  contentStyle: { backgroundColor: colors.ink },
+} as const;
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+const TAB_ICONS: Record<keyof TabParams, [IconName, IconName]> = {
+  Home: ['home', 'home-outline'],
+  Members: ['people', 'people-outline'],
+  Chapters: ['flag', 'flag-outline'],
+  Board: ['shield', 'shield-outline'],
+  Me: ['person-circle', 'person-circle-outline'],
+};
+
+function MainTabs() {
+  const { level, me, data } = useClub();
+  const isBoard = level === 'board' || level === 'national';
+  const waiting = isBoard ? pendingFor(me, data).length : 0;
+  const insets = useSafeAreaInsets();
+  return (
+    <Tabs.Navigator
+      screenOptions={({ route }) => ({
+        ...headerOptions,
+        tabBarAccessibilityLabel: route.name === 'Board' && waiting > 0 ? `Board, ${waiting} waiting` : route.name,
+        tabBarStyle: {
+          backgroundColor: colors.ink2,
+          borderTopColor: colors.line,
+          height: 66 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: insets.bottom + 6,
+        },
+        tabBarActiveTintColor: colors.redText,
+        tabBarInactiveTintColor: colors.boneMute,
+        tabBarLabelStyle: { fontFamily: fonts.body, fontSize: 11, lineHeight: 14, fontWeight: '600' },
+        tabBarIcon: ({ focused, color, size }) => (
+          <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size} color={color} />
+        ),
+      })}
+    >
+      <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Rustnuts', tabBarLabel: 'Home' }} />
+      <Tabs.Screen name="Members" component={MembersScreen} />
+      <Tabs.Screen name="Chapters" component={ChaptersScreen} />
+      {isBoard ? (
+        <Tabs.Screen
+          name="Board"
+          component={BoardScreen}
+          options={{ tabBarBadge: waiting > 0 ? waiting : undefined, tabBarBadgeStyle: { backgroundColor: colors.redBright } }}
+        />
+      ) : null}
+      <Tabs.Screen name="Me" component={MeScreen} />
+    </Tabs.Navigator>
+  );
+}
+
+export function RootNavigator() {
+  const { level, me } = useClub();
+  return (
+    <NavigationContainer theme={navTheme}>
+      {/* Keyed by who's signed in, so switching people always starts fresh on their home screen. */}
+      <Stack.Navigator key={me?.id ?? 'signed-out'} screenOptions={headerOptions}>
+        {level === 'public' ? (
+          <>
+            <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign in' }} />
+            <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
+          </>
+        ) : level === 'pending' ? (
+          <Stack.Screen name="Pending" component={PendingScreen} options={{ headerShown: false }} />
+        ) : (
+          <>
+            <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
+            <Stack.Screen name="MemberDetail" component={MemberDetailScreen} options={{ title: 'Member' }} />
+            <Stack.Screen name="ChapterDetail" component={ChapterDetailScreen} options={{ title: 'Chapter' }} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
+            <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
+            <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
+            <Stack.Screen name="ManageMember" component={ManageMemberScreen} options={{ title: 'Manage member' }} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}

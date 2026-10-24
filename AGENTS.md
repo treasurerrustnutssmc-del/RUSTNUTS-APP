@@ -25,9 +25,15 @@ Run lint and typecheck before declaring any task done.
 
 ## Navigation & Routing
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+- This project uses **React Navigation** (native stack + bottom tabs), not Expo Router. The web build is previewed inside a page whose URL path the app doesn't control, and Expo Router picks the screen from the URL. Keep navigation state-based (no `linking` on web). Native deep links can be added with a `linking` config limited to iOS/Android.
+- Screens live in `src/screens/`, navigators in `src/navigation/`, shared UI in `src/ui/`, rules in `src/domain/`, data in `src/data/`.
+
+## Project rules
+
+- Access rules live in `src/domain/access.ts` and are mirrored by row-level security in `supabase/migrations`. Change both together and run `npm test` and `npm run test:db`.
+- Dates are stored as ISO `YYYY-MM-DD` and shown as `DD/MM/YYYY`.
+- The look comes from the club website: colours and fonts in `src/theme.ts`. The logo in `assets/logo.jpg` is the club's real logo; don't redraw or recolour it.
+- No pop-up dialogs (`Alert`): use `ConfirmButton` for anything destructive, since the web preview can't show them.
 
 ## Building with EAS
 
