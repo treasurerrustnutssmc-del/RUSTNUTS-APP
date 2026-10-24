@@ -27,6 +27,17 @@ const priv = (p: Partial<MemberPrivate> & Pick<MemberPrivate, 'memberId'>): Memb
   ...p,
 });
 
+/**
+ * An instant `days` days after today (UTC), at a UTC clock time. The demo's other rides are fixed
+ * dates; North coffee and curves uses this so there's always a ride in the next fortnight with no
+ * Tail Gunner, and crew managers see the "Crew needed" tag whatever the real date.
+ */
+const daysFromNow = (days: number, utcTime: string): string => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return `${d.toISOString().slice(0, 10)}T${utcTime}`;
+};
+
 export const DEMO_DATA: ClubData = {
   chapters: [
     { id: 'ch-west', slug: 'west', name: 'West', area: 'Western Melbourne', state: 'VIC' },
@@ -156,7 +167,8 @@ export const DEMO_DATA: ClubData = {
   rides: [
     { id: 'r-1', title: 'West breakfast run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: '2026-11-08T01:00:00.000Z', allDay: false,
       location: 'Caltex Laverton North', notes: 'KSU 8:30. Breakfast at Daylesford, home by lunch.', category: 'west', cancelledAt: null },
-    { id: 'r-2', title: 'North coffee and curves', startsAt: '2026-11-14T22:00:00.000Z', endsAt: '2026-11-15T03:00:00.000Z', allDay: false,
+    // About a week out (9 am Melbourne in summer time, 8 am in winter), so it always needs crew soon.
+    { id: 'r-2', title: 'North coffee and curves', startsAt: daysFromNow(6, '22:00:00.000Z'), endsAt: daysFromNow(7, '03:00:00.000Z'), allDay: false,
       location: 'Kilmore Bakery', notes: 'Up through Pyalong and back via Lancefield.', category: 'north', cancelledAt: null },
     { id: 'r-3', title: 'Toy Run (Non-Nuts)', startsAt: '2026-11-28T23:00:00.000Z', endsAt: null, allDay: false,
       location: 'Werribee Racecourse', notes: 'Another club’s charity run. Bring a wrapped toy.', category: 'non_nuts', cancelledAt: null },
@@ -185,7 +197,7 @@ export const DEMO_DATA: ClubData = {
     { rideId: 'r-4', memberId: 'm-crank', answer: 'going', updatedAt: '2026-10-22T12:30:00.000Z' },
     { rideId: 'r-4', memberId: 'm-chook', answer: 'no', updatedAt: '2026-10-23T08:00:00.000Z' },
   ],
-  // The West breakfast run is fully crewed; North coffee and curves still needs a Tail Gunner.
+  // The West breakfast run is fully crewed; North coffee and curves (always about a week out) still needs a Tail Gunner.
   // Tail Gunners here have first aid dates that pass.
   crew: [
     { rideId: 'r-1', memberId: 'm-diesel', role: 'road_captain', assignedBy: 'm-torque', assignedAt: '2026-10-21T11:30:00.000Z' },

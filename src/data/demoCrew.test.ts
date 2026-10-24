@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crewNeeded } from '../domain/crew';
+import { crewNeeded, showsCrewNeeded } from '../domain/crew';
+import { todayIso } from '../domain/dates';
 import type { ClubData, CrewSpot } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import { leaveCrew, runDemoAction, setCrew, setRsvp, type DemoCtx } from './demoActions';
@@ -146,4 +147,14 @@ test('the demo club has crew: an RC and TG on one ride, only an RC on another, a
       assert.ok(aid && aid >= ride(s.rideId).startsAt.slice(0, 10), `${m.fullName} first aid`);
     }
   }
+});
+
+test('a demo ride shows Crew needed for a manager today, whatever the real date', () => {
+  // The demo provider uses the device's date, so this checks against the real today.
+  const today = todayIso();
+  const smokey = DEMO_DATA.members.find((m) => m.id === 'm-smokey')!; // North president
+  const needy = DEMO_DATA.rides.filter((r) => showsCrewNeeded(smokey, r, DEMO_DATA, today));
+  assert.ok(needy.length >= 1, 'a North ride with no TG starts in the next 14 days');
+  const gravel = DEMO_DATA.members.find((m) => m.id === 'm-gravel')!; // West board: not North's crew
+  assert.equal(needy.some((r) => showsCrewNeeded(gravel, r, DEMO_DATA, today)), false, 'only for a manager of that ride');
 });
