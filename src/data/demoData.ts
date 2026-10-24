@@ -12,6 +12,7 @@ const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName
   bio: null,
   sharePhone: false,
   appliedOn: null,
+  onHiatus: false,
   ...m,
 });
 

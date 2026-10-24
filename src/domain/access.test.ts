@@ -13,6 +13,7 @@ import {
   pendingFor,
   visibleMembers,
 } from './access';
+import { isChapterless } from './labels';
 
 const d = DEMO_DATA;
 const m = (id: string) => {
@@ -92,4 +93,15 @@ test('national roles are only handed out by the NEC', () => {
   assert.equal(canAssignRole(m('m-torque'), null, P), false);
   assert.equal(canAssignRole(m('m-smokey'), null, P), true);
   assert.equal(canAssignRole(m('m-dylan'), 'ch-west', P), false);
+});
+
+test('Founder is a title: it carries no chapter and no national powers', () => {
+  const founderOnly = [
+    { id: 'f1', memberId: 'm-spanner', chapterId: null, role: 'founder' as const, startedOn: '2019-05-11', endedOn: null },
+  ];
+  assert.equal(accessLevel(m('m-spanner'), founderOnly), 'member');
+  assert.equal(isChapterless('founder'), true);
+  assert.equal(isChapterless('nec_chair'), true);
+  assert.equal(isChapterless('ride_committee'), false);
+  assert.equal(isChapterless('assistant_tail_gunner'), false);
 });

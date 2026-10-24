@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { accessLevel } from '../domain/access';
 import { todayIso } from '../domain/dates';
+import { isChapterless } from '../domain/labels';
 import type { ClubData } from '../domain/types';
 import {
   checkAppoint,
@@ -243,7 +244,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       if (!target) throw new Error('That member no longer exists.');
       const problem = checkAppoint(me, target, chapterId, role, data);
       if (problem) throw new Error(problem);
-      const seatChapter = role.startsWith('nec_') ? null : chapterId;
+      const seatChapter = isChapterless(role) ? null : chapterId;
       ok(
         await supabase()
           .from('positions')

@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { canAssignRole, isNational, pendingFor } from '../domain/access';
 import { formatLongDate, monthsBetween } from '../domain/dates';
-import { BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
+import { BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER, TITLE_ROLES } from '../domain/labels';
 import { displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -236,7 +236,7 @@ export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
   const chapter = data.chapters.find((c) => c.id === member.chapterId);
   const positions = sortedPositions(member.id, data);
   const canNational = isNational(me.id, data.positions);
-  const roleOptions: PositionRole[] = [...BOARD_ROLES, ...CLUB_ROLES, ...(canNational ? NATIONAL_ROLES : [])];
+  const roleOptions: PositionRole[] = [...BOARD_ROLES, ...CLUB_ROLES, ...(canNational ? [...NATIONAL_ROLES, ...TITLE_ROLES] : [])];
 
   const run = async (fn: () => Promise<void>, ok: string) => {
     try {

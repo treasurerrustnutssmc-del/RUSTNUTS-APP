@@ -298,6 +298,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
             {member.roadName ? <Small>{member.fullName}</Small> : null}
             <Row style={{ gap: 6 }}>
               <StatusChip status={member.status} />
+              {member.onHiatus ? <Chip label="On hiatus" icon="pause" /> : null}
               {positions.map((p) => (
                 <RoleChip key={p.id} role={p.role} />
               ))}

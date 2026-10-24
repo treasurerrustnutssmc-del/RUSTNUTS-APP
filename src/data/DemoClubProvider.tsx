@@ -4,6 +4,7 @@
 import React, { useMemo, useState } from 'react';
 import { accessLevel, canApprove, canAssignRole, canManageMember } from '../domain/access';
 import { todayIso } from '../domain/dates';
+import { isChapterless } from '../domain/labels';
 import type { Bike, ClubData, EmergencyContact, Member, MemberPrivate } from '../domain/types';
 import {
   checkAppoint,
@@ -74,6 +75,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
         bio: null,
         sharePhone: false,
         appliedOn: today,
+        onHiatus: false,
       };
       const priv: MemberPrivate = {
         memberId: id,
@@ -233,7 +235,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       const target = findMember(memberId);
       const problem = checkAppoint(me, target, chapterId, role, data);
       if (problem) throw new Error(problem);
-      const seatChapter = role.startsWith('nec_') ? null : chapterId;
+      const seatChapter = isChapterless(role) ? null : chapterId;
       setData((d) => ({
         ...d,
         positions: [

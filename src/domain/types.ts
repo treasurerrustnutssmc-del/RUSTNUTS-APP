@@ -23,10 +23,14 @@ export type PositionRole =
   | 'tail_gunner'
   | 'social_media_officer'
   | 'club_coach'
+  | 'ride_committee'
+  | 'assistant_tail_gunner'
   // National Executive Committee roles (constitution 13, 15.5)
   | 'nec_chair'
   | 'nec_secretary'
-  | 'nec_auditor';
+  | 'nec_auditor'
+  // Honorary title, no chapter and no powers
+  | 'founder';
 
 export type LicenceClass = 'full_open' | 'probationary_open' | 'learner';
 
@@ -51,6 +55,8 @@ export interface Member {
   bio: string | null;
   sharePhone: boolean;
   appliedOn: string | null;
+  /** A patched member taking a break: keeps status and patch, flagged as away. */
+  onHiatus: boolean;
 }
 
 /** Contact and compliance details: the member and their chapter board only. */

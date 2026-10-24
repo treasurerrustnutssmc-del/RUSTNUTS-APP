@@ -3,7 +3,7 @@
 
 import { createContext, useContext } from 'react';
 import { canAssignRole, type AccessLevel } from '../domain/access';
-import { BOARD_ROLES, NATIONAL_ROLES, ROLE_LABEL } from '../domain/labels';
+import { BOARD_ROLES, isChapterless, ROLE_LABEL } from '../domain/labels';
 import type {
   Bike,
   BikeRegistration,
@@ -107,7 +107,7 @@ export function checkAppoint(
   role: PositionRole,
   data: ClubData,
 ): string | null {
-  const national = NATIONAL_ROLES.includes(role);
+  const national = isChapterless(role);
   const seatChapter = national ? null : chapterId;
   if (target.approval !== 'approved') return 'Approve them first.';
   if (!canAssignRole(me, seatChapter, data.positions)) {
