@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { todayIso } from '../domain/dates';
+import { crewProblem, leaveProblem } from '../domain/crew';
 import { rsvpProblem } from '../domain/rides';
 import type { ClubData } from '../domain/types';
 import {
@@ -337,6 +338,27 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const problem = rsvpProblem(visibleMe, data.rides.find((r) => r.id === rideId), new Date().toISOString());
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('set_rsvp', { p_ride: rideId, p_answer: answer }));
+      await after();
+    },
+
+    setCrew: async (rideId, memberId, role) => {
+      const problem = crewProblem(
+        visibleMe,
+        data.rides.find((r) => r.id === rideId),
+        data.members.find((m) => m.id === memberId),
+        role,
+        data,
+        new Date().toISOString(),
+      );
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('set_crew', { p_ride: rideId, p_member: memberId, p_role: role }));
+      await after();
+    },
+
+    leaveCrew: async (rideId, memberId) => {
+      const problem = leaveProblem(visibleMe, data.rides.find((r) => r.id === rideId), memberId, data, new Date().toISOString());
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('leave_crew', { p_ride: rideId, p_member: memberId }));
       await after();
     },
   };

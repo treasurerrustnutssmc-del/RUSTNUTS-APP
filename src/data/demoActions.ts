@@ -3,9 +3,10 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, endTermProblem, isBoardOf } from '../domain/access';
+import { crewProblem, leaveProblem } from '../domain/crew';
 import { rsvpProblem } from '../domain/rides';
 import { APPROVE_AS, NATIONAL_ROLES, TITLE_ROLES } from '../domain/labels';
-import type { ClubData, Member, MemberStatus, PositionRole, RsvpAnswer } from '../domain/types';
+import type { ClubData, CrewRole, Member, MemberStatus, PositionRole, RsvpAnswer } from '../domain/types';
 import {
   NotAllowedError,
   validateApplicationBike,
@@ -279,7 +280,36 @@ export function setRsvp(ctx: DemoCtx, rideId: string, answer: RsvpAnswer): ClubD
   if (problem) throw new NotAllowedError(problem);
   const memberId = ctx.me!.id;
   const others = ctx.data.rsvps.filter((r) => !(r.rideId === rideId && r.memberId === memberId));
-  return { ...ctx.data, rsvps: [...others, { rideId, memberId, answer, updatedAt: now }] };
+  const next: ClubData = { ...ctx.data, rsvps: [...others, { rideId, memberId, answer, updatedAt: now }] };
+  // Anything but Going takes you off the ride's crew.
+  if (answer === 'going' || !ctx.data.crew) return next;
+  return { ...next, crew: ctx.data.crew.filter((s) => !(s.rideId === rideId && s.memberId === memberId)) };
+}
+
+/** Puts `memberId` in a crew spot. A manager's pick replaces whoever held a single spot, a move replaces your old spot, and the target is then going. */
+export function setCrew(ctx: DemoCtx, rideId: string, memberId: string, role: CrewRole): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const ride = ctx.data.rides.find((r) => r.id === rideId);
+  const target = ctx.data.members.find((m) => m.id === memberId);
+  const problem = crewProblem(ctx.me, ride, target, role, ctx.data, now);
+  if (problem) throw new NotAllowedError(problem);
+  const kept = (ctx.data.crew ?? []).filter(
+    (s) => !(s.rideId === rideId && (s.memberId === memberId || (role !== 'officer' && s.role === role))),
+  );
+  const rsvps = ctx.data.rsvps.filter((r) => !(r.rideId === rideId && r.memberId === memberId));
+  return {
+    ...ctx.data,
+    crew: [...kept, { rideId, memberId, role, assignedBy: ctx.me!.id, assignedAt: now }],
+    rsvps: [...rsvps, { rideId, memberId, answer: 'going', updatedAt: now }],
+  };
+}
+
+/** Takes `memberId` off the ride's crew. */
+export function leaveCrew(ctx: DemoCtx, rideId: string, memberId: string): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const problem = leaveProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), memberId, ctx.data, now);
+  if (problem) throw new NotAllowedError(problem);
+  return { ...ctx.data, crew: (ctx.data.crew ?? []).filter((s) => !(s.rideId === rideId && s.memberId === memberId)) };
 }
 
 /** The actions the shared parity cases use, by name. */
@@ -294,7 +324,9 @@ export type DemoAction =
   | { action: 'saveBike'; bike: string | null; make: string; model: string; year: number | null }
   | { action: 'saveContact'; contact: string | null; contactName: string; relationship: string; phone: string }
   | { action: 'apply'; chapter: string; fullName: string; make: string; model: string; year: number | null }
-  | { action: 'rsvp'; ride: string; answer: RsvpAnswer };
+  | { action: 'rsvp'; ride: string; answer: RsvpAnswer }
+  | { action: 'crew'; ride: string; member: string; role: CrewRole }
+  | { action: 'leaveCrew'; ride: string; member: string };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -312,6 +344,10 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return removeBike(ctx, a.bike);
     case 'rsvp':
       return setRsvp(ctx, a.ride, a.answer);
+    case 'crew':
+      return setCrew(ctx, a.ride, a.member, a.role);
+    case 'leaveCrew':
+      return leaveCrew(ctx, a.ride, a.member);
     case 'removeContact':
       return removeContact(ctx, a.contact);
     case 'saveBike':

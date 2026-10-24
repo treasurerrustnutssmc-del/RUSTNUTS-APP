@@ -129,6 +129,18 @@ export interface Rsvp {
   updatedAt: string;
 }
 
+/** The positions a ride's crew can hold. Officers have no limit; the others are one per ride. */
+export type CrewRole = Extract<PositionRole, 'road_captain' | 'tail_gunner' | 'assistant_tail_gunner' | 'officer'>;
+
+/** One member's spot on one ride's crew. */
+export interface CrewSpot {
+  rideId: string;
+  memberId: string;
+  role: CrewRole;
+  assignedBy: string | null;
+  assignedAt: string;
+}
+
 export interface ClubData {
   chapters: Chapter[];
   members: Member[];
@@ -139,6 +151,8 @@ export interface ClubData {
   positions: Position[];
   rides: Ride[];
   rsvps: Rsvp[];
+  /** Who is crewing which ride. Missing means none. */
+  crew?: CrewSpot[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
 }

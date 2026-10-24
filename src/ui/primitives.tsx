@@ -286,6 +286,7 @@ export function Button({
   disabled,
   busy,
   style,
+  accessibilityLabel,
 }: {
   label: string;
   onPress: () => void;
@@ -294,11 +295,14 @@ export function Button({
   disabled?: boolean;
   busy?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** When the label alone wouldn't say what it acts on, such as "Take off" beside a name. */
+  accessibilityLabel?: string;
 }) {
   const k = buttonKinds[kind];
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!disabled, busy: !!busy }}
       aria-disabled={!!disabled}
       aria-busy={!!busy}
@@ -332,6 +336,7 @@ export function ConfirmButton({
   kind = 'danger',
   icon,
   style,
+  accessibilityLabel,
 }: {
   label: string;
   confirmLabel: string;
@@ -339,9 +344,15 @@ export function ConfirmButton({
   kind?: ButtonKind;
   icon?: IconName;
   style?: StyleProp<ViewStyle>;
+  /** For the first button, when its label alone wouldn't say what it acts on. */
+  accessibilityLabel?: string;
 }) {
   const [armed, setArmed] = useState(false);
-  if (!armed) return <Button label={label} kind={kind} icon={icon} onPress={() => setArmed(true)} style={style} />;
+  if (!armed) {
+    return (
+      <Button label={label} kind={kind} icon={icon} onPress={() => setArmed(true)} style={style} accessibilityLabel={accessibilityLabel} />
+    );
+  }
   return (
     <Row style={[{ gap: space.sm }, style]}>
       <Button label={confirmLabel} kind="danger" onPress={() => { setArmed(false); onConfirm(); }} style={{ flex: 1 }} />

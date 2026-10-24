@@ -23,11 +23,14 @@ for (const c of fx.chapters ?? []) {
 for (const m of fx.members) {
   sql(`insert into auth.users (id, email) values (${id('m', m.key)}, ${q(`${m.key}@example.com`)});`);
   sql(
-    `insert into public.members (id, chapter_id, full_name, status, approval, share_phone, joined_on) values (` +
+    `insert into public.members (id, chapter_id, full_name, status, approval, share_phone, joined_on, on_hiatus) values (` +
       `${id('m', m.key)}, ${chapter(m.chapter)}, ${q(m.name)}, ${q(m.status)}, ${q(m.approval)}, ${m.sharePhone}, ` +
-      `${m.approval === 'approved' ? "date '2024-01-01'" : 'null'});`,
+      `${m.approval === 'approved' ? "date '2024-01-01'" : 'null'}, ${m.onHiatus ?? false});`,
   );
-  sql(`insert into public.member_private (member_id, email) values (${id('m', m.key)}, ${q(`${m.key}@example.com`)});`);
+  sql(
+    `insert into public.member_private (member_id, email, first_aid_expiry) values (` +
+      `${id('m', m.key)}, ${q(`${m.key}@example.com`)}, ${date(m.firstAidExpiry ?? null)});`,
+  );
 }
 for (const u of fx.signups ?? []) {
   // Signed up (email confirmed) but not applied yet.
@@ -60,6 +63,19 @@ for (const r of fx.rides) {
   );
 }
 
+for (const k of fx.crew ?? []) {
+  sql(
+    `insert into public.ride_crew (ride_id, member_id, role) values (` +
+      `${id('r', k.ride)}, ${id('m', k.member)}, ${q(k.role)});`,
+  );
+}
+for (const r of fx.rsvps ?? []) {
+  sql(
+    `insert into public.rsvps (ride_id, member_id, answer) values (` +
+      `${id('r', r.ride)}, ${id('m', r.member)}, ${q(r.answer)});`,
+  );
+}
+
 const call = (c: ParityCase & Record<string, any>): string => {
   switch (c.action) {
     case 'appoint':
@@ -76,6 +92,10 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.remove_bike(${id('b', c.bike)})`;
     case 'rsvp':
       return `public.set_rsvp(${id('r', c.ride)}, ${q(c.answer)})`;
+    case 'crew':
+      return `public.set_crew(${id('r', c.ride)}, ${id('m', c.member)}, ${q(c.role)})`;
+    case 'leaveCrew':
+      return `public.leave_crew(${id('r', c.ride)}, ${id('m', c.member)})`;
     case 'removeContact':
       return `public.remove_contact(${id('c', c.contact)})`;
     case 'saveBike':
