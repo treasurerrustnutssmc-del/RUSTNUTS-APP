@@ -122,6 +122,9 @@ test('saving a route: name', () => {
   assert.equal(saveRouteProblem(westVp, undefined, input('x'.repeat(80)), d), null, '80 is fine');
   assert.equal(saveRouteProblem(westVp, undefined, input('x'.repeat(81)), d), 'Give the route a name.');
   assert.equal(saveRouteProblem(westVp, undefined, input(`  ${'x'.repeat(80)}  `), d), null, 'trimmed before counting');
+  // Counted in characters (code points), as the database's char_length does, not UTF-16 units.
+  assert.equal(saveRouteProblem(westVp, undefined, input('😀'.repeat(80)), d), null, '80 emoji are fine');
+  assert.equal(saveRouteProblem(westVp, undefined, input('😀'.repeat(81)), d), 'Give the route a name.', '81 emoji are too many');
 });
 
 test('saving a route: editing', () => {

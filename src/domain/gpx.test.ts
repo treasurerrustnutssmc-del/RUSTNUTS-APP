@@ -1,11 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { haversineM, readGpx, simplify } from './gpx';
+import { haversineM, NO_TRACK, NOT_GPX, readGpx, simplify, TOO_BIG } from './gpx';
 import type { GpxSummary } from './gpx';
-
-const NOT_GPX = 'That isn’t a GPX file.';
-const NO_TRACK = 'That route has no track in it.';
-const TOO_BIG = 'That file is too big (5 MB at most).';
 
 type Pt = [number, number, number?];
 
@@ -219,4 +215,22 @@ test('simplify: short lines are returned whole, corners are kept, a smaller max 
   assert.ok(out.some((p) => p[0] === 0 && p[1] === 1), 'the corner survives');
   assert.deepEqual(simplify([], 5), []);
   assert.deepEqual(simplify([[1, 2]], 5), [[1, 2]]);
+});
+
+test('the three GPX messages are exported with the spec’s words', () => {
+  assert.equal(NOT_GPX, 'That isn’t a GPX file.');
+  assert.equal(NO_TRACK, 'That route has no track in it.');
+  assert.equal(TOO_BIG, 'That file is too big (5 MB at most).');
+});
+
+test('readGpx: at most 100 stops, the first ones in the file, numbered by their place', () => {
+  let wpts = '';
+  for (let k = 0; k < 150; k++) wpts += k % 2 ? `<wpt lat="-37.${k}" lon="144.5"/>` : `<wpt lat="-37.${k}" lon="144.5"><name>W${k}</name></wpt>`;
+  const s = summary(readGpx(gpx(wpts + track([[-37.8, 144.9], [-37.9, 145.0]]))));
+  assert.equal(s.stops.length, 100);
+  assert.equal(s.stops[0].name, 'W0');
+  assert.equal(s.stops[1].name, 'Stop 2');
+  assert.equal(s.stops[99].name, 'Stop 100');
+  const hundred = summary(readGpx(gpx(wpts.split('<wpt').slice(0, 101).join('<wpt') + track([[-37.8, 144.9], [-37.9, 145.0]]))));
+  assert.equal(hundred.stops.length, 100, 'exactly 100 are all kept');
 });

@@ -6,6 +6,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { todayIso } from '../domain/dates';
 import { crewProblem, leaveProblem } from '../domain/crew';
+import { NO_TRACK, readGpx, type GpxSummary } from '../domain/gpx';
+import { archiveRouteProblem, rideRouteProblem, saveRouteProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
 import type { ClubData, NotificationPrefs } from '../domain/types'; // NotificationPrefs: Lane E
 import {
@@ -369,6 +371,58 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('leave_crew', { p_ride: rideId, p_member: memberId }));
       await after();
+    },
+
+    saveRoute: async (input) => {
+      requireUser();
+      // The rule checks first, then the file, the same order as save_route.
+      const existing = input.id === null ? undefined : data.routes?.find((r) => r.id === input.id);
+      const problem = saveRouteProblem(visibleMe, existing, input, data);
+      if (problem) throw new NotAllowedError(problem);
+      let summary: GpxSummary | null = null;
+      if (input.gpx !== null) {
+        const read = readGpx(input.gpx);
+        if (typeof read === 'string') throw new Error(read);
+        summary = read;
+      } else if (input.id === null) throw new Error(NO_TRACK);
+      const result = ok(
+        await supabase().rpc('save_route', {
+          p_id: input.id,
+          p_name: input.name.trim(),
+          p_chapter: input.chapterId,
+          p_notes: input.notes.trim() || null,
+          p_gpx: input.gpx,
+          p_distance_m: summary?.distanceM ?? null,
+          p_climb_m: summary?.climbM ?? null,
+          p_line: summary?.line ?? null,
+          p_stops: summary?.stops ?? null,
+          p_bounds: summary?.bounds ?? null,
+        }),
+      );
+      await after();
+      if (!result.data) throw new Error('That route no longer exists.');
+      return result.data;
+    },
+
+    archiveRoute: async (routeId) => {
+      const problem = archiveRouteProblem(visibleMe, data.routes?.find((r) => r.id === routeId), data);
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('archive_route', { p_id: routeId }));
+      await after();
+    },
+
+    setRideRoute: async (rideId, routeId) => {
+      const route = routeId === null ? null : data.routes?.find((r) => r.id === routeId);
+      const problem = rideRouteProblem(visibleMe, data.rides.find((r) => r.id === rideId), route, data, new Date().toISOString());
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('set_ride_route', { p_ride: rideId, p_route: routeId }));
+      await after();
+    },
+
+    routeGpx: async (routeId) => {
+      const result = ok(await supabase().rpc('route_gpx', { p_route: routeId }));
+      if (typeof result.data !== 'string') throw new Error('That route no longer exists.');
+      return result.data;
     },
 
     // Lane E: notifications

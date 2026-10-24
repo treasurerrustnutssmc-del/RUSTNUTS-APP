@@ -47,8 +47,9 @@ export function saveRouteProblem(
   // The target chapter, and when editing also the one it is leaving.
   if (!managesChapterRoutes(me, input.chapterId, data)) return NOT_MANAGER;
   if (existing && !managesChapterRoutes(me, existing.chapterId, data)) return NOT_MANAGER;
-  const name = input.name.trim();
-  if (name.length === 0 || name.length > NAME_MAX) return 'Give the route a name.';
+  // Counted in characters (code points), as the database's char_length does, so an emoji is one.
+  const length = [...input.name.trim()].length;
+  if (length === 0 || length > NAME_MAX) return 'Give the route a name.';
   return null;
 }
 

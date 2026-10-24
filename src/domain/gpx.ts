@@ -11,9 +11,11 @@ export interface GpxSummary {
   bounds: { minLat: number; minLng: number; maxLat: number; maxLng: number };
 }
 
-const NOT_GPX = 'That isn’t a GPX file.';
-const NO_TRACK = 'That route has no track in it.';
-const TOO_BIG = 'That file is too big (5 MB at most).';
+export const NOT_GPX = 'That isn’t a GPX file.';
+export const NO_TRACK = 'That route has no track in it.';
+export const TOO_BIG = 'That file is too big (5 MB at most).';
+/** The most stops a route keeps: the first ones in the file. */
+const MAX_STOPS = 100;
 const MAX_BYTES = 5 * 1024 * 1024;
 const EARTH_RADIUS_M = 6371008.8;
 
@@ -351,7 +353,7 @@ export function readGpx(text: string): GpxSummary | string {
     distanceM: Math.round(distance),
     climbM: withEle >= 2 ? Math.round(climb) : null,
     line: simplify(coords),
-    stops: scanned.wpt.map((w, k) => ({ name: w.name !== '' ? w.name : `Stop ${k + 1}`, lat: w.lat, lng: w.lng })),
+    stops: scanned.wpt.slice(0, MAX_STOPS).map((w, k) => ({ name: w.name !== '' ? w.name : `Stop ${k + 1}`, lat: w.lat, lng: w.lng })),
     bounds: { minLat, minLng, maxLat, maxLng },
   };
 }

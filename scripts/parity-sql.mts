@@ -2,7 +2,8 @@
 // case against the real database rules, expecting exactly the demo's answer: allowed, or refused
 // with the demo's own message. Used by scripts/test-db.sh (via tsx); prints SQL to stdout.
 
-import { demoAnswer, fixture as fx, type ParityCase } from '../src/data/parityFixture.testkit';
+import { readGpx } from '../src/domain/gpx';
+import { caseAction, demoAnswer, fixture as fx, fixtureGpx, type ParityCase } from '../src/data/parityFixture.testkit';
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const id = (kind: string, key: string) => `md5(${q(`${kind}:${key}`)})::uuid`;
@@ -76,6 +77,34 @@ for (const r of fx.rsvps ?? []) {
   );
 }
 
+const json = (v: unknown) => `${q(JSON.stringify(v))}::jsonb`;
+const routeFile = fixtureGpx(fx.routes?.length ? 'valid' : null);
+const routeSummary = routeFile === null ? null : readGpx(routeFile);
+if (typeof routeSummary === 'string') throw new Error(`parity.json's valid GPX file: ${routeSummary}`);
+for (const r of fx.routes ?? []) {
+  sql(
+    `insert into public.routes (id, name, chapter_id, gpx, distance_m, climb_m, line, stops, bounds, archived_at) values (` +
+      `${id('rt', r.key)}, ${q(r.name)}, ${chapter(r.chapter)}, ${q(routeFile)}, ${routeSummary!.distanceM}, ` +
+      `${routeSummary!.climbM ?? 'null'}, ${json(routeSummary!.line)}, ${json(routeSummary!.stops)}, ${json(routeSummary!.bounds)}, ` +
+      `${r.archived ? "'2026-01-01T00:00:00Z'" : 'null'});`,
+  );
+}
+for (const r of fx.rideRoutes ?? []) {
+  sql(`insert into public.ride_routes (ride_id, route_id) values (${id('r', r.ride)}, ${id('rt', r.route)});`);
+}
+
+/** A saveRoute call with the summary the app sends: read from the file, as LiveClubProvider does. */
+const saveRouteCall = (c: ParityCase & Record<string, any>): string => {
+  const a = caseAction(c) as Extract<ReturnType<typeof caseAction>, { action: 'saveRoute' }>;
+  const read = a.gpx === null ? null : readGpx(a.gpx);
+  const s = read !== null && typeof read === 'object' ? read : null;
+  return (
+    `public.save_route(${a.route ? id('rt', a.route) : 'null'}, ${q(a.routeName.trim())}, ${chapter(a.chapter)}, ` +
+    `${a.notes?.trim() ? q(a.notes.trim()) : 'null'}, ${a.gpx === null ? 'null' : q(a.gpx)}, ${s ? s.distanceM : 'null'}, ` +
+    `${s?.climbM ?? 'null'}, ${s ? json(s.line) : 'null'}, ${s ? json(s.stops) : 'null'}, ${s ? json(s.bounds) : 'null'})`
+  );
+};
+
 const call = (c: ParityCase & Record<string, any>): string => {
   switch (c.action) {
     case 'appoint':
@@ -96,6 +125,12 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.set_crew(${id('r', c.ride)}, ${id('m', c.member)}, ${q(c.role)})`;
     case 'leaveCrew':
       return `public.leave_crew(${id('r', c.ride)}, ${id('m', c.member)})`;
+    case 'saveRoute':
+      return saveRouteCall(c);
+    case 'archiveRoute':
+      return `public.archive_route(${id('rt', c.route)})`;
+    case 'setRideRoute':
+      return `public.set_ride_route(${id('r', c.ride)}, ${c.route ? id('rt', c.route) : 'null'})`;
     case 'removeContact':
       return `public.remove_contact(${id('c', c.contact)})`;
     case 'saveBike':

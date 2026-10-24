@@ -4,7 +4,8 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ClubData, CrewRole, Member, MemberStatus, PositionRole, RideCategory, RsvpAnswer } from '../domain/types';
+import { readGpx } from '../domain/gpx';
+import type { ClubData, CrewRole, Member, MemberStatus, PositionRole, RideCategory, Route, RsvpAnswer } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 
 export interface ParityCase extends Record<string, unknown> {
@@ -33,6 +34,15 @@ export interface ParityFixture {
   crew?: { ride: string; member: string; role: CrewRole }[];
   /** Answers already given. */
   rsvps?: { ride: string; member: string; answer: RsvpAnswer }[];
+  /**
+   * GPX files by name. A saveRoute case names one in `file` (null: no file). Use only files the
+   * app's reader and Postgres judge alike: valid, or clearly malformed.
+   */
+  gpxFiles?: Record<string, string>;
+  /** The route library. Every route's file is gpxFiles.valid. */
+  routes?: { key: string; name: string; chapter: string | null; archived: boolean }[];
+  /** Which route each ride uses. */
+  rideRoutes?: { ride: string; route: string }[];
   cases: ParityCase[];
 }
 
@@ -88,7 +98,32 @@ export function fixtureData(without: string[] = []): ClubData {
     crew: (fixture.crew ?? []).map((k) => ({
       rideId: k.ride, memberId: k.member, role: k.role, assignedBy: null, assignedAt: '2026-10-01T00:00:00.000Z',
     })),
+    routes: fixtureRoutes(),
+    rideRoutes: (fixture.rideRoutes ?? []).map((r) => ({ rideId: r.ride, routeId: r.route })),
   };
+}
+
+/** The fixture's valid GPX file, which every fixture route is made from. */
+export function fixtureGpx(name: string | null | undefined): string | null {
+  if (name === null || name === undefined) return null;
+  const text = fixture.gpxFiles?.[name];
+  if (text === undefined) throw new Error(`No GPX file "${name}" in parity.json`);
+  return text;
+}
+
+function fixtureRoutes(): Route[] {
+  const summary = readGpx(fixtureGpx('valid') ?? '');
+  if (typeof summary === 'string') throw new Error(`parity.json's valid GPX file: ${summary}`);
+  return (fixture.routes ?? []).map((r) => ({
+    id: r.key, name: r.name, chapterId: r.chapter, notes: '', ...summary,
+    archivedAt: r.archived ? '2026-01-01T00:00:00.000Z' : null, updatedAt: '2026-01-01T00:00:00.000Z',
+  }));
+}
+
+/** The case as the demo action it names: a saveRoute case's `file` becomes the file's text. */
+export function caseAction(c: ParityCase): DemoAction {
+  if (c.action === 'saveRoute') return { ...(c as unknown as DemoAction), gpx: fixtureGpx(c.file as string | null) } as DemoAction;
+  return c as unknown as DemoAction;
 }
 
 /** What the demo says to this case: null when it allows it, otherwise its refusal message. */
@@ -96,7 +131,7 @@ export function demoAnswer(c: ParityCase): string | null {
   const data = fixtureData(c.without ?? []);
   const me = data.members.find((m) => m.id === c.as) ?? null;
   try {
-    runDemoAction({ data, me, today: '2026-10-24' }, c as unknown as DemoAction);
+    runDemoAction({ data, me, today: '2026-10-24' }, caseAction(c));
     return null;
   } catch (e) {
     return (e as Error).message;

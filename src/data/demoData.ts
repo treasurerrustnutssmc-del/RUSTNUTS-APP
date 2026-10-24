@@ -1,7 +1,8 @@
 // Made-up example members for the demo build. Nobody here is a real person.
 // Replaced by the live database once Supabase is connected.
 
-import type { ClubData, Member, MemberPrivate, Ride } from '../domain/types';
+import { readGpx } from '../domain/gpx';
+import type { ClubData, Member, MemberPrivate, Ride, Route } from '../domain/types';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
   roadName: null,
@@ -37,6 +38,104 @@ const daysFromNow = (days: number, utcTime: string): string => {
   d.setUTCDate(d.getUTCDate() + days);
   return `${d.toISOString().slice(0, 10)}T${utcTime}`;
 };
+
+// ---- Made-up routes ----
+// Each is a handful of real towns (lat, lng, metres up) joined with in-between points that wander
+// a little, as a road does, written out as a GPX file. The summary each route shows is read back
+// from that file by the app's own GPX reader, so the demo looks exactly as an uploaded file would.
+
+type Town = [lat: number, lng: number, ele: number];
+type Stop = { name: string; lat: number; lng: number };
+
+/** The towns joined up, `between` points on each leg, with a small steady sideways wander. */
+function road(towns: Town[], between = 3): Town[] {
+  const out: Town[] = [];
+  towns.forEach((to, leg) => {
+    if (leg === 0) return void out.push(to);
+    const from = towns[leg - 1];
+    for (let k = 1; k <= between + 1; k++) {
+      const t = k / (between + 1);
+      const wander = k <= between ? Math.sin(leg * 2.1 + k * 1.7) * 0.006 : 0;
+      out.push([
+        +(from[0] + (to[0] - from[0]) * t + wander).toFixed(5),
+        +(from[1] + (to[1] - from[1]) * t - wander).toFixed(5),
+        Math.round(from[2] + (to[2] - from[2]) * t + Math.abs(wander) * 4000),
+      ]);
+    }
+  });
+  return out;
+}
+
+/** A GPX 1.1 file of stops and one track, as a route planner writes one. */
+function gpxFile(name: string, points: Town[], stops: Stop[]): string {
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const wpts = stops.map((w) => `  <wpt lat="${w.lat}" lon="${w.lng}"><name>${esc(w.name)}</name></wpt>`);
+  const trkpts = points.map(([lat, lng, ele]) => `      <trkpt lat="${lat}" lon="${lng}"><ele>${ele}</ele></trkpt>`);
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<gpx version="1.1" creator="Rustnuts demo" xmlns="http://www.topografix.com/GPX/1/1">',
+    ...wpts,
+    `  <trk><name>${esc(name)}</name><trkseg>`,
+    ...trkpts,
+    '  </trkseg></trk>',
+    '</gpx>',
+    '',
+  ].join('\n');
+}
+
+const DEMO_ROUTES: { route: Omit<Route, 'distanceM' | 'climbM' | 'line' | 'stops' | 'bounds' | 'archivedAt'>; towns: Town[]; stops: Stop[] }[] = [
+  {
+    route: { id: 'rt-west-loop', name: 'Daylesford breakfast loop', chapterId: 'ch-west', updatedAt: '2026-10-18T09:00:00.000Z',
+      notes: 'Out through Bacchus Marsh and Ballan, breakfast in Daylesford, home over Blackwood and Myrniong.' },
+    towns: [
+      [-37.835, 144.795, 15], [-37.9, 144.661, 15], [-37.8, 144.556, 110], [-37.675, 144.438, 105], [-37.6, 144.226, 430],
+      [-37.341, 144.143, 620], [-37.474, 144.304, 520], [-37.618, 144.35, 300], [-37.683, 144.585, 90], [-37.73, 144.66, 70],
+      [-37.835, 144.795, 15],
+    ],
+    stops: [
+      { name: 'KSU, Laverton North servo', lat: -37.835, lng: 144.795 },
+      { name: 'Fuel, Bacchus Marsh', lat: -37.675, lng: 144.438 },
+      { name: 'Breakfast, Daylesford', lat: -37.341, lng: 144.143 },
+    ],
+  },
+  {
+    route: { id: 'rt-north-hills', name: 'Kinglake hills', chapterId: 'ch-north', updatedAt: '2026-10-12T09:00:00.000Z',
+      notes: 'Tight and steep up the Kinglake range. Watch for gravel on the corners after rain.' },
+    towns: [
+      [-37.603, 145.097, 150], [-37.512, 145.118, 200], [-37.493, 145.18, 330], [-37.474, 145.225, 520], [-37.522, 145.34, 550],
+      [-37.593, 145.27, 200], [-37.64, 145.193, 100], [-37.673, 145.158, 110], [-37.57, 145.105, 170], [-37.603, 145.097, 150],
+    ],
+    stops: [
+      { name: 'Coffee, Whittlesea', lat: -37.512, lng: 145.118 },
+      { name: 'Kinglake lookout', lat: -37.522, lng: 145.34 },
+      { name: 'Regroup, Hurstbridge', lat: -37.64, lng: 145.193 },
+    ],
+  },
+  {
+    route: { id: 'rt-club-run', name: 'Two chapters run', chapterId: null, updatedAt: '2026-10-05T09:00:00.000Z',
+      notes: 'From the clubhouse up to Lancefield for lunch, then across to Kilmore and home through the North.' },
+    towns: [
+      [-37.866, 144.745, 20], [-37.745, 144.735, 70], [-37.627, 144.719, 180], [-37.577, 144.727, 200], [-37.465, 144.678, 400],
+      [-37.351, 144.743, 470], [-37.278, 144.733, 480], [-37.296, 144.953, 400], [-37.416, 144.978, 300], [-37.6, 144.943, 170],
+    ],
+    stops: [
+      { name: 'Regroup, Sunbury', lat: -37.577, lng: 144.727 },
+      { name: 'Lunch, Lancefield', lat: -37.278, lng: 144.733 },
+      { name: 'Finish, Craigieburn', lat: -37.6, lng: 144.943 },
+    ],
+  },
+];
+
+/** Each demo route's GPX file, by route id. The demo hands these out as `routeGpx`. */
+export const DEMO_ROUTE_GPX: Record<string, string> = Object.fromEntries(
+  DEMO_ROUTES.map((d) => [d.route.id, gpxFile(d.route.name, road(d.towns), d.stops)]),
+);
+
+const demoRoutes: Route[] = DEMO_ROUTES.map(({ route }) => {
+  const summary = readGpx(DEMO_ROUTE_GPX[route.id]);
+  if (typeof summary === 'string') throw new Error(`Demo route ${route.name}: ${summary}`);
+  return { ...route, ...summary, archivedAt: null };
+});
 
 export const DEMO_DATA: ClubData = {
   chapters: [
@@ -205,6 +304,9 @@ export const DEMO_DATA: ClubData = {
     { rideId: 'r-1', memberId: 'm-chook', role: 'officer', assignedBy: 'm-torque', assignedAt: '2026-10-21T12:30:00.000Z' },
     { rideId: 'r-2', memberId: 'm-crank', role: 'road_captain', assignedBy: 'm-smokey', assignedAt: '2026-10-22T09:30:00.000Z' },
   ],
+  // The library, and the West breakfast run uses the West loop. North coffee and curves has no route yet.
+  routes: demoRoutes,
+  rideRoutes: [{ rideId: 'r-1', routeId: 'rt-west-loop' }],
 };
 
 /** The people you can "view as" in the demo, one per access level. */
