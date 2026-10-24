@@ -37,8 +37,11 @@ Nobody fills in the join form or waits for the board.
 Claiming trusts a confirmed email. The app only uses email codes, but Supabase's email provider
 also accepts password sign-ups with the public key. Before members get the app:
 - Keep **Confirm email** on (Authentication → Sign In / Providers → Email).
-- Block password sign-ups with a before-user-created hook, so nobody can register a member's
-  address with a password ahead of them.
+- Turn off password sign-in entirely. The before-user-created hook can't see whether a sign-up
+  used a password, so use the **Password Verification Attempt** hook instead: a Postgres function
+  that always returns `{"decision": "reject"}`, enabled under Authentication → Hooks. The app only
+  uses email codes, so nobody loses anything. A password someone set on a member's address
+  ahead of them is then useless.
 
 Supabase gives email-code accounts a random password as well, so `claim_roster` can't tell the
 two kinds of account apart by password. Anonymous accounts are refused.
