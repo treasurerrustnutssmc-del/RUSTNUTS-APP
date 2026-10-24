@@ -4,6 +4,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readGpx } from '../domain/gpx';
 import type {
   BallotChoice,
   ClubData,
@@ -14,10 +15,13 @@ import type {
   MemberStatus,
   PositionRole,
   RideCategory,
+  Route,
   RsvpAnswer,
   Threshold,
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
+import type { Conversation } from '../domain/chat';
+import { directId, runChatAction, type ChatAction, type ChatData } from './chat/demoChatActions';
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -52,7 +56,21 @@ export interface ParityFixture {
   crew?: { ride: string; member: string; role: CrewRole }[];
   /** Answers already given. */
   rsvps?: { ride: string; member: string; answer: RsvpAnswer }[];
+  /**
+   * GPX files by name. A saveRoute case names one in `file` (null: no file). Use only files the
+   * app's reader and Postgres judge alike: valid, or clearly malformed.
+   */
+  gpxFiles?: Record<string, string>;
+  /** The route library. Every route's file is gpxFiles.valid. */
+  routes?: { key: string; name: string; chapter: string | null; archived: boolean }[];
+  /** Which route each ride uses. */
+  rideRoutes?: { ride: string; route: string }[];
   cases: ParityCase[];
+  // Stage 3 (lane B): chats. A chat is named `club`, `nec`, `committee:ride`, `committee:charity`,
+  // `chapter:<slug>`, `board:<slug>`, `ride:<ride key>` or `direct:<key>:<key>` (keys in order).
+  directs?: [string, string][];
+  blocks?: { blocker: string; blocked: string }[];
+  messages?: { key: string; chat: string; author: string; body: string; removed?: boolean }[];
 }
 
 export const fixture: ParityFixture = JSON.parse(
@@ -121,7 +139,33 @@ export function fixtureData(without: string[] = []): ClubData {
     crew: (fixture.crew ?? []).map((k) => ({
       rideId: k.ride, memberId: k.member, role: k.role, assignedBy: null, assignedAt: '2026-10-01T00:00:00.000Z',
     })),
+    routes: fixtureRoutes(),
+    rideRoutes: (fixture.rideRoutes ?? []).map((r) => ({ rideId: r.ride, routeId: r.route })),
   };
+}
+
+/** The fixture's valid GPX file, which every fixture route is made from. */
+export function fixtureGpx(name: string | null | undefined): string | null {
+  if (name === null || name === undefined) return null;
+  const text = fixture.gpxFiles?.[name];
+  if (text === undefined) throw new Error(`No GPX file "${name}" in parity.json`);
+  return text;
+}
+
+function fixtureRoutes(): Route[] {
+  const summary = readGpx(fixtureGpx('valid') ?? '');
+  if (typeof summary === 'string') throw new Error(`parity.json's valid GPX file: ${summary}`);
+  const { name: _fileName, ...shape } = summary; // each route keeps its own name
+  return (fixture.routes ?? []).map((r) => ({
+    id: r.key, name: r.name, chapterId: r.chapter, notes: '', ...shape,
+    archivedAt: r.archived ? '2026-01-01T00:00:00.000Z' : null, updatedAt: '2026-01-01T00:00:00.000Z',
+  }));
+}
+
+/** The case as the demo action it names: a saveRoute case's `file` becomes the file's text. */
+export function caseAction(c: ParityCase): DemoAction {
+  if (c.action === 'saveRoute') return { ...(c as unknown as DemoAction), gpx: fixtureGpx(c.file as string | null) } as DemoAction;
+  return c as unknown as DemoAction;
 }
 
 /** What the demo says to this case: null when it allows it, otherwise its refusal message. */
@@ -129,9 +173,49 @@ export function demoAnswer(c: ParityCase): string | null {
   const data = fixtureData(c.without ?? []);
   const me = data.members.find((m) => m.id === c.as) ?? null;
   try {
-    runDemoAction({ data, me, today: '2026-10-24' }, c as unknown as DemoAction);
+    if (String(c.action).startsWith('chat')) {
+      runChatAction({ chat: fixtureChat(), club: data, me, now: '2026-10-24T01:00:00.000Z' }, c as unknown as ChatAction);
+      return null;
+    }
+    runDemoAction({ data, me, today: '2026-10-24' }, caseAction(c));
     return null;
   } catch (e) {
     return (e as Error).message;
   }
+}
+
+// Stage 3 (lane B): the fixture's chats, each with its fixture name as its id.
+export function fixtureChat(): ChatData {
+  const chat = (id: string, over: Partial<Conversation> & Pick<Conversation, 'kind'>): Conversation => ({
+    id, chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], ...over,
+  });
+  const chapters = fixtureData().chapters;
+  return {
+    conversations: [
+      chat('club', { kind: 'club' }),
+      chat('nec', { kind: 'nec' }),
+      chat('committee:ride', { kind: 'committee', committee: 'ride' }),
+      chat('committee:charity', { kind: 'committee', committee: 'charity' }),
+      ...chapters.flatMap((c) => [
+        chat(`chapter:${c.slug}`, { kind: 'chapter', chapterId: c.id }),
+        chat(`board:${c.slug}`, { kind: 'board', chapterId: c.id }),
+      ]),
+      ...fixture.rides.map((r) => chat(`ride:${r.key}`, { kind: 'ride', rideId: r.key })),
+      ...(fixture.directs ?? []).map(([a, b]) => chat(directId(a, b), { kind: 'direct', memberIds: [a, b] })),
+    ],
+    messages: (fixture.messages ?? []).map((m, i) => ({
+      id: m.key,
+      conversationId: m.chat,
+      authorId: m.author,
+      body: m.removed ? null : m.body,
+      createdAt: new Date(Date.UTC(2026, 9, 24, 0, i)).toISOString(),
+      removedAt: m.removed ? '2026-10-24T00:30:00.000Z' : null,
+      replyToId: null,
+      media: [],
+      reactions: [],
+    })),
+    reads: [],
+    blocks: (fixture.blocks ?? []).map((b) => ({ blockerId: b.blocker, blockedId: b.blocked })),
+    reports: [],
+  };
 }

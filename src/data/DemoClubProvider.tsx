@@ -1,20 +1,22 @@
 // Demo build: made-up members held in memory. Every action goes through demoActions, which
 // applies the same rules the database enforces (checked by src/data/parity.test.ts).
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel } from '../domain/access';
 import { todayIso } from '../domain/dates';
 import type { ClubData } from '../domain/types';
 import { ClubContext, type ClubContextValue } from './clubContext';
 import * as business from './businessActions';
 import * as act from './demoActions';
-import { DEMO_DATA, demoTodayRide } from './demoData';
+import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
   const [data, setData] = useState<ClubData>(() => ({ ...DEMO_DATA, rides: [...DEMO_DATA.rides, demoTodayRide()] }));
   const [meId, setMeId] = useState<string | null>(null);
+  // The routes' GPX files, by route id, apart from the club data as the database keeps them.
+  const routeFiles = useRef(new Map(Object.entries(DEMO_ROUTE_GPX)));
   const today = todayIso();
 
   const me = useMemo(() => data.members.find((m) => m.id === meId) ?? null, [data.members, meId]);
@@ -83,6 +85,15 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     closeVote: async (voteId, casting) => setData(business.closeVote(ctx, voteId, casting)),
     setCrew: async (rideId, memberId, role) => setData(act.setCrew(ctx, rideId, memberId, role)),
     leaveCrew: async (rideId, memberId) => setData(act.leaveCrew(ctx, rideId, memberId)),
+    saveRoute: async (input) => {
+      const result = act.saveRoute(ctx, input);
+      if (input.gpx !== null) routeFiles.current.set(result.id, act.storedGpx(input.gpx));
+      setData(result.data);
+      return result.id;
+    },
+    archiveRoute: async (routeId) => setData(act.archiveRoute(ctx, routeId)),
+    setRideRoute: async (rideId, routeId) => setData(act.setRideRoute(ctx, rideId, routeId)),
+    routeGpx: async (routeId) => act.routeGpx(ctx, routeFiles.current, routeId),
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => setData((d) => ({ ...d, notificationPrefs: prefs })),
   };

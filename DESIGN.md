@@ -244,6 +244,17 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
   - **Locked:** on a cancelled ride or after the ride day the crew is a record. Only the people who crewed show, with no buttons and no Open rows. If nobody crewed, the section isn't shown.
 - **Pick crew screen:** the role as the title, the ride and date under it, a line on who can crew, then Going, that chapter's standing holders and everyone else, each by road name. A member already on this ride's crew carries a "Now RC" (or TG, ATG, O) chip, so it doesn't read as a standing position. Tapping a name saves it and goes back. A refusal shows under that name.
 
+### Route
+- **Route shape** (`RouteShape`): the route's line in bone on a steel tile, with an ink edge under it. The start is a green dot and the finish a hollow bone square drawn under it, so a loop shows both. A key (Start, Finish) sits under the full shape; list rows get a 56 square thumbnail with no key. No map tiles.
+- **Distance and climb:** stencil fact lines with icons, like the ride screen's date and time: km to one decimal place, climb in whole metres ("84.2 km", "1,240 m climb").
+- **Chapter chip:** North and West in their ride colours, and Whole club in the Rustnuts (club) colours.
+- **Ride screen Route section** (between the answers and the crew): one card with the route's name (tapping it opens the Route screen), the shape, distance and climb, the numbered stops, and **Open in maps app**, a secondary button here because the chosen answer is the screen's red. Crew managers get **Choose route**, or **Change** and **Remove** (`ConfirmButton`). After the ride day, or on a cancelled ride, it's a record with no buttons. With no route and nothing the viewer can do, the section isn't shown.
+- **Route library** (from a row at the top of the Rides tab): chapter filter chips like the Rides chips, then one card of rows (thumbnail, name, distance, chapter chip), newest first. Managers get **Add route**, the screen's red.
+- **Route screen:** chapter chip, the name, distance and climb, the full shape, then **Open in maps app** as the primary. Notes, numbered stops and the rides using it follow. Managers get **Edit** and **Archive** (`ConfirmButton`, secondary first tap).
+- **Add / edit route:** **Pick GPX file** is the red until a file is read, then **Save** is. The summary (shape, distance, climb, stops) shows for checking before saving, with **Replace file**. Chapter choices only offer what the person can file under.
+- **Choose route:** the ride and date, a switch for every chapter's routes (off: the ride's chapter and whole-club), then the library rows. The route already on the ride carries an "On this ride" chip. Tapping one saves it and goes back.
+- On the web, **Open in maps app** reads **Download GPX** and saves the file instead of opening the share sheet.
+
 ### Signature pieces
 - **Member disc:** the real round MEMBER patch art, shown only on Full members and Nomads.
 - **Flannel:** a flannel photo under a 76% ink wash. It's an accent only, used for the welcome, the waiting screen, the Home greeting and the disc moment.
@@ -269,3 +280,13 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - **Don't** put a small uppercase eyebrow label above a heading. The heading speaks for itself.
 - **Don't** use the group photo of the men.
 - **Don't** use the flannel as a general background. It's for its four moments only.
+
+## Stage 3 (lane B): chat and photos
+
+- **Tab bar:** Home, Chat, Rides, Members, Board (board members), Me. Chat carries a red unread count; its spoken label is "Chat, N unread".
+- **Chat list:** one card of rows. Each row has an icon badge (club, chapter flag, big table, NEC, committee, ride) or the person's avatar for a private chat, the chat name in stencil, the last message on one line, the time in stencil and a red unread count.
+- **Bubbles:** other people's messages are outlined ink cards with the avatar at the bottom left and an author line (stencil name, rank chip, top role chip). Your own are filled steel, right-aligned, with no author line. Runs from one person within a few minutes share one author line. Day labels (Today, Yesterday, DD/MM/YYYY) sit centred in stencil.
+- **Tapping a message** opens its actions under it: six reaction squares, Reply, Pin (moderators), Report, and a two-tap ConfirmButton to remove. Reaction counts sit under the bubble as pills.
+- **Composer:** steel field one line high that grows to six lines, with photo, camera (phones only) and a stencil GIF button to its left, and a red send square to its right. The GIF panel opens under it and says "Powered by GIPHY".
+- **Media:** one photo fills the bubble at its own shape (from 2:1 wide to a little taller than square); two to four sit in a two-across grid. Videos show a still with a play mark. Link cards are steel with the site in stencil.
+- **Photos screen:** Latest / Ride walls choices, a three-across grid with 3pt gaps, and a black full-screen viewer with the poster's name, the date and "Open the chat".

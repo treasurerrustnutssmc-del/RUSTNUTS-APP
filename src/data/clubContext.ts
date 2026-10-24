@@ -50,6 +50,18 @@ export type BikeInput = Omit<Bike, 'memberId' | 'id'> & { id: string | null };
 export type RegoInput = Omit<BikeRegistration, 'bikeId'>;
 export type ContactInput = Omit<EmergencyContact, 'memberId' | 'id'> & { id: string | null };
 
+/**
+ * A route to add (id null) or change. `gpx` is the GPX file's text, read on the phone before
+ * saving; null keeps the route's file and changes only the name, chapter and notes.
+ */
+export interface RouteInput {
+  id: string | null;
+  name: string;
+  chapterId: string | null;
+  notes: string;
+  gpx: string | null;
+}
+
 export interface ClubContextValue {
   mode: 'demo' | 'live';
   isDemo: boolean;
@@ -114,6 +126,14 @@ export interface ClubContextValue {
   setCrew: (rideId: string, memberId: string, role: CrewRole) => Promise<void>;
   /** Takes a member off a ride's crew (yourself, or anyone if you manage the ride). */
   leaveCrew: (rideId: string, memberId: string) => Promise<void>;
+  /** Adds or changes a route in the library (route managers only). Resolves to the route's id. */
+  saveRoute: (input: RouteInput) => Promise<string>;
+  /** Hides a route from the library and from choosing. Rides that use it keep it. */
+  archiveRoute: (routeId: string) => Promise<void>;
+  /** Chooses a ride's route, or clears it with null (the ride's crew managers only). */
+  setRideRoute: (rideId: string, routeId: string | null) => Promise<void>;
+  /** One route's GPX file, for opening in a maps app. Archived routes still read. */
+  routeGpx: (routeId: string) => Promise<string>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -139,6 +159,8 @@ export const EMPTY_DATA: ClubData = {
   actionItems: [],
   votes: [],
   crew: [],
+  routes: [],
+  rideRoutes: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

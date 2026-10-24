@@ -98,6 +98,13 @@ test('who manages a ride', () => {
   assert.equal(managesRide(null, WEST_RIDE, d), false);
   assert.equal(managesRide({ ...westPres, approval: 'pending' }, WEST_RIDE, d), false, 'approved only');
   assert.equal(managesRide(northRc, ride('s', { category: 'supported' }), d), true, 'supported is "any other category"');
+  // A North or West ride whose chapter isn't in the data: only the NEC.
+  const noChapters = data({ chapters: [] });
+  assert.equal(managesRide(nec, WEST_RIDE, noChapters), true, 'the NEC still manages it');
+  assert.equal(managesRide(northRc, WEST_RIDE, noChapters), false, 'a board seat that isn’t on the NEC does not');
+  assert.equal(managesRide(westComm, WEST_RIDE, noChapters), false, 'a ride committee seat does not');
+  assert.equal(managesRide(null, WEST_RIDE, noChapters), false, 'signed out');
+  assert.equal(managesRide({ ...nec, approval: 'pending' }, WEST_RIDE, noChapters), false, 'approved only');
   const ended = data({ positions: [position('west-comm', 'ride_committee', 'ch-west', { endedOn: '2026-01-01' })] });
   assert.equal(managesRide(westComm, WEST_RIDE, ended), false, 'ended terms do not count');
 });

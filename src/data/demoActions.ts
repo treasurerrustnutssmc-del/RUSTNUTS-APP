@@ -4,6 +4,8 @@
 
 import { appointProblem, endTermProblem, isBoardOf } from '../domain/access';
 import { crewProblem, leaveProblem } from '../domain/crew';
+import { NO_TRACK, readGpx } from '../domain/gpx';
+import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
 import { APPROVE_AS, NATIONAL_ROLES, TITLE_ROLES } from '../domain/labels';
 import type {
@@ -15,6 +17,7 @@ import type {
   Member,
   MemberStatus,
   PositionRole,
+  Route,
   RsvpAnswer,
   Threshold,
 } from '../domain/types';
@@ -30,6 +33,7 @@ import {
   type PrivateInput,
   type ProfileInput,
   type RegoInput,
+  type RouteInput,
 } from './clubContext';
 
 export interface DemoCtx {
@@ -324,6 +328,81 @@ export function leaveCrew(ctx: DemoCtx, rideId: string, memberId: string): ClubD
   return { ...ctx.data, crew: (ctx.data.crew ?? []).filter((s) => !(s.rideId === rideId && s.memberId === memberId)) };
 }
 
+/** The text a saved GPX file is kept as: a leading byte order mark is cut off, as the database does. */
+export const storedGpx = (text: string) => (text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+
+/**
+ * Adds a route (id null) or changes one. The rule checks come first, then the file, the same
+ * order as public.save_route. A null `gpx` keeps the route's file and its summary. The demo
+ * keeps the files themselves apart from the club data (see DemoClubProvider), so the caller
+ * stores `storedGpx(input.gpx)` under the returned id.
+ */
+export function saveRoute(ctx: DemoCtx, input: RouteInput): { data: ClubData; id: string } {
+  const now = ctx.now ?? new Date().toISOString();
+  const routes = ctx.data.routes ?? [];
+  const existing = input.id === null ? undefined : routes.find((r) => r.id === input.id);
+  const problem = saveRouteProblem(ctx.me, existing, input, ctx.data);
+  if (problem) throw new NotAllowedError(problem);
+  let summary: Pick<Route, 'distanceM' | 'climbM' | 'line' | 'stops' | 'bounds'>;
+  if (input.gpx === null) {
+    if (!existing) throw new Error(NO_TRACK);
+    summary = existing;
+  } else {
+    const read = readGpx(input.gpx);
+    if (typeof read === 'string') throw new Error(read);
+    summary = read;
+  }
+  const id = existing?.id ?? newId('rt');
+  const record: Route = {
+    id,
+    name: input.name.trim(),
+    chapterId: input.chapterId,
+    notes: input.notes.trim(),
+    distanceM: summary.distanceM,
+    climbM: summary.climbM,
+    line: summary.line,
+    stops: summary.stops,
+    bounds: summary.bounds,
+    archivedAt: existing?.archivedAt ?? null,
+    updatedAt: now,
+  };
+  return {
+    data: { ...ctx.data, routes: existing ? routes.map((r) => (r.id === id ? record : r)) : [...routes, record] },
+    id,
+  };
+}
+
+/** Archives a route. Archiving an archived route changes nothing. */
+export function archiveRoute(ctx: DemoCtx, routeId: string): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const routes = ctx.data.routes ?? [];
+  const route = routes.find((r) => r.id === routeId);
+  const problem = archiveRouteProblem(ctx.me, route, ctx.data);
+  if (problem) throw new NotAllowedError(problem);
+  if (route!.archivedAt) return ctx.data;
+  return { ...ctx.data, routes: routes.map((r) => (r.id === routeId ? { ...r, archivedAt: now, updatedAt: now } : r)) };
+}
+
+/** Chooses a ride's route, or clears it (null). */
+export function setRideRoute(ctx: DemoCtx, rideId: string, routeId: string | null): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const ride = ctx.data.rides.find((r) => r.id === rideId);
+  const route = routeId === null ? null : (ctx.data.routes ?? []).find((r) => r.id === routeId);
+  const problem = rideRouteProblem(ctx.me, ride, route, ctx.data, now);
+  if (problem) throw new NotAllowedError(problem);
+  const others = (ctx.data.rideRoutes ?? []).filter((r) => r.rideId !== rideId);
+  return { ...ctx.data, rideRoutes: routeId === null ? others : [...others, { rideId, routeId }] };
+}
+
+/** One route's GPX file from the demo's files. Mirrors public.route_gpx. */
+export function routeGpx(ctx: DemoCtx, files: ReadonlyMap<string, string>, routeId: string): string {
+  const problem = signedInProblem(ctx.me);
+  if (problem) throw new NotAllowedError(problem);
+  const file = (ctx.data.routes ?? []).some((r) => r.id === routeId) ? files.get(routeId) : undefined;
+  if (file === undefined) throw new Error(NO_ROUTE);
+  return file;
+}
+
 /** The actions the shared parity cases use, by name. */
 export type DemoAction =
   | { action: 'appoint'; member: string; chapter: string | null; role: PositionRole }
@@ -348,7 +427,10 @@ export type DemoAction =
   | { action: 'castBallot'; vote: string; choice: BallotChoice }
   | { action: 'closeVote'; vote: string; casting: 'yes' | 'no' | null }
   | { action: 'crew'; ride: string; member: string; role: CrewRole }
-  | { action: 'leaveCrew'; ride: string; member: string };
+  | { action: 'leaveCrew'; ride: string; member: string }
+  | { action: 'saveRoute'; route: string | null; routeName: string; chapter: string | null; notes?: string; gpx: string | null }
+  | { action: 'archiveRoute'; route: string }
+  | { action: 'setRideRoute'; ride: string; route: string | null };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -370,6 +452,12 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return setCrew(ctx, a.ride, a.member, a.role);
     case 'leaveCrew':
       return leaveCrew(ctx, a.ride, a.member);
+    case 'saveRoute':
+      return saveRoute(ctx, { id: a.route, name: a.routeName, chapterId: a.chapter, notes: a.notes ?? '', gpx: a.gpx }).data;
+    case 'archiveRoute':
+      return archiveRoute(ctx, a.route);
+    case 'setRideRoute':
+      return setRideRoute(ctx, a.ride, a.route);
     case 'removeContact':
       return removeContact(ctx, a.contact);
     case 'saveBike':
