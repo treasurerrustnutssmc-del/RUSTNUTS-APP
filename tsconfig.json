@@ -11,6 +11,7 @@
     "scripts",
     "preview",
     "supabase/functions/sync-rides",
-    "supabase/functions/link-preview"
+    "supabase/functions/link-preview",
+    "supabase/functions/send-push"
   ]
 }

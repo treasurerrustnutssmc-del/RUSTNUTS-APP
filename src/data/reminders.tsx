@@ -4,10 +4,11 @@
 
 import * as Notifications from 'expo-notifications';
 import { AndroidImportance, SchedulableTriggerInputTypes } from 'expo-notifications';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 import { DEFAULT_PREFS, reminderDiff, reminderPlan, type Reminder } from '../domain/notifications';
 import { useClub } from './ClubStore';
+import { forgetThisDevice, registerThisDevice } from './pushDevice';
 
 const KIND = 'ride-reminder';
 const CHANNEL = 'ride-reminders';
@@ -47,6 +48,7 @@ export function syncReminders(plan: Reminder[]): Promise<void> {
 /** Keeps the phone's ride reminders in step with the club data. Renders nothing. */
 export function ReminderSync() {
   const { data, me, loading, loadError, isDemo } = useClub();
+  const registeredFor = useRef<string | null>(null);
   // Undefined: the settings couldn't be read, so leave the phone's reminders as they are.
   const unknown = !!me && data.notificationPrefs === undefined;
   const prefs = data.notificationPrefs ?? DEFAULT_PREFS;
@@ -60,8 +62,23 @@ export function ReminderSync() {
     // Until a load finishes (or when it failed with nothing on screen) the plan would wrongly be empty.
     // The demo's rides are made up: no real reminders for them.
     if (loading || loadError || unknown || isDemo) return;
-    syncReminders(plan).catch(() => {});
+    syncReminders(plan)
+      .catch(() => {})
+      // After the reminders have asked for notifications: save this phone's push token, once per member.
+      .then(() => {
+        if (!me?.id || registeredFor.current === me.id) return;
+        registeredFor.current = me.id;
+        registerThisDevice();
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, loading, loadError, unknown, isDemo]);
+  // Signed out: finish removing this phone from the club's list if a sign-out with no signal couldn't.
+  const signedOut = !me && !loading && !isDemo;
+  useEffect(() => {
+    if (signedOut) {
+      registeredFor.current = null;
+      forgetThisDevice();
+    }
+  }, [signedOut]);
   return null;
 }
