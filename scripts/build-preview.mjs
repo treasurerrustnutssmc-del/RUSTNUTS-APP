@@ -26,14 +26,12 @@ const jsDir = join(dist, '_expo/static/js/web');
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
 const scripts = [...html.matchAll(/<script[^>]*\ssrc="([^"]+\.js)"/g)].map((m) => join(dist, m[1]));
 if (scripts.length === 0) throw new Error('No web bundle found in dist/index.html');
-// Chunks the app loads on demand (for example the camera's barcode reader) can't be fetched from a
-// one-file page. Their modules go in after the entry so they're defined; the feature that loads
-// them may still not work in the preview, which has no camera anyway.
-const onDemand = readdirSync(jsDir)
-  .filter((f) => f.endsWith('.js') && !scripts.includes(join(jsDir, f)))
-  .map((f) => join(jsDir, f));
-if (onDemand.length) console.log(`Also inlining ${onDemand.length} on-demand chunk(s)`);
-let bundle = [...scripts, ...onDemand].map((f) => readFileSync(f, 'utf8')).join(';\n');
+// Chunks the app loads on demand (for example the camera's barcode reader) are fetched by URL, which
+// a one-file page can't serve, so they're left out: those features don't work in the preview, which
+// has no camera anyway.
+const onDemand = readdirSync(jsDir).filter((f) => f.endsWith('.js') && !scripts.includes(join(jsDir, f)));
+if (onDemand.length) console.log(`Leaving out ${onDemand.length} on-demand chunk(s): ${onDemand.join(', ')}`);
+let bundle = scripts.map((f) => readFileSync(f, 'utf8')).join(';\n');
 
 // Assets the app actually shows. Everything else in the bundle (other icon sets) is never
 // requested on the web.
