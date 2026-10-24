@@ -5,7 +5,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { todayIso } from '../domain/dates';
+import {
+  actionItemProblem,
+  approveMinutesProblem,
+  cancelMeetingProblem,
+  saveMeetingProblem,
+  saveMinutesProblem,
+  setDoneProblem,
+} from '../domain/meetings';
 import { rsvpProblem } from '../domain/rides';
+import { castProblem, closeProblem, openVoteProblem } from '../domain/votes';
 import type { ClubData } from '../domain/types';
 import {
   ClubContext,
@@ -259,6 +268,99 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const problem = rsvpProblem(visibleMe, data.rides.find((r) => r.id === rideId), new Date().toISOString());
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('set_rsvp', { p_ride: rideId, p_answer: answer }));
+      await after();
+    },
+
+    // Stage 5: meetings and votes
+    saveMeeting: async (input) => {
+      const existing = input.id === null ? null : (data.meetings ?? []).find((x) => x.id === input.id);
+      const problem = saveMeetingProblem(visibleMe, input, existing, data);
+      if (problem) throw new NotAllowedError(problem);
+      const r = ok(
+        await supabase().rpc('save_meeting', {
+          p_id: input.id,
+          p_chapter: input.chapterId,
+          p_kind: input.kind,
+          p_title: input.title,
+          p_starts_at: input.startsAt,
+          p_location: input.location,
+          p_agenda: input.agenda,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    cancelMeeting: async (id) => {
+      const problem = cancelMeetingProblem(visibleMe, (data.meetings ?? []).find((x) => x.id === id), data, new Date().toISOString());
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('cancel_meeting', { p_id: id }));
+      await after();
+    },
+    saveMinutes: async (id, text) => {
+      const problem = saveMinutesProblem(visibleMe, (data.meetings ?? []).find((x) => x.id === id), data);
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('save_minutes', { p_id: id, p_text: text }));
+      await after();
+    },
+    approveMinutes: async (id) => {
+      // The draft on screen may be newer than the saved one, so the database has the final say on blank minutes.
+      const problem = approveMinutesProblem(visibleMe, (data.meetings ?? []).find((x) => x.id === id), data, new Date().toISOString());
+      if (problem && problem !== 'Write the minutes first.') throw new NotAllowedError(problem);
+      ok(await supabase().rpc('approve_minutes', { p_id: id }));
+      await after();
+    },
+    saveActionItem: async (input) => {
+      const problem = actionItemProblem(visibleMe, input, data);
+      if (problem) throw new NotAllowedError(problem);
+      ok(
+        await supabase().rpc('save_action_item', {
+          p_id: input.id,
+          p_chapter: input.chapterId,
+          p_meeting: input.meetingId,
+          p_title: input.title,
+          p_owner: input.ownerId,
+          p_due: input.dueOn,
+        }),
+      );
+      await after();
+    },
+    setActionDone: async (id, done) => {
+      const problem = setDoneProblem(visibleMe, (data.actionItems ?? []).find((a) => a.id === id), data);
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('set_action_done', { p_id: id, p_done: done }));
+      await after();
+    },
+    openVote: async (input) => {
+      const problem = openVoteProblem(visibleMe, input, data, new Date().toISOString());
+      if (problem) throw new NotAllowedError(problem);
+      const r = ok(
+        await supabase().rpc('open_vote', {
+          p_chapter: input.chapterId,
+          p_meeting: input.meetingId,
+          p_subject: input.subjectMemberId,
+          p_question: input.question,
+          p_details: input.details,
+          p_electorate: input.electorate,
+          p_threshold: input.threshold,
+          p_secret: input.secret,
+          p_quorum: input.quorum,
+          p_closes_at: input.closesAt,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    castBallot: async (voteId, choice) => {
+      const problem = castProblem(visibleMe, (data.votes ?? []).find((v) => v.id === voteId), new Date().toISOString());
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('cast_ballot', { p_vote: voteId, p_choice: choice }));
+      await after();
+    },
+    closeVote: async (voteId, casting) => {
+      // The count stays in the database until the vote closes, so it decides on a tie.
+      const problem = closeProblem(visibleMe, (data.votes ?? []).find((v) => v.id === voteId), null, casting, data, new Date().toISOString());
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('close_vote', { p_vote: voteId, p_casting: casting }));
       await after();
     },
   };

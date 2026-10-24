@@ -6,6 +6,7 @@ import { accessLevel } from '../domain/access';
 import { todayIso } from '../domain/dates';
 import type { ClubData } from '../domain/types';
 import { ClubContext, type ClubContextValue } from './clubContext';
+import * as business from './businessActions';
 import * as act from './demoActions';
 import { DEMO_DATA } from './demoData';
 
@@ -58,6 +59,25 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     appoint: async (memberId, chapterId, role) => setData(act.appoint(ctx, memberId, chapterId, role)),
     endPosition: async (positionId) => setData(act.endTerm(ctx, positionId)),
     setRsvp: async (rideId, answer) => setData(act.setRsvp(ctx, rideId, answer)),
+
+    // Stage 5: meetings and votes
+    saveMeeting: async (input) => {
+      const result = business.saveMeeting(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    cancelMeeting: async (id) => setData(business.cancelMeeting(ctx, id)),
+    saveMinutes: async (id, text) => setData(business.saveMinutes(ctx, id, text)),
+    approveMinutes: async (id) => setData(business.approveMinutes(ctx, id)),
+    saveActionItem: async (input) => setData(business.saveActionItem(ctx, input).data),
+    setActionDone: async (id, done) => setData(business.setActionDone(ctx, id, done)),
+    openVote: async (input) => {
+      const result = business.openVote(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    castBallot: async (voteId, choice) => setData(business.castBallot(ctx, voteId, choice)),
+    closeVote: async (voteId, casting) => setData(business.closeVote(ctx, voteId, casting)),
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;

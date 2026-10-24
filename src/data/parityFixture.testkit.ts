@@ -4,7 +4,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ClubData, Member, MemberStatus, PositionRole, RideCategory } from '../domain/types';
+import type { BallotChoice, ClubData, Electorate, MeetingKind, Member, MemberStatus, PositionRole, RideCategory, Threshold } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 
 export interface ParityCase extends Record<string, unknown> {
@@ -23,6 +23,12 @@ export interface ParityFixture {
   bikes: { key: string; member: string; make: string; model: string; year: number }[];
   contacts: { key: string; member: string; name: string; relationship: string; phone: string }[];
   rides: { key: string; title: string; startsAt: string; category: RideCategory; cancelled: boolean }[];
+  // Stage 5: meetings and votes
+  meetings: { key: string; chapter: string | null; kind: MeetingKind; title: string; startsAt: string; minutes: string | null; approved: boolean }[];
+  votes: {
+    key: string; chapter: string | null; electorate: Electorate; threshold: Threshold; quorum: number; closesAt: string;
+    electors: string[]; ballots: { member: string; choice: BallotChoice }[];
+  }[];
   cases: ParityCase[];
 }
 
@@ -68,6 +74,20 @@ export function fixtureData(without: string[] = []): ClubData {
       category: r.category, cancelledAt: r.cancelled ? '2026-01-01T00:00:00.000Z' : null,
     })),
     rsvps: [],
+    // Stage 5: meetings and votes
+    meetings: fixture.meetings.map((x) => ({
+      id: x.key, chapterId: x.chapter, kind: x.kind, title: x.title, startsAt: new Date(x.startsAt).toISOString(),
+      location: null, agenda: [], minutes: x.minutes, minutesApprovedAt: x.approved ? '2026-03-01T00:00:00.000Z' : null,
+      minutesApprovedBy: null, cancelledAt: null, createdBy: null,
+    })),
+    actionItems: [],
+    votes: fixture.votes.map((v) => ({
+      id: v.key, chapterId: v.chapter, meetingId: null, subjectMemberId: null, question: v.key, details: null,
+      electorate: v.electorate, threshold: v.threshold, secret: false, quorum: v.quorum, openedAt: '2025-12-01T00:00:00.000Z',
+      closesAt: new Date(v.closesAt).toISOString(), closedAt: null, result: null, castingVote: null, tally: null,
+      electorIds: [...v.electors].sort(), votedIds: v.ballots.map((b) => b.member).sort(),
+      ballots: v.ballots.map((b) => ({ memberId: b.member, choice: b.choice })), createdBy: null,
+    })),
   };
 }
 

@@ -3,7 +3,10 @@
 
 import { createContext, useContext } from 'react';
 import type { AccessLevel } from '../domain/access';
+import type { ActionItemInput, MeetingInput } from '../domain/meetings';
+import type { VoteInput } from '../domain/votes';
 import type {
+  BallotChoice,
   Bike,
   BikeRegistration,
   ClubData,
@@ -85,6 +88,20 @@ export interface ClubContextValue {
   endPosition: (positionId: string) => Promise<void>;
   /** Your answer to a ride: going, maybe or no. */
   setRsvp: (rideId: string, answer: RsvpAnswer) => Promise<void>;
+
+  // Stage 5: meetings and votes
+  /** Saves a new meeting (id null) or changes one; resolves to its id. */
+  saveMeeting: (input: MeetingInput) => Promise<string>;
+  cancelMeeting: (meetingId: string) => Promise<void>;
+  saveMinutes: (meetingId: string, text: string) => Promise<void>;
+  approveMinutes: (meetingId: string) => Promise<void>;
+  saveActionItem: (input: ActionItemInput) => Promise<void>;
+  setActionDone: (itemId: string, done: boolean) => Promise<void>;
+  /** Opens a vote; resolves to its id. */
+  openVote: (input: VoteInput) => Promise<string>;
+  /** A ballot is final. */
+  castBallot: (voteId: string, choice: BallotChoice) => Promise<void>;
+  closeVote: (voteId: string, casting: 'yes' | 'no' | null) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -105,6 +122,10 @@ export const EMPTY_DATA: ClubData = {
   positions: [],
   rides: [],
   rsvps: [],
+  // Stage 5: meetings and votes
+  meetings: [],
+  actionItems: [],
+  votes: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

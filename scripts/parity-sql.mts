@@ -60,6 +60,29 @@ for (const r of fx.rides) {
   );
 }
 
+// Stage 5: meetings and votes
+for (const x of fx.meetings) {
+  sql(
+    `insert into public.meetings (id, chapter_id, kind, title, starts_at, minutes, minutes_approved_at) values (` +
+      `${id('mt', x.key)}, ${chapter(x.chapter)}, ${q(x.kind)}, ${q(x.title)}, ${q(x.startsAt)}::timestamptz, ` +
+      `${x.minutes === null ? 'null' : q(x.minutes)}, ${x.approved ? "'2026-03-01T00:00:00Z'" : 'null'});`,
+  );
+}
+for (const v of fx.votes) {
+  sql(
+    `insert into public.votes (id, chapter_id, question, electorate, threshold, quorum, opened_at, closes_at) values (` +
+      `${id('v', v.key)}, ${chapter(v.chapter)}, ${q(v.key)}, ${q(v.electorate)}, ${q(v.threshold)}, ${v.quorum}, ` +
+      `'2025-12-01T00:00:00Z', ${q(v.closesAt)}::timestamptz);`,
+  );
+  for (const e of v.electors) {
+    const voted = v.ballots.some((b) => b.member === e);
+    sql(`insert into public.vote_electors (vote_id, member_id, voted_at) values (${id('v', v.key)}, ${id('m', e)}, ${voted ? 'now()' : 'null'});`);
+  }
+  for (const b of v.ballots) {
+    sql(`insert into public.vote_ballots (vote_id, member_id, choice) values (${id('v', v.key)}, ${id('m', b.member)}, ${q(b.choice)});`);
+  }
+}
+
 const call = (c: ParityCase & Record<string, any>): string => {
   switch (c.action) {
     case 'appoint':
@@ -87,6 +110,22 @@ const call = (c: ParityCase & Record<string, any>): string => {
         `public.apply_to_join(${chapter(c.chapter)}, ${q(c.fullName)}, null, null, null, null, 'introduced', ` +
         `${c.make ? q(c.make) : 'null'}, ${c.model ? q(c.model) : 'null'}, ${c.year ?? 'null'})`
       );
+    // Stage 5: meetings and votes
+    case 'saveMeeting':
+      return `public.save_meeting(null, ${chapter(c.chapter)}, ${q(c.kind)}, ${q(c.title)}, ${q(c.startsAt)}::timestamptz, null, '[]')`;
+    case 'approveMinutes':
+      return `public.approve_minutes(${id('mt', c.meeting)})`;
+    case 'saveActionItem':
+      return `public.save_action_item(null, ${chapter(c.chapter)}, ${c.meeting ? id('mt', c.meeting) : 'null'}, ${q(c.title)}, ${id('m', c.owner)}, null)`;
+    case 'openVote':
+      return (
+        `public.open_vote(${chapter(c.chapter)}, null, ${c.subject ? id('m', c.subject) : 'null'}, 'Shall we?', null, ` +
+        `${q(c.electorate)}, ${q(c.threshold)}, false, ${c.quorum}, now() + interval '${Number(c.days) * 24} hours')`
+      );
+    case 'castBallot':
+      return `public.cast_ballot(${id('v', c.vote)}, ${q(c.choice)})`;
+    case 'closeVote':
+      return `public.close_vote(${id('v', c.vote)}, ${c.casting ? q(c.casting) : 'null'})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
