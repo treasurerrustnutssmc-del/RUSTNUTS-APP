@@ -127,6 +127,8 @@ export function castProblem(me: Member | null, vote: Vote | undefined, now: stri
  * Why `me` can't close this vote. `tally` is the count when it's known (the demo, and the
  * database); the live app passes null and leaves the tie check to the database.
  */
+const NO_CHAIR = 'Nobody’s in the chair, so a tie is lost. Close it without a casting vote.';
+
 export function closeProblem(
   me: Member | null,
   vote: Vote | undefined,
@@ -150,6 +152,7 @@ export function closeProblem(
     return 'It’s a tie. The chair closes it with the casting vote.';
   }
   if (!tied && casting !== null) return 'There’s no tie, so no casting vote.';
+  if (casting !== null && chair === null) return NO_CHAIR;
   return null;
 }
 
@@ -169,4 +172,14 @@ export function ruleLine(vote: Pick<Vote, 'threshold' | 'quorum' | 'electorIds' 
   const parts = [THRESHOLD_LINE[vote.threshold], `Quorum ${vote.quorum} of ${vote.electorIds.length}`];
   if (vote.secret) parts.push('Secret ballot');
   return parts.join(' · ');
+}
+
+/** The patch vote on a member: the open one if there is one, else the one that closed last. */
+export function patchVoteFor(memberId: string, votes: Vote[]): Vote | null {
+  const theirs = votes.filter((v) => v.subjectMemberId === memberId);
+  return (
+    theirs.find((v) => v.closedAt === null) ??
+    theirs.sort((a, b) => b.closedAt!.localeCompare(a.closedAt!))[0] ??
+    null
+  );
 }

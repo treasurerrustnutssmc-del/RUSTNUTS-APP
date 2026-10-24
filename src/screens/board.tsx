@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
-import { formatLongDate, monthsBetween } from '../domain/dates';
+import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
-import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
+import { melbourneDate } from '../domain/rides';
+import { patchVoteFor } from '../domain/votes';
+import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -248,10 +250,15 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const roleOptions = [...BOARD_ROLES, ...CLUB_ROLES, ...NATIONAL_ROLES].filter(
     (r) => appointProblem(me, member, member.chapterId, r, data) === null,
   );
-  // Stage 5: the open patch vote on this FNG, or the chance to start one.
-  const patchVote = (data.votes ?? []).find((v) => v.subjectMemberId === member.id && v.closedAt === null);
+  // Stage 5: the patch vote on this FNG (open, or the latest result), or the chance to start one.
+  const patchVote = patchVoteFor(member.id, data.votes ?? []);
+  const patchOpen = patchVote !== null && patchVote.closedAt === null;
   const canStartPatchVote =
-    member.status === 'fng' && member.approval === 'approved' && runsScope(me, member.chapterId, data.positions);
+    !patchOpen &&
+    patchVote?.result !== 'carried' &&
+    member.status === 'fng' &&
+    member.approval === 'approved' &&
+    runsScope(me, member.chapterId, data.positions);
 
   const run = async (fn: () => Promise<void>, ok: string) => {
     try {
@@ -288,13 +295,19 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
           Record the outcome once the vote is done. Full membership needs a unanimous patched-member vote (5.4).
         </Small>
         {/* Stage 5: patch votes */}
+        {patchVote && !patchOpen ? (
+          <Small>
+            {`Patch vote closed ${formatAuDate(melbourneDate(patchVote.closedAt!))}: ${RESULT_LABEL[patchVote.result!]}.`}
+          </Small>
+        ) : null}
         {patchVote ? (
           <Button
-            label="See the patch vote"
+            label={patchOpen ? 'See the patch vote' : 'See the result'}
             kind="secondary"
             onPress={() => navigation.navigate('Vote', { voteId: patchVote.id })}
           />
-        ) : canStartPatchVote ? (
+        ) : null}
+        {canStartPatchVote ? (
           <Button
             label="Start patch vote"
             kind="secondary"

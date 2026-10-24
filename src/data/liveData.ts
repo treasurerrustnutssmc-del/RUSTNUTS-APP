@@ -47,7 +47,15 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   }
   // Stage 5: meetings and votes. A failure here leaves the club business empty rather than
   // blocking the whole app (it also covers the moment before the live database has the tables).
-  const business = toBusiness(await db.rpc('club_business').then((r) => (r.error ? null : r.data), () => null));
+  const business = toBusiness(
+    await db.rpc('club_business').then(
+      (r) => {
+        if (r.error) console.warn('club_business:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+  );
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,

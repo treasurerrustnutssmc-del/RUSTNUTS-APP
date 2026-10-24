@@ -140,9 +140,11 @@ const MINUTES_CHIP = {
 } as const;
 
 function MeetingRow({ meeting, last, onPress }: { meeting: Meeting; last: boolean; onPress: () => void }) {
-  const { data } = useClub();
+  const { me, data } = useClub();
   const state = minutesState(meeting, nowIso());
-  const chip = MINUTES_CHIP[state];
+  // Minutes due or overdue is a job for whoever runs the meeting, not news for members.
+  const owed = state === 'due' || state === 'overdue';
+  const chip = owed && !runsScope(me, meeting.chapterId, data.positions) ? null : MINUTES_CHIP[state];
   const date = melbourneDate(meeting.startsAt);
   const label = [
     meeting.title,
@@ -190,7 +192,7 @@ function VoteRow({ vote, needsMe, last, onPress }: { vote: Vote; needsMe: boolea
   const voted = !!me && vote.votedIds.includes(me.id);
   const closed = vote.closedAt !== null;
   const status = closed
-    ? `${RESULT_LABEL[vote.result!]}, closed ${formatAuDate(melbourneDate(vote.closedAt!))}`
+    ? `Closed ${formatAuDate(melbourneDate(vote.closedAt!))}`
     : `${vote.votedIds.length} of ${vote.electorIds.length} voted · closes ${shortDay(vote.closesAt)}`;
   return (
     <ListRow
@@ -444,7 +446,7 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
       <Stack gap={space.sm}>
         <SectionTitle
           title="Minutes"
-          action={MINUTES_CHIP[state] && state !== 'cancelled' ? <Chip label={MINUTES_CHIP[state]!.label} tone={MINUTES_CHIP[state]!.tone} /> : undefined}
+          action={MINUTES_CHIP[state] && state !== 'cancelled' && (runs || state === 'approved') ? <Chip label={MINUTES_CHIP[state]!.label} tone={MINUTES_CHIP[state]!.tone} /> : undefined}
         />
         {editingMinutes ? (
           <Card>
@@ -971,7 +973,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
       ) : null}
       {subject ? (
         <Notice title="Patch vote">
-          {`Every patched member of the ${scopeLabel(scope, data).replace(' chapter', '')} chapter gets a ballot, and it needs every yes (5.4).`}
+          {`Every patched member of the ${scopeLabel(scope, data)} gets a ballot. A single no stops it (5.4).`}
         </Notice>
       ) : null}
       <Field label="Question" value={question} onChangeText={setQuestion} placeholder="Spend up to $600 on a club gazebo?" />

@@ -11,6 +11,7 @@ import {
   defaultQuorum,
   electorsFor,
   openVoteProblem,
+  patchVoteFor,
   ruleLine,
   type VoteInput,
 } from './votes';
@@ -151,6 +152,11 @@ test('closing a vote', () => {
   );
   const noChair = { ...d, positions: P.filter((p) => !(p.role === 'president' && p.chapterId === 'ch-west')) };
   assert.equal(closeProblem(m('m-torque'), tied, tiedBallots, null, noChair, LATER), null, 'with no chair a tie is lost');
+  assert.equal(
+    closeProblem(m('m-torque'), tied, tiedBallots, 'yes', noChair, LATER),
+    'Nobody’s in the chair, so a tie is lost. Close it without a casting vote.',
+    'nobody can carry a chairless tie by casting',
+  );
 });
 
 test('who sees a vote', () => {
@@ -165,4 +171,17 @@ test('the rule line', () => {
   assert.equal(ruleLine(vote()), 'Majority of votes cast · Quorum 3 of 5');
   assert.equal(ruleLine(vote({ threshold: 'two_thirds', secret: true })), 'Two-thirds of votes cast · Quorum 3 of 5 · Secret ballot');
   assert.equal(ruleLine(vote({ threshold: 'unanimous' })), 'Unanimous · Quorum 3 of 5');
+});
+
+test('the patch vote on a member: the open one, or else the latest result', () => {
+  const t = 'm-throttle';
+  const lost = vote({ id: 'old', subjectMemberId: t, closedAt: '2026-05-01T09:00:00.000Z', result: 'lost' });
+  const carried = vote({ id: 'new', subjectMemberId: t, closedAt: '2026-09-01T09:00:00.000Z', result: 'carried' });
+  const open = vote({ id: 'open', subjectMemberId: t });
+  const other = vote({ id: 'other', subjectMemberId: 'm-dylan' });
+  assert.equal(patchVoteFor(t, []), null);
+  assert.equal(patchVoteFor(t, [lost, other])?.id, 'old');
+  assert.equal(patchVoteFor(t, [carried, lost])?.id, 'new', 'latest result');
+  assert.equal(patchVoteFor(t, [carried, open, lost])?.id, 'open', 'an open vote comes first');
+  assert.equal(patchVoteFor(t, [vote({ id: 'gazebo' })]), null, 'not a vote about anyone');
 });

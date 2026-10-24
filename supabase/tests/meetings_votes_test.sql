@@ -335,6 +335,7 @@ begin
   perform pg_temp.try_as(pg_temp.u(1), format($q$select public.cast_ballot(%L, 'yes')$q$, v));
   perform pg_temp.try_as(pg_temp.u(2), format($q$select public.cast_ballot(%L, 'no')$q$, v));
   update positions set ended_on = '2026-01-01' where member_id = pg_temp.u(1) and role = 'president';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.close_vote(%L, 'yes')$q$, v)) = 'Nobody’s in the chair, so a tie is lost. Close it without a casting vote.', 'no casting vote without a chair';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.close_vote(%L, null)$q$, v)) is null, 'closes without a chair';
   assert (select result from votes where id = v) = 'lost', 'tie lost';
   update positions set ended_on = null where member_id = pg_temp.u(1) and role = 'president';

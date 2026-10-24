@@ -371,7 +371,8 @@ declare
   v public.votes%rowtype;
   elector public.vote_electors%rowtype;
 begin
-  select * into v from public.votes where id = p_vote;
+  -- Shares the lock close_vote takes, so a ballot can't land after the count.
+  select * into v from public.votes where id = p_vote for share;
   if not found then raise exception 'No such vote.'; end if;
   select * into elector from public.vote_electors where vote_id = p_vote and member_id = me for update;
   if not found then raise exception 'You’re not on this vote.'; end if;
@@ -409,6 +410,9 @@ begin
     raise exception 'It’s a tie. The chair closes it with the casting vote.';
   end if;
   if not outcome.tied and p_casting is not null then raise exception 'There’s no tie, so no casting vote.'; end if;
+  if p_casting is not null and chair is null then
+    raise exception 'Nobody’s in the chair, so a tie is lost. Close it without a casting vote.';
+  end if;
   if p_casting is not null and p_casting not in ('yes', 'no') then raise exception 'Pick an answer.'; end if;
   outcome := private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, p_casting);
 
