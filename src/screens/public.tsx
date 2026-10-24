@@ -6,6 +6,7 @@ import { DEMO_PERSONAS } from '../data/demoData';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { RootScreen } from '../navigation/types';
+import { IntroProgressCard } from './fng'; // Stage 4
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -367,7 +368,7 @@ export function JoinScreen() {
   );
 }
 
-export function PendingScreen() {
+export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
   const { me, data, signOut, refresh, isDemo } = useClub();
   const [checking, setChecking] = useState(false);
   // Coming back to the app checks again, so an approval shows up without restarting.
@@ -407,19 +408,10 @@ export function PendingScreen() {
       )}
 
       {!declined && me.status === 'introduced' ? (
-        <Card>
-          <H2>While you wait</H2>
-          {[
-            ['people', 'Get along to two official club meetings'],
-            ['speedometer', 'Come on a ride organised by a member'],
-            ['time', 'The introduction phase runs for three months'],
-          ].map(([icon, text]) => (
-            <Row key={text} style={{ gap: space.md, flexWrap: 'nowrap' }}>
-              <IconBadge icon={icon as 'people'} />
-              <Body style={{ flex: 1 }}>{text}</Body>
-            </Row>
-          ))}
-        </Card>
+        <>
+          <IntroProgressCard member={me} self />
+          <Button label="Check in" kind="secondary" icon="scan" onPress={() => navigation.navigate('CheckIn')} />
+        </>
       ) : null}
 
       <Card>

@@ -3,7 +3,8 @@
 
 import type { ClubData, Member, MemberPrivate, MemberStatus, Ride } from '../domain/types';
 // Stage 4
-import { addDays, todayIso } from '../domain/dates';
+import { addDays } from '../domain/dates';
+import { melbourneDate } from '../domain/rides';
 import { fyOf, receiptNo } from '../domain/fees';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
@@ -216,7 +217,7 @@ export function demoTodayRide(now: Date = new Date()): Ride {
 // Stage 4: check-ins, decisions and fees, dated from today so the demo always has a meeting on.
 // ---------------------------------------------------------------------------
 
-const s4Today = todayIso();
+const s4Today = melbourneDate(new Date().toISOString()); // the same "today" as the app
 const s4Fy = fyOf(s4Today);
 const s4Due = `${s4Fy}-07-31`;
 const ago = (days: number) => addDays(s4Today, -days);
@@ -264,7 +265,7 @@ Object.assign(DEMO_DATA, {
   payments: [
     { id: 'pay-1', chargeId: 'ch-1', amountCents: 25000, paidOn: `${s4Fy}-07-02`, method: 'payid', reference: 'RUSTY FEES',
       state: 'confirmed', claimedBy: 'm-rusty', receiptNo: receiptNo('west', s4Fy, 1), decidedAt: at(`${s4Fy}-07-03`) },
-    { id: 'pay-2', chargeId: 'ch-3', amountCents: 25000, paidOn: `${s4Fy}-07-10`, method: 'cash', reference: null,
+    { id: 'pay-2', chargeId: 'ch-3', amountCents: 12500, paidOn: `${s4Fy}-07-10`, method: 'cash', reference: null,
       state: 'confirmed', claimedBy: null, receiptNo: receiptNo('west', s4Fy, 2), decidedAt: at(`${s4Fy}-07-10`) },
     { id: 'pay-3', chargeId: 'ch-4', amountCents: 10000, paidOn: `${s4Fy}-08-01`, method: 'payid', reference: 'GRAVEL FEES',
       state: 'confirmed', claimedBy: 'm-gravel', receiptNo: receiptNo('west', s4Fy, 3), decidedAt: at(`${s4Fy}-08-02`) },

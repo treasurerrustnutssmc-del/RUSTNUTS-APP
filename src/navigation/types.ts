@@ -31,6 +31,13 @@ export type RootParams = {
   ManageMember: { memberId: string };
   // Lane E: live ride
   LiveRide: { rideId: string };
+  // Stage 4: members and money
+  CheckIn: undefined;
+  RunCheckin: { sessionId: string };
+  OpenMeeting: undefined;
+  FngReview: { memberId: string };
+  MemberFees: { memberId: string };
+  ChapterFees: { chapterId: string };
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

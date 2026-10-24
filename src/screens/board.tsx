@@ -5,9 +5,14 @@ import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
 import { formatLongDate, monthsBetween } from '../domain/dates';
 import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
-import type { Member, MemberStatus, PositionRole } from '../domain/types';
+import type { Member, MemberStatus, PositionRole, Votes } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
+// Stage 4
+import { fngDue } from '../domain/joining';
+import { BoardCheckins } from './checkin';
+import { BoardFees } from './fees';
+import { IntroProgressCard, VotesFields } from './fng';
 import { sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -34,8 +39,9 @@ import {
 
 
 function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg: string) => void }) {
-  const { data, approveMember, declineMember } = useClub();
+  const { data, decideApplication } = useClub();
   const [status, setStatus] = useState<MemberStatus>(applicant.status);
+  const [votes, setVotes] = useState<Votes>({ for: null, against: null, abstained: null });
   const [error, setError] = useState<string | null>(null);
   const priv = data.privates.find((p) => p.memberId === applicant.id);
   const chapter = data.chapters.find((c) => c.id === applicant.chapterId);
@@ -82,6 +88,8 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
           <Body>“{priv.applicationNote}”</Body>
         </View>
       ) : null}
+      {applicant.status === 'introduced' ? <IntroProgressCard member={applicant} bare /> : null}
+      <VotesFields onChange={setVotes} />
       <Choices<MemberStatus>
         label="Let them in as"
         options={APPROVE_AS.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
@@ -95,14 +103,14 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
           icon="checkmark"
           busy={busy}
           style={{ flex: 1 }}
-          onPress={() => act(() => approveMember(applicant.id, status), `${applicant.fullName} is in as ${STATUS_LABEL[status]}.`)}
+          onPress={() => act(() => decideApplication(applicant.id, status, votes, ''), `${applicant.fullName} is in as ${STATUS_LABEL[status]}.`)}
         />
       </Row>
       <ConfirmButton
         label="Decline"
         confirmLabel={`Decline ${applicant.fullName.split(' ')[0]}`}
         kind="quiet"
-        onConfirm={() => act(() => declineMember(applicant.id), `Declined ${applicant.fullName}.`)}
+        onConfirm={() => act(() => decideApplication(applicant.id, null, votes, ''), `Declined ${applicant.fullName}.`)}
       />
     </Card>
   );
@@ -122,8 +130,8 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   );
   const fngs = scope
     .filter((m) => m.status === 'fng' && m.fngStartedOn)
-    .map((m) => ({ m, review: nextFngReview(m.fngStartedOn!, today) }))
-    .sort((a, b) => a.review.date.localeCompare(b.review.date));
+    .map((m) => ({ m, review: nextFngReview(m.fngStartedOn!, today), due: fngDue(m, data.decisions ?? [], today) }))
+    .sort((a, b) => (a.due?.date ?? a.review.date).localeCompare(b.due?.date ?? b.review.date));
 
   const memberName = (id: string) => {
     const m = data.members.find((x) => x.id === id);
@@ -202,19 +210,23 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
             <Small>No FNGs at the moment.</Small>
           </View>
         ) : (
-          fngs.map(({ m, review }, i) => (
+          fngs.map(({ m, review, due }, i) => (
             <ListRow
               key={m.id}
               last={i === fngs.length - 1}
               left={<Avatar text={initials(m)} size={40} />}
               title={displayName(m)}
-              subtitle={`${monthsBetween(m.fngStartedOn!, today)} months in · ${review.atMonths}-month review ${formatLongDate(review.date)}`}
-              right={review.overdue12 ? <Chip label="Past 12 months" tone="warn" /> : undefined}
-              onPress={() => navigation.navigate('MemberDetail', { memberId: m.id })}
+              subtitle={`${monthsBetween(m.fngStartedOn!, today)} months in · ${due?.atMonths ?? review.atMonths}-month review ${formatLongDate(due?.date ?? review.date)}`}
+              right={due?.overdue ? <Chip label="Overdue" tone="warn" /> : review.overdue12 ? <Chip label="Past 12 months" tone="warn" /> : undefined}
+              onPress={() => navigation.navigate('FngReview', { memberId: m.id })}
             />
           ))
         )}
       </Card>
+
+      {/* Stage 4: check-ins and fees */}
+      <BoardCheckins chapterId={national ? null : me.chapterId} />
+      <BoardFees />
     </Screen>
   );
 }

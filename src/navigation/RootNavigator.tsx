@@ -13,6 +13,9 @@ import { RideDetailScreen, RidesScreen } from '../screens/rides';
 // Lane E: live ride
 import { LiveRideScreen } from '../screens/liveRide';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
+import { CheckInScreen, OpenMeetingScreen, RunCheckinScreen } from '../screens/checkin';
+import { ChapterFeesScreen, MemberFeesScreen } from '../screens/fees';
+import { FngReviewScreen } from '../screens/fng';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -109,7 +112,10 @@ export function RootNavigator() {
             <Stack.Screen name="Join" component={JoinScreen} options={{ title: '' }} />
           </>
         ) : level === 'pending' ? (
-          <Stack.Screen name="Pending" component={PendingScreen} options={{ headerShown: false }} />
+          <>
+            <Stack.Screen name="Pending" component={PendingScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check in' }} />
+          </>
         ) : (
           <>
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
@@ -123,6 +129,13 @@ export function RootNavigator() {
             <Stack.Screen name="ManageMember" component={ManageMemberScreen} options={{ title: 'Manage member' }} />
             {/* Lane E: live ride */}
             <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} />
+            {/* Stage 4: members and money */}
+            <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check in' }} />
+            <Stack.Screen name="RunCheckin" component={RunCheckinScreen} options={{ title: 'Check-in' }} />
+            <Stack.Screen name="OpenMeeting" component={OpenMeetingScreen} options={{ title: 'Open a check-in' }} />
+            <Stack.Screen name="FngReview" component={FngReviewScreen} options={{ title: 'FNG review' }} />
+            <Stack.Screen name="MemberFees" component={MemberFeesScreen} options={{ title: 'Fees' }} />
+            <Stack.Screen name="ChapterFees" component={ChapterFeesScreen} options={{ title: 'Chapter fees' }} />
           </>
         )}
       </Stack.Navigator>

@@ -22,6 +22,7 @@ import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
 import { LiveRideCard } from './liveRide';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
+import { RideCheckinCard } from './checkin'; // Stage 4
 import {
   Avatar,
   Body,
@@ -380,6 +381,8 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         </View>
         {counts.no > 0 ? <Small>{`${counts.no} can’t make it.`}</Small> : null}
       </Stack>
+
+      <RideCheckinCard ride={ride} />
 
       {/* On a cancelled ride, only show who had said yes, so they can be told. */}
       {!cancelled || going.length > 0 ? list('Going', going) : null}
