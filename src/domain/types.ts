@@ -31,7 +31,9 @@ export type PositionRole =
   | 'nec_secretary'
   | 'nec_auditor'
   // Honours: shown on the vest, carry no powers, recorded by the admin
-  | 'founder';
+  | 'founder'
+  // Stage 3 (lane B): a club position held on top of any rank or other position
+  | 'charity_committee';
 
 export type LicenceClass = 'full_open' | 'probationary_open' | 'learner';
 

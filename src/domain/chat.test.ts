@@ -136,6 +136,19 @@ test('who you can start a private chat with', () => {
   assert.equal(directProblem(null, westie), 'Sign in first.');
 });
 
+test('someone who might join gets the whole-club and ride chats only, until they’re an FNG', () => {
+  const newbie = member('newbie', { status: 'introduced' });
+  const fng = member('fng', { status: 'fng' });
+  assert.equal(readProblem(newbie, club, data), null);
+  assert.equal(readProblem(newbie, rideChat, data), null);
+  assert.equal(postProblem(newbie, club, 'g’day all', 0, data), null);
+  assert.equal(readProblem(newbie, west, data), 'Chapter chats open up once you’re an FNG.');
+  assert.equal(readProblem(fng, west, data), null);
+  assert.equal(directProblem(newbie, westie), 'Private chats open up once you’re an FNG.');
+  assert.equal(directProblem(westie, newbie), 'They can’t get private messages until they’re an FNG.');
+  assert.equal(directProblem(westie, fng), null);
+});
+
 test('a ride chat sits in your list from a week before to three days after, if you’re coming', () => {
   const ride: Ride = {
     id: 'r-1', title: 'Coffee run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: '2026-11-09T13:00:00.000Z', allDay: true,
@@ -274,4 +287,33 @@ test('blocking', () => {
   assert.equal(directProblem(northie, westie, blocks), 'You can’t message them.', 'you blocked them');
   assert.equal(postProblem(westie, direct, 'hi', 0, data, blocks), 'You can’t message them.');
   assert.equal(postProblem(westie, club, 'hi', 0, data, blocks), null, 'group chats carry on');
+});
+
+test('each chapter’s big table is for its board and the NEC', () => {
+  const westTable = chat({ kind: 'board', id: 'c-west-board', chapterId: 'ch-west' });
+  assert.equal(readProblem(secretary, westTable, data), null, 'West board');
+  assert.equal(readProblem(northPres, westTable, data), null, 'NEC');
+  assert.equal(readProblem(westie, westTable, data), 'That chat is for the West board.', 'a West member');
+  assert.equal(readProblem(northie, westTable, data), 'That chat is for the West board.', 'North’s Road Captain');
+  assert.equal(canModerate(secretary, westTable, data), true);
+  assert.equal(canModerate(westie, westTable, data), false);
+  assert.equal(chatTitle(westTable, secretary, data), 'West big table');
+});
+
+test('the NEC chat is for the NEC', () => {
+  const nec = chat({ kind: 'nec' });
+  assert.equal(readProblem(northPres, nec, data), null, 'a sitting President');
+  assert.equal(readProblem(secretary, nec, data), 'That chat is for the NEC.');
+  assert.equal(canModerate(northPres, nec, data), true);
+  assert.equal(chatTitle(nec, northPres, data), 'NEC');
+});
+
+test('the charity committee chat is for its members and the NEC', () => {
+  const charity = chat({ kind: 'committee', committee: 'charity' });
+  const withCharity = { ...data, positions: [...data.positions, seat('p5', 'legacy', 'ch-west', 'charity_committee')] };
+  assert.equal(readProblem(legacy, charity, withCharity), null, 'a Charity Committee member');
+  assert.equal(readProblem(northPres, charity, withCharity), null, 'the NEC');
+  assert.equal(readProblem(westie, charity, withCharity), 'That chat is for the charity committee.', 'the ride committee isn’t on it');
+  assert.equal(canModerate(legacy, charity, withCharity), false, 'not a board member');
+  assert.equal(chatTitle(charity, legacy, withCharity), 'Charity committee');
 });

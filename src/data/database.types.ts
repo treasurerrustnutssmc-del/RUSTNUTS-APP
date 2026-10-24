@@ -21,7 +21,9 @@ type PositionRole =
   | 'nec_auditor'
   | 'ride_committee'
   | 'assistant_tail_gunner'
-  | 'founder';
+  | 'founder'
+  // Stage 3 (lane B)
+  | 'charity_committee';
 
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '14.18' };

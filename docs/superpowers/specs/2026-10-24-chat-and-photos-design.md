@@ -173,3 +173,44 @@ it fills up, the Pro plan (US$25 a month, 100 GB) is Jeff's call, since it costs
   their permission wording. Building is fine without asking; sending it to testers is part of
   the test crew plan.
 - Nobody is told about it until the app is finished.
+
+## Additions from Jeff, 24 Oct 2026 (after the Discord deep dive)
+Jeff: "nec chat and big table chats for each chapter are important", "filth can go away", "we can
+have charity commitee member as an extra title on top of club title", "gifs and links are a big
+part of how we do banter", and Messenger is the main contact today: "we want something easier to
+manage". These replace the "Not in this spec" lines about board chat, GIFs and link previews.
+
+- **More chats that pick their own people** (`chat_kind` gains `board` and `nec`; `chat_committee`
+  gains `charity`):
+
+  | Chat | Who reads and posts | Who removes others' messages |
+  |---|---|---|
+  | West / North big table | that chapter's board, plus the NEC | the same people |
+  | NEC | the NEC (National officers and sitting Presidents) | the same people |
+  | Charity committee | Charity Committee members (any chapter), plus the NEC | the NEC, and any board member in it |
+
+  The board room (Stage 5, lane D) is meetings, agendas, minutes and votes, with no chat of its
+  own, so these chats are the board's place to talk (lane D agreed).
+- **Charity Committee position** (`charity_committee` in `position_role`, its own migration so the
+  new value is committed before use). A non-board club position, appointed like Tail Gunner, held
+  on top of any rank or other position.
+- **GIFs:** a GIF button in the composer opens a search (Tenor, through an Edge Function
+  `gif-search` so the key stays on the server). A GIF goes in as media `kind = 'gif'` holding Tenor's
+  https address (only `https://media.tenor.com/`), sizes included. GIFs stay out of the Photos feed
+  and ride walls. Needs a free Tenor API key from the club's Google account: Jeff's yes, asked
+  once at the end. Until then the GIF button says GIFs aren't switched on yet.
+- **Link previews:** the first link in a message shows a card (site, title, short description,
+  picture), from an Edge Function `link-preview` that reads the page's Open Graph tags and keeps
+  them for 7 days in `private.link_previews`. It only fetches public http(s) addresses (no IP
+  literals in private ranges, no localhost), stops after 5 seconds or 512 KB, and reads HTML only.
+  Links stay tappable whether or not a card comes back.
+- **The pitch to members:** nobody manages member lists. Approval, positions and leaving decide
+  who's in which chat, the moment they change.
+- **People who might join** (Introduced, approved in the app; Jeff picked this on 24 Oct): the
+  whole-club chat and ride chats only. Chapter, big table, NEC, committee and private chats open
+  at FNG. Their words: "Chapter chats open up once you’re an FNG.", "That chat opens up once you’re
+  an FNG.", "Private chats open up once you’re an FNG." and, for a member trying to message them,
+  "They can’t get private messages until they’re an FNG."
+- **Ride comms (voice while riding) is not in this stage.** Jeff wants it: open mic (hands stay on
+  the bars), headset button to mute, one big Connect and one big Disconnect. It needs a voice
+  service account, so it went to Stage 6 live ride mode (lane E told).

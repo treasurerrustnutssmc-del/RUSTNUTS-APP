@@ -8,14 +8,14 @@ import { displayName } from './profile';
 import { lastDay, melbourneDate } from './rides';
 import type { ClubData, Member, Ride, RsvpAnswer } from './types';
 
-export type ChatKind = 'club' | 'chapter' | 'committee' | 'ride' | 'direct';
-export type ChatCommittee = 'ride';
+export type ChatKind = 'club' | 'chapter' | 'board' | 'nec' | 'committee' | 'ride' | 'direct';
+export type ChatCommittee = 'ride' | 'charity';
 export type MediaKind = 'photo' | 'video';
 
 export interface Conversation {
   id: string;
   kind: ChatKind;
-  chapterId: string | null; // chapter chats
+  chapterId: string | null; // chapter and big table (board) chats
   rideId: string | null; // ride chats
   committee: ChatCommittee | null; // committee chats
   pinnedMessageId: string | null;
@@ -91,13 +91,25 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
   const notApproved = isApproved(me);
   if (notApproved || !me) return notApproved;
   if (!conv) return 'No such chat.';
+  // Someone who might join gets the whole-club and ride chats only, until they're an FNG.
+  if (me.status === 'introduced' && conv.kind !== 'club' && conv.kind !== 'ride') {
+    if (conv.kind === 'direct') return 'Private chats open up once you’re an FNG.';
+    return conv.kind === 'chapter' ? 'Chapter chats open up once you’re an FNG.' : 'That chat opens up once you’re an FNG.';
+  }
   if (conv.kind === 'chapter') {
     if (me.chapterId === conv.chapterId || isNational(me.id, data.positions)) return null;
     const name = data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'that';
     return `That chat is for ${name} chapter members.`;
   }
+  if (conv.kind === 'board') {
+    if (conv.chapterId && isBoardOf(me, conv.chapterId, data.positions)) return null;
+    return `That chat is for the ${data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'chapter'} board.`;
+  }
+  if (conv.kind === 'nec') return isNational(me.id, data.positions) ? null : 'That chat is for the NEC.';
   if (conv.kind === 'committee') {
-    return isRideCommittee(me.id, data) || isNational(me.id, data.positions) ? null : 'That chat is for the ride committee.';
+    const onIt = conv.committee === 'charity' ? isCharityCommittee(me.id, data) : isRideCommittee(me.id, data);
+    if (onIt || isNational(me.id, data.positions)) return null;
+    return `That chat is for the ${conv.committee === 'charity' ? 'charity' : 'ride'} committee.`;
   }
   if (conv.kind === 'direct') return conv.memberIds.includes(me.id) ? null : 'That’s a private chat.';
   return null;
@@ -106,6 +118,11 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
 /** Holds a Road Captain or Ride Committee seat in any chapter. */
 export function isRideCommittee(memberId: string, data: Pick<ClubData, 'positions'>): boolean {
   return activePositions(memberId, data.positions).some((p) => p.role === 'ride_committee' || p.role === 'road_captain');
+}
+
+/** Holds a Charity Committee seat in any chapter. */
+export function isCharityCommittee(memberId: string, data: Pick<ClubData, 'positions'>): boolean {
+  return activePositions(memberId, data.positions).some((p) => p.role === 'charity_committee');
 }
 
 const blockedBetween = (a: string, b: string, blocks: Block[]) =>
@@ -134,11 +151,13 @@ export function postProblem(
   return null;
 }
 
-/** Can tidy other people's messages: a chapter's board in its chat, any board member or the NEC in
+/** Can tidy other people's messages: a chapter's board in its chat and big table, the NEC in its own
+ *  chat, any board member or the NEC in
  *  the whole-club and ride chats. Nobody moderates a private chat. */
 export function canModerate(me: Member | null, conv: Conversation, data: ClubData): boolean {
   if (!me || me.approval !== 'approved') return false;
-  if (conv.kind === 'chapter') return !!conv.chapterId && isBoardOf(me, conv.chapterId, data.positions);
+  if (conv.kind === 'chapter' || conv.kind === 'board') return !!conv.chapterId && isBoardOf(me, conv.chapterId, data.positions);
+  if (conv.kind === 'nec') return isNational(me.id, data.positions);
   if (conv.kind === 'direct') return false;
   if (conv.kind === 'committee' && readProblem(me, conv, data)) return false;
   const level = accessLevel(me, data.positions);
@@ -185,6 +204,8 @@ export function directProblem(me: Member | null, target: Member | undefined, blo
   if (!target) return 'That member no longer exists.';
   if (target.id === me.id) return 'You can’t message yourself.';
   if (target.approval !== 'approved') return 'They’re not an approved member.';
+  if (me.status === 'introduced') return 'Private chats open up once you’re an FNG.';
+  if (target.status === 'introduced') return 'They can’t get private messages until they’re an FNG.';
   if (blockedBetween(me.id, target.id, blocks)) return 'You can’t message them.';
   return null;
 }
@@ -320,8 +341,12 @@ export function chatTitle(conv: Conversation, me: Member | null, data: ClubData,
       return 'Whole club';
     case 'chapter':
       return `${data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'Chapter'} chapter`;
+    case 'board':
+      return `${data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'Chapter'} big table`;
+    case 'nec':
+      return 'NEC';
     case 'committee':
-      return 'Ride committee';
+      return conv.committee === 'charity' ? 'Charity committee' : 'Ride committee';
     case 'ride':
       return ride?.title ?? 'Ride chat';
     case 'direct': {
