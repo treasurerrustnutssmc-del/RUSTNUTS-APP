@@ -21,6 +21,7 @@ import {
   routeChapterName,
   routeOf,
   saveRouteProblem,
+  startingRouteName,
 } from '../domain/routes';
 import { melbourneDate } from '../domain/rides';
 import type { ClubData, Route } from '../domain/types';
@@ -261,11 +262,6 @@ export function RouteScreen({ route: nav, navigation }: RootScreen<'Route'>) {
 // Add or change a route
 // ---------------------------------------------------------------------------
 
-/** The route's file name without `.gpx`, as a starting name. */
-function nameFromFile(fileName: string): string {
-  return fileName.replace(/\.gpx$/i, '').replace(/[_]+/g, ' ').trim().slice(0, 80);
-}
-
 export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRoute'>) {
   const { me, data, saveRoute } = useClub();
   const routeId = nav.params?.routeId;
@@ -325,7 +321,8 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
       }
       setPicked({ fileName: file.name, text: file.text, summary });
       setFileError(null);
-      setName((now) => (now.trim() === '' ? nameFromFile(file.name) : now));
+      // Only an empty name is filled in: the file's own name, or else its file name.
+      setName((now) => (now.trim() === '' ? startingRouteName(summary.name, file.name) : now));
     } catch (e) {
       setFileError((e as Error).message);
     } finally {

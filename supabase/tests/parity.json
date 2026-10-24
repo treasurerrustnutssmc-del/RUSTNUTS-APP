@@ -1171,6 +1171,76 @@
       "allowed": false
     },
     {
+      "name": "A GPX file with a line break before its XML declaration isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "spaceBeforeDeclaration",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with a bare & in a name isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "bareAmpersand",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file using &nbsp; (undefined in XML) isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "undefinedEntity",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with a < inside an attribute isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "ltInAttribute",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with the same attribute twice isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "duplicateAttribute",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with text after </gpx> isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "junkAfterRoot",
+      "allowed": false
+    },
+    {
+      "name": "Replacing a route’s file with one that has a bare & isn’t allowed",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": "west-loop",
+      "routeName": "West loop",
+      "chapter": "west",
+      "file": "bareAmpersand",
+      "allowed": false
+    },
+    {
       "name": "A new route with no file",
       "as": "torque",
       "action": "saveRoute",
@@ -1376,7 +1446,13 @@
   ],
   "gpxFiles": {
     "valid": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
-    "malformed": "<gpx version=\"1.1\"><trk><trkseg><trkpt lat=\"-37.8\" lon=\"144.7\"></trkseg></trk></gpx>"
+    "malformed": "<gpx version=\"1.1\"><trk><trkseg><trkpt lat=\"-37.8\" lon=\"144.7\"></trkseg></trk></gpx>",
+    "spaceBeforeDeclaration": "\n<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "bareAmpersand": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel & pies, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "undefinedEntity": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel,&nbsp;Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "ltInAttribute": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity <v2>\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "duplicateAttribute": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" creator=\"again\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "junkAfterRoot": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>\nThanks for riding!"
   },
   "routes": [
     {

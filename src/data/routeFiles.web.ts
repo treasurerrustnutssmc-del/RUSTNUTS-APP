@@ -3,19 +3,31 @@
 
 import { MAX_BYTES, TOO_BIG, UNREADABLE } from '../domain/gpx';
 import { routeFileName } from '../domain/routes';
+import { releaseAfterReturn, type ReturnWatch } from './pickGuard';
 
 /** Marks the hidden file input, so a new pick can clear away one left behind by an earlier pick. */
 const PICKER_ATTR = 'data-rustnuts-gpx-picker';
 
+/** How many file choices have arrived, from any pick: releaseAfterReturn's sign that a file came. */
+let changes = 0;
+
+const browserWindow: ReturnWatch = {
+  onFocusOnce(fn) {
+    window.addEventListener('focus', fn, { once: true });
+    return () => window.removeEventListener('focus', fn);
+  },
+  changes: () => changes,
+  setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+  clearTimeout: (handle) => window.clearTimeout(handle as number),
+};
+
 /**
- * Calls `release` the next time the window gets focus back, which it does when the browser's
- * file chooser closes. Browsers without the input's cancel event never settle a backed-out pick,
- * so this is what frees the button. Returns a function that stops watching.
+ * Calls `release` a moment after the window gets focus back, which it does when the browser's
+ * file chooser closes, unless a file arrived. Browsers without the input's cancel event never
+ * settle a backed-out pick, so this is what frees the button. Returns a function that stops watching.
  */
 export function releaseOnReturn(release: () => void): () => void {
-  const onFocus = () => release();
-  window.addEventListener('focus', onFocus, { once: true });
-  return () => window.removeEventListener('focus', onFocus);
+  return releaseAfterReturn(browserWindow, release);
 }
 
 /** Opens the browser's file chooser and reads the file as text. Null when they back out. */
@@ -29,6 +41,7 @@ export function pickGpxFile(): Promise<{ name: string; text: string } | null> {
     input.style.display = 'none';
     const done = () => input.remove();
     input.addEventListener('change', () => {
+      changes += 1;
       const file = input.files?.[0];
       done();
       if (!file) return resolve(null);

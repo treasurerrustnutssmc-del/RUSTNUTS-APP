@@ -299,6 +299,64 @@ begin
     'the BOM doesn''t count towards 5 MB';
 end $$;
 
+\echo 'The summary has to be one the app could send: at most 300 line points and 100 stops, of the right JSON types'
+do $$
+declare
+  rick constant uuid := '00000000-0000-0000-0000-0000000000d3';
+  not_gpx constant text := 'That isn’t a GPX file.';
+  pt constant jsonb := '[-37.8,144.9]';
+  stop constant jsonb := '{"name":"Servo","lat":-37.8,"lng":144.9}';
+  box constant jsonb := '{"minLat":-37.81,"minLng":144.9,"maxLat":-37.8,"maxLng":144.91}';
+  line300 jsonb := (select jsonb_agg(pt) from generate_series(1, 300));
+  line301 jsonb := (select jsonb_agg(pt) from generate_series(1, 301));
+  stops100 jsonb := (select jsonb_agg(stop) from generate_series(1, 100));
+  stops101 jsonb := (select jsonb_agg(stop) from generate_series(1, 101));
+  bad_file constant text := '<gpx><trk><trkseg><trkpt lat="1" lon="2"/></trkseg></trk></gpx>';
+begin
+  create temp table shaped (label text, route uuid, nm text, gpx text, line jsonb, stops jsonb, bounds jsonb) on commit drop;
+  insert into shaped values
+    ('301 line points', null, 'Long line', pg_temp.good_gpx(), line301, stops100, box),
+    ('101 stops', null, 'Many stops', pg_temp.good_gpx(), line300, stops101, box),
+    ('a line that is an object', null, 'Line object', pg_temp.good_gpx(), '{}', '[]', box),
+    ('a line that is a string', null, 'Line string', pg_temp.good_gpx(), '"[]"', '[]', box),
+    ('a line that is JSON null', null, 'Line null', pg_temp.good_gpx(), 'null', '[]', box),
+    ('stops that are a number', null, 'Stops number', pg_temp.good_gpx(), line300, '3', box),
+    ('stops that are an object', null, 'Stops object', pg_temp.good_gpx(), line300, stop, box),
+    ('bounds that are an array', null, 'Bounds array', pg_temp.good_gpx(), line300, '[]', '[]'),
+    ('bounds that are a string', null, 'Bounds string', pg_temp.good_gpx(), line300, '[]', '"box"'),
+    ('bounds that are JSON null', null, 'Bounds null', pg_temp.good_gpx(), line300, '[]', 'null'),
+    -- The earlier checks still come first.
+    ('a bad name before a long line', null, ' ', pg_temp.good_gpx(), line301, '[]', box),
+    ('a bad file before a long line', null, 'Bad file', bad_file, line301, '[]', box),
+    ('not XML before a long line', null, 'Not XML', 'hello', line301, '[]', box),
+    -- At the caps, and with no summary at all, it saves.
+    ('exactly 300 points and 100 stops', null, 'At the caps', pg_temp.good_gpx(), line300, stops100, box),
+    ('no summary', null, 'No summary', pg_temp.good_gpx(), null, null, null);
+  -- Each as a call, and its answer.
+  alter table shaped add column answer text;
+  update shaped set answer = pg_temp.try_as(rick, format('select public.save_route(%L, %L, %L, null, %L, 1234, 56, %L, %L, %L)',
+    route, nm, (select id from public.chapters where slug = 'west'), gpx, line, stops, bounds));
+  assert (select answer from shaped where label = '301 line points') = not_gpx, '301 line points';
+  assert (select answer from shaped where label = '101 stops') = not_gpx, '101 stops';
+  assert (select count(*) from shaped where label like 'a line that is%' and answer = not_gpx) = 3, 'line must be an array';
+  assert (select count(*) from shaped where label like 'stops that are%' and answer = not_gpx) = 2, 'stops must be an array';
+  assert (select count(*) from shaped where label like 'bounds that are%' and answer = not_gpx) = 3, 'bounds must be an object';
+  assert (select answer from shaped where label = 'a bad name before a long line') = 'Give the route a name.', 'name first';
+  assert (select answer from shaped where label = 'a bad file before a long line') = 'That route has no track in it.',
+    'the file''s own checks first';
+  assert (select answer from shaped where label = 'not XML before a long line') = not_gpx, 'not XML';
+  assert (select answer from shaped where label = 'exactly 300 points and 100 stops') is null, 'at the caps';
+  assert (select answer from shaped where label = 'no summary') is null, 'no summary';
+  assert (select count(*) from routes where name in ('At the caps', 'No summary')) = 2, 'both saved';
+  assert (select jsonb_array_length(line) || '/' || jsonb_array_length(stops) from routes where name = 'At the caps') = '300/100';
+  assert (select count(*) from routes where name not in ('At the caps', 'No summary')
+          and name in (select nm from shaped)) = 0, 'nothing else was written';
+  -- An edit that keeps the file is held to the same summary rules.
+  assert pg_temp.try_as(rick, format('select public.save_route(%L, %L, %L, null, null, null, null, %L, null, null)',
+    pg_temp.rid('At the caps'), 'At the caps', (select id from public.chapters where slug = 'west'), line301)) = not_gpx,
+    'an edit with a long line';
+end $$;
+
 \echo 'A route manager adds a route; everything is kept, and save_route returns its id'
 do $$
 declare

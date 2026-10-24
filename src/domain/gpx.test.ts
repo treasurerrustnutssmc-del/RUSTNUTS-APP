@@ -195,6 +195,19 @@ test('readGpx: hostile input stays linear (many unclosed tags, long runs of "<")
   assert.ok(Date.now() - t0 < 1000, `took ${Date.now() - t0} ms`);
 });
 
+test('readGpx: the well-formedness checks stay linear too (huge tags, references, dashes)', () => {
+  const t0 = Date.now();
+  let attrs = '';
+  for (let k = 0; k < 200000; k++) attrs += ` a${k}="&amp;"`;
+  assert.equal(typeof readGpx(`<gpx${attrs}>${track([[-37, 144], [-37.1, 144]])}</gpx>`), 'object', '200k different attributes');
+  assert.equal(readGpx(`<gpx${attrs} a5="x"></gpx>`), NOT_GPX, 'the repeat comes last');
+  assert.equal(readGpx(`<gpx><desc>${'&#x41;'.repeat(400000)}</desc></gpx>`), NO_TRACK, '400k references');
+  assert.equal(readGpx(`<gpx><desc>${'&#x00000000000041'.repeat(200000)}</desc></gpx>`), NOT_GPX, 'unterminated references');
+  assert.equal(readGpx(`<gpx><!-- ${'-'.repeat(1000000)}`), NOT_GPX, 'a comment of dashes');
+  assert.equal(readGpx(`<gpx><desc>${']]'.repeat(1000000)}</desc></gpx>`), NO_TRACK, 'runs of ]');
+  assert.ok(Date.now() - t0 < 1500, `took ${Date.now() - t0} ms`);
+});
+
 test('simplify: 100k points come down to at most 300 in under 500 ms, keeping both ends', () => {
   const pts: [number, number][] = [];
   for (let i = 0; i < 100000; i++) pts.push([-37 + Math.sin(i / 1000) * 0.2 + (i % 7) * 1e-5, 144 + i * 1e-5]);
@@ -286,4 +299,113 @@ test('the file limits and messages shared with the pickers', () => {
   assert.equal(MAX_BYTES, 5 * 1024 * 1024);
   assert.equal(TOO_BIG, 'That file is too big (5 MB at most).');
   assert.equal(UNREADABLE, 'That file couldn’t be read. Try picking it again.');
+});
+
+// ---- What Postgres (libxml2) refuses, the reader refuses too ----
+// Every case below was checked with xml_is_well_formed_document on the test database.
+
+const goodTrack = track([[-37.0, 144.0], [-37.1, 144.0]]);
+
+test('readGpx: nothing may come before the XML declaration but one byte order mark', () => {
+  const doc = gpx(goodTrack);
+  assert.equal(typeof readGpx('﻿' + doc), 'object', 'one BOM is fine');
+  assert.equal(readGpx(' ' + doc), NOT_GPX, 'a space');
+  assert.equal(readGpx('\n' + doc), NOT_GPX, 'a newline');
+  assert.equal(readGpx('\r\n' + doc), NOT_GPX, 'a Windows newline');
+  assert.equal(readGpx('x' + doc), NOT_GPX, 'a letter');
+  assert.equal(readGpx('﻿﻿' + doc), NOT_GPX, 'two BOMs');
+  assert.equal(readGpx('﻿ ' + doc), NOT_GPX, 'a BOM then a space');
+  assert.equal(readGpx('<!-- hi -->' + doc), NOT_GPX, 'a comment');
+  assert.equal(readGpx(doc.replace('<gpx ', '<?xml version="1.0"?><gpx ')), NOT_GPX, 'a second declaration');
+  assert.equal(readGpx(doc.replace('<gpx ', '<?XML x?><gpx ')), NOT_GPX, 'xml is a reserved PI name in any case');
+  assert.equal(readGpx(gpx(`<?xml x?>${goodTrack}`)), NOT_GPX, 'a declaration inside the root');
+  // Without a declaration, white space before the root is allowed.
+  assert.equal(typeof readGpx(`  \n<gpx>${goodTrack}</gpx>`), 'object', 'white space, no declaration');
+  assert.equal(typeof readGpx(doc.replace('<gpx ', '<?xml-stylesheet href="a.xsl"?>\n<gpx ')), 'object', 'other PIs are fine');
+});
+
+test('readGpx: an & must start one of the five entities or a character reference, in text and attributes', () => {
+  const wpt = (name: string) => gpx(`<wpt lat="-37.81" lon="144.96"><name>${name}</name></wpt>${goodTrack}`);
+  for (const bad of ['Fish & chips', 'Fish &chips', 'A&nbsp;B', '&amp', '&AMP;', '&#;', '&#x;', '&#X41;', '&#0;', '&#x1F;', '&#xD800;', '&#xFFFE;', '&#x110000;', '&#99999999999;']) {
+    assert.equal(readGpx(wpt(bad)), NOT_GPX, `text ${bad}`);
+  }
+  assert.equal(readGpx(gpx(`<metadata><desc>Fish & chips</desc></metadata>${goodTrack}`)), NOT_GPX, 'in text the reader does not keep');
+  assert.equal(readGpx(gpx(goodTrack, ' creator2="Fish & chips"')), NOT_GPX, 'in an attribute');
+  assert.equal(readGpx(gpx(goodTrack, ' creator2="A&nbsp;B"')), NOT_GPX, '&nbsp; in an attribute');
+  const s = summary(readGpx(wpt('&amp;&lt;&gt;&quot;&apos; &#65;&#x41;&#x1F600;&#x0000042;&#9;!')));
+  assert.equal(s.stops[0].name, '&<>"\' AA😀B\t!');
+  assert.equal(typeof readGpx(gpx(goodTrack, ' creator2="&amp;&lt;&#65;&#x41;"')), 'object', 'good references in an attribute');
+  assert.equal(typeof readGpx(gpx(`<!-- Fish & chips < -->${goodTrack}<![CDATA[]]>`)), 'object', 'comments and CDATA are not text');
+});
+
+test('readGpx: a raw < inside an attribute value is not XML', () => {
+  assert.equal(readGpx(gpx(goodTrack, ' creator2="a < b"')), NOT_GPX);
+  assert.equal(readGpx(gpx(`<trk><extensions x='a<b'/><trkseg>${trkpt([-37, 144])}${trkpt([-37.1, 144])}</trkseg></trk>`)), NOT_GPX);
+  assert.equal(typeof readGpx(gpx(goodTrack, ' creator2="a > b"')), 'object', 'a > is fine');
+});
+
+test('readGpx: an element may not have the same attribute twice', () => {
+  assert.equal(readGpx(gpx(goodTrack, ' version="1.1"')), NOT_GPX, 'on the root');
+  assert.equal(readGpx(gpx(`<trk><trkseg><trkpt lat="-37" lat="-37" lon="144"/>${trkpt([-37.1, 144])}</trkseg></trk>`)), NOT_GPX, 'on a point');
+  assert.equal(readGpx(gpx(`<extensions><x:a b="1" c="2" b="3"/></extensions>${goodTrack}`)), NOT_GPX, 'on any element');
+  // Many attributes, the repeat far down the list.
+  let many = '';
+  for (let k = 0; k < 40; k++) many += ` a${k}="${k}"`;
+  assert.equal(typeof readGpx(gpx(`<extensions><x${many}/></extensions>${goodTrack}`)), 'object', '40 different names');
+  assert.equal(readGpx(gpx(`<extensions><x${many} a33="again"/></extensions>${goodTrack}`)), NOT_GPX, 'the 41st repeats the 34th');
+});
+
+test('readGpx: after the root closes, only white space, comments and PIs', () => {
+  const doc = gpx(goodTrack);
+  assert.equal(typeof readGpx(doc + '\n  \r\n\t'), 'object', 'white space');
+  assert.equal(typeof readGpx(doc + '<!-- end -->\n<?app done?>\n'), 'object', 'a comment and a PI');
+  assert.equal(readGpx(doc + 'junk'), NOT_GPX, 'text');
+  assert.equal(readGpx(doc + '\n.'), NOT_GPX, 'a full stop');
+  assert.equal(readGpx(doc + '&amp;'), NOT_GPX, 'an entity');
+  assert.equal(readGpx(doc + '<b/>'), NOT_GPX, 'another element');
+  assert.equal(readGpx(doc + '<![CDATA[x]]>'), NOT_GPX, 'CDATA');
+  assert.equal(readGpx(doc + '<!DOCTYPE gpx>'), NOT_GPX, 'a doctype');
+  assert.equal(readGpx(doc + '﻿'), NOT_GPX, 'a stray BOM');
+});
+
+test('readGpx: other things libxml2 refuses are refused too', () => {
+  assert.equal(readGpx(`<?xml version="1.0"?>hello<gpx>${goodTrack}</gpx>`), NOT_GPX, 'text before the root');
+  assert.equal(readGpx(`<?xml version="1.0"?><![CDATA[x]]><gpx>${goodTrack}</gpx>`), NOT_GPX, 'CDATA before the root');
+  assert.equal(readGpx(gpx(`<!-- a -- b -->${goodTrack}`)), NOT_GPX, '-- inside a comment');
+  assert.equal(readGpx(gpx(`<!-- a --->${goodTrack}`)), NOT_GPX, 'a comment ending --->');
+  assert.equal(readGpx(gpx(`<? x?>${goodTrack}`)), NOT_GPX, 'a PI with no name');
+  assert.equal(readGpx(gpx(`<desc>a ]]> b</desc>${goodTrack}`)), NOT_GPX, ']]> in text');
+  assert.equal(readGpx(gpx(`<desc>a \u0001 b</desc>${goodTrack}`)), NOT_GPX, 'a control character');
+  assert.equal(readGpx(gpx(`<!-- \u0000 -->${goodTrack}`)), NOT_GPX, 'a NUL even in a comment');
+  assert.equal(readGpx(gpx(`<desc>\uD800</desc>${goodTrack}`)), NOT_GPX, 'a lone surrogate');
+  assert.equal(readGpx(gpx(`<desc>￿</desc>${goodTrack}`)), NOT_GPX, 'U+FFFF');
+  assert.equal(readGpx(gpx(goodTrack, ' a="1"b="2"')), NOT_GPX, 'attributes with no space between');
+  assert.equal(readGpx(gpx(goodTrack, ' a')), NOT_GPX, 'an attribute with no value');
+  assert.equal(readGpx(gpx(goodTrack, ' a=1')), NOT_GPX, 'an unquoted value');
+  assert.equal(readGpx(gpx(goodTrack).replace('</gpx>', '</gpx a="1">')), NOT_GPX, 'an attribute on an end tag');
+  assert.equal(readGpx(gpx(`<extensions><1a/></extensions>${goodTrack}`)), NOT_GPX, 'a name starting with a digit');
+  assert.equal(readGpx(gpx(`<extensions><a"b"/></extensions>${goodTrack}`)), NOT_GPX, 'a quote in a name');
+  assert.equal(readGpx(gpx(`<desc><!ENTITY x "y"></desc>${goodTrack}`)), NOT_GPX, 'a declaration inside the root');
+  assert.equal(readGpx(gpx(`<desc><!DOCTYPE gpx></desc>${goodTrack}`)), NOT_GPX, 'a doctype inside the root');
+  // Still fine:
+  assert.equal(typeof readGpx(gpx(goodTrack).replace('</gpx>', '</gpx >')), 'object', 'space before > in an end tag');
+  assert.equal(typeof readGpx(gpx(goodTrack, ' a = "1"\n\tb=\'2\' ')), 'object', 'space around = and before >');
+  assert.equal(typeof readGpx(`<!DOCTYPE gpx>\n<gpx>${goodTrack}</gpx>`), 'object', 'a doctype before the root');
+  assert.equal(typeof readGpx(gpx(`<!---->${goodTrack}`)), 'object', 'an empty comment');
+  assert.equal(typeof readGpx(gpx(`<desc>a ] ]] > b � 😀</desc>${goodTrack}`)), 'object', 'near misses');
+});
+
+test('readGpx: the GPX’s own name, from its first track, then its route, then its metadata', () => {
+  const meta = '<metadata><name>Meta name</name><author><name>Not this</name></author></metadata>';
+  const rte = `<rte><name>Route name</name>${trkpt([-36, 145], 'rtept')}${trkpt([-36.1, 145], 'rtept')}</rte>`;
+  const trk = (name: string) => `<trk><name>${name}</name><trkseg>${trkpt([-37, 144])}${trkpt([-37.1, 144])}</trkseg></trk>`;
+  const wpt = '<wpt lat="-37.5" lon="144.5"><name>A stop</name></wpt>';
+  assert.equal(summary(readGpx(gpx(meta + wpt + rte + trk(' Track &amp; one ') + trk('Track two')))).name, 'Track & one');
+  assert.equal(summary(readGpx(gpx(meta + wpt + rte + `<trk><trkseg>${trkpt([-37, 144])}${trkpt([-37.1, 144])}</trkseg></trk>`))).name, 'Route name');
+  assert.equal(summary(readGpx(gpx(wpt + meta + rte.replace('<name>Route name</name>', '')))).name, 'Meta name');
+  assert.equal(summary(readGpx(gpx(wpt + trk('')))).name, undefined, 'a waypoint’s name is never the route’s, nor an empty one');
+  assert.equal(summary(readGpx(gpx(`<metadata><author><name>Jo</name></author></metadata>${trk('<![CDATA[]]>')}`))).name, undefined, 'only a direct child');
+  assert.equal(summary(readGpx(gpx(trk('<![CDATA[Fish & chips]]>') + trk('Second')))).name, 'Fish & chips', 'CDATA');
+  assert.equal(summary(readGpx(gpx(trk('') + trk('Second')))).name, 'Second', 'the first track with a name');
+  assert.ok(!('name' in summary(readGpx(gpx(goodTrack.replace('<name>Test</name>', ''))))), 'no name key when there is none');
 });

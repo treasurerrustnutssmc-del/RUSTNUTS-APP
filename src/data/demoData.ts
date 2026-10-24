@@ -134,7 +134,8 @@ export const DEMO_ROUTE_GPX: Record<string, string> = Object.fromEntries(
 const demoRoutes: Route[] = DEMO_ROUTES.map(({ route }) => {
   const summary = readGpx(DEMO_ROUTE_GPX[route.id]);
   if (typeof summary === 'string') throw new Error(`Demo route ${route.name}: ${summary}`);
-  return { ...route, ...summary, archivedAt: null };
+  const { name: _fileName, ...shape } = summary; // the route keeps its own name
+  return { ...route, ...shape, archivedAt: null };
 });
 
 export const DEMO_DATA: ClubData = {

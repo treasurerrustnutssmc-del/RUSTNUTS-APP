@@ -42,9 +42,9 @@ test('the demo has three routes, filled in by the GPX reader from their files', 
     assert.equal(typeof s, 'object', `${r.name}: ${String(s)}`);
     if (typeof s === 'string') continue;
     assert.deepEqual(
-      { distanceM: r.distanceM, climbM: r.climbM, line: r.line, stops: r.stops, bounds: r.bounds },
+      { name: r.name, distanceM: r.distanceM, climbM: r.climbM, line: r.line, stops: r.stops, bounds: r.bounds },
       s,
-      `${r.name}'s summary is the reader's`,
+      `${r.name}'s summary is the reader's, and its file carries its name`,
     );
     assert.ok(r.line.length >= 24, `${r.name} has a few dozen points`);
     assert.ok(r.distanceM > 30000, `${r.name} is a real ride`);

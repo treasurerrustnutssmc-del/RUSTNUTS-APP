@@ -125,9 +125,26 @@ export function ridesUsingRoute(routeId: string, data: ClubData, today: string):
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
-/** The file name a route is saved or shared as: letters, digits, spaces, hyphens and underscores only. */
+/**
+ * The name a picked file starts the form with: the GPX's own name (see GpxSummary.name), else the
+ * file's name without `.gpx` and with underscores as spaces. White space runs become one space, and
+ * it is cut to the 80 characters a name may have, counted as saveRouteProblem counts them, so an
+ * emoji is never split in two.
+ */
+export function startingRouteName(gpxName: string | undefined, fileName: string): string {
+  const from = gpxName?.trim() ? gpxName : fileName.replace(/\.gpx$/i, '').replace(/_+/g, ' ');
+  const tidy = from.replace(/\s+/g, ' ').trim();
+  return [...tidy].slice(0, NAME_MAX).join('').trim();
+}
+
+/**
+ * The file name a route is saved or shared as: letters and digits in any script (with the accents
+ * and vowel signs written on them), spaces, hyphens and underscores only. Everything else goes,
+ * so no slash, colon or other character a file system refuses is left.
+ */
 export function routeFileName(name: string): string {
-  return `${name.replace(/[^\w\- ]+/g, '').trim() || 'route'}.gpx`;
+  const kept = name.replace(/([\p{L}\p{N}]\p{M}*)|[^\- _]/gu, (_all, letter?: string) => letter ?? '');
+  return `${kept.trim() || 'route'}.gpx`;
 }
 
 /** A distance in km to one decimal place: "84.2 km". */

@@ -117,6 +117,13 @@ begin
       raise exception 'That route has no track in it.';
     end if;
   end if;
+  -- The summary has to be one the app could have sent: a line of at most 300 points and at most 100
+  -- stops (both arrays), and bounds that are an object. Each is optional.
+  if (p_line is not null and case when jsonb_typeof(p_line) = 'array' then jsonb_array_length(p_line) > 300 else true end)
+     or (p_stops is not null and case when jsonb_typeof(p_stops) = 'array' then jsonb_array_length(p_stops) > 100 else true end)
+     or (p_bounds is not null and jsonb_typeof(p_bounds) <> 'object') then
+    raise exception 'That isn’t a GPX file.';
+  end if;
 
   if p_id is null then
     insert into public.routes (name, chapter_id, notes, gpx, distance_m, climb_m, line, stops, bounds,

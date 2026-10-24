@@ -114,8 +114,9 @@ export function fixtureGpx(name: string | null | undefined): string | null {
 function fixtureRoutes(): Route[] {
   const summary = readGpx(fixtureGpx('valid') ?? '');
   if (typeof summary === 'string') throw new Error(`parity.json's valid GPX file: ${summary}`);
+  const { name: _fileName, ...shape } = summary; // each route keeps its own name
   return (fixture.routes ?? []).map((r) => ({
-    id: r.key, name: r.name, chapterId: r.chapter, notes: '', ...summary,
+    id: r.key, name: r.name, chapterId: r.chapter, notes: '', ...shape,
     archivedAt: r.archived ? '2026-01-01T00:00:00.000Z' : null, updatedAt: '2026-01-01T00:00:00.000Z',
   }));
 }

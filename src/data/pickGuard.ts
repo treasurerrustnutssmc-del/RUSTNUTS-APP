@@ -31,3 +31,39 @@ export function createPickGuard(onChange: (busy: boolean) => void): PickGuard {
     },
   };
 }
+
+/** What releaseAfterReturn needs from the browser window, so it can be tried without one. */
+export interface ReturnWatch {
+  /** Calls `fn` the next time the window gets focus back, once. Returns a function that stops it. */
+  onFocusOnce(fn: () => void): () => void;
+  /** How many file choices have arrived so far, from any pick. */
+  changes(): number;
+  setTimeout(fn: () => void, ms: number): unknown;
+  clearTimeout(handle: unknown): void;
+}
+
+/** How long after the window gets focus back a pick waits for its file before it counts as backed out. */
+export const RETURN_GRACE_MS = 300;
+
+/**
+ * Web only. Browsers without the file input's cancel event never settle a backed-out pick, so the
+ * window getting focus back (the file chooser closing) frees it instead. Focus can come a little
+ * before the input's change, so this waits RETURN_GRACE_MS first, and frees the pick only if no
+ * file arrived since the watch began; a pick that got a file frees itself when it settles.
+ * Returns a function that stops watching.
+ */
+export function releaseAfterReturn(env: ReturnWatch, release: () => void, graceMs = RETURN_GRACE_MS): () => void {
+  const before = env.changes();
+  let timer: unknown = null;
+  const stopFocus = env.onFocusOnce(() => {
+    timer = env.setTimeout(() => {
+      timer = null;
+      if (env.changes() === before) release();
+    }, graceMs);
+  });
+  return () => {
+    stopFocus();
+    if (timer !== null) env.clearTimeout(timer);
+    timer = null;
+  };
+}

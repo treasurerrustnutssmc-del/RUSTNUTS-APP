@@ -16,6 +16,7 @@ import {
   ridesUsingRoute,
   saveRouteProblem,
   signedInProblem,
+  startingRouteName,
 } from './routes';
 import { endOfFirstDay } from './rides';
 import type { Chapter, ClubData, Member, Position, PositionRole, Ride, Route } from './types';
@@ -261,6 +262,16 @@ test('a route’s file name is safe to save', () => {
   assert.equal(routeFileName(''), 'route.gpx');
 });
 
+test('a route’s file name keeps accented and non-Latin letters', () => {
+  assert.equal(routeFileName('Café loop'), 'Café loop.gpx');
+  assert.equal(routeFileName('Cafe\u0301 loop'), 'Cafe\u0301 loop.gpx', 'an accent written as its own mark stays on its letter');
+  assert.equal(routeFileName('Мельбурн петля'), 'Мельбурн петля.gpx');
+  assert.equal(routeFileName('दिल्ली राइड'), 'दिल्ली राइड.gpx', 'vowel signs are kept with their letters');
+  assert.equal(routeFileName('東京ツーリング 2'), '東京ツーリング 2.gpx');
+  assert.equal(routeFileName('a/b\\c:d*e?f"g<h>i|j'), 'abcdefghij.gpx', 'the characters file systems refuse go');
+  assert.equal(routeFileName('\u0301\u0301 ☕️'), 'route.gpx', 'marks with no letter go too');
+});
+
 test('distance in km to one decimal place', () => {
   assert.equal(formatKm(84213), '84.2 km');
   assert.equal(formatKm(84250), '84.3 km', 'rounds half up');
@@ -326,4 +337,21 @@ test('the opening checks and shared refusals', () => {
   assert.equal(signedInProblem(rider), null);
   assert.equal(NOT_MANAGER, WORDS);
   assert.equal(NO_ROUTE, GONE);
+});
+
+test('a picked file’s starting name: the GPX’s own name, else the file name', () => {
+  assert.equal(startingRouteName('Daylesford breakfast loop', 'track_0042.gpx'), 'Daylesford breakfast loop');
+  assert.equal(startingRouteName(undefined, 'Daylesford_breakfast_loop.GPX'), 'Daylesford breakfast loop');
+  assert.equal(startingRouteName('', 'Kinglake run.gpx'), 'Kinglake run', 'an empty GPX name falls back');
+  assert.equal(startingRouteName('  Two\n  lines\t', 'x.gpx'), 'Two lines', 'white space runs become one space');
+});
+
+test('a starting name is cut to 80 characters without splitting one in two', () => {
+  const cut = startingRouteName('😀'.repeat(81), 'x.gpx');
+  assert.equal([...cut].length, 80);
+  assert.equal(cut, '😀'.repeat(80));
+  assert.equal(startingRouteName(undefined, `${'x'.repeat(79)}😀😀.gpx`), `${'x'.repeat(79)}😀`, 'no half emoji left at the end');
+  assert.equal(startingRouteName(`${'a'.repeat(79)} b`, 'x.gpx'), 'a'.repeat(79), 'no space left at the end');
+  // Whatever the cut, the name passes the 80-character rule saveRouteProblem applies.
+  assert.ok([...startingRouteName('é'.repeat(200), 'x.gpx')].length <= 80);
 });

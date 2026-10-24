@@ -38,9 +38,12 @@ Each ride can carry its route: the GPX file the Road Captain planned. Members se
   - **climb:** total ascent in metres, when the file has elevation
   - **a simplified line:** Ramer–Douglas–Peucker, at most 300 points, for drawing
   - **bounds**
-  - **stops:** waypoint names. Unnamed stops show as "Stop 1", "Stop 2" and so on.
+  - **stops:** waypoint names, the first 100. Unnamed stops show as "Stop 1", "Stop 2" and so on.
+  - **the file's own name**, used only to start an empty Name field: the first `<trk><name>`, else `<rte><name>`, else `<metadata><name>` (never a waypoint's). Without one, the file name is used. Either is cut to 80 characters, counted as the name rule counts them.
+- **Well-formed means what Postgres (libxml2) accepts,** so the app never shows a good shape for a file the database then refuses. After one optional byte order mark, nothing comes before `<?xml …?>`; every `&` is one of the five XML entities or a character reference (so `&nbsp;` is refused); no `<` inside an attribute value; no attribute twice on one element; only white space, comments and processing instructions after the root. The app may be stricter than the database, never looser.
 - The app reads the file before uploading, shows the summary for checking, and sends the file and the summary together.
-- The database stores the summary next to the file. It checks the file with Postgres's own XML functions (`xml_is_well_formed_document` and `xpath`, counting `trkpt`/`rtept`), so a wrong or empty file can't get in even from a hand-made call.
+- The database stores the summary next to the file. It checks the file with Postgres's own XML functions (`xml_is_well_formed_document` and `xpath`, counting `trkpt`/`rtept`), so a wrong or empty file can't get in even from a hand-made call. After the file checks, it refuses a summary the app could never send (a line over 300 points, over 100 stops, or `line`/`stops` that aren't arrays or `bounds` that isn't an object) with `That isn’t a GPX file.`
+- A route's file is saved or shared as `<route name>.gpx`, keeping letters and digits in any script, spaces, hyphens and underscores; anything else goes, and an empty result is `route.gpx`.
 
 ## Data (new migration `20261024140000_ride_routes.sql`)
 - **`public.routes`:**
