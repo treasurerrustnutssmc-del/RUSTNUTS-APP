@@ -47,6 +47,23 @@ Words (exact): `Sign in first.` · `Only approved members can do that.` · `No s
 - [ ] **Step 4:** `npm test` → all pass.
 - [ ] **Step 5:** Commit `Chat rules`.
 
+### Task 1b: Rules added after the Discord deep dive
+
+**Files:** Modify `src/domain/chat.ts`, `src/domain/chat.test.ts`
+
+**Interfaces:**
+- `ChatKind` gains `'committee'`; `Conversation` gains `committee: 'ride' | null`, `pinnedMessageId: string | null`; `Message` gains `replyToId: string | null`.
+- `isRideCommittee(memberId, positions)`: an active `ride_committee` or `road_captain` seat.
+- `readProblem` for committee: ride committee or NEC, else `That chat is for the ride committee.`
+- `canModerate` for committee: NEC, or a board member who can read it.
+- `postProblem(..., replyTo?: Message | null)`: a reply to a message from another chat or that doesn't exist → `No such message.` (a removed one is fine to reply to).
+- `pinProblem(me, conv, message, data)`: `Only moderators can pin messages.` unless `canModerate`; removed → `That message was removed.`
+- `reportProblem(me, conv, message, reason, data)`: can read; message exists and not removed; your own → `You can’t report your own message.`; reason over 500 → `Keep the reason under 500 characters.`
+- `canSeeReport(me, conv, reporter: Member | undefined, data)`: `canModerate`, or for a private chat the board of the reporter's chapter.
+- `blockProblem(me, target)`: like `directProblem` but `You can’t block yourself.`; and `directProblem` gains `blocks` → `You can’t message them.` when either has blocked the other (checked in `postProblem` for private chats too, given `blocks: {blockerId, blockedId}[]`).
+
+- [ ] Tests first for each, then code, `npm test` green, commit `Chat rules: committee, replies, pins, reports, blocks`.
+
 ### Task 2: Database
 
 **Files:**
@@ -56,7 +73,7 @@ Words (exact): `Sign in first.` · `Only approved members can do that.` · `No s
 **Interfaces:**
 - Produces (SQL): enum `chat_kind`; tables in the spec; `private.can_read_chat(uuid) boolean`, `private.chat_problem(uuid) text` (null or the refusal, same words as Task 1), `private.is_any_board() boolean`;
   `public.send_message(p_chat uuid, p_body text, p_media jsonb) returns uuid` (media items `{path, kind, posterPath, width, height, durationMs}`; each `path` must start `<p_chat>/`, exist in `storage.objects` in `chat-media`, be owned by the caller and be unused);
-  `public.remove_message(p_message uuid)`, `public.toggle_reaction(p_message uuid, p_emoji text)`, `public.open_direct_chat(p_member uuid) returns uuid`, `public.ride_chat(p_ride uuid) returns uuid`, `public.mark_chat_read(p_chat uuid)`;
+  `public.remove_message(p_message uuid)`, `public.toggle_reaction(p_message uuid, p_emoji text)`, `public.pin_message(p_chat uuid, p_message uuid)` (null unpins), `public.report_message(p_message uuid, p_reason text)`, `public.resolve_report(p_report uuid, p_remove boolean)`, `public.set_block(p_member uuid, p_blocked boolean)`, `public.chat_reports() returns jsonb` (open reports you can act on), `public.open_direct_chat(p_member uuid) returns uuid`, `public.ride_chat(p_ride uuid) returns uuid`, `public.mark_chat_read(p_chat uuid)`;
   `public.chat_list() returns jsonb` → `[{id, kind, chapter_id, ride_id, member_ids, ride: {id,title,starts_at,ends_at,all_day,category,cancelled_at}|null, last: {id, author_id, body, has_media, removed, created_at}|null, unread}]`;
   `public.club_photos(p_before timestamptz, p_limit int) returns jsonb` → `[{media..., message_id, conversation_id, author_id, created_at}]` newest first, never `direct`, never removed;
   `public.ride_walls() returns jsonb` → `[{ride: {...}, chat_id, count, cover: {path, poster_path, kind}}]` newest ride first; `public.ride_wall(p_ride uuid) returns jsonb` → `{ride, chat_id, media: [...]}`.
