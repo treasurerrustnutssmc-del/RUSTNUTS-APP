@@ -30,12 +30,12 @@ test('signed in: rows become app records, shared phones merge in', async () => {
           {
             id: 'm1', chapter_id: 'c1', full_name: 'Mick Doherty', road_name: 'Spanner', status: 'full',
             approval: 'approved', joined_on: '2022-03-12', patched_on: null, fng_started_on: null, bio: null,
-            share_phone: true, applied_on: '2022-03-01', created_at: '', updated_at: '',
+            share_phone: true, applied_on: '2022-03-01', created_at: '', updated_at: '', on_hiatus: false,
           },
           {
             id: 'm2', chapter_id: 'c1', full_name: 'Gary K', road_name: 'Rusty', status: 'full',
             approval: 'approved', joined_on: null, patched_on: null, fng_started_on: null, bio: null,
-            share_phone: true, applied_on: '2022-03-01', created_at: '', updated_at: '',
+            share_phone: true, applied_on: '2022-03-01', created_at: '', updated_at: '', on_hiatus: false,
           },
         ],
         member_private: [

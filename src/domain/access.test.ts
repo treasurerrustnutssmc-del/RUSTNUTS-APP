@@ -195,3 +195,18 @@ test('seat holders the viewer cannot see are left out instead of crashing', () =
   ];
   assert.deepEqual(withHolders(seats, d.members).map((x) => [x.position.id, x.member.id]), [['s1', 'm-torque']]);
 });
+
+test('Founder is an honour: no powers, and nobody hands it out or ends it in the app', () => {
+  const withFounder = {
+    ...d,
+    positions: [...P, { id: 'p-founder', memberId: 'm-spanner', chapterId: null, role: 'founder' as const, startedOn: '2019-01-01', endedOn: null }],
+  };
+  assert.equal(accessLevel(m('m-spanner'), withFounder.positions), 'member');
+  assert.equal(allowed(appointProblem(m('m-rusty'), m('m-chook'), null, 'founder', d)), false);
+  assert.equal(allowed(endTermProblem(m('m-rusty'), withFounder.positions.find((p) => p.id === 'p-founder')!, withFounder)), false);
+});
+
+test('Ride Committee and Assistant Tail Gunner are ordinary chapter roles', () => {
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), 'ch-west', 'ride_committee', d)), true);
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), 'ch-west', 'assistant_tail_gunner', d)), true);
+});

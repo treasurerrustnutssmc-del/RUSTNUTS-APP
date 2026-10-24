@@ -16,7 +16,10 @@ type PositionRole =
   | 'club_coach'
   | 'nec_chair'
   | 'nec_secretary'
-  | 'nec_auditor';
+  | 'nec_auditor'
+  | 'ride_committee'
+  | 'assistant_tail_gunner'
+  | 'founder';
 
 export type Database = {
   __InternalSupabase: { PostgrestVersion: '14.18' };
@@ -103,6 +106,7 @@ export type Database = {
           full_name: string;
           id: string;
           joined_on: string | null;
+          on_hiatus: boolean;
           patched_on: string | null;
           road_name: string | null;
           share_phone: boolean;

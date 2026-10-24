@@ -73,6 +73,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       bio: m.bio,
       sharePhone: m.share_phone,
       appliedOn: m.applied_on,
+      onHiatus: m.on_hiatus,
     })),
     privates: privateRows,
     bikes: (bikes.data ?? []).map((b) => ({

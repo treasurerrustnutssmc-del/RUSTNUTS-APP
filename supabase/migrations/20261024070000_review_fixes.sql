@@ -158,6 +158,7 @@ declare
 begin
   if me is null then raise exception 'Sign in first.'; end if;
   if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
+  if p_role = 'founder' then raise exception 'Founder is an honour the club’s admin records.'; end if;
   if p_member = me then raise exception 'You can’t appoint yourself.'; end if;
   select * into target from public.members where id = p_member;
   if not found then raise exception 'That member no longer exists.'; end if;
@@ -211,6 +212,7 @@ begin
   select * into pos from public.positions where id = p_position for update;
   if not found then raise exception 'That position no longer exists.'; end if;
   if pos.ended_on is not null then raise exception 'That term has already ended.'; end if;
+  if pos.role = 'founder' then raise exception 'Founder is an honour the club’s admin records.'; end if;
   if pos.member_id = me then raise exception 'You can’t end your own term.'; end if;
 
   if pos.chapter_id is null then

@@ -22,9 +22,12 @@ export const ROLE_LABEL: Record<PositionRole, string> = {
   tail_gunner: 'Tail Gunner',
   social_media_officer: 'Social Media Officer',
   club_coach: 'Club Coach',
+  ride_committee: 'Ride Committee',
+  assistant_tail_gunner: 'Assistant Tail Gunner',
   nec_chair: 'National Chairman',
   nec_secretary: 'National Secretary',
   nec_auditor: 'National Auditor',
+  founder: 'Founder',
 };
 
 /** Short forms used on chips, matching the Road Rules formation labels. */
@@ -39,9 +42,12 @@ export const ROLE_SHORT: Record<PositionRole, string> = {
   tail_gunner: 'TG',
   social_media_officer: 'SMO',
   club_coach: 'COACH',
+  ride_committee: 'RIDE COMM',
+  assistant_tail_gunner: 'ATG',
   nec_chair: 'NEC CHAIR',
   nec_secretary: 'NEC SEC',
   nec_auditor: 'AUDITOR',
+  founder: 'FOUNDER',
 };
 
 export const LICENCE_LABEL: Record<LicenceClass, string> = {
@@ -59,9 +65,19 @@ export const BOARD_ROLES: PositionRole[] = [
   'road_captain',
 ];
 
-export const CLUB_ROLES: PositionRole[] = ['officer', 'tail_gunner', 'social_media_officer', 'club_coach'];
+export const CLUB_ROLES: PositionRole[] = [
+  'officer',
+  'tail_gunner',
+  'assistant_tail_gunner',
+  'ride_committee',
+  'social_media_officer',
+  'club_coach',
+];
 
 export const NATIONAL_ROLES: PositionRole[] = ['nec_chair', 'nec_secretary', 'nec_auditor'];
 
+/** Honours carry no powers and are recorded by the admin, never handed out in the app. */
+export const HONOUR_ROLES: PositionRole[] = ['founder'];
+
 /** Order positions are listed in: President first, Officers last. */
-export const ROLE_ORDER: PositionRole[] = [...NATIONAL_ROLES, ...BOARD_ROLES, ...CLUB_ROLES];
+export const ROLE_ORDER: PositionRole[] = [...HONOUR_ROLES, ...NATIONAL_ROLES, ...BOARD_ROLES, ...CLUB_ROLES];

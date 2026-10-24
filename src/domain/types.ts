@@ -23,10 +23,14 @@ export type PositionRole =
   | 'tail_gunner'
   | 'social_media_officer'
   | 'club_coach'
+  | 'ride_committee'
+  | 'assistant_tail_gunner'
   // National Executive Committee roles (constitution 13, 15.5)
   | 'nec_chair'
   | 'nec_secretary'
-  | 'nec_auditor';
+  | 'nec_auditor'
+  // Honours: shown on the vest, carry no powers, recorded by the admin
+  | 'founder';
 
 export type LicenceClass = 'full_open' | 'probationary_open' | 'learner';
 
@@ -39,6 +43,8 @@ export interface Chapter {
 }
 
 export interface Member {
+  /** On an approved break from attendance (set by the admin for now). */
+  onHiatus?: boolean;
   id: string;
   chapterId: string;
   fullName: string;

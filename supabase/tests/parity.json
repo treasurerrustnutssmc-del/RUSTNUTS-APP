@@ -194,6 +194,14 @@
       "role": "nec_auditor",
       "startedOn": "2025-08-16",
       "endedOn": null
+    },
+    {
+      "key": "rusty-founder",
+      "member": "rusty",
+      "chapter": null,
+      "role": "founder",
+      "startedOn": "2019-01-01",
+      "endedOn": null
     }
   ],
   "bikes": [
@@ -718,6 +726,31 @@
       "model": "",
       "year": 2019,
       "allowed": false
+    },
+    {
+      "name": "The Chairman makes someone a Founder",
+      "as": "chair",
+      "action": "appoint",
+      "member": "torque",
+      "chapter": null,
+      "role": "founder",
+      "allowed": false
+    },
+    {
+      "name": "The Chairman ends a Founder honour",
+      "as": "chair",
+      "action": "endTerm",
+      "position": "rusty-founder",
+      "allowed": false
+    },
+    {
+      "name": "Secretary puts a member on the Ride Committee",
+      "as": "torque",
+      "action": "appoint",
+      "member": "gravel",
+      "chapter": "west",
+      "role": "ride_committee",
+      "allowed": true
     }
   ],
   "chapters": [
