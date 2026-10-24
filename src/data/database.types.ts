@@ -21,7 +21,9 @@ type PositionRole =
   | 'nec_auditor'
   | 'ride_committee'
   | 'assistant_tail_gunner'
-  | 'founder';
+  | 'founder'
+  // Stage 3 (lane B)
+  | 'charity_committee';
 
 type CrewRole = 'road_captain' | 'tail_gunner' | 'assistant_tail_gunner' | 'officer';
 // Lane E: live ride

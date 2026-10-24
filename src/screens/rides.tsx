@@ -25,6 +25,8 @@ import type { RootScreen, TabScreen } from '../navigation/types';
 import { LiveRideCard } from './liveRide';
 // Lane E: share
 import { ShareRideButton } from './shareRide';
+// Stage 3 (lane B): ride chat and wall
+import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import {
   Avatar,
@@ -406,6 +408,12 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       </Stack>
 
       <CrewSection ride={ride} me={me} data={data} onPick={(role) => navigation.navigate('PickCrew', { rideId: ride.id, role })} />
+      {/* Stage 3 (lane B): the ride's chat and photo wall */}
+      <RideChatRows
+        rideId={ride.id}
+        onOpenChat={(chatId) => navigation.navigate('Chat', { chatId })}
+        onOpenWall={() => navigation.navigate('RideWall', { rideId: ride.id })}
+      />
 
       {/* On a cancelled ride, only show who had said yes, so they can be told. */}
       {!cancelled || going.length > 0 ? list('Going', going) : null}

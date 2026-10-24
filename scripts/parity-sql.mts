@@ -75,6 +75,42 @@ for (const r of fx.rsvps ?? []) {
       `${id('r', r.ride)}, ${id('m', r.member)}, ${q(r.answer)});`,
   );
 }
+// Stage 3 (lane B): chats. The chats themselves make themselves; private chats, blocks and
+// messages are added here. A fixture chat name becomes a lookup of its id.
+const chatId = (name: string): string => {
+  const [kind, a, b] = name.split(':');
+  const where =
+    kind === 'club' || kind === 'nec' ? `kind = ${q(kind)}`
+    : kind === 'committee' ? `kind = 'committee' and committee = ${q(a)}`
+    : kind === 'chapter' || kind === 'board' ? `kind = ${q(kind)} and chapter_id = ${chapter(a)}`
+    : kind === 'ride' ? `kind = 'ride' and ride_id = ${id('r', a)}`
+    : kind === 'direct' ? `direct_key = least(${id('m', a)}::text, ${id('m', b)}::text) || ':' || greatest(${id('m', a)}::text, ${id('m', b)}::text)`
+    : null;
+  if (!where) throw new Error(`Unknown chat ${name}`);
+  return `(select id from public.conversations where ${where})`;
+};
+for (const [a, b] of fx.directs ?? []) {
+  sql(
+    `insert into public.conversations (kind, direct_key) values ('direct', ` +
+      `least(${id('m', a)}::text, ${id('m', b)}::text) || ':' || greatest(${id('m', a)}::text, ${id('m', b)}::text));`,
+  );
+  sql(`insert into public.conversation_members (conversation_id, member_id) values (${chatId(`direct:${a}:${b}`)}, ${id('m', a)}), (${chatId(`direct:${a}:${b}`)}, ${id('m', b)});`);
+}
+for (const b of fx.blocks ?? []) {
+  sql(`insert into public.member_blocks (blocker_id, blocked_id) values (${id('m', b.blocker)}, ${id('m', b.blocked)});`);
+}
+for (const m of fx.messages ?? []) {
+  sql(
+    `insert into public.messages (id, conversation_id, author_id, body, removed_at) values (` +
+      `${id('msg', m.key)}, ${chatId(m.chat)}, ${id('m', m.author)}, ${m.removed ? 'null' : q(m.body)}, ${m.removed ? 'now()' : 'null'});`,
+  );
+}
+// Looked up as the database owner before each case, since the person in the case may not be able
+// to see the chat at all.
+const caseChat = `nullif(current_setting('parity.chat'), '')::uuid`;
+const text = (s: string, repeat?: number) => q(repeat ? s.repeat(repeat) : s);
+const gifs = (n = 0) =>
+  `${q(JSON.stringify(Array.from({ length: n }, (_, i) => ({ kind: 'gif', path: `https://media1.giphy.com/media/parity${i}/giphy.gif`, width: 220, height: 160 }))))}::jsonb`;
 
 const call = (c: ParityCase & Record<string, any>): string => {
   switch (c.action) {
@@ -107,6 +143,20 @@ const call = (c: ParityCase & Record<string, any>): string => {
         `public.apply_to_join(${chapter(c.chapter)}, ${q(c.fullName)}, null, null, null, null, 'introduced', ` +
         `${c.make ? q(c.make) : 'null'}, ${c.model ? q(c.model) : 'null'}, ${c.year ?? 'null'})`
       );
+    case 'chatSend':
+      return `public.send_message(${caseChat}, ${text(c.body, c.repeat)}, ${gifs(c.gifs)}, ${c.replyTo ? id('msg', c.replyTo) : 'null'})`;
+    case 'chatRemove':
+      return `public.remove_message(${id('msg', c.message)})`;
+    case 'chatReact':
+      return `public.toggle_reaction(${id('msg', c.message)}, ${q(c.emoji)})`;
+    case 'chatDirect':
+      return `public.open_direct_chat(${id('m', c.member)})`;
+    case 'chatPin':
+      return `public.pin_message(${caseChat}, ${c.message ? id('msg', c.message) : 'null'})`;
+    case 'chatReport':
+      return `public.report_message(${id('msg', c.message)}, ${text(c.reason, c.repeat)})`;
+    case 'chatBlock':
+      return `public.set_block(${id('m', c.member)}, ${c.blocked})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
@@ -121,6 +171,7 @@ for (const c of fx.cases) {
   }
   sql('begin;');
   for (const key of c.without ?? []) sql(`delete from public.positions where id = ${id('p', key)};`);
+  sql(`select set_config('parity.chat', coalesce(${c.chat ? chatId(String(c.chat)) : 'null'}::text, ''), true);`);
   sql(`select set_config('request.jwt.claim.sub', ${id('m', c.as)}::text, true);`);
   sql('set local role authenticated;');
   sql('do $parity$ begin');

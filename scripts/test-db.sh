@@ -89,4 +89,12 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_notify -f "$ROOT/supabase/tests/notification_prefs_test.sql"
 
+# Stage 3 (lane B): the chats, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_chat" >/dev/null
+"${PSQL[@]}" -d rustnuts_chat -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_chat -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_chat -f "$ROOT/supabase/tests/chat_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'

@@ -267,3 +267,13 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - **Don't** put a small uppercase eyebrow label above a heading. The heading speaks for itself.
 - **Don't** use the group photo of the men.
 - **Don't** use the flannel as a general background. It's for its four moments only.
+
+## Stage 3 (lane B): chat and photos
+
+- **Tab bar:** Home, Chat, Rides, Members, Board (board members), Me. Chat carries a red unread count; its spoken label is "Chat, N unread".
+- **Chat list:** one card of rows. Each row has an icon badge (club, chapter flag, big table, NEC, committee, ride) or the person's avatar for a private chat, the chat name in stencil, the last message on one line, the time in stencil and a red unread count.
+- **Bubbles:** other people's messages are outlined ink cards with the avatar at the bottom left and an author line (stencil name, rank chip, top role chip). Your own are filled steel, right-aligned, with no author line. Runs from one person within a few minutes share one author line. Day labels (Today, Yesterday, DD/MM/YYYY) sit centred in stencil.
+- **Tapping a message** opens its actions under it: six reaction squares, Reply, Pin (moderators), Report, and a two-tap ConfirmButton to remove. Reaction counts sit under the bubble as pills.
+- **Composer:** steel field one line high that grows to six lines, with photo, camera (phones only) and a stencil GIF button to its left, and a red send square to its right. The GIF panel opens under it and says "Powered by GIPHY".
+- **Media:** one photo fills the bubble at its own shape (from 2:1 wide to a little taller than square); two to four sit in a two-across grid. Videos show a still with a play mark. Link cards are steel with the site in stencil.
+- **Photos screen:** Latest / Ride walls choices, a three-across grid with 3pt gaps, and a black full-screen viewer with the poster's name, the date and "Open the chat".
