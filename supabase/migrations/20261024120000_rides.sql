@@ -84,23 +84,27 @@ create or replace function public.apply_ride_sync(p_feed uuid, p_events jsonb)
 returns int language plpgsql security definer set search_path = '' as $$
 declare
   today_start timestamptz := private.club_date()::timestamp at time zone 'Australia/Melbourne';
+  incoming jsonb;
   n int;
 begin
-  create temporary table incoming on commit drop as
-  select distinct on (e.uid, e."startsAt") e.uid, e."startsAt" as starts_at, e."endsAt" as ends_at, coalesce(e."allDay", false) as all_day,
-         coalesce(nullif(trim(e.title), ''), 'Ride') as title, nullif(trim(e.location), '') as location,
-         nullif(trim(e.notes), '') as notes, e.category
-  from jsonb_array_elements(coalesce(p_events, '[]'::jsonb)) with ordinality as x(ev, pos)
-  cross join lateral jsonb_to_record(x.ev) as e(
-    uid text, "startsAt" timestamptz, "endsAt" timestamptz, "allDay" boolean, title text, location text,
-    notes text, category public.ride_category)
-  where e.uid is not null and e."startsAt" is not null and e.category is not null
-  order by e.uid, e."startsAt", x.pos desc;
+  -- The rides as listed, one per (uid, start), the later listing winning.
+  select coalesce(jsonb_agg(ev), '[]'::jsonb) into incoming
+  from (
+    select distinct on (e.uid, e."startsAt") x.ev
+    from jsonb_array_elements(coalesce(p_events, '[]'::jsonb)) with ordinality as x(ev, pos)
+    cross join lateral jsonb_to_record(x.ev) as e(uid text, "startsAt" timestamptz, category public.ride_category)
+    where e.uid is not null and e."startsAt" is not null and e.category is not null
+    order by e.uid, e."startsAt", x.pos desc
+  ) listed;
 
   insert into public.rides as r (source, feed_id, external_uid, starts_at, ends_at, all_day, title, location, notes, category,
                             cancelled_at, synced_at)
-  select 'feed', p_feed, uid, starts_at, ends_at, all_day, title, location, notes, category, null, now()
-  from incoming
+  select 'feed', p_feed, e.uid, e."startsAt", e."endsAt", coalesce(e."allDay", false),
+         coalesce(nullif(trim(e.title), ''), 'Ride'), nullif(trim(e.location), ''), nullif(trim(e.notes), ''),
+         e.category, null, now()
+  from jsonb_to_recordset(incoming) as e(
+    uid text, "startsAt" timestamptz, "endsAt" timestamptz, "allDay" boolean, title text, location text,
+    notes text, category public.ride_category)
   on conflict (feed_id, external_uid, starts_at) do update set
     ends_at = excluded.ends_at, all_day = excluded.all_day, title = excluded.title, location = excluded.location,
     notes = excluded.notes, category = excluded.category, cancelled_at = null, synced_at = now()
@@ -111,10 +115,11 @@ begin
 
   update public.rides r set cancelled_at = now(), synced_at = now()
   where r.feed_id = p_feed and r.cancelled_at is null and r.starts_at >= today_start
-    and not exists (select 1 from incoming i where i.uid = r.external_uid and i.starts_at = r.starts_at);
+    and not exists (
+      select 1 from jsonb_to_recordset(incoming) as i(uid text, "startsAt" timestamptz)
+      where i.uid = r.external_uid and i."startsAt" = r.starts_at);
 
   update private.ride_feeds set last_ok_at = now(), last_error = null where id = p_feed;
-  drop table incoming;
   return n;
 end;
 $$;
