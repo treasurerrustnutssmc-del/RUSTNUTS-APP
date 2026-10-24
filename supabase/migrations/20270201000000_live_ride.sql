@@ -120,7 +120,7 @@ begin
       where ride_id = p_ride and kind = 'emergency' and resolved_at is null
     ),
     riders as (
-      select lr.*, coalesce(m.road_name, m.full_name) as name, private.is_ride_leader(lr.member_id) as is_leader,
+      select lr.*, coalesce(m.road_name, split_part(m.full_name, ' ', 1)) as name, private.is_ride_leader(lr.member_id) as is_leader,
              mp.phone as raw_phone
       from public.live_riders lr
       join public.members m on m.id = lr.member_id
@@ -128,7 +128,7 @@ begin
       where lr.ride_id = p_ride and lr.stops_at > now()
     ),
     alerts as (
-      select a.*, coalesce(m.road_name, m.full_name) as name, mp.phone as raw_phone
+      select a.*, coalesce(m.road_name, split_part(m.full_name, ' ', 1)) as name, mp.phone as raw_phone
       from public.ride_alerts a
       join public.members m on m.id = a.member_id
       left join public.member_private mp on mp.member_id = a.member_id
