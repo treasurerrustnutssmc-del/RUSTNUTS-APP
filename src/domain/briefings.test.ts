@@ -10,8 +10,10 @@ import {
   NOT_WRITER,
   NO_BRIEFING,
   NO_RIDE,
+  READ_OUTDATED,
   RIDE_CANCELLED,
   SAFETY_ORDER,
+  SAVE_CONFLICT,
   TEXT_TOO_LONG,
   TOO_MANY_HAZARDS,
   SAFETY_LINE,
@@ -22,6 +24,8 @@ import {
   editBriefingProblem,
   editStart,
   hazardSummary,
+  isVersionRefusal,
+  oneLine,
   hazardTooLong,
   moreLabel,
   readBriefingProblem,
@@ -36,6 +40,7 @@ import {
   updatedLine,
   writesBriefing,
 } from './briefings';
+import * as briefings from './briefings';
 import { endOfFirstDay } from './rides';
 import type {
   Briefing, BriefingRead, Chapter, ClubData, CrewRole, CrewSpot, Member, Position, PositionRole, Ride, Rsvp, RsvpAnswer,
@@ -160,60 +165,60 @@ test('who writes a briefing', () => {
 
 test('saving a briefing: the checks in order', () => {
   const d = data();
-  assert.equal(saveBriefingProblem(null, WEST_RIDE, OK, d, NOW), 'Sign in first.');
-  assert.equal(saveBriefingProblem(pending, WEST_RIDE, OK, d, NOW), 'Only approved members can do that.');
-  assert.equal(saveBriefingProblem(westVp, undefined, OK, d, NOW), NO_RIDE);
-  assert.equal(saveBriefingProblem(westVp, CANCELLED, OK, d, NOW), RIDE_CANCELLED);
-  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, OK, d, '2026-11-08T00:00:00.000Z'), BRIEFING_LOCKED);
-  assert.equal(saveBriefingProblem(rider, WEST_RIDE, OK, d, NOW), NOT_WRITER);
-  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, OK, d, NOW), null, 'board');
-  assert.equal(saveBriefingProblem(westComm, WEST_RIDE, OK, d, NOW), null, 'ride committee');
-  assert.equal(saveBriefingProblem(crewRc, WEST_RIDE, OK, d, NOW), null, 'non-board RC crew writer');
-  assert.equal(saveBriefingProblem(crewRc, WEST_RIDE, OK, data({ crew: [] }), NOW), NOT_WRITER, 'an RC who stepped down');
+  assert.equal(saveBriefingProblem(null, WEST_RIDE, OK, d, NOW, null), 'Sign in first.');
+  assert.equal(saveBriefingProblem(pending, WEST_RIDE, OK, d, NOW, null), 'Only approved members can do that.');
+  assert.equal(saveBriefingProblem(westVp, undefined, OK, d, NOW, null), NO_RIDE);
+  assert.equal(saveBriefingProblem(westVp, CANCELLED, OK, d, NOW, null), RIDE_CANCELLED);
+  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, OK, d, '2026-11-08T00:00:00.000Z', null), BRIEFING_LOCKED);
+  assert.equal(saveBriefingProblem(rider, WEST_RIDE, OK, d, NOW, null), NOT_WRITER);
+  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, OK, d, NOW, null), null, 'board');
+  assert.equal(saveBriefingProblem(westComm, WEST_RIDE, OK, d, NOW, null), null, 'ride committee');
+  assert.equal(saveBriefingProblem(crewRc, WEST_RIDE, OK, d, NOW, null), null, 'non-board RC crew writer');
+  assert.equal(saveBriefingProblem(crewRc, WEST_RIDE, OK, data({ crew: [] }), NOW, null), NOT_WRITER, 'an RC who stepped down');
 });
 
 test('saving: an earlier check wins over a later one', () => {
   const d = data();
   const bad = { hazards: [], changes: '', notes: '' };
   // Sign-in beats everything, even with no ride.
-  assert.equal(saveBriefingProblem(null, undefined, bad, d, NOW), 'Sign in first.');
-  assert.equal(saveBriefingProblem(pending, undefined, bad, d, NOW), 'Only approved members can do that.');
+  assert.equal(saveBriefingProblem(null, undefined, bad, d, NOW, null), 'Sign in first.');
+  assert.equal(saveBriefingProblem(pending, undefined, bad, d, NOW, null), 'Only approved members can do that.');
   // No ride beats a non-writer.
-  assert.equal(saveBriefingProblem(rider, undefined, bad, d, NOW), NO_RIDE);
+  assert.equal(saveBriefingProblem(rider, undefined, bad, d, NOW, null), NO_RIDE);
   // Cancelled beats past-ride-day and not-a-writer.
   const cancelledPast = ride('c2', { cancelledAt: '2026-10-01T00:00:00.000Z' });
-  assert.equal(saveBriefingProblem(rider, cancelledPast, bad, d, '2026-12-01T00:00:00.000Z'), RIDE_CANCELLED);
+  assert.equal(saveBriefingProblem(rider, cancelledPast, bad, d, '2026-12-01T00:00:00.000Z', null), RIDE_CANCELLED);
   // Ride day beats not-a-writer.
-  assert.equal(saveBriefingProblem(rider, WEST_RIDE, bad, d, '2026-11-08T00:00:00.000Z'), BRIEFING_LOCKED);
+  assert.equal(saveBriefingProblem(rider, WEST_RIDE, bad, d, '2026-11-08T00:00:00.000Z', null), BRIEFING_LOCKED);
   // Not-a-writer beats every content check.
-  assert.equal(saveBriefingProblem(rider, WEST_RIDE, bad, d, NOW), NOT_WRITER);
-  assert.equal(saveBriefingProblem(rider, WEST_RIDE, { ...bad, hazards: Array(13).fill('x') }, d, NOW), NOT_WRITER);
+  assert.equal(saveBriefingProblem(rider, WEST_RIDE, bad, d, NOW, null), NOT_WRITER);
+  assert.equal(saveBriefingProblem(rider, WEST_RIDE, { ...bad, hazards: Array(13).fill('x') }, d, NOW, null), NOT_WRITER);
   // Too many hazards beats a long hazard, long text and empty.
   const many = Array.from({ length: 13 }, () => 'x'.repeat(MAX_HAZARD + 1));
   assert.equal(
-    saveBriefingProblem(westVp, WEST_RIDE, { hazards: many, changes: 'y'.repeat(MAX_TEXT + 1), notes: '' }, d, NOW),
+    saveBriefingProblem(westVp, WEST_RIDE, { hazards: many, changes: 'y'.repeat(MAX_TEXT + 1), notes: '' }, d, NOW, null),
     TOO_MANY_HAZARDS,
   );
   // A long hazard beats long text.
   assert.equal(
-    saveBriefingProblem(westVp, WEST_RIDE, { hazards: ['x'.repeat(MAX_HAZARD + 1)], changes: 'y'.repeat(MAX_TEXT + 1), notes: '' }, d, NOW),
+    saveBriefingProblem(westVp, WEST_RIDE, { hazards: ['x'.repeat(MAX_HAZARD + 1)], changes: 'y'.repeat(MAX_TEXT + 1), notes: '' }, d, NOW, null),
     HAZARD_TOO_LONG,
   );
   // Nothing to save comes last.
-  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, bad, d, NOW), BRIEFING_EMPTY);
+  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, bad, d, NOW, null), BRIEFING_EMPTY);
 });
 
 test('the ride day: the last millisecond is allowed, the midnight after is not', () => {
   const d = data();
   const end = endOfFirstDay(WEST_RIDE);
-  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, OK, d, new Date(end - 1).toISOString()), null);
-  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, OK, d, new Date(end).toISOString()), BRIEFING_LOCKED);
+  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, OK, d, new Date(end - 1).toISOString(), null), null);
+  assert.equal(saveBriefingProblem(westVp, WEST_RIDE, OK, d, new Date(end).toISOString(), null), BRIEFING_LOCKED);
 });
 
 test('hazard count: blank lines are dropped first, then twelve is the most', () => {
   const d = data();
   const twelve = Array.from({ length: 12 }, (_, i) => `Hazard ${i}`);
-  const save = (hazards: string[]) => saveBriefingProblem(westVp, WEST_RIDE, { hazards, changes: '', notes: '' }, d, NOW);
+  const save = (hazards: string[]) => saveBriefingProblem(westVp, WEST_RIDE, { hazards, changes: '', notes: '' }, d, NOW, null);
   assert.equal(save(twelve), null, '12 is allowed');
   assert.equal(save([...twelve, 'One more']), TOO_MANY_HAZARDS, '13 is not');
   assert.equal(save([...twelve, '', '   ', '\n']), null, 'blank lines do not count');
@@ -222,7 +227,7 @@ test('hazard count: blank lines are dropped first, then twelve is the most', () 
 
 test('hazard length: counted in code points, after trimming', () => {
   const d = data();
-  const save = (hazard: string) => saveBriefingProblem(westVp, WEST_RIDE, { hazards: [hazard], changes: '', notes: '' }, d, NOW);
+  const save = (hazard: string) => saveBriefingProblem(westVp, WEST_RIDE, { hazards: [hazard], changes: '', notes: '' }, d, NOW, null);
   assert.equal(save('x'.repeat(120)), null);
   assert.equal(save('x'.repeat(121)), HAZARD_TOO_LONG);
   assert.equal(save(`  ${'x'.repeat(120)}  `), null, 'padding is trimmed away');
@@ -233,7 +238,7 @@ test('hazard length: counted in code points, after trimming', () => {
 test('changes and notes: 2000 code points each, after trimming', () => {
   const d = data();
   const save = (changes: string, notes: string) =>
-    saveBriefingProblem(westVp, WEST_RIDE, { hazards: ['x'], changes, notes }, d, NOW);
+    saveBriefingProblem(westVp, WEST_RIDE, { hazards: ['x'], changes, notes }, d, NOW, null);
   assert.equal(save('y'.repeat(2000), ''), null);
   assert.equal(save('y'.repeat(2001), ''), TEXT_TOO_LONG);
   assert.equal(save('', 'y'.repeat(2001)), TEXT_TOO_LONG);
@@ -245,7 +250,7 @@ test('changes and notes: 2000 code points each, after trimming', () => {
 test('an empty briefing is refused; any one part with something is enough', () => {
   const d = data();
   const save = (hazards: string[], changes: string, notes: string) =>
-    saveBriefingProblem(westVp, WEST_RIDE, { hazards, changes, notes }, d, NOW);
+    saveBriefingProblem(westVp, WEST_RIDE, { hazards, changes, notes }, d, NOW, null);
   assert.equal(save([], '', ''), BRIEFING_EMPTY);
   assert.equal(save(['', '  '], ' \n', '\t'), BRIEFING_EMPTY, 'all blank after trimming');
   assert.equal(save([], '', 'Nothing special'), null);
@@ -253,23 +258,97 @@ test('an empty briefing is refused; any one part with something is enough', () =
   assert.equal(save(['Gravel'], '', ''), null);
 });
 
+// The version every test briefing is at, unless a test says otherwise.
+const SEEN = '2026-10-20T00:00:00.000Z';
+
 test('reading Got it: the checks in order', () => {
   const d = data({ briefings: [briefing('west-ride'), briefing('cancelled')] });
-  assert.equal(readBriefingProblem(null, WEST_RIDE, d), 'Sign in first.');
-  assert.equal(readBriefingProblem(pending, WEST_RIDE, d), 'Only approved members can do that.');
-  assert.equal(readBriefingProblem(rider, undefined, d), NO_RIDE);
-  assert.equal(readBriefingProblem(rider, ride('no-briefing'), d), NO_BRIEFING);
-  assert.equal(readBriefingProblem(rider, WEST_RIDE, d), null, 'any approved member');
-  assert.equal(readBriefingProblem(rider, CANCELLED, d), null, 'a cancelled ride still reads');
+  assert.equal(readBriefingProblem(null, WEST_RIDE, d, SEEN), 'Sign in first.');
+  assert.equal(readBriefingProblem(pending, WEST_RIDE, d, SEEN), 'Only approved members can do that.');
+  assert.equal(readBriefingProblem(rider, undefined, d, SEEN), NO_RIDE);
+  assert.equal(readBriefingProblem(rider, ride('no-briefing'), d, SEEN), NO_BRIEFING);
+  assert.equal(readBriefingProblem(rider, WEST_RIDE, d, SEEN), null, 'any approved member');
+  assert.equal(readBriefingProblem(rider, CANCELLED, d, SEEN), null, 'a cancelled ride still reads');
   // Sign-in beats no ride; approval beats no briefing.
-  assert.equal(readBriefingProblem(null, undefined, d), 'Sign in first.');
-  assert.equal(readBriefingProblem(pending, ride('no-briefing'), d), 'Only approved members can do that.');
+  assert.equal(readBriefingProblem(null, undefined, d, SEEN), 'Sign in first.');
+  assert.equal(readBriefingProblem(pending, ride('no-briefing'), d, SEEN), 'Only approved members can do that.');
 });
 
 test('reading works on a ride that has finished', () => {
   const d = data({ briefings: [briefing('west-ride')] });
   // The rule takes no clock, so nothing about the ride day can refuse a read.
-  assert.equal(readBriefingProblem(rider, ride('west-ride', { startsAt: '2020-01-01T00:00:00.000Z' }), d), null);
+  assert.equal(readBriefingProblem(rider, ride('west-ride', { startsAt: '2020-01-01T00:00:00.000Z' }), d, SEEN), null);
+});
+
+test('reading: Got it on an older version than the one stored is refused, last of the checks', () => {
+  const d = data({ briefings: [briefing('west-ride', { updatedAt: '2026-10-20T10:00:00.000Z' })] });
+  const got = (who: Member | null, r: Ride | undefined, seen: string | null) => readBriefingProblem(who, r, d, seen);
+  assert.equal(got(rider, WEST_RIDE, '2026-10-20T10:00:00.000Z'), null, 'the version stored');
+  assert.equal(got(rider, WEST_RIDE, '2026-10-20T09:59:59.999Z'), null, 'within the 1 ms the database rounds to');
+  assert.equal(got(rider, WEST_RIDE, '2026-10-20T09:59:59.998Z'), READ_OUTDATED, 'more than 1 ms older');
+  assert.equal(got(rider, WEST_RIDE, '2026-10-19T10:00:00.000Z'), READ_OUTDATED, 'a day older');
+  assert.equal(got(rider, WEST_RIDE, null), READ_OUTDATED, 'no version seen at all');
+  assert.equal(got(rider, WEST_RIDE, '2026-10-20T11:00:00.000Z'), null, 'a newer stamp is not refused');
+  assert.equal(got(rider, WEST_RIDE, '2026-10-20T21:00:00+11:00'), null, 'instants, not text');
+  // Every earlier check beats it.
+  assert.equal(got(null, WEST_RIDE, null), 'Sign in first.');
+  assert.equal(got(pending, WEST_RIDE, null), 'Only approved members can do that.');
+  assert.equal(got(rider, undefined, null), NO_RIDE);
+  assert.equal(got(rider, ride('no-briefing'), null), NO_BRIEFING, 'no briefing comes before an old version');
+});
+
+test('saving: a briefing saved by someone else since the editor opened is refused, right after the writer check', () => {
+  const STORED = '2026-10-20T10:00:00.000Z';
+  const d = data({ briefings: [briefing('west-ride', { updatedAt: STORED })] });
+  const save = (who: Member | null, r: Ride | undefined, seen: string | null, input = OK, now = NOW) =>
+    saveBriefingProblem(who, r, input, d, now, seen);
+  assert.equal(save(westVp, WEST_RIDE, STORED), null, 'opened on the version stored');
+  assert.equal(save(westVp, WEST_RIDE, '2026-10-20T09:59:59.999Z'), null, 'within 1 ms');
+  assert.equal(save(westVp, WEST_RIDE, '2026-10-20T09:59:59.998Z'), SAVE_CONFLICT, 'more than 1 ms older');
+  assert.equal(save(westVp, WEST_RIDE, null), SAVE_CONFLICT, 'opened with no briefing, but there is one now');
+  assert.equal(save(westVp, ride('fresh'), null), null, 'still no briefing: a new one');
+  assert.equal(save(westVp, ride('fresh'), STORED), null, 'no briefing stored, so nothing to clash with');
+  // The first six checks beat it.
+  assert.equal(save(null, WEST_RIDE, null), 'Sign in first.');
+  assert.equal(save(pending, WEST_RIDE, null), 'Only approved members can do that.');
+  assert.equal(save(westVp, undefined, null), NO_RIDE);
+  const cancelled = { ...CANCELLED, id: 'west-ride' };
+  assert.equal(save(westVp, cancelled, null), RIDE_CANCELLED);
+  assert.equal(save(westVp, WEST_RIDE, null, OK, '2026-11-08T00:00:00.000Z'), BRIEFING_LOCKED);
+  assert.equal(save(rider, WEST_RIDE, null), NOT_WRITER, 'who may write comes before a clash');
+  // And it beats every content check.
+  const empty = { hazards: [], changes: '', notes: '' };
+  assert.equal(save(westVp, WEST_RIDE, null, { ...empty, hazards: Array(13).fill('x') }), SAVE_CONFLICT, 'before too many');
+  assert.equal(save(westVp, WEST_RIDE, null, { ...empty, hazards: ['x'.repeat(MAX_HAZARD + 1)] }), SAVE_CONFLICT, 'before too long');
+  assert.equal(save(westVp, WEST_RIDE, null, { ...empty, notes: 'x'.repeat(MAX_TEXT + 1) }), SAVE_CONFLICT, 'before long text');
+  assert.equal(save(westVp, WEST_RIDE, null, empty), SAVE_CONFLICT, 'before empty');
+  // Offering Write and Edit doesn't look at versions.
+  assert.equal(editBriefingProblem(westVp, WEST_RIDE, d, NOW), null);
+});
+
+test('the two version refusals, and telling them apart from the rest', () => {
+  assert.equal(READ_OUTDATED, 'The briefing changed while you had it open. Read the new version, then tap Got it.');
+  assert.equal(
+    SAVE_CONFLICT,
+    'Someone else saved this briefing while you were editing. Your changes aren’t saved: copy them, then open the briefing again.',
+  );
+  assert.ok(!SAVE_CONFLICT.includes("'"), 'no straight apostrophe');
+  assert.equal(isVersionRefusal(new Error(READ_OUTDATED)), true);
+  assert.equal(isVersionRefusal(new Error(SAVE_CONFLICT)), true);
+  assert.equal(isVersionRefusal(new Error(NOT_WRITER)), false);
+  assert.equal(isVersionRefusal(READ_OUTDATED), false, 'only errors');
+  assert.equal(isVersionRefusal(null), false);
+});
+
+test('the safety order has one name only', () => {
+  assert.equal('safetyOrder' in briefings, false, 'no alias for SAFETY_ORDER');
+});
+
+test('a hazard stays on one line: line breaks become spaces', () => {
+  assert.equal(oneLine('Gravel\nat the turn'), 'Gravel at the turn');
+  assert.equal(oneLine('Gravel\r\n\r\nat the turn'), 'Gravel at the turn');
+  assert.equal(oneLine('Gravel at the turn\n'), 'Gravel at the turn ');
+  assert.equal(oneLine('No breaks'), 'No breaks');
 });
 
 test('finding a ride’s briefing', () => {
@@ -393,7 +472,7 @@ test('who can edit right now: the first six save checks, with no input to check'
   assert.equal(editBriefingProblem(westVp, WEST_RIDE, d, BEFORE), null);
   assert.equal(editBriefingProblem(crewRc, WEST_RIDE, d, BEFORE), null, 'the ride’s own RC');
   // Saving runs the same checks first, so an empty form from a non-writer says who can write.
-  assert.equal(saveBriefingProblem(rider, WEST_RIDE, { hazards: [], changes: '', notes: '' }, d, BEFORE), NOT_WRITER);
+  assert.equal(saveBriefingProblem(rider, WEST_RIDE, { hazards: [], changes: '', notes: '' }, d, BEFORE, null), NOT_WRITER);
 });
 
 test('the ride screen’s summary: the first hazard, then how many more', () => {

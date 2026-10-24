@@ -5,11 +5,11 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { briefingOf, editBriefingProblem, hazardSummary, moreLabel, readCount, readCountLine, readState } from '../domain/briefings';
-import { formatAuDate } from '../domain/dates';
+import { formatAuDate, weekday } from '../domain/dates';
 import { canVolunteer, crewChangeProblem, crewRows, leaveProblem, managesRide, showsCrewNeeded, spotOf } from '../domain/crew';
 import type { CrewRowSlot } from '../domain/crew';
 import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABEL } from '../domain/labels';
-import { displayName, initials } from '../domain/profile';
+import { displayName, initials, memberName } from '../domain/profile';
 import { libraryFor, rideRouteProblem, routeOf } from '../domain/routes';
 import {
   calendarFreshness,
@@ -52,13 +52,6 @@ import {
 } from '../ui/primitives';
 import { ChapterChip, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
 import { RouteShape } from '../ui/RouteShape';
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-/** The weekday of a YYYY-MM-DD calendar date. */
-export function weekday(date: string): string {
-  return WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
-}
 
 /** "7:30 am", "All day", or "All day, to 31/01/2027". */
 function startLabel(ride: Ride): string {
@@ -632,7 +625,7 @@ function BriefingSection({
         <Row style={{ gap: 6 }}>
           {briefing.changes ? <Chip label="Road Rules changed" tone="warn" icon="alert-circle" /> : null}
           {state === 'current' ? <Chip label="You’ve read it" tone="ok" icon="checkmark" /> : null}
-          {state === 'stale' ? <Chip label="Updated since you read it" tone="warn" /> : null}
+          {state === 'stale' ? <Chip label="Updated since you read it" tone="warn" icon="refresh" /> : null}
         </Row>
         <Text style={styles.metaTime}>{readCountLine(readCount(ride, data))}</Text>
         <Button label="Open briefing card" icon="document-text-outline" kind="secondary" onPress={onOpen} />
@@ -720,10 +713,7 @@ function CrewSection({
     }
   };
   const saving = (key: string) => (busy?.key === key ? busy.label : null);
-  const nameOf = (memberId: string) => {
-    const m = data.members.find((x) => x.id === memberId);
-    return m ? displayName(m) : 'A former member';
-  };
+  const nameOf = (memberId: string) => memberName(memberId, data.members);
   const canRemove = (memberId: string) => !locked && leaveProblem(me, ride, memberId, data, now) === null;
 
   const takeButton = (key: string, role: CrewRole) => (

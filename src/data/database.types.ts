@@ -285,8 +285,11 @@ export type Database = {
       archive_route: { Args: { p_id: string }; Returns: undefined };
       set_ride_route: { Args: { p_ride: string; p_route: string | null }; Returns: undefined };
       route_gpx: { Args: { p_route: string }; Returns: string };
-      save_briefing: { Args: { p_ride: string; p_hazards: string[]; p_changes: string; p_notes: string }; Returns: undefined };
-      read_briefing: { Args: { p_ride: string }; Returns: undefined };
+      save_briefing: {
+        Args: { p_ride: string; p_hazards: string[]; p_changes: string; p_notes: string; p_seen: string | null };
+        Returns: undefined;
+      };
+      read_briefing: { Args: { p_ride: string; p_seen: string | null }; Returns: undefined };
       ride_calendar: {
         Args: never;
         Returns: {

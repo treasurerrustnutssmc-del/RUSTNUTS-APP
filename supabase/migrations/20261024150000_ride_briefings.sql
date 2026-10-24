@@ -3,12 +3,21 @@
 -- through save_briefing and read_briefing, which apply the same rules with the same words as
 -- src/domain/briefings.ts, checked in the same order.
 
+-- Whether every hazard line is there, not blank once trimmed like the app trims, and at most 120
+-- characters (code points). The table's check on each line, since a check constraint can't look
+-- inside a list by itself.
+create or replace function private.hazards_ok(p_hazards text[])
+returns boolean language sql immutable set search_path = '' as $$
+  select coalesce(bool_and(h is not null and private.trim_like_app(h) <> '' and char_length(h) <= 120), true)
+  from unnest(p_hazards) h;
+$$;
+revoke all on function private.hazards_ok(text[]) from public, anon, authenticated;
+
 -- One briefing per ride, which goes with its ride. Who last changed it is kept loosely: a member
--- leaving the club leaves the briefing. The limits mirror save_briefing's; each hazard's length
--- (120 at most) is checked there only, since a check constraint can't look inside the list.
+-- leaving the club leaves the briefing. The limits mirror save_briefing's, down to each hazard line.
 create table public.ride_briefings (
   ride_id uuid primary key references public.rides (id) on delete cascade,
-  hazards text[] not null default '{}' check (cardinality(hazards) <= 12),
+  hazards text[] not null default '{}' check (cardinality(hazards) <= 12 and private.hazards_ok(hazards)),
   changes text check (char_length(changes) <= 2000),
   notes text check (char_length(notes) <= 2000),
   updated_by uuid references public.members (id) on delete set null,
@@ -36,13 +45,19 @@ create policy ride_briefing_reads_for_members on public.ride_briefing_reads for 
   using (private.is_approved_member());
 
 -- Writes a ride's briefing, or replaces it, until the ride's first Melbourne day is over. Briefing
--- writers are the ride's crew managers plus whoever holds its Road Captain crew spot. Texts are
--- trimmed like the app trims, blank hazard lines are left out, and lengths count characters.
-create or replace function public.save_briefing(p_ride uuid, p_hazards text[], p_changes text, p_notes text)
+-- writers are the ride's crew managers plus whoever holds its Road Captain crew spot. p_seen is the
+-- version the editor opened on (the briefing's updated_at then, or null when there was none): a
+-- save on top of someone else's newer one is refused rather than quietly replacing it. The app
+-- holds milliseconds and Postgres microseconds, so up to 1 ms newer is the same version. Texts are
+-- trimmed like the app trims, blank hazard lines are left out, and lengths count characters. The
+-- writer's own read moves to the same time, so their update never shows them as unread.
+create or replace function public.save_briefing(p_ride uuid, p_hazards text[], p_changes text, p_notes text,
+  p_seen timestamptz)
 returns void language plpgsql security definer set search_path = '' as $$
 declare
   me uuid := auth.uid();
   ride public.rides%rowtype;
+  stored timestamptz;
   first_day_end timestamptz;
   clean_hazards text[];
   clean_changes text;
@@ -60,6 +75,11 @@ begin
     select 1 from public.ride_crew where ride_id = p_ride and member_id = me and role = 'road_captain'
   )) then
     raise exception 'Only the board, ride committee or this ride’s Road Captain can write the briefing.';
+  end if;
+  -- The ride row is locked, so another save of this briefing has finished and this sees it.
+  select updated_at into stored from public.ride_briefings where ride_id = p_ride;
+  if found and (p_seen is null or stored > p_seen + interval '1 millisecond') then
+    raise exception 'Someone else saved this briefing while you were editing. Your changes aren’t saved: copy them, then open the briefing again.';
   end if;
 
   select coalesce(array_agg(t.line order by t.n), '{}') into clean_hazards
@@ -85,21 +105,29 @@ begin
   on conflict (ride_id) do update
     set hazards = excluded.hazards, changes = excluded.changes, notes = excluded.notes,
         updated_by = excluded.updated_by, updated_at = excluded.updated_at;
+  insert into public.ride_briefing_reads (ride_id, member_id, read_at) values (p_ride, me, now())
+  on conflict (ride_id, member_id) do update set read_at = excluded.read_at;
 end;
 $$;
 
--- Got it: marks the ride's briefing read by you, now. It works at any time, on a cancelled or past
+-- Got it: marks the ride's briefing read by you, now. p_seen is the version on screen (the
+-- briefing's updated_at): Got it on an older one is refused, so a read always means the version
+-- stored, give or take the 1 ms the app rounds to. It works at any time, on a cancelled or past
 -- ride too, and reading again moves your read time to now.
-create or replace function public.read_briefing(p_ride uuid)
+create or replace function public.read_briefing(p_ride uuid, p_seen timestamptz)
 returns void language plpgsql security definer set search_path = '' as $$
 declare
   me uuid := auth.uid();
+  stored timestamptz;
 begin
   if me is null then raise exception 'Sign in first.'; end if;
   if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
   if not exists (select 1 from public.rides where id = p_ride) then raise exception 'No such ride.'; end if;
-  if not exists (select 1 from public.ride_briefings where ride_id = p_ride) then
-    raise exception 'There’s no briefing for this ride yet.';
+  -- Shared, so a save still in progress finishes first and this checks the version it leaves.
+  select updated_at into stored from public.ride_briefings where ride_id = p_ride for share;
+  if not found then raise exception 'There’s no briefing for this ride yet.'; end if;
+  if p_seen is null or stored > p_seen + interval '1 millisecond' then
+    raise exception 'The briefing changed while you had it open. Read the new version, then tap Got it.';
   end if;
 
   insert into public.ride_briefing_reads (ride_id, member_id, read_at) values (p_ride, me, now())
@@ -107,8 +135,10 @@ begin
 end;
 $$;
 
-revoke all on function public.save_briefing(uuid, text[], text, text), public.read_briefing(uuid) from public, anon;
-grant execute on function public.save_briefing(uuid, text[], text, text), public.read_briefing(uuid) to authenticated;
+revoke all on function public.save_briefing(uuid, text[], text, text, timestamptz), public.read_briefing(uuid, timestamptz)
+  from public, anon;
+grant execute on function public.save_briefing(uuid, text[], text, text, timestamptz), public.read_briefing(uuid, timestamptz)
+  to authenticated;
 
 -- ride_calendar as before, plus the briefings and reads of the rides it shows.
 create or replace function public.ride_calendar()

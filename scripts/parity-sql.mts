@@ -239,6 +239,8 @@ for (const r of fx.rideRoutes ?? []) {
 // A text[] literal, each line quoted by q(): array['a', 'b']::text[] (array[]::text[] when empty).
 const textArray = (lines: unknown[]) => `array[${lines.map(q).join(', ')}]::text[]`;
 const orNull = (s: string) => (s === '' ? 'null' : q(s));
+// The briefing version a case was made on, as the app sends it (null: none).
+const seen = (s: unknown) => (s === null || s === undefined ? 'null::timestamptz' : `${q(s)}::timestamptz`);
 for (const b of fx.briefings ?? []) {
   sql(
     `insert into public.ride_briefings (ride_id, hazards, changes, notes, updated_at) values (` +
@@ -294,9 +296,12 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.set_ride_route(${id('r', c.ride)}, ${c.route ? id('rt', c.route) : 'null'})`;
     case 'saveBriefing':
       // The texts as typed, untrimmed: the database must clean them the same way the app does.
-      return `public.save_briefing(${id('r', c.ride)}, ${textArray(c.hazards)}, ${text(c.changes, c.repeat)}, ${text(c.notes, c.repeat)})`;
+      return (
+        `public.save_briefing(${id('r', c.ride)}, ${textArray(c.hazards)}, ${text(c.changes, c.repeat)}, ` +
+        `${text(c.notes, c.repeat)}, ${seen(c.seen)})`
+      );
     case 'readBriefing':
-      return `public.read_briefing(${id('r', c.ride)})`;
+      return `public.read_briefing(${id('r', c.ride)}, ${seen(c.seen)})`;
     case 'removeContact':
       return `public.remove_contact(${id('c', c.contact)})`;
     case 'saveBike':

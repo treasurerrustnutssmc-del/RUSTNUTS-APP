@@ -4,7 +4,7 @@
 
 import { byName, crewFor, managesRide, spotOf } from './crew';
 import { formatAuDate } from './dates';
-import { displayName } from './profile';
+import { displayName, memberName } from './profile';
 import { endOfFirstDay, melbourneDate, melbourneTime } from './rides';
 import { signedInProblem } from './routes';
 import type { Briefing, ClubData, CrewRole, Member, Ride } from './types';
@@ -26,11 +26,12 @@ export const HAZARD_TOO_LONG = 'Keep each hazard to one short line (120 characte
 export const TEXT_TOO_LONG = 'That’s too long (2000 characters at most).';
 export const BRIEFING_EMPTY = 'Write at least one hazard, change or note.';
 export const NO_BRIEFING = 'There’s no briefing for this ride yet.';
+export const READ_OUTDATED = 'The briefing changed while you had it open. Read the new version, then tap Got it.';
+export const SAVE_CONFLICT =
+  'Someone else saved this briefing while you were editing. Your changes aren’t saved: copy them, then open the briefing again.';
 
 /** Who to call when something goes wrong, first to last (constitution 7.6). Printed on every card. */
 export const SAFETY_ORDER = ['Road Captain', 'Sergeant-at-Arms', 'Vice President', 'President', 'NEC'] as const;
-/** The spec's name for the same list. */
-export const safetyOrder = SAFETY_ORDER;
 
 /** What a writer types: hazard lines, the changes for this ride, and notes. */
 export interface BriefingInput {
@@ -60,16 +61,32 @@ export function writesBriefing(me: Member | null, ride: Ride, data: ClubData): b
   return managesRide(me, ride, data) || spotOf(ride.id, me.id, data.crew) === 'road_captain';
 }
 
-/** Why `me` can't save this briefing, or null when they can. Mirrors public.save_briefing. */
+/**
+ * Whether the stored briefing is newer than the version someone had on screen (`seen`, its
+ * `updatedAt` then, or null for none). The app holds milliseconds and the database microseconds,
+ * so up to 1 ms newer still counts as the same version.
+ */
+function newerThan(briefing: Briefing, seen: string | null): boolean {
+  return seen === null || Date.parse(briefing.updatedAt) > Date.parse(seen) + 1;
+}
+
+/**
+ * Why `me` can't save this briefing, or null when they can. Mirrors public.save_briefing. `seen`
+ * is the version the editor opened on (null when there was no briefing yet): a save on top of
+ * someone else's newer one is refused, so it never quietly replaces it.
+ */
 export function saveBriefingProblem(
   me: Member | null,
   ride: Ride | undefined,
   input: BriefingInput,
   data: ClubData,
   now: string,
+  seen: string | null,
 ): string | null {
   const editing = editBriefingProblem(me, ride, data, now);
   if (editing) return editing;
+  const stored = ride ? briefingOf(ride.id, data) : undefined;
+  if (stored && newerThan(stored, seen)) return SAVE_CONFLICT;
   const { hazards, changes, notes } = cleanBriefing(input);
   if (hazards.length > MAX_HAZARDS) return TOO_MANY_HAZARDS;
   if (hazards.some((h) => length(h) > MAX_HAZARD)) return HAZARD_TOO_LONG;
@@ -95,14 +112,22 @@ export function editBriefingProblem(me: Member | null, ride: Ride | undefined, d
 
 /**
  * Why `me` can't tap Got it on this ride, or null when they can. Mirrors public.read_briefing.
- * It works at any time, on a cancelled or past ride too, so it takes no clock.
+ * It works at any time, on a cancelled or past ride too, so it takes no clock. `seen` is the
+ * version on screen: Got it on an older one is refused, so a read always means this version.
  */
-export function readBriefingProblem(me: Member | null, ride: Ride | undefined, data: ClubData): string | null {
+export function readBriefingProblem(me: Member | null, ride: Ride | undefined, data: ClubData, seen: string | null): string | null {
   const opening = signedInProblem(me);
   if (opening) return opening;
   if (!ride) return NO_RIDE;
-  if (!briefingOf(ride.id, data)) return NO_BRIEFING;
+  const stored = briefingOf(ride.id, data);
+  if (!stored) return NO_BRIEFING;
+  if (newerThan(stored, seen)) return READ_OUTDATED;
   return null;
+}
+
+/** Whether an error is one of the two refusals that mean a newer briefing is waiting to be loaded. */
+export function isVersionRefusal(e: unknown): boolean {
+  return e instanceof Error && (e.message === READ_OUTDATED || e.message === SAVE_CONFLICT);
 }
 
 /** The briefing a ride has, if any. */
@@ -159,6 +184,9 @@ export const STOPPED_RIDER = 'Stopped rider? The TG stops with them. An Officer 
 export const hazardTooLong = (line: string): boolean => length(line.trim()) > MAX_HAZARD;
 export const textTooLong = (text: string): boolean => length(text.trim()) > MAX_TEXT;
 
+/** A hazard as typed, kept to one line: any line breaks that get in (a paste, say) become one space. */
+export const oneLine = (text: string): string => text.replace(/[\r\n]+/g, ' ');
+
 /** The ride screen's summary: the first hazard, and how many more there are. Null with no hazards. */
 export function hazardSummary(hazards: string[]): { first: string; more: number } | null {
   return hazards.length === 0 ? null : { first: hazards[0], more: hazards.length - 1 };
@@ -197,11 +225,7 @@ export function updatedLine(briefing: Briefing, data: ClubData, now: string): st
  * holder's name, and who carries first aid (the Tail Gunner), or null when there's no TG.
  */
 export function briefingCrew(rideId: string, data: ClubData): { rows: { role: CrewRole; name: string }[]; firstAid: string | null } {
-  const nameOf = (memberId: string) => {
-    const m = data.members.find((x) => x.id === memberId);
-    return m ? displayName(m) : 'A former member';
-  };
-  const rows = crewFor(rideId, data.crew ?? []).map((s) => ({ role: s.role, name: nameOf(s.memberId) }));
+  const rows = crewFor(rideId, data.crew ?? []).map((s) => ({ role: s.role, name: memberName(s.memberId, data.members) }));
   return { rows, firstAid: rows.find((r) => r.role === 'tail_gunner')?.name ?? null };
 }
 

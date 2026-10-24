@@ -3,7 +3,7 @@
 // ride's crew managers and its Road Captain) also see who hasn't read it, and edit it.
 
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import {
   MAX_HAZARDS,
@@ -16,6 +16,7 @@ import {
   editStart,
   HAZARD_TOO_LONG,
   hazardTooLong,
+  oneLine,
   readBriefingProblem,
   readCount,
   readCountLine,
@@ -28,7 +29,7 @@ import {
   updatedLine,
   writesBriefing,
 } from '../domain/briefings';
-import { formatAuDate } from '../domain/dates';
+import { formatAuDate, weekday } from '../domain/dates';
 import { ROLE_LABEL, ROLE_SHORT } from '../domain/labels';
 import { displayName } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
@@ -55,7 +56,6 @@ import {
   Stack,
 } from '../ui/primitives';
 import { OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
-import { weekday } from './rides';
 
 function RideMissing() {
   return (
@@ -65,7 +65,7 @@ function RideMissing() {
   );
 }
 
-/** "Sat 07/11/2026", the ride's Melbourne start date. */
+/** The ride's start date in Melbourne: "Sun 08/11/2026" for the demo's 8:30 am start (21:30 UTC on the 7th). */
 const rideDate = (ride: Ride) => {
   const date = melbourneDate(ride.startsAt);
   return `${weekday(date)} ${formatAuDate(date)}`;
@@ -110,7 +110,7 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
   const crew = briefingCrew(ride.id, data);
   const state = readState(me, ride.id, data);
   const myRead = (data.briefingReads ?? []).find((r) => r.rideId === ride.id && r.memberId === me.id);
-  const canRead = readBriefingProblem(me, ride, data) === null;
+  const canRead = readBriefingProblem(me, ride, data, briefing.updatedAt) === null;
   const writer = writesBriefing(me, ride, data);
   const location = ride.location;
 
@@ -119,7 +119,8 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
     setError(null);
     setBusy(true);
     try {
-      await readBriefing(ride.id);
+      // The version on screen, so Got it never marks a newer one read.
+      await readBriefing(ride.id, briefing.updatedAt);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -267,11 +268,15 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
 
         <Small>{updatedLine(briefing, data, now)}</Small>
 
-        {/* 8. Got it */}
+        {/* 8. Got it, and how many of the riders going have read it (everyone sees the count) */}
         {canRead ? (
           <>
             <Divider />
             <Stack gap={space.md}>
+              <Row style={styles.readRow}>
+                <Ionicons name="people-outline" size={20} color={colors.boneMute} />
+                <Text style={[styles.countLine, { flex: 1 }]}>{readCountLine(readCount(ride, data))}</Text>
+              </Row>
               {state === 'current' && myRead ? (
                 <Stack gap={space.sm}>
                   <Row style={styles.readRow}>
@@ -320,7 +325,7 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
   );
 }
 
-/** Who among the Going riders hasn't read it (or read an older version), and Edit. */
+/** Who among the Going riders hasn't read it (or read an older version), and Edit. The count is on the card. */
 function WriterSection({
   ride,
   canEdit,
@@ -337,7 +342,6 @@ function WriterSection({
   return (
     <Stack gap={space.sm}>
       <SectionTitle title="Not read yet" action={<Text style={styles.count}>{unread.length}</Text>} />
-      <Text style={styles.countLine}>{readCountLine(readCount(ride, data))}</Text>
       <Card style={{ padding: 0, gap: 0 }}>
         {unread.length === 0 ? (
           <View style={{ padding: space.lg }}>
@@ -368,6 +372,9 @@ export function EditBriefingScreen({ route: nav, navigation }: RootScreen<'EditB
   const { me, data, saveBriefing } = useClub();
   const ride = data.rides.find((r) => r.id === nav.params.rideId);
   const existing = ride ? briefingOf(ride.id, data) : undefined;
+  // The version the editor opened on (null: there was none), so a save never quietly replaces
+  // someone else's newer one. It also fixes the title, so it doesn't change once this one saves.
+  const [seen] = useState(() => existing?.updatedAt ?? null);
   // Each hazard line keeps its own key, so removing one never moves another's text or focus.
   const [start] = useState(() => editStart(existing));
   const [hazards, setHazards] = useState(() => start.hazards.map((text, key) => ({ key, text })));
@@ -379,8 +386,8 @@ export function EditBriefingScreen({ route: nav, navigation }: RootScreen<'EditB
   const [saving, setSaving] = useState(false);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: existing ? 'Edit briefing' : 'Write briefing' });
-  }, [navigation, existing]);
+    navigation.setOptions({ title: seen ? 'Edit briefing' : 'Write briefing' });
+  }, [navigation, seen]);
 
   if (!ride || !me) return <RideMissing />;
   const blocked = editBriefingProblem(me, ride, data, new Date().toISOString());
@@ -393,7 +400,9 @@ export function EditBriefingScreen({ route: nav, navigation }: RootScreen<'EditB
   }
 
   const full = hazards.length >= MAX_HAZARDS;
-  const setLine = (key: number, text: string) => setHazards((now) => now.map((h) => (h.key === key ? { ...h, text } : h)));
+  // A hazard is one line: a line break that gets in anyway (a paste, say) becomes a space.
+  const setLine = (key: number, text: string) =>
+    setHazards((now) => now.map((h) => (h.key === key ? { ...h, text: oneLine(text) } : h)));
   const removeLine = (key: number) =>
     setHazards((now) => (now.length === 1 ? [{ ...now[0], text: '' }] : now.filter((h) => h.key !== key)));
   const addLine = () => {
@@ -407,14 +416,14 @@ export function EditBriefingScreen({ route: nav, navigation }: RootScreen<'EditB
     if (saving) return;
     setError(null);
     const input = { hazards: hazards.map((h) => h.text), changes, notes };
-    const problem = saveBriefingProblem(me, ride, input, data, new Date().toISOString());
+    const problem = saveBriefingProblem(me, ride, input, data, new Date().toISOString(), seen);
     if (problem) {
       setError(problem);
       return;
     }
     setSaving(true);
     try {
-      await saveBriefing(ride.id, input);
+      await saveBriefing(ride.id, input, seen);
       // Back to the card: the one it was opened from, or (from the ride screen's Write briefing) a new one.
       const { routes, index } = navigation.getState();
       if (routes[index - 1]?.name === 'Briefing') navigation.goBack();
@@ -434,7 +443,7 @@ export function EditBriefingScreen({ route: nav, navigation }: RootScreen<'EditB
 
       <Stack gap={space.md}>
         <SectionTitle title="Hazards" />
-        <Small>One short line each, 12 at most. Blank lines are left out.</Small>
+        <Small>{`One short line each, ${MAX_HAZARDS} at most. Blank lines are left out.`}</Small>
         {hazards.map((h, i) => {
           const tooLong = hazardTooLong(h.text);
           const only = hazards.length === 1 && h.text === '';
@@ -442,16 +451,13 @@ export function EditBriefingScreen({ route: nav, navigation }: RootScreen<'EditB
             <View key={h.key} style={{ gap: 6 }}>
               <Row style={styles.hazardLine}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Field
+                  <HazardField
                     label={`Hazard ${i + 1}`}
-                    accessibilityLabel={`Hazard ${i + 1}`}
                     value={h.text}
                     onChangeText={(t) => setLine(h.key, t)}
                     placeholder={i === 0 ? 'e.g. Gravel on the Ballan turn' : undefined}
                     autoFocus={h.key === focusKey}
-                    autoCapitalize="sentences"
-                    returnKeyType="done"
-                    style={tooLong ? { borderColor: colors.danger } : undefined}
+                    tooLong={tooLong}
                   />
                 </View>
                 <Pressable
@@ -475,7 +481,7 @@ export function EditBriefingScreen({ route: nav, navigation }: RootScreen<'EditB
           );
         })}
         <Button label="Add hazard" icon="add" kind="secondary" disabled={full} onPress={addLine} />
-        {full ? <Small>That’s 12, the most a briefing holds.</Small> : null}
+        {full ? <Small>{`That’s ${MAX_HAZARDS}, the most a briefing holds.`}</Small> : null}
       </Stack>
 
       <Stack gap={space.md}>
@@ -513,6 +519,56 @@ export function EditBriefingScreen({ route: nav, navigation }: RootScreen<'EditB
         </View>
       </Stack>
     </Screen>
+  );
+}
+
+/**
+ * One hazard line. It wraps and grows with its text, so a long line stays readable as you type,
+ * but Return finishes the line instead of starting a new one.
+ */
+function HazardField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  autoFocus,
+  tooLong,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  autoFocus?: boolean;
+  tooLong: boolean;
+}) {
+  // Phones grow a multiline field by themselves; the web's text box needs its height set.
+  const [height, setHeight] = useState<number | null>(null);
+  return (
+    <Field
+      label={label}
+      accessibilityLabel={label}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      autoCapitalize="sentences"
+      multiline
+      submitBehavior="blurAndSubmit"
+      // The web's text box goes by the older prop, and only keeps Return out when there's a submit handler.
+      blurOnSubmit
+      onSubmitEditing={() => {}}
+      returnKeyType="done"
+      // One row to start with on the web (a text box is two rows high by default); phones start at one.
+      {...(Platform.OS === 'web' ? { rows: 1 } : null)}
+      onContentSizeChange={
+        Platform.OS === 'web' ? (e) => setHeight(Math.ceil(e.nativeEvent.contentSize.height) + 2) : undefined
+      }
+      style={[
+        styles.hazardInput,
+        Platform.OS === 'web' && height !== null ? { height: Math.max(48, height) } : null,
+        tooLong ? { borderColor: colors.danger } : null,
+      ]}
+    />
   );
 }
 
@@ -565,5 +621,7 @@ const styles = StyleSheet.create({
   rideLine: { ...type.name, fontSize: 18, lineHeight: 24 },
   rideDate: { color: colors.boneDim },
   hazardLine: { gap: space.sm, alignItems: 'flex-end', flexWrap: 'nowrap' },
+  // A multiline field, but as short as a one-line one until the text wraps.
+  hazardInput: { minHeight: 48, textAlignVertical: 'top' },
   remove: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
 });

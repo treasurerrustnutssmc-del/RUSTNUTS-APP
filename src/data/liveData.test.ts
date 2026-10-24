@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadClub } from './liveData';
+import { READ_OUTDATED, SAVE_CONFLICT, NOT_WRITER } from '../domain/briefings';
+import { loadClub, readBriefingArgs, reloadOnNewerVersion, saveBriefingArgs } from './liveData';
 
 // A stand-in for the Supabase client: hands back fixed rows per table.
 function stubClient(tables: Record<string, unknown[]>, phones: unknown[] = []) {
@@ -348,4 +349,42 @@ test('signed in: no briefings keys (not approved) loads no briefings and no read
   const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
   assert.deepEqual(data.briefings, []);
   assert.deepEqual(data.briefingReads, []);
+});
+
+test('saving a briefing sends it cleaned, with the version the editor opened on', () => {
+  const input = { hazards: ['  Gravel ', '', 'Roos'], changes: ' Single file ', notes: '' };
+  assert.deepEqual(saveBriefingArgs('r1', input, '2026-10-23T09:15:00.000Z'), {
+    p_ride: 'r1', p_hazards: ['Gravel', 'Roos'], p_changes: 'Single file', p_notes: '', p_seen: '2026-10-23T09:15:00.000Z',
+  });
+  assert.equal(saveBriefingArgs('r1', input, null).p_seen, null, 'a new briefing: no version');
+});
+
+test('Got it sends the version on screen', () => {
+  assert.deepEqual(readBriefingArgs('r1', '2026-10-23T09:15:00.000Z'), { p_ride: 'r1', p_seen: '2026-10-23T09:15:00.000Z' });
+});
+
+test('after a newer-version refusal the calendar reloads, then the refusal still reaches the screen', async () => {
+  for (const message of [READ_OUTDATED, SAVE_CONFLICT]) {
+    let reloads = 0;
+    await assert.rejects(
+      reloadOnNewerVersion(async () => {
+        throw new Error(message);
+      }, async () => {
+        reloads += 1;
+      }),
+      { message },
+    );
+    assert.equal(reloads, 1, `one reload after "${message}"`);
+  }
+  // Any other refusal doesn't reload.
+  let reloads = 0;
+  const reload = async () => {
+    reloads += 1;
+  };
+  await assert.rejects(reloadOnNewerVersion(async () => {
+    throw new Error(NOT_WRITER);
+  }, reload), { message: NOT_WRITER });
+  // Nor does success (the action reloads by itself).
+  await reloadOnNewerVersion(async () => {}, reload);
+  assert.equal(reloads, 0);
 });

@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoData';
-import { boardWatchList, displayName, expiryAlerts, hasEarnedDisc, initials, phoneNote, profileChecklist } from './profile';
+import {
+  boardWatchList, displayName, expiryAlerts, FORMER_MEMBER, hasEarnedDisc, initials, memberName, phoneNote, profileChecklist,
+} from './profile';
 
 const d = DEMO_DATA;
 const m = (id: string) => d.members.find((x) => x.id === id)!;
@@ -68,4 +70,11 @@ test('the member disc is earned at full membership, never given', () => {
   }
   assert.equal(hasEarnedDisc({ approval: 'suspended', status: 'full' }), false, 'not while suspended');
   assert.equal(hasEarnedDisc({ approval: 'pending', status: 'full' }), false);
+});
+
+test('a member by id: their display name, or the same words everywhere once they have left', () => {
+  const members = [{ ...DEMO_DATA.members[0], id: 'here', roadName: 'Torque' }];
+  assert.equal(memberName('here', members), 'Torque');
+  assert.equal(memberName('gone', members), 'A former member');
+  assert.equal(FORMER_MEMBER, 'A former member');
 });

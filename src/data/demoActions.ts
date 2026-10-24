@@ -391,27 +391,40 @@ export function routeGpx(ctx: DemoCtx, files: ReadonlyMap<string, string>, route
   return file;
 }
 
-/** Writes a ride's briefing, or replaces it: cleaned, and stamped with who and when. Mirrors public.save_briefing. */
-export function saveBriefing(ctx: DemoCtx, rideId: string, input: BriefingInput): ClubData {
+/**
+ * Writes a ride's briefing, or replaces it: cleaned, and stamped with who and when, on top of the
+ * version the editor opened on (`seen`). The writer's own read moves to the same time, so their
+ * update never shows them as unread. Mirrors public.save_briefing.
+ */
+export function saveBriefing(ctx: DemoCtx, rideId: string, input: BriefingInput, seen: string | null): ClubData {
   const now = ctx.now ?? new Date().toISOString();
   const ride = ctx.data.rides.find((r) => r.id === rideId);
-  const problem = saveBriefingProblem(ctx.me, ride, input, ctx.data, now);
+  const problem = saveBriefingProblem(ctx.me, ride, input, ctx.data, now, seen);
   if (problem) throw new NotAllowedError(problem);
+  const memberId = ctx.me!.id;
   const others = (ctx.data.briefings ?? []).filter((b) => b.rideId !== rideId);
   return {
     ...ctx.data,
-    briefings: [...others, { rideId, ...cleanBriefing(input), updatedAt: now, updatedBy: ctx.me!.id }],
+    briefings: [...others, { rideId, ...cleanBriefing(input), updatedAt: now, updatedBy: memberId }],
+    briefingReads: withRead(ctx.data, rideId, memberId, now),
   };
 }
 
-/** Got it: your read of the ride's briefing, now. Reading again moves it. Mirrors public.read_briefing. */
-export function readBriefing(ctx: DemoCtx, rideId: string): ClubData {
+/** The reads with this member's read of this ride set to `at`. */
+function withRead(data: ClubData, rideId: string, memberId: string, at: string) {
+  const others = (data.briefingReads ?? []).filter((r) => !(r.rideId === rideId && r.memberId === memberId));
+  return [...others, { rideId, memberId, readAt: at }];
+}
+
+/**
+ * Got it: your read of the ride's briefing, now, for the version on screen (`seen`). Reading
+ * again moves it. Mirrors public.read_briefing.
+ */
+export function readBriefing(ctx: DemoCtx, rideId: string, seen: string | null): ClubData {
   const now = ctx.now ?? new Date().toISOString();
-  const problem = readBriefingProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), ctx.data);
+  const problem = readBriefingProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), ctx.data, seen);
   if (problem) throw new NotAllowedError(problem);
-  const memberId = ctx.me!.id;
-  const others = (ctx.data.briefingReads ?? []).filter((r) => !(r.rideId === rideId && r.memberId === memberId));
-  return { ...ctx.data, briefingReads: [...others, { rideId, memberId, readAt: now }] };
+  return { ...ctx.data, briefingReads: withRead(ctx.data, rideId, ctx.me!.id, now) };
 }
 
 /** The actions the shared parity cases use, by name. */
@@ -432,9 +445,10 @@ export type DemoAction =
   | { action: 'saveRoute'; route: string | null; routeName: string; chapter: string | null; notes?: string; gpx: string | null }
   | { action: 'archiveRoute'; route: string }
   | { action: 'setRideRoute'; ride: string; route: string | null }
-  // `repeat` writes the changes and the notes out that many times, for the length limits.
-  | { action: 'saveBriefing'; ride: string; hazards: string[]; changes: string; notes: string; repeat?: number }
-  | { action: 'readBriefing'; ride: string };
+  // `repeat` writes the changes and the notes out that many times, for the length limits. `seen`
+  // is the briefing's version the action was made on (null: none).
+  | { action: 'saveBriefing'; ride: string; hazards: string[]; changes: string; notes: string; repeat?: number; seen: string | null }
+  | { action: 'readBriefing'; ride: string; seen: string | null };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -467,9 +481,9 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
         hazards: a.hazards,
         changes: a.changes.repeat(a.repeat ?? 1),
         notes: a.notes.repeat(a.repeat ?? 1),
-      });
+      }, a.seen);
     case 'readBriefing':
-      return readBriefing(ctx, a.ride);
+      return readBriefing(ctx, a.ride, a.seen);
     case 'removeContact':
       return removeContact(ctx, a.contact);
     case 'saveBike':

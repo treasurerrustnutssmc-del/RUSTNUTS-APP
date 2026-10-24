@@ -2,6 +2,7 @@
 // database rows (snake_case) into the app's records (camelCase).
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { cleanBriefing, isVersionRefusal, type BriefingInput } from '../domain/briefings';
 import type { ClubData, MemberPrivate, Route } from '../domain/types';
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
@@ -228,3 +229,32 @@ function stage4(m: MembersMoneyRows | null): Partial<ClubData> {
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// Ride briefings
+// ---------------------------------------------------------------------------
+
+/** save_briefing's arguments: the briefing cleaned, and the version the editor opened on (null: none). */
+export function saveBriefingArgs(rideId: string, input: BriefingInput, seen: string | null) {
+  const cleaned = cleanBriefing(input);
+  return { p_ride: rideId, p_hazards: cleaned.hazards, p_changes: cleaned.changes, p_notes: cleaned.notes, p_seen: seen };
+}
+
+/** read_briefing's arguments: the ride, and the version of its briefing on screen. */
+export function readBriefingArgs(rideId: string, seen: string | null) {
+  return { p_ride: rideId, p_seen: seen };
+}
+
+/**
+ * Runs a briefing action. When it's refused because a newer briefing has been saved (by the app's
+ * own check or by the database), the calendar reloads first so the screen shows the newer one,
+ * then the refusal goes on to the screen.
+ */
+export async function reloadOnNewerVersion(action: () => Promise<void>, reload: () => Promise<void>): Promise<void> {
+  try {
+    await action();
+  } catch (e) {
+    if (isVersionRefusal(e)) await reload();
+    throw e;
+  }
+}

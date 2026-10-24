@@ -9,6 +9,7 @@ import {
   monthsBetween,
   parseAuDate,
   typeDate,
+  weekday,
 } from './dates';
 
 test('reads Australian dates', () => {
@@ -68,4 +69,11 @@ test('adding days, across months and years', async () => {
   assert.equal(addDays('2026-10-24', 30), '2026-11-23');
   assert.equal(addDays('2026-12-31', 1), '2027-01-01');
   assert.equal(addDays('2026-03-01', -1), '2026-02-28');
+});
+
+test('the weekday of a calendar date', () => {
+  assert.equal(weekday('2026-11-07'), 'Sat');
+  assert.equal(weekday('2026-11-08'), 'Sun');
+  assert.equal(weekday('2026-10-24'), 'Sat');
+  assert.equal(weekday('2027-01-01'), 'Fri');
 });

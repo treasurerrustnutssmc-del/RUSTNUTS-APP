@@ -148,10 +148,17 @@ export interface ClubContextValue {
   setRideRoute: (rideId: string, routeId: string | null) => Promise<void>;
   /** One route's GPX file, for opening in a maps app. Archived routes still read. */
   routeGpx: (routeId: string) => Promise<string>;
-  /** Writes or replaces a ride's briefing (its crew managers and its Road Captain only), until the ride day ends. */
-  saveBriefing: (rideId: string, input: BriefingInput) => Promise<void>;
-  /** Got it: marks the ride's briefing read by you, now. Works on past and cancelled rides too. */
-  readBriefing: (rideId: string) => Promise<void>;
+  /**
+   * Writes or replaces a ride's briefing (its crew managers and its Road Captain only), until the
+   * ride day ends. `seen` is the `updatedAt` the editor opened on (null when there was none);
+   * refused if someone else has saved since. Also marks the writer's own read.
+   */
+  saveBriefing: (rideId: string, input: BriefingInput, seen: string | null) => Promise<void>;
+  /**
+   * Got it: marks the ride's briefing read by you, now. `seen` is the `updatedAt` of the briefing
+   * on screen; refused if it has changed since. Works on past and cancelled rides too.
+   */
+  readBriefing: (rideId: string, seen: string | null) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);

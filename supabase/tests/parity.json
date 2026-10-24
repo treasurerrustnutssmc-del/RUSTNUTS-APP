@@ -2259,6 +2259,7 @@
       ],
       "changes": " Single file through Myrniong ",
       "notes": "Cash only",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": true
     },
     {
@@ -2271,6 +2272,7 @@
       ],
       "changes": "Regroup at Pyalong",
       "notes": "",
+      "seen": null,
       "allowed": true
     },
     {
@@ -2283,6 +2285,7 @@
       ],
       "changes": "",
       "notes": "Breakfast at Daylesford",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": true
     },
     {
@@ -2295,6 +2298,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": null,
       "allowed": false
     },
     {
@@ -2307,6 +2311,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2319,6 +2324,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2331,6 +2337,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2343,6 +2350,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2367,6 +2375,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2402,6 +2411,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": true
     },
     {
@@ -2414,6 +2424,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2426,6 +2437,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": true
     },
     {
@@ -2439,6 +2451,7 @@
       ],
       "changes": "   ",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2446,6 +2459,7 @@
       "as": "spanner",
       "action": "readBriefing",
       "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": true
     },
     {
@@ -2453,6 +2467,7 @@
       "as": "gravel",
       "action": "readBriefing",
       "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": true
     },
     {
@@ -2460,6 +2475,7 @@
       "as": "spanner",
       "action": "readBriefing",
       "ride": "future-club",
+      "seen": null,
       "allowed": false
     },
     {
@@ -2467,6 +2483,7 @@
       "as": "spanner",
       "action": "readBriefing",
       "ride": "cancelled-north",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": true
     },
     {
@@ -2474,6 +2491,7 @@
       "as": "spanner",
       "action": "readBriefing",
       "ride": "past-club",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": true
     },
     {
@@ -2481,6 +2499,7 @@
       "as": "spanner",
       "action": "readBriefing",
       "ride": "gone",
+      "seen": null,
       "allowed": false
     },
     {
@@ -2488,6 +2507,7 @@
       "as": "dylan",
       "action": "readBriefing",
       "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2499,6 +2519,7 @@
       "changes": "x",
       "notes": "",
       "repeat": 2001,
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2510,6 +2531,7 @@
       "changes": "",
       "notes": "x",
       "repeat": 2001,
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2521,6 +2543,7 @@
       "changes": "",
       "notes": "🏍",
       "repeat": 2000,
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": true
     },
     {
@@ -2533,6 +2556,7 @@
       ],
       "changes": "",
       "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
       "allowed": false
     },
     {
@@ -2540,6 +2564,111 @@
       "as": null,
       "action": "readBriefing",
       "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "Got it on the version of the briefing stored",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a card 1 ms older than the briefing stored (the database's rounding)",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-09-30T23:59:59.999Z",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a card opened before the briefing was last saved",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-09-30T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "Got it with no version of the briefing on screen",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": null,
+      "allowed": false
+    },
+    {
+      "name": "Got it on an old card of a ride with no briefing",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-club",
+      "seen": "2026-09-30T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A board member saves over a briefing saved since they opened it",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Fog at Ballan"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-09-30T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A board member writes a first briefing when one was saved while they typed",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Fog at Ballan"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": null,
+      "allowed": false
+    },
+    {
+      "name": "A clashing save is refused before its 13 hazards",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Hazard 1",
+        "Hazard 2",
+        "Hazard 3",
+        "Hazard 4",
+        "Hazard 5",
+        "Hazard 6",
+        "Hazard 7",
+        "Hazard 8",
+        "Hazard 9",
+        "Hazard 10",
+        "Hazard 11",
+        "Hazard 12",
+        "Hazard 13"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": null,
+      "allowed": false
+    },
+    {
+      "name": "A member with no crew spot or seat saves over a newer briefing",
+      "as": "spanner",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Fog at Ballan"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-09-30T00:00:00.000Z",
       "allowed": false
     },
     {
