@@ -97,4 +97,12 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_chat -f "$ROOT/supabase/tests/chat_test.sql"
 
+# Lane E: push outbox, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_push" >/dev/null
+"${PSQL[@]}" -d rustnuts_push -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_push -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_push -f "$ROOT/supabase/tests/push_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
