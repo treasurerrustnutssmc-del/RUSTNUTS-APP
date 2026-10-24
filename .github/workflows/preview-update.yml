@@ -10,22 +10,35 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    # Skips quietly until the EXPO_TOKEN secret has been added.
+    env:
+      HAS_TOKEN: ${{ secrets.EXPO_TOKEN != '' }}
     steps:
+      - if: env.HAS_TOKEN != 'true'
+        run: echo "EXPO_TOKEN secret not set yet, skipping."
       - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
       - uses: actions/setup-node@v4
+        if: env.HAS_TOKEN == 'true'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+        if: env.HAS_TOKEN == 'true'
       - run: npm test
+        if: env.HAS_TOKEN == 'true'
       - run: npx tsc --noEmit
+        if: env.HAS_TOKEN == 'true'
       - uses: expo/expo-github-action@v8
+        if: env.HAS_TOKEN == 'true'
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Link the Expo project
+        if: env.HAS_TOKEN == 'true'
         run: eas init --non-interactive --force
       - name: Publish
+        if: env.HAS_TOKEN == 'true'
         env:
           # The publishable key is meant to ship inside the app; the database rules do the protecting.
           EXPO_PUBLIC_SUPABASE_URL: https://mfhbvsybudneimgbfjpy.supabase.co
