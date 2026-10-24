@@ -3,6 +3,7 @@
 // apply, in the same order with the same words, so the app never offers what the server would refuse.
 
 import { isNational } from './access';
+import { charCount } from './chat';
 import { byName } from './crew';
 import { expiryState } from './dates';
 import { melbourneDate } from './rides';
@@ -47,9 +48,6 @@ export interface RulesBlock {
   kind: 'heading' | 'bullet' | 'para';
   text: string;
 }
-
-/** Counted in characters (code points), as the database's char_length does, so an emoji is one. */
-const length = (s: string): number => [...s].length;
 
 /** The current version: the highest number. Undefined when nothing is published yet. */
 export function currentRoadRules(data: ClubData): RoadRulesVersion | undefined {
@@ -100,8 +98,8 @@ export function publishProblem(me: Member | null, input: RoadRulesInput, seen: n
   if ((currentRoadRules(data)?.number ?? 0) !== seen) return PUBLISH_CONFLICT;
   const { body, changes } = cleanRoadRules(input, data);
   if (body === '') return RULES_EMPTY;
-  if (length(body) > MAX_RULES_TEXT) return RULES_TOO_LONG;
-  if (length(changes) > MAX_RULES_CHANGES) return CHANGES_TOO_LONG;
+  if (charCount(body) > MAX_RULES_TEXT) return RULES_TOO_LONG;
+  if (charCount(changes) > MAX_RULES_CHANGES) return CHANGES_TOO_LONG;
   return null;
 }
 
@@ -146,23 +144,24 @@ export function roadRulesStatus(member: Member, data: ClubData, today: string): 
   return { state, goodUntil: until, signedVersion: mine.version };
 }
 
-/** Who's asked to sign: every approved member except Legacy (riders, pillions and support alike). */
+/** Who's asked to sign, in name order: every approved member except Legacy (riders, pillions and support alike). */
 export function askedToSign(data: ClubData): Member[] {
-  return data.members.filter((m) => m.approval === 'approved' && m.status !== 'legacy');
+  return data.members.filter((m) => m.approval === 'approved' && m.status !== 'legacy').sort(byName);
 }
 
 /**
  * The Who's signed lists for `members` (the caller picks the chapter), each in name order: Not
  * signed (unsigned or expired), Due soon, and Signed. Anyone not asked to sign is left out.
- * With nothing published yet, everyone asked is Not signed.
+ * With nothing published yet there's nothing to sign, so all three are empty.
  */
 export function signoffGroups(
   members: Member[],
   data: ClubData,
   today: string,
 ): { notSigned: Member[]; dueSoon: Member[]; signed: Member[] } {
-  const asked = new Set(askedToSign(data).map((m) => m.id));
   const groups = { notSigned: [] as Member[], dueSoon: [] as Member[], signed: [] as Member[] };
+  if (!currentRoadRules(data)) return groups;
+  const asked = new Set(askedToSign(data).map((m) => m.id));
   for (const m of members) {
     if (!asked.has(m.id)) continue;
     const { state } = roadRulesStatus(m, data, today);

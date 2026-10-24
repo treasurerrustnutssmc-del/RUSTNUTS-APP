@@ -279,6 +279,15 @@ test('carry-over: a small fix keeps sign-offs, a fresh version makes them unsign
   assert.equal(roadRulesStatus(rider, signedV2, '2026-10-24').state, 'current');
 });
 
+test('roadRulesStatus: a sign-off on a small-fix version after the base is current', () => {
+  const d = data({
+    roadRules: [version(1), version(2), version(3, { fresh: false }), version(4, { fresh: false })],
+    roadRulesSignoffs: [signoff('rider', 3, '2026-10-01T00:00:00.000Z')],
+  });
+  assert.equal(signoffBase(d)?.number, 2);
+  assert.deepEqual(roadRulesStatus(rider, d, '2026-10-24'), { state: 'current', goodUntil: '2027-10-01', signedVersion: 3 });
+});
+
 test('an old sign-off from before the base is unsigned, not expired', () => {
   const d = data({
     roadRules: [version(1), version(2)],
@@ -291,14 +300,14 @@ test('an old sign-off from before the base is unsigned, not expired', () => {
 // Who's asked and the sign-off groups
 // ---------------------------------------------------------------------------
 
-test('askedToSign: every approved member except Legacy', () => {
+test('askedToSign: every approved member except Legacy, in name order', () => {
   const legacy = member('legacy', { status: 'legacy' });
   const nomad = member('nomad', { status: 'nomad' });
-  const supporter = member('supporter', { status: 'supporter' });
+  const supporter = member('supporter', { status: 'supporter', roadName: null, fullName: 'Bea Supporter' });
   const introduced = member('introduced', { status: 'introduced' });
   const declined = member('declined', { approval: 'declined' });
   const d = data({ members: [rider, legacy, nomad, supporter, introduced, pending, declined, suspendedNec] });
-  assert.deepEqual(askedToSign(d).map((m) => m.id).sort(), ['introduced', 'nomad', 'rider', 'supporter']);
+  assert.deepEqual(askedToSign(d).map((m) => m.id), ['supporter', 'introduced', 'nomad', 'rider']);
 });
 
 test('signoffGroups sorts asked members into Not signed, Due soon and Signed, by name', () => {
@@ -339,6 +348,12 @@ test('signoffGroups groups only the members it is given (the caller’s chapter)
   assert.deepEqual(groups.notSigned.map((m) => m.id), ['west']);
   assert.deepEqual(groups.dueSoon, []);
   assert.deepEqual(groups.signed, []);
+});
+
+test('signoffGroups: with no versions there is nothing to sign, so all three groups are empty', () => {
+  const d = data({ members: [rider, westVp] });
+  assert.deepEqual(signoffGroups([rider, westVp], d, '2026-10-24'), { notSigned: [], dueSoon: [], signed: [] });
+  assert.deepEqual(signoffGroups([rider], data({ roadRules: [] }), '2026-10-24'), { notSigned: [], dueSoon: [], signed: [] });
 });
 
 test('a member who becomes Legacy drops out of the groups', () => {
