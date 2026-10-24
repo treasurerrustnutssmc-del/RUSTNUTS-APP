@@ -2,7 +2,7 @@
 // to. Picking one opens that chat with it in the message box; nothing goes until Send is pressed.
 
 import React, { useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { useChat } from '../data/chat/ChatProvider';
 import type { ChatSummary } from '../data/chat/chatContext';
 import { NOTHING_TO_SHARE } from '../domain/shareIn';
@@ -47,7 +47,10 @@ export function ShareInScreen({ route, navigation }: RootScreen<'ShareIn'>) {
         <>
           <Card style={{ gap: space.sm }}>
             {text ? <Body numberOfLines={6}>{text}</Body> : null}
-            <AttachmentStrip items={media} onRemove={(i) => setMedia((m) => m.filter((_, j) => j !== i))} />
+            {/* The strip brings the composer's side padding; the card already has its own. */}
+            <View style={{ marginHorizontal: -space.md, marginTop: -space.sm }}>
+              <AttachmentStrip items={media} onRemove={(i) => setMedia((m) => m.filter((_, j) => j !== i))} />
+            </View>
             <Small>You can add to it before it goes.</Small>
           </Card>
           <SectionTitle title="Send to" />
