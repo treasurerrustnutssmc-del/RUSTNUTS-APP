@@ -41,7 +41,11 @@ export function listFor(chat: ChatData, club: ClubData, me: Member | null, today
       }
       const here = mine.filter((m) => m.conversationId === c.id);
       const newest = here.reduce<Message | null>((best, m) => (!best || m.createdAt > best.createdAt ? m : best), null);
-      const readAt = chat.reads.find((r) => r.conversationId === c.id && r.memberId === me.id)?.readAt ?? '';
+      // Writing in a chat counts as having read everything before it.
+      const readAt = here.reduce(
+        (latest, m) => (m.authorId === me.id && m.createdAt > latest ? m.createdAt : latest),
+        chat.reads.find((r) => r.conversationId === c.id && r.memberId === me.id)?.readAt ?? '',
+      );
       return [{
         conversation: c,
         title: chatTitle(c, me, club, ride),

@@ -16,7 +16,7 @@ import { melbourneDate } from '../domain/rides';
 import type { Ride } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, MAX_CONTENT_WIDTH, rideColors, space, type } from '../theme';
-import { MediaTile, useMediaSource } from '../ui/ChatBits';
+import { asImage, MediaTile, useMediaSource } from '../ui/ChatBits';
 import { Button, Card, Choices, Ionicons, ListRow, Notice, Screen, Small } from '../ui/primitives';
 
 const COLUMNS = 3;
@@ -63,7 +63,7 @@ function WallCover({ item }: { item: FeedItem | null }) {
   const shown = useMediaSource(item ? (item.kind === 'video' ? item.posterPath : item.path) : null);
   return (
     <View style={styles.cover}>
-      {shown !== null ? <Image source={typeof shown === 'number' ? shown : { uri: shown }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+      {shown !== null ? <Image source={asImage(shown)} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
     </View>
   );
 }
@@ -225,7 +225,7 @@ function PhotoPage({ item, width, height }: { item: FeedItem; width: number; hei
   return (
     <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
       {source !== null ? (
-        <Image source={typeof source === 'number' ? source : { uri: source }} style={{ width, height }} contentFit="contain" />
+        <Image source={asImage(source)} style={{ width, height }} contentFit="contain" />
       ) : (
         <ActivityIndicator color={colors.boneMute} />
       )}

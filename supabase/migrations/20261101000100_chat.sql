@@ -684,7 +684,10 @@ begin
         'unread', (
           select count(*) from public.messages m
           where m.conversation_id = c.id and m.author_id <> me and m.removed_at is null
-            and m.created_at > coalesce((select read_at from public.chat_reads cr where cr.conversation_id = c.id and cr.member_id = me), '-infinity')
+            -- Writing in a chat counts as having read everything before it.
+            and m.created_at > greatest(
+              coalesce((select read_at from public.chat_reads cr where cr.conversation_id = c.id and cr.member_id = me), '-infinity'),
+              coalesce((select max(o.created_at) from public.messages o where o.conversation_id = c.id and o.author_id = me), '-infinity'))
             and not exists (select 1 from public.member_blocks b where b.blocker_id = me and b.blocked_id = m.author_id)
         )
       ) as item

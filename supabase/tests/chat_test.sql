@@ -460,6 +460,10 @@ begin
   assert (select count(*) from jsonb_array_elements(pg_temp.list_as(nora)) c where c->>'kind' = 'ride') = 0, 'Nora said no';
   assert pg_temp.try_as(wes, format('select public.mark_chat_read(%L)', pg_temp.chat('club'))) is null, 'mark read';
   assert ((select c from jsonb_array_elements(pg_temp.list_as(wes)) c where c->>'kind' = 'club')->>'unread')::int = 0, 'nothing unread';
+  perform pg_temp.value_as(nora, format('select public.send_message(%L, %L, ''[]''::jsonb, null)', pg_temp.chat('club'), 'still up'));
+  assert ((select c from jsonb_array_elements(pg_temp.list_as(wes)) c where c->>'kind' = 'club')->>'unread')::int = 1, 'one new';
+  perform pg_temp.value_as(wes, format('select public.send_message(%L, %L, ''[]''::jsonb, null)', pg_temp.chat('club'), 'yep'));
+  assert ((select c from jsonb_array_elements(pg_temp.list_as(wes)) c where c->>'kind' = 'club')->>'unread')::int = 0, 'writing counts as reading';
   assert pg_temp.try_as(nora, format('select public.mark_chat_read(%L)', pg_temp.chat('west'))) = 'That chat is for West chapter members.', 'not a chat you can''t read';
 end $$;
 

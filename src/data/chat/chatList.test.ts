@@ -47,6 +47,13 @@ test('the list shows the newest message and counts what others wrote since you l
   assert.equal(clubChat.title, 'Whole club');
 });
 
+test('writing in a chat counts as having read it', () => {
+  const base = chatWith();
+  const chat = { ...base, messages: [...base.messages, msg('club-me', 'club', 'spanner', '2026-10-24T00:09:00.000Z')] };
+  const clubChat = listFor(chat, club, as('spanner'), '2026-10-24').find((s) => s.conversation.id === 'club')!;
+  assert.equal(clubChat.unread, 0, 'everything before your own message is read');
+});
+
 test('someone you blocked doesn’t count, and isn’t shown', () => {
   const chat = chatWith({ blocks: [{ blockerId: 'spanner', blockedId: 'crank' }] });
   const clubChat = listFor(chat, club, as('spanner'), '2026-10-24').find((s) => s.conversation.id === 'club')!;

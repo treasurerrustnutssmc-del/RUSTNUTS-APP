@@ -185,7 +185,6 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         <Label>On the way</Label>
         {[
           ['map', 'Locked routes, ride roles and briefings', 'Stage 2'],
-          ['chatbubbles', 'Chat, photos and the ride wall', 'Stage 3'],
           ['card', 'Fees, check-ins and the FNG tracker', 'Stage 4'],
         ].map(([icon, text, stage]) => (
           <Row key={text} style={{ gap: space.md, flexWrap: 'nowrap' }}>

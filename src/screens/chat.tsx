@@ -449,6 +449,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               placeholder="Message"
               placeholderTextColor={colors.boneMute}
               multiline
+              numberOfLines={Platform.OS === 'web' ? 1 : undefined}
               maxLength={4000}
               style={styles.input}
               accessibilityLabel="Message"
@@ -482,31 +483,39 @@ export function NewChatScreen({ navigation }: RootScreen<'NewChat'>) {
   const { me, data } = useClub();
   const chat = useChat();
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
   const people = data.members
     .filter((m) => m.id !== me?.id && directProblem(me, m, chat.blocks) === null)
+    .filter((m) => !q || `${m.fullName} ${m.roadName ?? ''}`.toLowerCase().includes(q))
     .sort((a, b) => displayName(a).localeCompare(displayName(b)));
   return (
     <Screen>
       {error ? <Notice tone="danger">{error}</Notice> : null}
       <Body>Pick someone to message. Only the two of you see a private chat.</Body>
-      <Card style={{ padding: 0 }}>
-        {people.map((m, i) => (
-          <MemberRow
-            key={m.id}
-            member={m}
-            data={data}
-            last={i === people.length - 1}
-            onPress={async () => {
-              try {
-                const id = await chat.openDirect(m.id);
-                navigation.replace('Chat', { chatId: id });
-              } catch (e) {
-                setError((e as Error).message);
-              }
-            }}
-          />
-        ))}
-      </Card>
+      <Field label="Search" value={query} onChangeText={setQuery} placeholder="Name or road name" autoCapitalize="none" returnKeyType="search" />
+      {people.length === 0 ? (
+        <Small>No one by that name.</Small>
+      ) : (
+        <Card style={{ padding: 0 }}>
+          {people.map((m, i) => (
+            <MemberRow
+              key={m.id}
+              member={m}
+              data={data}
+              last={i === people.length - 1}
+              onPress={async () => {
+                try {
+                  const id = await chat.openDirect(m.id);
+                  navigation.replace('Chat', { chatId: id });
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            />
+          ))}
+        </Card>
+      )}
     </Screen>
   );
 }

@@ -35,7 +35,8 @@ export function useMediaSource(path: string | null): MediaSource | null {
   return path && source?.path === path ? source.value : null;
 }
 
-const asImage = (s: MediaSource | null) => (s === null ? null : typeof s === 'number' ? s : { uri: s });
+/** A picture source: a web address, or one of the app's own pictures (a number on phones, an object on the web). */
+export const asImage = (s: MediaSource | null) => (s === null ? null : typeof s === 'string' ? { uri: s } : s);
 
 function seconds(ms: number | null) {
   if (!ms) return '';
