@@ -186,6 +186,28 @@ export interface BriefingRead {
   readAt: string;
 }
 
+/**
+ * One published text of the Road Rules (constitution 7.10). The current version is the highest
+ * number. Versions are never edited or removed: a correction is a new version.
+ */
+export interface RoadRulesVersion {
+  number: number;
+  body: string;
+  /** What changed since the last version. Empty when none. */
+  changes: string;
+  /** Whether everyone signs again. Version 1 always does. */
+  fresh: boolean;
+  publishedAt: string;
+  publishedBy: string | null;
+}
+
+/** A member's latest Road Rules sign-off: one per member, moved on each signing. */
+export interface RoadRulesSignoff {
+  memberId: string;
+  version: number;
+  signedAt: string;
+}
+
 export interface ClubData {
   chapters: Chapter[];
   members: Member[];
@@ -206,6 +228,10 @@ export interface ClubData {
   briefings?: Briefing[];
   /** Who has tapped Got it on which ride's briefing. Missing means none. */
   briefingReads?: BriefingRead[];
+  /** Every published version of the Road Rules. Missing means none. */
+  roadRules?: RoadRulesVersion[];
+  /** Each member's latest Road Rules sign-off. Missing means none. */
+  roadRulesSignoffs?: RoadRulesSignoff[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
   // Lane E: notifications
