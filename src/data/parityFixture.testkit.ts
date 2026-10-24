@@ -12,7 +12,8 @@ import { directId, runChatAction, type ChatAction, type ChatData } from './chat/
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
-  as: string;
+  /** The member acting, or null for someone not signed in. */
+  as: string | null;
   allowed: boolean;
   /** Fixture positions taken away for this case only (to free a seat). */
   without?: string[];

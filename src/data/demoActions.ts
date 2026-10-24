@@ -432,7 +432,8 @@ export type DemoAction =
   | { action: 'saveRoute'; route: string | null; routeName: string; chapter: string | null; notes?: string; gpx: string | null }
   | { action: 'archiveRoute'; route: string }
   | { action: 'setRideRoute'; ride: string; route: string | null }
-  | { action: 'saveBriefing'; ride: string; hazards: string[]; changes: string; notes: string }
+  // `repeat` writes the changes and the notes out that many times, for the length limits.
+  | { action: 'saveBriefing'; ride: string; hazards: string[]; changes: string; notes: string; repeat?: number }
   | { action: 'readBriefing'; ride: string };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
@@ -462,7 +463,11 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
     case 'setRideRoute':
       return setRideRoute(ctx, a.ride, a.route);
     case 'saveBriefing':
-      return saveBriefing(ctx, a.ride, { hazards: a.hazards, changes: a.changes, notes: a.notes });
+      return saveBriefing(ctx, a.ride, {
+        hazards: a.hazards,
+        changes: a.changes.repeat(a.repeat ?? 1),
+        notes: a.notes.repeat(a.repeat ?? 1),
+      });
     case 'readBriefing':
       return readBriefing(ctx, a.ride);
     case 'removeContact':

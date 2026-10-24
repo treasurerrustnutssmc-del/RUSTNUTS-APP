@@ -319,7 +319,7 @@ export const DEMO_DATA: ClubData = {
         'Kangaroos at dusk on the way home',
         'Roadworks at Bacchus Marsh: 40 km/h',
       ],
-      changes: 'Single file through Myrniong, no staggered formation.',
+      changes: 'Single file through Myrniong, no staggered formation',
       notes: 'Breakfast at the Daylesford bakery, cash only.',
       updatedAt: '2026-10-23T09:15:00.000Z',
       updatedBy: 'm-torque',

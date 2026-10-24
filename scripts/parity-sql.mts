@@ -184,7 +184,7 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.set_ride_route(${id('r', c.ride)}, ${c.route ? id('rt', c.route) : 'null'})`;
     case 'saveBriefing':
       // The texts as typed, untrimmed: the database must clean them the same way the app does.
-      return `public.save_briefing(${id('r', c.ride)}, ${textArray(c.hazards)}, ${q(c.changes)}, ${q(c.notes)})`;
+      return `public.save_briefing(${id('r', c.ride)}, ${textArray(c.hazards)}, ${text(c.changes, c.repeat)}, ${text(c.notes, c.repeat)})`;
     case 'readBriefing':
       return `public.read_briefing(${id('r', c.ride)})`;
     case 'removeContact':
@@ -227,7 +227,8 @@ for (const c of fx.cases) {
   sql('begin;');
   for (const key of c.without ?? []) sql(`delete from public.positions where id = ${id('p', key)};`);
   sql(`select set_config('parity.chat', coalesce(${c.chat ? chatId(String(c.chat)) : 'null'}::text, ''), true);`);
-  sql(`select set_config('request.jwt.claim.sub', ${id('m', c.as)}::text, true);`);
+  // No one signed in (as: null): an empty claim, so auth.uid() is null.
+  sql(`select set_config('request.jwt.claim.sub', ${c.as === null ? "''" : `${id('m', c.as)}::text`}, true);`);
   sql('set local role authenticated;');
   sql('do $parity$ begin');
   sql('  begin');

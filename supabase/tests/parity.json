@@ -239,6 +239,14 @@
       "role": "founder",
       "startedOn": "2019-01-01",
       "endedOn": null
+    },
+    {
+      "key": "jet-old-road-captain",
+      "member": "jet",
+      "chapter": "north",
+      "role": "road_captain",
+      "startedOn": "2024-08-16",
+      "endedOn": "2025-08-16"
     }
   ],
   "bikes": [
@@ -1419,7 +1427,7 @@
       "allowed": true
     },
     {
-      "name": "A rider in an Officer spot, not the Road Captain, writes the briefing",
+      "name": "A former Road Captain (seat ended) in an Officer spot on this ride writes the briefing",
       "as": "jet",
       "action": "saveBriefing",
       "ride": "future-club",
@@ -1619,6 +1627,58 @@
     {
       "name": "An applicant taps Got it",
       "as": "dylan",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "allowed": false
+    },
+    {
+      "name": "Changes of 2,001 characters",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [],
+      "changes": "x",
+      "notes": "",
+      "repeat": 2001,
+      "allowed": false
+    },
+    {
+      "name": "Notes of 2,001 characters",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [],
+      "changes": "",
+      "notes": "x",
+      "repeat": 2001,
+      "allowed": false
+    },
+    {
+      "name": "Notes of 2,000 emoji count as 2,000 characters",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [],
+      "changes": "",
+      "notes": "🏍",
+      "repeat": 2000,
+      "allowed": true
+    },
+    {
+      "name": "A briefing written by someone not signed in",
+      "as": null,
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Fog"
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Got it from someone not signed in",
+      "as": null,
       "action": "readBriefing",
       "ride": "future-west",
       "allowed": false

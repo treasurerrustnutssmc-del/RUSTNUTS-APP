@@ -4,11 +4,13 @@ import {
   BRIEFING_EMPTY,
   BRIEFING_LOCKED,
   briefingOf,
+  HAZARD_TOO_LONG,
   NO_BRIEFING,
   NO_RIDE,
   NOT_WRITER,
   readState,
   RIDE_CANCELLED,
+  TEXT_TOO_LONG,
   TOO_MANY_HAZARDS,
   type BriefingInput,
 } from '../domain/briefings';
@@ -48,7 +50,7 @@ test('the demo: the West breakfast run has a briefing, North coffee and curves h
     'Kangaroos at dusk on the way home',
     'Roadworks at Bacchus Marsh: 40 km/h',
   ]);
-  assert.equal(b.changes, 'Single file through Myrniong, no staggered formation.');
+  assert.equal(b.changes, 'Single file through Myrniong, no staggered formation');
   assert.equal(b.notes, 'Breakfast at the Daylesford bakery, cash only.');
   assert.ok(b.updatedBy && DEMO_DATA.members.some((m) => m.id === b.updatedBy), 'written by a demo member');
   const ride = DEMO_DATA.rides.find((r) => r.id === 'r-1')!;
@@ -112,6 +114,7 @@ test('saving: the ride’s Road Captain writes it without a board seat', () => {
 
 test('saving: refusals in the rules’ words', () => {
   assert.equal(refusal(() => saveBriefing(ctxFor(null), 'r-1', input())), 'Sign in first.');
+  assert.equal(refusal(() => saveBriefing(ctxFor('m-dylan'), 'r-1', input())), 'Only approved members can do that.');
   assert.equal(refusal(() => saveBriefing(ctxFor('m-torque'), 'r-nope', input())), NO_RIDE);
   assert.equal(refusal(() => saveBriefing(ctxFor('m-torque'), 'r-5', input())), RIDE_CANCELLED);
   assert.equal(refusal(() => saveBriefing(ctxFor('m-torque', DEMO_DATA, '2026-11-09T00:00:00.000Z'), 'r-1', input())), BRIEFING_LOCKED);
@@ -120,6 +123,12 @@ test('saving: refusals in the rules’ words', () => {
     TOO_MANY_HAZARDS,
   );
   assert.equal(refusal(() => saveBriefing(ctxFor('m-torque'), 'r-1', { hazards: [' ', ''], changes: '  ', notes: '' })), BRIEFING_EMPTY);
+  assert.equal(refusal(() => saveBriefing(ctxFor('m-torque'), 'r-1', input({ hazards: ['x'.repeat(121)] }))), HAZARD_TOO_LONG);
+  assert.equal(refusal(() => saveBriefing(ctxFor('m-torque'), 'r-1', input({ changes: 'x'.repeat(2001) }))), TEXT_TOO_LONG);
+  assert.equal(refusal(() => saveBriefing(ctxFor('m-torque'), 'r-1', input({ notes: 'x'.repeat(2001) }))), TEXT_TOO_LONG);
+  // At the limits, and counted in code points, it saves.
+  const full = saveBriefing(ctxFor('m-torque'), 'r-1', input({ hazards: ['🏍'.repeat(120)], changes: 'x'.repeat(2000), notes: '🏍'.repeat(2000) }));
+  assert.equal(briefingOf('r-1', full)?.notes, '🏍'.repeat(2000));
 });
 
 test('reading: Got it records a read now, and reading again moves it', () => {
@@ -137,6 +146,7 @@ test('reading: Got it records a read now, and reading again moves it', () => {
 
 test('reading: refused with no briefing, allowed on a cancelled ride that has one', () => {
   assert.equal(refusal(() => readBriefing(ctxFor(null), 'r-1')), 'Sign in first.');
+  assert.equal(refusal(() => readBriefing(ctxFor('m-dylan'), 'r-1')), 'Only approved members can do that.');
   assert.equal(refusal(() => readBriefing(ctxFor('m-spanner'), 'r-nope')), NO_RIDE);
   assert.equal(refusal(() => readBriefing(ctxFor('m-spanner'), 'r-2')), NO_BRIEFING);
   const withBriefing: ClubData = {
