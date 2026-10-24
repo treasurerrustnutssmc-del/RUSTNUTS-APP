@@ -29,6 +29,12 @@ export type RootParams = {
   EditBike: { bikeId?: string };
   EditContact: { contactId?: string };
   ManageMember: { memberId: string };
+  // Stage 5: meetings and votes
+  Business: undefined;
+  Meeting: { meetingId: string };
+  EditMeeting: { meetingId?: string; chapterId?: string | null } | undefined;
+  Vote: { voteId: string };
+  NewVote: { chapterId?: string | null; meetingId?: string; subjectMemberId?: string } | undefined;
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

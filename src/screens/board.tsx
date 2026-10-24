@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
 import { formatLongDate, monthsBetween } from '../domain/dates';
+import { runsScope } from '../domain/meetings';
 import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole } from '../domain/types';
@@ -147,6 +148,17 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
         </Notice>
       ) : null}
 
+      {/* Stage 5: meetings and votes */}
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          left={<IconBadge icon="hammer" />}
+          title="Meetings and votes"
+          subtitle="Agendas, minutes, action items and votes"
+          onPress={() => navigation.navigate('Business')}
+          last
+        />
+      </Card>
+
       <SectionTitle title="Waiting for approval" action={<Small>{pending.length}</Small>} />
       {pending.length === 0 ? (
         <Card>
@@ -223,7 +235,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
 // Manage one member: status and positions
 // ---------------------------------------------------------------------------
 
-export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
+export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMember'>) {
   const { me, data, setMemberStatus, appoint, endPosition } = useClub();
   const member = data.members.find((m) => m.id === route.params.memberId);
   const [status, setStatus] = useState<MemberStatus | null>(member?.status ?? null);
@@ -236,6 +248,10 @@ export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
   const roleOptions = [...BOARD_ROLES, ...CLUB_ROLES, ...NATIONAL_ROLES].filter(
     (r) => appointProblem(me, member, member.chapterId, r, data) === null,
   );
+  // Stage 5: the open patch vote on this FNG, or the chance to start one.
+  const patchVote = (data.votes ?? []).find((v) => v.subjectMemberId === member.id && v.closedAt === null);
+  const canStartPatchVote =
+    member.status === 'fng' && member.approval === 'approved' && runsScope(me, member.chapterId, data.positions);
 
   const run = async (fn: () => Promise<void>, ok: string) => {
     try {
@@ -270,8 +286,21 @@ export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
         />
         <Small>
           Record the outcome once the vote is done. Full membership needs a unanimous patched-member vote (5.4).
-          Votes move into the app in Stage 5.
         </Small>
+        {/* Stage 5: patch votes */}
+        {patchVote ? (
+          <Button
+            label="See the patch vote"
+            kind="secondary"
+            onPress={() => navigation.navigate('Vote', { voteId: patchVote.id })}
+          />
+        ) : canStartPatchVote ? (
+          <Button
+            label="Start patch vote"
+            kind="secondary"
+            onPress={() => navigation.navigate('NewVote', { subjectMemberId: member.id })}
+          />
+        ) : null}
         <Button
           label="Change status"
           disabled={!status || status === member.status}
