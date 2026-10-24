@@ -60,4 +60,6 @@ test('what to schedule and cancel', () => {
   assert.deepEqual(add.map((x) => x.id), ['ride-b', 'ride-c']);
   assert.deepEqual(cancel.sort(), ['ride-b', 'ride-z']);
   assert.deepEqual(reminderDiff([], scheduled).cancel.sort(), ['ride-a', 'ride-b', 'ride-z'], 'turned off: all of them go');
+  const renamed = reminderDiff([r('ride-a', '2026-11-06T19:30:00.000Z')], [{ id: 'ride-a', at: '2026-11-06T19:30:00.000Z', body: 'old name' }]);
+  assert.deepEqual([renamed.add.map((x) => x.id), renamed.cancel], [['ride-a'], ['ride-a']], 'a renamed ride gets the new text');
 });

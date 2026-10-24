@@ -20,15 +20,18 @@ export function syncReminders(plan: Reminder[]): Promise<void> {
   const next = syncing.then(async () => {
     const scheduled = (await Notifications.getAllScheduledNotificationsAsync())
       .filter((n) => n.content.data?.kind === KIND)
-      .map((n) => ({ id: n.identifier, at: String(n.content.data?.at ?? '') }));
+      .map((n) => ({ id: n.identifier, at: String(n.content.data?.at ?? ''), body: n.content.body ?? '' }));
     const { add, cancel } = reminderDiff(plan, scheduled);
     for (const id of cancel) await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
     if (add.length === 0) return;
-    const permission = await Notifications.requestPermissionsAsync().catch(() => null);
-    if (!permission?.granted) return;
+    // Android 13 only shows the permission prompt once a channel exists.
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(CHANNEL, { name: 'Ride reminders', importance: AndroidImportance.DEFAULT }).catch(() => {});
     }
+    // Ask once; after a no, leave it to the phone's settings rather than asking at every launch.
+    let permission = await Notifications.getPermissionsAsync().catch(() => null);
+    if (!permission?.granted && permission?.canAskAgain) permission = await Notifications.requestPermissionsAsync().catch(() => null);
+    if (!permission?.granted) return;
     for (const r of add) {
       await Notifications.scheduleNotificationAsync({
         identifier: r.id,
@@ -43,7 +46,9 @@ export function syncReminders(plan: Reminder[]): Promise<void> {
 
 /** Keeps the phone's ride reminders in step with the club data. Renders nothing. */
 export function ReminderSync() {
-  const { data, me, loading, loadError } = useClub();
+  const { data, me, loading, loadError, isDemo } = useClub();
+  // Undefined: the settings couldn't be read, so leave the phone's reminders as they are.
+  const unknown = !!me && data.notificationPrefs === undefined;
   const prefs = data.notificationPrefs ?? DEFAULT_PREFS;
   // Recomputed when the data changes; the time only matters for dropping reminders already past.
   const plan = useMemo(
@@ -53,9 +58,10 @@ export function ReminderSync() {
   const key = JSON.stringify(plan.map((r) => [r.id, r.at, r.body]));
   useEffect(() => {
     // Until a load finishes (or when it failed with nothing on screen) the plan would wrongly be empty.
-    if (loading || loadError) return;
+    // The demo's rides are made up: no real reminders for them.
+    if (loading || loadError || unknown || isDemo) return;
     syncReminders(plan).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, loading, loadError]);
+  }, [key, loading, loadError, unknown, isDemo]);
   return null;
 }

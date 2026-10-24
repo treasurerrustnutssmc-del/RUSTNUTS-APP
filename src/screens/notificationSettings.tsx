@@ -1,7 +1,7 @@
 // The Notifications section on Me. Ride reminders work now (the phone sets them itself); the rest
 // are pushes from the club, which start when the app launches, so members can choose ahead of time.
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useClub } from '../data/ClubStore';
 import { DEFAULT_PREFS } from '../domain/notifications';
 import type { NotificationPrefs } from '../domain/types';
@@ -14,17 +14,21 @@ export function NotificationSettings() {
   // Shows the change straight away, and goes back if it doesn't save.
   const [shown, setShown] = useState<NotificationPrefs | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Only the latest change decides what's shown, so two quick taps don't flicker.
+  const latest = useRef(0);
   const prefs = shown ?? saved;
   const board = level === 'board' || level === 'national';
 
   const change = (key: keyof NotificationPrefs) => (value: boolean) => {
     if (!saveNotificationPrefs) return;
     const next = { ...prefs, [key]: value };
+    const ticket = ++latest.current;
     setShown(next);
     setError(null);
     saveNotificationPrefs(next)
-      .then(() => setShown(null))
+      .then(() => ticket === latest.current && setShown(null))
       .catch((e) => {
+        if (ticket !== latest.current) return;
         setShown(null);
         setError(`Couldn’t change that: ${(e as Error).message}`);
       });
@@ -36,7 +40,7 @@ export function NotificationSettings() {
       <Card>
         <Toggle
           label="Ride reminders"
-          description="A reminder 2 hours before rides you’re going to."
+          description="Before rides you’re going to: 2 hours before, or 7 am on all-day rides."
           value={prefs.rideReminders}
           onChange={change('rideReminders')}
         />

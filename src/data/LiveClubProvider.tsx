@@ -7,7 +7,7 @@ import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { todayIso } from '../domain/dates';
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { rsvpProblem } from '../domain/rides';
-import type { ClubData } from '../domain/types';
+import type { ClubData, NotificationPrefs } from '../domain/types'; // NotificationPrefs: Lane E
 import {
   ClubContext,
   EMPTY_DATA,
@@ -52,7 +52,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const showing = useRef<string | null>(null);
   const currentUser = useRef<string | null>(null);
   const onSavedCopy = useRef(false);
+  const knownPrefs = useRef<NotificationPrefs | null | undefined>(undefined); // Lane E: notifications
   const showSaved = useCallback((uid: string, saved: { data: ClubData; savedAt: string }) => {
+    knownPrefs.current = saved.data.notificationPrefs; // Lane E: notifications
     setData(saved.data);
     setLoadedFor(uid);
     showing.current = uid;
@@ -62,6 +64,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   /** Signed out: nothing of theirs stays on the phone or on screen, and no load still running can save it back. */
   const forget = useCallback(() => {
     latest.current++;
+    knownPrefs.current = undefined; // Lane E: notifications
     clubCache.clear();
     setData(EMPTY_DATA);
     setLoadedFor(null);
@@ -81,7 +84,10 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
         if (s.session?.user.id !== uid) throw error ?? new Error('Sign in first.');
       }
       const fresh = await loadClub(supabase(), !!uid);
-      if (uid) fresh.notificationPrefs = await loadNotificationPrefs(supabase()); // Lane E: notifications
+      // Lane E: notifications. If the settings can't be read, keep the last known ones (never the
+      // defaults, which could turn reminders back on); undefined means not known.
+      if (uid) fresh.notificationPrefs = await loadNotificationPrefs(supabase()).catch(() => knownPrefs.current);
+      if (uid) knownPrefs.current = fresh.notificationPrefs;
       if (ticket !== latest.current) return;
       // Lane E: offline. Signed out during the load: don't show a signed-out load as theirs.
       if (uid && currentUser.current !== uid) return;
@@ -367,9 +373,13 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
 
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => {
-      requireUser();
+      const uid = requireUser();
       await saveNotificationPrefs(supabase(), prefs);
+      knownPrefs.current = prefs;
       setData((d) => ({ ...d, notificationPrefs: prefs }));
+      // The copy on the phone too, so opening offline later plans reminders from the new settings.
+      const saved = await clubCache.load(uid);
+      if (saved) await clubCache.save(uid, { ...saved.data, notificationPrefs: prefs }, saved.savedAt);
     },
   };
 

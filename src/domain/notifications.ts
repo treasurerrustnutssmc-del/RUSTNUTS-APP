@@ -54,11 +54,16 @@ export function reminderPlan(rides: Ride[], rsvps: Rsvp[], meId: string | null, 
     .slice(0, MAX_REMINDERS);
 }
 
-/** What the phone should schedule and cancel to match the plan. A reminder whose time changed is both. */
-export function reminderDiff(plan: Reminder[], scheduled: { id: string; at: string }[]): { add: Reminder[]; cancel: string[] } {
+/** What the phone should schedule and cancel to match the plan. A reminder whose time or text changed
+ *  is both. (A scheduled one with no text recorded is compared on time alone.) */
+export function reminderDiff(
+  plan: Reminder[],
+  scheduled: { id: string; at: string; body?: string }[],
+): { add: Reminder[]; cancel: string[] } {
   const wanted = new Map(plan.map((r) => [r.id, r]));
-  const have = new Map(scheduled.map((s) => [s.id, s.at]));
-  const cancel = scheduled.filter((s) => wanted.get(s.id)?.at !== s.at).map((s) => s.id);
-  const add = plan.filter((r) => have.get(r.id) !== r.at);
-  return { add, cancel };
+  const same = (s: { at: string; body?: string }, r: Reminder | undefined) =>
+    !!r && r.at === s.at && (s.body === undefined || s.body === r.body);
+  const cancel = scheduled.filter((s) => !same(s, wanted.get(s.id))).map((s) => s.id);
+  const keep = new Set(scheduled.filter((s) => same(s, wanted.get(s.id))).map((s) => s.id));
+  return { add: plan.filter((r) => !keep.has(r.id)), cancel };
 }
