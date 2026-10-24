@@ -271,6 +271,28 @@ Self-approved 2026-10-24 once lane B's chat was on `main`. Jeff can veto.
 - A real-phone test (share from Photos and from Safari or Chrome, on iPhone and Android) goes on Jeff's
   test list.
 
+**Changes from the review:**
+- **The build version follows the native code.** `runtimeVersion` now uses the `fingerprint` policy,
+  not `sdkVersion`. Without that, an over-the-air update carrying a new native module (this one, or
+  lane B's) could reach an older build that lacks it and crash at launch.
+- **Share in only loads where it can work.** It loads only when the `ExpoSharing` native module is
+  there, and anything it throws is contained.
+- **A link stays the link the member shared.** That holds even when the page is a picture, a PDF or a
+  redirect. A link that can't be looked up with no signal still comes across, from the unresolved
+  items.
+- **Each shared photo or video is copied to its own name** in the cache. The library reuses the
+  original file names, so two `FullSizeRender.jpg` would collide. The copies are cleared on the next
+  start.
+- **A video's length is read when it loads**, and a video whose length can't be read is left out with
+  a note, so the 60-second limit holds. The image and thumbnail are released after measuring.
+- **Sharing and screen behaviour:**
+  - A second share while the screen is open starts the screen again.
+  - A share that arrives while another is being measured isn't lost.
+  - Android also offers Rustnuts for mixed photo and video selections (`*/*`).
+- **Known, for the real-phone test:**
+  - Android may reopen an old share when the app is restarted from Recents after the system closed it.
+  - Single-slash `file:/` addresses on Android need checking.
+
 ## 5. Ride comms (voice)
 
 Jeff's ask:

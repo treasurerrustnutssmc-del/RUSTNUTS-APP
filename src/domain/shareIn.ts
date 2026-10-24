@@ -43,7 +43,7 @@ export function sharedDraft(items: SharedItem[]): SharedDraft {
     } else if (item.kind === 'audio' || item.kind === 'file') {
       leftOut = true;
     } else {
-      const line = (item.kind === 'website' ? item.uri || item.value : item.value).trim();
+      const line = item.value.trim();
       if (line && !lines.includes(line)) lines.push(line);
     }
   }
@@ -70,8 +70,10 @@ export interface IncomingPayload {
 }
 
 export function itemFromPayload(p: IncomingPayload): SharedItem {
+  // A link is the link the member shared, even when the page is a picture, a PDF or a redirect.
+  if (p.shareType === 'url') return { kind: 'website', value: p.value, uri: null, mimeType: null, size: null };
   return {
-    kind: p.contentType ?? (p.shareType === 'url' ? 'website' : p.shareType),
+    kind: p.contentType ?? p.shareType,
     value: p.value,
     uri: p.contentUri,
     mimeType: p.contentMimeType ?? p.mimeType ?? null,

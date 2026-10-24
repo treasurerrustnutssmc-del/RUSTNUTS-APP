@@ -8,7 +8,7 @@ const video: SharedItem = { kind: 'video', value: 'file:///v.mov', uri: 'file://
 test('words and a link come across as the message, one per line, without repeats', () => {
   const draft = sharedDraft([
     { kind: 'text', value: 'Check this out', uri: null, mimeType: 'text/plain', size: null },
-    { kind: 'website', value: 'https://example.com/ride', uri: 'https://example.com/ride', mimeType: null, size: null },
+    { kind: 'website', value: 'https://example.com/ride', uri: null, mimeType: null, size: null },
     { kind: 'text', value: 'https://example.com/ride', uri: null, mimeType: 'text/plain', size: null },
   ]);
   assert.equal(draft.text, 'Check this out\nhttps://example.com/ride');
@@ -70,4 +70,15 @@ test('the phone’s payload becomes a shared item', () => {
   // A link that couldn't be looked up (no signal) still comes across as a link.
   assert.deepEqual(itemFromPayload({ ...base, value: 'https://x.au', shareType: 'url' }), { kind: 'website', value: 'https://x.au', uri: null, mimeType: null, size: null });
   assert.equal(itemFromPayload({ ...base, value: 'hi', shareType: 'text', mimeType: 'text/plain' }).kind, 'text');
+});
+
+test('a shared link stays the link the member shared, whatever the page turns out to be', () => {
+  const base = { contentUri: null, contentType: null, contentMimeType: null, originalName: null, contentSize: null };
+  const pic = itemFromPayload({ ...base, value: 'https://x.au/pic.jpg', shareType: 'url', contentUri: 'https://x.au/pic.jpg', contentType: 'image', contentMimeType: 'image/jpeg', contentSize: 5 });
+  const pdf = itemFromPayload({ ...base, value: 'https://x.au/a.pdf', shareType: 'url', contentUri: 'https://x.au/a.pdf', contentType: 'file', contentMimeType: 'application/pdf' });
+  const moved = itemFromPayload({ ...base, value: 'https://x.au/r', shareType: 'url', contentUri: 'https://login.x.au/?next=r', contentType: 'website' });
+  const draft = sharedDraft([pic, pdf, moved]);
+  assert.equal(draft.text, 'https://x.au/pic.jpg\nhttps://x.au/a.pdf\nhttps://x.au/r');
+  assert.deepEqual(draft.media, []);
+  assert.deepEqual(draft.notes, []);
 });

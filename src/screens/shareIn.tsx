@@ -29,7 +29,14 @@ export function shareTargets(list: ChatSummary[]): ChatSummary[] {
 export function ShareInScreen({ route, navigation }: RootScreen<'ShareIn'>) {
   const { text, notes } = route.params;
   const [media, setMedia] = useState(route.params.media);
+  // A second share while this is open arrives as new params on the same screen: start again from it.
+  const [shownParams, setShownParams] = useState(route.params);
+  if (shownParams !== route.params) {
+    setShownParams(route.params);
+    setMedia(route.params.media);
+  }
   const chat = useChat();
+  const cameAcross = !!text || route.params.media.length > 0;
   const nothing = !text && media.length === 0;
   const targets = shareTargets(chat.list);
 
@@ -40,7 +47,8 @@ export function ShareInScreen({ route, navigation }: RootScreen<'ShareIn'>) {
       ))}
       {nothing ? (
         <>
-          <Notice title="Nothing to share">{NOTHING_TO_SHARE}</Notice>
+          {/* Said only when nothing came across: not after the member takes every photo out, and not on top of "couldn't be opened". */}
+          {!cameAcross && notes.length === 0 ? <Notice title="Nothing to share">{NOTHING_TO_SHARE}</Notice> : null}
           <Button label="Back to the app" kind="secondary" onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' }))} />
         </>
       ) : (
