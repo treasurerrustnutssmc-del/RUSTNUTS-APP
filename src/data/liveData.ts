@@ -167,7 +167,10 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       updatedAt: instant(r.updated_at),
     })),
     // Missing for anyone who isn't an approved member.
-    rideRoutes: (calendar.data?.ride_routes ?? []).map((r) => ({ rideId: r.ride_id, routeId: r.route_id })),
+    // A cleared route is stored as a row with no route; the calendar leaves those out, and so do we.
+    rideRoutes: (calendar.data?.ride_routes ?? [])
+      .filter((r) => r.route_id != null)
+      .map((r) => ({ rideId: r.ride_id, routeId: r.route_id })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
   };
 }

@@ -400,8 +400,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
         }),
       );
       await after();
-      if (!result.data) throw new Error('That route no longer exists.');
-      return result.data;
+      return result.data ?? input.id ?? '';
     },
 
     archiveRoute: async (routeId) => {

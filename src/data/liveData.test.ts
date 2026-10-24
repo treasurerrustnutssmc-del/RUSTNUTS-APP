@@ -234,6 +234,22 @@ test('signed in: the calendar’s ride_routes become ride routes', async () => {
   assert.deepEqual(data.rideRoutes, [{ rideId: 'r1', routeId: 'rt1' }, { rideId: 'r2', routeId: 'rt2' }]);
 });
 
+test('signed in: a cleared ride route (no route) is left out', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      ride_calendar: {
+        rides: [],
+        rsvps: [],
+        ride_routes: [{ ride_id: 'r1', route_id: 'rt1' }, { ride_id: 'r3', route_id: null }],
+        synced_at: null,
+      },
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.rideRoutes, [{ rideId: 'r1', routeId: 'rt1' }]);
+});
+
 test('signed in: no ride_routes key (not approved) loads no ride routes, and no library rows loads an empty library', async () => {
   const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
   assert.deepEqual(data.rideRoutes, []);
