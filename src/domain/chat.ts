@@ -1,6 +1,6 @@
 // Club chats: the whole club, each chapter, each ride, and private chats between two members.
 // Who can read, post, remove and react. The database's chat actions apply the same rules with
-// the same words (supabase/migrations/20261101000000_chat.sql).
+// the same words (supabase/migrations/20261101000100_chat.sql).
 
 import { accessLevel, activePositions, isBoardOf, isNational } from './access';
 import { daysBetween, formatAuDate } from './dates';
@@ -10,7 +10,8 @@ import type { ClubData, Member, Ride, RsvpAnswer } from './types';
 
 export type ChatKind = 'club' | 'chapter' | 'board' | 'nec' | 'committee' | 'ride' | 'direct';
 export type ChatCommittee = 'ride' | 'charity';
-export type MediaKind = 'photo' | 'video';
+/** A GIF is Tenor's own https address, not a file in the club's storage. */
+export type MediaKind = 'photo' | 'video' | 'gif';
 
 export interface Conversation {
   id: string;
@@ -58,7 +59,7 @@ export interface Message {
 /** A photo or video picked on the phone, before it's uploaded. */
 export interface PickedMedia {
   uri: string;
-  kind: MediaKind;
+  kind: 'photo' | 'video';
   width: number;
   height: number;
   durationMs: number | null;
@@ -80,7 +81,8 @@ export const MAX_REASON = 500;
 /** Messages from one person closer together than this sit in one run. */
 const RUN_GAP_MS = 5 * 60_000;
 
-function isApproved(me: Member | null): string | null {
+/** Why `me` can't use the chats at all, or null. */
+export function approvalProblem(me: Member | null): string | null {
   if (!me) return 'Sign in first.';
   if (me.approval !== 'approved') return 'Only approved members can do that.';
   return null;
@@ -88,7 +90,7 @@ function isApproved(me: Member | null): string | null {
 
 /** Why `me` can't read this chat, or null when they can. Mirrors private.chat_problem. */
 export function readProblem(me: Member | null, conv: Conversation | undefined, data: ClubData): string | null {
-  const notApproved = isApproved(me);
+  const notApproved = approvalProblem(me);
   if (notApproved || !me) return notApproved;
   if (!conv) return 'No such chat.';
   // Someone who might join gets the whole-club and ride chats only, until they're an FNG.
@@ -136,7 +138,7 @@ export function postProblem(
   mediaCount: number,
   data: ClubData,
   blocks: Block[] = [],
-  replyTo: Message | null = null,
+  replyTo: Pick<Message, 'conversationId'> | null = null,
 ): string | null {
   const cant = readProblem(me, conv, data);
   if (cant || !me || !conv) return cant;
@@ -164,10 +166,13 @@ export function canModerate(me: Member | null, conv: Conversation, data: ClubDat
   return level === 'board' || level === 'national';
 }
 
-function messageProblem(message: Message | undefined): string | null {
-  if (!message) return 'No such message.';
-  if (message.removedAt) return 'That message was removed.';
-  return null;
+/** A message you can act on: it exists, you can read its chat, and it's still there. Checked in
+ *  that order, like the database. */
+function messageProblem(me: Member | null, conv: Conversation | undefined, message: Message | undefined, data: ClubData): string | null {
+  if (!message) return approvalProblem(me) ?? 'No such message.';
+  const cant = readProblem(me, conv, data);
+  if (cant) return cant;
+  return message.removedAt ? 'That message was removed.' : null;
 }
 
 /** Why `me` can't remove this message, or null. Mirrors public.remove_message. */
@@ -177,7 +182,7 @@ export function removeProblem(
   message: Message | undefined,
   data: ClubData,
 ): string | null {
-  const cant = readProblem(me, conv, data) ?? messageProblem(message);
+  const cant = messageProblem(me, conv, message, data);
   if (cant || !me || !conv || !message) return cant;
   if (message.authorId === me.id || canModerate(me, conv, data)) return null;
   return 'You can only remove your own messages.';
@@ -191,7 +196,7 @@ export function reactProblem(
   emoji: string,
   data: ClubData,
 ): string | null {
-  const cant = readProblem(me, conv, data) ?? messageProblem(message);
+  const cant = messageProblem(me, conv, message, data);
   if (cant) return cant;
   if (!(REACTIONS as readonly string[]).includes(emoji)) return 'Pick one of the reactions.';
   return null;
@@ -199,7 +204,7 @@ export function reactProblem(
 
 /** Why `me` can't start a private chat with `target`, or null. Mirrors public.open_direct_chat. */
 export function directProblem(me: Member | null, target: Member | undefined, blocks: Block[] = []): string | null {
-  const notApproved = isApproved(me);
+  const notApproved = approvalProblem(me);
   if (notApproved || !me) return notApproved;
   if (!target) return 'That member no longer exists.';
   if (target.id === me.id) return 'You can’t message yourself.';
@@ -232,7 +237,7 @@ export function reportProblem(
   reason: string,
   data: ClubData,
 ): string | null {
-  const cant = readProblem(me, conv, data) ?? messageProblem(message);
+  const cant = messageProblem(me, conv, message, data);
   if (cant || !me || !message) return cant;
   if (message.authorId === me.id) return 'You can’t report your own message.';
   if (reason.length > MAX_REASON) return 'Keep the reason under 500 characters.';
@@ -248,7 +253,7 @@ export function canSeeReport(me: Member | null, conv: Conversation, reporter: Me
 
 /** Why `me` can't block (or unblock) `target`, or null. Mirrors public.set_block. */
 export function blockProblem(me: Member | null, target: Member | undefined): string | null {
-  const notApproved = isApproved(me);
+  const notApproved = approvalProblem(me);
   if (notApproved || !me) return notApproved;
   if (!target) return 'That member no longer exists.';
   if (target.id === me.id) return 'You can’t block yourself.';

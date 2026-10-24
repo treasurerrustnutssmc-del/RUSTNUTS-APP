@@ -120,6 +120,14 @@
       "status": "legacy",
       "approval": "approved",
       "sharePhone": false
+    },
+    {
+      "key": "nick",
+      "chapter": "west",
+      "name": "Nick Newman",
+      "status": "introduced",
+      "approval": "approved",
+      "sharePhone": false
     }
   ],
   "positions": [
@@ -840,6 +848,391 @@
       "ride": "cancelled-north",
       "answer": "no",
       "allowed": false
+    },
+    {
+      "name": "A member posts in the whole-club chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "G’day",
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member posts in the whole-club chat",
+      "as": "hacker",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "Still here",
+      "allowed": true
+    },
+    {
+      "name": "An applicant posts in the whole-club chat",
+      "as": "dylan",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "Someone who might join posts in the whole-club chat",
+      "as": "nick",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "G’day all",
+      "allowed": true
+    },
+    {
+      "name": "Someone who might join posts in a ride chat",
+      "as": "nick",
+      "action": "chatSend",
+      "chat": "ride:future-west",
+      "body": "See you there",
+      "allowed": true
+    },
+    {
+      "name": "Someone who might join posts in their chapter chat",
+      "as": "nick",
+      "action": "chatSend",
+      "chat": "chapter:west",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "Someone who might join posts in the NEC chat",
+      "as": "nick",
+      "action": "chatSend",
+      "chat": "nec",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "Someone who might join opens a private chat",
+      "as": "nick",
+      "action": "chatDirect",
+      "member": "spanner",
+      "allowed": false
+    },
+    {
+      "name": "A member opens a private chat with someone who might join",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "nick",
+      "allowed": false
+    },
+    {
+      "name": "A member posts in another chapter's chat",
+      "as": "crank",
+      "action": "chatSend",
+      "chat": "chapter:west",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "The NEC posts in a chapter's chat",
+      "as": "chair",
+      "action": "chatSend",
+      "chat": "chapter:west",
+      "body": "Hi",
+      "allowed": true
+    },
+    {
+      "name": "A Secretary posts at their chapter's big table",
+      "as": "torque",
+      "action": "chatSend",
+      "chat": "board:west",
+      "body": "Agenda?",
+      "allowed": true
+    },
+    {
+      "name": "A member posts at the big table",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "board:west",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "The NEC sits at every big table",
+      "as": "lou",
+      "action": "chatSend",
+      "chat": "board:east",
+      "body": "Hi",
+      "allowed": true
+    },
+    {
+      "name": "A member posts in the NEC chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "nec",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "A sitting President posts in the NEC chat",
+      "as": "smokey",
+      "action": "chatSend",
+      "chat": "nec",
+      "body": "Hi",
+      "allowed": true
+    },
+    {
+      "name": "A Road Captain posts in the ride committee chat",
+      "as": "crank",
+      "action": "chatSend",
+      "chat": "committee:ride",
+      "body": "Route?",
+      "allowed": true
+    },
+    {
+      "name": "A Tail Gunner posts in the ride committee chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "committee:ride",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "A member posts in the charity committee chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "committee:charity",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "Someone else's private chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "direct:rusty:torque",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "A private chat with someone who blocked you",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "direct:gravel:spanner",
+      "body": "Oi",
+      "allowed": false
+    },
+    {
+      "name": "An empty message",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "   ",
+      "allowed": false
+    },
+    {
+      "name": "GIFs on their own",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "gifs": 2,
+      "allowed": true
+    },
+    {
+      "name": "Eleven GIFs at once",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "gifs": 11,
+      "allowed": false
+    },
+    {
+      "name": "A message of 4,000 characters",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "x",
+      "repeat": 4000,
+      "allowed": true
+    },
+    {
+      "name": "A message over 4,000 characters",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "x",
+      "repeat": 4001,
+      "allowed": false
+    },
+    {
+      "name": "A reply to a message in another chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "Yep",
+      "replyTo": "west-hello",
+      "allowed": false
+    },
+    {
+      "name": "A member removes their own message",
+      "as": "spanner",
+      "action": "chatRemove",
+      "message": "west-hello",
+      "allowed": true
+    },
+    {
+      "name": "A member removes someone else's message",
+      "as": "gravel",
+      "action": "chatRemove",
+      "message": "west-hello",
+      "allowed": false
+    },
+    {
+      "name": "A chapter Secretary removes a message in their chapter chat",
+      "as": "torque",
+      "action": "chatRemove",
+      "message": "west-hello",
+      "allowed": true
+    },
+    {
+      "name": "Any board member removes a message in the whole-club chat",
+      "as": "rhys",
+      "action": "chatRemove",
+      "message": "club-crank",
+      "allowed": true
+    },
+    {
+      "name": "Removing a message that isn't there",
+      "as": "torque",
+      "action": "chatRemove",
+      "message": "nothing",
+      "allowed": false
+    },
+    {
+      "name": "Removing a message twice",
+      "as": "torque",
+      "action": "chatRemove",
+      "message": "club-gone",
+      "allowed": false
+    },
+    {
+      "name": "A member reacts with a beer",
+      "as": "gravel",
+      "action": "chatReact",
+      "message": "club-hello",
+      "emoji": "🍺",
+      "allowed": true
+    },
+    {
+      "name": "A member reacts with something not in the set",
+      "as": "gravel",
+      "action": "chatReact",
+      "message": "club-hello",
+      "emoji": "🙂",
+      "allowed": false
+    },
+    {
+      "name": "A member opens a private chat",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "crank",
+      "allowed": true
+    },
+    {
+      "name": "A member messages themselves",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "spanner",
+      "allowed": false
+    },
+    {
+      "name": "A member messages an applicant",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "dylan",
+      "allowed": false
+    },
+    {
+      "name": "A member messages someone who blocked them",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "gravel",
+      "allowed": false
+    },
+    {
+      "name": "A member messages someone who isn't in the club",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "ghost",
+      "allowed": false
+    },
+    {
+      "name": "A chapter Secretary pins a message",
+      "as": "torque",
+      "action": "chatPin",
+      "chat": "chapter:west",
+      "message": "west-hello",
+      "allowed": true
+    },
+    {
+      "name": "A member pins a message",
+      "as": "spanner",
+      "action": "chatPin",
+      "chat": "chapter:west",
+      "message": "west-hello",
+      "allowed": false
+    },
+    {
+      "name": "Pinning a message from another chat",
+      "as": "torque",
+      "action": "chatPin",
+      "chat": "chapter:west",
+      "message": "club-hello",
+      "allowed": false
+    },
+    {
+      "name": "Pinning a removed message",
+      "as": "rusty",
+      "action": "chatPin",
+      "chat": "club",
+      "message": "club-gone",
+      "allowed": false
+    },
+    {
+      "name": "A member reports a message",
+      "as": "spanner",
+      "action": "chatReport",
+      "message": "club-crank",
+      "reason": "Not on",
+      "allowed": true
+    },
+    {
+      "name": "A member reports their own message",
+      "as": "crank",
+      "action": "chatReport",
+      "message": "club-crank",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report with too long a reason",
+      "as": "spanner",
+      "action": "chatReport",
+      "message": "club-crank",
+      "reason": "x",
+      "repeat": 501,
+      "allowed": false
+    },
+    {
+      "name": "A member blocks someone",
+      "as": "spanner",
+      "action": "chatBlock",
+      "member": "crank",
+      "blocked": true,
+      "allowed": true
+    },
+    {
+      "name": "A member blocks themselves",
+      "as": "spanner",
+      "action": "chatBlock",
+      "member": "spanner",
+      "blocked": true,
+      "allowed": false
     }
   ],
   "chapters": [
@@ -875,6 +1268,55 @@
       "startsAt": "2030-01-01T00:00:00.000Z",
       "category": "north",
       "cancelled": true
+    }
+  ],
+  "directs": [
+    [
+      "rusty",
+      "torque"
+    ],
+    [
+      "gravel",
+      "spanner"
+    ]
+  ],
+  "blocks": [
+    {
+      "blocker": "gravel",
+      "blocked": "spanner"
+    }
+  ],
+  "messages": [
+    {
+      "key": "club-hello",
+      "chat": "club",
+      "author": "rusty",
+      "body": "G’day all"
+    },
+    {
+      "key": "club-crank",
+      "chat": "club",
+      "author": "crank",
+      "body": "Fair dinkum"
+    },
+    {
+      "key": "club-gone",
+      "chat": "club",
+      "author": "crank",
+      "body": "oops",
+      "removed": true
+    },
+    {
+      "key": "west-hello",
+      "chat": "chapter:west",
+      "author": "spanner",
+      "body": "Ride Sunday?"
+    },
+    {
+      "key": "dm-hello",
+      "chat": "direct:rusty:torque",
+      "author": "rusty",
+      "body": "Got a sec?"
     }
   ]
 }
