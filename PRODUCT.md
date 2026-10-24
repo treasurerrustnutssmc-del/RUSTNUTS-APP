@@ -37,6 +37,7 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 ## Capabilities and Constraints
 
 - **Built so far:** sign-in by emailed code; member profiles, bikes, regos and emergency contacts; approvals, ranks, hiatus, Legacy and positions; a claimable roster; the ride calendar and RSVPs, synced every 15 minutes.
+- **Stage 5 (meetings and votes):** board and general meetings with agendas, minutes and minute approval; action items; votes by the board or patched members, with quorum, majority, two-thirds or unanimous, secret ballots and the chair's casting vote on a tie. Patch votes start from Manage member. The constitution isn't on hand yet, so its numbers (minutes due in 14 days, votes open at most 60 days, quorum more than half) are inferred and easy to change.
 - **Access rules:** these live in `src/domain/access.ts` and are mirrored by row-level security. Every approved member, Legacy included, sees the same members-only areas.
 - **No pop-up dialogs.** The web preview can't show them, so anything destructive uses a two-tap confirm.
 - **Navigation:** state-based React Navigation. No URL routing on the web build.
