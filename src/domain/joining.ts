@@ -52,7 +52,7 @@ export interface FngDue {
 
 /**
  * The FNG review that's due: of the slots after the last one recorded (6, 9, 12, 15 …), the latest
- * that has already passed, or else the next one coming.
+ * whose day has come, or else the next one coming.
  */
 export function fngDue(member: Member, decisions: MemberDecision[], today: string): FngDue | null {
   if (member.status !== 'fng' || !member.fngStartedOn) return null;
@@ -60,7 +60,7 @@ export function fngDue(member: Member, decisions: MemberDecision[], today: strin
     .filter((d) => d.memberId === member.id && d.kind === 'fng_review' && d.atMonths !== null)
     .reduce((max, d) => Math.max(max, d.atMonths!), 0);
   let months = Math.max(6, last + 3);
-  while (addMonths(member.fngStartedOn, months + 3) < today) months += 3;
+  while (addMonths(member.fngStartedOn, months + 3) <= today) months += 3;
   const date = addMonths(member.fngStartedOn, months);
   return { atMonths: months, date, overdue: date < today };
 }

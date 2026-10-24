@@ -42,6 +42,8 @@ test('the due FNG review: the latest one missed, otherwise the next one coming',
   assert.deepEqual(fngDue(fng('2025-02-24'), [review('f', 12, '2026-02-24')], '2026-10-24'), { atMonths: 18, date: '2026-08-24', overdue: true });
   // The review's own day isn't overdue yet.
   assert.deepEqual(fngDue(fng('2026-04-24'), [], '2026-10-24'), { atMonths: 6, date: '2026-10-24', overdue: false });
+  // A review whose day is today is the one due, not an earlier one that was missed.
+  assert.deepEqual(fngDue(fng('2025-10-24'), [], '2026-10-24'), { atMonths: 12, date: '2026-10-24', overdue: false });
   // Another member's review doesn't count.
   assert.deepEqual(fngDue(fng('2026-03-24'), [review('other', 6, '2026-09-30')], '2026-10-24')?.atMonths, 6);
   assert.equal(fngDue(member('x', { status: 'full', fngStartedOn: '2025-01-01' }), [], '2026-10-24'), null);
