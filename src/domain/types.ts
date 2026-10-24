@@ -156,3 +156,47 @@ export interface ClubData {
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
 }
+
+// Lane E: live ride
+/** 'out' is "I've dropped out" (the database keeps the word drop out of its SQL). */
+export type AlertKind = 'emergency' | 'out' | 'regroup';
+
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
+
+/** A rider sharing their location on a live ride: their latest fix only, never a trail. */
+export interface LiveRider {
+  memberId: string;
+  name: string;
+  leader: boolean;
+  position: LatLng | null;
+  accuracyM: number | null;
+  updatedAt: string | null;
+  /** A leader's number, or (for leaders) the number of a rider with an open emergency. */
+  phone: string | null;
+}
+
+export interface RideAlert {
+  id: string;
+  rideId: string;
+  memberId: string;
+  kind: AlertKind;
+  /** Road name, or full name. */
+  name: string;
+  position: LatLng | null;
+  /** For leaders: the number of the rider who raised an emergency or dropped out. */
+  phone: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+/** What someone sharing on a live ride can see. Contacts are filled for leaders during an emergency only. */
+export interface LiveState {
+  rideId: string;
+  me: { stopsAt: string } | null;
+  riders: LiveRider[];
+  alerts: RideAlert[];
+  contacts: EmergencyContact[];
+}

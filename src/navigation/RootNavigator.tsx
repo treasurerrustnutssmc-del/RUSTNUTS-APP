@@ -11,6 +11,8 @@ import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
 import { PickCrewScreen } from '../screens/pickCrew';
+// Lane E: live ride
+import { LiveRideScreen } from '../screens/liveRide';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -122,6 +124,8 @@ export function RootNavigator() {
             <Stack.Screen name="ManageMember" component={ManageMemberScreen} options={{ title: 'Manage member' }} />
             {/* ride crew */}
             <Stack.Screen name="PickCrew" component={PickCrewScreen} options={{ title: 'Pick crew' }} />
+            {/* Lane E: live ride */}
+            <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} />
           </>
         )}
       </Stack.Navigator>

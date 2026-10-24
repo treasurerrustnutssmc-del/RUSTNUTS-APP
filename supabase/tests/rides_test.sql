@@ -29,7 +29,8 @@ insert into private.ride_feeds (id, url, category) values
 insert into rides (id, source, starts_at, title, category, cancelled_at) values
   ('00000000-0000-0000-0000-0000000000c1', 'app', now() + interval '7 days', 'Coffee run', 'west', null),
   ('00000000-0000-0000-0000-0000000000c2', 'app',
-   now() - (now() - (private.club_date()::timestamp at time zone 'Australia/Melbourne')) / 2, 'Already rolling', 'west', null),
+   -- An hour ago, but never before Melbourne midnight, so it's always earlier today.
+   greatest(now() - interval '1 hour', private.club_date()::timestamp at time zone 'Australia/Melbourne'), 'Already rolling', 'west', null),
   ('00000000-0000-0000-0000-0000000000c3', 'app', now() + interval '7 days', 'Called off', 'club', now());
 
 -- Runs a statement as a signed-in user (or anon when who is null) and returns its error, or null.

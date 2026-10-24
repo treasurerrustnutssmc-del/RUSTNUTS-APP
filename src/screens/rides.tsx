@@ -21,6 +21,10 @@ import {
 } from '../domain/rides';
 import type { ClubData, CrewRole, Member, Ride, RideCategory, RsvpAnswer } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
+// Lane E: live ride
+import { LiveRideCard } from './liveRide';
+// Lane E: share
+import { ShareRideButton } from './shareRide';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import {
   Avatar,
@@ -343,6 +347,11 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         </Stack>
         {ride.notes ? <Body selectable>{ride.notes}</Body> : null}
       </Card>
+
+      {/* Lane E: live ride */}
+      <LiveRideCard ride={ride} onOpen={() => navigation.navigate('LiveRide', { rideId: ride.id })} />
+      {/* Lane E: share */}
+      <ShareRideButton ride={ride} />
 
       <Stack gap={space.sm}>
         <SectionTitle title="Your answer" />

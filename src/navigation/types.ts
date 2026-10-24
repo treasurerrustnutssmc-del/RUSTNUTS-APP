@@ -32,6 +32,8 @@ export type RootParams = {
   ManageMember: { memberId: string };
   // ride crew
   PickCrew: { rideId: string; role: CrewRole };
+  // Lane E: live ride
+  LiveRide: { rideId: string };
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;
