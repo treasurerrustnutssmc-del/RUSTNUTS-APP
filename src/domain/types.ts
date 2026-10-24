@@ -167,6 +167,25 @@ export interface RideRoute {
   routeId: string;
 }
 
+/** The Road Captain's part of a ride's briefing card. A ride has at most one. */
+export interface Briefing {
+  rideId: string;
+  /** Short lines, one hazard each. */
+  hazards: string[];
+  /** One-off changes to the Road Rules for this ride (constitution 7.10). Empty when none. */
+  changes: string;
+  notes: string;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+/** A member's tap on Got it. It is current while it is at or after the briefing's `updatedAt`. */
+export interface BriefingRead {
+  rideId: string;
+  memberId: string;
+  readAt: string;
+}
+
 export interface ClubData {
   chapters: Chapter[];
   members: Member[];
@@ -183,6 +202,10 @@ export interface ClubData {
   routes?: Route[];
   /** Which route each ride uses. Missing means none. */
   rideRoutes?: RideRoute[];
+  /** The briefing for each ride that has one. Missing means none. */
+  briefings?: Briefing[];
+  /** Who has tapped Got it on which ride's briefing. Missing means none. */
+  briefingReads?: BriefingRead[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
   // Lane E: notifications
