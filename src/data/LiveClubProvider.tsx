@@ -4,7 +4,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
-import { rsvpProblem } from '../domain/rides';
+import { melbourneDate, rsvpProblem } from '../domain/rides';
 import type { ClubData } from '../domain/types';
 import {
   ClubContext,
