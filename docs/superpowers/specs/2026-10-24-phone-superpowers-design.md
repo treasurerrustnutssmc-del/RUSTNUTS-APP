@@ -220,13 +220,78 @@ The display-only helpers live there too:
   marks rows "held" and sends nothing.
 - **Going live needs Jeff's yes** for the Firebase project and the switch.
 
-## 4. Share in (after lane B)
+## 4. Share in
 
-- **Native setup:** the app registers as a share target for text, links, photos and videos, through a
-  config plugin.
-- **Flow:** a shared item opens "Share to the club", which lets you pick a chat or the feed. That list
-  comes from lane B's code.
-- **Not before lane B:** it isn't built until lane B is on `main`, and it gets its own short spec then.
+Self-approved 2026-10-24 once lane B's chat was on `main`. Jeff can veto.
+
+**What it does:**
+1. In Photos, Safari, Chrome, YouTube and the like, a member taps Share and then Rustnuts.
+2. The app opens "Share to the club", which shows what came across and the member's chats, with Whole
+   club first. That's the feed: photos posted there show in Photos.
+3. Picking a chat opens it with the words and photos already in the message box. The member can add to
+   it, take things out, or just press Send. Nothing is sent without that press.
+
+**Native setup:** `expo-sharing` (SDK 58, receiving is marked experimental by Expo), set up in
+`app.json`:
+- **iOS:** a share extension that takes text, one web link, and up to 10 photos and videos.
+- **Android:** intent filters for `text/plain`, `image/*` and `video/*`, one or several items at a time.
+- It needs a new build. Expo Go and the web preview can't receive shares, and the web build never
+  mounts the listener, because the library throws there.
+
+**Rules (`src/domain/shareIn.ts`, pure and tested):**
+- **What the shared items become:** `sharedDraft(items)` turns them into `{ text, media, notes }`.
+  - Text and links are joined, one per line, without repeats.
+  - Photos and videos become attachments, at most `MAX_MEDIA` (10).
+  - Audio and other files are left out.
+  - The text is cut to `MAX_BODY` (4,000 characters).
+- **The notes** say what didn't come across:
+  - "Only the first 10 photos and videos came across."
+  - "Files and voice notes can't go in a chat, so they were left out."
+  - "That was too long for one message, so it was cut to 4,000 characters."
+- **Nothing usable:** if nothing came across, the screen says "Nothing here can go in a chat. Share
+  photos, videos, links or words."
+
+**On the phone (`src/data/shareIn.tsx`):**
+- `IncomingShare` is mounted inside the signed-in tabs, so a share waits until the member is signed in
+  and approved.
+- When resolved items arrive, it measures photos and videos (their width and height, which the upload
+  needs) and opens `ShareIn` with the draft.
+- It then clears the items and refreshes, so sharing the same thing twice still works.
+- A share that can't be read shows "That couldn't be opened. Try sharing it again."
+
+**Screen (`src/screens/shareIn.tsx`):**
+- A preview card shows the words, a strip of the photos, and any notes.
+- Then come chat rows in the chat list's order, with Whole club pinned first.
+- Tapping a row replaces this screen with `Chat` for that chat, with `shared: { text, media }`.
+  `ChatScreen` (in a Lane E block) uses it as the starting draft and attachments.
+
+**Testing:**
+- Unit tests cover `sharedDraft`.
+- The screen is checked in the demo at 390×844, with a sample share passed as a route param.
+- A real-phone test (share from Photos and from Safari or Chrome, on iPhone and Android) goes on Jeff's
+  test list.
+
+**Changes from the review:**
+- **The build version follows the native code.** `runtimeVersion` now uses the `fingerprint` policy,
+  not `sdkVersion`. Without that, an over-the-air update carrying a new native module (this one, or
+  lane B's) could reach an older build that lacks it and crash at launch.
+- **Share in only loads where it can work.** It loads only when the `ExpoSharing` native module is
+  there, and anything it throws is contained.
+- **A link stays the link the member shared.** That holds even when the page is a picture, a PDF or a
+  redirect. A link that can't be looked up with no signal still comes across, from the unresolved
+  items.
+- **Each shared photo or video is copied to its own name** in the cache. The library reuses the
+  original file names, so two `FullSizeRender.jpg` would collide. The copies are cleared on the next
+  start.
+- **A video's length is read when it loads**, and a video whose length can't be read is left out with
+  a note, so the 60-second limit holds. The image and thumbnail are released after measuring.
+- **Sharing and screen behaviour:**
+  - A second share while the screen is open starts the screen again.
+  - A share that arrives while another is being measured isn't lost.
+  - Android also offers Rustnuts for mixed photo and video selections (`*/*`).
+- **Known, for the real-phone test:**
+  - Android may reopen an old share when the app is restarted from Recents after the system closed it.
+  - Single-slash `file:/` addresses on Android need checking.
 
 ## 5. Ride comms (voice)
 
