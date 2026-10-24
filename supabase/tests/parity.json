@@ -3082,6 +3082,266 @@
       "member": "spanner",
       "blocked": true,
       "allowed": false
+    },
+    {
+      "name": "An NEC member publishes a new version of the Road Rules",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": true
+    },
+    {
+      "name": "A sitting chapter President publishes a small fix to the Road Rules",
+      "as": "smokey",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": false,
+      "seen": 2,
+      "allowed": true
+    },
+    {
+      "name": "The NEC Secretary publishes the Road Rules",
+      "as": "lou",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": true
+    },
+    {
+      "name": "A board member who isn't on the NEC publishes the Road Rules",
+      "as": "torque",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "A Road Captain publishes the Road Rules",
+      "as": "crank",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "An applicant publishes the Road Rules",
+      "as": "dylan",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "The Road Rules published by someone not signed in",
+      "as": null,
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "A publish on top of a version published while they typed",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 1,
+      "allowed": false
+    },
+    {
+      "name": "A first version when one was published while they typed",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 0,
+      "allowed": false
+    },
+    {
+      "name": "A publish from a version newer than the current one",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 3,
+      "allowed": false
+    },
+    {
+      "name": "The first version of the Road Rules, asked not to be fresh",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": false,
+      "seen": 0,
+      "noRoadRules": true,
+      "allowed": true
+    },
+    {
+      "name": "A first version opened on a version that no longer exists",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 1,
+      "noRoadRules": true,
+      "allowed": false
+    },
+    {
+      "name": "Road Rules with nothing in them but spaces",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": " \n\t ",
+      "changes": "",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "Road Rules of 20,001 characters",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "x",
+      "changes": "",
+      "fresh": true,
+      "seen": 2,
+      "repeat": 20001,
+      "allowed": false
+    },
+    {
+      "name": "Road Rules of 20,000 emoji count as 20,000 characters",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "🏍",
+      "changes": "",
+      "fresh": true,
+      "seen": 2,
+      "repeat": 20000,
+      "allowed": true
+    },
+    {
+      "name": "What changed of 501 characters",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "x",
+      "changes": "x",
+      "fresh": true,
+      "seen": 2,
+      "repeat": 501,
+      "allowed": false
+    },
+    {
+      "name": "What changed of 500 emoji counts as 500 characters",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "x",
+      "changes": "🏍",
+      "fresh": true,
+      "seen": 2,
+      "repeat": 500,
+      "allowed": true
+    },
+    {
+      "name": "A clashing publish is refused before its empty text",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  ",
+      "changes": "",
+      "fresh": true,
+      "seen": 1,
+      "allowed": false
+    },
+    {
+      "name": "A non-NEC publish is refused before its clash",
+      "as": "torque",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 1,
+      "allowed": false
+    },
+    {
+      "name": "A member signs the current Road Rules",
+      "as": "spanner",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": true
+    },
+    {
+      "name": "A member signs the Road Rules for the first time",
+      "as": "gravel",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": true
+    },
+    {
+      "name": "A member signs again while signed",
+      "as": "torque",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member signs the Road Rules",
+      "as": "hacker",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": true
+    },
+    {
+      "name": "A member signs a version of the Road Rules that's no longer current",
+      "as": "spanner",
+      "action": "signRoadRules",
+      "version": 1,
+      "allowed": false
+    },
+    {
+      "name": "A member signs a version of the Road Rules that doesn't exist yet",
+      "as": "spanner",
+      "action": "signRoadRules",
+      "version": 3,
+      "allowed": false
+    },
+    {
+      "name": "A member signs when there are no Road Rules yet",
+      "as": "spanner",
+      "action": "signRoadRules",
+      "version": 1,
+      "noRoadRules": true,
+      "allowed": false
+    },
+    {
+      "name": "An applicant signs the Road Rules",
+      "as": "dylan",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": false
+    },
+    {
+      "name": "The Road Rules signed by someone not signed in",
+      "as": null,
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": false
     }
   ],
   "chapters": [
@@ -3396,6 +3656,30 @@
     {
       "ride": "future-west",
       "member": "gravel"
+    }
+  ],
+  "roadRules": [
+    {
+      "number": 1,
+      "body": "# Road Rules\n\nRide safe.",
+      "changes": "",
+      "fresh": true
+    },
+    {
+      "number": 2,
+      "body": "# Road Rules\n\nRide safely.",
+      "changes": "A typo",
+      "fresh": false
+    }
+  ],
+  "roadRulesSignoffs": [
+    {
+      "member": "torque",
+      "version": 2
+    },
+    {
+      "member": "spanner",
+      "version": 1
     }
   ],
   "directs": [

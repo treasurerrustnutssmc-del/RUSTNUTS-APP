@@ -251,6 +251,25 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      road_rules_versions: {
+        Row: {
+          body: string;
+          changes: string | null;
+          fresh: boolean;
+          number: number;
+          published_at: string;
+          published_by: string | null;
+        };
+        Insert: { [_ in never]: never }; // versions are added only through publish_road_rules
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      road_rules_signoffs: {
+        Row: { member_id: string; signed_at: string; version: number };
+        Insert: { [_ in never]: never }; // sign-offs are made only through sign_road_rules
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       ride_briefing_reads: {
         Row: { member_id: string; read_at: string; ride_id: string };
         Insert: { [_ in never]: never }; // reads are made only through read_briefing
@@ -290,6 +309,8 @@ export type Database = {
         Returns: undefined;
       };
       read_briefing: { Args: { p_ride: string; p_seen: string | null }; Returns: undefined };
+      publish_road_rules: { Args: { p_body: string; p_changes: string; p_fresh: boolean; p_seen: number }; Returns: number };
+      sign_road_rules: { Args: { p_version: number }; Returns: undefined };
       ride_calendar: {
         Args: never;
         Returns: {

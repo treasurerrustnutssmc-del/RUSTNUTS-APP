@@ -7,7 +7,7 @@ import { addDays } from '../src/domain/dates';
 import { fyOf } from '../src/domain/fees';
 import { readGpx } from '../src/domain/gpx';
 import {
-  BRIEFED_AT, caseAction, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday, resolveCase, type ParityCase,
+  BRIEFED_AT, caseAction, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday, resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
@@ -253,6 +253,18 @@ for (const r of fx.briefingReads ?? []) {
       `${id('r', r.ride)}, ${id('m', r.member)}, ${q(BRIEFED_AT)}::timestamptz);`,
   );
 }
+for (const v of fx.roadRules ?? []) {
+  sql(
+    `insert into public.road_rules_versions (number, body, changes, fresh, published_at) values (` +
+      `${v.number}, ${q(v.body)}, ${orNull(v.changes)}, ${v.fresh}, ${q(RULES_AT)}::timestamptz);`,
+  );
+}
+for (const s of fx.roadRulesSignoffs ?? []) {
+  sql(
+    `insert into public.road_rules_signoffs (member_id, version, signed_at) values (` +
+      `${id('m', s.member)}, ${s.version}, ${q(RULES_AT)}::timestamptz);`,
+  );
+}
 
 /** A saveRoute call with the summary the app sends: read from the file, as LiveClubProvider does. */
 const saveRouteCall = (c: ParityCase & Record<string, any>): string => {
@@ -302,6 +314,13 @@ const call = (c: ParityCase & Record<string, any>): string => {
       );
     case 'readBriefing':
       return `public.read_briefing(${id('r', c.ride)}, ${seen(c.seen)})`;
+    case 'publishRoadRules':
+      // The texts and the switch as typed: the database must clean them the same way the app does.
+      return (
+        `public.publish_road_rules(${text(c.body, c.repeat)}, ${text(c.changes, c.repeat)}, ${c.fresh}, ${c.seen})`
+      );
+    case 'signRoadRules':
+      return `public.sign_road_rules(${c.version})`;
     case 'removeContact':
       return `public.remove_contact(${id('c', c.contact)})`;
     case 'saveBike':
@@ -341,6 +360,11 @@ for (const c of fx.cases) {
   }
   sql('begin;');
   for (const key of c.without ?? []) sql(`delete from public.positions where id = ${id('p', key)};`);
+  if (c.noRoadRules) {
+    // Nothing published yet, for this case only (rolled back with it).
+    sql('delete from public.road_rules_signoffs;');
+    sql('delete from public.road_rules_versions;');
+  }
   sql(`select set_config('parity.chat', coalesce(${c.chat ? chatId(String(c.chat)) : 'null'}::text, ''), true);`);
   // No one signed in (as: null): an empty claim, so auth.uid() is null.
   sql(`select set_config('request.jwt.claim.sub', ${c.as === null ? "''" : `${id('m', c.as)}::text`}, true);`);

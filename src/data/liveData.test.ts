@@ -1,7 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { READ_OUTDATED, SAVE_CONFLICT, NOT_WRITER } from '../domain/briefings';
-import { loadClub, readBriefingArgs, reloadOnNewerVersion, saveBriefingArgs } from './liveData';
+import { NO_RULES, NOT_PUBLISHER, PUBLISH_CONFLICT, SIGN_OUTDATED } from '../domain/roadRules';
+import { EMPTY_DATA } from './clubContext';
+import {
+  isRoadRulesVersionRefusal,
+  loadClub,
+  publishRoadRulesArgs,
+  readBriefingArgs,
+  reloadOnNewerVersion,
+  saveBriefingArgs,
+  signRoadRulesArgs,
+} from './liveData';
 
 // A stand-in for the Supabase client: hands back fixed rows per table.
 function stubClient(tables: Record<string, unknown[]>, phones: unknown[] = []) {
@@ -387,4 +397,113 @@ test('after a newer-version refusal the calendar reloads, then the refusal still
   // Nor does success (the action reloads by itself).
   await reloadOnNewerVersion(async () => {}, reload);
   assert.equal(reloads, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Road Rules
+// ---------------------------------------------------------------------------
+
+test('signed in: the Road Rules versions and sign-offs are read with the rest, and become app records', async () => {
+  const selects: Record<string, string> = {};
+  const rows: Record<string, unknown[]> = {
+    chapters: [west],
+    road_rules_versions: [
+      {
+        number: 1, body: '# Road Rules', changes: null, fresh: true, published_by: 'm1',
+        published_at: '2025-06-24T01:30:00.123456+00:00',
+      },
+      {
+        number: 2, body: '# Road Rules, fixed', changes: 'A typo', fresh: false, published_by: null,
+        published_at: '2026-09-30T02:00:00+00:00',
+      },
+    ],
+    road_rules_signoffs: [{ member_id: 'm2', version: 2, signed_at: '2026-10-19T03:04:05.678901+00:00' }],
+  };
+  const client = {
+    from: (name: string) => ({
+      select: (cols = '*') => {
+        selects[name] = cols;
+        const r = { data: rows[name] ?? [], error: null };
+        const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+        return chain;
+      },
+    }),
+    rpc: (name: string) =>
+      Promise.resolve({ data: name === 'ride_calendar' ? { rides: [], rsvps: [], synced_at: null } : [], error: null }),
+  } as never;
+  const data = await loadClub(client, true);
+  assert.ok(selects.road_rules_versions, 'the versions are read');
+  assert.ok(selects.road_rules_signoffs, 'the sign-offs are read');
+  assert.deepEqual(data.roadRules, [
+    { number: 1, body: '# Road Rules', changes: '', fresh: true, publishedBy: 'm1', publishedAt: '2025-06-24T01:30:00.123Z' },
+    { number: 2, body: '# Road Rules, fixed', changes: 'A typo', fresh: false, publishedBy: null, publishedAt: '2026-09-30T02:00:00.000Z' },
+  ]);
+  assert.deepEqual(data.roadRulesSignoffs, [{ memberId: 'm2', version: 2, signedAt: '2026-10-19T03:04:05.678Z' }]);
+});
+
+test('signed in: no Road Rules rows (not approved, or none yet) loads none', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
+  assert.deepEqual(data.roadRules, []);
+  assert.deepEqual(data.roadRulesSignoffs, []);
+});
+
+test('signed out: no Road Rules are read', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], road_rules_versions: [{ number: 1 }] } as never), false);
+  assert.deepEqual(data.roadRules, []);
+  assert.deepEqual(data.roadRulesSignoffs, []);
+});
+
+test('a failure loading the Road Rules is an error, not an empty list', async () => {
+  const client = {
+    from: (name: string) => ({
+      select: () => {
+        const r = name === 'road_rules_signoffs' ? { data: null, error: { message: 'boom' } } : { data: name === 'chapters' ? [west] : [], error: null };
+        return { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+      },
+    }),
+    rpc: (name: string) =>
+      Promise.resolve({ data: name === 'ride_calendar' ? { rides: [], rsvps: [], synced_at: null } : [], error: null }),
+  } as never;
+  await assert.rejects(loadClub(client, true), { message: 'boom' });
+});
+
+test('publishing the Road Rules sends them cleaned, with the version the editor opened on', () => {
+  const data = { ...EMPTY_DATA, roadRules: [] };
+  assert.deepEqual(publishRoadRulesArgs({ body: '  # Road Rules \n', changes: '  ', fresh: false }, 0, data), {
+    p_body: '# Road Rules', p_changes: '', p_fresh: true, p_seen: 0,
+  }, 'version 1 is always fresh');
+  const withOne = {
+    ...EMPTY_DATA,
+    roadRules: [{ number: 1, body: 'x', changes: '', fresh: true, publishedAt: '2026-01-01T00:00:00.000Z', publishedBy: null }],
+  };
+  assert.deepEqual(publishRoadRulesArgs({ body: 'Fixed', changes: ' A typo ', fresh: false }, 1, withOne), {
+    p_body: 'Fixed', p_changes: 'A typo', p_fresh: false, p_seen: 1,
+  });
+});
+
+test('signing the Road Rules sends the version on screen', () => {
+  assert.deepEqual(signRoadRulesArgs(2), { p_version: 2 });
+});
+
+test('after a Road Rules version refusal the club reloads, then the refusal still reaches the screen', async () => {
+  for (const message of [PUBLISH_CONFLICT, SIGN_OUTDATED]) {
+    assert.equal(isRoadRulesVersionRefusal(new Error(message)), true, message);
+    let reloads = 0;
+    await assert.rejects(
+      reloadOnNewerVersion(
+        async () => {
+          throw new Error(message);
+        },
+        async () => {
+          reloads += 1;
+        },
+        isRoadRulesVersionRefusal,
+      ),
+      { message },
+    );
+    assert.equal(reloads, 1, `one reload after "${message}"`);
+  }
+  for (const message of [NOT_PUBLISHER, NO_RULES, READ_OUTDATED]) {
+    assert.equal(isRoadRulesVersionRefusal(new Error(message)), false, message);
+  }
 });

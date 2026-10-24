@@ -4,6 +4,7 @@
 import { createContext, useContext } from 'react';
 import type { AccessLevel } from '../domain/access';
 import type { BriefingInput } from '../domain/briefings';
+import type { RoadRulesInput } from '../domain/roadRules';
 import type {
   Bike,
   BikeRegistration,
@@ -159,6 +160,17 @@ export interface ClubContextValue {
    * on screen; refused if it has changed since. Works on past and cancelled rides too.
    */
   readBriefing: (rideId: string, seen: string | null) => Promise<void>;
+  /**
+   * Publishes the next version of the Road Rules (the NEC only). `seen` is the current version
+   * number the editor opened on (0 when there were none); refused if someone else has published
+   * since. Version 1 always asks everyone to sign.
+   */
+  publishRoadRules: (input: RoadRulesInput, seen: number) => Promise<void>;
+  /**
+   * Signs the Road Rules, now. `version` is the number on screen; refused if a newer version has
+   * been published since. Signing again while signed moves the date on.
+   */
+  signRoadRules: (version: number) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -193,6 +205,8 @@ export const EMPTY_DATA: ClubData = {
   rideRoutes: [],
   briefings: [],
   briefingReads: [],
+  roadRules: [],
+  roadRulesSignoffs: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

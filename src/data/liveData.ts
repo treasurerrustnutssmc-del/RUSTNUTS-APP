@@ -3,6 +3,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanBriefing, isVersionRefusal, type BriefingInput } from '../domain/briefings';
+import { cleanRoadRules, PUBLISH_CONFLICT, SIGN_OUTDATED, type RoadRulesInput } from '../domain/roadRules';
 import type { ClubData, MemberPrivate, Route } from '../domain/types';
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
@@ -46,7 +47,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     () => undefined,
   );
 
-  const [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money] = await Promise.all([
+  const [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs] = await Promise.all([
     db.from('members').select('*'),
     db.from('member_private').select('*'),
     db.rpc('shared_phones'),
@@ -60,11 +61,14 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     db.rpc('ride_calendar'),
     // Stage 4: check-ins, decisions and fees in one value.
     db.rpc('members_money'),
+    // The Road Rules: every version and everyone's latest sign-off. Only approved members get rows.
+    db.from('road_rules_versions').select('*'),
+    db.from('road_rules_signoffs').select('*'),
   ]);
   // Until the database has Stage 4, the rest of the app still loads. Any other failure is an error,
   // so nobody is shown "you owe nothing" because a load went wrong.
   if (money.error && !MISSING_FUNCTION.includes(money.error.code ?? '')) throw toError(money.error);
-  for (const r of [members, privates, phones, bikes, regos, contacts, positions, routes, calendar]) {
+  for (const r of [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, rulesVersions, rulesSignoffs]) {
     if (r.error) throw toError(r.error);
   }
 
@@ -193,6 +197,20 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       memberId: r.member_id,
       readAt: instant(r.read_at),
     })),
+    // A blank What changed is stored as null.
+    roadRules: (rulesVersions.data ?? []).map((v) => ({
+      number: v.number,
+      body: v.body,
+      changes: v.changes ?? '',
+      fresh: v.fresh,
+      publishedAt: instant(v.published_at),
+      publishedBy: v.published_by,
+    })),
+    roadRulesSignoffs: (rulesSignoffs.data ?? []).map((s) => ({
+      memberId: s.member_id,
+      version: s.version,
+      signedAt: instant(s.signed_at),
+    })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
   };
@@ -248,13 +266,41 @@ export function readBriefingArgs(rideId: string, seen: string | null) {
 /**
  * Runs a briefing action. When it's refused because a newer briefing has been saved (by the app's
  * own check or by the database), the calendar reloads first so the screen shows the newer one,
- * then the refusal goes on to the screen.
+ * then the refusal goes on to the screen. `isNewer` says which refusals those are: the briefing
+ * ones unless told otherwise.
  */
-export async function reloadOnNewerVersion(action: () => Promise<void>, reload: () => Promise<void>): Promise<void> {
+export async function reloadOnNewerVersion(
+  action: () => Promise<void>,
+  reload: () => Promise<void>,
+  isNewer: (e: unknown) => boolean = isVersionRefusal,
+): Promise<void> {
   try {
     await action();
   } catch (e) {
-    if (isVersionRefusal(e)) await reload();
+    if (isNewer(e)) await reload();
     throw e;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Road Rules
+// ---------------------------------------------------------------------------
+
+/**
+ * publish_road_rules's arguments: the texts cleaned (fresh on for version 1), and the current
+ * version number the editor opened on (0 when there were none).
+ */
+export function publishRoadRulesArgs(input: RoadRulesInput, seen: number, data: ClubData) {
+  const cleaned = cleanRoadRules(input, data);
+  return { p_body: cleaned.body, p_changes: cleaned.changes, p_fresh: cleaned.fresh, p_seen: seen };
+}
+
+/** sign_road_rules's arguments: the version on screen. */
+export function signRoadRulesArgs(version: number) {
+  return { p_version: version };
+}
+
+/** Whether an error is one of the two refusals that mean a newer version of the Road Rules is waiting to be loaded. */
+export function isRoadRulesVersionRefusal(e: unknown): boolean {
+  return e instanceof Error && (e.message === PUBLISH_CONFLICT || e.message === SIGN_OUTDATED);
 }

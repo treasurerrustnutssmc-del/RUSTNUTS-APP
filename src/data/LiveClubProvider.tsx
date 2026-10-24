@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
+import { publishProblem, signProblem } from '../domain/roadRules';
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { melbourneDate, rsvpProblem } from '../domain/rides';
 import { NO_TRACK, readGpx, type GpxSummary } from '../domain/gpx';
@@ -19,7 +20,15 @@ import {
   validateContact,
   type ClubContextValue,
 } from './clubContext';
-import { loadClub, readBriefingArgs, reloadOnNewerVersion, saveBriefingArgs } from './liveData';
+import {
+  isRoadRulesVersionRefusal,
+  loadClub,
+  publishRoadRulesArgs,
+  readBriefingArgs,
+  reloadOnNewerVersion,
+  saveBriefingArgs,
+  signRoadRulesArgs,
+} from './liveData';
 // Stage 4
 import { canCheckIn, closeProblem, markProblem, openCheckinProblem } from '../domain/attendance';
 import {
@@ -589,6 +598,24 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
         ok(await supabase().rpc('read_briefing', readBriefingArgs(rideId, seen)));
         await after();
       }, after),
+
+    // After a newer-version refusal (the app's or the database's), reload so the screen shows the
+    // newer version, then the refusal goes on to the screen.
+    publishRoadRules: (input, seen) =>
+      reloadOnNewerVersion(async () => {
+        const problem = publishProblem(visibleMe, input, seen, data);
+        if (problem) throw new NotAllowedError(problem);
+        ok(await supabase().rpc('publish_road_rules', publishRoadRulesArgs(input, seen, data)));
+        await after();
+      }, after, isRoadRulesVersionRefusal),
+
+    signRoadRules: (version) =>
+      reloadOnNewerVersion(async () => {
+        const problem = signProblem(visibleMe, version, data);
+        if (problem) throw new NotAllowedError(problem);
+        ok(await supabase().rpc('sign_road_rules', signRoadRulesArgs(version)));
+        await after();
+      }, after, isRoadRulesVersionRefusal),
 
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => {

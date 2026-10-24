@@ -111,6 +111,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     routeGpx: async (routeId) => act.routeGpx(ctx, routeFiles.current, routeId),
     saveBriefing: async (rideId, input, seen) => setData(act.saveBriefing(ctx, rideId, input, seen)),
     readBriefing: async (rideId, seen) => setData(act.readBriefing(ctx, rideId, seen)),
+    publishRoadRules: async (input, seen) => setData(act.publishRoadRules(ctx, input, seen)),
+    signRoadRules: async (version) => setData(act.signRoadRules(ctx, version)),
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => setData((d) => ({ ...d, notificationPrefs: prefs })),
   };

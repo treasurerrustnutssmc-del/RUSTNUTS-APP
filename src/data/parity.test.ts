@@ -25,6 +25,23 @@ test('every briefing case says which version it was made on', () => {
   assert.ok(named('saveBriefing', (r) => briefed.has(r), (s) => typeof s === 'string' && old(s), false), 'a save on an older version');
 });
 
+test('the Road Rules cases cover publishing and signing, with and without versions', () => {
+  const rules = fixture.cases.filter((c) => c.action === 'publishRoadRules' || c.action === 'signRoadRules');
+  for (const c of rules.filter((x) => x.action === 'publishRoadRules')) {
+    assert.ok(typeof c.seen === 'number', `"${c.name}" says which version the editor opened on`);
+  }
+  for (const c of rules.filter((x) => x.action === 'signRoadRules')) {
+    assert.ok(typeof c.version === 'number', `"${c.name}" says which version is on screen`);
+  }
+  const has = (action: string, test: (c: (typeof rules)[number]) => boolean) => rules.some((c) => c.action === action && test(c));
+  assert.ok((fixture.roadRules ?? []).length >= 2, 'the fixture has versions');
+  assert.ok(has('publishRoadRules', (c) => c.allowed && !c.noRoadRules), 'a publish on top of the current version');
+  assert.ok(has('publishRoadRules', (c) => c.allowed && c.noRoadRules === true), 'a first version');
+  assert.ok(has('publishRoadRules', (c) => !c.allowed && !c.noRoadRules && c.seen !== (fixture.roadRules ?? []).length), 'a clash');
+  assert.ok(has('signRoadRules', (c) => c.allowed), 'a sign-off');
+  assert.ok(has('signRoadRules', (c) => !c.allowed && c.noRoadRules === true), 'nothing to sign yet');
+});
+
 for (const c of fixture.cases) {
   test(`demo: ${c.name} → ${c.allowed ? 'allowed' : 'refused'}`, () => {
     const refusal = demoAnswer(c);
