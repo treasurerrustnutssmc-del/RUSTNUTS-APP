@@ -38,6 +38,14 @@ export interface ExpiryAlert {
   description: string;
 }
 
+/** Who a board keeps an eye on: approved riders of that chapter (every chapter when null). Legacy
+ *  members have left the club, so their licences and contacts aren't chased. */
+export function boardWatchList(members: Member[], chapterId: string | null): Member[] {
+  return members.filter(
+    (m) => m.approval === 'approved' && m.status !== 'legacy' && (chapterId === null || m.chapterId === chapterId),
+  );
+}
+
 /** Regos, licences and first aid certificates that have expired or expire within 30 days. */
 export function expiryAlerts(members: Member[], data: ClubData, today: string): ExpiryAlert[] {
   const alerts: ExpiryAlert[] = [];

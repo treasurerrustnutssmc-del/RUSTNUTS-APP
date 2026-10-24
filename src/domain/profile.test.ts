@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoData';
-import { displayName, expiryAlerts, hasEarnedDisc, initials, phoneNote, profileChecklist } from './profile';
+import { boardWatchList, displayName, expiryAlerts, hasEarnedDisc, initials, phoneNote, profileChecklist } from './profile';
 
 const d = DEMO_DATA;
 const m = (id: string) => d.members.find((x) => x.id === id)!;
@@ -15,8 +15,16 @@ test('checklist spots what is missing', () => {
   assert.deepEqual(missing.sort(), ['emergency', 'licence']);
 });
 
+test('the board watch list leaves out Legacy members and applicants', () => {
+  const west = boardWatchList(d.members, 'ch-west').map((m) => m.id);
+  assert.ok(!west.includes('m-rooster'), 'Legacy member left out');
+  assert.ok(!west.includes('m-dylan'), 'applicant left out');
+  assert.ok(west.includes('m-gravel'));
+  assert.ok(boardWatchList(d.members, null).some((m) => m.chapterId === 'ch-north'), 'national sees every chapter');
+});
+
 test('expiry alerts for the West chapter', () => {
-  const west = d.members.filter((x) => x.chapterId === 'ch-west' && x.approval === 'approved');
+  const west = boardWatchList(d.members, 'ch-west');
   const alerts = expiryAlerts(west, d, '2026-10-24');
   assert.deepEqual(
     alerts.map((a) => [a.memberId, a.kind, a.state]),
@@ -55,7 +63,7 @@ test('the member disc is earned at full membership, never given', () => {
   const approved = { approval: 'approved' as const };
   assert.equal(hasEarnedDisc({ ...approved, status: 'full' }), true);
   assert.equal(hasEarnedDisc({ ...approved, status: 'nomad' }), true, 'a nomad is a full member living away');
-  for (const status of ['introduced', 'fng', 'supporter', 'family'] as const) {
+  for (const status of ['introduced', 'fng', 'supporter', 'family', 'legacy'] as const) {
     assert.equal(hasEarnedDisc({ ...approved, status }), false, status);
   }
   assert.equal(hasEarnedDisc({ approval: 'suspended', status: 'full' }), false, 'not while suspended');

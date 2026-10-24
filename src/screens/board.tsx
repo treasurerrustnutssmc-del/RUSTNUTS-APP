@@ -3,8 +3,8 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
 import { formatLongDate, monthsBetween } from '../domain/dates';
-import { BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
-import { displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
+import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
+import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
@@ -32,7 +32,6 @@ import {
   StatusChip,
 } from '../ui/primitives';
 
-const APPROVE_AS: MemberStatus[] = ['introduced', 'fng', 'supporter', 'family'];
 
 function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg: string) => void }) {
   const { data, approveMember, declineMember } = useClub();
@@ -115,9 +114,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const national = level === 'national';
-  const scope = data.members.filter(
-    (m) => m.approval === 'approved' && (national || m.chapterId === me.chapterId),
-  );
+  const scope = boardWatchList(data.members, national ? null : me.chapterId);
   const pending = pendingFor(me, data);
   const alerts = expiryAlerts(scope, data, today);
   const noContact = scope.filter(

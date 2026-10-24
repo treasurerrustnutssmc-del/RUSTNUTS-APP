@@ -7,9 +7,13 @@ export const STATUS_LABEL: Record<MemberStatus, string> = {
   nomad: 'Nomad',
   supporter: 'Supporter',
   family: 'Family',
+  legacy: 'Legacy',
 };
 
-export const STATUS_ORDER: MemberStatus[] = ['full', 'nomad', 'fng', 'introduced', 'supporter', 'family'];
+/** What a board can let a new applicant in as. Full and Nomad are earned, and Legacy is for leaving. */
+export const APPROVE_AS: MemberStatus[] = ['introduced', 'fng', 'supporter', 'family'];
+
+export const STATUS_ORDER: MemberStatus[] = ['full', 'nomad', 'fng', 'introduced', 'supporter', 'family', 'legacy'];
 
 export const ROLE_LABEL: Record<PositionRole, string> = {
   president: 'President',

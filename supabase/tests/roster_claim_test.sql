@@ -122,3 +122,40 @@ begin
   assert private.add_roster_position(jig, (select id from chapters where slug = 'north'), 'president') = false,
     'the clash is caught and skipped';
 end $$;
+
+\echo 'A member who left in good standing claims their record as Legacy, without a patch date'
+do $$
+declare hacker constant uuid := '00000000-0000-0000-0000-0000000000a9';
+begin
+  insert into auth.users (id, email, email_confirmed_at) values (hacker, 'hacker@example.com', now());
+  insert into private.roster (email, chapter_id, full_name, road_name, status)
+  select 'hacker@example.com', id, 'Justin Borg', 'Hacker', 'legacy' from chapters where slug = 'west';
+  assert pg_temp.claim_as(hacker), 'claim links them';
+  assert (select status from members where id = hacker) = 'legacy', 'status is Legacy';
+  assert (select approval from members where id = hacker) = 'approved', 'approved';
+  assert (select patched_on from members where id = hacker) is null, 'no patch date';
+end $$;
+
+\echo 'The board can move a member to Legacy when they leave in good standing'
+do $$
+declare rock constant uuid := '00000000-0000-0000-0000-0000000000a1';
+declare holder constant uuid := '00000000-0000-0000-0000-0000000000a6';
+begin
+  -- Holder is North President, so on the NEC and board of every chapter.
+  perform set_config('request.jwt.claim.sub', holder::text, true);
+  set local role authenticated;
+  begin
+    perform public.set_member_status(rock, 'legacy');
+    raise exception 'moved a sitting President to Legacy';
+  exception when raise_exception then
+    assert sqlerrm = 'End their positions first.', sqlerrm;
+  end;
+  reset role;
+  update positions set ended_on = private.club_date() where member_id = rock;
+  update members set on_hiatus = true where id = rock;
+  set local role authenticated;
+  perform public.set_member_status(rock, 'legacy');
+  reset role;
+  assert (select status from members where id = rock) = 'legacy', 'moved to Legacy once his term ended';
+  assert not (select on_hiatus from members where id = rock), 'no longer on hiatus';
+end $$;

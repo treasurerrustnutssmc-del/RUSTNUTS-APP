@@ -22,6 +22,11 @@ test('reads the roster sheet: DD/MM/YYYY dates, roles split on semicolons, quote
   assert.equal(rows[2].onHiatus, true);
 });
 
+test('a member who left in good standing loads as Legacy', () => {
+  const rows = parseRosterCsv(`${HEADER}\nhacker@example.com,west,Justin Borg,Hacker,legacy,,,,,\n`);
+  assert.equal(rows[0].status, 'legacy');
+});
+
 test('an Excel "CSV UTF-8" file (with a byte-order mark) reads the same', () => {
   const rows = parseRosterCsv(`\uFEFF${HEADER}\r\na@b.com,west,A,,full,,,,,\r\n`);
   assert.equal(rows[0].email, 'a@b.com');
