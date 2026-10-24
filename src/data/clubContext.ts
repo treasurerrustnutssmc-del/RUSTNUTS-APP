@@ -13,6 +13,7 @@ import type {
   Member,
   MemberPrivate,
   MemberStatus,
+  NotificationPrefs, // Lane E: notifications
   PositionRole,
   RsvpAnswer,
 } from '../domain/types';
@@ -66,6 +67,9 @@ export interface ClubContextValue {
   // Lane E: offline
   /** When the data on screen was saved on the phone, while showing that copy after a failed load. */
   savedAt?: string | null;
+  // Lane E: notifications
+  /** Saves the signed-in member's notification settings. */
+  saveNotificationPrefs?: (prefs: NotificationPrefs) => Promise<void>;
 
   // signing in
   signInAs: (memberId: string | null) => void; // demo only

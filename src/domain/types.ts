@@ -155,6 +155,9 @@ export interface ClubData {
   crew?: CrewSpot[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
+  // Lane E: notifications
+  /** The signed-in member's saved notification settings, or null for the defaults. */
+  notificationPrefs?: NotificationPrefs | null;
 }
 
 // Lane E: live ride
@@ -209,9 +212,4 @@ export interface NotificationPrefs {
   newRides: boolean;
   /** Board only: someone in the chapter is waiting for approval. */
   approvals: boolean;
-}
-
-export interface ClubData {
-  /** The signed-in member's saved notification settings, or null for the defaults (live mode). */
-  notificationPrefs?: NotificationPrefs | null;
 }

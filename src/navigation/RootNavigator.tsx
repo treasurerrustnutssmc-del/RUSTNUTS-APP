@@ -13,6 +13,8 @@ import { RideDetailScreen, RidesScreen } from '../screens/rides';
 import { PickCrewScreen } from '../screens/pickCrew';
 // Lane E: live ride
 import { LiveRideScreen } from '../screens/liveRide';
+// Lane E: notifications
+import { ReminderSync } from '../data/reminders';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -97,6 +99,8 @@ export function RootNavigator() {
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
   return (
     <NavigationContainer theme={navTheme}>
+      {/* Lane E: notifications */}
+      <ReminderSync />
       {/* Keyed by who's signed in, so switching people always starts fresh on their home screen. */}
       <Stack.Navigator key={stackKey} screenOptions={headerOptions}>
         {loadError ? (

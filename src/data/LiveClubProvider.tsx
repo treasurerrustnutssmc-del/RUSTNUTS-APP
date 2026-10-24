@@ -25,6 +25,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { SUPABASE_URL } from './config';
 import { authStorageKeys, createClubCache, isConnectionError, startupUser } from './offlineCache';
+// Lane E: notifications
+import { loadNotificationPrefs, saveNotificationPrefs } from './notificationsApi';
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -79,6 +81,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
         if (s.session?.user.id !== uid) throw error ?? new Error('Sign in first.');
       }
       const fresh = await loadClub(supabase(), !!uid);
+      if (uid) fresh.notificationPrefs = await loadNotificationPrefs(supabase()); // Lane E: notifications
       if (ticket !== latest.current) return;
       // Lane E: offline. Signed out during the load: don't show a signed-out load as theirs.
       if (uid && currentUser.current !== uid) return;
@@ -360,6 +363,13 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('leave_crew', { p_ride: rideId, p_member: memberId }));
       await after();
+    },
+
+    // Lane E: notifications
+    saveNotificationPrefs: async (prefs) => {
+      requireUser();
+      await saveNotificationPrefs(supabase(), prefs);
+      setData((d) => ({ ...d, notificationPrefs: prefs }));
     },
   };
 
