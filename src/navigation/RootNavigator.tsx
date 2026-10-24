@@ -11,6 +11,8 @@ import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteSc
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
+// Lane E: live ride
+import { LiveRideScreen } from '../screens/liveRide';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -126,6 +128,8 @@ export function RootNavigator() {
             <Stack.Screen name="EditMeeting" component={EditMeetingScreen} options={({ route }) => ({ title: route.params?.meetingId ? 'Edit meeting' : 'Call a meeting' })} />
             <Stack.Screen name="Vote" component={VoteScreen} options={{ title: 'Vote' }} />
             <Stack.Screen name="NewVote" component={NewVoteScreen} options={{ title: 'New vote' }} />
+            {/* Lane E: live ride */}
+            <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} />
           </>
         )}
       </Stack.Navigator>

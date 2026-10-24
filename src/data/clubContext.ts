@@ -65,6 +65,9 @@ export interface ClubContextValue {
   loadError: string | null;
   /** A refresh failed while data is still on screen (live mode). */
   refreshError: string | null;
+  // Lane E: offline
+  /** When the data on screen was saved on the phone, while showing that copy after a failed load. */
+  savedAt?: string | null;
 
   // signing in
   signInAs: (memberId: string | null) => void; // demo only

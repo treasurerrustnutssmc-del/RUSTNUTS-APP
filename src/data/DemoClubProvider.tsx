@@ -1,22 +1,25 @@
 // Demo build: made-up members held in memory. Every action goes through demoActions, which
 // applies the same rules the database enforces (checked by src/data/parity.test.ts).
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { accessLevel } from '../domain/access';
 import { todayIso } from '../domain/dates';
 import type { ClubData } from '../domain/types';
 import { ClubContext, type ClubContextValue } from './clubContext';
 import * as business from './businessActions';
 import * as act from './demoActions';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA, demoTodayRide } from './demoData';
+import { bindDemoLive } from './liveRideSource';
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<ClubData>(DEMO_DATA);
+  // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
+  const [data, setData] = useState<ClubData>(() => ({ ...DEMO_DATA, rides: [...DEMO_DATA.rides, demoTodayRide()] }));
   const [meId, setMeId] = useState<string | null>(null);
   const today = todayIso();
 
   const me = useMemo(() => data.members.find((m) => m.id === meId) ?? null, [data.members, meId]);
   const level = accessLevel(me, data.positions);
+  useEffect(() => bindDemoLive(() => ({ data, me })), [data, me]);
   const ctx: act.DemoCtx = { data, me, today };
   const refresh = useCallback(async () => {}, []);
 
