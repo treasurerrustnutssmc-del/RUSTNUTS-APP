@@ -8,6 +8,7 @@ import { useEffect, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { DEFAULT_PREFS, reminderDiff, reminderPlan, type Reminder } from '../domain/notifications';
 import { useClub } from './ClubStore';
+import { registerThisDevice } from './pushDevice';
 
 const KIND = 'ride-reminder';
 const CHANNEL = 'ride-reminders';
@@ -63,5 +64,12 @@ export function ReminderSync() {
     syncReminders(plan).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, loading, loadError, unknown, isDemo]);
+  // Once per signed-in member (live only): save this phone's push token with the club. After the
+  // reminders have asked for notifications, so it waits for the plan too.
+  const meId = me?.id ?? null;
+  useEffect(() => {
+    if (!meId || isDemo || loading || loadError) return;
+    registerThisDevice();
+  }, [meId, isDemo, loading, loadError, key]);
   return null;
 }

@@ -27,6 +27,7 @@ import { SUPABASE_URL } from './config';
 import { authStorageKeys, createClubCache, isConnectionError, startupUser } from './offlineCache';
 // Lane E: notifications
 import { loadNotificationPrefs, saveNotificationPrefs } from './notificationsApi';
+import { forgetThisDevice } from './pushDevice';
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -205,6 +206,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
 
     signOut: async () => {
+      await forgetThisDevice(); // Lane E: notifications. While still signed in, so the club allows it.
       forget(); // Lane E: offline
       currentUser.current = null;
       setUserId(null); // Lane E: offline

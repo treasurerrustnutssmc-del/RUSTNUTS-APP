@@ -291,6 +291,8 @@ export type Database = {
       resolve_ride_alert: { Args: { p_alert: string }; Returns: undefined };
       stop_live_ride: { Args: { p_ride: string }; Returns: undefined };
       // Lane E: notifications
+      register_push_device: { Args: { p_token: string; p_platform: string }; Returns: undefined };
+      forget_push_device: { Args: { p_token: string }; Returns: undefined };
       save_notification_prefs: {
         Args: { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean };
         Returns: undefined;
