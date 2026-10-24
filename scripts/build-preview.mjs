@@ -20,10 +20,18 @@ execSync('npx expo export --platform web --output-dir dist --clear', {
   env: { ...process.env, EXPO_PUBLIC_FORCE_DEMO: '1', EXPO_PUBLIC_SUPABASE_URL: '', EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: '' },
 });
 
+// The export can split the app into more than one script (a shared chunk plus the entry). Take
+// them in the order index.html loads them, so the page runs them the same way.
 const jsDir = join(dist, '_expo/static/js/web');
-const bundleFile = readdirSync(jsDir).find((f) => f.endsWith('.js'));
-if (!bundleFile) throw new Error('No web bundle found');
-let bundle = readFileSync(join(jsDir, bundleFile), 'utf8');
+const html = readFileSync(join(dist, 'index.html'), 'utf8');
+const scripts = [...html.matchAll(/<script[^>]*\ssrc="([^"]+\.js)"/g)].map((m) => join(dist, m[1]));
+if (scripts.length === 0) throw new Error('No web bundle found in dist/index.html');
+// Chunks the app loads on demand (for example the camera's barcode reader) are fetched by URL, which
+// a one-file page can't serve, so they're left out: those features don't work in the preview, which
+// has no camera anyway.
+const onDemand = readdirSync(jsDir).filter((f) => f.endsWith('.js') && !scripts.includes(join(jsDir, f)));
+if (onDemand.length) console.log(`Leaving out ${onDemand.length} on-demand chunk(s): ${onDemand.join(', ')}`);
+let bundle = scripts.map((f) => readFileSync(f, 'utf8')).join(';\n');
 
 // Assets the app actually shows. Everything else in the bundle (other icon sets) is never
 // requested on the web.
