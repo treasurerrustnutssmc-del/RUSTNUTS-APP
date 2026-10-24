@@ -46,8 +46,8 @@ Impeccable (design):
 
 ## Brand rules
 
-- The RUSTNUTS stencil wordmark and the EST 2019 logo (the version **without** the flag) are the club's trademarks. Always use the real artwork; never retype "RUSTNUTS" as styled text to imitate it, never redraw or recolour it.
-- Use the club stencil typeface as much as possible: screen titles, headings, names, buttons, tab labels, chips, badges, numbers and dates on cards. The plain body font is only for running sentences, typed input and fine print, where a stencil stops being readable.
+- The RUSTNUTS stencil wordmark and the EST 2019 logo are the club's trademarks (the registration covers the logo without the Australian flag). The club uses the logo **with** the flag, so the app does too. Always use the real artwork; never retype "RUSTNUTS" as styled text to imitate it, never redraw or recolour it.
+- The club typeface is **Rustnuts Stencil** (a heavier, renamed version of the open-licence Stardos Stencil; its OFL licence file ships with it). Use it as much as possible: screen titles, headings, names, buttons, tab labels, chips, badges, numbers and dates on cards. The plain body font is only for running sentences, typed input and fine print, where a stencil stops being readable.
 - The member disc (round "MEMBER" patch) is earned at Full membership. Never show it on anyone who isn't Full.
 - The Rusty Bus (the club van) is used for charity rides and vehicle recovery.
 
