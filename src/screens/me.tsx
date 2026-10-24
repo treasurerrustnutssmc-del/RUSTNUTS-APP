@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { activePositions } from '../domain/access';
-import { formatAuDate, parseAuDate, describeExpiry } from '../domain/dates';
+import { formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
 import { LICENCE_LABEL, ROLE_LABEL } from '../domain/labels';
 import { displayName, hasEarnedDisc, initials } from '../domain/profile';
 import type { LicenceClass } from '../domain/types';
@@ -35,7 +35,8 @@ import {
 
 /** Text box for DD/MM/YYYY dates. Empty is allowed; anything else must be a real date. */
 function useDateField(initialIso: string | null) {
-  const [text, setText] = useState(formatAuDate(initialIso));
+  const [text, setRawText] = useState(formatAuDate(initialIso));
+  const setText = (typed: string) => setRawText(typeDate(typed));
   const trimmed = text.trim();
   const iso = trimmed ? parseAuDate(trimmed) : null;
   const error = trimmed && !iso ? 'Use DD/MM/YYYY, like 08/11/2026.' : null;
@@ -232,13 +233,15 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
           value={licenceClass}
           onChange={setLicenceClass}
         />
-        <Field label="Licence expiry" value={licence.text} onChangeText={licence.setText} placeholder="DD/MM/YYYY" inputMode="numeric" error={licence.error} />
+        <Field label="Licence expiry" value={licence.text} onChangeText={licence.setText} placeholder="DD/MM/YYYY" keyboardType="number-pad" inputMode="numeric" maxLength={10} error={licence.error} />
         <Field
           label="First aid certificate expiry"
           value={firstAid.text}
           onChangeText={firstAid.setText}
           placeholder="DD/MM/YYYY"
+          keyboardType="number-pad"
           inputMode="numeric"
+          maxLength={10}
           error={firstAid.error}
           hint="Required for Tail Gunners. Leave blank if you don't have one."
         />
@@ -310,7 +313,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
             <LockNote text="You + board" />
           </Row>
           <Field label="Rego" value={rego} onChangeText={setRego} autoCapitalize="characters" placeholder="1AB 2CD" />
-          <Field label="Rego expiry" value={expiry.text} onChangeText={expiry.setText} placeholder="DD/MM/YYYY" inputMode="numeric" error={expiry.error} hint="You'll get a reminder 30 days before." />
+          <Field label="Rego expiry" value={expiry.text} onChangeText={expiry.setText} placeholder="DD/MM/YYYY" keyboardType="number-pad" inputMode="numeric" maxLength={10} error={expiry.error} hint="You'll get a reminder 30 days before." />
         </Card>
       ) : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}

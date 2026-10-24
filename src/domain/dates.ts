@@ -73,3 +73,14 @@ export function monthsBetween(fromIso: string, toIso: string): number {
   if (td < fd) months -= 1;
   return Math.max(0, months);
 }
+
+/**
+ * Formats what someone types into a DD/MM/YYYY box, adding the slashes so they can stay on
+ * the number pad (which has no / key).
+ */
+export function typeDate(input: string): string {
+  const digits = input.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
