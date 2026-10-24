@@ -145,6 +145,10 @@ export function actionItemProblem(me: Member | null, input: ActionItemInput, dat
   if (input.id !== null && !existing) return 'No such action item.';
   const chapterId = existing ? existing.chapterId : input.chapterId;
   if (!runsScope(me, chapterId, data.positions)) return scopeRefusal(chapterId);
+  if (!existing && input.meetingId !== null) {
+    const meeting = (data.meetings ?? []).find((x) => x.id === input.meetingId);
+    if (!meeting || meeting.chapterId !== input.chapterId) return 'No such meeting.';
+  }
   if (!input.title.trim()) return 'Give the action item a title.';
   if (!canOwnAction(data.members.find((x) => x.id === input.ownerId), chapterId)) {
     return 'Pick an approved member of this chapter.';

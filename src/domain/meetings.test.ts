@@ -47,7 +47,7 @@ const item = (over: Partial<ActionItem> = {}): ActionItem => ({
 });
 
 const itemInput = (over: Partial<ActionItemInput> = {}): ActionItemInput => ({
-  id: null, chapterId: 'ch-west', meetingId: 'mt-1', title: 'Book the hall', ownerId: 'm-spanner', dueOn: null, ...over,
+  id: null, chapterId: 'ch-west', meetingId: null, title: 'Book the hall', ownerId: 'm-spanner', dueOn: null, ...over,
 });
 
 const NOW = '2026-10-24T02:00:00.000Z';
@@ -152,6 +152,14 @@ test('minutes fall due 14 Melbourne days after the meeting', () => {
 });
 
 test('action items', () => {
+  const withMeeting = { ...d, meetings: [meeting()] };
+  assert.equal(actionItemProblem(m('m-torque'), itemInput({ meetingId: 'mt-9' }), withMeeting), 'No such meeting.');
+  assert.equal(
+    actionItemProblem(m('m-smokey'), itemInput({ chapterId: null, meetingId: 'mt-1', ownerId: 'm-jet' }), withMeeting),
+    'No such meeting.',
+    'an item belongs to its meeting’s chapter',
+  );
+  assert.equal(actionItemProblem(m('m-torque'), itemInput({ meetingId: 'mt-1' }), withMeeting), null);
   assert.equal(actionItemProblem(m('m-spanner'), itemInput(), d), 'Only that chapter’s board can do that.');
   assert.equal(actionItemProblem(m('m-torque'), itemInput({ title: ' ' }), d), 'Give the action item a title.');
   const pick = 'Pick an approved member of this chapter.';

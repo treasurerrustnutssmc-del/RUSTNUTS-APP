@@ -100,6 +100,7 @@ test('opening a vote', () => {
   assert.equal(openVoteProblem(m('m-torque'), input({ closesAt: '' }), d, NOW), 'Pick a closing time in the future.');
   assert.equal(openVoteProblem(m('m-torque'), input({ closesAt: '2026-12-24T02:00:00.001Z' }), d, NOW), 'Votes can stay open for 60 days at most.');
   assert.equal(openVoteProblem(m('m-torque'), input({ closesAt: '2026-12-23T02:00:00.000Z' }), d, NOW), null, 'exactly 60 days is fine');
+  assert.equal(openVoteProblem(m('m-torque'), input({ meetingId: 'mt-9' }), d, NOW), 'No such meeting.');
   assert.equal(openVoteProblem(m('m-torque'), input(), d, NOW), null);
   assert.equal(openVoteProblem(m('m-smokey'), input({ chapterId: null, electorate: 'club_patched', quorum: 7 }), d, NOW), null);
 });

@@ -103,6 +103,10 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
       return 'A patch vote is unanimous, among the chapter’s patched members.';
     }
   }
+  if (input.meetingId !== null) {
+    const meeting = (data.meetings ?? []).find((x) => x.id === input.meetingId);
+    if (!meeting || meeting.chapterId !== input.chapterId) return 'No such meeting.';
+  }
   return null;
 }
 
