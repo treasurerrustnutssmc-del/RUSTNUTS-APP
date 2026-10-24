@@ -79,3 +79,12 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 - **Touch and contrast:** touch targets of at least 44pt, and text contrast of at least 4.5:1 (3:1 for large stencil headings). Every ride colour pair already passes.
 - **Screen readers:** each list row reads as one clear label.
 - *(inferred)* Expect older eyes and bright sunlight. Don't go below 13pt for anything a member needs to read, and never carry meaning by colour alone. Ride colours always come with their name.
+
+## Members and Money (Stage 4)
+
+- **Check-ins:** a chapter's board (or the NEC for whole-club rides) opens a check-in at a meeting or ride and holds up a QR code with a six-character code under it. Members and introduced applicants scan it or type the code. The board can tick people off by hand, on the day or afterwards.
+- **The way in:** an introduced applicant's three months, two meetings and one member ride are counted from the day they asked, and shown to them and their board. The board records its vote when it approves or declines.
+- **FNG reviews:** at 6, 9 and 12 months, then every 3 months. Patching someone in needs a unanimous vote. Not continuing makes them a Supporter. Carrying on past twelve months adds the chapter's continuation fee.
+- **Fees (Jeff, 24 Oct 2026):** the chapter board sets the amounts each financial year (1 July to 30 June). Members on hiatus don't pay. The treasurer, or the National Chairman or Secretary, raises the year's fees, records and confirms payments, and issues receipts (W26-0001). Members pay by PayID or bank transfer and tap "I've paid this"; nothing is charged by card.
+- **Privacy:** a member's charges are seen by them and their chapter's board. The board's vote count and note on a decision are the board's only.
+- **Reminders** are in the app only (Home and Me). No emails or pushes to members.

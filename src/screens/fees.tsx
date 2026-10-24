@@ -604,7 +604,7 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
                 {!manager ? <Small>The treasurer confirms these.</Small> : null}
                 {manager ? (
                   <Stack gap={space.xs}>
-                    <Button label="It’s in the account" icon="checkmark" onPress={() => confirmPayment(p.id).then(() => done('Payment confirmed, with a receipt.'), fail)} />
+                    <Button label="It’s in the account" kind="secondary" icon="checkmark" onPress={() => confirmPayment(p.id).then(() => done('Payment confirmed, with a receipt.'), fail)} />
                     <ConfirmButton label="Not received" confirmLabel="Mark not received" kind="quiet" onConfirm={() => rejectPayment(p.id).then(() => done('Marked as not received.'), fail)} />
                   </Stack>
                 ) : null}
