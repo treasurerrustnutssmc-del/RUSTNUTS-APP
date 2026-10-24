@@ -14,6 +14,7 @@ import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, STA
 import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
+import { MemberChatButtons } from './chat';
 import { colors, space } from '../theme';
 // Stage 4
 import { canSeeFees } from '../domain/fees';
@@ -193,7 +194,6 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         <Label>On the way</Label>
         {[
           ['map', 'Locked routes, ride roles and briefings', 'Stage 2'],
-          ['chatbubbles', 'Chat, photos and the ride wall', 'Stage 3'],
         ].map(([icon, text, stage]) => (
           <Row key={text} style={{ gap: space.md, flexWrap: 'nowrap' }}>
             <Ionicons name={icon as 'calendar'} size={18} color={colors.boneMute} />
@@ -346,6 +346,8 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
         {canManage ? (
           <Button label="Manage member" kind="secondary" icon="shield-outline" onPress={() => navigation.navigate('ManageMember', { memberId: member.id })} />
         ) : null}
+        {/* Stage 3 (lane B): private chats and blocking */}
+        <MemberChatButtons member={member} onOpenChat={(chatId) => navigation.navigate('Chat', { chatId })} />
       </Card>
 
       {member.approval === 'pending' ? (

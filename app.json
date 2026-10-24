@@ -10,7 +10,12 @@
     "backgroundColor": "#111010",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "au.com.rustnutssmc.app"
+      "bundleIdentifier": "au.com.rustnutssmc.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
     },
     "android": {
       "package": "au.com.rustnutssmc.app",
@@ -32,6 +37,16 @@
     },
     "plugins": [
       "expo-font",
+      "expo-image",
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Rustnuts uses your photos so you can share them in club chats.",
+          "cameraPermission": "Rustnuts uses your camera so you can take photos and videos for club chats.",
+          "microphonePermission": "Rustnuts uses your microphone for ride comms, and to record sound with videos for club chats."
+        }
+      ],
       [
         "expo-location",
         {
@@ -54,11 +69,46 @@
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-sharing",
+        {
+          "ios": {
+            "enabled": true,
+            "activationRule": {
+              "supportsText": true,
+              "supportsWebUrlWithMaxCount": 1,
+              "supportsImageWithMaxCount": 10,
+              "supportsMovieWithMaxCount": 10
+            }
+          },
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": [
+              "text/plain",
+              "image/*",
+              "video/*"
+            ],
+            "multipleShareMimeTypes": [
+              "image/*",
+              "video/*",
+              "*/*"
+            ]
+          }
+        }
+      ],
+      [
+        "@livekit/react-native-expo-plugin",
+        {
+          "android": {
+            "audioType": "communication"
+          }
+        }
       ]
     ],
     "owner": "rustnutssmcs-team",
     "runtimeVersion": {
-      "policy": "sdkVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "url": "https://u.expo.dev/57ac4925-9517-41e2-8a45-4eeccd32abc5"

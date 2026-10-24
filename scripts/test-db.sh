@@ -72,6 +72,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_crew -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_crew -f "$ROOT/supabase/tests/ride_crew_test.sql"
+# Ride routes, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_routes" >/dev/null
+"${PSQL[@]}" -d rustnuts_routes -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_routes -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_routes -f "$ROOT/supabase/tests/ride_routes_test.sql"
 
 # Lane E: live ride, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_live" >/dev/null
@@ -95,5 +102,29 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_notify -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_notify -f "$ROOT/supabase/tests/notification_prefs_test.sql"
+
+# Stage 3 (lane B): the chats, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_chat" >/dev/null
+"${PSQL[@]}" -d rustnuts_chat -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_chat -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_chat -f "$ROOT/supabase/tests/chat_test.sql"
+
+# Lane E: push outbox, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_push" >/dev/null
+"${PSQL[@]}" -d rustnuts_push -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_push -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_push -f "$ROOT/supabase/tests/push_test.sql"
+
+# Lane E: ride comms, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_voice" >/dev/null
+"${PSQL[@]}" -d rustnuts_voice -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_voice -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_voice -f "$ROOT/supabase/tests/ride_voice_test.sql"
 
 echo 'ALL DATABASE CHECKS PASSED'

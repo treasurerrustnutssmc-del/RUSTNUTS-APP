@@ -32,6 +32,7 @@ export const ROLE_LABEL: Record<PositionRole, string> = {
   nec_secretary: 'National Secretary',
   nec_auditor: 'National Auditor',
   founder: 'Founder',
+  charity_committee: 'Charity Committee',
 };
 
 /** Short forms used on chips, matching the Road Rules formation labels. */
@@ -52,6 +53,7 @@ export const ROLE_SHORT: Record<PositionRole, string> = {
   nec_secretary: 'NEC SEC',
   nec_auditor: 'AUDITOR',
   founder: 'FOUNDER',
+  charity_committee: 'CHARITY',
 };
 
 /** The spots on a ride's crew, in the order they're listed. Labels come from ROLE_LABEL and ROLE_SHORT. */
@@ -79,6 +81,7 @@ export const CLUB_ROLES: PositionRole[] = [
   'social_media_officer',
   'club_coach',
   'ride_committee',
+  'charity_committee',
 ];
 
 export const NATIONAL_ROLES: PositionRole[] = ['nec_chair', 'nec_secretary', 'nec_auditor'];

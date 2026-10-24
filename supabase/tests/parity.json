@@ -141,6 +141,14 @@
       "sharePhone": false,
       "onHiatus": true,
       "firstAidExpiry": "2031-01-01"
+    },
+    {
+      "key": "nick",
+      "chapter": "west",
+      "name": "Nick Newman",
+      "status": "introduced",
+      "approval": "approved",
+      "sharePhone": false
     }
   ],
   "positions": [
@@ -1887,6 +1895,761 @@
       "ride": "future-west",
       "member": "spanner",
       "allowed": false
+    },
+    {
+      "name": "A West board member adds a West route",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "  Werribee loop  ",
+      "chapter": "west",
+      "file": "valid",
+      "notes": " Fuel at Bacchus Marsh. ",
+      "allowed": true
+    },
+    {
+      "name": "A North Road Captain adds a whole-club route",
+      "as": "crank",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Two chapters run",
+      "chapter": null,
+      "file": "valid",
+      "allowed": true
+    },
+    {
+      "name": "A member who isn't a route manager adds a route",
+      "as": "gravel",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "My loop",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "An applicant adds a route",
+      "as": "dylan",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "My loop",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "A board member edits a route that no longer exists",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": "gone",
+      "routeName": "Renamed",
+      "chapter": "west",
+      "file": null,
+      "allowed": false
+    },
+    {
+      "name": "A North-only manager moves a West route to the whole club",
+      "as": "crank",
+      "action": "saveRoute",
+      "route": "west-loop",
+      "routeName": "West loop",
+      "chapter": null,
+      "file": null,
+      "allowed": false
+    },
+    {
+      "name": "A North-only manager adds a West route",
+      "as": "crank",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "West loop",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "The NEC renames a route in another chapter",
+      "as": "chair",
+      "action": "saveRoute",
+      "route": "west-loop",
+      "routeName": "West loop (long way)",
+      "chapter": "west",
+      "file": null,
+      "allowed": true
+    },
+    {
+      "name": "A board member replaces a route's file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": "west-loop",
+      "routeName": "West loop",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": true
+    },
+    {
+      "name": "A route name of 80 emoji",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": true
+    },
+    {
+      "name": "A route name of 81 emoji",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "A blank route name",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "   ",
+      "chapter": "west",
+      "file": "valid",
+      "allowed": false
+    },
+    {
+      "name": "A blank route name with a broken file is a name problem first",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": " ",
+      "chapter": "west",
+      "file": "malformed",
+      "allowed": false
+    },
+    {
+      "name": "A file that isn't GPX",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "malformed",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with a line break before its XML declaration isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "spaceBeforeDeclaration",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with a bare & in a name isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "bareAmpersand",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file using &nbsp; (undefined in XML) isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "undefinedEntity",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with a < inside an attribute isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "ltInAttribute",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with the same attribute twice isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "duplicateAttribute",
+      "allowed": false
+    },
+    {
+      "name": "A GPX file with text after </gpx> isn’t a GPX file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "Broken",
+      "chapter": "west",
+      "file": "junkAfterRoot",
+      "allowed": false
+    },
+    {
+      "name": "Replacing a route’s file with one that has a bare & isn’t allowed",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": "west-loop",
+      "routeName": "West loop",
+      "chapter": "west",
+      "file": "bareAmpersand",
+      "allowed": false
+    },
+    {
+      "name": "A new route with no file",
+      "as": "torque",
+      "action": "saveRoute",
+      "route": null,
+      "routeName": "No file",
+      "chapter": "west",
+      "file": null,
+      "allowed": false
+    },
+    {
+      "name": "A board member archives a route in their chapter",
+      "as": "torque",
+      "action": "archiveRoute",
+      "route": "west-loop",
+      "allowed": true
+    },
+    {
+      "name": "A North-only manager archives a West route",
+      "as": "crank",
+      "action": "archiveRoute",
+      "route": "west-loop",
+      "allowed": false
+    },
+    {
+      "name": "The NEC archives a route in another chapter",
+      "as": "chair",
+      "action": "archiveRoute",
+      "route": "west-loop",
+      "allowed": true
+    },
+    {
+      "name": "A member who isn't a route manager archives a route",
+      "as": "spanner",
+      "action": "archiveRoute",
+      "route": "club-run",
+      "allowed": false
+    },
+    {
+      "name": "A board member archives a route that no longer exists",
+      "as": "torque",
+      "action": "archiveRoute",
+      "route": "gone",
+      "allowed": false
+    },
+    {
+      "name": "Archiving an archived route again",
+      "as": "torque",
+      "action": "archiveRoute",
+      "route": "old-west",
+      "allowed": true
+    },
+    {
+      "name": "A board member chooses a ride's route",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "club-run",
+      "allowed": true
+    },
+    {
+      "name": "A board member clears a ride's route",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": null,
+      "allowed": true
+    },
+    {
+      "name": "A North Road Captain chooses a route for a club ride",
+      "as": "crank",
+      "action": "setRideRoute",
+      "ride": "future-club",
+      "route": "club-run",
+      "allowed": true
+    },
+    {
+      "name": "An archived route chosen for a ride",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "old-west",
+      "allowed": false
+    },
+    {
+      "name": "A route that no longer exists chosen for a ride",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "gone",
+      "allowed": false
+    },
+    {
+      "name": "A member who isn't a manager chooses a ride's route",
+      "as": "spanner",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "club-run",
+      "allowed": false
+    },
+    {
+      "name": "A North-only manager chooses a West ride's route",
+      "as": "crank",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": "north-hills",
+      "allowed": false
+    },
+    {
+      "name": "A ride's route after the ride day",
+      "as": "torque",
+      "action": "setRideRoute",
+      "ride": "past-club",
+      "route": "club-run",
+      "allowed": false
+    },
+    {
+      "name": "A cancelled ride's route",
+      "as": "crank",
+      "action": "setRideRoute",
+      "ride": "cancelled-north",
+      "route": "north-hills",
+      "allowed": false
+    },
+    {
+      "name": "An applicant chooses a ride's route",
+      "as": "dylan",
+      "action": "setRideRoute",
+      "ride": "future-west",
+      "route": null,
+      "allowed": false
+    },
+    {
+      "name": "A member posts in the whole-club chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "G’day",
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member posts in the whole-club chat",
+      "as": "hacker",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "Still here",
+      "allowed": true
+    },
+    {
+      "name": "An applicant posts in the whole-club chat",
+      "as": "dylan",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "Someone who might join posts in the whole-club chat",
+      "as": "nick",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "G’day all",
+      "allowed": true
+    },
+    {
+      "name": "Someone who might join posts in a ride chat",
+      "as": "nick",
+      "action": "chatSend",
+      "chat": "ride:future-west",
+      "body": "See you there",
+      "allowed": true
+    },
+    {
+      "name": "Someone who might join posts in their chapter chat",
+      "as": "nick",
+      "action": "chatSend",
+      "chat": "chapter:west",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "Someone who might join posts in the NEC chat",
+      "as": "nick",
+      "action": "chatSend",
+      "chat": "nec",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "Someone who might join opens a private chat",
+      "as": "nick",
+      "action": "chatDirect",
+      "member": "spanner",
+      "allowed": false
+    },
+    {
+      "name": "A member opens a private chat with someone who might join",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "nick",
+      "allowed": false
+    },
+    {
+      "name": "A member posts in another chapter's chat",
+      "as": "crank",
+      "action": "chatSend",
+      "chat": "chapter:west",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "The NEC posts in a chapter's chat",
+      "as": "chair",
+      "action": "chatSend",
+      "chat": "chapter:west",
+      "body": "Hi",
+      "allowed": true
+    },
+    {
+      "name": "A Secretary posts at their chapter's big table",
+      "as": "torque",
+      "action": "chatSend",
+      "chat": "board:west",
+      "body": "Agenda?",
+      "allowed": true
+    },
+    {
+      "name": "A member posts at the big table",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "board:west",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "The NEC sits at every big table",
+      "as": "lou",
+      "action": "chatSend",
+      "chat": "board:east",
+      "body": "Hi",
+      "allowed": true
+    },
+    {
+      "name": "A member posts in the NEC chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "nec",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "A sitting President posts in the NEC chat",
+      "as": "smokey",
+      "action": "chatSend",
+      "chat": "nec",
+      "body": "Hi",
+      "allowed": true
+    },
+    {
+      "name": "A Road Captain posts in the ride committee chat",
+      "as": "crank",
+      "action": "chatSend",
+      "chat": "committee:ride",
+      "body": "Route?",
+      "allowed": true
+    },
+    {
+      "name": "A Tail Gunner posts in the ride committee chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "committee:ride",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "A member posts in the charity committee chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "committee:charity",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "Someone else's private chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "direct:rusty:torque",
+      "body": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "A private chat with someone who blocked you",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "direct:gravel:spanner",
+      "body": "Oi",
+      "allowed": false
+    },
+    {
+      "name": "An empty message",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "   ",
+      "allowed": false
+    },
+    {
+      "name": "GIFs on their own",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "gifs": 2,
+      "allowed": true
+    },
+    {
+      "name": "Eleven GIFs at once",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "gifs": 11,
+      "allowed": false
+    },
+    {
+      "name": "A message of 4,000 characters",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "x",
+      "repeat": 4000,
+      "allowed": true
+    },
+    {
+      "name": "4,000 emoji count as 4,000 characters",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "🏍",
+      "repeat": 4000,
+      "allowed": true
+    },
+    {
+      "name": "Spaces around the words don't count",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "x                                                                                                    ",
+      "repeat": 40,
+      "allowed": true
+    },
+    {
+      "name": "A message of only non-breaking spaces is still words",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": " ",
+      "repeat": 3,
+      "allowed": true
+    },
+    {
+      "name": "A message over 4,000 characters",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "x",
+      "repeat": 4001,
+      "allowed": false
+    },
+    {
+      "name": "A reply to a message in another chat",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "Yep",
+      "replyTo": "west-hello",
+      "allowed": false
+    },
+    {
+      "name": "A member removes their own message",
+      "as": "spanner",
+      "action": "chatRemove",
+      "message": "west-hello",
+      "allowed": true
+    },
+    {
+      "name": "A member removes someone else's message",
+      "as": "gravel",
+      "action": "chatRemove",
+      "message": "west-hello",
+      "allowed": false
+    },
+    {
+      "name": "A chapter Secretary removes a message in their chapter chat",
+      "as": "torque",
+      "action": "chatRemove",
+      "message": "west-hello",
+      "allowed": true
+    },
+    {
+      "name": "Any board member removes a message in the whole-club chat",
+      "as": "rhys",
+      "action": "chatRemove",
+      "message": "club-crank",
+      "allowed": true
+    },
+    {
+      "name": "Removing a message that isn't there",
+      "as": "torque",
+      "action": "chatRemove",
+      "message": "nothing",
+      "allowed": false
+    },
+    {
+      "name": "Removing a message twice",
+      "as": "torque",
+      "action": "chatRemove",
+      "message": "club-gone",
+      "allowed": false
+    },
+    {
+      "name": "A member reacts with a beer",
+      "as": "gravel",
+      "action": "chatReact",
+      "message": "club-hello",
+      "emoji": "🍺",
+      "allowed": true
+    },
+    {
+      "name": "A member reacts with something not in the set",
+      "as": "gravel",
+      "action": "chatReact",
+      "message": "club-hello",
+      "emoji": "🙂",
+      "allowed": false
+    },
+    {
+      "name": "A member opens a private chat",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "crank",
+      "allowed": true
+    },
+    {
+      "name": "A member messages themselves",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "spanner",
+      "allowed": false
+    },
+    {
+      "name": "A member messages an applicant",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "dylan",
+      "allowed": false
+    },
+    {
+      "name": "A member messages someone who blocked them",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "gravel",
+      "allowed": false
+    },
+    {
+      "name": "A member messages someone who isn't in the club",
+      "as": "spanner",
+      "action": "chatDirect",
+      "member": "ghost",
+      "allowed": false
+    },
+    {
+      "name": "A chapter Secretary pins a message",
+      "as": "torque",
+      "action": "chatPin",
+      "chat": "chapter:west",
+      "message": "west-hello",
+      "allowed": true
+    },
+    {
+      "name": "A member pins a message",
+      "as": "spanner",
+      "action": "chatPin",
+      "chat": "chapter:west",
+      "message": "west-hello",
+      "allowed": false
+    },
+    {
+      "name": "Pinning a message from another chat",
+      "as": "torque",
+      "action": "chatPin",
+      "chat": "chapter:west",
+      "message": "club-hello",
+      "allowed": false
+    },
+    {
+      "name": "Pinning a removed message",
+      "as": "rusty",
+      "action": "chatPin",
+      "chat": "club",
+      "message": "club-gone",
+      "allowed": false
+    },
+    {
+      "name": "A member reports a message",
+      "as": "spanner",
+      "action": "chatReport",
+      "message": "club-crank",
+      "reason": "Not on",
+      "allowed": true
+    },
+    {
+      "name": "A member reports their own message",
+      "as": "crank",
+      "action": "chatReport",
+      "message": "club-crank",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report with too long a reason",
+      "as": "spanner",
+      "action": "chatReport",
+      "message": "club-crank",
+      "reason": "x",
+      "repeat": 501,
+      "allowed": false
+    },
+    {
+      "name": "A member blocks someone",
+      "as": "spanner",
+      "action": "chatBlock",
+      "member": "crank",
+      "blocked": true,
+      "allowed": true
+    },
+    {
+      "name": "A member blocks themselves",
+      "as": "spanner",
+      "action": "chatBlock",
+      "member": "spanner",
+      "blocked": true,
+      "allowed": false
     }
   ],
   "chapters": [
@@ -2130,5 +2893,96 @@
         "receiptNo": "TEST-0002"
       }
     ]
-  }
+  },
+  "gpxFiles": {
+    "valid": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "malformed": "<gpx version=\"1.1\"><trk><trkseg><trkpt lat=\"-37.8\" lon=\"144.7\"></trkseg></trk></gpx>",
+    "spaceBeforeDeclaration": "\n<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "bareAmpersand": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel & pies, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "undefinedEntity": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel,&nbsp;Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "ltInAttribute": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity <v2>\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "duplicateAttribute": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" creator=\"again\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>",
+    "junkAfterRoot": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"parity\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-37.675\" lon=\"144.438\"><name>Fuel, Bacchus Marsh</name></wpt><trk><name>Loop</name><trkseg><trkpt lat=\"-37.835\" lon=\"144.795\"><ele>15</ele></trkpt><trkpt lat=\"-37.9\" lon=\"144.661\"><ele>15</ele></trkpt><trkpt lat=\"-37.675\" lon=\"144.438\"><ele>105</ele></trkpt></trkseg></trk></gpx>\nThanks for riding!"
+  },
+  "routes": [
+    {
+      "key": "west-loop",
+      "name": "West loop",
+      "chapter": "west",
+      "archived": false
+    },
+    {
+      "key": "north-hills",
+      "name": "North hills",
+      "chapter": "north",
+      "archived": false
+    },
+    {
+      "key": "club-run",
+      "name": "Club run",
+      "chapter": null,
+      "archived": false
+    },
+    {
+      "key": "old-west",
+      "name": "Old West loop",
+      "chapter": "west",
+      "archived": true
+    }
+  ],
+  "rideRoutes": [
+    {
+      "ride": "future-west",
+      "route": "west-loop"
+    }
+  ],
+  "directs": [
+    [
+      "rusty",
+      "torque"
+    ],
+    [
+      "gravel",
+      "spanner"
+    ]
+  ],
+  "blocks": [
+    {
+      "blocker": "gravel",
+      "blocked": "spanner"
+    }
+  ],
+  "messages": [
+    {
+      "key": "club-hello",
+      "chat": "club",
+      "author": "rusty",
+      "body": "G’day all"
+    },
+    {
+      "key": "club-crank",
+      "chat": "club",
+      "author": "crank",
+      "body": "Fair dinkum"
+    },
+    {
+      "key": "club-gone",
+      "chat": "club",
+      "author": "crank",
+      "body": "oops",
+      "removed": true
+    },
+    {
+      "key": "west-hello",
+      "chat": "chapter:west",
+      "author": "spanner",
+      "body": "Ride Sunday?"
+    },
+    {
+      "key": "dm-hello",
+      "chat": "direct:rusty:torque",
+      "author": "rusty",
+      "body": "Got a sec?"
+    }
+  ]
 }

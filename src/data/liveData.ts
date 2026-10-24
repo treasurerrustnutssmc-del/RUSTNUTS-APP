@@ -2,7 +2,7 @@
 // database rows (snake_case) into the app's records (camelCase).
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ClubData, MemberPrivate } from '../domain/types';
+import type { ClubData, MemberPrivate, Route } from '../domain/types';
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
 
@@ -11,6 +11,19 @@ const instant = (ts: string) => new Date(ts).toISOString();
 
 /** PostgREST's and Postgres's "no such function" codes. */
 const MISSING_FUNCTION = ['PGRST202', '42883'];
+/**
+ * The library's columns: everything but the GPX file, which members can't select (it can be
+ * 5 MB a route; one route's file comes through route_gpx). select('*') would be refused.
+ */
+export const ROUTE_COLUMNS = 'id, name, chapter_id, notes, distance_m, climb_m, line, stops, bounds, archived_at, updated_at';
+
+/** A route's bounds, taken from its line when none were stored. */
+function boundsOf(line: [number, number][]): Route['bounds'] {
+  if (line.length === 0) return { minLat: 0, minLng: 0, maxLat: 0, maxLng: 0 };
+  const lats = line.map((p) => p[0]);
+  const lngs = line.map((p) => p[1]);
+  return { minLat: Math.min(...lats), minLng: Math.min(...lngs), maxLat: Math.max(...lats), maxLng: Math.max(...lngs) };
+}
 
 function toError(error: { message?: string }): Error {
   return new Error(error.message ?? 'Couldn’t load the club data.');
@@ -32,7 +45,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     () => undefined,
   );
 
-  const [members, privates, phones, bikes, regos, contacts, positions, calendar, money] = await Promise.all([
+  const [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money] = await Promise.all([
     db.from('members').select('*'),
     db.from('member_private').select('*'),
     db.rpc('shared_phones'),
@@ -40,6 +53,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     db.from('bike_registrations').select('*'),
     db.from('emergency_contacts').select('*').order('created_at'),
     db.from('positions').select('*'),
+    db.from('routes').select(ROUTE_COLUMNS),
     // Rides from today on, their answers and the calendar's freshness, as one value so the API's
     // row limit can't cut the list short.
     db.rpc('ride_calendar'),
@@ -49,7 +63,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   // Until the database has Stage 4, the rest of the app still loads. Any other failure is an error,
   // so nobody is shown "you owe nothing" because a load went wrong.
   if (money.error && !MISSING_FUNCTION.includes(money.error.code ?? '')) throw toError(money.error);
-  for (const r of [members, privates, phones, bikes, regos, contacts, positions, calendar]) {
+  for (const r of [members, privates, phones, bikes, regos, contacts, positions, routes, calendar]) {
     if (r.error) throw toError(r.error);
   }
 
@@ -146,6 +160,24 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       assignedBy: k.assigned_by,
       assignedAt: instant(k.assigned_at),
     })),
+    routes: (routes.data ?? []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      chapterId: r.chapter_id,
+      notes: r.notes ?? '',
+      distanceM: r.distance_m,
+      climbM: r.climb_m,
+      line: r.line ?? [],
+      stops: r.stops ?? [],
+      bounds: r.bounds ?? boundsOf(r.line ?? []),
+      archivedAt: r.archived_at ? instant(r.archived_at) : null,
+      updatedAt: instant(r.updated_at),
+    })),
+    // Missing for anyone who isn't an approved member.
+    // A cleared route is stored as a row with no route; the calendar leaves those out, and so do we.
+    rideRoutes: (calendar.data?.ride_routes ?? [])
+      .filter((r) => r.route_id != null)
+      .map((r) => ({ rideId: r.ride_id, routeId: r.route_id })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
   };

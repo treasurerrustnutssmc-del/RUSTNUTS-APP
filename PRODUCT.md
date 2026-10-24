@@ -88,3 +88,11 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 - **Fees (Jeff, 24 Oct 2026):** the chapter board sets the amounts each financial year (1 July to 30 June). Members on hiatus don't pay. The treasurer, or the National Chairman or Secretary, raises the year's fees, records and confirms payments, and issues receipts (W26-0001). Members pay by PayID or bank transfer and tap "I've paid this"; nothing is charged by card.
 - **Privacy:** a member's charges are seen by them and their chapter's board. The board's vote count and note on a decision are the board's only.
 - **Reminders** are in the app only (Home and Me). No emails or pushes to members.
+
+## Stage 3 (lane B): chat and photos
+
+- **Chats:** the whole club, each chapter, each chapter's big table (its board), the NEC, the ride and charity committees, one chat per ride, and private chats between two people. Facebook Messenger is what the club uses now; this replaces it.
+- **Who sees what:** approved members see the whole-club chat, their own chapter's chat and ride chats. Board, NEC and committee chats are for the people who sit on them. People who might join (Introduced) get the whole-club and ride chats only, and no private chats until they're FNGs.
+- **Banter matters:** photos, videos, GIFs (GIPHY) and link cards are first-class. Replies, reactions, pins (moderators), reports and blocks are in.
+- **Photos:** a club-wide photo feed (never private chats) and a ride wall for each ride, built from the photos posted in its chat.
+- **Ride comms** (open-mic voice while riding, big connect and disconnect buttons) is Stage 6, not this stage.

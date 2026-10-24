@@ -237,3 +237,79 @@ test('signed in: no crew key (not approved, or an older calendar) loads an empty
   const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
   assert.deepEqual(data.crew, []);
 });
+
+test('signed in: the library is read with named columns, never the GPX files, and rows become routes', async () => {
+  const selects: Record<string, string> = {};
+  const routeRow = {
+    id: 'rt1', name: 'West loop', chapter_id: 'c1', notes: null, distance_m: 182000, climb_m: null,
+    line: [[-37.8, 144.7], [-37.6, 144.4]], stops: [{ name: 'Fuel', lat: -37.7, lng: 144.5 }],
+    bounds: { minLat: -37.8, minLng: 144.4, maxLat: -37.6, maxLng: 144.7 },
+    archived_at: '2026-10-24T10:15:00+00:00', updated_at: '2026-10-24T09:00:00.5+00:00',
+  };
+  const client = {
+    from: (name: string) => ({
+      select: (cols = '*') => {
+        selects[name] = cols;
+        const r = { data: name === 'chapters' ? [west] : name === 'routes' ? [routeRow, { ...routeRow, id: 'rt2', notes: 'Twisty', climb_m: 2400, chapter_id: null, archived_at: null, bounds: null }] : [], error: null };
+        const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+        return chain;
+      },
+    }),
+    rpc: (name: string) =>
+      Promise.resolve({ data: name === 'ride_calendar' ? { rides: [], rsvps: [], synced_at: null } : [], error: null }),
+  } as never;
+  const data = await loadClub(client, true);
+  assert.ok(selects.routes, 'the library is read');
+  const cols = selects.routes.split(',').map((c) => c.trim());
+  assert.ok(!cols.includes('*') && !cols.includes('gpx'), `named columns without the file: ${selects.routes}`);
+  assert.deepEqual(data.routes?.[0], {
+    id: 'rt1', name: 'West loop', chapterId: 'c1', notes: '', distanceM: 182000, climbM: null,
+    line: [[-37.8, 144.7], [-37.6, 144.4]], stops: [{ name: 'Fuel', lat: -37.7, lng: 144.5 }],
+    bounds: { minLat: -37.8, minLng: 144.4, maxLat: -37.6, maxLng: 144.7 },
+    archivedAt: '2026-10-24T10:15:00.000Z', updatedAt: '2026-10-24T09:00:00.500Z',
+  });
+  const second = data.routes?.[1];
+  assert.equal(second?.notes, 'Twisty');
+  assert.equal(second?.climbM, 2400);
+  assert.equal(second?.chapterId, null);
+  assert.equal(second?.archivedAt, null);
+  assert.deepEqual(second?.bounds, { minLat: -37.8, minLng: 144.4, maxLat: -37.6, maxLng: 144.7 }, 'no bounds stored: taken from the line');
+});
+
+test('signed in: the calendar’s ride_routes become ride routes', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      ride_calendar: {
+        rides: [],
+        rsvps: [],
+        ride_routes: [{ ride_id: 'r1', route_id: 'rt1' }, { ride_id: 'r2', route_id: 'rt2' }],
+        synced_at: null,
+      },
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.rideRoutes, [{ rideId: 'r1', routeId: 'rt1' }, { rideId: 'r2', routeId: 'rt2' }]);
+});
+
+test('signed in: a cleared ride route (no route) is left out', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      ride_calendar: {
+        rides: [],
+        rsvps: [],
+        ride_routes: [{ ride_id: 'r1', route_id: 'rt1' }, { ride_id: 'r3', route_id: null }],
+        synced_at: null,
+      },
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.rideRoutes, [{ rideId: 'r1', routeId: 'rt1' }]);
+});
+
+test('signed in: no ride_routes key (not approved) loads no ride routes, and no library rows loads an empty library', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
+  assert.deepEqual(data.rideRoutes, []);
+  assert.deepEqual(data.routes, []);
+});

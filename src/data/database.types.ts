@@ -21,9 +21,14 @@ type PositionRole =
   | 'nec_auditor'
   | 'ride_committee'
   | 'assistant_tail_gunner'
-  | 'founder';
+  | 'founder'
+  // Stage 3 (lane B)
+  | 'charity_committee';
 
 type CrewRole = 'road_captain' | 'tail_gunner' | 'assistant_tail_gunner' | 'officer';
+type RouteLine = [number, number][];
+type RouteStops = { name: string; lat: number; lng: number }[];
+type RouteBounds = { minLat: number; minLng: number; maxLat: number; maxLng: number };
 // Lane E: live ride
 type RideAlertKind = 'emergency' | 'out' | 'regroup';
 export type LiveStateJson = {
@@ -203,6 +208,36 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      routes: {
+        // Members can select every column but gpx (one route's file comes through route_gpx), so
+        // name the columns: select('*') is refused.
+        Row: {
+          archived_at: string | null;
+          bounds: RouteBounds | null;
+          chapter_id: string | null;
+          climb_m: number | null;
+          created_at: string;
+          created_by: string | null;
+          distance_m: number;
+          gpx: string;
+          id: string;
+          line: RouteLine;
+          name: string;
+          notes: string | null;
+          stops: RouteStops;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: { [_ in never]: never }; // routes change only through save_route and archive_route
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      ride_routes: {
+        Row: { ride_id: string; route_id: string | null; set_at: string; set_by: string | null };
+        Insert: { [_ in never]: never }; // a ride's route changes only through set_ride_route
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -212,6 +247,25 @@ export type Database = {
       set_rsvp: { Args: { p_ride: string; p_answer: RsvpAnswer }; Returns: undefined };
       set_crew: { Args: { p_ride: string; p_member: string; p_role: CrewRole }; Returns: undefined };
       leave_crew: { Args: { p_ride: string; p_member: string }; Returns: undefined };
+      save_route: {
+        Args: {
+          p_id: string | null;
+          p_name: string;
+          p_chapter: string | null;
+          p_notes: string | null;
+          /** Null keeps the route's file and its summary. */
+          p_gpx: string | null;
+          p_distance_m: number | null;
+          p_climb_m: number | null;
+          p_line: RouteLine | null;
+          p_stops: RouteStops | null;
+          p_bounds: RouteBounds | null;
+        };
+        Returns: string;
+      };
+      archive_route: { Args: { p_id: string }; Returns: undefined };
+      set_ride_route: { Args: { p_ride: string; p_route: string | null }; Returns: undefined };
+      route_gpx: { Args: { p_route: string }; Returns: string };
       ride_calendar: {
         Args: never;
         Returns: {
@@ -219,6 +273,8 @@ export type Database = {
           rsvps: Database['public']['Tables']['rsvps']['Row'][];
           /** Missing for anyone who isn't an approved member. */
           crew?: Database['public']['Tables']['ride_crew']['Row'][];
+          /** The routes of the rides shown (only rides that have one). Missing for anyone who isn't an approved member. */
+          ride_routes?: { ride_id: string; route_id: string }[];
           synced_at: string | null;
         };
       };
@@ -344,6 +400,8 @@ export type Database = {
       confirm_payment: { Args: { p_payment: string }; Returns: undefined };
       reject_payment: { Args: { p_payment: string }; Returns: undefined };
       // Lane E: notifications
+      register_push_device: { Args: { p_token: string; p_platform: string }; Returns: undefined };
+      forget_push_device: { Args: { p_token: string }; Returns: undefined };
       save_notification_prefs: {
         Args: { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean };
         Returns: undefined;
