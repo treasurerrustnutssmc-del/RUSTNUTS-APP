@@ -1,0 +1,96 @@
+-- Checks the claimable roster: people on the club roster land on their own record at first sign-in.
+-- Run with: npm run test:db
+
+\set ON_ERROR_STOP 1
+\set QUIET 1
+\o /dev/null
+
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-0000-0000-0000000000a1', 'rockhard@example.com', now()),  -- on the roster
+  ('00000000-0000-0000-0000-0000000000a2', 'jiggles@example.com', now()),   -- on the roster, seat already taken
+  ('00000000-0000-0000-0000-0000000000a3', 'nobody@example.com', now()),    -- not on the roster
+  ('00000000-0000-0000-0000-0000000000a4', 'sneaky@example.com', null),     -- on the roster, email not confirmed
+  ('00000000-0000-0000-0000-0000000000a5', 'applied@example.com', now()),   -- on the roster, but already applied
+  ('00000000-0000-0000-0000-0000000000a6', 'holder@example.com', now());    -- holds North President already
+
+insert into private.roster (email, chapter_id, full_name, road_name, status, joined_on, patched_on, on_hiatus, roles)
+select v.email, c.id, v.full_name, v.road_name, v.status::member_status, v.joined::date, v.patched::date, v.hiatus,
+       v.roles::position_role[]
+from (values
+  ('RockHard@Example.com', 'west',  'Rocky Hardy',  'RockHard', 'full', '2019-03-01', '2019-09-01', false, '{president}'),
+  ('jiggles@example.com',  'north', 'Jim Iggles',   'Jiggles',  'full', '2020-01-01', '2020-06-01', true,  '{president}'),
+  ('sneaky@example.com',   'west',  'Sam Neaky',    'Sneaky',   'fng',  '2026-01-01', null,         false, '{}'),
+  ('applied@example.com',  'west',  'Al Plied',     'Applied',  'full', '2019-01-01', '2019-01-01', false, '{road_captain}')
+) as v(email, chapter, full_name, road_name, status, joined, patched, hiatus, roles)
+join chapters c on c.slug = v.chapter;
+
+-- North already has a President, and one person has already asked to join.
+insert into members (id, chapter_id, full_name, status, approval)
+select '00000000-0000-0000-0000-0000000000a6', id, 'Holder', 'full', 'approved' from chapters where slug = 'north';
+insert into positions (member_id, chapter_id, role)
+select '00000000-0000-0000-0000-0000000000a6', id, 'president' from chapters where slug = 'north';
+insert into members (id, chapter_id, full_name, status, approval)
+select '00000000-0000-0000-0000-0000000000a5', id, 'Al Plied', 'introduced', 'pending' from chapters where slug = 'west';
+
+create function pg_temp.claim_as(who uuid) returns boolean language plpgsql as $$
+declare result boolean;
+begin
+  perform set_config('request.jwt.claim.sub', who::text, true);
+  set local role authenticated;
+  result := public.claim_roster();
+  reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
+  return result;
+end $$;
+
+\o
+\echo 'A roster member lands on their own record at first sign-in'
+do $$
+declare rock constant uuid := '00000000-0000-0000-0000-0000000000a1';
+begin
+  assert pg_temp.claim_as(rock), 'claim links them';
+  assert exists (
+    select 1 from members m join chapters c on c.id = m.chapter_id
+    where m.id = rock and m.full_name = 'Rocky Hardy' and m.road_name = 'RockHard' and m.status = 'full'
+      and m.approval = 'approved' and c.slug = 'west' and m.patched_on = date '2019-09-01'
+  ), 'approved Full member of West with their dates';
+  assert exists (select 1 from member_private where member_id = rock and email = 'rockhard@example.com'), 'contact record with their email';
+  assert exists (
+    select 1 from positions p join chapters c on c.id = p.chapter_id
+    where p.member_id = rock and p.role = 'president' and c.slug = 'west' and p.ended_on is null
+  ), 'their position';
+  assert not pg_temp.claim_as(rock), 'a second call does nothing';
+  assert (select count(*) from positions where member_id = rock) = 1, 'no doubled positions';
+end $$;
+
+\echo 'A taken seat is skipped, hiatus is carried over'
+do $$
+declare jig constant uuid := '00000000-0000-0000-0000-0000000000a2';
+begin
+  assert pg_temp.claim_as(jig), 'still linked';
+  assert (select on_hiatus from members where id = jig), 'on hiatus';
+  assert not exists (select 1 from positions where member_id = jig), 'North President seat was taken, so skipped';
+end $$;
+
+\echo 'Unconfirmed emails, strangers and people who already applied are left alone'
+do $$
+begin
+  assert not pg_temp.claim_as('00000000-0000-0000-0000-0000000000a4'), 'unconfirmed email cannot claim';
+  assert not exists (select 1 from members where id = '00000000-0000-0000-0000-0000000000a4'), 'no record made';
+  assert not pg_temp.claim_as('00000000-0000-0000-0000-0000000000a3'), 'not on the roster';
+  assert not pg_temp.claim_as('00000000-0000-0000-0000-0000000000a5'), 'already applied';
+  assert (select approval from members where id = '00000000-0000-0000-0000-0000000000a5') = 'pending', 'their application is untouched';
+  assert (select claimed_by from private.roster where email = 'applied@example.com') is null, 'roster row stays open';
+end $$;
+
+\echo 'The roster cannot be read through the app'
+do $$
+begin
+  set local role authenticated;
+  begin
+    perform 1 from private.roster;
+    raise exception 'authenticated could read the roster';
+  exception when insufficient_privilege then null;
+  end;
+  reset role;
+end $$;

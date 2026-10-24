@@ -20,7 +20,8 @@ grant usage on schema auth to anon, authenticated;
 
 create table auth.users (
   id uuid primary key,
-  email text
+  email text,
+  email_confirmed_at timestamptz
 );
 
 create function auth.uid() returns uuid language sql stable as $$

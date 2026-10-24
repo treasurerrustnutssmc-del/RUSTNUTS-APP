@@ -19,6 +19,13 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   };
   if (!signedIn) return base;
 
+  // Someone on the club roster gets their own record the first time they sign in. The database
+  // does nothing for anyone who already has a record, and a failure here never blocks loading.
+  await db.rpc('claim_roster').then(
+    () => undefined,
+    () => undefined,
+  );
+
   const [members, privates, phones, bikes, regos, contacts, positions] = await Promise.all([
     db.from('members').select('*'),
     db.from('member_private').select('*'),

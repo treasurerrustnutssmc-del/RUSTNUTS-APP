@@ -139,6 +139,7 @@ export type Database = {
       decline_member: { Args: { p_member: string }; Returns: undefined };
       set_member_status: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       shared_phones: { Args: never; Returns: { member_id: string; phone: string }[] };
+      claim_roster: { Args: never; Returns: boolean };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
       end_position: { Args: { p_position: string }; Returns: undefined };
       apply_to_join: {

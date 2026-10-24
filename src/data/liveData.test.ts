@@ -68,3 +68,53 @@ test('signed in: rows become app records, shared phones merge in', async () => {
   assert.equal(rusty?.email, null);
   assert.equal(data.privates.length, 2);
 });
+
+test('signed in: a roster place is claimed before the club is read, so a new member sees their own record', async () => {
+  const calls: string[] = [];
+  const client = {
+    from: (name: string) => {
+      calls.push(`from:${name}`);
+      const r = { data: name === 'chapters' ? [west] : [], error: null };
+      const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+      return { select: () => chain };
+    },
+    rpc: (name: string) => {
+      calls.push(`rpc:${name}`);
+      return Promise.resolve({ data: name === 'claim_roster' ? true : [], error: null });
+    },
+  } as never;
+  await loadClub(client, true);
+  assert.ok(calls.includes('rpc:claim_roster'));
+  assert.ok(calls.indexOf('rpc:claim_roster') < calls.indexOf('from:members'));
+});
+
+test('signed in: a failed roster claim never stops the club loading', async () => {
+  const client = {
+    from: () => {
+      const r = { data: [], error: null };
+      const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+      return { select: () => chain };
+    },
+    rpc: (name: string) =>
+      Promise.resolve(name === 'claim_roster' ? { data: null, error: { message: 'function does not exist' } } : { data: [], error: null }),
+  } as never;
+  const data = await loadClub(client, true);
+  assert.equal(data.members.length, 0);
+});
+
+test('signed out: no roster claim is tried', async () => {
+  const calls: string[] = [];
+  const client = {
+    from: () => {
+      const r = { data: [west], error: null };
+      const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+      return { select: () => chain };
+    },
+    rpc: (name: string) => {
+      calls.push(name);
+      return Promise.resolve({ data: [], error: null });
+    },
+  } as never;
+  await loadClub(client, false);
+  assert.deepEqual(calls, []);
+});
