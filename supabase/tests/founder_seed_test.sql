@@ -24,6 +24,8 @@ begin
     where m.id = jefe and m.road_name = 'El Jefe' and m.status = 'full' and m.approval = 'approved' and c.slug = 'west'
   ), 'El Jefe is an approved Full member of West';
   assert (select count(*) from positions where member_id = jefe and ended_on is null) = 4, 'four open positions, no duplicates';
+  assert exists (select 1 from member_private where member_id = jefe and email = 'treasurer.rustnutssmc@gmail.com'),
+    'his contact and licence record exists, so saving his profile works';
   assert exists (select 1 from positions where member_id = jefe and role = 'founder' and chapter_id is null), 'Founder';
   assert exists (select 1 from positions where member_id = jefe and role = 'nec_chair' and chapter_id is null), 'National Chairman';
   assert (
@@ -32,6 +34,9 @@ begin
   ) = 2, 'Treasurer of West and North';
 
   perform set_config('request.jwt.claim.sub', jefe::text, true);
+  perform public.save_profile('Jeff Ostler', 'El Jefe', null, false, true,
+    'treasurer.rustnutssmc@gmail.com', '0400000000', null, null, null);
+  assert (select phone from member_private where member_id = jefe) = '0400000000', 'he can save his profile';
   assert private.is_chairman(), 'he can hand out national roles';
   assert private.is_board_of((select id from chapters where slug = 'north')), 'he sits on the North board';
   perform set_config('request.jwt.claim.sub', '', true);
