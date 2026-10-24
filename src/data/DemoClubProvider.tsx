@@ -74,6 +74,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     archiveRoute: async (routeId) => setData(act.archiveRoute(ctx, routeId)),
     setRideRoute: async (rideId, routeId) => setData(act.setRideRoute(ctx, rideId, routeId)),
     routeGpx: async (routeId) => act.routeGpx(ctx, routeFiles.current, routeId),
+    saveBriefing: async (rideId, input) => setData(act.saveBriefing(ctx, rideId, input)),
+    readBriefing: async (rideId) => setData(act.readBriefing(ctx, rideId)),
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => setData((d) => ({ ...d, notificationPrefs: prefs })),
   };

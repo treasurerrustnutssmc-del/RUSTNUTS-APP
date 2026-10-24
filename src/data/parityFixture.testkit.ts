@@ -45,6 +45,10 @@ export interface ParityFixture {
   routes?: { key: string; name: string; chapter: string | null; archived: boolean }[];
   /** Which route each ride uses. */
   rideRoutes?: { ride: string; route: string }[];
+  /** Briefings already written, all at BRIEFED_AT. Empty texts are stored as null in the database. */
+  briefings?: { ride: string; hazards: string[]; changes: string; notes: string }[];
+  /** Got it taps already made, all at BRIEFED_AT. */
+  briefingReads?: { ride: string; member: string }[];
   cases: ParityCase[];
   // Stage 3 (lane B): chats. A chat is named `club`, `nec`, `committee:ride`, `committee:charity`,
   // `chapter:<slug>`, `board:<slug>`, `ride:<ride key>` or `direct:<key>:<key>` (keys in order).
@@ -52,6 +56,9 @@ export interface ParityFixture {
   blocks?: { blocker: string; blocked: string }[];
   messages?: { key: string; chat: string; author: string; body: string; removed?: boolean }[];
 }
+
+/** When the fixture's briefings were written and read. */
+export const BRIEFED_AT = '2026-10-01T00:00:00.000Z';
 
 export const fixture: ParityFixture = JSON.parse(
   readFileSync(join(__dirname, '../../supabase/tests/parity.json'), 'utf8'),
@@ -107,6 +114,10 @@ export function fixtureData(without: string[] = []): ClubData {
     })),
     routes: fixtureRoutes(),
     rideRoutes: (fixture.rideRoutes ?? []).map((r) => ({ rideId: r.ride, routeId: r.route })),
+    briefings: (fixture.briefings ?? []).map((b) => ({
+      rideId: b.ride, hazards: b.hazards, changes: b.changes, notes: b.notes, updatedAt: BRIEFED_AT, updatedBy: null,
+    })),
+    briefingReads: (fixture.briefingReads ?? []).map((r) => ({ rideId: r.ride, memberId: r.member, readAt: BRIEFED_AT })),
   };
 }
 

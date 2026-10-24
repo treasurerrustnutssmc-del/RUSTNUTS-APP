@@ -255,3 +255,39 @@ test('signed in: no ride_routes key (not approved) loads no ride routes, and no 
   assert.deepEqual(data.rideRoutes, []);
   assert.deepEqual(data.routes, []);
 });
+
+test('signed in: the calendar’s briefings and reads become app records, null texts as empty', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      ride_calendar: {
+        rides: [],
+        rsvps: [],
+        briefings: [
+          {
+            ride_id: 'r1', hazards: ['Gravel', 'Kangaroos'], changes: 'Single file', notes: null,
+            updated_by: 'm1', updated_at: '2026-10-23T09:15:00.25+00:00',
+          },
+          { ride_id: 'r2', hazards: [], changes: null, notes: 'Cash only', updated_by: null, updated_at: '2026-10-23T10:00:00+00:00' },
+        ],
+        briefing_reads: [{ ride_id: 'r1', member_id: 'm2', read_at: '2026-10-23T20:42:00+00:00' }],
+        synced_at: null,
+      },
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.briefings, [
+    {
+      rideId: 'r1', hazards: ['Gravel', 'Kangaroos'], changes: 'Single file', notes: '',
+      updatedBy: 'm1', updatedAt: '2026-10-23T09:15:00.250Z',
+    },
+    { rideId: 'r2', hazards: [], changes: '', notes: 'Cash only', updatedBy: null, updatedAt: '2026-10-23T10:00:00.000Z' },
+  ]);
+  assert.deepEqual(data.briefingReads, [{ rideId: 'r1', memberId: 'm2', readAt: '2026-10-23T20:42:00.000Z' }]);
+});
+
+test('signed in: no briefings keys (not approved) loads no briefings and no reads', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
+  assert.deepEqual(data.briefings, []);
+  assert.deepEqual(data.briefingReads, []);
+});

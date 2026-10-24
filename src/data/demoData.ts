@@ -308,6 +308,27 @@ export const DEMO_DATA: ClubData = {
   // The library, and the West breakfast run uses the West loop. North coffee and curves has no route yet.
   routes: demoRoutes,
   rideRoutes: [{ rideId: 'r-1', routeId: 'rt-west-loop' }],
+  // The West breakfast run's briefing. Diesel (its Road Captain) read an earlier version, then
+  // Torque added the roadworks on the evening of 23 Oct; Spanner read it at 7:42 am the next
+  // morning. Fixed instants, well before the ride's fixed start. North coffee and curves has none.
+  briefings: [
+    {
+      rideId: 'r-1',
+      hazards: [
+        'Fresh gravel on the Ballan–Daylesford Rd after Korweinguboora',
+        'Kangaroos at dusk on the way home',
+        'Roadworks at Bacchus Marsh: 40 km/h',
+      ],
+      changes: 'Single file through Myrniong, no staggered formation.',
+      notes: 'Breakfast at the Daylesford bakery, cash only.',
+      updatedAt: '2026-10-23T09:15:00.000Z',
+      updatedBy: 'm-torque',
+    },
+  ],
+  briefingReads: [
+    { rideId: 'r-1', memberId: 'm-diesel', readAt: '2026-10-22T10:05:00.000Z' },
+    { rideId: 'r-1', memberId: 'm-spanner', readAt: '2026-10-23T20:42:00.000Z' },
+  ],
 };
 
 /** The people you can "view as" in the demo, one per access level. */

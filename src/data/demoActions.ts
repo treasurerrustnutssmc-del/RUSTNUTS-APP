@@ -3,6 +3,7 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, endTermProblem, isBoardOf } from '../domain/access';
+import { cleanBriefing, readBriefingProblem, saveBriefingProblem, type BriefingInput } from '../domain/briefings';
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { NO_TRACK, readGpx } from '../domain/gpx';
 import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
@@ -390,6 +391,29 @@ export function routeGpx(ctx: DemoCtx, files: ReadonlyMap<string, string>, route
   return file;
 }
 
+/** Writes a ride's briefing, or replaces it: cleaned, and stamped with who and when. Mirrors public.save_briefing. */
+export function saveBriefing(ctx: DemoCtx, rideId: string, input: BriefingInput): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const ride = ctx.data.rides.find((r) => r.id === rideId);
+  const problem = saveBriefingProblem(ctx.me, ride, input, ctx.data, now);
+  if (problem) throw new NotAllowedError(problem);
+  const others = (ctx.data.briefings ?? []).filter((b) => b.rideId !== rideId);
+  return {
+    ...ctx.data,
+    briefings: [...others, { rideId, ...cleanBriefing(input), updatedAt: now, updatedBy: ctx.me!.id }],
+  };
+}
+
+/** Got it: your read of the ride's briefing, now. Reading again moves it. Mirrors public.read_briefing. */
+export function readBriefing(ctx: DemoCtx, rideId: string): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const problem = readBriefingProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), ctx.data);
+  if (problem) throw new NotAllowedError(problem);
+  const memberId = ctx.me!.id;
+  const others = (ctx.data.briefingReads ?? []).filter((r) => !(r.rideId === rideId && r.memberId === memberId));
+  return { ...ctx.data, briefingReads: [...others, { rideId, memberId, readAt: now }] };
+}
+
 /** The actions the shared parity cases use, by name. */
 export type DemoAction =
   | { action: 'appoint'; member: string; chapter: string | null; role: PositionRole }
@@ -407,7 +431,9 @@ export type DemoAction =
   | { action: 'leaveCrew'; ride: string; member: string }
   | { action: 'saveRoute'; route: string | null; routeName: string; chapter: string | null; notes?: string; gpx: string | null }
   | { action: 'archiveRoute'; route: string }
-  | { action: 'setRideRoute'; ride: string; route: string | null };
+  | { action: 'setRideRoute'; ride: string; route: string | null }
+  | { action: 'saveBriefing'; ride: string; hazards: string[]; changes: string; notes: string }
+  | { action: 'readBriefing'; ride: string };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -435,6 +461,10 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return archiveRoute(ctx, a.route);
     case 'setRideRoute':
       return setRideRoute(ctx, a.ride, a.route);
+    case 'saveBriefing':
+      return saveBriefing(ctx, a.ride, { hazards: a.hazards, changes: a.changes, notes: a.notes });
+    case 'readBriefing':
+      return readBriefing(ctx, a.ride);
     case 'removeContact':
       return removeContact(ctx, a.contact);
     case 'saveBike':

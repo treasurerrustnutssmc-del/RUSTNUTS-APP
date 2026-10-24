@@ -4,6 +4,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
+import { cleanBriefing, readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
 import { todayIso } from '../domain/dates';
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { NO_TRACK, readGpx, type GpxSummary } from '../domain/gpx';
@@ -424,6 +425,29 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const result = ok(await supabase().rpc('route_gpx', { p_route: routeId }));
       if (typeof result.data !== 'string') throw new Error(NO_ROUTE);
       return result.data;
+    },
+
+    saveBriefing: async (rideId, input) => {
+      const ride = data.rides.find((r) => r.id === rideId);
+      const problem = saveBriefingProblem(visibleMe, ride, input, data, new Date().toISOString());
+      if (problem) throw new NotAllowedError(problem);
+      const cleaned = cleanBriefing(input);
+      ok(
+        await supabase().rpc('save_briefing', {
+          p_ride: rideId,
+          p_hazards: cleaned.hazards,
+          p_changes: cleaned.changes,
+          p_notes: cleaned.notes,
+        }),
+      );
+      await after();
+    },
+
+    readBriefing: async (rideId) => {
+      const problem = readBriefingProblem(visibleMe, data.rides.find((r) => r.id === rideId), data);
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('read_briefing', { p_ride: rideId }));
+      await after();
     },
 
     // Lane E: notifications

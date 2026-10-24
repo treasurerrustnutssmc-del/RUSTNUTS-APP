@@ -171,6 +171,20 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     rideRoutes: (calendar.data?.ride_routes ?? [])
       .filter((r) => r.route_id != null)
       .map((r) => ({ rideId: r.ride_id, routeId: r.route_id })),
+    // Also missing for anyone who isn't an approved member. The database keeps empty texts as null.
+    briefings: (calendar.data?.briefings ?? []).map((b) => ({
+      rideId: b.ride_id,
+      hazards: b.hazards ?? [],
+      changes: b.changes ?? '',
+      notes: b.notes ?? '',
+      updatedAt: instant(b.updated_at),
+      updatedBy: b.updated_by,
+    })),
+    briefingReads: (calendar.data?.briefing_reads ?? []).map((r) => ({
+      rideId: r.ride_id,
+      memberId: r.member_id,
+      readAt: instant(r.read_at),
+    })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
   };
 }

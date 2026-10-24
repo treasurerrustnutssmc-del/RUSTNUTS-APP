@@ -3,7 +3,7 @@
 // with the demo's own message. Used by scripts/test-db.sh (via tsx); prints SQL to stdout.
 
 import { readGpx } from '../src/domain/gpx';
-import { caseAction, demoAnswer, fixture as fx, fixtureGpx, type ParityCase } from '../src/data/parityFixture.testkit';
+import { BRIEFED_AT, caseAction, demoAnswer, fixture as fx, fixtureGpx, type ParityCase } from '../src/data/parityFixture.testkit';
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const id = (kind: string, key: string) => `md5(${q(`${kind}:${key}`)})::uuid`;
@@ -128,6 +128,21 @@ for (const r of fx.routes ?? []) {
 for (const r of fx.rideRoutes ?? []) {
   sql(`insert into public.ride_routes (ride_id, route_id) values (${id('r', r.ride)}, ${id('rt', r.route)});`);
 }
+// A text[] literal, each line quoted by q(): array['a', 'b']::text[] (array[]::text[] when empty).
+const textArray = (lines: unknown[]) => `array[${lines.map(q).join(', ')}]::text[]`;
+const orNull = (s: string) => (s === '' ? 'null' : q(s));
+for (const b of fx.briefings ?? []) {
+  sql(
+    `insert into public.ride_briefings (ride_id, hazards, changes, notes, updated_at) values (` +
+      `${id('r', b.ride)}, ${textArray(b.hazards)}, ${orNull(b.changes)}, ${orNull(b.notes)}, ${q(BRIEFED_AT)}::timestamptz);`,
+  );
+}
+for (const r of fx.briefingReads ?? []) {
+  sql(
+    `insert into public.ride_briefing_reads (ride_id, member_id, read_at) values (` +
+      `${id('r', r.ride)}, ${id('m', r.member)}, ${q(BRIEFED_AT)}::timestamptz);`,
+  );
+}
 
 /** A saveRoute call with the summary the app sends: read from the file, as LiveClubProvider does. */
 const saveRouteCall = (c: ParityCase & Record<string, any>): string => {
@@ -167,6 +182,11 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.archive_route(${id('rt', c.route)})`;
     case 'setRideRoute':
       return `public.set_ride_route(${id('r', c.ride)}, ${c.route ? id('rt', c.route) : 'null'})`;
+    case 'saveBriefing':
+      // The texts as typed, untrimmed: the database must clean them the same way the app does.
+      return `public.save_briefing(${id('r', c.ride)}, ${textArray(c.hazards)}, ${q(c.changes)}, ${q(c.notes)})`;
+    case 'readBriefing':
+      return `public.read_briefing(${id('r', c.ride)})`;
     case 'removeContact':
       return `public.remove_contact(${id('c', c.contact)})`;
     case 'saveBike':

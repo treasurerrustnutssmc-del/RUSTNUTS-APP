@@ -3,6 +3,7 @@
 
 import { createContext, useContext } from 'react';
 import type { AccessLevel } from '../domain/access';
+import type { BriefingInput } from '../domain/briefings';
 import type {
   Bike,
   BikeRegistration,
@@ -117,6 +118,10 @@ export interface ClubContextValue {
   setRideRoute: (rideId: string, routeId: string | null) => Promise<void>;
   /** One route's GPX file, for opening in a maps app. Archived routes still read. */
   routeGpx: (routeId: string) => Promise<string>;
+  /** Writes or replaces a ride's briefing (its crew managers and its Road Captain only), until the ride day ends. */
+  saveBriefing: (rideId: string, input: BriefingInput) => Promise<void>;
+  /** Got it: marks the ride's briefing read by you, now. Works on past and cancelled rides too. */
+  readBriefing: (rideId: string) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -140,6 +145,8 @@ export const EMPTY_DATA: ClubData = {
   crew: [],
   routes: [],
   rideRoutes: [],
+  briefings: [],
+  briefingReads: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

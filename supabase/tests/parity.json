@@ -1381,6 +1381,249 @@
       "allowed": false
     },
     {
+      "name": "A board member rewrites a ride's briefing",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "  Gravel after Korweinguboora ",
+        "",
+        "Kangaroos at dusk"
+      ],
+      "changes": " Single file through Myrniong ",
+      "notes": "Cash only",
+      "allowed": true
+    },
+    {
+      "name": "A Road Captain on the board writes a club ride's first briefing",
+      "as": "crank",
+      "action": "saveBriefing",
+      "ride": "future-club",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "Regroup at Pyalong",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "The ride's Road Captain writes the briefing without a board seat",
+      "as": "gravel",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "Breakfast at Daylesford",
+      "allowed": true
+    },
+    {
+      "name": "A rider in an Officer spot, not the Road Captain, writes the briefing",
+      "as": "jet",
+      "action": "saveBriefing",
+      "ride": "future-club",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A member with no crew spot or seat writes the briefing",
+      "as": "spanner",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "An applicant writes a briefing",
+      "as": "dylan",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A briefing for a ride that already happened",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "past-club",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A briefing for a cancelled ride",
+      "as": "crank",
+      "action": "saveBriefing",
+      "ride": "cancelled-north",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A briefing with 13 hazards",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Hazard 1",
+        "Hazard 2",
+        "Hazard 3",
+        "Hazard 4",
+        "Hazard 5",
+        "Hazard 6",
+        "Hazard 7",
+        "Hazard 8",
+        "Hazard 9",
+        "Hazard 10",
+        "Hazard 11",
+        "Hazard 12",
+        "Hazard 13"
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A briefing with 12 hazards and blank lines between them",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Hazard 1",
+        "   ",
+        "Hazard 2",
+        "   ",
+        "Hazard 3",
+        "   ",
+        "Hazard 4",
+        "   ",
+        "Hazard 5",
+        "   ",
+        "Hazard 6",
+        "   ",
+        "Hazard 7",
+        "   ",
+        "Hazard 8",
+        "   ",
+        "Hazard 9",
+        "   ",
+        "Hazard 10",
+        "   ",
+        "Hazard 11",
+        "   ",
+        "Hazard 12",
+        "   "
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A hazard of 121 characters",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A hazard of 120 characters ending in an emoji",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx🏍"
+      ],
+      "changes": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A briefing with nothing in it but spaces",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "  ",
+        ""
+      ],
+      "changes": "   ",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A member taps Got it on a ride's briefing",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "allowed": true
+    },
+    {
+      "name": "A member taps Got it again",
+      "as": "gravel",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a ride with no briefing yet",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-club",
+      "allowed": false
+    },
+    {
+      "name": "Got it on a cancelled ride that has a briefing",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "cancelled-north",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a ride that already happened",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "past-club",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a ride that no longer exists",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "gone",
+      "allowed": false
+    },
+    {
+      "name": "An applicant taps Got it",
+      "as": "dylan",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "allowed": false
+    },
+    {
       "name": "A member posts in the whole-club chat",
       "as": "spanner",
       "action": "chatSend",
@@ -1904,6 +2147,36 @@
     {
       "ride": "future-west",
       "route": "west-loop"
+    }
+  ],
+  "briefings": [
+    {
+      "ride": "future-west",
+      "hazards": [
+        "Roadworks at Bacchus Marsh"
+      ],
+      "changes": "",
+      "notes": "Breakfast at Daylesford"
+    },
+    {
+      "ride": "cancelled-north",
+      "hazards": [],
+      "changes": "No staggered formation",
+      "notes": ""
+    },
+    {
+      "ride": "past-club",
+      "hazards": [
+        "Kangaroos at dusk"
+      ],
+      "changes": "",
+      "notes": ""
+    }
+  ],
+  "briefingReads": [
+    {
+      "ride": "future-west",
+      "member": "gravel"
     }
   ],
   "directs": [
