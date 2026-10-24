@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { AppState, Linking, View } from 'react-native';
+import { AppState, Linking, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { validateApplicationBike } from '../data/clubContext';
 import { DEMO_PERSONAS } from '../data/demoData';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { RootScreen } from '../navigation/types';
-import { colors, space } from '../theme';
+import { colors, space, type } from '../theme';
 import {
   Avatar,
   Body,
@@ -427,7 +427,7 @@ export function PendingScreen() {
         <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
           <Avatar text={initials(me)} />
           <View style={{ flex: 1, gap: 2 }}>
-            <Body strong>{me.fullName}{me.roadName ? ` · ${me.roadName}` : ''}</Body>
+            <Text style={type.name}>{me.fullName}{me.roadName ? ` · ${me.roadName}` : ''}</Text>
             <Small>
               {chapter?.name} chapter · joining as {me.status === 'introduced' ? 'a rider' : STATUS_LABEL[me.status].toLowerCase()}
             </Small>

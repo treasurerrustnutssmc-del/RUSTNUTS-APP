@@ -1,11 +1,11 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { activePositions } from '../domain/access';
 import { ROLE_ORDER } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
-import { colors, space } from '../theme';
-import { Avatar, Body, Chip, ListRow, RoleChip, Row, Small, StatusChip } from './primitives';
+import { colors, space, type } from '../theme';
+import { Avatar, Chip, ListRow, RoleChip, Row, Small, StatusChip } from './primitives';
 
 export function sortedPositions(memberId: string, data: ClubData) {
   return activePositions(memberId, data.positions).sort(
@@ -38,9 +38,9 @@ export function MemberRow({
       left={<Avatar text={initials(member)} />}
       title={
         <Row style={{ gap: space.sm }}>
-          <Body strong numberOfLines={1} style={{ flexShrink: 1 }}>
+          <Text numberOfLines={1} style={[type.name, { flexShrink: 1 }]}>
             {name}
-          </Body>
+          </Text>
           {member.roadName ? (
             <Small numberOfLines={1} style={{ flexShrink: 1 }}>
               {member.fullName}
