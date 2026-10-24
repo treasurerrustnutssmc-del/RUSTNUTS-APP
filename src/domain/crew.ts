@@ -3,6 +3,7 @@
 // words, so the app never offers what the server would refuse.
 
 import { activePositions, holdsBoardSeat, isNational } from './access';
+import { daysBetween } from './dates';
 import { CREW_ROLES } from './labels';
 import { endOfFirstDay, melbourneDate } from './rides';
 import type { ClubData, CrewRole, CrewSpot, Member, Ride } from './types';
@@ -46,7 +47,7 @@ export function eligibilityProblem(target: Member, role: CrewRole, ride: Ride, d
 }
 
 /** The checks both ways of changing the crew start with, up to and including the ride day. */
-function openingProblem(me: Member | null, ride: Ride | undefined, now: string): string | null {
+export function crewChangeProblem(me: Member | null, ride: Ride | undefined, now: string): string | null {
   if (!me) return 'Sign in first.';
   if (me.approval !== 'approved') return 'Only approved members can do that.';
   if (!ride) return 'No such ride.';
@@ -64,9 +65,9 @@ export function crewProblem(
   data: ClubData,
   now: string,
 ): string | null {
-  const opening = openingProblem(me, ride, now);
+  const opening = crewChangeProblem(me, ride, now);
   if (opening) return opening;
-  if (!me || !ride) return null; // narrowed by openingProblem
+  if (!me || !ride) return null; // narrowed by crewChangeProblem
   if (!target) return 'That member no longer exists.';
   const manages = managesRide(me, ride, data);
   if (target.id !== me.id && !manages) return 'Only the board or ride committee can put someone else on the crew.';
@@ -90,9 +91,9 @@ export function leaveProblem(
   data: ClubData,
   now: string,
 ): string | null {
-  const opening = openingProblem(me, ride, now);
+  const opening = crewChangeProblem(me, ride, now);
   if (opening) return opening;
-  if (!me || !ride) return null; // narrowed by openingProblem
+  if (!me || !ride) return null; // narrowed by crewChangeProblem
   if (targetId !== me.id && !managesRide(me, ride, data)) {
     return 'Only the board or ride committee can take someone else off the crew.';
   }
@@ -117,19 +118,43 @@ export function crewNeeded(ride: Ride, crew: CrewSpot[]): boolean {
 const byName = (a: Member, b: Member) =>
   (a.roadName ?? a.fullName).toLowerCase().localeCompare((b.roadName ?? b.fullName).toLowerCase());
 
+/** Who `me` can pick for a spot, in the three groups `pickList` lists in order. */
+export function pickGroups(
+  ride: Ride,
+  role: CrewRole,
+  me: Member,
+  data: ClubData,
+): { going: Member[]; holders: Member[]; rest: Member[]; chapterId: string } {
+  const chapterId = rideChapterId(ride, data) ?? me.chapterId;
+  const answer = (m: Member) => data.rsvps.find((r) => r.rideId === ride.id && r.memberId === m.id)?.answer;
+  const holds = (m: Member) =>
+    activePositions(m.id, data.positions).some((p) => p.role === role && p.chapterId === chapterId);
+  const eligible = data.members.filter((m) => answer(m) !== 'no' && eligibilityProblem(m, role, ride, data) === null);
+  return {
+    going: eligible.filter((m) => answer(m) === 'going').sort(byName),
+    holders: eligible.filter((m) => answer(m) !== 'going' && holds(m)).sort(byName),
+    rest: eligible.filter((m) => answer(m) !== 'going' && !holds(m)).sort(byName),
+    chapterId,
+  };
+}
+
 /**
  * Who `me` can pick for a spot: eligible members, those going first, then standing holders of the
  * same position (in the ride's chapter for a North or West ride, otherwise in `me`'s), then the
  * rest. Each group is by road name. Members who said they can't make it are left out.
  */
 export function pickList(ride: Ride, role: CrewRole, me: Member, data: ClubData): Member[] {
-  const chapterId = rideChapterId(ride, data) ?? me.chapterId;
-  const answer = (m: Member) => data.rsvps.find((r) => r.rideId === ride.id && r.memberId === m.id)?.answer;
-  const holds = (m: Member) =>
-    activePositions(m.id, data.positions).some((p) => p.role === role && p.chapterId === chapterId);
-  const eligible = data.members.filter((m) => answer(m) !== 'no' && eligibilityProblem(m, role, ride, data) === null);
-  const going = eligible.filter((m) => answer(m) === 'going');
-  const holders = eligible.filter((m) => answer(m) !== 'going' && holds(m));
-  const rest = eligible.filter((m) => answer(m) !== 'going' && !holds(m));
-  return [...going.sort(byName), ...holders.sort(byName), ...rest.sort(byName)];
+  const { going, holders, rest } = pickGroups(ride, role, me, data);
+  return [...going, ...holders, ...rest];
+}
+
+/** The spot `memberId` holds on a ride's crew, if any. */
+export function spotOf(rideId: string, memberId: string, crew: CrewSpot[] | undefined): CrewRole | null {
+  return (crew ?? []).find((s) => s.rideId === rideId && s.memberId === memberId)?.role ?? null;
+}
+
+/** The rides list's "Crew needed" tag: for a crew manager, on a ride starting in the next 14 days with no RC or TG. */
+export function showsCrewNeeded(me: Member | null, ride: Ride, data: ClubData, today: string): boolean {
+  const days = daysBetween(today, melbourneDate(ride.startsAt));
+  return days >= 0 && days <= 14 && crewNeeded(ride, data.crew ?? []) && managesRide(me, ride, data);
 }

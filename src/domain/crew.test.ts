@@ -1,6 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crewFor, crewNeeded, crewProblem, eligibilityProblem, leaveProblem, managesRide, pickList } from './crew';
+import {
+  crewChangeProblem,
+  crewFor,
+  crewNeeded,
+  crewProblem,
+  eligibilityProblem,
+  leaveProblem,
+  managesRide,
+  pickGroups,
+  pickList,
+  showsCrewNeeded,
+  spotOf,
+} from './crew';
 import { endOfFirstDay } from './rides';
 import type { Chapter, ClubData, CrewRole, CrewSpot, Member, MemberPrivate, Position, PositionRole, Ride, Rsvp } from './types';
 
@@ -312,4 +324,63 @@ test('the pick list: going first, then standing holders, then the rest', () => {
   const stale = data({ members: people, positions: [], privates: [priv('amy', '2026-01-01')], rsvps: [] });
   assert.equal(pickList(WEST_RIDE, 'tail_gunner', me, stale).some((x) => x.id === 'amy'), false);
   assert.equal(pickList(WEST_RIDE, 'road_captain', me, stale).some((x) => x.id === 'amy'), true);
+});
+
+test('the pick list in its three groups', () => {
+  const people = [
+    member('amy', { roadName: 'Amy' }),
+    member('bob', { roadName: 'Bob' }),
+    member('cat', { roadName: 'Cat' }),
+    member('dan', { roadName: 'Dan', status: 'fng' }),
+  ];
+  const d = data({
+    members: people,
+    privates: [],
+    positions: [position('bob', 'road_captain', 'ch-west')],
+    rsvps: [rsvp('west-ride', 'cat', 'going')],
+  });
+  const groups = pickGroups(WEST_RIDE, 'road_captain', people[0], d);
+  assert.deepEqual(groups.going.map((m) => m.id), ['cat']);
+  assert.deepEqual(groups.holders.map((m) => m.id), ['bob']);
+  assert.deepEqual(groups.rest.map((m) => m.id), ['amy']);
+  assert.equal(groups.chapterId, 'ch-west', 'a West ride uses the West chapter');
+  assert.equal(pickGroups(CLUB_RIDE, 'road_captain', member('n', { chapterId: 'ch-north' }), d).chapterId, 'ch-north', 'a club ride uses the picker’s');
+  assert.deepEqual(
+    pickList(WEST_RIDE, 'road_captain', people[0], d).map((m) => m.id),
+    [...groups.going, ...groups.holders, ...groups.rest].map((m) => m.id),
+    'the list is the groups in order',
+  );
+});
+
+test('whose spot a member holds on a ride', () => {
+  const crew = [spot('west-ride', 'rider', 'tail_gunner'), spot('club-ride', 'rider', 'officer')];
+  assert.equal(spotOf('west-ride', 'rider', crew), 'tail_gunner');
+  assert.equal(spotOf('club-ride', 'rider', crew), 'officer');
+  assert.equal(spotOf('west-ride', 'nobody', crew), null);
+  assert.equal(spotOf('west-ride', 'rider', undefined), null, 'a missing crew list is empty');
+});
+
+test('when the crew can still change at all', () => {
+  assert.equal(crewChangeProblem(rider, WEST_RIDE, NOW), null);
+  assert.equal(crewChangeProblem(null, WEST_RIDE, NOW), 'Sign in first.');
+  assert.equal(crewChangeProblem(rider, CANCELLED, NOW), 'That ride was cancelled.');
+  assert.equal(
+    crewChangeProblem(rider, WEST_RIDE, new Date(endOfFirstDay(WEST_RIDE)).toISOString()),
+    'The crew can’t change after the ride day.',
+  );
+});
+
+test('the Crew needed tag: managers only, open RC or TG, starting in the next 14 days', () => {
+  const d = data(); // WEST_RIDE starts on Sat 7 Nov 2026 (Melbourne)
+  assert.equal(showsCrewNeeded(westPres, WEST_RIDE, d, '2026-10-24'), true, '14 days out');
+  assert.equal(showsCrewNeeded(westPres, WEST_RIDE, d, '2026-10-23'), false, '15 days out');
+  assert.equal(showsCrewNeeded(westPres, WEST_RIDE, d, '2026-11-07'), true, 'on the day');
+  assert.equal(showsCrewNeeded(westPres, WEST_RIDE, d, '2026-11-08'), false, 'once it has started');
+  assert.equal(showsCrewNeeded(rider, WEST_RIDE, d, '2026-11-01'), false, 'not for members who can’t pick');
+  assert.equal(showsCrewNeeded(northRc, WEST_RIDE, d, '2026-11-01'), false, 'not for another chapter’s board');
+  assert.equal(showsCrewNeeded(null, WEST_RIDE, d, '2026-11-01'), false);
+  const crewed = data({ crew: [spot('west-ride', 'a', 'road_captain'), spot('west-ride', 'b', 'tail_gunner')] });
+  assert.equal(showsCrewNeeded(westPres, WEST_RIDE, crewed, '2026-11-01'), false, 'RC and TG filled');
+  assert.equal(showsCrewNeeded(westPres, WEST_RIDE, data({ crew: undefined }), '2026-11-01'), true, 'a missing crew list is empty');
+  assert.equal(showsCrewNeeded(nec, CANCELLED, d, '2026-11-01'), false, 'not on a cancelled ride');
 });
