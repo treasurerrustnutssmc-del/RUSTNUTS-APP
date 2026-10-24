@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   ImageBackground,
+  Keyboard,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,6 +14,8 @@ import {
   Text,
   TextInput,
   View,
+  type HostInstance,
+  type ScrollViewInstance,
   type StyleProp,
   type TextInputProps,
   type TextStyle,
@@ -28,6 +32,77 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 // Layout
 // ---------------------------------------------------------------------------
 
+/** Lets a text box inside a Screen ask to be scrolled clear of the on-screen keyboard. */
+type RevealField = { reveal: (field: HostInstance | null) => void; forget: (field: HostInstance | null) => void };
+const RevealFieldContext = createContext<RevealField | null>(null);
+
+/**
+ * Phones only: while the keyboard is up, the page gets that much extra room at the bottom and
+ * the focused box is scrolled up near the top, so you can always see what you're typing.
+ * (On the web the browser does this itself.)
+ */
+function useKeyboardRoom() {
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const contentRef = useRef<HostInstance>(null);
+  const pending = useRef<HostInstance | null>(null);
+  const waitingForRoom = useRef(false);
+  const [keyboard, setKeyboard] = useState(0);
+
+  const scrollTo = useCallback((field: HostInstance | null) => {
+    const content = contentRef.current;
+    if (!field || !content) return;
+    field.measureLayout(
+      content,
+      (_x: number, y: number) => scrollRef.current?.scrollTo({ y: Math.max(0, y - space.xxl * 3), animated: true }),
+      () => {},
+    );
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const shown = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboard(e.endCoordinates.height);
+      // Scroll once the extra room is laid out (onContentSizeChange), with a timer as a backstop.
+      waitingForRoom.current = true;
+      timer = setTimeout(() => {
+        if (waitingForRoom.current) scrollTo(pending.current);
+        waitingForRoom.current = false;
+      }, 120);
+    });
+    // The box can stay focused when the keyboard is closed with the back gesture, so the field
+    // is only forgotten when it loses focus, not here; tapping it again still scrolls to it.
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboard(0));
+    return () => {
+      shown.remove();
+      hidden.remove();
+      clearTimeout(timer);
+    };
+  }, [scrollTo]);
+
+  const onContentSizeChange = useCallback(() => {
+    if (!waitingForRoom.current) return;
+    waitingForRoom.current = false;
+    scrollTo(pending.current);
+  }, [scrollTo]);
+
+  const reveal = useCallback(
+    (field: HostInstance | null) => {
+      if (Platform.OS === 'web') return;
+      pending.current = field;
+      if (Keyboard.isVisible()) scrollTo(field); // moving between boxes with the keyboard already up
+    },
+    [scrollTo],
+  );
+
+  const forget = useCallback((field: HostInstance | null) => {
+    if (pending.current === field) pending.current = null;
+  }, []);
+
+  const field = useMemo(() => ({ reveal, forget }), [reveal, forget]);
+  return { scrollRef, contentRef, keyboard, field, onContentSizeChange };
+}
+
 export function Screen({
   children,
   scroll = true,
@@ -41,6 +116,7 @@ export function Screen({
   onRefresh?: () => Promise<void>;
 }) {
   const insets = useSafeAreaInsets();
+  const { scrollRef, contentRef, keyboard, field, onContentSizeChange } = useKeyboardRoom();
   const [refreshing, setRefreshing] = useState(false);
   const refreshControl = onRefresh ? (
     <RefreshControl
@@ -55,24 +131,33 @@ export function Screen({
   ) : undefined;
   const inner = (
     <View
+      ref={contentRef}
       style={[
         styles.screenInner,
-        { paddingTop: padTop ? insets.top + space.lg : space.lg, paddingBottom: insets.bottom + space.xxl },
+        { paddingTop: padTop ? insets.top + space.lg : space.lg, paddingBottom: insets.bottom + space.xxl + keyboard },
       ]}
     >
       {children}
     </View>
   );
   return (
-    <View style={styles.screen}>
-      {scroll ? (
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" refreshControl={refreshControl}>
-          {inner}
-        </ScrollView>
-      ) : (
-        inner
-      )}
-    </View>
+    <RevealFieldContext.Provider value={scroll ? field : null}>
+      <View style={styles.screen}>
+        {scroll ? (
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={refreshControl}
+            onContentSizeChange={onContentSizeChange}
+          >
+            {inner}
+          </ScrollView>
+        ) : (
+          inner
+        )}
+      </View>
+    </RevealFieldContext.Provider>
   );
 }
 
@@ -269,18 +354,22 @@ export function Field({
   ...input
 }: TextInputProps & { label: string; hint?: string; error?: string | null }) {
   const [focused, setFocused] = useState(false);
+  const reveal = useContext(RevealFieldContext);
+  const box = useRef<HostInstance>(null);
   return (
-    <View style={styles.field}>
+    <View style={styles.field} ref={box}>
       <Label>{label}</Label>
       <TextInput
         placeholderTextColor={colors.boneMute}
         {...input}
         onFocus={(e) => {
           setFocused(true);
+          reveal?.reveal(box.current); // the label comes into view too, not just the box
           input.onFocus?.(e);
         }}
         onBlur={(e) => {
           setFocused(false);
+          reveal?.forget(box.current);
           input.onBlur?.(e);
         }}
         style={[

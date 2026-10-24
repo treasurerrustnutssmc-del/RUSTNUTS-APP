@@ -64,6 +64,7 @@ function MainTabs() {
           paddingTop: 6,
           paddingBottom: insets.bottom + 6,
         },
+        tabBarHideOnKeyboard: true, // otherwise Android lifts the tab bar on top of the keyboard
         tabBarActiveTintColor: colors.redText,
         tabBarInactiveTintColor: colors.boneMute,
         tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: 11.5, lineHeight: 16, letterSpacing: 0.3 },

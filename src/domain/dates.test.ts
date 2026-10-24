@@ -8,6 +8,7 @@ import {
   formatLongDate,
   monthsBetween,
   parseAuDate,
+  typeDate,
 } from './dates';
 
 test('reads Australian dates', () => {
@@ -45,4 +46,19 @@ test('flags expiries', () => {
   assert.equal(describeExpiry('2026-10-12', today), 'Expired 12 Oct 2026');
   assert.equal(describeExpiry('2026-10-25', today), 'Expires tomorrow');
   assert.equal(describeExpiry('2027-03-02', today), 'Expires 2 Mar 2027');
+});
+
+test('typing a date on the number pad puts the slashes in for you', () => {
+  assert.equal(typeDate(''), '');
+  assert.equal(typeDate('0'), '0');
+  assert.equal(typeDate('08'), '08');
+  assert.equal(typeDate('081'), '08/1');
+  assert.equal(typeDate('0811'), '08/11');
+  assert.equal(typeDate('08112026'), '08/11/2026');
+  assert.equal(typeDate('08/11/2026'), '08/11/2026', 'already formatted stays put');
+  assert.equal(typeDate('08/11/20267'), '08/11/2026', 'no more than eight digits');
+  assert.equal(typeDate('08/1'), '08/1', 'backspacing works digit by digit');
+  assert.equal(typeDate('ab08x11'), '08/11', 'only digits count');
+  assert.equal(typeDate('8/11/2026'), '8/11/2026', 'a pasted date with its own slashes is left alone');
+  assert.equal(typeDate('08/1/2026'), '08/1/2026', 'deleting a digit in the middle doesn\'t shuffle the rest');
 });
