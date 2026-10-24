@@ -24,12 +24,12 @@ function ctxAs(key: string | null): ChatCtx {
 
 test('sending trims the words, keeps the GIFs in order and marks the chat read for the sender', () => {
   const ctx = ctxAs('spanner');
-  const gif = (n: number) => ({ kind: 'gif' as const, path: `https://media.tenor.com/${n}.gif`, posterPath: null, width: 200, height: 150, durationMs: null });
+  const gif = (n: number) => ({ kind: 'gif' as const, path: `https://media1.giphy.com/media/${n}.gif`, posterPath: null, width: 200, height: 150, durationMs: null });
   const { chat, id } = sendMessage(ctx, 'club', '  G’day  ', [gif(1), gif(2)]);
   const sent = chat.messages.find((m) => m.id === id)!;
   assert.equal(sent.body, 'G’day');
   assert.equal(sent.authorId, 'spanner');
-  assert.deepEqual(sent.media.map((m) => [m.path, m.position]), [['https://media.tenor.com/1.gif', 0], ['https://media.tenor.com/2.gif', 1]]);
+  assert.deepEqual(sent.media.map((m) => [m.path, m.position]), [['https://media1.giphy.com/media/1.gif', 0], ['https://media1.giphy.com/media/2.gif', 1]]);
   assert.equal(chat.reads.find((r) => r.conversationId === 'club' && r.memberId === 'spanner')?.readAt, NOW);
   assert.throws(() => sendMessage(ctx, 'chapter:north', 'hi', []), /That chat is for North chapter members\./);
 });

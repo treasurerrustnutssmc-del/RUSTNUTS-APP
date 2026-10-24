@@ -47,6 +47,15 @@ export interface ReportView {
   conversation: Conversation;
 }
 
+/** The card under a link: from the page's Open Graph tags. */
+export interface LinkPreview {
+  url: string;
+  site: string;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+}
+
 /** Something an image or video component can show: a web address, or a bundled demo picture. */
 export type MediaSource = string | number;
 
@@ -78,6 +87,8 @@ export interface ChatContextValue {
   rideWalls: () => Promise<RideWall[]>;
   rideWall: (rideId: string) => Promise<{ ride: Ride; chatId: string; media: FeedItem[] }>;
   mediaUrl: (path: string) => Promise<MediaSource>;
+  /** The card for a link, or null when the page has nothing to show (or can't be reached). */
+  linkPreview: (url: string) => Promise<LinkPreview | null>;
   refresh: () => Promise<void>;
 }
 

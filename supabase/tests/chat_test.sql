@@ -185,9 +185,9 @@ begin
     = 'That chat is for the West board.', 'not the other chapter''s board';
   assert pg_temp.try_as('00000000-0000-0000-0000-0000000000d2', format(send, pg_temp.chat('nec'), 'x', '[]', null)) = 'That chat is for the NEC.', 'NEC';
   assert pg_temp.try_as('00000000-0000-0000-0000-0000000000d5', format(send, pg_temp.chat('nec'), 'Chairs, meeting?', '[]', null)) is null, 'a President';
-  assert pg_temp.try_as(wes, format(send, pg_temp.chat('club'), '', jsonb_build_array(jsonb_build_object('path', 'https://media.tenor.com/abc123/tenor.gif', 'kind', 'gif', 'width', 220, 'height', 160)), null)) is null, 'a GIF';
+  assert pg_temp.try_as(wes, format(send, pg_temp.chat('club'), '', jsonb_build_array(jsonb_build_object('path', 'https://media2.giphy.com/media/v1.Y2lk/abc123/giphy.gif?cid=1a2b&rid=giphy.gif&ct=g', 'kind', 'gif', 'width', 220, 'height', 160)), null)) is null, 'a GIF';
   assert pg_temp.try_as(wes, format(send, pg_temp.chat('club'), '', jsonb_build_array(jsonb_build_object('path', 'https://evil.example/x.gif', 'kind', 'gif')), null))
-    = 'That photo didn’t upload properly. Try again.', 'only Tenor GIFs';
+    = 'That photo didn’t upload properly. Try again.', 'only GIPHY GIFs';
 end $$;
 
 \echo 'Nothing is written straight into the chat tables'
@@ -509,4 +509,21 @@ begin
   assert pg_temp.value_as(wes, $q$select (public.ride_walls()->0->>'count')$q$)::int = 3, 'with its count';
   assert pg_temp.value_as(wes, $q$select jsonb_array_length(public.ride_wall('00000000-0000-0000-0000-0000000000e2')->'media')$q$)::int = 3, 'and its photos';
   assert pg_temp.value_as('00000000-0000-0000-0000-0000000000d7', 'select public.club_photos(null, 50)') = '[]', 'an applicant gets nothing';
+end $$;
+
+\echo 'Link previews: members read what is kept, only the Edge Function keeps them'
+do $$
+declare
+  wes constant uuid := '00000000-0000-0000-0000-0000000000d1';
+begin
+  assert pg_temp.value_as(wes, $q$select public.link_preview('https://example.com/')::text$q$) = '{"found": false}', 'nothing kept yet';
+  assert pg_temp.try_as(wes, $q$select public.save_link_preview('https://example.com/', '{"title": "x"}')$q$) is not null, 'members can''t keep one';
+  set local role service_role;
+  perform public.save_link_preview('https://example.com/', '{"title": "Example"}');
+  reset role;
+  assert pg_temp.value_as(wes, $q$select public.link_preview('https://example.com/')->'preview'->>'title'$q$) = 'Example', 'kept';
+  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000d7', $q$select public.link_preview('https://example.com/')$q$)
+    = 'Only approved members can do that.', 'not for applicants';
+  update private.link_previews set fetched_at = now() - interval '8 days';
+  assert pg_temp.value_as(wes, $q$select public.link_preview('https://example.com/')->>'found'$q$) = 'false', 'a week on, fetched again';
 end $$;

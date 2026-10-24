@@ -7,7 +7,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { chatTitle, postProblem, type Block, type Message } from '../../domain/chat';
 import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
-import { ChatContext, type Attachment, type ChatContextValue, type ChatSummary, type MediaSource } from './chatContext';
+import {
+  ChatContext,
+  type Attachment,
+  type ChatContextValue,
+  type ChatSummary,
+  type LinkPreview,
+  type MediaSource,
+} from './chatContext';
 import { sortSummaries, withoutBlocked } from './chatList';
 import {
   mergeMessages,
@@ -59,6 +66,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const openChats = useRef(new Map<string, number>());
   const urls = useRef(new Map<string, { url: string; until: number }>());
+  const previews = useRef(new Map<string, LinkPreview | null>());
   const meId = me?.id ?? null;
 
   const loadList = useCallback(async () => {
@@ -195,6 +203,16 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     return data.signedUrl;
   };
 
+  const linkPreview = async (url: string): Promise<LinkPreview | null> => {
+    if (previews.current.has(url)) return previews.current.get(url) ?? null;
+    const { data, error } = await db().functions.invoke('link-preview', { body: { url } });
+    // A link without a card is fine; only keep answers, so a dropped connection tries again later.
+    if (error) return null;
+    const preview = (data as { preview?: LinkPreview | null } | null)?.preview ?? null;
+    previews.current.set(url, preview);
+    return preview;
+  };
+
   const value: ChatContextValue = {
     ready,
     list,
@@ -254,6 +272,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
       return { ride: toRide(w.ride), chatId: w.chat_id, media: w.media.map(toFeedItem) };
     },
     mediaUrl,
+    linkPreview,
     refresh: async () => {
       await Promise.all([loadList(), loadBlocks(), ...[...openChats.current.keys()].map((id) => loadPage(id))]);
     },

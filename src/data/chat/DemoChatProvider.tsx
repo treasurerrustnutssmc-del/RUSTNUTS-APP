@@ -8,7 +8,7 @@ import { useClub } from '../clubContext';
 import { ChatContext, type Attachment, type ChatContextValue, type ReportView } from './chatContext';
 import { feedFrom, listFor, rideWallFrom, rideWallsFrom, withoutBlocked } from './chatList';
 import * as act from './demoChatActions';
-import { DEMO_MEDIA, DEMO_PAST_RIDES, demoChatData } from './demoChatData';
+import { DEMO_MEDIA, DEMO_PAST_RIDES, DEMO_PREVIEWS, demoChatData } from './demoChatData';
 
 const toNewMedia = (a: Attachment): Omit<MessageMedia, 'id' | 'messageId' | 'position'> =>
   a.kind === 'gif'
@@ -85,6 +85,7 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
     rideWalls: async () => rideWallsFrom(chat, club, me),
     rideWall: async (rideId) => rideWallFrom(chat, club, me, rideId),
     mediaUrl: async (path) => DEMO_MEDIA[path] ?? path,
+    linkPreview: async (url) => DEMO_PREVIEWS[url] ?? null,
     refresh: async () => {},
   };
 

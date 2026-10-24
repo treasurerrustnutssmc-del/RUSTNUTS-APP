@@ -3,6 +3,7 @@
 
 import type { Conversation, Message, MessageMedia } from '../../domain/chat';
 import type { Ride } from '../../domain/types';
+import type { LinkPreview } from './chatContext';
 import type { ChatData } from './demoChatActions';
 
 /** The demo's pictures, by the path a message stores. */
@@ -11,6 +12,14 @@ export const DEMO_MEDIA: Record<string, number> = {
   'demo/coast-road.jpg': require('../../../assets/demo/coast-road.jpg'),
   'demo/twisties.jpg': require('../../../assets/demo/twisties.jpg'),
   'demo/servo-night.jpg': require('../../../assets/demo/servo-night.jpg'),
+};
+
+/** The demo makes no web requests, so its one link has its card written out. */
+export const DEMO_PREVIEWS: Record<string, LinkPreview> = {
+  'https://www.vicroads.vic.gov.au': {
+    url: 'https://www.vicroads.vic.gov.au', site: 'VicRoads', title: 'Check registration',
+    description: 'Check the registration status of a vehicle in Victoria.', image: null,
+  },
 };
 
 /** A ride that already happened, so the demo has a ride wall to look at. */

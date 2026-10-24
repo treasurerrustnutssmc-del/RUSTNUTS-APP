@@ -194,11 +194,15 @@ manage". These replace the "Not in this spec" lines about board chat, GIFs and l
 - **Charity Committee position** (`charity_committee` in `position_role`, its own migration so the
   new value is committed before use). A non-board club position, appointed like Tail Gunner, held
   on top of any rank or other position.
-- **GIFs:** a GIF button in the composer opens a search (Tenor, through an Edge Function
-  `gif-search` so the key stays on the server). A GIF goes in as media `kind = 'gif'` holding Tenor's
-  https address (only `https://media.tenor.com/`), sizes included. GIFs stay out of the Photos feed
-  and ride walls. Needs a free Tenor API key from the club's Google account: Jeff's yes, asked
-  once at the end. Until then the GIF button says GIFs aren't switched on yet.
+- **GIFs:** a GIF button in the composer opens GIPHY search (trending when the box is empty). Google
+  shut the Tenor API on 30 June 2026, so GIPHY it is. GIPHY asks that searches come from the app
+  itself, so the app carries GIPHY's app key (`EXPO_PUBLIC_GIPHY_KEY`, made to ship in apps, like
+  the publishable Supabase key). A GIF goes in as media `kind = 'gif'` holding GIPHY's https
+  address (only `media*.giphy.com` and `i.giphy.com`, checked by the database), sizes included.
+  Rated up to R. GIFs stay out of the Photos feed and ride walls. "Powered by GIPHY" shows in the
+  picker. The free key allows about 100 searches an hour for the whole club; a production key is
+  GIPHY's call (they may charge). Making the key needs Jeff's yes, asked once at the end. Until
+  then the GIF button says GIFs aren't switched on yet.
 - **Link previews:** the first link in a message shows a card (site, title, short description,
   picture), from an Edge Function `link-preview` that reads the page's Open Graph tags and keeps
   them for 7 days in `private.link_previews`. It only fetches public http(s) addresses (no IP

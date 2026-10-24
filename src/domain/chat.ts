@@ -10,7 +10,7 @@ import type { ClubData, Member, Ride, RsvpAnswer } from './types';
 
 export type ChatKind = 'club' | 'chapter' | 'board' | 'nec' | 'committee' | 'ride' | 'direct';
 export type ChatCommittee = 'ride' | 'charity';
-/** A GIF is Tenor's own https address, not a file in the club's storage. */
+/** A GIF is GIPHY's own https address, not a file in the club's storage. */
 export type MediaKind = 'photo' | 'video' | 'gif';
 
 export interface Conversation {
@@ -78,6 +78,8 @@ export const MAX_MEDIA = 10;
 export const MAX_VIDEO_MS = 60_000;
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 export const MAX_REASON = 500;
+/** The only GIF addresses a message can hold: GIPHY's own (the database checks the same pattern). */
+export const GIF_URL = /^https:\/\/(media[0-9]?|i)\.giphy\.com\/[A-Za-z0-9_./?&=%-]+$/;
 /** Messages from one person closer together than this sit in one run. */
 const RUN_GAP_MS = 5 * 60_000;
 

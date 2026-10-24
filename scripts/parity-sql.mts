@@ -95,7 +95,7 @@ for (const m of fx.messages ?? []) {
 const caseChat = `nullif(current_setting('parity.chat'), '')::uuid`;
 const text = (s: string, repeat?: number) => q(repeat ? s.repeat(repeat) : s);
 const gifs = (n = 0) =>
-  `${q(JSON.stringify(Array.from({ length: n }, (_, i) => ({ kind: 'gif', path: `https://media.tenor.com/parity/${i}.gif`, width: 220, height: 160 }))))}::jsonb`;
+  `${q(JSON.stringify(Array.from({ length: n }, (_, i) => ({ kind: 'gif', path: `https://media1.giphy.com/media/parity${i}/giphy.gif`, width: 220, height: 160 }))))}::jsonb`;
 
 const call = (c: ParityCase & Record<string, any>): string => {
   switch (c.action) {

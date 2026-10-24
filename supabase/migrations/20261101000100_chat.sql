@@ -379,10 +379,10 @@ begin
   if n > 10 then raise exception 'Up to 10 photos or videos at a time.'; end if;
 
   -- Each file: the right kind, in this chat's folder, uploaded by the sender, not used before. A GIF
-  -- is Tenor's own https address instead.
+  -- is GIPHY's own https address instead.
   for item in select value from jsonb_array_elements(media) loop
     if item->>'kind' = 'gif' then
-      if coalesce(item->>'path', '') !~ '^https://media\.tenor\.com/[A-Za-z0-9_./-]+$' or item ? 'posterPath' and item->>'posterPath' is not null then
+      if coalesce(item->>'path', '') !~ '^https://(media[0-9]?|i)\.giphy\.com/[A-Za-z0-9_./?&=%-]+$' or item ? 'posterPath' and item->>'posterPath' is not null then
         raise exception 'That photo didn’t upload properly. Try again.';
       end if;
       continue;

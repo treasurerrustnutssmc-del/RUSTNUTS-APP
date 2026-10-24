@@ -242,7 +242,7 @@ export const caseText = (text: string, repeat?: number) => (repeat ? text.repeat
 /** A case's GIFs: n made-up Tenor addresses. */
 export const caseGifs = (n = 0): NewMedia[] =>
   Array.from({ length: n }, (_, i) => ({
-    kind: 'gif' as const, path: `https://media.tenor.com/parity/${i}.gif`, posterPath: null, width: 220, height: 160, durationMs: null,
+    kind: 'gif' as const, path: `https://media1.giphy.com/media/parity${i}/giphy.gif`, posterPath: null, width: 220, height: 160, durationMs: null,
   }));
 
 export function runChatAction(ctx: ChatCtx, a: ChatAction): ChatData {
