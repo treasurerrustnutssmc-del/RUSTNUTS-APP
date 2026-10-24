@@ -2,10 +2,12 @@
 // read them. These are the rules the database's save_briefing and read_briefing actions apply, in
 // the same order with the same words, so the app never offers what the server would refuse.
 
-import { byName, managesRide, spotOf } from './crew';
-import { endOfFirstDay } from './rides';
+import { byName, crewFor, managesRide, spotOf } from './crew';
+import { formatAuDate } from './dates';
+import { displayName } from './profile';
+import { endOfFirstDay, melbourneDate, melbourneTime } from './rides';
 import { signedInProblem } from './routes';
-import type { Briefing, ClubData, Member, Ride } from './types';
+import type { Briefing, ClubData, CrewRole, Member, Ride } from './types';
 
 /** The most hazard lines a briefing holds, after blank ones are dropped. */
 export const MAX_HAZARDS = 12;
@@ -66,17 +68,28 @@ export function saveBriefingProblem(
   data: ClubData,
   now: string,
 ): string | null {
+  const editing = editBriefingProblem(me, ride, data, now);
+  if (editing) return editing;
+  const { hazards, changes, notes } = cleanBriefing(input);
+  if (hazards.length > MAX_HAZARDS) return TOO_MANY_HAZARDS;
+  if (hazards.some((h) => length(h) > MAX_HAZARD)) return HAZARD_TOO_LONG;
+  if (length(changes) > MAX_TEXT || length(notes) > MAX_TEXT) return TEXT_TOO_LONG;
+  if (hazards.length === 0 && changes === '' && notes === '') return BRIEFING_EMPTY;
+  return null;
+}
+
+/**
+ * Why `me` can't write or edit this ride's briefing right now, whatever they type: the first six
+ * of the save checks (sign in, approved, the ride, cancelled, the ride day, a writer). The screens
+ * use it to decide whether to offer Write briefing and Edit.
+ */
+export function editBriefingProblem(me: Member | null, ride: Ride | undefined, data: ClubData, now: string): string | null {
   const opening = signedInProblem(me);
   if (opening) return opening;
   if (!ride) return NO_RIDE;
   if (ride.cancelledAt) return RIDE_CANCELLED;
   if (new Date(now).getTime() >= endOfFirstDay(ride)) return BRIEFING_LOCKED;
   if (!writesBriefing(me, ride, data)) return NOT_WRITER;
-  const { hazards, changes, notes } = cleanBriefing(input);
-  if (hazards.length > MAX_HAZARDS) return TOO_MANY_HAZARDS;
-  if (hazards.some((h) => length(h) > MAX_HAZARD)) return HAZARD_TOO_LONG;
-  if (length(changes) > MAX_TEXT || length(notes) > MAX_TEXT) return TEXT_TOO_LONG;
-  if (hazards.length === 0 && changes === '' && notes === '') return BRIEFING_EMPTY;
   return null;
 }
 
@@ -132,4 +145,68 @@ export function unreadGoing(ride: Ride, data: ClubData): Member[] {
   return goingMembers(ride, data)
     .filter((m) => readState(m, ride.id, data) !== 'current')
     .sort(byName);
+}
+
+// ---------------------------------------------------------------------------
+// What the screens show
+// ---------------------------------------------------------------------------
+
+/** The card's "If something goes wrong" lines (constitution 7.6). */
+export const SAFETY_LINE = `Safety calls, in order: ${SAFETY_ORDER.join(' → ')} (constitution 7.6).`;
+export const STOPPED_RIDER = 'Stopped rider? The TG stops with them. An Officer takes the rear.';
+
+/** A hazard line or text field that's over its limit once trimmed, so the form can mark it as you type. */
+export const hazardTooLong = (line: string): boolean => length(line.trim()) > MAX_HAZARD;
+export const textTooLong = (text: string): boolean => length(text.trim()) > MAX_TEXT;
+
+/** The ride screen's summary: the first hazard, and how many more there are. Null with no hazards. */
+export function hazardSummary(hazards: string[]): { first: string; more: number } | null {
+  return hazards.length === 0 ? null : { first: hazards[0], more: hazards.length - 1 };
+}
+
+/** "+2 more", or null when there are no more. */
+export function moreLabel(more: number): string | null {
+  return more > 0 ? `+${more} more` : null;
+}
+
+/** "6 of 9 going have read it". */
+export function readCountLine({ read, going }: { read: number; going: number }): string {
+  return going === 0 ? 'Nobody’s said Going yet' : `${read} of ${going} going have read it`;
+}
+
+/** "at 7:42 am" on the same Melbourne day as `now`, otherwise "on 24/10/2026 at 7:42 am". */
+export function stampLine(iso: string, now: string): string {
+  const day = melbourneDate(iso);
+  const time = melbourneTime(iso);
+  return day === melbourneDate(now) ? `at ${time}` : `on ${formatAuDate(day)} at ${time}`;
+}
+
+/** "You read this at 7:42 am". */
+export function readLine(readAt: string, now: string): string {
+  return `You read this ${stampLine(readAt, now)}`;
+}
+
+/** "Updated at 8:15 pm by Torque", leaving out who when they aren't known. */
+export function updatedLine(briefing: Briefing, data: ClubData, now: string): string {
+  const by = briefing.updatedBy ? data.members.find((m) => m.id === briefing.updatedBy) : undefined;
+  return `Updated ${stampLine(briefing.updatedAt, now)}${by ? ` by ${displayName(by)}` : ''}`;
+}
+
+/**
+ * The card's crew: each spot held, in the listed order (RC, TG, ATG, then Officers), with the
+ * holder's name, and who carries first aid (the Tail Gunner), or null when there's no TG.
+ */
+export function briefingCrew(rideId: string, data: ClubData): { rows: { role: CrewRole; name: string }[]; firstAid: string | null } {
+  const nameOf = (memberId: string) => {
+    const m = data.members.find((x) => x.id === memberId);
+    return m ? displayName(m) : 'A former member';
+  };
+  const rows = crewFor(rideId, data.crew ?? []).map((s) => ({ role: s.role, name: nameOf(s.memberId) }));
+  return { rows, firstAid: rows.find((r) => r.role === 'tail_gunner')?.name ?? null };
+}
+
+/** What the edit form starts with: the briefing as it is, with at least one (empty) hazard line. */
+export function editStart(briefing: Briefing | undefined): BriefingInput {
+  const hazards = briefing?.hazards ?? [];
+  return { hazards: hazards.length > 0 ? [...hazards] : [''], changes: briefing?.changes ?? '', notes: briefing?.notes ?? '' };
 }

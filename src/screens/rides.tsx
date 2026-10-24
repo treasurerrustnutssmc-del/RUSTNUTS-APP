@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
+import { briefingOf, editBriefingProblem, hazardSummary, moreLabel, readCount, readCountLine, readState } from '../domain/briefings';
 import { formatAuDate } from '../domain/dates';
 import { canVolunteer, crewChangeProblem, crewRows, leaveProblem, managesRide, showsCrewNeeded, spotOf } from '../domain/crew';
 import type { CrewRowSlot } from '../domain/crew';
@@ -437,6 +438,14 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         onChoose={() => navigation.navigate('PickRoute', { rideId: ride.id })}
       />
 
+      <BriefingSection
+        ride={ride}
+        me={me}
+        data={data}
+        onOpen={() => navigation.navigate('Briefing', { rideId: ride.id })}
+        onWrite={() => navigation.navigate('EditBriefing', { rideId: ride.id })}
+      />
+
       <CrewSection ride={ride} me={me} data={data} onPick={(role) => navigation.navigate('PickCrew', { rideId: ride.id, role })} />
       {/* Stage 3 (lane B): the ride's chat and photo wall */}
       <RideChatRows
@@ -556,6 +565,76 @@ function RouteSection({
       <View accessibilityLiveRegion="polite" role="alert">
         {error ? <Notice tone="danger">{error}</Notice> : null}
       </View>
+    </Stack>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The ride's briefing
+// ---------------------------------------------------------------------------
+
+/**
+ * The briefing in short: the first hazard and how many more, the read count, and the way into the
+ * card. With no briefing, its writers get Write briefing (until the ride day is over); everyone
+ * else, and anyone not yet approved, sees nothing.
+ */
+function BriefingSection({
+  ride,
+  me,
+  data,
+  onOpen,
+  onWrite,
+}: {
+  ride: Ride;
+  me: Member;
+  data: ClubData;
+  onOpen: () => void;
+  onWrite: () => void;
+}) {
+  if (me.approval !== 'approved') return null;
+  const briefing = briefingOf(ride.id, data);
+  const canWrite = editBriefingProblem(me, ride, data, new Date().toISOString()) === null;
+  if (!briefing && !canWrite) return null;
+
+  if (!briefing) {
+    return (
+      <Stack gap={space.sm}>
+        <SectionTitle title="Briefing" />
+        <Card>
+          <Text style={type.name}>No briefing yet</Text>
+          <Body>Hazards, any changes to the Road Rules, and anything else riders need before they leave home.</Body>
+          <Button label="Write briefing" icon="create-outline" kind="secondary" onPress={onWrite} />
+        </Card>
+      </Stack>
+    );
+  }
+
+  const summary = hazardSummary(briefing.hazards);
+  const more = summary ? moreLabel(summary.more) : null;
+  const state = readState(me, ride.id, data);
+  return (
+    <Stack gap={space.sm}>
+      <SectionTitle title="Briefing" />
+      <Card>
+        {summary ? (
+          <Row style={styles.briefingHazard}>
+            <Ionicons name="warning" size={20} color={colors.warn} style={{ marginTop: 1 }} />
+            <Text style={[type.name, { flex: 1 }]}>
+              {summary.first}
+              {more ? <Text style={styles.briefingMore}>{`  ${more}`}</Text> : null}
+            </Text>
+          </Row>
+        ) : (
+          <Text style={[type.name, { color: colors.boneDim }]}>No hazards listed</Text>
+        )}
+        <Row style={{ gap: 6 }}>
+          {briefing.changes ? <Chip label="Road Rules changed" tone="warn" icon="alert-circle" /> : null}
+          {state === 'current' ? <Chip label="You’ve read it" tone="ok" icon="checkmark" /> : null}
+          {state === 'stale' ? <Chip label="Updated since you read it" tone="warn" /> : null}
+        </Row>
+        <Text style={styles.metaTime}>{readCountLine(readCount(ride, data))}</Text>
+        <Button label="Open briefing card" icon="document-text-outline" kind="secondary" onPress={onOpen} />
+      </Card>
     </Stack>
   );
 }
@@ -826,6 +905,8 @@ const styles = StyleSheet.create({
   },
   crewTileText: { fontFamily: fonts.stencil, fontSize: 18, letterSpacing: 1, color: colors.bone },
   crewRole: { fontFamily: fonts.stencil, fontSize: 13, lineHeight: 18, letterSpacing: 0.4, color: colors.boneMute },
+  briefingHazard: { gap: space.sm, alignItems: 'flex-start', flexWrap: 'nowrap' },
+  briefingMore: { fontFamily: fonts.stencil, fontSize: 14, color: colors.boneMute },
   // Full row width, so a two-tap confirm and its Cancel fit on one line at phone size.
   crewActions: { gap: space.sm },
 });

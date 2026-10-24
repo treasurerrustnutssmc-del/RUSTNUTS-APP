@@ -15,6 +15,7 @@ import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, Me
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
 import { PickCrewScreen } from '../screens/pickCrew';
 import { EditRouteScreen, PickRouteScreen, RouteScreen, RoutesScreen } from '../screens/routes';
+import { BriefingScreen, EditBriefingScreen } from '../screens/briefing';
 // Lane E: live ride
 import { LiveRideScreen } from '../screens/liveRide';
 // Lane E: notifications
@@ -170,6 +171,9 @@ export function RootNavigator() {
             <Stack.Screen name="Route" component={RouteScreen} options={{ title: 'Route' }} />
             <Stack.Screen name="EditRoute" component={EditRouteScreen} options={({ route }) => ({ title: route.params?.routeId ? 'Edit route' : 'Add route' })} />
             <Stack.Screen name="PickRoute" component={PickRouteScreen} options={{ title: 'Choose route' }} />
+            {/* ride briefings */}
+            <Stack.Screen name="Briefing" component={BriefingScreen} options={{ title: 'Briefing card' }} />
+            <Stack.Screen name="EditBriefing" component={EditBriefingScreen} options={{ title: 'Edit briefing' }} />
             {/* Lane E: live ride */}
             <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} />
             {/* Stage 3 (lane B): chats and photos */}

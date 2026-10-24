@@ -14,13 +14,26 @@ import {
   SAFETY_ORDER,
   TEXT_TOO_LONG,
   TOO_MANY_HAZARDS,
+  SAFETY_LINE,
+  STOPPED_RIDER,
+  briefingCrew,
   briefingOf,
   cleanBriefing,
+  editBriefingProblem,
+  editStart,
+  hazardSummary,
+  hazardTooLong,
+  moreLabel,
   readBriefingProblem,
   readCount,
+  readCountLine,
+  readLine,
   readState,
   saveBriefingProblem,
+  stampLine,
+  textTooLong,
   unreadGoing,
+  updatedLine,
   writesBriefing,
 } from './briefings';
 import { endOfFirstDay } from './rides';
@@ -362,4 +375,119 @@ test('the unread list: Going riders with no read or a stale one, by name', () =>
 test('the unread list: nothing when there is no briefing', () => {
   const d = data({ rsvps: [rsvp('west-ride', 'rider', 'going')] });
   assert.deepEqual(unreadGoing(WEST_RIDE, d), [], 'no briefing, nothing to have read');
+});
+
+// ---------------------------------------------------------------------------
+// What the screens show
+// ---------------------------------------------------------------------------
+
+test('who can edit right now: the first six save checks, with no input to check', () => {
+  const d = data();
+  const BEFORE = '2026-11-01T00:00:00.000Z';
+  assert.equal(editBriefingProblem(null, WEST_RIDE, d, BEFORE), 'Sign in first.');
+  assert.equal(editBriefingProblem(pending, WEST_RIDE, d, BEFORE), 'Only approved members can do that.');
+  assert.equal(editBriefingProblem(westVp, undefined, d, BEFORE), NO_RIDE);
+  assert.equal(editBriefingProblem(westVp, CANCELLED, d, BEFORE), RIDE_CANCELLED);
+  assert.equal(editBriefingProblem(westVp, WEST_RIDE, d, new Date(endOfFirstDay(WEST_RIDE)).toISOString()), BRIEFING_LOCKED);
+  assert.equal(editBriefingProblem(rider, WEST_RIDE, d, BEFORE), NOT_WRITER);
+  assert.equal(editBriefingProblem(westVp, WEST_RIDE, d, BEFORE), null);
+  assert.equal(editBriefingProblem(crewRc, WEST_RIDE, d, BEFORE), null, 'the ride’s own RC');
+  // Saving runs the same checks first, so an empty form from a non-writer says who can write.
+  assert.equal(saveBriefingProblem(rider, WEST_RIDE, { hazards: [], changes: '', notes: '' }, d, BEFORE), NOT_WRITER);
+});
+
+test('the ride screen’s summary: the first hazard, then how many more', () => {
+  assert.deepEqual(hazardSummary(['Gravel', 'Roos', 'Roadworks']), { first: 'Gravel', more: 2 });
+  assert.deepEqual(hazardSummary(['Gravel']), { first: 'Gravel', more: 0 });
+  assert.equal(hazardSummary([]), null);
+  assert.equal(moreLabel(2), '+2 more');
+  assert.equal(moreLabel(1), '+1 more');
+  assert.equal(moreLabel(0), null);
+});
+
+test('the read count line', () => {
+  assert.equal(readCountLine({ read: 6, going: 9 }), '6 of 9 going have read it');
+  assert.equal(readCountLine({ read: 0, going: 1 }), '0 of 1 going have read it');
+  assert.equal(readCountLine({ read: 0, going: 0 }), 'Nobody’s said Going yet');
+});
+
+test('times: Melbourne time today, with the date on another Melbourne day', () => {
+  // 20:42 UTC on 23 Oct is 7:42 am on 24 Oct in Melbourne (daylight saving, UTC+11).
+  const READ = '2026-10-23T20:42:00.000Z';
+  assert.equal(stampLine(READ, '2026-10-24T05:00:00.000Z'), 'at 7:42 am');
+  assert.equal(stampLine(READ, '2026-10-24T12:59:59.000Z'), 'at 7:42 am', 'still the 24th in Melbourne');
+  assert.equal(stampLine(READ, '2026-10-24T13:00:00.000Z'), 'on 24/10/2026 at 7:42 am', 'midnight in Melbourne: the 25th');
+  assert.equal(stampLine(READ, '2026-10-23T21:00:00.000Z'), 'at 7:42 am', 'the 23rd in UTC, but the 24th in Melbourne');
+  assert.equal(readLine(READ, '2026-10-24T05:00:00.000Z'), 'You read this at 7:42 am');
+  assert.equal(readLine(READ, '2026-10-30T05:00:00.000Z'), 'You read this on 24/10/2026 at 7:42 am');
+});
+
+test('the updated line names who changed it last, when they’re known', () => {
+  const NOW_24 = '2026-10-24T05:00:00.000Z';
+  const d = data({ members: [member('m-torque', { roadName: 'Torque' })] });
+  const b = briefing('west-ride', { updatedAt: '2026-10-23T09:15:00.000Z', updatedBy: 'm-torque' });
+  assert.equal(updatedLine(b, d, NOW_24), 'Updated on 23/10/2026 at 8:15 pm by Torque');
+  assert.equal(updatedLine({ ...b, updatedAt: '2026-10-23T20:00:00.000Z' }, d, NOW_24), 'Updated at 7:00 am by Torque');
+  assert.equal(updatedLine({ ...b, updatedBy: null }, d, NOW_24), 'Updated on 23/10/2026 at 8:15 pm');
+  assert.equal(updatedLine({ ...b, updatedBy: 'gone' }, d, NOW_24), 'Updated on 23/10/2026 at 8:15 pm', 'a former member');
+});
+
+test('the safety lines, built from the safety order', () => {
+  assert.equal(
+    SAFETY_LINE,
+    'Safety calls, in order: Road Captain → Sergeant-at-Arms → Vice President → President → NEC (constitution 7.6).',
+  );
+  assert.equal(STOPPED_RIDER, 'Stopped rider? The TG stops with them. An Officer takes the rear.');
+});
+
+test('the card’s crew: RC, TG, ATG, then Officers, with names and first aid', () => {
+  const named = [
+    member('rc', { roadName: 'Diesel' }),
+    member('tg', { roadName: 'Spanner' }),
+    member('o1', { roadName: 'Chook' }),
+  ];
+  const d = data({
+    members: named,
+    crew: [
+      { ...spot('west-ride', 'o1', 'officer'), assignedAt: '2026-10-02T00:00:00.000Z' },
+      spot('west-ride', 'tg', 'tail_gunner'),
+      spot('west-ride', 'rc', 'road_captain'),
+      spot('west-ride', 'gone', 'officer'),
+      spot('other', 'rc', 'tail_gunner'),
+    ],
+  });
+  assert.deepEqual(briefingCrew('west-ride', d), {
+    rows: [
+      { role: 'road_captain', name: 'Diesel' },
+      { role: 'tail_gunner', name: 'Spanner' },
+      { role: 'officer', name: 'A former member' },
+      { role: 'officer', name: 'Chook' },
+    ],
+    firstAid: 'Spanner',
+  });
+  assert.deepEqual(briefingCrew('other', data({ members: named, crew: [spot('other', 'rc', 'road_captain')] })), {
+    rows: [{ role: 'road_captain', name: 'Diesel' }],
+    firstAid: null,
+  });
+  assert.deepEqual(briefingCrew('none', data({ crew: undefined })), { rows: [], firstAid: null });
+});
+
+test('the edit form starts from the briefing, with at least one hazard line', () => {
+  assert.deepEqual(editStart(undefined), { hazards: [''], changes: '', notes: '' });
+  assert.deepEqual(editStart(briefing('r', { hazards: [], changes: 'One at a time', notes: '' })), {
+    hazards: [''],
+    changes: 'One at a time',
+    notes: '',
+  });
+  assert.deepEqual(editStart(briefing('r', { hazards: ['A', 'B'], notes: 'N' })), { hazards: ['A', 'B'], changes: '', notes: 'N' });
+});
+
+test('marking a field that’s too long, counted in code points after trimming', () => {
+  assert.equal(hazardTooLong('x'.repeat(MAX_HAZARD)), false);
+  assert.equal(hazardTooLong(`  ${'x'.repeat(MAX_HAZARD)}  `), false, 'trimmed first');
+  assert.equal(hazardTooLong('x'.repeat(MAX_HAZARD + 1)), true);
+  assert.equal(hazardTooLong('🏍'.repeat(MAX_HAZARD)), false, 'an emoji is one character');
+  assert.equal(textTooLong('x'.repeat(MAX_TEXT)), false);
+  assert.equal(textTooLong('🏍'.repeat(MAX_TEXT)), false);
+  assert.equal(textTooLong('x'.repeat(MAX_TEXT + 1)), true);
 });

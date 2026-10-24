@@ -40,6 +40,9 @@ export type RootParams = {
   Route: { routeId: string };
   EditRoute: { routeId?: string } | undefined;
   PickRoute: { rideId: string };
+  // ride briefings
+  Briefing: { rideId: string };
+  EditBriefing: { rideId: string };
   // Lane E: live ride
   LiveRide: { rideId: string };
   // Stage 3 (lane B): chats and photos
