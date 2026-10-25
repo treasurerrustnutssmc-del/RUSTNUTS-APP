@@ -10,8 +10,8 @@ No keys, passwords or tokens are in this file, and none should ever be added to 
 
 ## 1. What we're building
 
-Rustnuts SMC is getting its own app. One app the club owns, replacing Facebook Messenger, the Discord
-server nobody uses, and the Google Drive folders. Chat as easy as Messenger, plus rides, members,
+Rustnuts SMC is getting its own app. One app the club owns that brings together what's
+spread across Facebook Messenger, the club Discord and the Google Drive folders today. Chat as easy as Messenger, plus rides, members,
 documents, money and the board, all in one place, built for this one club and nobody else: its real
 ranks (Introduced, FNG, Full, Nomad, Supporter, Family, Legacy), its real positions and chapters
 (West and North, with the NEC above them), its constitution (v4, 25/10/2026), its trademarked artwork
@@ -92,7 +92,7 @@ Everything in this section is in scope. Each line says where it stands today.
 | "I've dropped out" button to the TG and RC | **Merged, waiting** on phone tests |
 | Emergency button: emergency contacts, one-tap 000, location | **Merged, waiting** on phone tests |
 | Ride-day headcount check-in | **Live** (QR check-in plus the leader ticking people off) |
-| Ride comms: open-mic voice channel replacing Discord Ride-Comms, noise suppression, headset mute | **Merged, waiting.** LiveKit project and key are set up and the token check answers; needs a two-phone ride test, and the Cardo/Sena headset button is unproven |
+| Ride comms: open-mic voice built for the bike (hands-free, wind and engine noise suppression), headset mute | **Merged, waiting.** LiveKit project and key are set up and the token check answers; needs a two-phone ride test, and the Cardo/Sena headset button is unproven |
 | Big 4 and Not Dead Yet Run (formerly President's Run) hub: registrations, accommodation, payments | **Not started.** Needs a Big 4 flag on rides first |
 
 ### Social
