@@ -188,6 +188,7 @@ declare
     'public.cancel_bus(uuid)'::regprocedure];
   f regprocedure;
   manages constant regprocedure := 'private.manages_bus()'::regprocedure;
+  clashes constant regprocedure := 'private.bus_clashes(date, date, uuid)'::regprocedure;
 begin
   assert (select bool_and(prosecdef and proconfig @> array['search_path=""']) from pg_proc where oid = any (fns)),
     'definer, empty search_path';
@@ -205,6 +206,9 @@ begin
   assert not has_function_privilege('anon', manages, 'execute'), 'anon can''t run manages_bus';
   assert not has_function_privilege('public', manages, 'execute'), 'public can''t run manages_bus';
   assert not has_function_privilege('authenticated', manages, 'execute'), 'members can''t run manages_bus';
+  assert not has_function_privilege('anon', clashes, 'execute'), 'anon can''t run bus_clashes';
+  assert not has_function_privilege('public', clashes, 'execute'), 'public can''t run bus_clashes';
+  assert not has_function_privilege('authenticated', clashes, 'execute'), 'members can''t run bus_clashes';
 
   assert pg_temp.book(null, private.club_date(), private.club_date(), 'recovery', null, null, null) is not null,
     'the public can''t book';
@@ -404,8 +408,6 @@ end $$;
 do $$
 declare
   t constant date := private.club_date();
-  cara constant uuid := '00000000-0000-0000-0000-0000000000b1';
-  tess constant uuid := '00000000-0000-0000-0000-0000000000bc';
   fran constant uuid := '00000000-0000-0000-0000-0000000000b7';
   nick constant uuid := '00000000-0000-0000-0000-0000000000b8';
   fergus constant uuid := '00000000-0000-0000-0000-0000000000b5';

@@ -2,7 +2,7 @@
 
 **Type:** architectural. It adds a table, new database actions and new screens.
 
-This is lane A of the parallel build, so its migration uses the `2026102417` prefix. Claude approved this spec on 25 Oct 2026 under Jeff's standing rule, and Jeff can veto any line. The lines marked *inferred* are the ones most worth a look.
+This is lane A of the parallel build, so its migration uses the `20261025170000` prefix. Claude approved this spec on 25 Oct 2026 under Jeff's standing rule, and Jeff can veto any line. The lines marked *inferred* are the ones most worth a look.
 
 ## Goal
 The Rusty Bus is the club van, used for charity rides and vehicle recovery. Today, booking it means asking around in a group chat. In the app, members will:

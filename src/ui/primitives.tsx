@@ -684,8 +684,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: 1,
     alignSelf: 'flex-start',
+    // A long label (a chip with dates) wraps inside the chip rather than running off the card.
+    maxWidth: '100%',
   },
-  chipText: { fontFamily: fonts.stencil, fontSize: 11.5, letterSpacing: 1, textTransform: 'uppercase' },
+  chipText: { fontFamily: fonts.stencil, fontSize: 11.5, letterSpacing: 1, textTransform: 'uppercase', flexShrink: 1 },
   avatar: {
     backgroundColor: colors.red,
     alignItems: 'center',

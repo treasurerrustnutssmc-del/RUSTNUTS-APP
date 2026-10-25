@@ -442,10 +442,10 @@ test('signed out: no Road Rules are read', async () => {
   assert.deepEqual(data.roadRulesSignoffs, []);
 });
 
-/** stubClient, with one table's read failing. */
-function tableFails(table: string, message: string) {
+/** stubClient, with one table's read failing (with a PostgREST or Postgres code when given). */
+function tableFails(table: string, message: string, code?: string) {
   const base = stubClient({ chapters: [west] }) as unknown as { from: (n: string) => unknown; rpc: unknown };
-  const r = { data: null, error: { message } };
+  const r = { data: null, error: { message, code } };
   const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
   return { from: (name: string) => (name === table ? { select: () => chain } : base.from(name)), rpc: base.rpc } as never;
 }
@@ -547,6 +547,25 @@ test('signed out: no Rusty Bus bookings are read', async () => {
 
 test('a failure loading the Rusty Bus is an error, not an empty list', async () => {
   await assert.rejects(loadClub(tableFails('bus_bookings', 'boom'), true), { message: 'boom' });
+  await assert.rejects(loadClub(tableFails('bus_bookings', 'canceling statement due to statement timeout', '57014'), true), {
+    message: 'canceling statement due to statement timeout',
+  });
+  await assert.rejects(loadClub(tableFails('bus_bookings', 'permission denied for table bus_bookings', '42501'), true), {
+    message: 'permission denied for table bus_bookings',
+  });
+});
+
+test('before the database has the Rusty Bus table, the rest of the club still loads with no bookings', async () => {
+  for (const [code, message] of [
+    ['PGRST205', 'Could not find the table \'public.bus_bookings\' in the schema cache'],
+    ['42P01', 'relation "public.bus_bookings" does not exist'],
+  ]) {
+    const data = await loadClub(tableFails('bus_bookings', message, code), true);
+    assert.equal(data.chapters.length, 1, code);
+    assert.deepEqual(data.busBookings, [], code);
+  }
+  // Another table missing is still an error.
+  await assert.rejects(loadClub(tableFails('road_rules_versions', 'relation "public.road_rules_versions" does not exist', '42P01'), true));
 });
 
 test('booking the Rusty Bus sends the days, purpose, ride, driver and the notes trimmed', () => {

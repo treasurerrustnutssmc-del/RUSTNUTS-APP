@@ -12,7 +12,7 @@ import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABE
 import { displayName, initials, memberName } from '../domain/profile';
 import { libraryFor, rideRouteProblem, routeOf } from '../domain/routes';
 import { roadRulesStatus, showsRoadRulesNudge } from '../domain/roadRules'; // Road Rules
-import { busForRide, busRowLine, canBookBus } from '../domain/bus'; // Rusty Bus
+import { RIDE_BUS_BUSY, busChipLabel, busForRide, busOverRide, busRowLine, canBookBus } from '../domain/bus'; // Rusty Bus
 import {
   calendarFreshness,
   defaultCategories,
@@ -299,8 +299,16 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   const maybe = people('maybe');
   const mySpot = spotOf(ride.id, me.id, data.crew);
   // Rusty Bus: the booking on this ride, and a Book link for its writers (crew managers) while it's still to come.
+  // When another Booked booking already holds the bus on its days, they see that instead of the link.
   const bus = busForRide(ride.id, data);
-  const booksBus = !bus && !cancelled && lastDay(ride) >= today && managesRide(me, ride, data) && canBookBus(me, data);
+  const mayBookBus = !bus && !cancelled && lastDay(ride) >= today && managesRide(me, ride, data) && canBookBus(me, data);
+  const busElsewhere = mayBookBus ? busOverRide(ride, data) : undefined;
+  const booksBus = mayBookBus && !busElsewhere;
+  const busChip = bus
+    ? { label: busChipLabel(bus, ride), tone: bus.status === 'approved' ? ('ok' as const) : ('warn' as const) }
+    : busElsewhere
+      ? { label: RIDE_BUS_BUSY, tone: 'steel' as const }
+      : null;
 
   const answer = async (a: RsvpAnswer) => {
     setError(null);
@@ -349,10 +357,10 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         <Row style={{ gap: 6 }}>
           <RideChip category={ride.category} />
           {cancelled ? <Chip label="Cancelled" tone="danger" /> : null}
-          {bus ? (
+          {busChip ? (
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel={`${bus.status === 'approved' ? 'Rusty Bus booked' : 'Rusty Bus asked for'}, see the Rusty Bus`}
+              accessibilityLabel={`${busChip.label}, see the Rusty Bus`}
               hitSlop={{ top: 12, bottom: 12 }}
               onPress={() => navigation.navigate('Bus')}
               style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
@@ -360,11 +368,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
                 (pressed || hovered) && { backgroundColor: colors.steel },
               ]}
             >
-              <Chip
-                label={bus.status === 'approved' ? 'Rusty Bus booked' : 'Rusty Bus asked for'}
-                tone={bus.status === 'approved' ? 'ok' : 'warn'}
-                icon="bus"
-              />
+              <Chip label={busChip.label} tone={busChip.tone} icon="bus" />
             </Pressable>
           ) : null}
         </Row>
@@ -972,7 +976,7 @@ const styles = StyleSheet.create({
   briefingMore: { fontFamily: fonts.stencil, fontSize: 14, color: colors.boneMute },
   // Full row width, so a two-tap confirm and its Cancel fit on one line at phone size.
   crewActions: { gap: space.sm },
-  busChip: { borderRadius: radius.sm, alignSelf: 'flex-start' },
+  busChip: { borderRadius: radius.sm, alignSelf: 'flex-start', maxWidth: '100%' },
   busLink: {
     fontFamily: fonts.stencil,
     fontSize: 15,

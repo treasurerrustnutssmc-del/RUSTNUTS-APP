@@ -15,6 +15,8 @@ const instant = (ts: string) => new Date(ts).toISOString();
 
 /** PostgREST's and Postgres's "no such function" codes. */
 const MISSING_FUNCTION = ['PGRST202', '42883'];
+/** PostgREST's and Postgres's "no such table" codes. */
+const MISSING_TABLE = ['PGRST205', '42P01'];
 /**
  * The library's columns: everything but the GPX file, which members can't select (it can be
  * 5 MB a route; one route's file comes through route_gpx). select('*') would be refused.
@@ -74,7 +76,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   // Until the database has Stage 4, the rest of the app still loads. Any other failure is an error,
   // so nobody is shown "you owe nothing" because a load went wrong.
   if (money.error && !MISSING_FUNCTION.includes(money.error.code ?? '')) throw toError(money.error);
-  for (const r of [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, rulesVersions, rulesSignoffs, bus]) {
+  // The same for the Rusty Bus: until the database has its table, the club loads with no bookings.
+  if (bus.error && !MISSING_TABLE.includes(bus.error.code ?? '')) throw toError(bus.error);
+  for (const r of [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, rulesVersions, rulesSignoffs]) {
     if (r.error) throw toError(r.error);
   }
   // Stage 5: meetings and votes. A failure here leaves the club business empty rather than
@@ -229,7 +233,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       signedAt: instant(s.signed_at),
     })),
     // Blank notes and reasons are stored as null.
-    busBookings: (bus.data ?? []).map((b) => ({
+    busBookings: (bus.error ? [] : bus.data ?? []).map((b) => ({
       id: b.id,
       firstDay: b.first_day,
       lastDay: b.last_day,

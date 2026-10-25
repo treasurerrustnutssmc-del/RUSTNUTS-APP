@@ -22,16 +22,24 @@ import {
   NOT_BUS_BOOKER,
   NOT_BUS_CANCELLER,
   NOT_BUS_MANAGER,
+  NOT_ANSWERED,
   NO_BOOKING,
+  NO_YES_IN_TIME,
+  RIDE_BUS_BUSY,
+  RIDE_CALLED_OFF,
+  RIDE_CALLED_OFF_HINT,
   bookProblem,
   bookedStraightAway,
   busDrivers,
+  busChipLabel,
   busForRide,
   busMonthLabel,
+  busOverRide,
   busPersonName,
   busPurposeLabel,
   busRide,
   busRowLine,
+  busShownStatus,
   busStatusLabel,
   busToday,
   busTodayLine,
@@ -43,6 +51,8 @@ import {
   formatDays,
   managesBus,
   myRecentOff,
+  notAnswered,
+  rideCalledOff,
   ridesInDays,
   upcomingBus,
   waitingForYes,
@@ -193,6 +203,7 @@ test('bookProblem gives every message in the spec’s order', () => {
   assert.equal(bookProblem(rider, input, d, TODAY), BUS_DAYS_MISSING);
   input = { ...input, firstDay: '2026-11-09', lastDay: '2026-11-08' };
   assert.equal(bookProblem(rider, input, d, TODAY), BUS_LAST_BEFORE_FIRST);
+  assert.equal(bookProblem(rider, { ...input, firstDay: '2026-10-24', lastDay: '2026-10-23' }, d, TODAY), BUS_LAST_BEFORE_FIRST, 'before a past start');
   input = { ...input, firstDay: '2026-10-24', lastDay: '2026-11-30' };
   assert.equal(bookProblem(rider, input, d, TODAY), BUS_PAST_START);
   input = { ...input, firstDay: '2027-11-01', lastDay: '2027-11-30' };
@@ -366,8 +377,10 @@ test('decideProblem gives every message in the spec’s order', () => {
   assert.equal(decideProblem(rideCommittee, waiting, true, '', d, TODAY), NOT_BUS_MANAGER);
   assert.equal(decideProblem(nec, undefined, false, long, d, TODAY), NO_BOOKING);
   assert.equal(decideProblem(nec, booked, false, long, d, TODAY), ALREADY_DECIDED);
+  assert.equal(decideProblem(nec, booked, false, long, d, '2026-11-10'), ALREADY_DECIDED, 'before its days having passed');
   assert.equal(decideProblem(nec, { ...waiting, status: 'cancelled' }, true, '', d, TODAY), ALREADY_DECIDED);
   assert.equal(decideProblem(nec, waiting, false, long, d, '2026-11-10'), BUS_DAYS_PASSED);
+  assert.equal(decideProblem(nec, waiting, true, '', d, '2026-11-10'), BUS_DAYS_PASSED, 'before the clash on a yes');
   assert.equal(decideProblem(nec, waiting, true, '', d, TODAY), BUS_CLASH);
   assert.equal(decideProblem(nec, waiting, false, long, d, TODAY), BUS_REASON_TOO_LONG);
   assert.equal(decideProblem(nec, waiting, false, `  ${'🚐'.repeat(300)}  `, d, TODAY), null, 'trimmed, code points');
@@ -559,8 +572,9 @@ test('waitingForYes is Waiting bookings not yet over, oldest asked first', () =>
   assert.deepEqual(waitingForYes(d, TODAY).map((b) => b.id), ['older', 'last-day', 'newer']);
 });
 
-test('myRecentOff is my Declined and Cancelled bookings from the last 30 days, newest first', () => {
+test('myRecentOff is my Declined, Cancelled and unanswered bookings from the last 30 days, newest first', () => {
   const mine = { bookedBy: 'rider' };
+  const asked = { ...mine, status: 'requested' as const, decidedBy: null, decidedAt: null };
   const d = data({
     busBookings: [
       booking('declined', '2026-11-01', '2026-11-01', { ...mine, status: 'declined', decidedAt: '2026-10-20T02:00:00.000Z', declineReason: 'Rego' }),
@@ -569,12 +583,87 @@ test('myRecentOff is my Declined and Cancelled bookings from the last 30 days, n
       booking('edge', '2026-10-01', '2026-10-01', { ...mine, status: 'declined', decidedAt: '2026-09-25T02:00:00.000Z' }),
       booking('old', '2026-10-01', '2026-10-01', { ...mine, status: 'cancelled', cancelledAt: '2026-09-24T02:00:00.000Z' }),
       booking('booked', '2026-11-03', '2026-11-03', mine),
-      booking('waiting', '2026-11-04', '2026-11-04', { ...mine, status: 'requested' }),
+      booking('waiting', '2026-11-04', '2026-11-04', asked),
+      // Waiting with its days gone by: not answered, counted from its last day.
+      booking('unanswered', '2026-10-20', '2026-10-21', asked),
+      booking('unanswered-edge', '2026-09-24', '2026-09-25', asked),
+      booking('unanswered-old', '2026-09-23', '2026-09-24', asked),
+      booking('last-day-today', '2026-10-24', TODAY, asked),
       booking('theirs', '2026-11-05', '2026-11-05', { bookedBy: 'nomad', status: 'declined', decidedAt: '2026-10-23T02:00:00.000Z' }),
+      booking('theirs-unanswered', '2026-10-20', '2026-10-21', { ...asked, bookedBy: 'nomad' }),
     ],
   });
-  assert.deepEqual(myRecentOff(rider, d, TODAY).map((b) => b.id), ['cancelled', 'declined', 'edge']);
+  assert.deepEqual(myRecentOff(rider, d, TODAY).map((b) => b.id), ['cancelled', 'unanswered', 'declined', 'unanswered-edge', 'edge']);
   assert.deepEqual(myRecentOff(null, d, TODAY), []);
+});
+
+test('a Waiting booking whose last day has passed shows as Not answered; the stored status stays Waiting', () => {
+  assert.equal(NOT_ANSWERED, 'Not answered');
+  assert.equal(NO_YES_IN_TIME, 'The days passed without a yes.');
+  const asked = booking('asked', '2026-10-20', '2026-10-24', { status: 'requested', decidedBy: null, decidedAt: null });
+  assert.equal(notAnswered(asked, TODAY), true);
+  assert.equal(busShownStatus(asked, TODAY), 'Not answered');
+  assert.equal(asked.status, 'requested');
+  // Still Waiting on its last day.
+  assert.equal(notAnswered(asked, '2026-10-24'), false);
+  assert.equal(busShownStatus(asked, '2026-10-24'), 'Waiting');
+  // Other statuses keep their names, past days or not.
+  for (const status of ['approved', 'declined', 'cancelled'] as const) {
+    const b = { ...asked, status };
+    assert.equal(notAnswered(b, TODAY), false, status);
+    assert.equal(busShownStatus(b, TODAY), busStatusLabel(status), status);
+  }
+});
+
+test('a Booked or Waiting booking whose linked ride was cancelled is flagged as called off or moved', () => {
+  assert.equal(RIDE_CALLED_OFF, 'The ride was called off or moved.');
+  assert.equal(RIDE_CALLED_OFF_HINT, 'Cancel this booking if the bus isn’t needed, or book again for the new ride.');
+  const d = data();
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone' }), d), true);
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-1' }), d), false);
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: null }), d), false, 'no ride');
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-missing' }), d), false, 'a ride not loaded just loses its line');
+  // Only while the booking still holds or asks for the bus: once it's off, there's nothing to do.
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone', status: 'requested' }), d), true);
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone', status: 'cancelled' }), d), false);
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone', status: 'declined' }), d), false);
+});
+
+test('busOverRide is a Booked booking on the ride’s days that isn’t linked to it', () => {
+  assert.equal(RIDE_BUS_BUSY, 'Rusty Bus booked those days');
+  // r-1 is 09:00 Melbourne on 09/11/2026 (22:00 UTC on the 8th).
+  const r1 = data().rides[0];
+  const two = ride('r-two', { startsAt: '2026-11-13T22:00:00.000Z', endsAt: '2026-11-15T06:00:00.000Z' });
+  const at = (...bookings: BusBooking[]) => data({ rides: [r1, two], busBookings: bookings });
+  assert.equal(busOverRide(r1, at(booking('other', '2026-11-09', '2026-11-09')))?.id, 'other');
+  assert.equal(busOverRide(r1, at(booking('around', '2026-11-07', '2026-11-10')))?.id, 'around');
+  assert.equal(busOverRide(r1, at(booking('linked', '2026-11-09', '2026-11-09', { rideId: 'r-1' }))), undefined, 'its own booking');
+  assert.equal(busOverRide(r1, at(booking('waiting', '2026-11-09', '2026-11-09', { status: 'requested' }))), undefined, 'only Booked');
+  assert.equal(busOverRide(r1, at(booking('cancelled', '2026-11-09', '2026-11-09', { status: 'cancelled' }))), undefined);
+  assert.equal(busOverRide(r1, at(booking('next-day', '2026-11-10', '2026-11-10'))), undefined, 'a neighbour day');
+  // A ride over three days clashes on any of them, the last included.
+  assert.equal(busOverRide(two, at(booking('last-day', '2026-11-15', '2026-11-16')))?.id, 'last-day');
+  // The old booking of a moved ride holds the new ride's day.
+  const moved = ride('r-old', { cancelledAt: '2026-10-20T00:00:00.000Z' });
+  const held = data({ rides: [r1, moved], busBookings: [booking('held', '2026-11-09', '2026-11-09', { rideId: 'r-old' })] });
+  assert.equal(busOverRide(r1, held)?.id, 'held');
+});
+
+test('busChipLabel adds the booking’s days when they aren’t exactly the ride’s own', () => {
+  const r1 = data().rides[0]; // 09/11/2026
+  const two = ride('r-two', { startsAt: '2026-11-13T22:00:00.000Z', endsAt: '2026-11-15T06:00:00.000Z' }); // 14–15/11
+  assert.equal(busChipLabel(booking('b', '2026-11-09', '2026-11-09', { rideId: 'r-1' }), r1), 'Rusty Bus booked');
+  assert.equal(
+    busChipLabel(booking('b', '2026-11-08', '2026-11-09', { rideId: 'r-1' }), r1),
+    'Rusty Bus booked 08/11/2026 – 09/11/2026',
+  );
+  assert.equal(
+    busChipLabel(booking('b', '2026-11-10', '2026-11-10', { rideId: 'r-1', status: 'requested' }), r1),
+    'Rusty Bus asked for 10/11/2026',
+  );
+  assert.equal(busChipLabel(booking('b', '2026-11-09', '2026-11-09', { rideId: 'r-1', status: 'requested' }), r1), 'Rusty Bus asked for');
+  assert.equal(busChipLabel(booking('b', '2026-11-14', '2026-11-15', { rideId: 'r-two' }), two), 'Rusty Bus booked');
+  assert.equal(busChipLabel(booking('b', '2026-11-14', '2026-11-14', { rideId: 'r-two' }), two), 'Rusty Bus booked 14/11/2026');
 });
 
 test('busForRide is the newest Booked or Waiting booking on that ride', () => {

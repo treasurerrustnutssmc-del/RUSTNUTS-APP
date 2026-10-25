@@ -6,7 +6,7 @@
 import { activePositions, isNational } from './access';
 import { charCount } from './chat';
 import { byName } from './crew';
-import { addDays, daysBetween, formatAuDate, parseAuDate } from './dates';
+import { addDays, daysBetween, formatAuDate } from './dates';
 import { BOARD_ROLES } from './labels';
 import { FORMER_MEMBER, memberName } from './profile';
 import { lastDay, melbourneDate } from './rides';
@@ -41,6 +41,15 @@ export const BUS_DAYS_PASSED = 'That booking’s days have passed.';
 export const BUS_REASON_TOO_LONG = 'Keep the reason to 300 characters at most.';
 export const NOT_BUS_CANCELLER = 'Only whoever booked it, its driver or the board can cancel it.';
 export const ALREADY_OFF = 'That booking is already off.';
+
+/** A Waiting booking whose days went by with no yes or no (shown only; it's still stored as Waiting). */
+export const NOT_ANSWERED = 'Not answered';
+export const NO_YES_IN_TIME = 'The days passed without a yes.';
+/** A booking whose linked ride was cancelled: the calendar sync cancels a ride when it moves, too. */
+export const RIDE_CALLED_OFF = 'The ride was called off or moved.';
+export const RIDE_CALLED_OFF_HINT = 'Cancel this booking if the bus isn’t needed, or book again for the new ride.';
+/** The ride screen's chip when another Booked booking holds the bus on the ride's days. */
+export const RIDE_BUS_BUSY = 'Rusty Bus booked those days';
 
 /** What someone booking types. Days are ISO dates, or '' when missing. */
 export interface BusInput {
@@ -111,8 +120,13 @@ export function bookedStraightAway(me: Member | null, input: BusInput, today: st
   return input.purpose === 'recovery' && (input.firstDay === today || input.firstDay === addDays(today, 1));
 }
 
-/** Whether `iso` is a real calendar date written YYYY-MM-DD. */
-const isIsoDate = (iso: string): boolean => parseAuDate(formatAuDate(iso)) === iso;
+/** Whether `iso` is a real calendar date written YYYY-MM-DD: the shape, then a round trip through a UTC date. */
+function isIsoDate(iso: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const [y, m, d] = iso.split('-').map(Number);
+  const back = new Date(Date.UTC(y, m - 1, d));
+  return back.getUTCFullYear() === y && back.getUTCMonth() === m - 1 && back.getUTCDate() === d;
+}
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -195,8 +209,10 @@ function canCancelBus(me: Member | null, booking: BusBooking, data: ClubData): b
 const isOff = (b: BusBooking): boolean => b.status === 'declined' || b.status === 'cancelled';
 const isLive = (b: BusBooking): boolean => b.status === 'approved' || b.status === 'requested';
 const rangeOf = (b: BusBooking): BusRange => ({ first: b.firstDay, last: b.lastDay });
+/** Orders ISO dates and timestamps (they sort as plain strings), with no locale involved. */
+const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 const byFirstDay = (a: BusBooking, b: BusBooking): number =>
-  a.firstDay.localeCompare(b.firstDay) || a.lastDay.localeCompare(b.lastDay) || a.bookedAt.localeCompare(b.bookedAt);
+  cmp(a.firstDay, b.firstDay) || cmp(a.lastDay, b.lastDay) || cmp(a.bookedAt, b.bookedAt);
 
 /**
  * The Booked bookings sharing any day with `range`, by first day. Touching ends clash (01–03 and
@@ -258,28 +274,49 @@ export function clashLine(clashes: BusBooking[]): string | null {
 export function ridesInDays(range: BusRange, data: ClubData): Ride[] {
   return data.rides
     .filter((r) => !r.cancelledAt && melbourneDate(r.startsAt) <= range.last && range.first <= lastDay(r))
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    .sort((a, b) => cmp(a.startsAt, b.startsAt));
 }
 
 /** Waiting bookings whose days aren't over, oldest asked first: the managers' list. */
 export function waitingForYes(data: ClubData, today: string): BusBooking[] {
   return (data.busBookings ?? [])
     .filter((b) => b.status === 'requested' && b.lastDay >= today)
-    .sort((a, b) => a.bookedAt.localeCompare(b.bookedAt));
+    .sort((a, b) => cmp(a.bookedAt, b.bookedAt));
 }
 
-/** When a booking went off: decided for a Declined one, cancelled for a Cancelled one. */
-const offAt = (b: BusBooking): string | null => (b.status === 'declined' ? b.decidedAt : b.status === 'cancelled' ? b.cancelledAt : null);
+/** A Waiting booking whose last day is over: nobody said yes or no in time. */
+export const notAnswered = (b: BusBooking, today: string): boolean => b.status === 'requested' && b.lastDay < today;
 
-/** My own Declined and Cancelled bookings that went off in the last 30 days (Melbourne dates), newest first. */
+/** The status as shown: "Not answered" for a Waiting booking whose days have passed, else busStatusLabel. */
+export const busShownStatus = (b: BusBooking, today: string): string => (notAnswered(b, today) ? NOT_ANSWERED : busStatusLabel(b.status));
+
+/** Sorts after any time, so an unanswered booking counts as going off at the end of its last day. */
+const END_OF_DAY = '\uffff';
+
+/**
+ * When a booking came off, as its Melbourne date and the time: decided for a Declined one,
+ * cancelled for a Cancelled one, and the end of its last day for one never answered.
+ */
+function offWhen(b: BusBooking, today: string): { day: string; at: string } | null {
+  if (b.status === 'declined' && b.decidedAt) return { day: melbourneDate(b.decidedAt), at: b.decidedAt };
+  if (b.status === 'cancelled' && b.cancelledAt) return { day: melbourneDate(b.cancelledAt), at: b.cancelledAt };
+  if (notAnswered(b, today)) return { day: b.lastDay, at: END_OF_DAY };
+  return null;
+}
+
+/**
+ * My own bookings that came off in the last 30 days (Melbourne dates), newest first: Declined,
+ * Cancelled, and Waiting ones whose days passed without an answer (counted from the last day).
+ */
 export function myRecentOff(me: Member | null, data: ClubData, today: string): BusBooking[] {
   if (!me) return [];
   return (data.busBookings ?? [])
-    .filter((b) => {
-      const at = offAt(b);
-      return b.bookedBy === me.id && at !== null && daysBetween(melbourneDate(at), today) <= RECENT_OFF_DAYS;
+    .flatMap((b) => {
+      const off = b.bookedBy === me.id ? offWhen(b, today) : null;
+      return off && daysBetween(off.day, today) <= RECENT_OFF_DAYS ? [{ b, off }] : [];
     })
-    .sort((a, b) => (offAt(b) ?? '').localeCompare(offAt(a) ?? ''));
+    .sort((x, y) => cmp(y.off.day, x.off.day) || cmp(y.off.at, x.off.at))
+    .map((x) => x.b);
 }
 
 /** The newest Booked or Waiting booking linked to this ride, for the ride screen's chip. */
@@ -289,6 +326,25 @@ export function busForRide(rideId: string, data: ClubData): BusBooking | undefin
     if (b.rideId === rideId && isLive(b) && (!newest || b.bookedAt > newest.bookedAt)) newest = b;
   }
   return newest;
+}
+
+/** The ride's own days, as Melbourne dates. */
+const rideRange = (ride: Ride): BusRange => ({ first: melbourneDate(ride.startsAt), last: lastDay(ride) });
+
+/**
+ * A Booked booking on any of the ride's days that isn't linked to it (the first by day), or
+ * undefined. The ride screen shows it in place of the Book link, since a straight-away booking
+ * would clash.
+ */
+export function busOverRide(ride: Ride, data: ClubData): BusBooking | undefined {
+  return clashesWith(rideRange(ride), data).find((b) => b.rideId !== ride.id);
+}
+
+/** The ride screen's chip: "Rusty Bus booked", with the booking's days when they aren't exactly the ride's. */
+export function busChipLabel(booking: BusBooking, ride: Ride): string {
+  const label = booking.status === 'approved' ? 'Rusty Bus booked' : 'Rusty Bus asked for';
+  const own = rideRange(ride);
+  return booking.firstDay === own.first && booking.lastDay === own.last ? label : `${label} ${formatDays(booking.firstDay, booking.lastDay)}`;
 }
 
 /** Who can drive: every approved member, by name. */
@@ -304,4 +360,14 @@ export function busPersonName(memberId: string | null, data: ClubData): string {
 /** The booking's ride, or undefined when it has none or the ride was deleted. */
 export function busRide(booking: BusBooking, data: ClubData): Ride | undefined {
   return booking.rideId === null ? undefined : data.rides.find((r) => r.id === booking.rideId);
+}
+
+/**
+ * Whether a Booked or Waiting booking's ride is on the calendar but cancelled. The sync cancels a
+ * ride and adds a new one when its time moves, so this also means "moved". A booking already off
+ * isn't flagged (there's nothing left to do), nor is one whose ride isn't loaded (live loads rides
+ * from today on): its ride line just goes.
+ */
+export function rideCalledOff(booking: BusBooking, data: ClubData): boolean {
+  return isLive(booking) && !!busRide(booking, data)?.cancelledAt;
 }

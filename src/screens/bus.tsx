@@ -13,6 +13,9 @@ import {
   MAX_BUS_NOTES,
   MAX_BUS_REASON,
   NOT_BUS_BOOKER,
+  NO_YES_IN_TIME,
+  RIDE_CALLED_OFF,
+  RIDE_CALLED_OFF_HINT,
   bookProblem,
   bookedStraightAway,
   busDrivers,
@@ -20,7 +23,7 @@ import {
   busPersonName,
   busPurposeLabel,
   busRide,
-  busStatusLabel,
+  busShownStatus,
   busToday,
   busTodayLine,
   canBookBus,
@@ -31,6 +34,8 @@ import {
   formatDays,
   managesBus,
   myRecentOff,
+  notAnswered,
+  rideCalledOff,
   ridesInDays,
   upcomingBus,
   waitingForYes,
@@ -64,17 +69,19 @@ import {
   type IconName,
 } from '../ui/primitives';
 
-const STATUS_CHIP: Record<BusStatus, { tone: 'ok' | 'warn' | 'danger' | 'steel'; icon: IconName }> = {
+type ChipLook = { tone: 'ok' | 'warn' | 'danger' | 'steel'; icon: IconName };
+const STATUS_CHIP: Record<BusStatus, ChipLook> = {
   approved: { tone: 'ok', icon: 'checkmark' },
   requested: { tone: 'warn', icon: 'time-outline' },
   declined: { tone: 'danger', icon: 'close' },
   cancelled: { tone: 'steel', icon: 'remove' },
 };
+const NOT_ANSWERED_CHIP: ChipLook = { tone: 'steel', icon: 'hourglass-outline' };
 
-/** Booked in green, Waiting in amber, Declined in the danger colour, Cancelled in steel. */
-function StatusChip({ status }: { status: BusStatus }) {
-  const s = STATUS_CHIP[status];
-  return <Chip label={busStatusLabel(status)} tone={s.tone} icon={s.icon} />;
+/** Booked in green, Waiting in amber, Declined in the danger colour, Cancelled and Not answered in steel. */
+function StatusChip({ booking, today }: { booking: BusBooking; today: string }) {
+  const s = notAnswered(booking, today) ? NOT_ANSWERED_CHIP : STATUS_CHIP[booking.status];
+  return <Chip label={busShownStatus(booking, today)} tone={s.tone} icon={s.icon} />;
 }
 
 /** A Melbourne date for a stored time: "24/10/2026". */
@@ -86,33 +93,43 @@ const rideDay = (startsAt: string) => {
   return `${weekday(d)} ${formatAuDate(d)}`;
 };
 
-/** One booking as a row: its days and status, what it's for and who, and a linked ride's title. */
+/**
+ * One booking as a row: its days and status, what it's for and who, a linked ride's title (and
+ * whether that ride was called off), and anything extra such as a clash or a reason.
+ */
 function BookingRow({
   booking,
   data,
+  today,
   meta,
   extra,
+  extraLabel,
   showStatus = true,
   last,
   onPress,
 }: {
   booking: BusBooking;
   data: ClubData;
+  today: string;
   /** The line under the days, such as "Charity ride · Gravel driving". */
   meta: string;
   /** Anything under that, such as a clash or a reason. */
   extra?: React.ReactNode;
+  /** What `extra` says, for screen readers (the row's label replaces what's in it). */
+  extraLabel?: string | null;
   /** Off on the managers' list, where every row is Waiting. */
   showStatus?: boolean;
   last: boolean;
   onPress: () => void;
 }) {
   const ride = busRide(booking, data);
+  const calledOff = rideCalledOff(booking, data);
   const days = formatDays(booking.firstDay, booking.lastDay);
+  const label = [days, showStatus ? busShownStatus(booking, today) : null, meta, ride?.title, calledOff ? RIDE_CALLED_OFF : null, extraLabel];
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={[days, busStatusLabel(booking.status), meta, ride?.title].filter(Boolean).join(', ')}
+      accessibilityLabel={label.filter(Boolean).join(', ')}
       onPress={onPress}
       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
         styles.row,
@@ -131,10 +148,11 @@ function BookingRow({
             </Text>
           </Row>
         ) : null}
+        {calledOff ? <ClashText line={RIDE_CALLED_OFF} /> : null}
         {extra}
         {showStatus ? (
           <Row style={{ gap: 6, marginTop: 2 }}>
-            <StatusChip status={booking.status} />
+            <StatusChip booking={booking} today={today} />
           </Row>
         ) : null}
       </View>
@@ -143,7 +161,7 @@ function BookingRow({
   );
 }
 
-/** "Clashes with Recovery 03/11/2026", in amber beside an alert. */
+/** An amber line beside an alert: "Clashes with Recovery 03/11/2026", or the ride being called off. */
 function ClashText({ line }: { line: string }) {
   return (
     <Row style={styles.clash}>
@@ -231,8 +249,10 @@ export function BusScreen({ navigation }: RootScreen<'Bus'>) {
                     key={b.id}
                     booking={b}
                     data={data}
+                    today={today}
                     meta={`${busPurposeLabel(b.purpose)} · asked by ${busPersonName(b.bookedBy, data)}`}
                     extra={clash ? <ClashText line={clash} /> : undefined}
+                    extraLabel={clash}
                     showStatus={false}
                     last={i === waiting.length - 1}
                     onPress={() => open(b.id)}
@@ -259,6 +279,7 @@ export function BusScreen({ navigation }: RootScreen<'Bus'>) {
                       key={b.id}
                       booking={b}
                       data={data}
+                      today={today}
                       meta={`${busPurposeLabel(b.purpose)} · ${busPersonName(b.driverId, data)} driving`}
                       last={i === g.bookings.length - 1}
                       onPress={() => open(b.id)}
@@ -274,17 +295,20 @@ export function BusScreen({ navigation }: RootScreen<'Bus'>) {
       {off.length > 0 ? (
         <Stack gap={space.sm}>
           <SectionTitle title="Yours" />
-          <Small>Your bookings that came off in the last 30 days.</Small>
+          <Small>Your bookings from the last 30 days that came off or went unanswered.</Small>
           <Card style={{ padding: 0, gap: 0 }}>
             {off.map((b, i) => (
               <BookingRow
                 key={b.id}
                 booking={b}
                 data={data}
+                today={today}
                 meta={
                   b.status === 'declined'
                     ? `${busPurposeLabel(b.purpose)} · no from ${busPersonName(b.decidedBy, data)}`
-                    : `${busPurposeLabel(b.purpose)} · cancelled by ${busPersonName(b.cancelledBy, data)}`
+                    : b.status === 'cancelled'
+                      ? `${busPurposeLabel(b.purpose)} · cancelled by ${busPersonName(b.cancelledBy, data)}`
+                      : `${busPurposeLabel(b.purpose)} · asked for on ${dayOf(b.bookedAt)}`
                 }
                 extra={
                   b.status === 'declined' && b.declineReason ? (
@@ -293,6 +317,7 @@ export function BusScreen({ navigation }: RootScreen<'Bus'>) {
                     </Small>
                   ) : undefined
                 }
+                extraLabel={b.status === 'declined' ? b.declineReason : null}
                 last={i === off.length - 1}
                 onPress={() => open(b.id)}
               />
@@ -315,6 +340,13 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
   const [error, setError] = useState<string | null>(null);
   const booking = (data.busBookings ?? []).find((b) => b.id === route.params.bookingId);
   if (!me) return null;
+  if (me.approval !== 'approved') {
+    return (
+      <Screen>
+        <Notice tone="warn">Only approved members can see the Rusty Bus.</Notice>
+      </Screen>
+    );
+  }
   if (!booking) {
     return (
       <Screen>
@@ -324,14 +356,18 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
   }
 
   const ride = busRide(booking, data);
+  const calledOff = rideCalledOff(booking, data);
   const name = (id: string | null) => busPersonName(id, data);
   const length = daysBetween(booking.firstDay, booking.lastDay) + 1;
   const waiting = booking.status === 'requested';
+  const unanswered = notAnswered(booking, today);
   // Only a booking that was ever Booked (a yes, or straight away) was booked; the rest were asked for.
   const everBooked = booking.status === 'approved' || (booking.status === 'cancelled' && booking.decidedAt !== null);
   const deciding = waiting && managesBus(me, data) && decideProblem(me, booking, false, '', data, today) === null;
   const yesProblem = deciding ? decideProblem(me, booking, true, '', data, today) : null;
-  const clash = deciding ? clashLine(clashesWith({ first: booking.firstDay, last: booking.lastDay }, data, booking.id)) : null;
+  // The Booked booking a Waiting one clashes with: the board's reason for Say yes being off, and
+  // for anyone else (its booker, say) the reason no yes can come yet.
+  const clash = waiting && !unanswered ? clashLine(clashesWith({ first: booking.firstDay, last: booking.lastDay }, data, booking.id)) : null;
   const reasonTooLong = charCount(reason.trim()) > MAX_BUS_REASON;
   const cancellable = cancelProblem(me, booking, data, today) === null;
 
@@ -358,20 +394,21 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
                 {booking.declineReason}
               </Body>
             ) : null}
-            <Text style={styles.metaDim}>{booking.decidedAt ? `Said no on ${dayOf(booking.decidedAt)}` : ''}</Text>
+            {booking.decidedAt ? <Text style={styles.metaDim}>{`Said no on ${dayOf(booking.decidedAt)}`}</Text> : null}
           </Stack>
         </Notice>
       ) : booking.status === 'cancelled' ? (
         <Notice title={`Cancelled by ${name(booking.cancelledBy)}`}>
-          {booking.cancelledAt
-            ? `On ${dayOf(booking.cancelledAt)}.${everBooked ? ' The bus is free for these days again.' : ''}`
-            : undefined}
+          <Stack gap={space.xs}>
+            {everBooked ? <Small style={{ color: colors.boneDim }}>The bus is free for these days again.</Small> : null}
+            {booking.cancelledAt ? <Text style={styles.metaDim}>{`Cancelled on ${dayOf(booking.cancelledAt)}`}</Text> : null}
+          </Stack>
         </Notice>
       ) : null}
 
       <Card>
         <Row style={{ gap: 6 }}>
-          <StatusChip status={booking.status} />
+          <StatusChip booking={booking} today={today} />
         </Row>
         <H1>{busPurposeLabel(booking.purpose)}</H1>
         <Stack gap={space.sm}>
@@ -404,6 +441,12 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
               <Ionicons name="chevron-forward" size={18} color={colors.boneMute} />
             </Pressable>
           ) : null}
+          {calledOff ? (
+            <Stack gap={space.xs}>
+              <ClashText line={RIDE_CALLED_OFF} />
+              {cancellable ? <Small style={{ color: colors.boneDim }}>{RIDE_CALLED_OFF_HINT}</Small> : null}
+            </Stack>
+          ) : null}
         </Stack>
         {booking.notes ? <Body selectable>{booking.notes}</Body> : null}
         <Divider />
@@ -414,8 +457,18 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
           {everBooked && booking.decidedAt && booking.decidedBy !== booking.bookedBy ? (
             <Text style={styles.metaDim}>{`Yes from ${name(booking.decidedBy)} on ${dayOf(booking.decidedAt)}`}</Text>
           ) : null}
-          {waiting && !deciding ? <Text style={styles.metaDim}>Waiting for a yes from the board or NEC</Text> : null}
+          {unanswered ? (
+            <Text style={styles.metaDim}>{NO_YES_IN_TIME}</Text>
+          ) : waiting && !deciding ? (
+            <Text style={styles.metaDim}>Waiting for a yes from the board or NEC</Text>
+          ) : null}
         </Stack>
+        {clash && !deciding ? (
+          <Stack gap={space.xs}>
+            <ClashText line={clash} />
+            <Small style={{ color: colors.boneDim }}>The board can only say yes once that booking comes off.</Small>
+          </Stack>
+        ) : null}
       </Card>
 
       {deciding ? (
@@ -536,6 +589,9 @@ export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
   const range = firstDay && lastDayIso && lastDayIso >= firstDay ? { first: firstDay, last: lastDayIso } : null;
   const clashes = range ? clashesWith(range, data) : [];
   const clash = clashLine(clashes);
+  const manager = managesBus(me, data);
+  // Booked straight away onto Booked days can only be refused, so Book it is off and the clash says why.
+  const blocked = straightAway && clashes.length > 0;
   const problem = bookProblem(me, input, data, today);
   const notesTooLong = charCount(notes.trim()) > MAX_BUS_NOTES;
   // Refusals show from the first tap on, and follow the form as it's fixed. A clash already has
@@ -612,14 +668,16 @@ export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
       </Stack>
 
       {/* The Booked booking these days hit, as the days are typed. */}
-      <View accessibilityLiveRegion="polite" style={clash ? null : styles.emptyRegion}>
+      <View accessibilityLiveRegion="polite" role="alert" style={clash ? null : styles.emptyRegion}>
         {clash ? (
           <View style={styles.clashBlock}>
             <ClashText line={clash} />
             <Small style={{ color: colors.boneDim }}>
-              {straightAway
-                ? 'It can’t be booked twice. Pick other days, or ask the board about that booking.'
-                : 'You can still ask, but the board can only say yes if that booking comes off.'}
+              {!straightAway
+                ? 'You can still ask, but the board can only say yes if that booking comes off.'
+                : manager
+                  ? 'It can’t be booked twice, so Book it is off. Pick other days, or cancel that booking first.'
+                  : 'It can’t be booked twice, so Book it is off. Pick other days, or ask the board about that booking.'}
             </Small>
           </View>
         ) : null}
@@ -713,8 +771,8 @@ export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
       <Stack gap={space.sm}>
         <Small style={{ color: colors.boneDim }}>
           {straightAway
-            ? managesBus(me, data)
-              ? 'You’re on the board, so it’s booked straight away.'
+            ? manager
+              ? 'You’re on the board or NEC, so it’s booked straight away.'
               : 'A recovery for today or tomorrow is booked straight away when the bus is free.'
             : 'The board or NEC says yes or no.'}
         </Small>
@@ -722,7 +780,7 @@ export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
           label={straightAway ? 'Book it' : 'Ask for it'}
           icon={straightAway ? 'checkmark' : 'paper-plane-outline'}
           busy={saving}
-          disabled={first.error !== null || (lastTyped && last.error !== null) || notesTooLong}
+          disabled={first.error !== null || (lastTyped && last.error !== null) || notesTooLong || blocked}
           onPress={save}
           style={styles.bigButton}
         />

@@ -7,17 +7,22 @@ import {
   BUS_PAST_START,
   busToday,
   clashesWith,
+  busOverRide,
+  canBookBus,
   managesBus,
   myRecentOff,
+  notAnswered,
   NO_BOOKING,
   NOT_BUS_BOOKER,
   NOT_BUS_CANCELLER,
   NOT_BUS_MANAGER,
+  rideCalledOff,
   waitingForYes,
   type BusInput,
 } from '../domain/bus';
 import { addDays } from '../domain/dates';
-import { melbourneDate } from '../domain/rides';
+import { managesRide } from '../domain/crew';
+import { lastDay, melbourneDate } from '../domain/rides';
 import type { BusBooking, ClubData } from '../domain/types';
 import { bookBus, cancelBus, decideBus, runDemoAction, type DemoCtx } from './demoActions';
 import { DEMO_DATA } from './demoData';
@@ -43,9 +48,11 @@ const refusal = (fn: () => unknown): string => {
 const member = (id: string) => DEMO_DATA.members.find((m) => m.id === id)!;
 const bookings = (data: ClubData = DEMO_DATA) => data.busBookings ?? [];
 const booking = (id: string, data: ClubData = DEMO_DATA) => bookings(data).find((b) => b.id === id)!;
+/** Six weeks or so out, on two days no demo booking is Booked for (Ride for Kids is a fixed date). */
+const FREE = [40, 43].find((n) => clashesWith({ first: addDays(TODAY, n), last: addDays(TODAY, n + 1) }, DEMO_DATA).length === 0)!;
 const input = (over: Partial<BusInput> = {}): BusInput => ({
-  firstDay: addDays(TODAY, 40),
-  lastDay: addDays(TODAY, 41),
+  firstDay: addDays(TODAY, FREE),
+  lastDay: addDays(TODAY, FREE + 1),
   purpose: 'club_event',
   rideId: null,
   driverId: 'm-gravel',
@@ -71,9 +78,8 @@ const withBooked = (first: string, last: string): ClubData => ({
 test('the demo: a Booked charity ride on Ride for Kids on its own date, or a month out with no ride once it’s past', () => {
   const ride = DEMO_DATA.rides.find((r) => r.id === 'r-6')!;
   assert.equal(ride.title, 'Ride for Kids (supported)');
-  const charity = bookings().filter((b) => b.purpose === 'charity_ride');
-  assert.equal(charity.length, 1);
-  const [b] = charity;
+  const b = booking('bus-1');
+  assert.equal(b.purpose, 'charity_ride');
   assert.equal(b.status, 'approved');
   // Linked while Spanner's request (the day before it, through it) stays clear of today's recovery.
   const kidsDay = melbourneDate(ride.startsAt);
@@ -83,6 +89,7 @@ test('the demo: a Booked charity ride on Ride for Kids on its own date, or a mon
   } else {
     assert.equal(b.rideId, null, 'the ride is (nearly) past, so it links to no ride');
     assert.equal(b.firstDay, addDays(TODAY, 30), 'a month from today');
+    assert.doesNotMatch(b.notes, /Ride for Kids/, 'and its notes don’t name a ride it isn’t linked to');
   }
   assert.ok(b.firstDay >= TODAY, 'still to come, whenever the demo is opened');
   assert.equal(b.lastDay, b.firstDay, 'one day');
@@ -127,7 +134,46 @@ test('the demo: a Declined request of Spanner’s from last week, with a reason,
   assert.ok(managesBus(member(b.decidedBy!), DEMO_DATA), 'said no to by the board');
   assert.ok(melbourneDate(b.decidedAt!) <= b.firstDay, 'decided before its days');
   assert.ok(b.bookedAt < b.decidedAt!);
-  assert.deepEqual(myRecentOff(member('m-spanner'), DEMO_DATA, TODAY).map((x) => x.id), [b.id]);
+  assert.equal(myRecentOff(member('m-spanner'), DEMO_DATA, TODAY)[0].id, b.id);
+});
+
+test('the demo: a Waiting request of Spanner’s whose days passed without an answer, under his Yours', () => {
+  const unanswered = bookings().filter((b) => notAnswered(b, TODAY));
+  assert.equal(unanswered.length, 1);
+  const [b] = unanswered;
+  assert.equal(b.status, 'requested', 'still stored as Waiting');
+  assert.equal(b.bookedBy, 'm-spanner');
+  assert.ok(b.lastDay < TODAY && b.lastDay >= addDays(TODAY, -30), 'its days were in the last month');
+  assert.ok(melbourneDate(b.bookedAt) < b.firstDay, 'asked for before its days');
+  assert.deepEqual(myRecentOff(member('m-spanner'), DEMO_DATA, TODAY).map((x) => x.id), ['bus-4', b.id]);
+  assert.ok(!waitingForYes(DEMO_DATA, TODAY).some((x) => x.id === b.id), 'not on the board’s list');
+});
+
+test('the demo: a Booked charity ride whose ride moved, holding the bus on the new ride’s day', () => {
+  const held = bookings().filter((b) => rideCalledOff(b, DEMO_DATA));
+  assert.equal(held.length, 1);
+  const [b] = held;
+  assert.equal(b.status, 'approved');
+  assert.equal(b.purpose, 'charity_ride');
+  assert.ok(b.firstDay > addDays(TODAY, 14), 'past the fortnight, so its rides never show Crew needed');
+  const old = DEMO_DATA.rides.find((r) => r.id === b.rideId)!;
+  assert.ok(old.cancelledAt && melbourneDate(old.cancelledAt) < TODAY, 'cancelled when the website moved it');
+  assert.equal(melbourneDate(old.startsAt), b.firstDay);
+  assert.equal(b.lastDay, b.firstDay);
+  // The calendar sync's new ride: same title, same day, a later time, not cancelled.
+  const moved = DEMO_DATA.rides.filter((r) => r.title === old.title && r.id !== old.id);
+  assert.equal(moved.length, 1);
+  const [ride] = moved;
+  assert.equal(ride.cancelledAt, null);
+  assert.equal(melbourneDate(ride.startsAt), b.firstDay);
+  assert.equal(lastDay(ride), b.firstDay);
+  assert.ok(ride.startsAt > old.startsAt);
+  // Its crew managers see "Rusty Bus booked those days" in place of the Book link.
+  assert.equal(busOverRide(ride, DEMO_DATA)?.id, b.id);
+  assert.ok(managesRide(member('m-torque'), ride, DEMO_DATA) && canBookBus(member('m-torque'), DEMO_DATA));
+  // Torque booked it (so can cancel it); it never touches another booking.
+  assert.equal(b.bookedBy, 'm-torque');
+  assert.ok(!bookings().some((x) => x.id !== b.id && x.firstDay <= b.lastDay && b.firstDay <= x.lastDay), 'no other booking those days');
 });
 
 test('the demo: every booking is valid as the database would store it', () => {
@@ -157,7 +203,7 @@ test('a Full member’s booking waits for a yes, with the notes trimmed', () => 
   const { data, id } = bookBus(ctxFor('m-chook'), input({ notes: '  The marquee and the eskies.  ' }));
   const b = booking(id, data);
   assert.deepEqual(b, {
-    id, firstDay: addDays(TODAY, 40), lastDay: addDays(TODAY, 41), purpose: 'club_event', rideId: null, driverId: 'm-gravel',
+    id, firstDay: addDays(TODAY, FREE), lastDay: addDays(TODAY, FREE + 1), purpose: 'club_event', rideId: null, driverId: 'm-gravel',
     notes: 'The marquee and the eskies.', status: 'requested', bookedBy: 'm-chook', bookedAt: NOW, decidedBy: null, decidedAt: null,
     declineReason: '', cancelledBy: null, cancelledAt: null,
   });
@@ -237,8 +283,7 @@ test('deciding checks the app rules: a clashing yes, a non-manager, already deci
   assert.equal(refusal(() => decideBus(ctxFor('m-torque'), spanners.id, true, '')), BUS_CLASH);
   assert.equal(booking(spanners.id, decideBus(ctxFor('m-torque'), spanners.id, false, '')).status, 'declined', 'a no is fine');
   assert.equal(refusal(() => decideBus(ctxFor('m-spanner'), spanners.id, false, '')), NOT_BUS_MANAGER);
-  const charity = bookings().find((b) => b.purpose === 'charity_ride')!;
-  assert.equal(refusal(() => decideBus(ctxFor('m-torque'), charity.id, true, '')), ALREADY_DECIDED);
+  assert.equal(refusal(() => decideBus(ctxFor('m-torque'), 'bus-1', true, '')), ALREADY_DECIDED);
   assert.equal(refusal(() => decideBus(ctxFor('m-torque'), 'bus-nope', true, '')), NO_BOOKING);
 });
 
