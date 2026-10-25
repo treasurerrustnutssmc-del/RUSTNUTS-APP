@@ -2,6 +2,8 @@
 //   npx tsx scripts/roster-sql.mts roster.csv > roster.sql
 // Columns: email, chapter (west/north), full_name, road_name, status, joined_on, patched_on,
 // fng_started_on (DD/MM/YYYY), on_hiatus (yes/no), roles (semicolon-separated, e.g. president;tail_gunner).
+// Optional, copied into the member's profile at first sign-in: phone, emergency_name, emergency_relationship,
+// emergency_phone, bike_make, bike_model, bike_rego.
 // Never commit the CSV or the SQL: they hold real member details.
 
 import { readFileSync } from 'node:fs';

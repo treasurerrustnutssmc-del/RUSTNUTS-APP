@@ -17,9 +17,19 @@ export type RosterRow = {
   fngStartedOn: string | null;
   onHiatus: boolean;
   roles: PositionRole[];
+  details: RosterDetails;
+};
+
+/** Copied into the member's profile when they first sign in; they can change it after. */
+export type RosterDetails = {
+  phone: string | null;
+  emergency: { name: string; relationship: string | null; phone: string } | null;
+  bike: { make: string; model: string; rego: string | null } | null;
 };
 
 const COLUMNS = ['email', 'chapter', 'full_name', 'road_name', 'status', 'joined_on', 'patched_on', 'fng_started_on', 'on_hiatus', 'roles'] as const;
+// Optional: a sheet without them still loads.
+type DetailColumn = 'phone' | 'emergency_name' | 'emergency_relationship' | 'emergency_phone' | 'bike_make' | 'bike_model' | 'bike_rego';
 const CHAPTERS = ['west', 'north'];
 const NATIONAL: PositionRole[] = ['nec_chair', 'nec_secretary', 'nec_auditor', 'founder'];
 // Seats only one person can hold at a time (the database enforces the same).
@@ -54,7 +64,8 @@ export function parseRosterCsv(csv: string): RosterRow[] {
   const header = splitCsvLine(lines[0] ?? '').map((h) => h.toLowerCase());
   const missing = COLUMNS.filter((c) => !header.includes(c));
   if (missing.length) throw new Error(`Missing column(s): ${missing.join(', ')}`);
-  const col = (cells: string[], name: (typeof COLUMNS)[number]) => cells[header.indexOf(name)] ?? '';
+  const col = (cells: string[], name: (typeof COLUMNS)[number] | DetailColumn) =>
+    header.includes(name) ? (cells[header.indexOf(name)] ?? '') : '';
 
   const seen = new Set<string>();
   const seats = new Set<string>();
@@ -113,6 +124,19 @@ export function parseRosterCsv(csv: string): RosterRow[] {
       if (/^(y|yes|true|1)$/.test(hiatus)) throw new Error(`${where}: a legacy member can't be on hiatus`);
     }
 
+    const opt = (name: DetailColumn) => col(cells, name) || null;
+    const emergencyName = opt('emergency_name');
+    const emergencyPhone = opt('emergency_phone');
+    const emergencyRelationship = opt('emergency_relationship');
+    if (!emergencyName !== !emergencyPhone || (emergencyRelationship && !emergencyName)) {
+      throw new Error(`${where}: an emergency contact needs both emergency_name and emergency_phone`);
+    }
+    const bikeMake = opt('bike_make');
+    const bikeModel = opt('bike_model');
+    const bikeRego = opt('bike_rego');
+    if (!bikeMake && (bikeModel || bikeRego)) throw new Error(`${where}: a bike needs bike_make`);
+    if (bikeMake && !bikeModel) throw new Error(`${where}: a bike needs bike_model too`);
+
     rows.push({
       email,
       chapter,
@@ -124,6 +148,11 @@ export function parseRosterCsv(csv: string): RosterRow[] {
       fngStartedOn: date('fng_started_on'),
       onHiatus: /^(y|yes|true|1)$/.test(hiatus),
       roles,
+      details: {
+        phone: opt('phone'),
+        emergency: emergencyName && emergencyPhone ? { name: emergencyName, relationship: emergencyRelationship, phone: emergencyPhone } : null,
+        bike: bikeMake && bikeModel ? { make: bikeMake, model: bikeModel, rego: bikeRego } : null,
+      },
     });
   });
   if (!rows.length) throw new Error('The sheet has no members on it');
@@ -139,17 +168,24 @@ export function rosterSql(rows: RosterRow[]): string {
     (r) =>
       `  (${q(r.email)}, (select id from public.chapters where slug = ${q(r.chapter)}), ${q(r.fullName)}, ${q(r.roadName)}, ` +
       `${q(r.status)}::public.member_status, ${d(r.joinedOn)}, ${d(r.patchedOn)}, ${d(r.fngStartedOn)}, ${r.onHiatus}, ` +
-      `${q(`{${r.roles.join(',')}}`)}::public.position_role[])`,
+      `${q(`{${r.roles.join(',')}}`)}::public.position_role[], ` +
+      `${q(r.details.phone)}, ${q(r.details.emergency?.name ?? null)}, ${q(r.details.emergency?.relationship ?? null)}, ` +
+      `${q(r.details.emergency?.phone ?? null)}, ${q(r.details.bike?.make ?? null)}, ${q(r.details.bike?.model ?? null)}, ` +
+      `${q(r.details.bike?.rego ?? null)})`,
   );
   return [
     '-- Loads the claimable roster. Sends nothing; each member is linked when they first sign in.',
-    'insert into private.roster (email, chapter_id, full_name, road_name, status, joined_on, patched_on, fng_started_on, on_hiatus, roles)',
+    'insert into private.roster (email, chapter_id, full_name, road_name, status, joined_on, patched_on, fng_started_on, on_hiatus, roles,',
+    '  phone, emergency_name, emergency_relationship, emergency_phone, bike_make, bike_model, bike_rego)',
     'values',
     values.join(',\n'),
     'on conflict (lower(trim(email))) do update set',
     '  chapter_id = excluded.chapter_id, full_name = excluded.full_name, road_name = excluded.road_name,',
     '  status = excluded.status, joined_on = excluded.joined_on, patched_on = excluded.patched_on,',
-    '  fng_started_on = excluded.fng_started_on, on_hiatus = excluded.on_hiatus, roles = excluded.roles',
+    '  fng_started_on = excluded.fng_started_on, on_hiatus = excluded.on_hiatus, roles = excluded.roles,',
+    '  phone = excluded.phone, emergency_name = excluded.emergency_name, emergency_relationship = excluded.emergency_relationship,',
+    '  emergency_phone = excluded.emergency_phone, bike_make = excluded.bike_make, bike_model = excluded.bike_model,',
+    '  bike_rego = excluded.bike_rego',
     'where private.roster.claimed_by is null;',
     '',
   ].join('\n');
