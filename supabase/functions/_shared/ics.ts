@@ -359,8 +359,14 @@ const PREFIXES: [RegExp, RideCategory][] = [
   [/^non[\s-]?nuts\b/i, 'non_nuts'],
 ];
 
-/** The ride's colour: the feed's own colour, then a "West:"-style title prefix, then its category. */
+/** The ride's colour: a "Label: North" line in its notes (the club website's convention, so it
+ * beats everything), then the feed's own colour, then a "West:"-style title prefix, then its category. */
 export function categoryFor(feedCategory: RideCategory | null, ev: FeedEvent): RideCategory {
+  // Google's editor can wrap the label in HTML, so read a tag-free copy, one label line at a time.
+  const plain = (ev.notes ?? '').replace(/<(br|\/?p|\/?div|\/?li)\b[^>]*>/gi, '\n').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&');
+  for (const m of plain.matchAll(/^[ \t\u00a0]*label[ \t]*:[ \t\u00a0]*([^\n]{1,40})/gim)) {
+    for (const [re, cat] of PREFIXES) if (re.test(m[1].trim())) return cat;
+  }
   if (feedCategory) return feedCategory;
   const prefix = ev.title.match(/^([^:]{1,20}):/)?.[1].trim();
   for (const source of [prefix, ev.categoryHint]) {
