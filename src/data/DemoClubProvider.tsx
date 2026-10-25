@@ -132,6 +132,13 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     readBriefing: async (rideId, seen) => setData(act.readBriefing(ctx, rideId, seen)),
     publishRoadRules: async (input, seen) => setData(act.publishRoadRules(ctx, input, seen)),
     signRoadRules: async (version) => setData(act.signRoadRules(ctx, version)),
+    bookBus: async (input) => {
+      const result = act.bookBus(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    decideBus: async (bookingId, yes, reason) => setData(act.decideBus(ctx, bookingId, yes, reason)),
+    cancelBus: async (bookingId) => setData(act.cancelBus(ctx, bookingId)),
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => setData((d) => ({ ...d, notificationPrefs: prefs })),
   };

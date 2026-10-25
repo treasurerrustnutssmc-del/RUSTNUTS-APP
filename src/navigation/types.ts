@@ -53,6 +53,10 @@ export type RootParams = {
   RoadRules: { version?: number } | undefined;
   EditRoadRules: undefined;
   RoadRulesSignoffs: undefined;
+  // The Rusty Bus. Book opened from a ride starts with that ride and its days.
+  Bus: undefined;
+  BusBooking: { bookingId: string };
+  BookBus: { rideId?: string } | undefined;
   // Lane E: live ride
   LiveRide: { rideId: string };
   // Stage 4: members and money

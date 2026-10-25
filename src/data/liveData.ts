@@ -4,6 +4,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanBriefing, isVersionRefusal, type BriefingInput } from '../domain/briefings';
 import { cleanRoadRules, type RoadRulesInput } from '../domain/roadRules';
+import type { BusInput } from '../domain/bus';
 import type { ClubData, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
 import { EMPTY_DATA } from './clubContext';
@@ -14,6 +15,8 @@ const instant = (ts: string) => new Date(ts).toISOString();
 
 /** PostgREST's and Postgres's "no such function" codes. */
 const MISSING_FUNCTION = ['PGRST202', '42883'];
+/** PostgREST's and Postgres's "no such table" codes. */
+const MISSING_TABLE = ['PGRST205', '42P01'];
 /**
  * The library's columns: everything but the GPX file, which members can't select (it can be
  * 5 MB a route; one route's file comes through route_gpx). select('*') would be refused.
@@ -48,7 +51,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     () => undefined,
   );
 
-  const [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs] = await Promise.all([
+  const [
+    members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs, bus,
+  ] = await Promise.all([
     db.from('members').select('*'),
     db.from('member_private').select('*'),
     db.rpc('shared_phones'),
@@ -65,10 +70,14 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     // The Road Rules: every version and everyone's latest sign-off. Only approved members get rows.
     db.from('road_rules_versions').select('*'),
     db.from('road_rules_signoffs').select('*'),
+    // The Rusty Bus: every booking, in any status. Only approved members get rows.
+    db.from('bus_bookings').select('*'),
   ]);
   // Until the database has Stage 4, the rest of the app still loads. Any other failure is an error,
   // so nobody is shown "you owe nothing" because a load went wrong.
   if (money.error && !MISSING_FUNCTION.includes(money.error.code ?? '')) throw toError(money.error);
+  // The same for the Rusty Bus: until the database has its table, the club loads with no bookings.
+  if (bus.error && !MISSING_TABLE.includes(bus.error.code ?? '')) throw toError(bus.error);
   for (const r of [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, rulesVersions, rulesSignoffs]) {
     if (r.error) throw toError(r.error);
   }
@@ -223,6 +232,24 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       version: s.version,
       signedAt: instant(s.signed_at),
     })),
+    // Blank notes and reasons are stored as null.
+    busBookings: (bus.error ? [] : bus.data ?? []).map((b) => ({
+      id: b.id,
+      firstDay: b.first_day,
+      lastDay: b.last_day,
+      purpose: b.purpose,
+      rideId: b.ride_id,
+      driverId: b.driver_id,
+      notes: b.notes ?? '',
+      status: b.status,
+      bookedBy: b.booked_by,
+      bookedAt: instant(b.booked_at),
+      decidedBy: b.decided_by,
+      decidedAt: b.decided_at ? instant(b.decided_at) : null,
+      declineReason: b.decline_reason ?? '',
+      cancelledBy: b.cancelled_by,
+      cancelledAt: b.cancelled_at ? instant(b.cancelled_at) : null,
+    })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
     // Stage 5: meetings and votes
     ...business,
@@ -312,4 +339,30 @@ export function publishRoadRulesArgs(input: RoadRulesInput, seen: number, data: 
 /** sign_road_rules's arguments: the version on screen. */
 export function signRoadRulesArgs(version: number) {
   return { p_version: version };
+}
+
+// ---------------------------------------------------------------------------
+// The Rusty Bus
+// ---------------------------------------------------------------------------
+
+/** book_bus's arguments: the days (missing as none), and the notes trimmed (blank as none). */
+export function bookBusArgs(input: BusInput) {
+  return {
+    p_first: input.firstDay || null,
+    p_last: input.lastDay || null,
+    p_purpose: input.purpose,
+    p_ride: input.rideId,
+    p_driver: input.driverId,
+    p_notes: input.notes.trim() || null,
+  };
+}
+
+/** decide_bus's arguments: a no's reason trimmed (blank as none); a yes keeps no reason. */
+export function decideBusArgs(bookingId: string, yes: boolean, reason: string) {
+  return { p_booking: bookingId, p_yes: yes, p_reason: yes ? null : reason.trim() || null };
+}
+
+/** cancel_bus's arguments: the booking. */
+export function cancelBusArgs(bookingId: string) {
+  return { p_booking: bookingId };
 }

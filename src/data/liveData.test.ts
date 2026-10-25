@@ -4,6 +4,9 @@ import { READ_OUTDATED, SAVE_CONFLICT, NOT_WRITER } from '../domain/briefings';
 import { isRoadRulesVersionRefusal, NO_RULES, NOT_PUBLISHER, PUBLISH_CONFLICT, SIGN_OUTDATED } from '../domain/roadRules';
 import { EMPTY_DATA } from './clubContext';
 import {
+  bookBusArgs,
+  cancelBusArgs,
+  decideBusArgs,
   loadClub,
   publishRoadRulesArgs,
   readBriefingArgs,
@@ -439,10 +442,10 @@ test('signed out: no Road Rules are read', async () => {
   assert.deepEqual(data.roadRulesSignoffs, []);
 });
 
-/** stubClient, with one table's read failing. */
-function tableFails(table: string, message: string) {
+/** stubClient, with one table's read failing (with a PostgREST or Postgres code when given). */
+function tableFails(table: string, message: string, code?: string) {
   const base = stubClient({ chapters: [west] }) as unknown as { from: (n: string) => unknown; rpc: unknown };
-  const r = { data: null, error: { message } };
+  const r = { data: null, error: { message, code } };
   const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
   return { from: (name: string) => (name === table ? { select: () => chain } : base.from(name)), rpc: base.rpc } as never;
 }
@@ -491,4 +494,98 @@ test('after a Road Rules version refusal the club reloads, then the refusal stil
   for (const message of [NOT_PUBLISHER, NO_RULES, READ_OUTDATED]) {
     assert.equal(isRoadRulesVersionRefusal(new Error(message)), false, message);
   }
+});
+
+// ---------------------------------------------------------------------------
+// The Rusty Bus
+// ---------------------------------------------------------------------------
+
+test('signed in: the Rusty Bus bookings are read with the rest, and become app records', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      bus_bookings: [
+        {
+          id: 'bus1', first_day: '2026-11-07', last_day: '2026-11-08', purpose: 'charity_ride', ride_id: 'r1', driver_id: 'm1',
+          notes: 'Spares and water', status: 'approved', booked_by: 'm2', booked_at: '2026-10-19T03:04:05.678901+00:00',
+          decided_by: 'm2', decided_at: '2026-10-19T03:04:05.678901+00:00', decline_reason: null, cancelled_by: null, cancelled_at: null,
+        },
+        {
+          id: 'bus2', first_day: '2026-10-20', last_day: '2026-10-20', purpose: 'other', ride_id: null, driver_id: null,
+          notes: null, status: 'cancelled', booked_by: null, booked_at: '2026-10-01T00:00:00+00:00',
+          decided_by: 'm3', decided_at: '2026-10-02T01:00:00+00:00', decline_reason: 'Not that day', cancelled_by: 'm3',
+          cancelled_at: '2026-10-03T02:00:00.5+00:00',
+        },
+      ],
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.busBookings, [
+    {
+      id: 'bus1', firstDay: '2026-11-07', lastDay: '2026-11-08', purpose: 'charity_ride', rideId: 'r1', driverId: 'm1',
+      notes: 'Spares and water', status: 'approved', bookedBy: 'm2', bookedAt: '2026-10-19T03:04:05.678Z',
+      decidedBy: 'm2', decidedAt: '2026-10-19T03:04:05.678Z', declineReason: '', cancelledBy: null, cancelledAt: null,
+    },
+    {
+      id: 'bus2', firstDay: '2026-10-20', lastDay: '2026-10-20', purpose: 'other', rideId: null, driverId: null,
+      notes: '', status: 'cancelled', bookedBy: null, bookedAt: '2026-10-01T00:00:00.000Z',
+      decidedBy: 'm3', decidedAt: '2026-10-02T01:00:00.000Z', declineReason: 'Not that day', cancelledBy: 'm3',
+      cancelledAt: '2026-10-03T02:00:00.500Z',
+    },
+  ]);
+});
+
+test('signed in: no Rusty Bus rows (not approved, or none yet) loads none', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
+  assert.deepEqual(data.busBookings, []);
+});
+
+test('signed out: no Rusty Bus bookings are read', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], bus_bookings: [{ id: 'bus1' }] } as never), false);
+  assert.deepEqual(data.busBookings, []);
+});
+
+test('a failure loading the Rusty Bus is an error, not an empty list', async () => {
+  await assert.rejects(loadClub(tableFails('bus_bookings', 'boom'), true), { message: 'boom' });
+  await assert.rejects(loadClub(tableFails('bus_bookings', 'canceling statement due to statement timeout', '57014'), true), {
+    message: 'canceling statement due to statement timeout',
+  });
+  await assert.rejects(loadClub(tableFails('bus_bookings', 'permission denied for table bus_bookings', '42501'), true), {
+    message: 'permission denied for table bus_bookings',
+  });
+});
+
+test('before the database has the Rusty Bus table, the rest of the club still loads with no bookings', async () => {
+  for (const [code, message] of [
+    ['PGRST205', 'Could not find the table \'public.bus_bookings\' in the schema cache'],
+    ['42P01', 'relation "public.bus_bookings" does not exist'],
+  ]) {
+    const data = await loadClub(tableFails('bus_bookings', message, code), true);
+    assert.equal(data.chapters.length, 1, code);
+    assert.deepEqual(data.busBookings, [], code);
+  }
+  // Another table missing is still an error.
+  await assert.rejects(loadClub(tableFails('road_rules_versions', 'relation "public.road_rules_versions" does not exist', '42P01'), true));
+});
+
+test('booking the Rusty Bus sends the days, purpose, ride, driver and the notes trimmed', () => {
+  assert.deepEqual(
+    bookBusArgs({ firstDay: '2026-11-07', lastDay: '2026-11-08', purpose: 'recovery', rideId: 'r1', driverId: 'm1', notes: '  Trailer too  ' }),
+    { p_first: '2026-11-07', p_last: '2026-11-08', p_purpose: 'recovery', p_ride: 'r1', p_driver: 'm1', p_notes: 'Trailer too' },
+  );
+  assert.deepEqual(
+    bookBusArgs({ firstDay: '', lastDay: '', purpose: null, rideId: null, driverId: null, notes: '   ' }),
+    { p_first: null, p_last: null, p_purpose: null, p_ride: null, p_driver: null, p_notes: null },
+    'missing days and blank notes go as none',
+  );
+});
+
+test('a yes or no on a booking sends the reason trimmed, and none on a yes', () => {
+  assert.deepEqual(decideBusArgs('bus1', false, '  Out that day  '), { p_booking: 'bus1', p_yes: false, p_reason: 'Out that day' });
+  assert.deepEqual(decideBusArgs('bus1', false, '  '), { p_booking: 'bus1', p_yes: false, p_reason: null });
+  assert.deepEqual(decideBusArgs('bus1', true, 'kept?'), { p_booking: 'bus1', p_yes: true, p_reason: null });
+});
+
+test('cancelling a booking sends its id', () => {
+  assert.deepEqual(cancelBusArgs('bus1'), { p_booking: 'bus1' });
 });

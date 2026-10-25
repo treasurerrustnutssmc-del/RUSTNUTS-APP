@@ -18,6 +18,7 @@ import { PickCrewScreen } from '../screens/pickCrew';
 import { EditRouteScreen, PickRouteScreen, RouteScreen, RoutesScreen } from '../screens/routes';
 import { BriefingScreen, EditBriefingScreen } from '../screens/briefing';
 import { EditRoadRulesScreen, RoadRulesScreen, RoadRulesSignoffsScreen } from '../screens/roadRules';
+import { BookBusScreen, BusBookingScreen, BusScreen } from '../screens/bus';
 // Lane E: live ride
 import { LiveRideScreen } from '../screens/liveRide';
 // Lane E: notifications
@@ -192,6 +193,10 @@ export function RootNavigator() {
             <Stack.Screen name="RoadRules" component={RoadRulesScreen} options={{ title: 'Road Rules' }} />
             <Stack.Screen name="EditRoadRules" component={EditRoadRulesScreen} options={{ title: 'Publish Road Rules' }} />
             <Stack.Screen name="RoadRulesSignoffs" component={RoadRulesSignoffsScreen} options={{ title: 'Who’s signed' }} />
+            {/* The Rusty Bus */}
+            <Stack.Screen name="Bus" component={BusScreen} options={{ title: 'Rusty Bus' }} />
+            <Stack.Screen name="BusBooking" component={BusBookingScreen} options={{ title: 'Booking' }} />
+            <Stack.Screen name="BookBus" component={BookBusScreen} options={{ title: 'Book the Rusty Bus' }} />
             {/* Lane E: live ride */}
             <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} />
             {/* Stage 4: members and money */}

@@ -208,6 +208,37 @@ export interface RoadRulesSignoff {
   signedAt: string;
 }
 
+/** What the Rusty Bus is booked for. */
+export type BusPurpose = 'charity_ride' | 'recovery' | 'club_event' | 'other';
+
+/** Waiting (`requested`), Booked (`approved`), Declined or Cancelled. Only Booked ones block days. */
+export type BusStatus = 'requested' | 'approved' | 'declined' | 'cancelled';
+
+/**
+ * The Rusty Bus (the club van) for whole Melbourne days, first to last (14 days at most). People
+ * and rides are null once they've left or been deleted.
+ */
+export interface BusBooking {
+  id: string;
+  /** ISO dates, both included. */
+  firstDay: string;
+  lastDay: string;
+  purpose: BusPurpose;
+  rideId: string | null;
+  driverId: string | null;
+  /** Empty when none. */
+  notes: string;
+  status: BusStatus;
+  bookedBy: string | null;
+  bookedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  /** Empty when none. */
+  declineReason: string;
+  cancelledBy: string | null;
+  cancelledAt: string | null;
+}
+
 export interface ClubData {
   chapters: Chapter[];
   members: Member[];
@@ -232,6 +263,8 @@ export interface ClubData {
   roadRules?: RoadRulesVersion[];
   /** Each member's latest Road Rules sign-off. Missing means none. */
   roadRulesSignoffs?: RoadRulesSignoff[];
+  /** Every Rusty Bus booking, in any status. Missing means none. */
+  busBookings?: BusBooking[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
   // Lane E: notifications

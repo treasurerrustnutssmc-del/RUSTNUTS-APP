@@ -532,3 +532,84 @@ Object.assign(DEMO_DATA, {
     { memberId: 'm-rusty', version: 1, signedAt: at(addMonths(s4Today, -13)) },
   ],
 } satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
+// The Rusty Bus: Booked for Ride for Kids on its own date, out today on a recovery that Diesel is
+// driving, a Waiting request of Spanner's that clashes with the charity booking, and a no to
+// Spanner from last week. Dated from the same today as Stage 4 (s4Today), with at()'s times in UTC.
+// From the day before Ride for Kids, the charity booking moves to a month from today with no ride
+// (the spec's fallback), so the demo always has a booking and a clashing request still to come,
+// and neither ever shares a day with today's recovery (two Booked bookings never share a day).
+// Also: a request of Spanner's from a fortnight ago that nobody answered, and a Booked charity ride
+// whose ride the website moved half an hour (the sync cancels the old ride and adds a new one), so
+// the booking hangs off a cancelled ride and the new ride shows "Rusty Bus booked those days".
+// ---------------------------------------------------------------------------
+
+const rideForKids = DEMO_DATA.rides.find((r) => r.id === 'r-6')!;
+const kidsDayAhead = melbourneDate(rideForKids.startsAt) > addDays(s4Today, 1);
+const charityDay = kidsDayAhead ? melbourneDate(rideForKids.startsAt) : addDays(s4Today, 30);
+/** Today's recovery was booked earlier today: three hours ago, or just now in Melbourne's first hours. */
+const recoveryBookedAt = (() => {
+  const now = Date.now();
+  const stamps = [3 * 3600_000, 60_000, 0].map((ms) => new Date(now - ms).toISOString());
+  return stamps.find((t) => melbourneDate(t) === s4Today) ?? stamps[stamps.length - 1];
+})();
+const noBusDecision = { decidedBy: null, decidedAt: null, declineReason: '', cancelledBy: null, cancelledAt: null };
+// The moved ride's day: past the fortnight (so it never shows Crew needed), clear of the charity
+// booking and Spanner's request around it.
+const movedDay = [16, 19].map((n) => addDays(s4Today, n)).find((d) => d < addDays(charityDay, -1) || d > charityDay)!;
+const pinkRibbon = {
+  title: 'West Pink Ribbon ride', endsAt: null, allDay: false, location: 'Caltex Laverton North',
+  notes: 'Raising money for breast cancer research. Wear something pink.', category: 'west' as const,
+};
+DEMO_DATA.rides.push(
+  // 22:30 and 23:00 UTC the day before: 9:30 and 10 am Melbourne in summer time, 8:30 and 9 in winter.
+  { id: 'r-9', ...pinkRibbon, startsAt: at(addDays(movedDay, -1), '22:30:00'), cancelledAt: at(ago(2), '03:00:00') },
+  { id: 'r-10', ...pinkRibbon, startsAt: at(addDays(movedDay, -1), '23:00:00'), cancelledAt: null },
+);
+
+Object.assign(DEMO_DATA, {
+  busBookings: [
+    {
+      // Booked by the West Secretary, a bus manager, so it was Booked straight away.
+      id: 'bus-1', firstDay: charityDay, lastDay: charityDay, purpose: 'charity_ride', rideId: kidsDayAhead ? 'r-6' : null,
+      driverId: 'm-gravel',
+      notes: `Support vehicle for ${kidsDayAhead ? 'Ride for Kids' : 'the charity ride'}: water, spares, and room in the back for a bike that gives up.`,
+      status: 'approved', bookedBy: 'm-torque', bookedAt: at(ago(20), '08:00:00'),
+      decidedBy: 'm-torque', decidedAt: at(ago(20), '08:00:00'), declineReason: '', cancelledBy: null, cancelledAt: null,
+    },
+    {
+      // A recovery for today, so it was Booked straight away.
+      id: 'bus-2', firstDay: s4Today, lastDay: s4Today, purpose: 'recovery', rideId: null, driverId: 'm-diesel',
+      notes: 'Chook’s bike died near Bacchus Marsh on the way home last night. Bringing it back to the clubhouse.',
+      status: 'approved', bookedBy: 'm-chook', bookedAt: recoveryBookedAt,
+      decidedBy: 'm-chook', decidedAt: recoveryBookedAt, declineReason: '', cancelledBy: null, cancelledAt: null,
+    },
+    {
+      id: 'bus-3', firstDay: addDays(charityDay, -1), lastDay: charityDay, purpose: 'club_event', rideId: null, driverId: 'm-spanner',
+      notes: 'West family day at the clubhouse: the marquee, the barbecue and the eskies.',
+      status: 'requested', bookedBy: 'm-spanner', bookedAt: at(ago(3)), ...noBusDecision,
+    },
+    {
+      id: 'bus-4', firstDay: ago(6), lastDay: ago(5), purpose: 'other', rideId: null, driverId: 'm-spanner',
+      notes: 'Moving house: a couch, a fridge and the CB750 project.',
+      status: 'declined', bookedBy: 'm-spanner', bookedAt: at(ago(10)),
+      decidedBy: 'm-rusty', decidedAt: at(ago(8)),
+      declineReason: 'The bus is for club runs and recoveries, not moving house. Sorry, mate.',
+      cancelledBy: null, cancelledAt: null,
+    },
+    {
+      // Booked straight away by Torque for the Pink Ribbon ride, before the website moved it.
+      id: 'bus-5', firstDay: movedDay, lastDay: movedDay, purpose: 'charity_ride', rideId: 'r-9', driverId: 'm-sparks',
+      notes: 'Support vehicle for the Pink Ribbon ride: water, the first aid kit and a box of pink balloons.',
+      status: 'approved', bookedBy: 'm-torque', bookedAt: at(ago(15), '07:00:00'),
+      decidedBy: 'm-torque', decidedAt: at(ago(15), '07:00:00'), declineReason: '', cancelledBy: null, cancelledAt: null,
+    },
+    {
+      // Asked for and never answered: its days went by a fortnight ago.
+      id: 'bus-6', firstDay: ago(13), lastDay: ago(12), purpose: 'club_event', rideId: null, driverId: 'm-spanner',
+      notes: 'The West stall at the Werribee swap meet: the gazebo and the merch tubs.',
+      status: 'requested', bookedBy: 'm-spanner', bookedAt: at(ago(24)), ...noBusDecision,
+    },
+  ],
+} satisfies Partial<ClubData>);

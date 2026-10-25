@@ -4,7 +4,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BRIEFED_AT, demoAnswer, fixture } from './parityFixture.testkit';
+import {
+  ALREADY_OFF, BUS_CLASH, BUS_PAST_START, bookedStraightAway, NOT_BUS_BOOKER, NOT_BUS_CANCELLER, NOT_BUS_MANAGER,
+} from '../domain/bus';
+import { BRIEFED_AT, demoAnswer, fixture, fixtureData, parityToday, resolveCase } from './parityFixture.testkit';
 
 test('the shared case list has cases', () => {
   assert.ok(fixture.cases.length >= 30);
@@ -42,6 +45,50 @@ test('the Road Rules cases cover publishing and signing, with and without versio
   assert.ok(has('publishRoadRules', (c) => !c.allowed && !c.noRoadRules && c.seen !== current), 'a clash');
   assert.ok(has('signRoadRules', (c) => c.allowed), 'a sign-off');
   assert.ok(has('signRoadRules', (c) => !c.allowed && c.noRoadRules === true), 'nothing to sign yet');
+});
+
+test('the Rusty Bus cases cover the spec’s eleven, with days counted from today', () => {
+  const today = parityToday();
+  const data = fixtureData([], today);
+  const bus = fixture.cases.filter((c) => ['bookBus', 'decideBus', 'cancelBus'].includes(String(c.action)));
+  for (const c of bus.filter((x) => x.action === 'bookBus')) {
+    // Fixed dates would go stale: the database's today is the real Melbourne date.
+    assert.ok(!('first' in c) && !('last' in c), `"${c.name}" counts its days from today`);
+    assert.ok('firstDays' in c && 'lastDays' in c, `"${c.name}" has its days`);
+  }
+  for (const b of fixture.busBookings ?? []) {
+    assert.ok(typeof b.firstDays === 'number' && typeof b.lastDays === 'number', `${b.key} counts its days from today`);
+  }
+  const me = (c: (typeof bus)[number]) => data.members.find((m) => m.id === c.as) ?? null;
+  const straight = (c: (typeof bus)[number]) => {
+    const r = resolveCase(c, today) as Record<string, unknown>;
+    const input = {
+      firstDay: String(r.first ?? ''), lastDay: String(r.last ?? ''), purpose: r.purpose as never, rideId: null, driverId: null, notes: '',
+    };
+    return bookedStraightAway(me(c), input, today, data);
+  };
+  const has = (action: string, what: string, test: (c: (typeof bus)[number]) => boolean) =>
+    assert.ok(bus.some((c) => c.action === action && test(c)), what);
+  const says = (message: string) => (c: (typeof bus)[number]) => !c.allowed && demoAnswer(c) === message;
+  has('bookBus', 'book: a member asking', (c) => c.allowed && !straight(c));
+  has('bookBus', 'book: a recovery booked straight away', (c) => c.allowed && c.purpose === 'recovery' && straight(c));
+  has('bookBus', 'book: a clash on straight away', (c) => straight(c) && says(BUS_CLASH)(c));
+  has('bookBus', 'book: a past start', says(BUS_PAST_START));
+  // The spec's "recovery in 3 days" waits, so it may be asked for over a Booked day.
+  const overBooked = (c: (typeof bus)[number]) =>
+    (fixture.busBookings ?? []).some(
+      (b) => b.status === 'approved' && b.firstDays <= Number(c.lastDays) && Number(c.firstDays) <= b.lastDays,
+    );
+  has('bookBus', 'book: a recovery in three days waits over a Booked day', (c) =>
+    c.allowed && c.purpose === 'recovery' && c.firstDays === 3 && !straight(c) && overBooked(c));
+  has('bookBus', 'book: an FNG refused', (c) => me(c)?.status === 'fng' && says(NOT_BUS_BOOKER)(c));
+  has('decideBus', 'decide: a yes', (c) => c.allowed && c.yes === true);
+  has('decideBus', 'decide: a clashing yes', (c) => c.yes === true && says(BUS_CLASH)(c));
+  has('decideBus', 'decide: a non-manager', says(NOT_BUS_MANAGER));
+  const bookedBy = (key: unknown) => (fixture.busBookings ?? []).find((b) => b.key === key)?.bookedBy;
+  has('cancelBus', 'cancel: by the booker', (c) => c.allowed && bookedBy(c.booking) === c.as);
+  has('cancelBus', 'cancel: by a stranger', says(NOT_BUS_CANCELLER));
+  has('cancelBus', 'cancel: already off', says(ALREADY_OFF));
 });
 
 for (const c of fixture.cases) {

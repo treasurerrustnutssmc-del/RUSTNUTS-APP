@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crewNeeded, showsCrewNeeded } from '../domain/crew';
+import { crewNeeded, managesRide, showsCrewNeeded } from '../domain/crew';
 import { todayIso } from '../domain/dates';
 import type { ClubData, CrewSpot } from '../domain/types';
 import { NotAllowedError } from './clubContext';
@@ -156,8 +156,15 @@ test('a demo ride shows Crew needed for a manager today, whatever the real date'
   // The demo provider uses the device's date, so this checks against the real today.
   const today = todayIso();
   const smokey = DEMO_DATA.members.find((m) => m.id === 'm-smokey')!; // North president
+  // Smokey sits on the NEC, so he sees every ride that needs crew: the North one always, and the
+  // fixed-date club-wide rides (Toy Run, Christmas ride, Ride for Kids, Big 4) in their fortnights.
   const needy = DEMO_DATA.rides.filter((r) => showsCrewNeeded(smokey, r, DEMO_DATA, today));
-  assert.ok(needy.length >= 1, 'a North ride with no TG starts in the next 14 days');
+  const north = needy.filter((r) => r.category === 'north');
+  assert.ok(north.length >= 1, 'a North ride with no TG starts in the next 14 days');
   const gravel = DEMO_DATA.members.find((m) => m.id === 'm-gravel')!; // West board: not North's crew
-  assert.equal(needy.some((r) => showsCrewNeeded(gravel, r, DEMO_DATA, today)), false, 'only for a manager of that ride');
+  assert.equal(north.some((r) => showsCrewNeeded(gravel, r, DEMO_DATA, today)), false, 'not for a West board member');
+  // Every one of them shows for Gravel exactly when he manages that ride (a club-wide one, any board).
+  for (const r of needy) {
+    assert.equal(showsCrewNeeded(gravel, r, DEMO_DATA, today), managesRide(gravel, r, DEMO_DATA), `only for a manager of ${r.title}`);
+  }
 });

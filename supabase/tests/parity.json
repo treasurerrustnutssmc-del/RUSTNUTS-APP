@@ -3640,6 +3640,618 @@
       "vote": "west-board-tied",
       "casting": "yes",
       "allowed": true
+    },
+    {
+      "name": "A Full member asks for the Rusty Bus (it waits for a yes)",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 41,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "  The marquee and the eskies.  ",
+      "allowed": true
+    },
+    {
+      "name": "A Full member asks for days the bus is already booked (asking is still allowed)",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 11,
+      "lastDays": 11,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A recovery for tomorrow is booked straight away",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 1,
+      "lastDays": 1,
+      "purpose": "recovery",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A recovery for today that clashes with a Booked day is refused",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 0,
+      "lastDays": 0,
+      "purpose": "recovery",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A recovery in three days waits, so it may overlap a Booked day",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 3,
+      "lastDays": 3,
+      "purpose": "recovery",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A board member's booking is booked straight away",
+      "as": "torque",
+      "action": "bookBus",
+      "firstDays": 50,
+      "lastDays": 52,
+      "purpose": "charity_ride",
+      "ride": "future-club",
+      "driver": "torque",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A board member's booking that clashes is refused",
+      "as": "torque",
+      "action": "bookBus",
+      "firstDays": 12,
+      "lastDays": 13,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "torque",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Another chapter's Road Captain books the Rusty Bus straight away",
+      "as": "crank",
+      "action": "bookBus",
+      "firstDays": 60,
+      "lastDays": 60,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "crank",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "The NEC books the Rusty Bus straight away",
+      "as": "lou",
+      "action": "bookBus",
+      "firstDays": 61,
+      "lastDays": 61,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "lou",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A Rusty Bus booking that starts in the past is refused",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": -1,
+      "lastDays": 1,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "An FNG can't book the Rusty Bus",
+      "as": "finn",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "An FNG with no days is told about membership first",
+      "as": "finn",
+      "action": "bookBus",
+      "firstDays": null,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Legacy member can't book the Rusty Bus",
+      "as": "hacker",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "An applicant can't book the Rusty Bus",
+      "as": "dylan",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Someone not signed in can't book the Rusty Bus",
+      "as": null,
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking with no first day",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": null,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking whose last day is before its first",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 41,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking of fourteen days",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 53,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A Rusty Bus booking of fifteen days is too long",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 54,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking eleven months ahead",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 330,
+      "lastDays": 330,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A Rusty Bus booking more than a year ahead",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 400,
+      "lastDays": 400,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking with no purpose",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": null,
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking for a ride that's on the calendar",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "charity_ride",
+      "ride": "future-club",
+      "driver": "gravel",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A Rusty Bus booking for a cancelled ride",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": "cancelled-north",
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking for a ride that doesn't exist",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": "nope",
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking driven by an applicant",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "dylan",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking with no driver",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": null,
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking with 500 characters of notes",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "x",
+      "repeat": 500,
+      "allowed": true
+    },
+    {
+      "name": "A Rusty Bus booking with 501 characters of notes",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "x",
+      "repeat": 501,
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking with blank notes around 500 characters",
+      "as": "gravel",
+      "action": "bookBus",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  ",
+      "repeat": 1,
+      "allowed": true
+    },
+    {
+      "name": "A board member says yes to a Rusty Bus request",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": true,
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "A yes that clashes with a Booked booking is refused",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "asked-clash",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A no to a clashing Rusty Bus request, with a reason",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "asked-clash",
+      "yes": false,
+      "reason": "  The bus is out that weekend.  ",
+      "allowed": true
+    },
+    {
+      "name": "A member who isn't on a board can't say yes to the Rusty Bus",
+      "as": "spanner",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A board member whose seat has ended can't say yes to the Rusty Bus",
+      "as": "jet",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "The NEC says yes to a Rusty Bus request",
+      "as": "lou",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": true,
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "Another chapter's Road Captain says yes to a Rusty Bus request",
+      "as": "crank",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": true,
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "A yes to a Rusty Bus request already declined",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "declined",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A yes to a Rusty Bus booking already Booked",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "booked-soon",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A no to a cancelled Rusty Bus booking",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "cancelled",
+      "yes": false,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A yes to a Rusty Bus request whose days have passed",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "asked-past",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A no with a 300-character reason",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": false,
+      "reason": "x",
+      "repeat": 300,
+      "allowed": true
+    },
+    {
+      "name": "A no with a 301-character reason",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": false,
+      "reason": "x",
+      "repeat": 301,
+      "allowed": false
+    },
+    {
+      "name": "A yes with a long reason (the reason only counts on a no)",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": true,
+      "reason": "x",
+      "repeat": 301,
+      "allowed": true
+    },
+    {
+      "name": "A yes to a Rusty Bus booking that doesn't exist",
+      "as": "torque",
+      "action": "decideBus",
+      "booking": "nope",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A member deciding a booking that doesn't exist is told they can't decide first",
+      "as": "spanner",
+      "action": "decideBus",
+      "booking": "nope",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "An applicant says yes to a Rusty Bus request",
+      "as": "dylan",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "Someone not signed in says yes to a Rusty Bus request",
+      "as": null,
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "Whoever booked it cancels their Rusty Bus request",
+      "as": "gravel",
+      "action": "cancelBus",
+      "booking": "asked-free",
+      "allowed": true
+    },
+    {
+      "name": "The driver cancels a Booked Rusty Bus booking",
+      "as": "ash",
+      "action": "cancelBus",
+      "booking": "booked-soon",
+      "allowed": true
+    },
+    {
+      "name": "Another chapter's board cancels a Rusty Bus booking",
+      "as": "smokey",
+      "action": "cancelBus",
+      "booking": "booked-soon",
+      "allowed": true
+    },
+    {
+      "name": "A stranger can't cancel someone's Rusty Bus booking",
+      "as": "jet",
+      "action": "cancelBus",
+      "booking": "asked-free",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking already declined is already off",
+      "as": "gravel",
+      "action": "cancelBus",
+      "booking": "declined",
+      "allowed": false
+    },
+    {
+      "name": "A cancelled Rusty Bus booking is already off",
+      "as": "spanner",
+      "action": "cancelBus",
+      "booking": "cancelled",
+      "allowed": false
+    },
+    {
+      "name": "A stranger cancelling a declined booking is told they can't first",
+      "as": "jet",
+      "action": "cancelBus",
+      "booking": "declined",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking under way can still be cancelled",
+      "as": "gravel",
+      "action": "cancelBus",
+      "booking": "out-today",
+      "allowed": true
+    },
+    {
+      "name": "A Rusty Bus request whose days have passed can't be cancelled",
+      "as": "spanner",
+      "action": "cancelBus",
+      "booking": "asked-past",
+      "allowed": false
+    },
+    {
+      "name": "Cancelling a Rusty Bus booking that doesn't exist",
+      "as": "gravel",
+      "action": "cancelBus",
+      "booking": "nope",
+      "allowed": false
+    },
+    {
+      "name": "An applicant cancels a Rusty Bus booking",
+      "as": "dylan",
+      "action": "cancelBus",
+      "booking": "asked-free",
+      "allowed": false
+    },
+    {
+      "name": "Someone not signed in cancels a Rusty Bus booking",
+      "as": null,
+      "action": "cancelBus",
+      "booking": "asked-free",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -4098,6 +4710,88 @@
           "choice": "no"
         }
       ]
+    }
+  ],
+  "busBookings": [
+    {
+      "key": "out-today",
+      "firstDays": -1,
+      "lastDays": 0,
+      "purpose": "recovery",
+      "ride": null,
+      "driver": "gravel",
+      "bookedBy": "gravel",
+      "status": "approved"
+    },
+    {
+      "key": "booked-day-three",
+      "firstDays": 3,
+      "lastDays": 3,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "rusty",
+      "bookedBy": "rusty",
+      "status": "approved"
+    },
+    {
+      "key": "booked-soon",
+      "firstDays": 10,
+      "lastDays": 12,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "ash",
+      "bookedBy": "rusty",
+      "status": "approved"
+    },
+    {
+      "key": "asked-clash",
+      "firstDays": 11,
+      "lastDays": 11,
+      "purpose": "club_event",
+      "ride": null,
+      "driver": "spanner",
+      "bookedBy": "spanner",
+      "status": "requested"
+    },
+    {
+      "key": "asked-free",
+      "firstDays": 20,
+      "lastDays": 21,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "gravel",
+      "bookedBy": "gravel",
+      "status": "requested"
+    },
+    {
+      "key": "asked-past",
+      "firstDays": -3,
+      "lastDays": -2,
+      "purpose": "other",
+      "ride": null,
+      "driver": "spanner",
+      "bookedBy": "spanner",
+      "status": "requested"
+    },
+    {
+      "key": "declined",
+      "firstDays": 30,
+      "lastDays": 30,
+      "purpose": "other",
+      "ride": null,
+      "driver": "gravel",
+      "bookedBy": "gravel",
+      "status": "declined"
+    },
+    {
+      "key": "cancelled",
+      "firstDays": 40,
+      "lastDays": 40,
+      "purpose": "other",
+      "ride": null,
+      "driver": "spanner",
+      "bookedBy": "spanner",
+      "status": "cancelled"
     }
   ]
 }

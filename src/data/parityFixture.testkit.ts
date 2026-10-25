@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
-  BallotChoice, ChargeKind, CheckinKind, ClubData, CrewRole, Electorate, MeetingKind, Member, MemberStatus, PaymentState, PositionRole,
+  BallotChoice, BusPurpose, BusStatus, ChargeKind, CheckinKind, ClubData, CrewRole, Electorate, MeetingKind, Member, MemberStatus, PaymentState, PositionRole,
   RideCategory, Route, RsvpAnswer, Threshold,
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
@@ -72,6 +72,14 @@ export interface ParityFixture {
   roadRules?: { number: number; body: string; changes: string; fresh: boolean }[];
   /** Road Rules sign-offs already made, all at RULES_AT. */
   roadRulesSignoffs?: { member: string; version: number }[];
+  /**
+   * Rusty Bus bookings already made, with their days counted from today, all booked (and decided
+   * or cancelled, by no one) at BUS_AT. A declined one has the reason "Not this time."
+   */
+  busBookings?: {
+    key: string; firstDays: number; lastDays: number; purpose: BusPurpose; ride: string | null; driver: string | null;
+    bookedBy: string | null; status: BusStatus;
+  }[];
   cases: ParityCase[];
   stage4?: Stage4Fixture;
   // Stage 3 (lane B): chats. A chat is named `club`, `nec`, `committee:ride`, `committee:charity`,
@@ -86,6 +94,15 @@ export const BRIEFED_AT = '2026-10-01T00:00:00.000Z';
 
 /** When the fixture's Road Rules were published and signed. */
 export const RULES_AT = '2026-10-01T00:00:00.000Z';
+
+/** When the fixture's Rusty Bus bookings were made, decided and cancelled. */
+export const BUS_AT = '2026-10-01T00:00:00.000Z';
+
+/** The reason on the fixture's declined bookings. */
+export const BUS_DECLINE_REASON = 'Not this time.';
+
+/** The Rusty Bus actions, whose cases count their days from today (firstDays, lastDays). */
+export const BUS_ACTIONS = new Set(['bookBus', 'decideBus', 'cancelBus']);
 
 /** Stage 4's part of the fixture. Dates are days (or months, for FNG starts) from today. */
 export interface Stage4Fixture {
@@ -190,6 +207,13 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
     briefingReads: (fixture.briefingReads ?? []).map((r) => ({ rideId: r.ride, memberId: r.member, readAt: BRIEFED_AT })),
     roadRules: (fixture.roadRules ?? []).map((v) => ({ ...v, publishedAt: RULES_AT, publishedBy: null })),
     roadRulesSignoffs: (fixture.roadRulesSignoffs ?? []).map((s) => ({ memberId: s.member, version: s.version, signedAt: RULES_AT })),
+    busBookings: (fixture.busBookings ?? []).map((b) => ({
+      id: b.key, firstDay: addDays(today, b.firstDays), lastDay: addDays(today, b.lastDays), purpose: b.purpose, rideId: b.ride,
+      driverId: b.driver, notes: '', status: b.status, bookedBy: b.bookedBy, bookedAt: BUS_AT,
+      decidedBy: null, decidedAt: b.status === 'approved' || b.status === 'declined' ? BUS_AT : null,
+      declineReason: b.status === 'declined' ? BUS_DECLINE_REASON : '',
+      cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
+    })),
   };
   return withStage4(base, today);
 }
@@ -279,7 +303,7 @@ export function demoAnswer(c: ParityCase): string | null {
       runChatAction({ chat: fixtureChat(), club: data, me, now: '2026-10-24T01:00:00.000Z' }, c as unknown as ChatAction);
       return null;
     }
-    runDemoAction({ data, me, today }, caseAction(c));
+    runDemoAction({ data, me, today }, caseAction(BUS_ACTIONS.has(String(c.action)) ? resolveCase(c, today) : c));
     return null;
   } catch (e) {
     return (e as Error).message;
