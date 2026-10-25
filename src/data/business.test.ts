@@ -23,6 +23,9 @@ test('a meeting is saved trimmed, then its minutes drafted, approved and locked'
 
   let data = act.saveMinutes(ctx('m-torque', saved.data), saved.id, 'All present.');
   assert.throws(() => act.approveMinutes(ctx('m-torque', data), saved.id), /hasn’t happened yet/);
+  assert.throws(() => act.shareMinutes(ctx('m-torque', data), saved.id), /hasn’t happened yet/);
+  data = act.shareMinutes(ctx('m-torque', data, '2026-11-04T00:00:00.000Z'), saved.id);
+  assert.equal(data.meetings!.find((x) => x.id === saved.id)!.minutesSharedAt, '2026-11-04T00:00:00.000Z', 'the draft is out (10.8)');
   data = act.approveMinutes(ctx('m-torque', data, '2026-11-04T00:00:00.000Z'), saved.id);
   const approved = data.meetings!.find((x) => x.id === saved.id)!;
   assert.equal(approved.minutesApprovedBy, 'm-torque');

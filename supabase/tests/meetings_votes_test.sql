@@ -162,7 +162,14 @@ begin
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.approve_minutes(%L)$q$, board)) = 'The meeting hasn’t happened yet.', 'too early';
 
   r := pg_temp.business_as(pg_temp.u(3))->'meetings'->0;
-  assert r->>'minutes' = 'All present. Christmas ride booked.', 'members see the draft once the meeting''s been held (10.8)';
+  assert r->'minutes' = 'null'::jsonb, 'members don''t see minutes the board hasn''t shared';
+  assert pg_temp.try_as(pg_temp.u(3), format($q$select public.share_minutes(%L)$q$, general)) = 'Only that chapter’s board can do that.', 'member shares';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.share_minutes(%L)$q$, board)) = 'The meeting hasn’t happened yet.', 'shared too early';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.share_minutes(%L)$q$, general)) is null, 'the board shares the draft (10.8)';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.share_minutes(%L)$q$, general)) = 'The draft is already out to members.', 'twice';
+  r := (select x from jsonb_array_elements(pg_temp.business_as(pg_temp.u(3))->'meetings') x where x->>'id' = general::text);
+  assert r->>'minutes' = 'All present. Christmas ride booked.' and r->>'minutes_shared_at' is not null, 'members read the shared draft';
+  assert pg_temp.try_as(null, format($q$select public.share_minutes(%L)$q$, general)) is not null, 'anon can''t';
   assert pg_temp.business_as(pg_temp.u(2))->'meetings' @> jsonb_build_array(jsonb_build_object('id', general, 'minutes', 'All present. Christmas ride booked.')),
     'the board does';
 

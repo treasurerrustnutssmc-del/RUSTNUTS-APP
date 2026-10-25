@@ -431,6 +431,7 @@ export type Database = {
       cancel_meeting: { Args: { p_id: string }; Returns: undefined };
       save_minutes: { Args: { p_id: string; p_text: string }; Returns: undefined };
       approve_minutes: { Args: { p_id: string }; Returns: undefined };
+      share_minutes: { Args: { p_id: string }; Returns: undefined };
       save_action_item: {
         Args: {
           p_id: string | null; p_chapter: string | null; p_meeting: string | null; p_title: string; p_owner: string;

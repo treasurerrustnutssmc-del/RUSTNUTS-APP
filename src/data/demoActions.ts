@@ -561,6 +561,7 @@ export type DemoAction =
   // Stage 5: meetings and votes
   | { action: 'saveMeeting'; chapter: string | null; kind: MeetingKind; title: string; startsAt: string }
   | { action: 'approveMinutes'; meeting: string }
+  | { action: 'shareMinutes'; meeting: string }
   | { action: 'saveActionItem'; chapter: string | null; meeting: string | null; title: string; owner: string }
   | {
       action: 'openVote'; chapter: string | null; subject: string | null; electorate: Electorate; threshold: Threshold;
@@ -674,6 +675,8 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       }).data;
     case 'approveMinutes':
       return business.approveMinutes(ctx, a.meeting);
+    case 'shareMinutes':
+      return business.shareMinutes(ctx, a.meeting);
     case 'saveActionItem':
       return business.saveActionItem(ctx, {
         id: null, chapterId: a.chapter, meetingId: a.meeting, title: a.title, ownerId: a.owner, dueOn: null,

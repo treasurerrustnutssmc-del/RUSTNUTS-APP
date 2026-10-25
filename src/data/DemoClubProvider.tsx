@@ -74,6 +74,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     cancelMeeting: async (id) => setData(business.cancelMeeting(ctx, id)),
     saveMinutes: async (id, text) => setData(business.saveMinutes(ctx, id, text)),
+    shareMinutes: async (id) => setData(business.shareMinutes(ctx, id)),
     approveMinutes: async (id) => setData(business.approveMinutes(ctx, id)),
     saveActionItem: async (input) => setData(business.saveActionItem(ctx, input).data),
     setActionDone: async (id, done) => setData(business.setActionDone(ctx, id, done)),

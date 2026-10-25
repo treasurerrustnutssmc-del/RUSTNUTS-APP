@@ -366,7 +366,7 @@ function Fact({ icon, text }: { icon: React.ComponentProps<typeof Ionicons>['nam
 }
 
 export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
-  const { me, data, saveMinutes, approveMinutes, cancelMeeting } = useClub();
+  const { me, data, saveMinutes, shareMinutes, approveMinutes, cancelMeeting } = useClub();
   const meeting = (data.meetings ?? []).find((m) => m.id === route.params.meetingId);
   const [draft, setDraft] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -402,7 +402,15 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
       await approveMinutes(meeting.id);
       setDraft(null);
     });
+  const share = () =>
+    minutesAction.run(async () => {
+      // Save what's on screen first, so members get what the board read.
+      if (draft !== null && draft !== (meeting.minutes ?? '')) await saveMinutes(meeting.id, draft);
+      await shareMinutes(meeting.id);
+      setDraft(null);
+    });
   const approveBlock = approveMinutesProblem(me, { ...meeting, minutes: text }, data, now);
+  const shared = meeting.minutesSharedAt ?? null;
 
   return (
     <Screen>
@@ -463,24 +471,29 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
               style={{ minHeight: 180 }}
             />
             {state === 'due' || state === 'overdue' ? (
-              <Small>{`The draft is due out ${formatAuDate(minutesDueOn(meeting))}, a week after the meeting (10.8). Members can read what’s saved here.`}</Small>
-            ) : state === 'draft' ? (
-              <Small>Members can read the saved draft. Confirm it at the next meeting (10.8).</Small>
+              <Small>{`Share the draft with members by ${formatAuDate(minutesDueOn(meeting))}, a week after the meeting (10.8).`}</Small>
+            ) : shared ? (
+              <Small>{`Shared with members ${formatAuDate(melbourneDate(shared))}. They see saved changes. Confirm the minutes at the next meeting (10.8).`}</Small>
             ) : null}
             {saved && draft === null ? <Small style={{ color: colors.ok }}>Saved.</Small> : null}
             <ErrorNotice error={minutesAction.error} />
             <Button label="Save draft" kind="secondary" busy={minutesAction.busy} disabled={draft === null} onPress={save} />
             {started ? (
               approveBlock ? (
-                <Small>{approveBlock === 'Write the minutes first.' ? 'Write the minutes, then confirm them here.' : approveBlock}</Small>
+                <Small>{approveBlock === 'Write the minutes first.' ? 'Write the minutes, then share the draft and confirm them here.' : approveBlock}</Small>
               ) : (
-                <ConfirmButton label="Confirm minutes" confirmLabel="Confirm and lock" kind="primary" icon="checkmark" onConfirm={approve} />
+                <>
+                  {shared ? null : (
+                    <ConfirmButton label="Share draft with members" confirmLabel="Send it to members" kind="secondary" icon="send" onConfirm={share} />
+                  )}
+                  <ConfirmButton label="Confirm minutes" confirmLabel="Confirm and lock" kind="primary" icon="checkmark" onConfirm={approve} />
+                </>
               )
             ) : (
-              <Small>Once the meeting’s been held, members can read the draft. Confirm the minutes at the next meeting (10.8); they’re locked after that.</Small>
+              <Small>Notes saved here stay with the board. After the meeting, share the draft with members, then confirm the minutes at the next meeting (10.8).</Small>
             )}
           </Card>
-        ) : canSeeMinutes(me, meeting, data.positions, now) && meeting.minutes ? (
+        ) : canSeeMinutes(me, meeting, data.positions) && meeting.minutes ? (
           <Card>
             <Body selectable>{meeting.minutes}</Body>
             {meeting.minutesApprovedAt ? (
@@ -491,7 +504,7 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
           </Card>
         ) : (
           <Card>
-            <Small>{cancelled ? 'This meeting was cancelled.' : 'The draft minutes go up here after the meeting.'}</Small>
+            <Small>{cancelled ? 'This meeting was cancelled.' : 'The board shares the draft minutes here after the meeting.'}</Small>
           </Card>
         )}
       </Stack>
@@ -769,7 +782,11 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
               <KeyValue label="Abstain" value={String(vote.tally.abstain)} />
             </Stack>
           ) : null}
-          {vote.castingVote ? <Small>{`Tied, so the chair gave the casting vote: ${BALLOT_LABEL[vote.castingVote]}.`}</Small> : null}
+          {vote.castingVote ? (
+            <Small>{`Tied, so the chair gave the casting vote: ${BALLOT_LABEL[vote.castingVote]}.`}</Small>
+          ) : vote.result === 'lost' && vote.threshold === 'majority' && vote.tally && vote.tally.yes > 0 && vote.tally.yes === vote.tally.no ? (
+            <Small>Tied with no casting vote, so it’s lost (9.10).</Small>
+          ) : null}
           {vote.result === 'no_quorum' ? <Small>{`Fewer than ${vote.quorum} ballots came in, so the vote doesn’t count.`}</Small> : null}
           {subject && vote.result === 'carried' && runs ? (
             <Button

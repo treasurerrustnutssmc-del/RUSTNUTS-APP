@@ -3410,6 +3410,27 @@
       "allowed": true
     },
     {
+      "name": "The board shares draft minutes after the meeting",
+      "as": "torque",
+      "action": "shareMinutes",
+      "meeting": "west-general-past",
+      "allowed": true
+    },
+    {
+      "name": "The board shares minutes before the meeting",
+      "as": "torque",
+      "action": "shareMinutes",
+      "meeting": "west-board-future",
+      "allowed": false
+    },
+    {
+      "name": "A member shares draft minutes",
+      "as": "spanner",
+      "action": "shareMinutes",
+      "meeting": "west-general-past",
+      "allowed": false
+    },
+    {
       "name": "The board approves minutes before the meeting",
       "as": "torque",
       "action": "approveMinutes",

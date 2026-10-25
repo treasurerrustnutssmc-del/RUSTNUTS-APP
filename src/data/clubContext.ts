@@ -123,6 +123,8 @@ export interface ClubContextValue {
   saveMeeting: (input: MeetingInput) => Promise<string>;
   cancelMeeting: (meetingId: string) => Promise<void>;
   saveMinutes: (meetingId: string, text: string) => Promise<void>;
+  /** Sends the draft minutes to members (10.8). */
+  shareMinutes: (meetingId: string) => Promise<void>;
   approveMinutes: (meetingId: string) => Promise<void>;
   saveActionItem: (input: ActionItemInput) => Promise<void>;
   setActionDone: (itemId: string, done: boolean) => Promise<void>;

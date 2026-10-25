@@ -395,6 +395,8 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.save_meeting(null, ${chapter(c.chapter)}, ${q(c.kind)}, ${q(c.title)}, ${q(c.startsAt)}::timestamptz, null, '[]')`;
     case 'approveMinutes':
       return `public.approve_minutes(${id('mt', c.meeting)})`;
+    case 'shareMinutes':
+      return `public.share_minutes(${id('mt', c.meeting)})`;
     case 'saveActionItem':
       return `public.save_action_item(null, ${chapter(c.chapter)}, ${c.meeting ? id('mt', c.meeting) : 'null'}, ${q(c.title)}, ${id('m', c.owner)}, null)`;
     case 'openVote':

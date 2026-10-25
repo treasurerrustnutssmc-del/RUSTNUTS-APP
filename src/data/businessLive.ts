@@ -17,7 +17,8 @@ import type {
 export interface BusinessJson {
   meetings: {
     id: string; chapter_id: string | null; kind: MeetingKind; title: string; starts_at: string; location: string | null;
-    agenda: AgendaItem[] | null; minutes: string | null; minutes_approved_at: string | null; minutes_approved_by: string | null;
+    agenda: AgendaItem[] | null; minutes: string | null; minutes_shared_at?: string | null; minutes_approved_at: string | null;
+    minutes_approved_by: string | null;
     cancelled_at: string | null; created_by: string | null;
   }[];
   action_items: {
@@ -47,6 +48,7 @@ export function toBusiness(json: BusinessJson | null | undefined): { meetings: M
       location: m.location,
       agenda: (m.agenda ?? []).map((a) => ({ title: a.title, notes: a.notes ?? null })),
       minutes: m.minutes,
+      minutesSharedAt: maybeInstant(m.minutes_shared_at ?? null),
       minutesApprovedAt: maybeInstant(m.minutes_approved_at),
       minutesApprovedBy: m.minutes_approved_by,
       cancelledAt: maybeInstant(m.cancelled_at),

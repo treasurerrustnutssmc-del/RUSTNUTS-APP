@@ -8,6 +8,7 @@ import {
   cancelMeetingProblem,
   saveMeetingProblem,
   saveMinutesProblem,
+  shareMinutesProblem,
   setDoneProblem,
   type ActionItemInput,
   type MeetingInput,
@@ -71,6 +72,11 @@ export function cancelMeeting(ctx: DemoCtx, id: string): ClubData {
 export function saveMinutes(ctx: DemoCtx, id: string, text: string): ClubData {
   refuse(saveMinutesProblem(ctx.me, meetingsOf(ctx.data).find((x) => x.id === id), ctx.data));
   return patchMeeting(ctx.data, id, { minutes: blankToNull(text) });
+}
+
+export function shareMinutes(ctx: DemoCtx, id: string): ClubData {
+  refuse(shareMinutesProblem(ctx.me, meetingsOf(ctx.data).find((x) => x.id === id), ctx.data, nowOf(ctx)));
+  return patchMeeting(ctx.data, id, { minutesSharedAt: nowOf(ctx) });
 }
 
 export function approveMinutes(ctx: DemoCtx, id: string): ClubData {

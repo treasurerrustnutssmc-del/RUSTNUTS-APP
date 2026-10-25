@@ -2,9 +2,10 @@
 -- A Chapter Board quorum is a majority of its distinct members, with at least three taking part
 -- (8.5), so a board of fewer than three can't hold a vote. On a tie the chair may give a casting
 -- vote or decline (p_casting 'decline'), and a declined tie is lost (9.10). Only the chair closes a
--- tied vote. Draft minutes go to everyone who sees a meeting once it's been held, marked draft
--- until the board confirms them (10.8).
--- Same signatures, so grants are unchanged.
+-- tied vote. After a meeting the board shares the draft minutes (share_minutes), and everyone who
+-- sees the meeting reads them, marked draft until the board confirms them (10.8). Notes saved
+-- before then stay with the board.
+-- The replaced functions keep their signatures, so their grants are unchanged.
 
 -- More than half a board, and at least three (8.5); otherwise as before.
 create or replace function private.min_quorum(p_electorate public.electorate, p_electors int)
@@ -115,8 +116,27 @@ begin
 end;
 $$;
 
--- Everything the Business screen shows this person, in one piece: meetings they can see (notes
--- for the minutes only to whoever runs them until the meeting's held), their action items (or all of a scope they run), and the
+-- Minutes ------------------------------------------------------------------------------------
+
+alter table public.meetings add column minutes_shared_at timestamptz;
+
+-- The board sends the draft to members after the meeting, within seven days (10.8).
+create or replace function public.share_minutes(p_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare m public.meetings%rowtype := private.meeting_for_action(p_id);
+begin
+  if m.minutes_approved_at is not null then raise exception 'Those minutes are approved and locked.'; end if;
+  if m.starts_at > now() then raise exception 'The meeting hasn’t happened yet.'; end if;
+  if nullif(trim(m.minutes), '') is null then raise exception 'Write the minutes first.'; end if;
+  if m.minutes_shared_at is not null then raise exception 'The draft is already out to members.'; end if;
+  update public.meetings set minutes_shared_at = now() where id = p_id;
+end;
+$$;
+revoke all on function public.share_minutes(uuid) from public, anon;
+grant execute on function public.share_minutes(uuid) to authenticated;
+
+-- Everything the Business screen shows this person, in one piece: meetings they can see (minutes
+-- only to whoever runs them until the draft is shared), their action items (or all of a scope they run), and the
 -- votes they're on or run, with counts and open ballots only once closed and secret ballots never.
 create or replace function public.club_business()
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
@@ -130,9 +150,10 @@ begin
       select jsonb_agg(jsonb_build_object(
         'id', m.id, 'chapter_id', m.chapter_id, 'kind', m.kind, 'title', m.title, 'starts_at', m.starts_at,
         'location', m.location, 'agenda', m.agenda,
-        -- Draft minutes go to everyone who sees the meeting once it's been held (10.8).
-        'minutes', case when m.minutes_approved_at is not null or m.starts_at <= now() or private.runs_scope(m.chapter_id)
-                        then m.minutes end,
+        -- A shared draft goes to everyone who sees the meeting (10.8).
+        'minutes', case when m.minutes_approved_at is not null or m.minutes_shared_at is not null
+                          or private.runs_scope(m.chapter_id) then m.minutes end,
+        'minutes_shared_at', m.minutes_shared_at,
         'minutes_approved_at', m.minutes_approved_at, 'minutes_approved_by', m.minutes_approved_by,
         'cancelled_at', m.cancelled_at, 'created_by', m.created_by) order by m.starts_at, m.id)
       from public.meetings m
