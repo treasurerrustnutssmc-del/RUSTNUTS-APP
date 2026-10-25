@@ -294,6 +294,13 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - One red action per money card: "I've paid this" for the member. Treasurer actions on a chapter screen are secondary, so a page of claims doesn't turn red.
 - Receipts show as an OK chip with the receipt number.
 
+### Treasury (Stage 5B)
+- Ledger lines show money out with a minus sign (`−$599.00`) in dim bone and money in in bone. A void line is struck through in mute and stays in the list.
+- An entry's state is a chip: Paid (OK), Approved (bone), Needs approval (warn), Void (steel). Banked late is a warn notice on the entry (13.1).
+- The red on Treasury is the approval badge; Money in and Money out are secondary. "Approve this payment" and "Present to members" are the red actions on their screens. Voiding is a two-tap danger button with a reason.
+- The Treasurer's Report reads like the club's paper one: opening balance, the seven credit and seven debit codes (zeros in mute), each fund's closing balance, less the cash float, then the bank figure in H2.
+- Months step with a pair of 44px chevrons around the month name in stencil.
+
 ## Do's and Don'ts
 
 ### Do:

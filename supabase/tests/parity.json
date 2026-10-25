@@ -4523,6 +4523,656 @@
       "action": "cancelBus",
       "booking": "asked-free",
       "allowed": false
+    },
+    {
+      "name": "A chapter treasurer records money in",
+      "as": "penny",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "allowed": true
+    },
+    {
+      "name": "A chapter Secretary records money in",
+      "as": "torque",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "The National Auditor records money in",
+      "as": "kim",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "A treasurer records money in to another chapter",
+      "as": "penny",
+      "action": "recordCredit",
+      "chapter": "north",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "Money in with a money-out code",
+      "as": "penny",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "DB-001",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "Money in of $0",
+      "as": "penny",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 0,
+      "entryOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "Money in with no description",
+      "as": "penny",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "  ",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "Money in banked tomorrow",
+      "as": "penny",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": 1,
+      "allowed": false
+    },
+    {
+      "name": "Money in banked before it came in",
+      "as": "penny",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "receivedOnDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "Money in with no banked date",
+      "as": "penny",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "allowed": false
+    },
+    {
+      "name": "Someone not signed in records money in",
+      "as": null,
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "An applicant records money in",
+      "as": "dylan",
+      "action": "recordCredit",
+      "chapter": "west",
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "A chapter treasurer records money in to the Club fund",
+      "as": "penny",
+      "action": "recordCredit",
+      "chapter": null,
+      "code": "CR-002",
+      "description": "Raffle",
+      "amountCents": 5000,
+      "entryOnDays": -1,
+      "allowed": true
+    },
+    {
+      "name": "A treasurer records a payment",
+      "as": "penny",
+      "action": "recordDebit",
+      "chapter": "west",
+      "code": "DB-001",
+      "description": "Patches",
+      "amountCents": 30000,
+      "payeeName": "Embroidery Co",
+      "allowed": true
+    },
+    {
+      "name": "A payment with no payee",
+      "as": "penny",
+      "action": "recordDebit",
+      "chapter": "west",
+      "code": "DB-001",
+      "description": "Patches",
+      "amountCents": 30000,
+      "payeeName": " ",
+      "allowed": false
+    },
+    {
+      "name": "A payment to an applicant",
+      "as": "penny",
+      "action": "recordDebit",
+      "chapter": "west",
+      "code": "DB-001",
+      "description": "Patches",
+      "amountCents": 30000,
+      "payee": "dylan",
+      "allowed": false
+    },
+    {
+      "name": "A payment with a money-in code",
+      "as": "penny",
+      "action": "recordDebit",
+      "chapter": "west",
+      "code": "CR-001",
+      "description": "Patches",
+      "amountCents": 30000,
+      "payeeName": "Embroidery Co",
+      "allowed": false
+    },
+    {
+      "name": "Bank fees with no date",
+      "as": "penny",
+      "action": "recordDebit",
+      "chapter": null,
+      "code": "DB-004",
+      "description": "Fee",
+      "amountCents": 40,
+      "allowed": false
+    },
+    {
+      "name": "Bank fees, dated",
+      "as": "penny",
+      "action": "recordDebit",
+      "chapter": null,
+      "code": "DB-004",
+      "description": "Fee",
+      "amountCents": 40,
+      "paidOnDays": -1,
+      "allowed": true
+    },
+    {
+      "name": "A board member gives the second approval",
+      "as": "torque",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": true
+    },
+    {
+      "name": "The treasurer approves twice",
+      "as": "penny",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false
+    },
+    {
+      "name": "A member with no board seat approves",
+      "as": "spanner",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false
+    },
+    {
+      "name": "The National Auditor approves",
+      "as": "kim",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false
+    },
+    {
+      "name": "Another chapter's President approves",
+      "as": "smokey",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false
+    },
+    {
+      "name": "The payee approves their own payment",
+      "as": "torque",
+      "action": "approveDebit",
+      "entry": "west-refund",
+      "allowed": false
+    },
+    {
+      "name": "Approving a payment already approved",
+      "as": "rusty",
+      "action": "approveDebit",
+      "entry": "west-approved",
+      "allowed": false
+    },
+    {
+      "name": "A sitting President approves Club spending",
+      "as": "smokey",
+      "action": "approveDebit",
+      "entry": "club-awaiting",
+      "allowed": true
+    },
+    {
+      "name": "A chapter Secretary approves Club spending",
+      "as": "torque",
+      "action": "approveDebit",
+      "entry": "club-awaiting",
+      "allowed": false
+    },
+    {
+      "name": "The National Secretary approves Club spending",
+      "as": "lou",
+      "action": "approveDebit",
+      "entry": "club-awaiting",
+      "allowed": true
+    },
+    {
+      "name": "Paying before two approvals",
+      "as": "penny",
+      "action": "payDebit",
+      "entry": "west-awaiting",
+      "paidOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "Paying once approved",
+      "as": "penny",
+      "action": "payDebit",
+      "entry": "west-approved",
+      "paidOnDays": -1,
+      "allowed": true
+    },
+    {
+      "name": "A Secretary marks a payment paid",
+      "as": "torque",
+      "action": "payDebit",
+      "entry": "west-approved",
+      "paidOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "Paying tomorrow",
+      "as": "penny",
+      "action": "payDebit",
+      "entry": "west-approved",
+      "paidOnDays": 1,
+      "allowed": false
+    },
+    {
+      "name": "Paying with no date",
+      "as": "penny",
+      "action": "payDebit",
+      "entry": "west-approved",
+      "allowed": false
+    },
+    {
+      "name": "Paying something already banked",
+      "as": "penny",
+      "action": "payDebit",
+      "entry": "west-paid",
+      "paidOnDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "Voiding an entry",
+      "as": "penny",
+      "action": "voidEntry",
+      "entry": "west-paid",
+      "reason": "Entered twice",
+      "allowed": true
+    },
+    {
+      "name": "Voiding with no reason",
+      "as": "penny",
+      "action": "voidEntry",
+      "entry": "west-paid",
+      "reason": " ",
+      "allowed": false
+    },
+    {
+      "name": "Voiding twice",
+      "as": "penny",
+      "action": "voidEntry",
+      "entry": "west-void",
+      "reason": "x",
+      "allowed": false
+    },
+    {
+      "name": "A member voids an entry",
+      "as": "gravel",
+      "action": "voidEntry",
+      "entry": "west-paid",
+      "reason": "x",
+      "allowed": false
+    },
+    {
+      "name": "Voiding an entry that doesn't exist",
+      "as": "penny",
+      "action": "voidEntry",
+      "entry": "nope",
+      "reason": "x",
+      "allowed": false
+    },
+    {
+      "name": "A confirmed fee goes in the ledger",
+      "as": "penny",
+      "action": "addFeePayment",
+      "payment": "spanner-full",
+      "allowed": true
+    },
+    {
+      "name": "A fee payment already in the ledger",
+      "as": "penny",
+      "action": "addFeePayment",
+      "payment": "gravel-part",
+      "allowed": false
+    },
+    {
+      "name": "A claimed fee payment goes in the ledger",
+      "as": "penny",
+      "action": "addFeePayment",
+      "payment": "gravel-claim",
+      "allowed": false
+    },
+    {
+      "name": "Another chapter's President adds a fee payment",
+      "as": "smokey",
+      "action": "addFeePayment",
+      "payment": "spanner-full",
+      "allowed": false
+    },
+    {
+      "name": "The National Chairman adds a fee payment",
+      "as": "chair",
+      "action": "addFeePayment",
+      "payment": "spanner-full",
+      "allowed": true
+    },
+    {
+      "name": "A treasurer sets an opening balance",
+      "as": "penny",
+      "action": "setOpening",
+      "chapter": "west",
+      "fyOffset": 0,
+      "amountCents": 100000,
+      "allowed": true
+    },
+    {
+      "name": "An opening for 1999",
+      "as": "penny",
+      "action": "setOpening",
+      "chapter": "west",
+      "fy": 1999,
+      "amountCents": 100000,
+      "allowed": false
+    },
+    {
+      "name": "A Secretary sets an opening",
+      "as": "torque",
+      "action": "setOpening",
+      "chapter": "west",
+      "fyOffset": 0,
+      "amountCents": 100000,
+      "allowed": false
+    },
+    {
+      "name": "A treasurer sets the cash float",
+      "as": "penny",
+      "action": "setCashFloat",
+      "fyOffset": 0,
+      "amountCents": 40000,
+      "allowed": true
+    },
+    {
+      "name": "A negative cash float",
+      "as": "penny",
+      "action": "setCashFloat",
+      "fyOffset": 0,
+      "amountCents": -1,
+      "allowed": false
+    },
+    {
+      "name": "A Secretary sets the cash float",
+      "as": "torque",
+      "action": "setCashFloat",
+      "fyOffset": 0,
+      "amountCents": 40000,
+      "allowed": false
+    },
+    {
+      "name": "A treasurer saves a budget",
+      "as": "penny",
+      "action": "saveBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "lines": {
+        "DB-001": 60000
+      },
+      "allowed": true
+    },
+    {
+      "name": "A budget with an unknown code",
+      "as": "penny",
+      "action": "saveBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "lines": {
+        "XX-001": 1
+      },
+      "allowed": false
+    },
+    {
+      "name": "A budget with a negative line",
+      "as": "penny",
+      "action": "saveBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "lines": {
+        "DB-001": -1
+      },
+      "allowed": false
+    },
+    {
+      "name": "Changing an approved budget",
+      "as": "chair",
+      "action": "saveBudget",
+      "chapter": "north",
+      "fyOffset": 0,
+      "lines": {},
+      "allowed": false
+    },
+    {
+      "name": "A carried board vote approves the budget",
+      "as": "rusty",
+      "action": "approveBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "vote": "west-board-carried",
+      "allowed": true
+    },
+    {
+      "name": "A members' vote approves the budget",
+      "as": "rusty",
+      "action": "approveBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "vote": "west-members-carried",
+      "allowed": false
+    },
+    {
+      "name": "An open vote approves the budget",
+      "as": "rusty",
+      "action": "approveBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "vote": "west-board-open",
+      "allowed": false
+    },
+    {
+      "name": "A member approves the budget",
+      "as": "gravel",
+      "action": "approveBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "Approving a budget nobody saved",
+      "as": "rusty",
+      "action": "approveBudget",
+      "chapter": "west",
+      "fyOffset": 1,
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "Approving an approved budget",
+      "as": "smokey",
+      "action": "approveBudget",
+      "chapter": "north",
+      "fyOffset": 0,
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "Approving a Club budget nobody saved",
+      "as": "chair",
+      "action": "approveBudget",
+      "chapter": null,
+      "fyOffset": 0,
+      "vote": "nec-carried",
+      "allowed": false
+    },
+    {
+      "name": "Reopening an approved budget",
+      "as": "smokey",
+      "action": "reopenBudget",
+      "chapter": "north",
+      "fyOffset": 0,
+      "allowed": true
+    },
+    {
+      "name": "Reopening a budget that isn't approved",
+      "as": "rusty",
+      "action": "reopenBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "allowed": false
+    },
+    {
+      "name": "A member reopens a budget",
+      "as": "gravel",
+      "action": "reopenBudget",
+      "chapter": "north",
+      "fyOffset": 0,
+      "allowed": false
+    },
+    {
+      "name": "The Auditor approves a budget (11.8)",
+      "as": "kim",
+      "action": "approveBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "The Auditor reopens a budget (11.8)",
+      "as": "kim",
+      "action": "reopenBudget",
+      "chapter": "north",
+      "fyOffset": 0,
+      "allowed": false
+    },
+    {
+      "name": "Another chapter's President reopens a budget",
+      "as": "rusty",
+      "action": "reopenBudget",
+      "chapter": "north",
+      "fyOffset": 0,
+      "allowed": false
+    },
+    {
+      "name": "A vote from before the budget's last change approves it",
+      "as": "chair",
+      "action": "approveBudget",
+      "chapter": null,
+      "fyOffset": -1,
+      "vote": "nec-carried",
+      "allowed": false
+    },
+    {
+      "name": "Paying before it was approved",
+      "as": "penny",
+      "action": "payDebit",
+      "entry": "west-approved",
+      "paidOn": "2026-09-01",
+      "allowed": false
+    },
+    {
+      "name": "Presenting last month's report",
+      "as": "penny",
+      "action": "presentReport",
+      "monthOffset": -1,
+      "allowed": true
+    },
+    {
+      "name": "Presenting this month's report",
+      "as": "penny",
+      "action": "presentReport",
+      "monthOffset": 0,
+      "allowed": false
+    },
+    {
+      "name": "Presenting a month already presented",
+      "as": "penny",
+      "action": "presentReport",
+      "monthOffset": -2,
+      "allowed": false
+    },
+    {
+      "name": "A Secretary presents a report",
+      "as": "torque",
+      "action": "presentReport",
+      "monthOffset": -1,
+      "allowed": false
     }
   ],
   "chapters": [
@@ -5003,6 +5653,48 @@
           "choice": "no"
         }
       ]
+    },
+    {
+      "key": "west-board-carried",
+      "chapter": "west",
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 1,
+      "closesAt": "2026-01-01T00:00:00Z",
+      "electors": [
+        "rusty",
+        "torque"
+      ],
+      "ballots": [],
+      "result": "carried"
+    },
+    {
+      "key": "west-members-carried",
+      "chapter": "west",
+      "electorate": "chapter_patched",
+      "threshold": "majority",
+      "quorum": 1,
+      "closesAt": "2026-01-01T00:00:00Z",
+      "electors": [
+        "rusty",
+        "torque"
+      ],
+      "ballots": [],
+      "result": "carried"
+    },
+    {
+      "key": "nec-carried",
+      "chapter": null,
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 1,
+      "closesAt": "2026-01-01T00:00:00Z",
+      "electors": [
+        "rusty",
+        "smokey"
+      ],
+      "ballots": [],
+      "result": "carried"
     }
   ],
   "busBookings": [
@@ -5086,5 +5778,154 @@
       "bookedBy": "spanner",
       "status": "cancelled"
     }
-  ]
+  ],
+  "ledger": [
+    {
+      "key": "west-awaiting",
+      "chapter": "west",
+      "code": "DB-001",
+      "amountCents": 30000,
+      "state": "awaiting",
+      "entryOn": null,
+      "approvals": [
+        "penny"
+      ]
+    },
+    {
+      "key": "west-approved",
+      "chapter": "west",
+      "code": "DB-001",
+      "amountCents": 20000,
+      "state": "approved",
+      "entryOn": null,
+      "approvals": [
+        "penny",
+        "torque"
+      ]
+    },
+    {
+      "key": "west-refund",
+      "chapter": "west",
+      "code": "DB-006",
+      "amountCents": 5000,
+      "state": "awaiting",
+      "entryOn": null,
+      "payee": "torque",
+      "approvals": [
+        "penny"
+      ]
+    },
+    {
+      "key": "west-paid",
+      "chapter": "west",
+      "code": "CR-002",
+      "amountCents": 5000,
+      "state": "paid",
+      "entryOn": "2026-08-03"
+    },
+    {
+      "key": "west-void",
+      "chapter": "west",
+      "code": "CR-002",
+      "amountCents": 999,
+      "state": "void",
+      "entryOn": "2026-08-04"
+    },
+    {
+      "key": "west-fee-in",
+      "chapter": "west",
+      "code": "CR-001",
+      "amountCents": 10000,
+      "state": "paid",
+      "entryOn": "2026-07-20",
+      "payment": "gravel-part"
+    },
+    {
+      "key": "club-awaiting",
+      "chapter": null,
+      "code": "DB-002",
+      "amountCents": 10000,
+      "state": "awaiting",
+      "entryOn": null
+    },
+    {
+      "key": "club-paid",
+      "chapter": null,
+      "code": "CR-005",
+      "amountCents": 82000,
+      "state": "paid",
+      "entryOn": "2026-08-04"
+    },
+    {
+      "key": "club-fee",
+      "chapter": null,
+      "code": "DB-004",
+      "amountCents": 40,
+      "state": "paid",
+      "entryOn": "2026-08-06"
+    },
+    {
+      "key": "club-spent",
+      "chapter": null,
+      "code": "DB-005",
+      "amountCents": 61100,
+      "state": "paid",
+      "entryOn": "2026-08-10",
+      "approvals": [
+        "chair",
+        "lou"
+      ]
+    }
+  ],
+  "fundOpenings": [
+    {
+      "chapter": "west",
+      "fy": 2026,
+      "amountCents": 300000
+    },
+    {
+      "chapter": null,
+      "fy": 2026,
+      "amountCents": 500000
+    }
+  ],
+  "cashFloats": [
+    {
+      "fy": 2025,
+      "amountCents": 40000
+    }
+  ],
+  "budgets": [
+    {
+      "chapter": "west",
+      "fyOffset": 0,
+      "lines": {
+        "DB-001": 50000
+      },
+      "approved": false
+    },
+    {
+      "chapter": "north",
+      "fyOffset": 0,
+      "lines": {
+        "DB-001": 1000
+      },
+      "approved": true
+    },
+    {
+      "chapter": null,
+      "fyOffset": -1,
+      "lines": {
+        "DB-001": 10000
+      },
+      "approved": false,
+      "changedAt": "2026-06-01T00:00:00.000Z"
+    }
+  ],
+  "treasurerReports": [
+    {
+      "monthOffset": -2
+    }
+  ],
+  "reportMonth": "2026-08-01"
 }

@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import type {
   BallotChoice, BusPurpose, BusStatus, ChargeKind, CheckinKind, ClubData, CrewRole, Electorate, MeetingKind, Member, MemberStatus, PaymentState, PositionRole,
   RideCategory, Route, RsvpAnswer, Threshold,
+  EntryState, LedgerCode, VoteResult, // Stage 5B
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -18,6 +19,7 @@ import { runStage4Action, STAGE4_ACTIONS, type Stage4Action } from './demoStage4
 import { readGpx } from '../domain/gpx';
 import type { Conversation } from '../domain/chat';
 import { directId, runChatAction, type ChatAction, type ChatData } from './chat/demoChatActions';
+import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -50,6 +52,8 @@ export interface ParityFixture {
   votes: {
     key: string; chapter: string | null; electorate: Electorate; threshold: Threshold; quorum: number; closesAt: string;
     electors: string[]; ballots: { member: string; choice: BallotChoice }[];
+    /** Stage 5B: a vote that has closed with this result. */
+    result?: VoteResult;
   }[];
   /** Who is already crewing which ride. */
   crew?: { ride: string; member: string; role: CrewRole }[];
@@ -90,6 +94,32 @@ export interface ParityFixture {
   directs?: [string, string][];
   blocks?: { blocker: string; blocked: string }[];
   messages?: { key: string; chat: string; author: string; body: string; removed?: boolean }[];
+  // Stage 5B: the treasurer's books. Entries are dated as given; all recorded at LEDGER_AT.
+  ledger?: {
+    key: string; chapter: string | null; code: LedgerCode; amountCents: number; state: EntryState; entryOn: string | null;
+    payee?: string; approvals?: string[]; payment?: string;
+  }[];
+  fundOpenings?: { chapter: string | null; fy: number; amountCents: number }[];
+  cashFloats?: { fy: number; amountCents: number }[];
+  /** Budgets for a year counted from today's; approved ones were approved at LEDGER_AT. */
+  budgets?: { chapter: string | null; fyOffset: number; lines: Partial<Record<LedgerCode, number>>; approved: boolean; changedAt?: string }[];
+  /** Months presented, counted from this month (-1: last month). */
+  treasurerReports?: { monthOffset: number }[];
+  /** A month whose report the demo and the database must work out the same. */
+  reportMonth?: string;
+}
+
+/** When the fixture's ledger entries were recorded and its budgets approved. */
+export const LEDGER_AT = '2026-10-01T00:00:00.000Z';
+
+/** When the fixture's budgets were last saved, unless they say otherwise: before its votes closed. */
+export const BUDGET_AT = '2025-12-01T00:00:00.000Z';
+
+/** The first day of the month `offset` months from today's. */
+export function monthFrom(today: string, offset: number): string {
+  const [y, m] = today.split('-').map(Number);
+  const total = y * 12 + (m - 1) + offset;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}-01`;
 }
 
 /** When the fixture's briefings were written and read. */
@@ -133,6 +163,7 @@ export function resolveCase(c: ParityCase, today: string): ParityCase {
     if (k.endsWith('Days') && typeof v === 'number') out[k.slice(0, -4)] = addDays(today, v);
   }
   if (typeof c.fyOffset === 'number') out.fy = fyOf(today) + c.fyOffset;
+  if (typeof c.monthOffset === 'number') out.month = monthFrom(today, c.monthOffset);
   return out as ParityCase;
 }
 
@@ -196,7 +227,8 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
     votes: fixture.votes.map((v) => ({
       id: v.key, chapterId: v.chapter, meetingId: null, subjectMemberId: null, question: v.key, details: null,
       electorate: v.electorate, threshold: v.threshold, secret: false, quorum: v.quorum, openedAt: '2025-12-01T00:00:00.000Z',
-      closesAt: new Date(v.closesAt).toISOString(), closedAt: null, result: null, castingVote: null, tally: null,
+      closesAt: new Date(v.closesAt).toISOString(), closedAt: v.result ? '2026-01-01T00:00:00.000Z' : null, result: v.result ?? null,
+      castingVote: null, tally: null,
       electorIds: [...v.electors].sort(), votedIds: v.ballots.map((b) => b.member).sort(),
       ballots: v.ballots.map((b) => ({ memberId: b.member, choice: b.choice })), createdBy: null,
     })),
@@ -224,7 +256,28 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  return withStage4(base, today);
+  return withLedger(withStage4(base, today), today);
+}
+
+// Stage 5B: the treasurer's books.
+function withLedger(data: ClubData, today: string): ClubData {
+  return {
+    ...data,
+    ledger: (fixture.ledger ?? []).map((e) => ({
+      id: e.key, chapterId: e.chapter, code: e.code, description: e.key, amountCents: e.amountCents,
+      receivedOn: e.code.startsWith('CR') ? e.entryOn : null, entryOn: e.entryOn, payeeMemberId: e.payee ?? null, payeeName: e.payee || !e.code.startsWith('DB') ? null : 'Payee',
+      paymentId: e.payment ?? null, state: e.state, recordedBy: null, recordedAt: LEDGER_AT, updatedAt: LEDGER_AT,
+      voidReason: e.state === 'void' ? 'Fixture' : null, voidedBy: null,
+      approvals: (e.approvals ?? []).map((memberId) => ({ memberId, approvedAt: LEDGER_AT })),
+    })),
+    fundOpenings: (fixture.fundOpenings ?? []).map((o) => ({ chapterId: o.chapter, fy: o.fy, amountCents: o.amountCents })),
+    cashFloats: fixture.cashFloats ?? [],
+    budgets: (fixture.budgets ?? []).map((b) => ({
+      chapterId: b.chapter, fy: fyOf(today) + b.fyOffset, lines: b.lines, approvedVoteId: null,
+      approvedAt: b.approved ? LEDGER_AT : null, approvedBy: null, updatedAt: b.changedAt ?? BUDGET_AT,
+    })),
+    treasurerReports: (fixture.treasurerReports ?? []).map((r) => ({ month: monthFrom(today, r.monthOffset), presentedAt: LEDGER_AT, presentedBy: null })),
+  };
 }
 
 function withStage4(data: ClubData, today: string): ClubData {
@@ -306,6 +359,10 @@ export function demoAnswer(c: ParityCase): string | null {
   try {
     if (STAGE4_ACTIONS.has(String(c.action))) {
       runStage4Action({ data, me, today }, resolveCase(c, today) as unknown as Stage4Action);
+      return null;
+    }
+    if (LEDGER_ACTIONS.has(String(c.action))) {
+      runLedgerAction({ data, me, today }, resolveCase(c, today) as unknown as LedgerAction);
       return null;
     }
     if (String(c.action).startsWith('chat')) {

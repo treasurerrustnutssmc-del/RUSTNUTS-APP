@@ -7,7 +7,8 @@ import { melbourneDate } from '../domain/rides';
 import { fyOf, receiptNo } from '../domain/fees';
 import { readGpx } from '../domain/gpx';
 import { addMonths } from '../domain/profile';
-import type { ClubData, Member, MemberPrivate, MemberStatus, Ride, Route } from '../domain/types';
+import type { ClubData, LedgerCode, LedgerEntry, Member, MemberPrivate, MemberStatus, Ride, Route } from '../domain/types';
+import { isCredit } from '../domain/ledger';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
   roadName: null,
@@ -631,4 +632,54 @@ Object.assign(DEMO_DATA, {
       status: 'requested', bookedBy: 'm-spanner', bookedAt: at(ago(24)), ...noBusDecision,
     },
   ],
+} satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
+// Stage 5B: the treasurer's books. Openings on 1 July, a $400 float, a few months of entries dated
+// back from today, a gazebo payment waiting on a second approval, last month presented to
+// members, and West's budget still a draft. Fee payments pay-2, pay-3 and pay-5 aren't in yet.
+// ---------------------------------------------------------------------------
+
+const thisMonth = `${s4Today.slice(0, 7)}-01`;
+const lastMonth = `${addDays(thisMonth, -1).slice(0, 7)}-01`;
+const rustyPaid = `${s4Fy}-07-02`; // pay-1
+const book = (id: string, chapterId: string | null, code: LedgerCode, description: string, amountCents: number, daysAgo: number,
+  over: Partial<LedgerEntry> = {}): LedgerEntry => ({
+  id, chapterId, code, description, amountCents, receivedOn: isCredit(code) ? ago(daysAgo) : null, entryOn: ago(daysAgo),
+  payeeMemberId: null, payeeName: null, paymentId: null, state: 'paid', recordedBy: 'm-sparks', recordedAt: at(ago(daysAgo)),
+  updatedAt: at(ago(daysAgo)), voidReason: null, voidedBy: null, approvals: [], ...over,
+});
+const twoOk = (daysAgo: number) => [{ memberId: 'm-sparks', approvedAt: at(ago(daysAgo)) }, { memberId: 'm-torque', approvedAt: at(ago(daysAgo)) }];
+
+Object.assign(DEMO_DATA, {
+  fundOpenings: [
+    { chapterId: null, fy: s4Fy, amountCents: 466031 },
+    { chapterId: 'ch-west', fy: s4Fy, amountCents: 254000 },
+    { chapterId: 'ch-north', fy: s4Fy, amountCents: 90000 },
+  ],
+  cashFloats: [{ fy: s4Fy, amountCents: 40000 }],
+  ledger: [
+    book('le-1', 'ch-west', 'CR-001', 'Member fees: Rusty', 25000, 70, { paymentId: 'pay-1', receivedOn: rustyPaid, entryOn: rustyPaid }),
+    book('le-2', 'ch-north', 'CR-001', 'Member fees', 36000, 66),
+    book('le-3', null, 'CR-005', 'Hoodie order', 82000, 60),
+    book('le-4', null, 'DB-005', 'Hoodies from the printer', 61100, 58, { payeeName: 'Ink & Iron Printing', approvals: twoOk(59) }),
+    book('le-5', null, 'DB-004', 'Account fee', 40, 54, { payeeName: 'Bank' }),
+    book('le-6', 'ch-west', 'CR-006', 'Meeting sausage sizzle', 9500, 41, { receivedOn: ago(50) }), // banked late
+    book('le-7', 'ch-west', 'DB-007', 'Clubhouse hire', 15000, 33, { payeeName: 'Laverton Community Hall', approvals: twoOk(34) }),
+    book('le-8', null, 'DB-002', 'Ride for Kids donation', 50000, 26, { payeeName: 'Ride for Kids', approvals: twoOk(27) }),
+    book('le-9', 'ch-west', 'DB-003', 'Cable ties, entered twice', 1200, 20, {
+      state: 'void', voidReason: 'Entered twice', voidedBy: 'm-sparks', payeeMemberId: 'm-spanner', approvals: twoOk(21),
+    }),
+    book('le-10', 'ch-west', 'DB-006', 'Refund of a double payment', 12500, 9, {
+      state: 'approved', entryOn: null, payeeMemberId: 'm-gravel', approvals: twoOk(8),
+    }),
+    book('le-11', 'ch-west', 'DB-001', 'Club gazebo', 59900, 2, {
+      state: 'awaiting', entryOn: null, payeeName: 'Gazebo Warehouse', approvals: [{ memberId: 'm-sparks', approvedAt: at(ago(2)) }],
+    }),
+  ],
+  budgets: [
+    { chapterId: 'ch-west', fy: s4Fy, lines: { 'CR-001': 500000, 'CR-006': 30000, 'DB-001': 120000, 'DB-007': 60000, 'DB-002': 50000 },
+      approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: at(ago(60)) },
+  ],
+  treasurerReports: [{ month: lastMonth, presentedAt: at(thisMonth), presentedBy: 'm-sparks' }],
 } satisfies Partial<ClubData>);

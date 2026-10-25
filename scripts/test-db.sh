@@ -184,4 +184,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_v4 -f "$ROOT/supabase/tests/constitution_v4_test.sql"
 
+# Stage 5B: the treasurer's books, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_treasurer" >/dev/null
+"${PSQL[@]}" -d rustnuts_treasurer -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_treasurer -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_treasurer -f "$ROOT/supabase/tests/treasurer_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
+
