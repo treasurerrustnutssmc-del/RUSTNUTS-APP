@@ -111,6 +111,9 @@ test('an FNG becomes Full only after a carried patch vote', () => {
   assert.equal(statusChangeProblem(sec, who(open, 'fng'), 'full', open), NEEDS_PATCH_VOTE);
   const carried = { ...data, votes: [patchVote('fng', 'carried')] };
   assert.equal(statusChangeProblem(sec, who(carried, 'fng'), 'full', carried), null);
+  // A vote from an earlier trial doesn't count (5.6): the trial restarted after it.
+  const old = { ...data, votes: [{ ...patchVote('fng', 'carried'), openedAt: '2025-01-10T00:00:00.000Z' }] };
+  assert.equal(statusChangeProblem(sec, who(old, 'fng'), 'full', old), NEEDS_PATCH_VOTE);
 });
 
 test('only the NEC reinstates someone to Full or Nomad', () => {
@@ -234,6 +237,23 @@ test('notice counts when a meeting is new or moved earlier', () => {
   assert.equal(edit(inDays(5)), null, 'editing the agenda of a meeting already called is fine');
   assert.equal(edit(inDays(6)), null, 'moving it later is fine');
   assert.equal(edit(inDays(4)), 'A chapter meeting needs 7 days’ notice (10.4).');
+  assert.equal(
+    saveMeetingProblem(sec, meetingInput({ id: 'mt-1', kind: 'agm', startsAt: inDays(5) }), existing, data, NOW),
+    'An Annual Chapter Meeting needs 14 days’ notice (10.4).',
+    'turning it into another kind of meeting',
+  );
+  const held = { ...existing, kind: 'board' as const, startsAt: inDays(-7) };
+  assert.equal(
+    saveMeetingProblem(sec, meetingInput({ id: 'mt-1', kind: 'board', startsAt: inDays(2) }), held, data, NOW),
+    null,
+    'board meetings still need none',
+  );
+  const past = { ...existing, startsAt: inDays(-7) };
+  assert.equal(
+    saveMeetingProblem(sec, meetingInput({ id: 'mt-1', startsAt: inDays(2) }), past, data, NOW),
+    'A chapter meeting needs 7 days’ notice (10.4).',
+    'bringing a past meeting forward to next week',
+  );
 });
 
 test('a short-notice NEC meeting gets a warning', () => {

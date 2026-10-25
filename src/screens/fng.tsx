@@ -228,7 +228,7 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
           <VotesFields onChange={setVotes} />
           <Field label="Note for the board" value={note} onChangeText={setNote} multiline maxLength={500} hint="Only the board sees this." />
           {error ? <Notice tone="danger">{error}</Notice> : null}
-          <Button label="Record the review" disabled={!outcome || tooEarly} busy={busy} onPress={save} />
+          <Button label="Record the review" disabled={!outcome || tooEarly || (outcome === 'patch' && patchBlock !== null)} busy={busy} onPress={save} />
         </Card>
       ) : (
         <Notice tone="info">{`${displayName(member)} isn’t an FNG any more.`}</Notice>

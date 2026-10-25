@@ -96,12 +96,19 @@ const DAY_MS = 86_400_000;
 const msOf = (iso: string) => new Date(iso).getTime();
 
 /**
- * Notice counts when a meeting is called, or moved earlier, for a time still to come. A meeting
- * dated in the past is a record of one already held.
+ * Notice counts when a meeting is called, moved earlier, or changed into another kind, for a time
+ * still to come. A meeting dated in the past is a record of one already held.
  */
 function noticeApplies(input: MeetingInput, existing: Meeting | null | undefined, now: string): boolean {
   if (msOf(input.startsAt) <= msOf(now)) return false;
-  return !existing || msOf(input.startsAt) < msOf(existing.startsAt);
+  if (!existing) return true;
+  // Moved earlier, brought back from the past, or turned into another kind of meeting.
+  return (
+    msOf(input.startsAt) < msOf(existing.startsAt) ||
+    msOf(existing.startsAt) <= msOf(now) ||
+    input.kind !== existing.kind ||
+    input.chapterId !== existing.chapterId
+  );
 }
 
 function noticeProblem(input: MeetingInput, existing: Meeting | null | undefined, now: string): string | null {

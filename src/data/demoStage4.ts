@@ -157,7 +157,7 @@ export function recordFngReview(ctx: DemoCtx, memberId: string, atMonths: number
   const fy = fyOf(ctx.today);
   const fee = continuationFeeFor(target.chapterId, fy, ctx.data);
   const already = (ctx.data.charges ?? []).some((c) => c.memberId === memberId && c.kind === 'continuation');
-  if (outcome === 'continue' && atMonths >= 12 && fee && !already && !target.onHiatus) {
+  if (outcome === 'continue' && atMonths >= 12 && fee !== null && fee > 0 && !already && !target.onHiatus) {
     data = {
       ...data,
       charges: [

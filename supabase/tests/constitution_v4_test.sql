@@ -106,6 +106,11 @@ begin
   values (west, fred, 'Patch Fred?', 'chapter_patched', 'unanimous', true, 1, now() - interval '1 day', now() - interval '1 day', 'lost');
   assert pg_temp.try_as(sec, format(status, fred, 'full'))
     = 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).', 'a lost vote doesn''t count';
+  insert into votes (chapter_id, subject_member_id, question, electorate, threshold, secret, quorum, opened_at, closes_at, closed_at, result)
+  values (west, fred, 'Patch Fred, last time?', 'chapter_patched', 'unanimous', true, 1, now() - interval '2 years',
+          now() - interval '2 years', now() - interval '2 years', 'carried');
+  assert pg_temp.try_as(sec, format(status, fred, 'full'))
+    = 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).', 'a vote from an earlier trial doesn''t count';
   assert pg_temp.try_as(sec, format(status, '00000000-0000-0000-0000-0000000000a9', 'full'))
     = 'Only the NEC can bring someone back to Full or Nomad (5.6).', 'the board can''t reinstate';
   assert pg_temp.try_as(chair, format(status, '00000000-0000-0000-0000-0000000000a9', 'full')) is null, 'the NEC can';
@@ -207,6 +212,11 @@ begin
   assert pg_temp.try_as(sec, format(save, m, west, 'general', now() + interval '6 days')) is null, 'moving it later';
   assert pg_temp.try_as(sec, format(save, m, west, 'general', now() + interval '4 days'))
     = 'A chapter meeting needs 7 days’ notice (10.4).', 'moving it earlier';
+  assert pg_temp.try_as(sec, format(save, m, west, 'agm', now() + interval '5 days'))
+    = 'An Annual Chapter Meeting needs 14 days’ notice (10.4).', 'turning it into an ACM';
+  update meetings set starts_at = now() - interval '7 days' where id = m;
+  assert pg_temp.try_as(sec, format(save, m, west, 'general', now() + interval '2 days'))
+    = 'A chapter meeting needs 7 days’ notice (10.4).', 'bringing a past meeting forward';
 end $$;
 
 \echo 'CONSTITUTION V4 CHECKS PASSED'

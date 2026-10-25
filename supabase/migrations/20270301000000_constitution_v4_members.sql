@@ -35,11 +35,14 @@ end;
 $$;
 revoke all on function private.hold_problem(uuid, public.position_role) from public, anon, authenticated;
 
--- A patch vote on this member has closed Carried (4.9).
+-- A patch vote on this member, opened during their current FNG trial, has closed Carried (4.9).
+-- A vote from an earlier trial doesn't count: coming back after leaving is the NEC's call (5.6).
 create or replace function private.has_carried_patch_vote(p_member uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
   select exists (
-    select 1 from public.votes where subject_member_id = p_member and closed_at is not null and result = 'carried'
+    select 1 from public.votes v join public.members m on m.id = v.subject_member_id
+    where v.subject_member_id = p_member and v.closed_at is not null and v.result = 'carried'
+      and (m.fng_started_on is null or private.club_date(v.opened_at) >= m.fng_started_on)
   );
 $$;
 revoke all on function private.has_carried_patch_vote(uuid) from public, anon, authenticated;
@@ -269,7 +272,7 @@ begin
     -- once ever (4.11). Members on hiatus don't pay.
     select amount_cents into fng_fee from public.fee_rates
     where chapter_id = target.chapter_id and fy = private.fy_of(today) and status = 'fng';
-    if fng_fee is not null and not exists (
+    if fng_fee / 2 > 0 and not exists (
       select 1 from public.charges where member_id = p_member and kind = 'continuation'
     ) then
       insert into public.charges (member_id, chapter_id, fy, kind, description, amount_cents, due_on, raised_by)
@@ -333,7 +336,8 @@ begin
   ) as n(national, kind, days, name)
   where n.national = (p_chapter is null) and n.kind = p_kind;
   if notice_days is not null and p_starts_at > now()
-     and (p_id is null or p_starts_at < existing.starts_at)
+     and (p_id is null or p_starts_at < existing.starts_at or existing.starts_at <= now()
+          or p_kind <> existing.kind or p_chapter is distinct from existing.chapter_id)
      and p_starts_at - now() < make_interval(days => notice_days) then
     raise exception '% needs % days’ notice (10.4).', notice_name, notice_days;
   end if;

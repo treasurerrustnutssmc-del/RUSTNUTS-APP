@@ -4,6 +4,7 @@
 
 import { BOARD_ROLES, NATIONAL_ROLES, TITLE_ROLES } from './labels';
 import { addMonths } from './profile';
+import { melbourneDate } from './rides';
 import type { ClubData, Member, MemberStatus, Position, PositionRole } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'member' | 'board' | 'national';
@@ -199,9 +200,15 @@ export function appointWarnings(target: Member, role: PositionRole, data: ClubDa
   return warnings;
 }
 
-/** A patch vote on this member has closed Carried (4.9). */
+/**
+ * A patch vote on this member, opened during their current FNG trial, has closed Carried (4.9).
+ * A vote from an earlier trial doesn't count: coming back after leaving is the NEC's call (5.6).
+ */
 export function hasCarriedPatchVote(memberId: string, data: ClubData): boolean {
-  return (data.votes ?? []).some((v) => v.subjectMemberId === memberId && v.closedAt !== null && v.result === 'carried');
+  const since = data.members.find((m) => m.id === memberId)?.fngStartedOn ?? null;
+  return (data.votes ?? []).some(
+    (v) => v.subjectMemberId === memberId && v.closedAt !== null && v.result === 'carried' && (since === null || melbourneDate(v.openedAt) >= since),
+  );
 }
 
 /** Their licence on file is a learner permit, so they can't be an FNG yet (3.2). */
