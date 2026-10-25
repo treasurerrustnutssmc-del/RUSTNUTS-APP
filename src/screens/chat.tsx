@@ -400,8 +400,10 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           contentContainerStyle={{ paddingHorizontal: space.lg, paddingVertical: space.md }}
           onEndReached={() => chat.hasOlder(chatId) && chat.loadOlder(chatId).catch(() => undefined)}
           onEndReachedThreshold={0.4}
+          // The list flips the empty card back itself (scale -1 on Android, scaleY -1 elsewhere).
+          // A transform here replaces that flip and left the card mirrored on Android.
           ListEmptyComponent={
-            <View style={{ transform: [{ scaleY: -1 }] }}>
+            <View>
               <Notice title={conv.kind === 'direct' ? 'Start the chat' : 'Nothing here yet'}>Say g’day.</Notice>
             </View>
           }
