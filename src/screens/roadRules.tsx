@@ -351,6 +351,8 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
   // The version the editor opened on (0: none), so a publish never lands on someone else's newer one.
   const [seen] = useState(() => currentRoadRules(data)?.number ?? 0);
   const [body, setBody] = useState(() => currentRoadRules(data)?.body ?? '');
+  // An empty first version isn't an error until you've started typing.
+  const [touched, setTouched] = useState(false);
   const [changes, setChanges] = useState('');
   const [fresh, setFresh] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -410,12 +412,15 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
         <Field
           label="Road Rules"
           value={body}
-          onChangeText={setBody}
+          onChangeText={(text) => {
+            setBody(text);
+            setTouched(true);
+          }}
           placeholder="# Who’s in charge on the road"
           multiline
           autoCapitalize="sentences"
           hint="Start a line with # for a heading or - for a bullet. Leave a blank line between paragraphs."
-          error={problem === RULES_EMPTY ? RULES_EMPTY : bodyTooLong ? RULES_TOO_LONG : null}
+          error={problem === RULES_EMPTY && touched ? RULES_EMPTY : bodyTooLong ? RULES_TOO_LONG : null}
           style={styles.bodyInput}
         />
         {count > COUNT_FROM ? (
@@ -470,11 +475,8 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
           />
         )}
         <View accessibilityLiveRegion="polite" role="alert">
-          {error ? (
-            <Notice tone="danger">{error}</Notice>
-          ) : problem ? (
-            <Small style={{ color: colors.danger }}>{problem}</Small>
-          ) : null}
+          {/* Draft problems show once, under their field; this is for what the publish itself hits. */}
+          {error ? <Notice tone="danger">{error}</Notice> : null}
         </View>
       </Stack>
     </Screen>
