@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from './demoData';
 import * as act from './ledgerActions';
+import { toLedger } from './ledgerLive';
 import type { DemoCtx } from './demoActions';
 import type { ClubData } from '../domain/types';
 
@@ -74,4 +75,30 @@ test('openings and float replace that year’s value; budgets save, approve and 
 
   data = act.presentReport(ctx('m-sparks', data), '2026-09-01');
   assert.deepEqual(data.treasurerReports, [{ month: '2026-09-01', presentedAt: NOW, presentedBy: 'm-sparks' }]);
+});
+
+test('the live ledger read becomes app records', () => {
+  const l = toLedger({
+    entries: [{
+      id: 'e1', chapter_id: null, code: 'DB-001', description: 'Patches', amount_cents: 30000, received_on: null, entry_on: null,
+      payee_member_id: null, payee_name: 'Co', payment_id: null, state: 'awaiting', recorded_by: 'm1',
+      recorded_at: '2026-10-24T02:00:00+00:00', updated_at: '2026-10-24T02:00:00+00:00', void_reason: null, voided_by: null,
+      approvals: [{ member_id: 'm1', approved_at: '2026-10-24T02:00:00+00:00' }],
+    }],
+    openings: [{ chapter_id: 'c1', fy: 2026, amount_cents: 100 }],
+    floats: [{ fy: 2026, amount_cents: 40000 }],
+    budgets: [{ chapter_id: 'c1', fy: 2026, lines: { 'DB-001': 5 }, approved_vote_id: null, approved_at: null, approved_by: null }],
+    reports: [{ month: '2026-09-01', presented_at: '2026-10-03T00:00:00+00:00', presented_by: 'm1' }],
+    report_totals: [{
+      month: '2026-09-01', opening_cents: '800000' as unknown as number, credits: [{ code: 'CR-001', cents: 5 }], credit_total: 5,
+      debits: [], debit_total: 0, funds: { club: '5' as unknown as number }, total_cents: 5, float_cents: 0, bank_cents: 5, last_change_at: null,
+    }],
+  });
+  assert.equal(l.ledger[0].recordedAt, '2026-10-24T02:00:00.000Z');
+  assert.deepEqual(l.ledger[0].approvals, [{ memberId: 'm1', approvedAt: '2026-10-24T02:00:00.000Z' }]);
+  assert.deepEqual(l.fundOpenings, [{ chapterId: 'c1', fy: 2026, amountCents: 100 }]);
+  assert.equal(l.treasurerReports[0].presentedAt, '2026-10-03T00:00:00.000Z');
+  assert.equal(l.reportTotals[0].openingCents, 800000, 'big sums come back as numbers');
+  assert.deepEqual(l.reportTotals[0].funds, { club: 5 });
+  assert.deepEqual(toLedger(null).ledger, [], 'nothing back is nothing to show');
 });
