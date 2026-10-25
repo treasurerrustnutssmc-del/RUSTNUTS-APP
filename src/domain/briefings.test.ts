@@ -10,6 +10,7 @@ import {
   NOT_WRITER,
   NO_BRIEFING,
   NO_RIDE,
+  BRIEFING_UPDATED,
   READ_OUTDATED,
   RIDE_CANCELLED,
   SAFETY_ORDER,
@@ -26,6 +27,7 @@ import {
   hazardSummary,
   isVersionRefusal,
   oneLine,
+  pinnedBriefing,
   hazardTooLong,
   moreLabel,
   readBriefingProblem,
@@ -569,4 +571,35 @@ test('marking a field that’s too long, counted in code points after trimming',
   assert.equal(textTooLong('x'.repeat(MAX_TEXT)), false);
   assert.equal(textTooLong('🏍'.repeat(MAX_TEXT)), false);
   assert.equal(textTooLong('x'.repeat(MAX_TEXT + 1)), true);
+});
+
+test('the card keeps the version it opened on: a newer one is offered, not swapped in', () => {
+  const opened = briefing('west-ride', { hazards: ['Gravel'], updatedAt: '2026-10-20T10:00:00.000Z', updatedBy: 'west-vp' });
+  const newer = briefing('west-ride', { hazards: ['Gravel', 'Roadworks'], updatedAt: '2026-10-20T11:00:00.000Z', updatedBy: 'west-vp' });
+  assert.deepEqual(pinnedBriefing(opened, opened, 'rider'), { shown: opened, update: null }, 'nothing new');
+  assert.deepEqual(pinnedBriefing(opened, newer, 'rider'), { shown: opened, update: newer }, 'newer: keep the pinned one, offer the update');
+  const reloaded = { ...opened, updatedAt: '2026-10-20T21:00:00.000+11:00' };
+  assert.deepEqual(pinnedBriefing(opened, reloaded, 'rider'), { shown: opened, update: null }, 'the same instant, written another way');
+  const micro = { ...opened, updatedAt: '2026-10-20T10:00:00.001Z' };
+  assert.deepEqual(pinnedBriefing(opened, micro, 'rider'), { shown: opened, update: null }, 'within the 1 ms the database rounds to');
+  const later = { ...opened, updatedAt: '2026-10-20T10:00:00.002Z' };
+  assert.deepEqual(pinnedBriefing(opened, later, 'rider'), { shown: opened, update: later }, 'more than 1 ms apart is another version');
+  const older = { ...opened, updatedAt: '2026-10-20T09:00:00.000Z' };
+  assert.deepEqual(pinnedBriefing(opened, older, 'rider'), { shown: opened, update: older }, 'any other version, older too, is offered');
+});
+
+test('the card: nothing pinned yet takes what is stored, and your own save is taken without asking', () => {
+  const stored = briefing('west-ride', { updatedAt: '2026-10-20T10:00:00.000Z', updatedBy: 'west-vp' });
+  assert.deepEqual(pinnedBriefing(undefined, undefined, 'rider'), { shown: undefined, update: null }, 'no briefing at all');
+  assert.deepEqual(pinnedBriefing(undefined, stored, 'rider'), { shown: stored, update: null }, 'the first one to arrive is pinned');
+  const opened = briefing('west-ride', { updatedAt: '2026-10-19T10:00:00.000Z', updatedBy: 'crew-rc' });
+  assert.deepEqual(pinnedBriefing(opened, undefined, 'rider'), { shown: opened, update: null }, 'gone from the data: keep what was read');
+  assert.deepEqual(pinnedBriefing(opened, stored, 'west-vp'), { shown: stored, update: null }, 'you saved it yourself (Edit, then back)');
+  assert.deepEqual(pinnedBriefing(opened, stored, 'crew-rc'), { shown: opened, update: stored }, 'someone else saved it');
+  const unknown = { ...stored, updatedBy: null };
+  assert.deepEqual(pinnedBriefing(opened, unknown, null), { shown: opened, update: unknown }, 'nobody known is never you');
+});
+
+test('the card’s update notice', () => {
+  assert.equal(BRIEFING_UPDATED, 'The RC updated this briefing while you had it open.');
 });

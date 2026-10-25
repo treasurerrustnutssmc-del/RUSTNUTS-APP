@@ -30,6 +30,9 @@ export const READ_OUTDATED = 'The briefing changed while you had it open. Read t
 export const SAVE_CONFLICT =
   'Someone else saved this briefing while you were editing. Your changes aren’t saved: copy them, then open the briefing again.';
 
+/** The card's notice when a newer briefing arrives while it's open. */
+export const BRIEFING_UPDATED = 'The RC updated this briefing while you had it open.';
+
 /** Who to call when something goes wrong, first to last (constitution 7.6). Printed on every card. */
 export const SAFETY_ORDER = ['Road Captain', 'Sergeant-at-Arms', 'Vice President', 'President', 'NEC'] as const;
 
@@ -128,6 +131,26 @@ export function readBriefingProblem(me: Member | null, ride: Ride | undefined, d
 /** Whether an error is one of the two refusals that mean a newer briefing is waiting to be loaded. */
 export function isVersionRefusal(e: unknown): boolean {
   return e instanceof Error && (e.message === READ_OUTDATED || e.message === SAVE_CONFLICT);
+}
+
+/**
+ * What the card shows: the version it pinned when it opened (`pinned`), not whatever is stored now,
+ * so the text never changes under a reader and Got it always means the version read. A different
+ * stored version (more than the database's 1 ms apart) comes back as `update`, for the card to offer.
+ * - Nothing pinned yet (the card opened before there was a briefing): the stored one is shown.
+ * - Gone from the data: the pinned one stays.
+ * - Saved by `meId` (a writer back from Edit): taken without asking, since they wrote it.
+ * The screen pins `shown` each time.
+ */
+export function pinnedBriefing(
+  pinned: Briefing | undefined,
+  stored: Briefing | undefined,
+  meId: string | null,
+): { shown: Briefing | undefined; update: Briefing | null } {
+  if (!pinned) return { shown: stored, update: null };
+  if (!stored || Math.abs(Date.parse(stored.updatedAt) - Date.parse(pinned.updatedAt)) <= 1) return { shown: pinned, update: null };
+  if (meId !== null && stored.updatedBy === meId) return { shown: stored, update: null };
+  return { shown: pinned, update: stored };
 }
 
 /** The briefing a ride has, if any. */

@@ -6,6 +6,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import {
+  BRIEFING_UPDATED,
   MAX_HAZARDS,
   NO_BRIEFING,
   SAFETY_LINE,
@@ -17,6 +18,8 @@ import {
   HAZARD_TOO_LONG,
   hazardTooLong,
   oneLine,
+  pinnedBriefing,
+  READ_OUTDATED,
   readBriefingProblem,
   readCount,
   readCountLine,
@@ -80,10 +83,17 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ride = data.rides.find((r) => r.id === nav.params.rideId);
+  const stored = ride ? briefingOf(ride.id, data) : undefined;
+  // The card keeps the version it opened on, so the text never changes under the reader and Got it
+  // means the version read. A newer one is offered in a notice instead (pinnedBriefing).
+  const [pinned, setPinned] = useState(stored);
+  const { shown: briefing, update } = pinnedBriefing(pinned, stored, me?.id ?? null);
+  // Pin what's shown (the first briefing to arrive, or your own save), while rendering, as React
+  // recommends for state that follows props.
+  if (briefing !== pinned) setPinned(briefing);
   if (!ride || !me) return <RideMissing />;
 
   const now = new Date().toISOString();
-  const briefing = briefingOf(ride.id, data);
   const canEdit = editBriefingProblem(me, ride, data, now) === null;
   const edit = () => navigation.navigate('EditBriefing', { rideId: ride.id });
 
@@ -110,7 +120,9 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
   const crew = briefingCrew(ride.id, data);
   const state = readState(me, ride.id, data);
   const myRead = (data.briefingReads ?? []).find((r) => r.rideId === ride.id && r.memberId === me.id);
-  const canRead = readBriefingProblem(me, ride, data, briefing.updatedAt) === null;
+  // Got it shows whenever the stored briefing can be read. It sends the pinned version, so on an
+  // outdated card the refusal (READ_OUTDATED) explains, beside the notice's way to the update.
+  const canRead = stored !== undefined && readBriefingProblem(me, ride, data, stored.updatedAt) === null;
   const writer = writesBriefing(me, ride, data);
   const location = ride.location;
 
@@ -119,7 +131,7 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
     setError(null);
     setBusy(true);
     try {
-      // The version on screen, so Got it never marks a newer one read.
+      // The version on screen (the pinned one), so Got it never marks a newer one read.
       await readBriefing(ride.id, briefing.updatedAt);
     } catch (e) {
       setError((e as Error).message);
@@ -128,8 +140,30 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
     }
   };
 
+  const showUpdate = () => {
+    if (!update) return;
+    setError(null);
+    setPinned(update);
+  };
+  const updateButton = (
+    <Button label="Show the update" icon="refresh" kind="secondary" onPress={showUpdate} style={styles.showUpdate} />
+  );
+
   return (
     <Screen>
+      {/* A newer version arrived while the card was open: say so, and switch only when asked. */}
+      {/* While it's empty it takes back the screen's gap, so it adds no space above the card. */}
+      <View accessibilityLiveRegion="polite" role="alert" style={update ? null : styles.emptyRegion}>
+        {update ? (
+          <Notice tone="warn" title="Briefing updated">
+            <Stack gap={space.md}>
+              <Small style={{ color: colors.boneDim }}>{BRIEFING_UPDATED}</Small>
+              {updateButton}
+            </Stack>
+          </Notice>
+        ) : null}
+      </View>
+
       <Card style={styles.card}>
         {/* 1. The ride */}
         <Stack gap={space.sm}>
@@ -310,7 +344,18 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
                 </>
               )}
               <View accessibilityLiveRegion="polite" role="alert">
-                {error ? <Notice tone="danger">{error}</Notice> : null}
+                {error ? (
+                  <Notice tone="danger">
+                    {error === READ_OUTDATED && update ? (
+                      <Stack gap={space.md}>
+                        <Small style={{ color: colors.boneDim }}>{error}</Small>
+                        {updateButton}
+                      </Stack>
+                    ) : (
+                      error
+                    )}
+                  </Notice>
+                ) : null}
               </View>
             </Stack>
           </>
@@ -616,6 +661,8 @@ const styles = StyleSheet.create({
   readRow: { gap: space.sm, flexWrap: 'nowrap' },
   gotIt: { minHeight: 64 },
   readAgain: { alignSelf: 'flex-start', marginLeft: -space.lg },
+  showUpdate: { alignSelf: 'flex-start' },
+  emptyRegion: { marginBottom: -space.lg },
   count: { fontFamily: fonts.stencil, fontSize: 16, color: colors.boneMute },
   countLine: { fontFamily: fonts.stencil, fontSize: 14, lineHeight: 18, letterSpacing: 0.3, color: colors.boneDim },
   rideLine: { ...type.name, fontSize: 18, lineHeight: 24 },
