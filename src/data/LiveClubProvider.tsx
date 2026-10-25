@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
 import { bookProblem, cancelProblem, decideProblem } from '../domain/bus';
-import { isRoadRulesVersionRefusal, publishProblem, signProblem } from '../domain/roadRules';
+import { goingProblem, isRoadRulesVersionRefusal, publishProblem, signProblem } from '../domain/roadRules';
 import {
   actionItemProblem,
   approveMinutesProblem,
@@ -392,7 +392,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
 
     setRsvp: async (rideId, answer) => {
-      const problem = rsvpProblem(visibleMe, data.rides.find((r) => r.id === rideId), new Date().toISOString());
+      const problem =
+        rsvpProblem(visibleMe, data.rides.find((r) => r.id === rideId), new Date().toISOString()) ??
+        goingProblem(visibleMe, answer, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('set_rsvp', { p_ride: rideId, p_answer: answer }));
       await after();

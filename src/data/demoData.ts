@@ -541,6 +541,15 @@ Object.assign(DEMO_DATA, {
     { memberId: 'm-torque', version: 2, signedAt: at(addDays(s4Today, -5)) },
     { memberId: 'm-spanner', version: 1, signedAt: at(addDays(addMonths(s4Today, -11), -20)) },
     { memberId: 'm-rusty', version: 1, signedAt: at(addMonths(s4Today, -13)) },
+    // Everyone else who's asked has signed, so the crew picker has people to pick. Diesel (never)
+    // and Rusty (ran out) are left to show the Going gate's prompt.
+    ...(
+      [
+        ['m-sparks', 2, -3], ['m-gravel', 2, -10], ['m-chook', 2, -18], ['m-throttle', 1, -150],
+        ['m-patches', 1, -200], ['m-kerry', 1, -200], ['m-smokey', 2, -7], ['m-jet', 2, -12],
+        ['m-crank', 1, -90], ['m-ace', 1, -240], ['m-ratchet', 1, -60], ['m-lefty', 1, -80], ['m-ben', 2, -20],
+      ] as const
+    ).map(([memberId, version, days]) => ({ memberId, version, signedAt: at(addDays(s4Today, days)) })),
   ],
 } satisfies Partial<ClubData>);
 

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {
   ALREADY_OFF, BUS_CLASH, BUS_PAST_START, bookedStraightAway, NOT_BUS_BOOKER, NOT_BUS_CANCELLER, NOT_BUS_MANAGER,
 } from '../domain/bus';
+import { roadRulesStatus } from '../domain/roadRules';
 import { BRIEFED_AT, demoAnswer, fixture, fixtureData, parityToday, resolveCase } from './parityFixture.testkit';
 
 test('the shared case list has cases', () => {
@@ -89,6 +90,27 @@ test('the Rusty Bus cases cover the spec’s eleven, with days counted from toda
   has('cancelBus', 'cancel: by the booker', (c) => c.allowed && bookedBy(c.booking) === c.as);
   has('cancelBus', 'cancel: by a stranger', says(NOT_BUS_CANCELLER));
   has('cancelBus', 'cancel: already off', says(ALREADY_OFF));
+});
+
+test('the Going gate cases: unsigned and expired refused, due soon, Maybe, Legacy and nothing published allowed, and crew', () => {
+  const today = parityToday();
+  const data = fixtureData([], today);
+  const state = (key: string | null) => roadRulesStatus(data.members.find((m) => m.id === key)!, data, today).state;
+  const cases = fixture.cases.filter((c) => c.action === 'rsvp' || c.action === 'crew');
+  const has = (action: string, test: (c: (typeof cases)[number]) => boolean, what: string) =>
+    assert.ok(cases.some((c) => c.action === action && test(c)), what);
+  const going = (c: (typeof cases)[number]) => c.answer === 'going' && !c.noRoadRules;
+  has('rsvp', (c) => going(c) && state(c.as) === 'unsigned' && !c.allowed, 'Going while unsigned, refused');
+  has('rsvp', (c) => going(c) && state(c.as) === 'expired' && !c.allowed, 'Going while expired, refused');
+  has('rsvp', (c) => going(c) && state(c.as) === 'due_soon' && c.allowed, 'Going while due soon, allowed');
+  has('rsvp', (c) => c.answer === 'maybe' && state(c.as) === 'unsigned' && c.allowed, 'Maybe while unsigned, allowed');
+  has('rsvp', (c) => c.answer === 'going' && c.noRoadRules === true && c.allowed, 'Going with nothing published, allowed');
+  const legacy = (key: string | null) => data.members.find((m) => m.id === key)?.status === 'legacy';
+  has('rsvp', (c) => going(c) && legacy(c.as) && c.allowed, 'Going as Legacy, allowed');
+  const target = (c: (typeof cases)[number]) => state(c.member as string);
+  has('crew', (c) => !c.noRoadRules && target(c) === 'unsigned' && c.as !== c.member && !c.allowed, 'crewing an unsigned member, refused');
+  has('crew', (c) => !c.noRoadRules && target(c) === 'expired' && !c.allowed, 'crewing an expired member, refused');
+  has('crew', (c) => !c.noRoadRules && target(c) === 'due_soon' && c.allowed, 'crewing a due-soon member, allowed');
 });
 
 for (const c of fixture.cases) {

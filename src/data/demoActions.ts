@@ -6,7 +6,7 @@ import { appointProblem, endTermProblem, isBoardOf, isLearner, LEARNER_FNG, stat
 import { bookedStraightAway, bookProblem, cancelProblem, decideProblem, type BusInput } from '../domain/bus';
 import { cleanBriefing, readBriefingProblem, saveBriefingProblem, type BriefingInput } from '../domain/briefings';
 import { crewProblem, leaveProblem } from '../domain/crew';
-import { cleanRoadRules, currentRoadRules, publishProblem, signProblem, type RoadRulesInput } from '../domain/roadRules';
+import { cleanRoadRules, currentRoadRules, goingProblem, publishProblem, signProblem, type RoadRulesInput } from '../domain/roadRules';
 import { NO_TRACK, readGpx } from '../domain/gpx';
 import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
@@ -293,7 +293,7 @@ export function endTerm(ctx: DemoCtx, positionId: string): ClubData {
 
 export function setRsvp(ctx: DemoCtx, rideId: string, answer: RsvpAnswer): ClubData {
   const now = ctx.now ?? new Date().toISOString();
-  const problem = rsvpProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), now);
+  const problem = rsvpProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), now) ?? goingProblem(ctx.me, answer, ctx.data, ctx.today);
   if (problem) throw new NotAllowedError(problem);
   const memberId = ctx.me!.id;
   const others = ctx.data.rsvps.filter((r) => !(r.rideId === rideId && r.memberId === memberId));

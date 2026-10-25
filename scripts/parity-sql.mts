@@ -9,7 +9,7 @@ import { readGpx } from '../src/domain/gpx';
 import { monthReport } from '../src/domain/ledger'; // Stage 5B
 import {
   LEDGER_AT, BUDGET_AT, monthFrom, fixtureData, // Stage 5B
-  BRIEFED_AT, BUS_AT, BUS_DECLINE_REASON, caseAction, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
+  BRIEFED_AT, BUS_AT, BUS_DECLINE_REASON, caseAction, fixtureSignedAt, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
   resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
 
@@ -288,7 +288,7 @@ for (const v of fx.roadRules ?? []) {
 for (const s of fx.roadRulesSignoffs ?? []) {
   sql(
     `insert into public.road_rules_signoffs (member_id, version, signed_at) values (` +
-      `${id('m', s.member)}, ${s.version}, ${q(RULES_AT)}::timestamptz);`,
+      `${id('m', s.member)}, ${s.version}, ${q(fixtureSignedAt(s, today))}::timestamptz);`,
   );
 }
 
