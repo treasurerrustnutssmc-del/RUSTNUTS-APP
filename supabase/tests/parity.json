@@ -693,12 +693,12 @@
       "allowed": false
     },
     {
-      "name": "The NEC brings a Legacy member back to Full",
+      "name": "One NEC member alone brings a Legacy member back to Full, with no NEC vote",
       "as": "chair",
       "action": "setStatus",
       "member": "hacker",
       "status": "full",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "Board moves its Vice President to Nomad",
@@ -3635,6 +3635,42 @@
       "quorum": 3,
       "days": 7,
       "allowed": false
+    },
+    {
+      "name": "The NEC opens a vote to bring a Legacy member back",
+      "subject": "hacker",
+      "allowed": true,
+      "as": "lou",
+      "action": "openVote",
+      "chapter": null,
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7
+    },
+    {
+      "name": "An NEC reinstatement vote on an FNG",
+      "subject": "finn",
+      "allowed": false,
+      "as": "lou",
+      "action": "openVote",
+      "chapter": null,
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7
+    },
+    {
+      "name": "A reinstatement vote of every patched member, not the NEC",
+      "subject": "hacker",
+      "allowed": false,
+      "as": "lou",
+      "action": "openVote",
+      "chapter": null,
+      "electorate": "club_patched",
+      "threshold": "majority",
+      "quorum": 5,
+      "days": 7
     },
     {
       "name": "A vote that stays open too long",
