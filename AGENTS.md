@@ -1,5 +1,7 @@
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
+New to the project (people or Claude sessions joining from a clone)? Read `docs/BRIEF-for-collaborators.md` for the whole ambition, where each part stands, how live database changes are made, and how to contribute without clashing with the build lanes.
+
 ## Expo has changed — do not trust your training data
 
 Expo ships breaking changes every SDK release. APIs you remember are likely renamed, moved, or removed. Before writing any code that touches an Expo, EAS, or React Native API:
