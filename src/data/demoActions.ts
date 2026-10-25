@@ -3,6 +3,7 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, endTermProblem, isBoardOf } from '../domain/access';
+import { bookedStraightAway, bookProblem, cancelProblem, decideProblem, type BusInput } from '../domain/bus';
 import { cleanBriefing, readBriefingProblem, saveBriefingProblem, type BriefingInput } from '../domain/briefings';
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { cleanRoadRules, currentRoadRules, publishProblem, signProblem, type RoadRulesInput } from '../domain/roadRules';
@@ -12,6 +13,8 @@ import { rsvpProblem } from '../domain/rides';
 import { APPROVE_AS, NATIONAL_ROLES, TITLE_ROLES } from '../domain/labels';
 import type {
   BallotChoice,
+  BusBooking,
+  BusPurpose,
   ClubData,
   CrewRole,
   Electorate,
@@ -473,6 +476,74 @@ export function signRoadRules(ctx: DemoCtx, version: number): ClubData {
   return { ...ctx.data, roadRulesSignoffs: [...others, { memberId, version, signedAt: now }] };
 }
 
+// ---------------------------------------------------------------------------
+// The Rusty Bus
+// ---------------------------------------------------------------------------
+
+/** One booking changed, the rest kept. */
+const withBooking = (data: ClubData, id: string, change: (b: BusBooking) => BusBooking): ClubData => ({
+  ...data,
+  busBookings: (data.busBookings ?? []).map((b) => (b.id === id ? change(b) : b)),
+});
+
+/**
+ * Books the Rusty Bus, returning the new booking's id. Booked straight away (and then decided by
+ * whoever booked it, now) when a bus manager books or it's a recovery for today or tomorrow;
+ * otherwise it waits for a yes. Notes are trimmed. Mirrors public.book_bus.
+ */
+export function bookBus(ctx: DemoCtx, input: BusInput): { data: ClubData; id: string } {
+  const now = ctx.now ?? new Date().toISOString();
+  const problem = bookProblem(ctx.me, input, ctx.data, ctx.today);
+  if (problem) throw new NotAllowedError(problem);
+  const me = ctx.me!;
+  const straightAway = bookedStraightAway(me, input, ctx.today, ctx.data);
+  const booking: BusBooking = {
+    id: newId('bus'),
+    firstDay: input.firstDay,
+    lastDay: input.lastDay,
+    purpose: input.purpose!,
+    rideId: input.rideId,
+    driverId: input.driverId,
+    notes: input.notes.trim(),
+    status: straightAway ? 'approved' : 'requested',
+    bookedBy: me.id,
+    bookedAt: now,
+    decidedBy: straightAway ? me.id : null,
+    decidedAt: straightAway ? now : null,
+    declineReason: '',
+    cancelledBy: null,
+    cancelledAt: null,
+  };
+  return { data: { ...ctx.data, busBookings: [...(ctx.data.busBookings ?? []), booking] }, id: booking.id };
+}
+
+/**
+ * A bus manager's yes (Booked, with no reason) or no (Declined, with the reason trimmed) to a
+ * Waiting booking, now. Mirrors public.decide_bus.
+ */
+export function decideBus(ctx: DemoCtx, bookingId: string, yes: boolean, reason: string): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const booking = (ctx.data.busBookings ?? []).find((b) => b.id === bookingId);
+  const problem = decideProblem(ctx.me, booking, yes, reason, ctx.data, ctx.today);
+  if (problem) throw new NotAllowedError(problem);
+  return withBooking(ctx.data, bookingId, (b) => ({
+    ...b,
+    status: yes ? 'approved' : 'declined',
+    decidedBy: ctx.me!.id,
+    decidedAt: now,
+    declineReason: yes ? '' : reason.trim(),
+  }));
+}
+
+/** Calls off a Waiting or Booked booking, now; who said yes, and when, is kept. Mirrors public.cancel_bus. */
+export function cancelBus(ctx: DemoCtx, bookingId: string): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const booking = (ctx.data.busBookings ?? []).find((b) => b.id === bookingId);
+  const problem = cancelProblem(ctx.me, booking, ctx.data, ctx.today);
+  if (problem) throw new NotAllowedError(problem);
+  return withBooking(ctx.data, bookingId, (b) => ({ ...b, status: 'cancelled', cancelledBy: ctx.me!.id, cancelledAt: now }));
+}
+
 /** The actions the shared parity cases use, by name. */
 export type DemoAction =
   | { action: 'appoint'; member: string; chapter: string | null; role: PositionRole }
@@ -508,7 +579,15 @@ export type DemoAction =
   // `repeat` writes the text and what changed out that many times, for the length limits. `seen`
   // is the current version number the editor opened on (0: none).
   | { action: 'publishRoadRules'; body: string; changes: string; fresh: boolean; seen: number; repeat?: number }
-  | { action: 'signRoadRules'; version: number };
+  | { action: 'signRoadRules'; version: number }
+  // The days as ISO dates (null: missing); parity cases give them as firstDays and lastDays from
+  // today. `repeat` writes the notes, or a no's reason, out that many times, for the length limits.
+  | {
+      action: 'bookBus'; first: string | null; last: string | null; purpose: BusPurpose | null; ride: string | null;
+      driver: string | null; notes: string; repeat?: number;
+    }
+  | { action: 'decideBus'; booking: string; yes: boolean; reason: string; repeat?: number }
+  | { action: 'cancelBus'; booking: string };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -552,6 +631,19 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       }, a.seen);
     case 'signRoadRules':
       return signRoadRules(ctx, a.version);
+    case 'bookBus':
+      return bookBus(ctx, {
+        firstDay: a.first ?? '',
+        lastDay: a.last ?? '',
+        purpose: a.purpose,
+        rideId: a.ride,
+        driverId: a.driver,
+        notes: a.notes.repeat(a.repeat ?? 1),
+      }).data;
+    case 'decideBus':
+      return decideBus(ctx, a.booking, a.yes, a.reason.repeat(a.repeat ?? 1));
+    case 'cancelBus':
+      return cancelBus(ctx, a.booking);
     case 'removeContact':
       return removeContact(ctx, a.contact);
     case 'saveBike':

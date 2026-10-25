@@ -1,7 +1,7 @@
 // Generated from the live Supabase schema (Stage 1). Regenerate after changing migrations.
 
 // Stage 5: meetings and votes
-import type { AgendaItem, BallotChoice, Electorate, MeetingKind, Threshold } from '../domain/types';
+import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, Threshold } from '../domain/types';
 import type { BusinessJson } from './businessLive';
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
@@ -268,6 +268,28 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      bus_bookings: {
+        Row: {
+          id: string;
+          first_day: string;
+          last_day: string;
+          purpose: BusPurpose;
+          ride_id: string | null;
+          driver_id: string | null;
+          notes: string | null;
+          status: BusStatus;
+          booked_by: string | null;
+          booked_at: string;
+          decided_by: string | null;
+          decided_at: string | null;
+          decline_reason: string | null;
+          cancelled_by: string | null;
+          cancelled_at: string | null;
+        };
+        Insert: { [_ in never]: never }; // bookings change only through book_bus, decide_bus and cancel_bus
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       road_rules_signoffs: {
         Row: { member_id: string; signed_at: string; version: number };
         Insert: { [_ in never]: never }; // sign-offs are made only through sign_road_rules
@@ -315,6 +337,19 @@ export type Database = {
       read_briefing: { Args: { p_ride: string; p_seen: string | null }; Returns: undefined };
       publish_road_rules: { Args: { p_body: string; p_changes: string; p_fresh: boolean; p_seen: number }; Returns: number };
       sign_road_rules: { Args: { p_version: number }; Returns: undefined };
+      book_bus: {
+        Args: {
+          p_first: string | null;
+          p_last: string | null;
+          p_purpose: BusPurpose | null;
+          p_ride: string | null;
+          p_driver: string | null;
+          p_notes: string | null;
+        };
+        Returns: string;
+      };
+      decide_bus: { Args: { p_booking: string; p_yes: boolean; p_reason: string | null }; Returns: undefined };
+      cancel_bus: { Args: { p_booking: string }; Returns: undefined };
       ride_calendar: {
         Args: never;
         Returns: {
@@ -496,6 +531,8 @@ export type Database = {
       member_status: MemberStatus;
       position_role: PositionRole;
       crew_role: CrewRole;
+      bus_purpose: BusPurpose;
+      bus_status: BusStatus;
     };
     CompositeTypes: { [_ in never]: never };
   };

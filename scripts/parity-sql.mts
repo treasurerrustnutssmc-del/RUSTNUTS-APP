@@ -7,7 +7,8 @@ import { addDays } from '../src/domain/dates';
 import { fyOf } from '../src/domain/fees';
 import { readGpx } from '../src/domain/gpx';
 import {
-  BRIEFED_AT, caseAction, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday, resolveCase, type ParityCase,
+  BRIEFED_AT, BUS_AT, BUS_DECLINE_REASON, caseAction, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
+  resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
@@ -288,6 +289,37 @@ for (const s of fx.roadRulesSignoffs ?? []) {
   );
 }
 
+// The Rusty Bus, with days counted from today. Inserted as the owner, so the exclusion
+// constraint still applies: the fixture's Booked bookings never share a day.
+for (const b of fx.busBookings ?? []) {
+  const decided = b.status === 'approved' || b.status === 'declined';
+  sql(
+    `insert into public.bus_bookings (id, first_day, last_day, purpose, ride_id, driver_id, status, booked_by, booked_at, ` +
+      `decided_at, decline_reason, cancelled_at) values (` +
+      `${id('bus', b.key)}, ${date(addDays(today, b.firstDays))}, ${date(addDays(today, b.lastDays))}, ${q(b.purpose)}, ` +
+      `${b.ride ? id('r', b.ride) : 'null'}, ${b.driver ? id('m', b.driver) : 'null'}, ${q(b.status)}, ` +
+      `${b.bookedBy ? id('m', b.bookedBy) : 'null'}, ${q(BUS_AT)}::timestamptz, ${decided ? `${q(BUS_AT)}::timestamptz` : 'null'}, ` +
+      `${b.status === 'declined' ? q(BUS_DECLINE_REASON) : 'null'}, ${b.status === 'cancelled' ? `${q(BUS_AT)}::timestamptz` : 'null'});`,
+  );
+}
+
+/** A Rusty Bus call, its days counted from today and its texts as typed (the database trims them). */
+const busCall = (raw: ParityCase & Record<string, any>): string => {
+  const c = resolveCase(raw, today) as ParityCase & Record<string, any>;
+  switch (c.action) {
+    case 'bookBus':
+      return (
+        `public.book_bus(${date(c.first ?? null)}, ${date(c.last ?? null)}, ` +
+        `${c.purpose ? `${q(c.purpose)}::public.bus_purpose` : 'null::public.bus_purpose'}, ` +
+        `${c.ride ? id('r', c.ride) : 'null::uuid'}, ${c.driver ? id('m', c.driver) : 'null::uuid'}, ${text(c.notes, c.repeat)})`
+      );
+    case 'decideBus':
+      return `public.decide_bus(${id('bus', c.booking)}, ${c.yes}, ${text(c.reason, c.repeat)})`;
+    default:
+      return `public.cancel_bus(${id('bus', c.booking)})`;
+  }
+};
+
 /** A saveRoute call with the summary the app sends: read from the file, as LiveClubProvider does. */
 const saveRouteCall = (c: ParityCase & Record<string, any>): string => {
   const a = caseAction(c) as Extract<ReturnType<typeof caseAction>, { action: 'saveRoute' }>;
@@ -343,6 +375,10 @@ const call = (c: ParityCase & Record<string, any>): string => {
       );
     case 'signRoadRules':
       return `public.sign_road_rules(${c.version})`;
+    case 'bookBus':
+    case 'decideBus':
+    case 'cancelBus':
+      return busCall(c);
     case 'removeContact':
       return `public.remove_contact(${id('c', c.contact)})`;
     case 'saveBike':

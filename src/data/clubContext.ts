@@ -5,6 +5,7 @@ import { createContext, useContext } from 'react';
 import type { AccessLevel } from '../domain/access';
 import type { BriefingInput } from '../domain/briefings';
 import type { RoadRulesInput } from '../domain/roadRules';
+import type { BusInput } from '../domain/bus';
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { VoteInput } from '../domain/votes';
 import type {
@@ -187,6 +188,15 @@ export interface ClubContextValue {
    * been published since. Signing again while signed moves the date on.
    */
   signRoadRules: (version: number) => Promise<void>;
+  /**
+   * Books the Rusty Bus; resolves to the new booking's id. It's Booked straight away when a bus
+   * manager books or it's a recovery for today or tomorrow, and otherwise waits for a yes.
+   */
+  bookBus: (input: BusInput) => Promise<string>;
+  /** A bus manager's yes or no to a Waiting booking. The reason only counts on a no. */
+  decideBus: (bookingId: string, yes: boolean, reason: string) => Promise<void>;
+  /** Calls off a Waiting or Booked booking (whoever booked it, its driver or the board). */
+  cancelBus: (bookingId: string) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -227,6 +237,7 @@ export const EMPTY_DATA: ClubData = {
   briefingReads: [],
   roadRules: [],
   roadRulesSignoffs: [],
+  busBookings: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

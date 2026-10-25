@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
+import { bookProblem, cancelProblem, decideProblem } from '../domain/bus';
 import { isRoadRulesVersionRefusal, publishProblem, signProblem } from '../domain/roadRules';
 import {
   actionItemProblem,
@@ -30,6 +31,9 @@ import {
   type ClubContextValue,
 } from './clubContext';
 import {
+  bookBusArgs,
+  cancelBusArgs,
+  decideBusArgs,
   loadClub,
   publishRoadRulesArgs,
   readBriefingArgs,
@@ -717,6 +721,31 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
         ok(await supabase().rpc('sign_road_rules', signRoadRulesArgs(version)));
         await after();
       }, after, isRoadRulesVersionRefusal),
+
+    // The Rusty Bus: the app's rules first, then the database's action, then a reload.
+    bookBus: async (input) => {
+      const problem = bookProblem(visibleMe, input, data, today);
+      if (problem) throw new NotAllowedError(problem);
+      const result = ok(await supabase().rpc('book_bus', bookBusArgs(input)));
+      await after();
+      return result.data ?? '';
+    },
+
+    decideBus: async (bookingId, yes, reason) => {
+      const booking = (data.busBookings ?? []).find((b) => b.id === bookingId);
+      const problem = decideProblem(visibleMe, booking, yes, reason, data, today);
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('decide_bus', decideBusArgs(bookingId, yes, reason)));
+      await after();
+    },
+
+    cancelBus: async (bookingId) => {
+      const booking = (data.busBookings ?? []).find((b) => b.id === bookingId);
+      const problem = cancelProblem(visibleMe, booking, data, today);
+      if (problem) throw new NotAllowedError(problem);
+      ok(await supabase().rpc('cancel_bus', cancelBusArgs(bookingId)));
+      await after();
+    },
 
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => {
