@@ -41,8 +41,9 @@ class RideCommsModule : Module() {
     }
 
     Function("stop") {
-      val context = appContext.reactContext ?: return@Function
+      val context = appContext.reactContext ?: return@Function null
       context.stopService(Intent(context, RideCommsService::class.java))
+      null
     }
   }
 }
