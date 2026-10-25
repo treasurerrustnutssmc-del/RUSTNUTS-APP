@@ -2,13 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadNotificationPrefs, saveNotificationPrefs } from './notificationsApi';
 
-function stub(rows: unknown[], error: { message: string } | null = null) {
+function stub(rows: unknown[], error: { message: string; code?: string } | null = null, errorFor?: (args: object) => boolean) {
   const calls: { fn: string; args: unknown }[] = [];
   const client = {
     from: () => ({ select: () => ({ maybeSingle: () => Promise.resolve({ data: rows[0] ?? null, error }) }) }),
     rpc: (fn: string, args: unknown) => {
       calls.push({ fn, args });
-      return Promise.resolve({ error });
+      return Promise.resolve({ error: errorFor && !errorFor(args as object) ? null : error });
     },
   };
   return { client: client as never, calls };
@@ -34,4 +34,17 @@ test('saving sends all five', async () => {
     fn: 'save_notification_prefs',
     args: { p_ride_reminders: true, p_ride_changes: false, p_new_rides: true, p_approvals: false, p_rev_sound: false },
   }]);
+});
+
+test('before rev-sound.sql is live, saving falls back to the four settings', async () => {
+  const missing = { message: 'Could not find the function public.save_notification_prefs(...)', code: 'PGRST202' };
+  const { client, calls } = stub([], missing, (args) => 'p_rev_sound' in args);
+  await saveNotificationPrefs(client, { rideReminders: true, rideChanges: false, newRides: true, approvals: false, revSound: false });
+  assert.deepEqual(calls.map((c) => Object.keys(c.args as object).length), [5, 4]);
+});
+
+test('any other failure is not retried', async () => {
+  const { client, calls } = stub([], { message: 'Only approved members can do that.', code: 'P0001' });
+  await assert.rejects(saveNotificationPrefs(client, { rideReminders: true, rideChanges: false, newRides: true, approvals: false, revSound: true }), /approved/);
+  assert.equal(calls.length, 1);
 });

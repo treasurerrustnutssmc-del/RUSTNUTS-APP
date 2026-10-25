@@ -14,14 +14,19 @@ let made: Promise<void> | null = null;
 export function ensureChannels(): Promise<void> {
   if (Platform.OS !== 'android') return Promise.resolve();
   made ??= (async () => {
+    let failed = false;
     for (const c of ANDROID_CHANNELS) {
       await Notifications.setNotificationChannelAsync(c.id, {
         name: c.name,
         importance: c.urgent ? AndroidImportance.MAX : AndroidImportance.DEFAULT,
-        sound: c.sound,
+        // Left out for the phone's own sound: a name is looked up as a bundled file.
+        ...(c.sound === 'default' ? {} : { sound: c.sound }),
         ...(c.urgent ? { vibrationPattern: [0, 400, 200, 400] } : {}),
-      }).catch(() => {});
+      }).catch(() => {
+        failed = true;
+      });
     }
+    if (failed) made = null; // try again next time
   })();
   return made;
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANDROID_CHANNELS, DEFAULT_PREFS, REV_SOUND, reminderDiff, reminderPlan, soundFor, type Reminder } from './notifications';
+import { ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, REV_SOUND, reminderDiff, reminderPlan, soundFor, type Reminder } from './notifications';
 import type { Ride, Rsvp } from './types';
 
 const NOW = '2026-11-05T00:00:00.000Z';
@@ -103,4 +103,11 @@ test('a reminder scheduled with the other sound is replaced; one from before the
   assert.deepEqual(reminderDiff([r], [{ id: r.id, at: r.at, body: r.body, sound: REV_SOUND }]), { add: [], cancel: [] });
   const [plain] = reminderPlan([ride()], [going('r-1')], 'm-me', { ...DEFAULT_PREFS, revSound: false }, NOW);
   assert.deepEqual(reminderDiff([plain], [{ id: r.id, at: r.at, body: r.body }]), { add: [], cancel: [] });
+});
+
+test('settings saved on the phone before the rev get it switched on; unknown stays unknown', () => {
+  const old = { rideReminders: false, rideChanges: true, newRides: true, approvals: false } as never;
+  assert.deepEqual(completePrefs(old), { rideReminders: false, rideChanges: true, newRides: true, approvals: false, revSound: true });
+  assert.equal(completePrefs(null), null);
+  assert.equal(completePrefs(undefined), undefined);
 });

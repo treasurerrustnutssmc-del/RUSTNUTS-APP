@@ -22,12 +22,14 @@ export async function loadNotificationPrefs(db: SupabaseClient<Database>): Promi
 }
 
 export async function saveNotificationPrefs(db: SupabaseClient<Database>, prefs: NotificationPrefs): Promise<void> {
-  const { error } = await db.rpc('save_notification_prefs', {
+  const four = {
     p_ride_reminders: prefs.rideReminders,
     p_ride_changes: prefs.rideChanges,
     p_new_rides: prefs.newRides,
     p_approvals: prefs.approvals,
-    p_rev_sound: prefs.revSound,
-  });
+  };
+  let { error } = await db.rpc('save_notification_prefs', { ...four, p_rev_sound: prefs.revSound });
+  // Until rev-sound.sql is live there's no five-setting version: save the other four.
+  if (error?.code === 'PGRST202') ({ error } = await db.rpc('save_notification_prefs', four));
   if (error) throw friendlyError(error);
 }

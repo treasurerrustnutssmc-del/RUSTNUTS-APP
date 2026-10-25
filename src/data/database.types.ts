@@ -556,7 +556,9 @@ export type Database = {
       register_push_device: { Args: { p_token: string; p_platform: string }; Returns: undefined };
       forget_push_device: { Args: { p_token: string }; Returns: undefined };
       save_notification_prefs: {
-        Args: { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean; p_rev_sound: boolean };
+        Args:
+          | { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean; p_rev_sound: boolean }
+          | { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean };
         Returns: undefined;
       };
     };

@@ -6,6 +6,12 @@ import type { NotificationPrefs, Ride, Rsvp } from './types';
 
 export const DEFAULT_PREFS: NotificationPrefs = { rideReminders: true, rideChanges: true, newRides: false, approvals: true, revSound: true };
 
+/** Settings kept on the phone by an app from before a setting existed get that setting's default.
+ *  Null (never saved) and undefined (not known) pass through. */
+export function completePrefs<T extends NotificationPrefs | null | undefined>(prefs: T): T {
+  return (prefs ? { ...DEFAULT_PREFS, ...prefs } : prefs) as T;
+}
+
 /** The Harley rev, bundled with the phone build (app.json, expo-notifications "sounds"). */
 export const REV_SOUND = 'v_twin_rev.wav';
 

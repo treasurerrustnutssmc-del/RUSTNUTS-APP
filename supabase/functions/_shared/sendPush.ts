@@ -32,6 +32,9 @@ export interface ExpoTicket {
 // The same channels and sound as soundFor in src/domain/notifications.ts, which the phone sets up
 // (this file can't import the app's code; a test checks they agree). Android plays the channel's sound,
 // iPhone the message's.
+// Android builds from before the rev don't have the club channels, and Android drops a push naming a
+// channel it doesn't have. That's safe only because those builds never registered for pushes (Android
+// pushes need the Firebase project, which comes with a new build).
 const REV_SOUND = 'v_twin_rev.wav';
 function soundFor(alert: boolean, rev: boolean): { channelId: string; sound: string } {
   if (alert) return { channelId: 'ride-alerts', sound: 'default' };
