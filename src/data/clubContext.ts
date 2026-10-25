@@ -153,6 +153,8 @@ export interface ClubContextValue {
   setPaymentDetails: (details: PaymentDetails) => Promise<void>;
   /** Resolves to how many charges were added. */
   raiseFees: (chapterId: string, fy: number) => Promise<number>;
+  /** Records the date of a year's AGM, which starts that club year (fees run AGM to AGM). */
+  recordAgm: (heldOn: string) => Promise<void>;
   raiseCharge: (memberId: string, description: string, amountCents: number, dueOn: string) => Promise<void>;
   waiveCharge: (chargeId: string) => Promise<void>;
   claimPayment: (chargeId: string, amountCents: number, paidOn: string, method: PaymentMethod, reference: string) => Promise<void>;

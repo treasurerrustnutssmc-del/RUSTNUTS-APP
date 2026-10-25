@@ -3,6 +3,7 @@
 // the same words as the database's actions (checked by src/data/parity.test.ts).
 
 import { checkInProblem, closeProblem, canRunCheckin, markProblem, newCode, normalizeCode, openCheckinProblem, rideChapterId, type OpenCheckinInput } from '../domain/attendance';
+import { clubYearOf, proRata, proRataNote, recordAgmProblem } from '../domain/clubYear';
 import { addDays } from '../domain/dates';
 import {
   claimProblem,
@@ -10,7 +11,6 @@ import {
   continuationFeeProblem,
   decidePaymentProblem,
   feeRateProblem,
-  fyOf,
   paymentDetailsProblem,
   raiseChargeProblem,
   nextReceiptNo,
@@ -23,7 +23,7 @@ import { decideApplicationProblem, fngOutcomeStatus, fngReviewProblem, type FngO
 import { melbourneDate } from '../domain/rides';
 import type { Charge, ClubData, MemberStatus, Payment, PaymentDetails, PaymentMethod, Votes } from '../domain/types';
 import { NotAllowedError } from './clubContext';
-import { approve, decline, type DemoCtx } from './demoActions';
+import { approve, decline, withPatchInFee, type DemoCtx } from './demoActions';
 
 let counter = 0;
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
@@ -154,7 +154,8 @@ export function recordFngReview(ctx: DemoCtx, memberId: string, atMonths: number
   };
   // Past twelve months, carrying on costs half the chapter's FNG fee for the year, once ever
   // (constitution v4 4.11), and nothing while on hiatus.
-  const fy = fyOf(ctx.today);
+  data = withPatchInFee(ctx, memberId, data);
+  const fy = clubYearOf(ctx.today, ctx.data.agms);
   const fee = continuationFeeFor(target.chapterId, fy, ctx.data);
   const already = (ctx.data.charges ?? []).some((c) => c.memberId === memberId && c.kind === 'continuation');
   if (outcome === 'continue' && atMonths >= 12 && fee !== null && fee > 0 && !already && !target.onHiatus) {
@@ -207,8 +208,10 @@ export function raiseFees(ctx: DemoCtx, chapterId: string, fy: number): { data: 
     if (m.chapterId !== chapterId || !paysFees(m)) continue;
     const rate = (ctx.data.feeRates ?? []).find((r) => r.chapterId === chapterId && r.fy === fy && r.status === m.status);
     if (!rate || charges.some((c) => c.memberId === m.id && c.fy === fy && c.kind === 'annual')) continue;
+    // A Full member patched after this year's AGM pays for the months left (Jeff, 25 Oct 2026).
+    const { cents, months } = m.status === 'full' && m.patchedOn ? proRata(rate.amountCents, m.patchedOn, fy, ctx.data.agms) : { cents: rate.amountCents, months: 12 };
     charges.push({
-      id: newId('c'), memberId: m.id, chapterId, fy, kind: 'annual', description: null, amountCents: rate.amountCents,
+      id: newId('c'), memberId: m.id, chapterId, fy, kind: 'annual', description: proRataNote(months), amountCents: cents,
       dueOn: rate.dueOn, createdAt: nowOf(ctx), waivedAt: null,
     });
     count++;
@@ -216,12 +219,20 @@ export function raiseFees(ctx: DemoCtx, chapterId: string, fy: number): { data: 
   return { data: { ...ctx.data, charges }, count };
 }
 
+/** Records (or corrects) the date of a year's AGM, which starts that club year. */
+export function recordAgm(ctx: DemoCtx, heldOn: string): ClubData {
+  deny(recordAgmProblem(ctx.me, ctx.data.positions));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(heldOn)) throw new Error('Pick the AGM date.');
+  const year = Number(heldOn.slice(0, 4));
+  return { ...ctx.data, agms: [...(ctx.data.agms ?? []).filter((a) => a.year !== year), { year, heldOn }] };
+}
+
 export function raiseCharge(ctx: DemoCtx, memberId: string, description: string, amountCents: number, dueOn: string): ClubData {
   const target = memberOf(ctx.data, memberId);
   deny(raiseChargeProblem(ctx.me, target, description, amountCents, ctx.data));
   if (!dueOn) throw new Error('Pick a due date.');
   const charge: Charge = {
-    id: newId('c'), memberId, chapterId: target.chapterId, fy: fyOf(ctx.today), kind: 'other', description: description.trim(),
+    id: newId('c'), memberId, chapterId: target.chapterId, fy: clubYearOf(ctx.today, ctx.data.agms), kind: 'other', description: description.trim(),
     amountCents, dueOn, createdAt: nowOf(ctx), waivedAt: null,
   };
   return { ...ctx.data, charges: [...(ctx.data.charges ?? []), charge] };
@@ -286,6 +297,7 @@ export type Stage4Action =
   | { action: 'setContinuationFee'; chapter: string; fy: number; amountCents: number }
   | { action: 'setPaymentDetails'; chapter: string; payid: string | null }
   | { action: 'raiseFees'; chapter: string; fy: number }
+  | { action: 'recordAgm'; heldOn: string }
   | { action: 'raiseCharge'; member: string; description: string; amountCents: number; dueOn: string }
   | { action: 'waiveCharge'; charge: string }
   | { action: 'claimPayment' | 'recordPayment'; charge: string; amountCents: number; paidOn: string; method: PaymentMethod; reference: string }
@@ -293,7 +305,7 @@ export type Stage4Action =
 
 export const STAGE4_ACTIONS = new Set<string>([
   'openCheckin', 'checkIn', 'markAttendance', 'closeCheckin', 'decideApplication', 'fngReview', 'setFeeRate',
-  'setContinuationFee', 'setPaymentDetails', 'raiseFees', 'raiseCharge', 'waiveCharge', 'claimPayment',
+  'setContinuationFee', 'setPaymentDetails', 'raiseFees', 'recordAgm', 'raiseCharge', 'waiveCharge', 'claimPayment',
   'recordPayment', 'confirmPayment', 'rejectPayment',
 ]);
 
@@ -319,6 +331,8 @@ export function runStage4Action(ctx: DemoCtx, a: Stage4Action): ClubData {
       return setPaymentDetails(ctx, { chapterId: a.chapter, payid: a.payid, payidName: null, bsb: null, accountNo: null });
     case 'raiseFees':
       return raiseFees(ctx, a.chapter, a.fy).data;
+    case 'recordAgm':
+      return recordAgm(ctx, a.heldOn);
     case 'raiseCharge':
       return raiseCharge(ctx, a.member, a.description, a.amountCents, a.dueOn);
     case 'waiveCharge':

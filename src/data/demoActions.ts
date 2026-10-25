@@ -5,6 +5,7 @@
 import { appointProblem, endTermProblem, isBoardOf, isLearner, LEARNER_FNG, statusChangeProblem } from '../domain/access';
 import { bookedStraightAway, bookProblem, cancelProblem, decideProblem, type BusInput } from '../domain/bus';
 import { cleanBriefing, readBriefingProblem, saveBriefingProblem, type BriefingInput } from '../domain/briefings';
+import { patchInCharge } from '../domain/clubYear';
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { cleanRoadRules, currentRoadRules, goingProblem, publishProblem, signProblem, type RoadRulesInput } from '../domain/roadRules';
 import { NO_TRACK, readGpx } from '../domain/gpx';
@@ -66,6 +67,18 @@ function findMember(data: ClubData, id: string): Member {
 
 function patchMember(data: ClubData, id: string, patch: Partial<Member>): ClubData {
   return { ...data, members: data.members.map((m) => (m.id === id ? { ...m, ...patch } : m)) };
+}
+
+/**
+ * Someone becoming Full is charged that club year's Full fee, pro rata, when it's set (the
+ * database's patch-in trigger does the same).
+ */
+export function withPatchInFee(ctx: DemoCtx, memberId: string, data: ClubData): ClubData {
+  const before = findMember(ctx.data, memberId);
+  const charge = patchInCharge(before, findMember(data, memberId), data, ctx.today);
+  if (!charge) return data;
+  const id = `c-${memberId}-${charge.fy}-patch`;
+  return { ...data, charges: [...(data.charges ?? []), { ...charge, id, createdAt: ctx.now ?? new Date().toISOString() }] };
 }
 
 function statusDates(target: Member, status: MemberStatus, today: string): Partial<Member> {
@@ -169,7 +182,7 @@ export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus):
   if (status === 'legacy') {
     return patchMember(ctx.data, memberId, { status, onHiatus: false, ...statusDates(target, status, ctx.today) });
   }
-  return patchMember(ctx.data, memberId, { status, ...statusDates(target, status, ctx.today) });
+  return withPatchInFee(ctx, memberId, patchMember(ctx.data, memberId, { status, ...statusDates(target, status, ctx.today) }));
 }
 
 export function saveProfile(ctx: DemoCtx, profile: ProfileInput, priv: PrivateInput | null): ClubData {

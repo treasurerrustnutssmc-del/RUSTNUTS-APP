@@ -530,6 +530,7 @@ export type Database = {
         Returns: undefined;
       };
       raise_fees: { Args: { p_chapter: string; p_fy: number }; Returns: number };
+      record_agm: { Args: { p_held_on: string }; Returns: undefined };
       raise_charge: { Args: { p_member: string; p_description: string; p_amount_cents: number; p_due_on: string }; Returns: string };
       waive_charge: { Args: { p_charge: string }; Returns: undefined };
       claim_payment: {
@@ -591,6 +592,8 @@ export type MembersMoneyRows = {
     recorded_by: string | null;
   }[];
   rates: { chapter_id: string; fy: number; status: MemberStatus; amount_cents: number; due_on: string }[];
+  /** Club-year fees (added 25 Oct 2026); missing before that migration is live. */
+  agms?: { year: number; held_on: string }[];
   continuation: { chapter_id: string; fy: number; amount_cents: number }[];
   charges: {
     id: string;
