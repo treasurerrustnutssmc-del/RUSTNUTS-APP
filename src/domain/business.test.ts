@@ -23,13 +23,13 @@ test('a member sees the votes they’re on, their own action items and the open 
 test('a board member sees their scope’s business, with what needs them first', () => {
   const b = businessFor(me('m-torque'), d, NOW);
   assert.deepEqual(b.needsMe.map((v) => v.id), ['v-2'], 'the gazebo vote; Torque already voted on the patch');
-  assert.deepEqual(b.openVotes.map((v) => v.id), ['v-1']);
+  assert.deepEqual(b.openVotes.map((v) => v.id), ['v-4', 'v-1'], 'the tied vote waits on the chair');
   assert.deepEqual(b.myActions.map((a) => a.id), [], 'Torque’s own item is done');
   assert.deepEqual(b.otherActions.map((a) => a.id), ['ai-2', 'ai-1'], 'open West items, soonest due first');
   assert.deepEqual(b.upcoming.map((m) => m.id), ['mt-1']);
-  assert.equal(b.past.find((p) => p.meeting.id === 'mt-2')!.state, 'overdue', 'ten days on, past the seven (10.8)');
+  assert.equal(b.past.find((p) => p.meeting.id === 'mt-2')!.state, 'draft', 'the draft is out, so it waits to be confirmed (10.8)');
   assert.equal(b.runsAny, true);
-  assert.equal(b.summary, '1 vote needs you · Next meeting Wed 04/11 · Minutes due for 1 meeting');
+  assert.equal(b.summary, '1 vote needs you · Next meeting Wed 04/11');
 });
 
 test('the NEC sees every chapter, and the whole club’s meetings', () => {

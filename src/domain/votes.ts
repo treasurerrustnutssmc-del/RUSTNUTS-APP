@@ -1,6 +1,7 @@
 // Votes: who gets a ballot, what passes, and who can open, cast and close. The database's actions
-// (supabase/migrations/20270101000000_meetings_votes.sql) apply the same rules with the same words.
-// Section numbers refer to the club constitution (29 Jul 2026 draft); rules marked (inferred) are
+// (supabase/migrations/20270101000000_meetings_votes.sql, then 20270101000100_constitution_v4.sql)
+// apply the same rules with the same words.
+// Section numbers refer to the club constitution (v4, Final Club Edition, 25 Oct 2026); rules marked (inferred) are
 // ones it doesn't settle.
 
 import { activePositions } from './access';
@@ -52,8 +53,10 @@ export function electorsFor(electorate: Electorate, chapterId: string | null, da
 
 /**
  * The quorum a vote starts with: a third of the voters, rounded up, for chapter and national
- * votes (10.6); 51% for the NEC (11.5); more than half for a board (inferred).
+ * votes (10.6); 51% for the NEC (11.5); more than half a board, and at least three (8.5).
  */
+const BOARD_QUORUM_FLOOR = 3;
+
 export function defaultQuorum(electorate: Electorate, electors: number): number {
   switch (electorate) {
     case 'chapter_patched':
@@ -62,7 +65,7 @@ export function defaultQuorum(electorate: Electorate, electors: number): number 
     case 'nec':
       return Math.max(1, Math.ceil((electors * 51) / 100));
     case 'chapter_board':
-      return Math.floor(electors / 2) + 1;
+      return Math.max(BOARD_QUORUM_FLOOR, Math.floor(electors / 2) + 1);
   }
 }
 
@@ -87,16 +90,19 @@ function necVoterFor(chapterId: string, positions: Position[]): string | null {
   return holderOf('vice_president', chapterId, positions);
 }
 
+/** What the chair does with a tie: a casting vote, or let it fall (9.10). */
+export type Casting = 'yes' | 'no' | 'decline';
+
 /**
  * The result of a count. Abstentions count towards the quorum but not for or against (10.7).
  * Unanimous means every elector casts a yes (4.9). Only a majority vote can tie (as many for as
- * against, and some of each); the chair's casting vote settles it, and without one it's lost (9.10).
+ * against, and some of each); the chair's casting vote settles it, and if they decline it's lost (9.10).
  */
 export function decide(
   threshold: Threshold,
   quorum: number,
   tally: Tally,
-  casting: 'yes' | 'no' | null,
+  casting: Casting | null,
   electors: number,
 ): { result: VoteResult; tied: boolean } {
   const cast = tally.yes + tally.no + tally.abstain;
@@ -135,6 +141,9 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
   if (!electoratesFor(input.chapterId).includes(input.electorate)) return 'That electorate doesn’t fit here.';
   const electors = electorsFor(input.electorate, input.chapterId, data).length;
   if (electors === 0) return 'Nobody can vote in that electorate yet.';
+  if (input.electorate === 'chapter_board' && electors < BOARD_QUORUM_FLOOR) {
+    return 'A board vote needs at least three board members (8.5).';
+  }
   const least = defaultQuorum(input.electorate, electors);
   if (!Number.isInteger(input.quorum) || input.quorum < least || input.quorum > electors) {
     return `Quorum must be between ${least} and ${electors}.`;
@@ -179,12 +188,13 @@ export function castProblem(me: Member | null, vote: Vote | undefined, now: stri
  * database); the live app passes null and leaves the tie check to the database.
  */
 const NO_CHAIR = 'Nobody’s in the chair, so a tie is lost. Close it without a casting vote.';
+export const TIE = 'It’s a tie. The chair gives a casting vote or lets it fall.';
 
 export function closeProblem(
   me: Member | null,
   vote: Vote | undefined,
   tally: Tally | null,
-  casting: 'yes' | 'no' | null,
+  casting: Casting | null,
   data: ClubData,
   now: string,
 ): string | null {
@@ -199,11 +209,10 @@ export function closeProblem(
   if (!tally) return null;
   const { tied } = decide(vote.threshold, vote.quorum, tally, null, vote.electorIds.length);
   const chair = chairOf(vote.chapterId, data.positions);
-  if (tied && chair !== null && (casting === null || me!.id !== chair)) {
-    return 'It’s a tie. The chair closes it with the casting vote.';
-  }
+  // The chair casts or declines, and a declined tie is lost (9.10).
+  if (tied && chair !== null && (casting === null || me!.id !== chair)) return TIE;
   if (!tied && casting !== null) return 'There’s no tie, so no casting vote.';
-  if (casting !== null && chair === null) return NO_CHAIR;
+  if ((casting === 'yes' || casting === 'no') && chair === null) return NO_CHAIR;
   return null;
 }
 

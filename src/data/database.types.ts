@@ -448,7 +448,7 @@ export type Database = {
         Returns: string;
       };
       cast_ballot: { Args: { p_vote: string; p_choice: BallotChoice }; Returns: undefined };
-      close_vote: { Args: { p_vote: string; p_casting: 'yes' | 'no' | null }; Returns: undefined };
+      close_vote: { Args: { p_vote: string; p_casting: 'yes' | 'no' | 'decline' | null }; Returns: undefined };
       // Lane E: live ride
       start_live_ride: { Args: { p_ride: string }; Returns: string };
       live_ride_state: { Args: { p_ride: string }; Returns: LiveStateJson };

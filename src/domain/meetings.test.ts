@@ -78,11 +78,14 @@ test('who sees which meetings and minutes', () => {
   assert.equal(canSeeMeeting(m('m-torque'), nec, P), false);
   assert.equal(canSeeMeeting(m('m-smokey'), nec, P), true);
 
-  assert.equal(canSeeMinutes(m('m-spanner'), general, P), false, 'drafts stay with the board');
-  assert.equal(canSeeMinutes(m('m-torque'), general, P), true);
+  const before = '2026-11-03T08:00:00.000Z';
+  const after = '2026-11-04T00:00:00.000Z';
+  assert.equal(canSeeMinutes(m('m-spanner'), general, P, before), false, 'notes before the meeting stay with the board');
+  assert.equal(canSeeMinutes(m('m-spanner'), general, P, after), true, 'the draft goes out once it’s been held (10.8)');
+  assert.equal(canSeeMinutes(m('m-torque'), general, P, before), true);
   const approved = { ...general, minutesApprovedAt: '2026-11-10T00:00:00.000Z' };
-  assert.equal(canSeeMinutes(m('m-spanner'), approved, P), true);
-  assert.equal(canSeeMinutes(m('m-spanner'), { ...board, minutesApprovedAt: '2026-11-10T00:00:00.000Z' }, P), false);
+  assert.equal(canSeeMinutes(m('m-spanner'), approved, P, after), true);
+  assert.equal(canSeeMinutes(m('m-spanner'), { ...board, minutesApprovedAt: '2026-11-10T00:00:00.000Z' }, P, after), false, 'board minutes stay with the board');
 });
 
 test('action items are seen by their owner and whoever runs the scope', () => {
@@ -147,6 +150,8 @@ test('minutes fall due 7 Melbourne days after the meeting (10.8)', () => {
   assert.equal(minutesState(late, '2026-11-03T12:00:00.000Z'), 'upcoming');
   assert.equal(minutesState(late, '2026-11-10T12:00:00.000Z'), 'due', 'due through the 10th');
   assert.equal(minutesState(late, '2026-11-10T13:30:00.000Z'), 'overdue', '11th in Melbourne');
+  assert.equal(minutesState({ ...late, minutes: 'All present.' }, '2026-11-20T00:00:00.000Z'), 'draft', 'a saved draft is out to members, waiting to be confirmed');
+  assert.equal(minutesState({ ...late, minutes: '  ' }, '2026-11-20T00:00:00.000Z'), 'overdue', 'blank isn’t a draft');
   assert.equal(minutesState({ ...late, minutesApprovedAt: AFTER }, '2026-12-01T00:00:00.000Z'), 'approved');
   assert.equal(minutesState({ ...late, cancelledAt: NOW }, '2026-12-01T00:00:00.000Z'), 'cancelled');
 });

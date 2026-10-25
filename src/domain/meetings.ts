@@ -63,10 +63,15 @@ export function canSeeMeeting(me: Member | null, meeting: Meeting, positions: Po
   return isPrivateKind(meeting.kind) ? runsScope(me, meeting.chapterId, positions) : true;
 }
 
-/** Drafts stay with whoever runs the meeting; approved minutes go to everyone who sees it. */
-export function canSeeMinutes(me: Member | null, meeting: Meeting, positions: Position[]): boolean {
+const started = (meeting: Meeting, now: string) => new Date(now).getTime() >= new Date(meeting.startsAt).getTime();
+
+/**
+ * Everyone who sees a meeting sees its minutes once it's been held, as a draft until they're
+ * confirmed (10.8). Before then, notes for the minutes stay with whoever runs it.
+ */
+export function canSeeMinutes(me: Member | null, meeting: Meeting, positions: Position[], now: string): boolean {
   if (!canSeeMeeting(me, meeting, positions)) return false;
-  return meeting.minutesApprovedAt !== null || runsScope(me, meeting.chapterId, positions);
+  return meeting.minutesApprovedAt !== null || started(meeting, now) || runsScope(me, meeting.chapterId, positions);
 }
 
 export function canSeeActionItem(me: Member | null, item: ActionItem, positions: Position[]): boolean {
@@ -102,7 +107,6 @@ function meetingProblem(me: Member | null, meeting: Meeting | undefined, data: C
   return null;
 }
 
-const started = (meeting: Meeting, now: string) => new Date(now).getTime() >= new Date(meeting.startsAt).getTime();
 
 export function cancelMeetingProblem(me: Member | null, meeting: Meeting | undefined, data: ClubData, now: string): string | null {
   return meetingProblem(me, meeting, data) ?? (started(meeting!, now) ? 'That meeting has already started.' : null);
@@ -125,10 +129,12 @@ export function minutesDueOn(meeting: Meeting): string {
   return addDays(melbourneDate(meeting.startsAt), MINUTES_DUE_DAYS);
 }
 
-export function minutesState(meeting: Meeting, now: string): 'upcoming' | 'cancelled' | 'approved' | 'due' | 'overdue' {
+/** 'draft': written and out to members once the meeting's held, waiting to be confirmed (10.8). */
+export function minutesState(meeting: Meeting, now: string): 'upcoming' | 'cancelled' | 'approved' | 'draft' | 'due' | 'overdue' {
   if (meeting.cancelledAt) return 'cancelled';
   if (meeting.minutesApprovedAt) return 'approved';
   if (!started(meeting, now)) return 'upcoming';
+  if (meeting.minutes?.trim()) return 'draft';
   return melbourneDate(now) > minutesDueOn(meeting) ? 'overdue' : 'due';
 }
 

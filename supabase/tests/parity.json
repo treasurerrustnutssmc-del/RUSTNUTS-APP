@@ -3642,6 +3642,34 @@
       "allowed": true
     },
     {
+      "name": "The chair lets a tied vote fall without casting, so it's lost",
+      "as": "rusty",
+      "action": "closeVote",
+      "vote": "west-board-tied",
+      "casting": "decline",
+      "allowed": true
+    },
+    {
+      "name": "A board member who isn't the chair lets a tie fall",
+      "as": "torque",
+      "action": "closeVote",
+      "vote": "west-board-tied",
+      "casting": "decline",
+      "allowed": false
+    },
+    {
+      "name": "A board of two opens a board vote",
+      "as": "smokey",
+      "action": "openVote",
+      "chapter": "north",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7,
+      "allowed": false
+    },
+    {
       "name": "A Full member asks for the Rusty Bus (it waits for a yes)",
       "as": "gravel",
       "action": "bookBus",

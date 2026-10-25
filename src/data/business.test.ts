@@ -98,7 +98,9 @@ test('a tie goes to the chair', () => {
     data = act.castBallot(ctx(who, data), opened.id, choice);
   }
   const later = '2026-10-31T03:00:00.000Z';
-  assert.throws(() => act.closeVote(ctx('m-torque', data, later), opened.id, null), /chair closes it/);
+  assert.throws(() => act.closeVote(ctx('m-torque', data, later), opened.id, null), /casting vote or lets it fall/);
+  const declined = act.closeVote(ctx('m-rusty', data, later), opened.id, 'decline').votes!.find((x) => x.id === opened.id)!;
+  assert.deepEqual([declined.result, declined.castingVote], ['lost', null], 'the chair declines to cast (9.10)');
   data = act.closeVote(ctx('m-rusty', data, later), opened.id, 'yes');
   const v = data.votes!.find((x) => x.id === opened.id)!;
   assert.equal(v.result, 'carried');

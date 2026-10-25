@@ -10,6 +10,7 @@ import { cleanRoadRules, currentRoadRules, publishProblem, signProblem, type Roa
 import { NO_TRACK, readGpx } from '../domain/gpx';
 import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
+import type { Casting } from '../domain/votes';
 import { APPROVE_AS, NATIONAL_ROLES, TITLE_ROLES } from '../domain/labels';
 import type {
   BallotChoice,
@@ -566,7 +567,7 @@ export type DemoAction =
       secret?: boolean; quorum: number; days: number;
     }
   | { action: 'castBallot'; vote: string; choice: BallotChoice }
-  | { action: 'closeVote'; vote: string; casting: 'yes' | 'no' | null }
+  | { action: 'closeVote'; vote: string; casting: Casting | null }
   | { action: 'crew'; ride: string; member: string; role: CrewRole }
   | { action: 'leaveCrew'; ride: string; member: string }
   | { action: 'saveRoute'; route: string | null; routeName: string; chapter: string | null; notes?: string; gpx: string | null }

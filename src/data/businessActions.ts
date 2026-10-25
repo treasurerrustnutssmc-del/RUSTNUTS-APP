@@ -14,7 +14,7 @@ import {
 } from '../domain/meetings';
 import { melbourneDate } from '../domain/rides';
 import type { BallotChoice, ClubData, Meeting, Tally, Vote } from '../domain/types';
-import { castProblem, closeProblem, decide, electorsFor, openVoteProblem, type VoteInput } from '../domain/votes';
+import { castProblem, closeProblem, decide, electorsFor, openVoteProblem, type Casting, type VoteInput } from '../domain/votes';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
 
@@ -147,14 +147,15 @@ export function tallyOf(ballots: Vote['ballots']): Tally {
   return t;
 }
 
-export function closeVote(ctx: DemoCtx, voteId: string, casting: 'yes' | 'no' | null): ClubData {
+export function closeVote(ctx: DemoCtx, voteId: string, casting: Casting | null): ClubData {
   const vote = votesOf(ctx.data).find((v) => v.id === voteId);
   const tally = vote ? tallyOf(vote.ballots) : null;
   refuse(closeProblem(ctx.me, vote, tally, casting, ctx.data, nowOf(ctx)));
   const { result } = decide(vote!.threshold, vote!.quorum, tally!, casting, vote!.electorIds.length);
+  const castingVote = casting === 'decline' ? null : casting;
   // A patch vote keeps only its result (4.9).
   if (vote!.subjectMemberId !== null) {
-    return patchVote(ctx.data, voteId, { closedAt: nowOf(ctx), result, castingVote: casting, tally: null, ballots: [] });
+    return patchVote(ctx.data, voteId, { closedAt: nowOf(ctx), result, castingVote, tally: null, ballots: [] });
   }
-  return patchVote(ctx.data, voteId, { closedAt: nowOf(ctx), result, castingVote: casting, tally });
+  return patchVote(ctx.data, voteId, { closedAt: nowOf(ctx), result, castingVote, tally });
 }

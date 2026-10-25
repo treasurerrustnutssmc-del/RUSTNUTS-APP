@@ -351,6 +351,16 @@ export const DEMO_DATA: ClubData = {
       electorIds: ['m-ace', 'm-chook', 'm-crank', 'm-diesel', 'm-gravel', 'm-jet', 'm-ratchet', 'm-rusty', 'm-smokey', 'm-spanner', 'm-sparks', 'm-torque'],
       votedIds: ['m-ace', 'm-chook', 'm-crank', 'm-diesel', 'm-gravel', 'm-jet', 'm-rusty', 'm-smokey', 'm-spanner', 'm-sparks', 'm-torque'],
       ballots: [], createdBy: 'm-rusty' },
+    // Everyone's voted and it's tied, so it waits on the chair (9.10).
+    { id: 'v-4', chapterId: 'ch-west', meetingId: null, subjectMemberId: null, question: 'Move board meetings to Tuesdays?',
+      details: null, electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 3,
+      openedAt: '2026-10-20T08:00:00.000Z', closesAt: '2026-11-03T08:00:00.000Z', closedAt: null, result: null, castingVote: null,
+      tally: null, electorIds: ['m-diesel', 'm-gravel', 'm-rusty', 'm-sparks', 'm-torque'],
+      votedIds: ['m-diesel', 'm-gravel', 'm-rusty', 'm-sparks', 'm-torque'],
+      ballots: [
+        { memberId: 'm-diesel', choice: 'yes' }, { memberId: 'm-gravel', choice: 'no' }, { memberId: 'm-rusty', choice: 'abstain' },
+        { memberId: 'm-sparks', choice: 'yes' }, { memberId: 'm-torque', choice: 'no' },
+      ], createdBy: 'm-torque' },
   ],
   // The West breakfast run is fully crewed; North coffee and curves (always about a week out) still needs a Tail Gunner.
   // Tail Gunners here have first aid dates that pass.
