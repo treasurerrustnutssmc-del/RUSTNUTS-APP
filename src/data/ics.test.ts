@@ -139,6 +139,28 @@ test('ride colour: the feed’s own colour, then a title prefix, then its catego
   assert.equal(categoryFor(null, ev('Breakfast')), 'club');
 });
 
+test('a "Label:" line in the notes (how the club website colours rides) beats everything else', () => {
+  const ev = (title: string, notes: string | null): FeedEvent => ({
+    uid: 'x', startsAt: FROM, endsAt: null, allDay: false, title, location: null, notes, categoryHint: null,
+  });
+  // The live feed is set to 'club', so a label has to win over the feed's own colour.
+  assert.equal(categoryFor('club', ev('Dodgy Brotherhood Camping', 'Friday night camp.\n\n\nLabel: Supported Club Rides')), 'supported');
+  assert.equal(categoryFor('club', ev('Coffee', 'Label: North')), 'north');
+  assert.equal(categoryFor('club', ev('Coffee', 'Meet at 9<br>label:west')), 'west');
+  assert.equal(categoryFor(null, ev('Toy Run', 'Label: Non-Nuts Events')), 'non_nuts');
+  assert.equal(categoryFor(null, ev('Twisty Training Day 1', 'Label: Rustnuts')), 'club');
+  // No label, or one we don't know: the old rules still apply.
+  assert.equal(categoryFor('club', ev('Black Dog Ride', null)), 'club');
+  assert.equal(categoryFor(null, ev('West: Coffee', 'Label: Something else')), 'west');
+  // Review findings: HTML around the label, a URL before it, an empty label line.
+  assert.equal(categoryFor('club', ev('Coffee', 'Label:&nbsp;North')), 'north');
+  assert.equal(categoryFor('club', ev('Coffee', '<b>Label:</b> North')), 'north');
+  assert.equal(categoryFor('club', ev('Coffee', 'Label: <b>West</b>')), 'west');
+  assert.equal(categoryFor('club', ev('Coffee', '<a href="https://x.com/label:west">map</a><br>Label: North')), 'north');
+  assert.equal(categoryFor('club', ev('Coffee', 'Label: Something\nLabel: West')), 'west');
+  assert.equal(categoryFor('club', ev('Coffee', 'Label:\nWest Gate car park')), 'club');
+});
+
 // Review findings, 24 Oct 2026.
 
 test('a date that comes out twice is only listed once, and a moved ride wins', () => {
