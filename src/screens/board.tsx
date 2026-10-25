@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
-import { formatLongDate, monthsBetween } from '../domain/dates';
-import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
+import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
+import { runsScope } from '../domain/meetings';
+import { melbourneDate } from '../domain/rides';
+import { nineMonthsAfter, patchVoteFor, patchVoteTooEarly } from '../domain/votes';
+import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole, Votes } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -158,6 +161,17 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
         </Notice>
       ) : null}
 
+      {/* Stage 5: meetings and votes */}
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          left={<IconBadge icon="hammer" />}
+          title="Meetings and votes"
+          subtitle="Agendas, minutes, action items and votes"
+          onPress={() => navigation.navigate('Business')}
+          last
+        />
+      </Card>
+
       <SectionTitle title="Waiting for approval" action={<Small>{pending.length}</Small>} />
       {pending.length === 0 ? (
         <Card>
@@ -238,8 +252,8 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
 // Manage one member: status and positions
 // ---------------------------------------------------------------------------
 
-export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
-  const { me, data, setMemberStatus, appoint, endPosition } = useClub();
+export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMember'>) {
+  const { me, data, today, setMemberStatus, appoint, endPosition } = useClub();
   const member = data.members.find((m) => m.id === route.params.memberId);
   const [status, setStatus] = useState<MemberStatus | null>(member?.status ?? null);
   const [role, setRole] = useState<PositionRole | null>(null);
@@ -251,6 +265,17 @@ export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
   const roleOptions = [...BOARD_ROLES, ...CLUB_ROLES, ...NATIONAL_ROLES].filter(
     (r) => appointProblem(me, member, member.chapterId, r, data) === null,
   );
+  // Stage 5: the patch vote on this FNG (open, or the latest result), or the chance to start one.
+  const patchVote = patchVoteFor(member.id, data.votes ?? []);
+  const patchOpen = patchVote !== null && patchVote.closedAt === null;
+  const tooEarly = patchVoteTooEarly(member.fngStartedOn, today);
+  const canStartPatchVote =
+    !patchOpen &&
+    !tooEarly &&
+    patchVote?.result !== 'carried' &&
+    member.status === 'fng' &&
+    member.approval === 'approved' &&
+    runsScope(me, member.chapterId, data.positions);
 
   const run = async (fn: () => Promise<void>, ok: string) => {
     try {
@@ -284,9 +309,31 @@ export function ManageMemberScreen({ route }: RootScreen<'ManageMember'>) {
           onChange={setStatus}
         />
         <Small>
-          Record the outcome once the vote is done. Full membership needs a unanimous patched-member vote (5.4).
-          Votes move into the app in Stage 5.
+          Record the outcome once the vote is done. Full membership needs a yes from every Full Member of the chapter (4.9).
         </Small>
+        {/* Stage 5: patch votes */}
+        {patchVote && !patchOpen ? (
+          <Small>
+            {`Patch vote closed ${formatAuDate(melbourneDate(patchVote.closedAt!))}: ${RESULT_LABEL[patchVote.result!]}.`}
+          </Small>
+        ) : null}
+        {patchVote ? (
+          <Button
+            label={patchOpen ? 'See the patch vote' : 'See the result'}
+            kind="secondary"
+            onPress={() => navigation.navigate('Vote', { voteId: patchVote.id })}
+          />
+        ) : null}
+        {!patchVote && tooEarly && member.status === 'fng' ? (
+          <Small>{`A patch vote can open from ${formatAuDate(nineMonthsAfter(member.fngStartedOn!))}, nine months into the trial (4.7).`}</Small>
+        ) : null}
+        {canStartPatchVote ? (
+          <Button
+            label="Start patch vote"
+            kind="secondary"
+            onPress={() => navigation.navigate('NewVote', { subjectMemberId: member.id })}
+          />
+        ) : null}
         <Button
           label="Change status"
           disabled={!status || status === member.status}

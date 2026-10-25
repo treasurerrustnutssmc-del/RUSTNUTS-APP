@@ -247,6 +247,10 @@ export interface ClubData {
   charges?: Charge[];
   payments?: Payment[];
   paymentDetails?: PaymentDetails[];
+  // Stage 5: meetings and votes
+  meetings?: Meeting[];
+  actionItems?: ActionItem[];
+  votes?: Vote[];
 }
 
 // ---------------------------------------------------------------------------
@@ -358,6 +362,81 @@ export interface PaymentDetails {
   // Lane E: notifications
   /** The signed-in member's saved notification settings, or null for the defaults. */
   notificationPrefs?: NotificationPrefs | null;
+}
+
+// Stage 5: meetings and votes ----------------------------------------------------------------
+
+export type MeetingKind = 'board' | 'general' | 'agm' | 'special' | 'nec';
+
+export interface AgendaItem {
+  title: string;
+  notes: string | null;
+}
+
+/** A chapter's meeting, or the whole club's (chapterId null, run by the NEC). */
+export interface Meeting {
+  id: string;
+  chapterId: string | null;
+  kind: MeetingKind;
+  title: string;
+  startsAt: string; // instant (ISO with Z), shown in Melbourne time
+  location: string | null;
+  agenda: AgendaItem[];
+  /** Draft or approved minutes. Left out for people who don't run the meeting until approved. */
+  minutes: string | null;
+  minutesApprovedAt: string | null;
+  minutesApprovedBy: string | null;
+  cancelledAt: string | null;
+  createdBy: string | null;
+}
+
+export interface ActionItem {
+  id: string;
+  meetingId: string | null;
+  chapterId: string | null;
+  title: string;
+  ownerId: string;
+  dueOn: string | null; // ISO date
+  doneOn: string | null;
+}
+
+export type Electorate = 'chapter_board' | 'chapter_patched' | 'club_patched' | 'nec';
+export type Threshold = 'majority' | 'two_thirds' | 'unanimous';
+export type BallotChoice = 'yes' | 'no' | 'abstain';
+export type VoteResult = 'carried' | 'lost' | 'no_quorum';
+
+export interface Tally {
+  yes: number;
+  no: number;
+  abstain: number;
+}
+
+export interface Vote {
+  id: string;
+  chapterId: string | null;
+  meetingId: string | null;
+  /** The member a patch vote is about. */
+  subjectMemberId: string | null;
+  question: string;
+  details: string | null;
+  electorate: Electorate;
+  threshold: Threshold;
+  secret: boolean;
+  quorum: number;
+  openedAt: string;
+  closesAt: string;
+  closedAt: string | null;
+  result: VoteResult | null;
+  castingVote: 'yes' | 'no' | null;
+  /** The counts, once the vote has closed. */
+  tally: Tally | null;
+  /** Who could vote, taken when it opened. */
+  electorIds: string[];
+  /** Who has voted (never how). */
+  votedIds: string[];
+  /** How people voted: open votes only, after closing. A secret ballot never carries a member. */
+  ballots: { memberId: string | null; choice: BallotChoice }[];
+  createdBy: string | null;
 }
 
 // Lane E: live ride

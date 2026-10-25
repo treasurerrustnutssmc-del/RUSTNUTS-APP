@@ -275,6 +275,8 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - **Member disc:** the real round MEMBER patch art, shown only on Full members and Nomads.
 - **Flannel:** a flannel photo under a 76% ink wash. It's an accent only, used for the welcome, the waiting screen, the Home greeting and the disc moment.
 - **Logo and skull:** the real artwork, never redrawn or recoloured.
+- **Result stamp (Stage 5):** a closed vote's result is a slightly tilted stencil stamp, green for Carried and bone for Lost or No quorum. It's used only on the vote screen.
+- **Date block (Stage 5):** a meeting row leads with a steel block showing the day number and weekday in stencil. It's faded when the meeting is cancelled.
 - **Check-in code (Stage 4):** the QR sits on a bone plate (scanners need dark on light), with the code under it in the stencil at 40 and wide tracking. Besides the logo plate, it's the only bright surface in the app.
 
 ### Money (Stage 4)

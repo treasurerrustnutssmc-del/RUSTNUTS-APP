@@ -8,6 +8,7 @@ import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { pendingFor } from '../domain/access';
 import { BoardScreen, ManageMemberScreen } from '../screens/board';
+import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteScreen } from '../screens/business';
 import { ChatListScreen, ChatReportsScreen, ChatScreen, NewChatScreen } from '../screens/chat';
 import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
@@ -171,6 +172,12 @@ export function RootNavigator() {
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="ManageMember" component={ManageMemberScreen} options={{ title: 'Manage member' }} />
+            {/* Stage 5: meetings and votes */}
+            <Stack.Screen name="Business" component={BusinessScreen} options={{ title: 'Meetings and votes' }} />
+            <Stack.Screen name="Meeting" component={MeetingScreen} options={{ title: 'Meeting' }} />
+            <Stack.Screen name="EditMeeting" component={EditMeetingScreen} options={({ route }) => ({ title: route.params?.meetingId ? 'Edit meeting' : 'Call a meeting' })} />
+            <Stack.Screen name="Vote" component={VoteScreen} options={{ title: 'Vote' }} />
+            <Stack.Screen name="NewVote" component={NewVoteScreen} options={{ title: 'New vote' }} />
             {/* ride crew */}
             <Stack.Screen name="PickCrew" component={PickCrewScreen} options={{ title: 'Pick crew' }} />
             {/* ride routes */}
