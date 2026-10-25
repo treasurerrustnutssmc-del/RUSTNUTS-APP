@@ -64,8 +64,10 @@ test('the default quorum', () => {
   assert.equal(defaultQuorum('club_patched', 12), 4, 'a third of all Voting Members (10.6)');
   assert.equal(defaultQuorum('nec', 2), 2, '51% of the NEC’s votes, rounded up (11.5)');
   assert.equal(defaultQuorum('nec', 3), 2);
-  assert.equal(defaultQuorum('chapter_board', 5), 3, 'more than half the board (inferred)');
+  assert.equal(defaultQuorum('chapter_board', 5), 3, 'more than half the board (8.5)');
   assert.equal(defaultQuorum('chapter_board', 4), 3);
+  assert.equal(defaultQuorum('chapter_board', 6), 4, 'a majority of six is four (2.4)');
+  assert.equal(defaultQuorum('chapter_board', 3), 3, 'and never fewer than three (8.5)');
   assert.equal(defaultQuorum('chapter_patched', 1), 1);
 });
 
@@ -107,7 +109,11 @@ test('opening a vote', () => {
   assert.equal(openVoteProblem(m('m-torque'), input({ electorate: 'nec' }), d, NOW), 'That electorate doesn’t fit here.');
   assert.equal(openVoteProblem(m('m-smokey'), input({ chapterId: null, electorate: 'chapter_board' }), d, NOW), 'That electorate doesn’t fit here.');
   const empty = { ...d, positions: P.filter((p) => p.chapterId !== 'ch-west' || p.memberId === 'm-torque') };
-  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 1 }), empty, NOW), null, 'a board of one can still vote');
+  const tooSmall = 'A board vote needs at least three board members (8.5).';
+  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 1 }), empty, NOW), tooSmall, 'a board of one');
+  const three = { ...d, positions: P.filter((p) => p.chapterId !== 'ch-west' || ['m-torque', 'm-gravel', 'm-rusty'].includes(p.memberId)) };
+  assert.equal(electorsFor('chapter_board', 'ch-west', three).length, 3);
+  assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 3 }), three, NOW), null, 'a board of three');
   const noBoard = { ...d, positions: P.filter((p) => p.chapterId !== 'ch-north') };
   assert.equal(openVoteProblem(m('m-rusty'), input({ chapterId: 'ch-north', quorum: 1 }), noBoard, NOW), 'Nobody can vote in that electorate yet.');
   assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 0 }), d, NOW), 'Quorum must be between 3 and 5.');
@@ -168,11 +174,18 @@ test('closing a vote', () => {
   assert.equal(closeProblem(m('m-torque'), vote(), null, null, d, NOW), 'Wait until it closes, or until everyone has voted.');
   assert.equal(closeProblem(m('m-torque'), vote({ votedIds: all }), { yes: 5, no: 0, abstain: 0 }, null, d, NOW), null, 'early once everyone has voted');
   assert.equal(closeProblem(m('m-torque'), vote(), { yes: 0, no: 0, abstain: 0 }, null, d, LATER), null);
-  const tie = 'It’s a tie. The chair closes it with the casting vote.';
+  const tie = 'It’s a tie. The chair gives a casting vote or lets it fall.';
   assert.equal(closeProblem(m('m-torque'), tied, tiedBallots, null, d, LATER), tie);
   assert.equal(closeProblem(m('m-torque'), tied, tiedBallots, 'yes', d, LATER), tie, 'only the chair casts');
-  assert.equal(closeProblem(m('m-rusty'), tied, tiedBallots, null, d, LATER), tie);
+  assert.equal(closeProblem(m('m-torque'), tied, tiedBallots, 'decline', d, LATER), tie, 'or declines');
+  assert.equal(closeProblem(m('m-rusty'), tied, tiedBallots, null, d, LATER), tie, 'the chair says which');
   assert.equal(closeProblem(m('m-rusty'), tied, tiedBallots, 'yes', d, LATER), null);
+  assert.equal(closeProblem(m('m-rusty'), tied, tiedBallots, 'decline', d, LATER), null, 'the chair may decline to cast (9.10)');
+  assert.deepEqual(decide('majority', 3, tiedBallots, 'decline', 5), { result: 'lost', tied: true }, 'and then it’s lost');
+  assert.equal(
+    closeProblem(m('m-rusty'), vote(), { yes: 3, no: 1, abstain: 0 }, 'decline', d, LATER),
+    'There’s no tie, so no casting vote.',
+  );
   assert.equal(
     closeProblem(m('m-rusty'), vote(), { yes: 3, no: 1, abstain: 0 }, 'yes', d, LATER),
     'There’s no tie, so no casting vote.',

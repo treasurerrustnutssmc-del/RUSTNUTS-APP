@@ -431,6 +431,7 @@ export type Database = {
       cancel_meeting: { Args: { p_id: string }; Returns: undefined };
       save_minutes: { Args: { p_id: string; p_text: string }; Returns: undefined };
       approve_minutes: { Args: { p_id: string }; Returns: undefined };
+      share_minutes: { Args: { p_id: string }; Returns: undefined };
       save_action_item: {
         Args: {
           p_id: string | null; p_chapter: string | null; p_meeting: string | null; p_title: string; p_owner: string;
@@ -448,7 +449,7 @@ export type Database = {
         Returns: string;
       };
       cast_ballot: { Args: { p_vote: string; p_choice: BallotChoice }; Returns: undefined };
-      close_vote: { Args: { p_vote: string; p_casting: 'yes' | 'no' | null }; Returns: undefined };
+      close_vote: { Args: { p_vote: string; p_casting: 'yes' | 'no' | 'decline' | null }; Returns: undefined };
       // Lane E: live ride
       start_live_ride: { Args: { p_ride: string }; Returns: string };
       live_ride_state: { Args: { p_ride: string }; Returns: LiveStateJson };

@@ -24,6 +24,15 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   const level = accessLevel(me, data.positions);
   useEffect(() => bindDemoLive(() => ({ data, me })), [data, me]);
   const ctx: act.DemoCtx = { data, me, today };
+  // Saving the minutes and then sharing or confirming them happens in one press, so the second
+  // step has to build on the first, not on what was rendered.
+  const latest = useRef(data);
+  latest.current = data;
+  const fresh = (): act.DemoCtx => ({ ...ctx, data: latest.current });
+  const keep = (next: ClubData) => {
+    latest.current = next;
+    setData(next);
+  };
   const refresh = useCallback(async () => {}, []);
 
   const value: ClubContextValue = {
@@ -73,8 +82,9 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       return result.id;
     },
     cancelMeeting: async (id) => setData(business.cancelMeeting(ctx, id)),
-    saveMinutes: async (id, text) => setData(business.saveMinutes(ctx, id, text)),
-    approveMinutes: async (id) => setData(business.approveMinutes(ctx, id)),
+    saveMinutes: async (id, text) => keep(business.saveMinutes(fresh(), id, text)),
+    shareMinutes: async (id) => keep(business.shareMinutes(fresh(), id)),
+    approveMinutes: async (id) => keep(business.approveMinutes(fresh(), id)),
     saveActionItem: async (input) => setData(business.saveActionItem(ctx, input).data),
     setActionDone: async (id, done) => setData(business.setActionDone(ctx, id, done)),
     openVote: async (input) => {

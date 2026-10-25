@@ -7,7 +7,7 @@ import type { BriefingInput } from '../domain/briefings';
 import type { RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
-import type { VoteInput } from '../domain/votes';
+import type { Casting, VoteInput } from '../domain/votes';
 import type {
   BallotChoice,
   Bike,
@@ -123,6 +123,8 @@ export interface ClubContextValue {
   saveMeeting: (input: MeetingInput) => Promise<string>;
   cancelMeeting: (meetingId: string) => Promise<void>;
   saveMinutes: (meetingId: string, text: string) => Promise<void>;
+  /** Sends the draft minutes to members (10.8). */
+  shareMinutes: (meetingId: string) => Promise<void>;
   approveMinutes: (meetingId: string) => Promise<void>;
   saveActionItem: (input: ActionItemInput) => Promise<void>;
   setActionDone: (itemId: string, done: boolean) => Promise<void>;
@@ -130,7 +132,8 @@ export interface ClubContextValue {
   openVote: (input: VoteInput) => Promise<string>;
   /** A ballot is final. */
   castBallot: (voteId: string, choice: BallotChoice) => Promise<void>;
-  closeVote: (voteId: string, casting: 'yes' | 'no' | null) => Promise<void>;
+  /** On a tie the chair passes a casting vote, or 'decline' to let it fall. */
+  closeVote: (voteId: string, casting: Casting | null) => Promise<void>;
   // Stage 4: members and money
   /** Opens a check-in at a ride or meeting. Resolves to the new session's id. */
   openCheckin: (input: OpenCheckinInput) => Promise<string>;
