@@ -118,7 +118,14 @@ export function PickCrewScreen({ route, navigation }: RootScreen<'PickCrew'>) {
               <Small>They can crew once they’ve signed the Road Rules.</Small>
               <Card style={{ padding: 0, gap: 0 }}>
                 {unsigned.map((m, i) => (
-                  <UnsignedRow key={m.id} member={m} line={signoffLine(m, data, today)} last={i === unsigned.length - 1} />
+                  <UnsignedRow
+                    key={m.id}
+                    member={m}
+                    line={signoffLine(m, data, today)}
+                    spot={spotOf(ride.id, m.id, data.crew)}
+                    current={holder?.memberId === m.id}
+                    last={i === unsigned.length - 1}
+                  />
                 ))}
               </Card>
             </Stack>
@@ -205,13 +212,31 @@ function PickRow({
   );
 }
 
-/** Someone who could crew but hasn't signed the Road Rules: shown, not pickable, with their sign-off line. */
-function UnsignedRow({ member, line, last }: { member: Member; line: string; last: boolean }) {
+/**
+ * Someone who could crew but hasn't signed the Road Rules: shown, not pickable, with their sign-off
+ * line, and the same "Has it now" or "Now RC" chip as a pickable row when they're on this ride's crew.
+ */
+function UnsignedRow({
+  member,
+  line,
+  spot,
+  current,
+  last,
+}: {
+  member: Member;
+  line: string;
+  spot: ReturnType<typeof spotOf>;
+  current: boolean;
+  last: boolean;
+}) {
   const name = displayName(member);
+  const held = current ? 'has this spot now' : spot ? `currently ${ROLE_LABEL[spot]} on this ride` : null;
   return (
     <View
       accessible
-      accessibilityLabel={`${name}${member.fullName !== name ? `, ${member.fullName}` : ''}, can’t be picked: ${line}`}
+      accessibilityLabel={[name, member.fullName !== name ? member.fullName : null, held, `can’t be picked: ${line}`]
+        .filter(Boolean)
+        .join(', ')}
       style={[styles.item, styles.row, last && { borderBottomWidth: 0 }]}
     >
       <View style={styles.dim}>
@@ -228,6 +253,15 @@ function UnsignedRow({ member, line, last }: { member: Member; line: string; las
             </Small>
           ) : null}
         </Row>
+        {current ? (
+          <Row style={{ gap: 6 }}>
+            <Chip label="Has it now" tone="ok" icon="checkmark" />
+          </Row>
+        ) : spot ? (
+          <Row style={{ gap: 6 }}>
+            <Chip label={`Now ${ROLE_SHORT[spot]}`} tone="bone" icon="shield-half" />
+          </Row>
+        ) : null}
         <Row style={{ gap: 6 }}>
           <Ionicons name="document-text-outline" size={14} color={colors.warn} />
           <Text style={styles.unsignedLine}>{line}</Text>

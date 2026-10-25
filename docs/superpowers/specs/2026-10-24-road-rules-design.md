@@ -60,7 +60,7 @@ Lane D's document library (Stage 5C) may later absorb this as one of its documen
    - `expired`: signed since the base, but more than 12 months ago
 
    `roadRulesStatus(member, data, today)` returns `{ state, goodUntil, signedVersion }`.
-6. **Not a gate.** An unsigned rider can still say Going and still be put on the crew. The app nudges them on the ride screen and the RC sees them on the briefing card. *Inferred, and asked:* Jeff may prefer a hard gate on Going. That would be a later change to `set_rsvp`.
+6. **Not a gate.** *Replaced on 25 Oct 2026 by the Going gate: see `2026-10-25-road-rules-going-gate-design.md`.* An unsigned rider can still say Going and still be put on the crew. The app nudges them on the ride screen and the RC sees them on the briefing card. *Inferred, and asked:* Jeff may prefer a hard gate on Going. That would be a later change to `set_rsvp`.
 
 ## Screens
 - **Road Rules** (stack screen `RoadRules`). It's reached from Me, from the ride-screen nudge, from the briefing card's safety section, and from the board sign-off list. From top to bottom:
@@ -179,7 +179,7 @@ No Alert dialogs, Rustnuts Stencil for labels, names, buttons, numbers and dates
   All at 390×844 in the demo build, then the Impeccable passes.
 
 ## Not in this spec
-- **A gate on Going or on crew spots.** It was asked of Jeff and can be added later with `road_rules_signed`.
+- **A gate on Going or on crew spots.** It was asked of Jeff and can be added later with `road_rules_signed`. *Added on 25 Oct 2026: see `2026-10-25-road-rules-going-gate-design.md`.*
 - **Chapter-local Road Rules** (permanent local changes need Board approval under 7.10). One club-wide document for now.
 - **The real Road Rules text.** The NEC publishes it in the app once this is live. Nothing is loaded for them.
 - **Reminders** before a sign-off runs out. That's push, which belongs to lane E.

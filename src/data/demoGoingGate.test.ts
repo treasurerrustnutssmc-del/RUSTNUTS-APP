@@ -14,7 +14,15 @@ import { DEMO_DATA } from './demoData';
 // The demo's sign-offs are dated from the real today.
 const TODAY = melbourneDate(new Date().toISOString());
 const NOW = new Date().toISOString();
-const ctxFor = (meId: string, data: ClubData = DEMO_DATA): DemoCtx => ({
+// The West breakfast run (r-1), which Torque manages, is on a fixed date. Here it's moved to the
+// date of North coffee and curves (r-2), always about a week out, so the crew can still change
+// whenever these tests run.
+const r2 = DEMO_DATA.rides.find((r) => r.id === 'r-2')!;
+const DATA: ClubData = {
+  ...DEMO_DATA,
+  rides: DEMO_DATA.rides.map((r) => (r.id === 'r-1' ? { ...r, startsAt: r2.startsAt, endsAt: r2.endsAt } : r)),
+};
+const ctxFor = (meId: string, data: ClubData = DATA): DemoCtx => ({
   data,
   me: data.members.find((m) => m.id === meId) ?? null,
   today: TODAY,
@@ -55,7 +63,7 @@ test('an expired or unsigned member can’t say Going; Maybe and Can’t make it
   assert.equal(answerOf(setRsvp(ctxFor('m-rusty'), RIDE, 'maybe'), 'm-rusty', RIDE), 'maybe');
   assert.equal(answerOf(setRsvp(ctxFor('m-diesel'), RIDE, 'no'), 'm-diesel', RIDE), 'no');
   // The ride checks come first.
-  const cancelled = { ...DEMO_DATA, rides: DEMO_DATA.rides.map((r) => (r.id === RIDE ? { ...r, cancelledAt: NOW } : r)) };
+  const cancelled = { ...DATA, rides: DATA.rides.map((r) => (r.id === RIDE ? { ...r, cancelledAt: NOW } : r)) };
   assert.equal(refusal(() => setRsvp(ctxFor('m-rusty', cancelled), RIDE, 'going')), 'That ride was cancelled.');
 });
 
@@ -72,7 +80,7 @@ test('after signing, Going works again', () => {
 });
 
 test('with nothing published, nobody is stopped', () => {
-  const none: ClubData = { ...DEMO_DATA, roadRules: [], roadRulesSignoffs: [] };
+  const none: ClubData = { ...DATA, roadRules: [], roadRulesSignoffs: [] };
   assert.equal(answerOf(setRsvp(ctxFor('m-diesel', none), RIDE, 'going'), 'm-diesel', RIDE), 'going');
   assert.equal(answerOf(setCrew(ctxFor('m-torque', none), 'r-1', 'm-diesel', 'officer'), 'm-diesel', 'r-1'), 'going');
 });

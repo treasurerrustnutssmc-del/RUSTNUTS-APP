@@ -9,7 +9,7 @@
 - **Signing:** every approved member except Legacy signs. A sign-off is good for 12 months, and it also lapses when a fresh version is published.
 - **Who's signed:** boards and the NEC see who has and hasn't signed, from the Board screen or from Me.
 - **Reminders in the app:**
-  - an unsigned or expired rider sees a nudge on the ride screen
+  - an unsigned or expired rider can't say Going until they sign, and sees a prompt to sign above the answers on the ride screen (the Going gate, below)
   - the RC sees unsigned Going riders on the briefing card
   - Me shows your status.
 

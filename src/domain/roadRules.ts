@@ -308,6 +308,22 @@ export function goingProblem(me: Member | null, answer: RsvpAnswer, data: ClubDa
 }
 
 /**
+ * The words of the ride screen's Going gate prompt for `mine`, your answer to the ride. With no
+ * answer, Maybe or Can't make it, it asks you to sign to say Going. When a Going from before the
+ * sign-off lapsed still stands, it asks you to sign before you ride, and says changing your answer
+ * turns Going off until you sign. An expired sign-off adds when it ran out.
+ */
+export function signToGoText(status: RoadRulesStatus, mine: RsvpAnswer | null): { lead: string; notes: string[] } {
+  const notes: string[] = [];
+  if (status.state === 'expired') notes.push(`Your sign-off ran out on ${formatAuDate(status.goodUntil)}.`);
+  if (mine === 'going') {
+    notes.push('If you change your answer, Going stays off until you sign.');
+    return { lead: 'Sign the Road Rules before you ride.', notes };
+  }
+  return { lead: 'Sign the Road Rules to say Going.', notes };
+}
+
+/**
  * The ride screen's "Sign the Road Rules before you ride": for a member who's asked to sign and
  * is unsigned or expired, on a ride that isn't cancelled and whose last day isn't over.
  */

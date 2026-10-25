@@ -7,6 +7,16 @@
 -- same words and place as src/domain/roadRules.ts and src/domain/crew.ts: set_rsvp's after its
 -- other checks, set_crew's after its eligibility checks. Grants are unchanged.
 
+-- The checks below read the Road Rules, which PL/pgSQL only looks up when a function runs. Pasted
+-- before road-rules.sql, this would apply cleanly and then break every answer, so it refuses first.
+do $$
+begin
+  if to_regclass('public.road_rules_versions') is null
+     or to_regprocedure('private.road_rules_signed(uuid)') is null then
+    raise exception 'Paste road-rules.sql first.';
+  end if;
+end $$;
+
 create or replace function public.set_crew(p_ride uuid, p_member uuid, p_role public.crew_role)
 returns void language plpgsql security definer set search_path = '' as $$
 declare

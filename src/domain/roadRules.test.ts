@@ -5,6 +5,7 @@ import {
   CREW_NOT_SIGNED,
   SIGN_FIRST,
   goingProblem,
+  signToGoText,
   mustSignFirst,
   MAX_RULES_CHANGES,
   MAX_RULES_TEXT,
@@ -771,4 +772,23 @@ test('mustSignFirst and goingProblem: unsigned and expired are stopped from Goin
   // Signed out: nothing to say here (rsvpProblem says Sign in first).
   assert.equal(mustSignFirst(null, d, TODAY), false);
   assert.equal(goingProblem(null, 'going', d, TODAY), null);
+});
+
+test('signToGoText: the prompt asks to sign to say Going, or, when Going already stands, to sign before you ride', () => {
+  const unsigned = { state: 'unsigned' as const, goodUntil: null, signedVersion: null };
+  const expired = { state: 'expired' as const, goodUntil: '2026-09-25', signedVersion: 1 };
+  assert.deepEqual(signToGoText(unsigned, null), { lead: 'Sign the Road Rules to say Going.', notes: [] });
+  assert.deepEqual(signToGoText(unsigned, 'maybe'), { lead: 'Sign the Road Rules to say Going.', notes: [] });
+  assert.deepEqual(signToGoText(expired, 'no'), {
+    lead: 'Sign the Road Rules to say Going.',
+    notes: ['Your sign-off ran out on 25/09/2026.'],
+  });
+  assert.deepEqual(signToGoText(expired, 'going'), {
+    lead: 'Sign the Road Rules before you ride.',
+    notes: ['Your sign-off ran out on 25/09/2026.', 'If you change your answer, Going stays off until you sign.'],
+  });
+  assert.deepEqual(signToGoText(unsigned, 'going'), {
+    lead: 'Sign the Road Rules before you ride.',
+    notes: ['If you change your answer, Going stays off until you sign.'],
+  });
 });
