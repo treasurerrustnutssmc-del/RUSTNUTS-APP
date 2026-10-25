@@ -99,7 +99,7 @@ export interface ParityFixture {
   fundOpenings?: { chapter: string | null; fy: number; amountCents: number }[];
   cashFloats?: { fy: number; amountCents: number }[];
   /** Budgets for a year counted from today's; approved ones were approved at LEDGER_AT. */
-  budgets?: { chapter: string | null; fyOffset: number; lines: Partial<Record<LedgerCode, number>>; approved: boolean }[];
+  budgets?: { chapter: string | null; fyOffset: number; lines: Partial<Record<LedgerCode, number>>; approved: boolean; changedAt?: string }[];
   /** Months presented, counted from this month (-1: last month). */
   treasurerReports?: { monthOffset: number }[];
   /** A month whose report the demo and the database must work out the same. */
@@ -108,6 +108,9 @@ export interface ParityFixture {
 
 /** When the fixture's ledger entries were recorded and its budgets approved. */
 export const LEDGER_AT = '2026-10-01T00:00:00.000Z';
+
+/** When the fixture's budgets were last saved, unless they say otherwise: before its votes closed. */
+export const BUDGET_AT = '2025-12-01T00:00:00.000Z';
 
 /** The first day of the month `offset` months from today's. */
 export function monthFrom(today: string, offset: number): string {
@@ -262,7 +265,7 @@ function withLedger(data: ClubData, today: string): ClubData {
     cashFloats: fixture.cashFloats ?? [],
     budgets: (fixture.budgets ?? []).map((b) => ({
       chapterId: b.chapter, fy: fyOf(today) + b.fyOffset, lines: b.lines, approvedVoteId: null,
-      approvedAt: b.approved ? LEDGER_AT : null, approvedBy: null,
+      approvedAt: b.approved ? LEDGER_AT : null, approvedBy: null, updatedAt: b.changedAt ?? BUDGET_AT,
     })),
     treasurerReports: (fixture.treasurerReports ?? []).map((r) => ({ month: monthFrom(today, r.monthOffset), presentedAt: LEDGER_AT, presentedBy: null })),
   };

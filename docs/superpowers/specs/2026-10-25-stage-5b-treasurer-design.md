@@ -220,3 +220,14 @@ These are reached from existing screens. The tab bar is lane B's.
 - National contributions (13.6), which belong to 5D.
 - Bank import or reconciliation against a statement.
 - Loading the FY26–27 spreadsheet into live, which needs Jeff's yes.
+- A fee entry that's voided keeps its payment, so that payment can't be added again. Fix it with a
+  new money-in line by hand.
+- "Changed since it was presented" watches the month's own entries, not later changes to an
+  opening or the float.
+
+## After review (25 Oct 2026)
+- Whoever reads any fund gets every month's report worked out by the database over all funds, so a
+  chapter treasurer never sees totals missing the funds they can't read.
+- Budgets are approved and reopened by whoever approves that fund's spending (never the Auditor),
+  and the vote has to have closed after the budget was last saved or reopened.
+- A payment can't be dated before its last approval (13.3).

@@ -6,7 +6,8 @@
 
 import { activePositions, holdsBoardSeat } from './access';
 import { fyOf } from './fees';
-import { runsScope, scopeRefusal, signedInProblem } from './meetings';
+import { signedInProblem } from './meetings';
+import { melbourneDate } from './rides';
 import type {
   Budget, ClubData, LedgerCode, LedgerEntry, Member, MonthReport, Payment, Position, Vote,
 } from './types';
@@ -103,6 +104,9 @@ export const AMOUNT = 'Enter an amount over $0.';
 export const FUTURE = 'That date hasn’t happened yet.';
 export const BUDGET_VOTE = 'Pick a carried board vote for this budget (13.4).';
 export const BUDGET_LOCKED = 'That budget is approved and locked. Reopen it to change it.';
+export const BUDGET_BOARD = 'Only that fund’s board, or the National Chairman or Secretary, approves its budget.';
+export const BUDGET_STALE_VOTE = 'That vote closed before the budget’s last change. It needs a new vote (13.4).';
+export const PAID_BEFORE_APPROVED = 'It can’t be paid before it was approved (13.3).';
 
 const isAmount = (cents: number) => Number.isInteger(cents) && cents > 0;
 const isIsoDate = (s: string | null | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -190,6 +194,8 @@ export function payProblem(me: Member | null, entryId: string, paidOn: string, d
   if (entry.state !== 'approved') return 'That’s already been paid or voided.';
   if (!isIsoDate(paidOn)) return 'Pick the date it was paid.';
   if (paidOn > today) return FUTURE;
+  const approvedOn = entry.approvals.map((a) => melbourneDate(a.approvedAt)).sort().pop();
+  if (approvedOn && paidOn < approvedOn) return PAID_BEFORE_APPROVED;
   return null;
 }
 
@@ -256,18 +262,19 @@ export function budgetVoteFits(vote: Vote | undefined, chapterId: string | null)
 export function approveBudgetProblem(me: Member | null, chapterId: string | null, fy: number, voteId: string, data: ClubData): string | null {
   const signedIn = signedInProblem(me);
   if (signedIn) return signedIn;
-  if (!runsScope(me, chapterId, data.positions)) return scopeRefusal(chapterId);
+  if (!approvesFor(me, chapterId, data.positions)) return BUDGET_BOARD;
   const budget = budgetOf(chapterId, fy, data);
   if (!budget) return 'Save the budget first.';
   if (budget.approvedAt) return 'That budget is already approved.';
   const vote = (data.votes ?? []).find((v) => v.id === voteId);
-  return budgetVoteFits(vote, chapterId) ? null : BUDGET_VOTE;
+  if (!budgetVoteFits(vote, chapterId)) return BUDGET_VOTE;
+  return (vote!.closedAt ?? '') > budget.updatedAt ? null : BUDGET_STALE_VOTE;
 }
 
 export function reopenBudgetProblem(me: Member | null, chapterId: string | null, fy: number, data: ClubData): string | null {
   const signedIn = signedInProblem(me);
   if (signedIn) return signedIn;
-  if (!runsScope(me, chapterId, data.positions)) return scopeRefusal(chapterId);
+  if (!approvesFor(me, chapterId, data.positions)) return BUDGET_BOARD;
   return budgetOf(chapterId, fy, data)?.approvedAt ? null : 'That budget isn’t approved.';
 }
 

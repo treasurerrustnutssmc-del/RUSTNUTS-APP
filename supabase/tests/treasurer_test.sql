@@ -43,13 +43,13 @@ insert into payments (id, charge_id, amount_cents, paid_on, method, state, recei
 values ('00000000-0000-0000-0000-00000000f101', '00000000-0000-0000-0000-00000000f001', 15000, '2026-07-03', 'payid', 'confirmed', 'W26-0001'),
        ('00000000-0000-0000-0000-00000000f102', '00000000-0000-0000-0000-00000000f001', 10000, '2026-07-04', 'payid', 'claimed', null);
 
--- Votes for budgets: a carried West board vote, a lost one, a carried members' vote, a carried NEC vote.
+-- Votes for budgets, closing after the budgets are saved: a carried West board vote, a lost one, a carried members' vote, a carried NEC vote.
 insert into votes (id, chapter_id, question, electorate, threshold, quorum, closes_at, closed_at, result)
 values
-  ('00000000-0000-0000-0000-00000000b001', (select id from chapters where slug = 'west'), 'Budget?', 'chapter_board', 'majority', 3, now(), now(), 'carried'),
-  ('00000000-0000-0000-0000-00000000b002', (select id from chapters where slug = 'west'), 'Budget?', 'chapter_board', 'majority', 3, now(), now(), 'lost'),
-  ('00000000-0000-0000-0000-00000000b003', (select id from chapters where slug = 'west'), 'Budget?', 'chapter_patched', 'majority', 3, now(), now(), 'carried'),
-  ('00000000-0000-0000-0000-00000000b004', null, 'Budget?', 'nec', 'majority', 1, now(), now(), 'carried');
+  ('00000000-0000-0000-0000-00000000b001', (select id from chapters where slug = 'west'), 'Budget?', 'chapter_board', 'majority', 3, now(), now() + interval '1 day', 'carried'),
+  ('00000000-0000-0000-0000-00000000b002', (select id from chapters where slug = 'west'), 'Budget?', 'chapter_board', 'majority', 3, now(), now() + interval '1 day', 'lost'),
+  ('00000000-0000-0000-0000-00000000b003', (select id from chapters where slug = 'west'), 'Budget?', 'chapter_patched', 'majority', 3, now(), now() + interval '1 day', 'carried'),
+  ('00000000-0000-0000-0000-00000000b004', null, 'Budget?', 'nec', 'majority', 1, now(), now() + interval '1 day', 'carried');
 
 create function pg_temp.try_as(who uuid, stmt text) returns text language plpgsql as $$
 begin
@@ -162,6 +162,9 @@ begin
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.pay_debit(%L, date '2026-08-05')$q$, patches))
     = 'Only that fund’s treasurer, or the National Chairman or Secretary, keeps its books.', 'a Secretary pays';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.pay_debit(%L, null)$q$, patches)) = 'Pick the date it was paid.', 'no date';
+  update ledger_approvals set approved_at = '2026-08-01T01:00:00Z' where entry_id = patches;
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.pay_debit(%L, date '2026-07-31')$q$, patches))
+    = 'It can’t be paid before it was approved (13.3).', 'paid before it was approved';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.pay_debit(%L, private.club_date() + 1)$q$, patches)) = 'That date hasn’t happened yet.', 'future';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.pay_debit(%L, date '2026-08-05')$q$, patches)) is null, 'paid';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.pay_debit(%L, date '2026-08-05')$q$, patches)) = 'That’s already been paid or voided.', 'paid twice';
@@ -252,6 +255,10 @@ begin
   r := pg_temp.ledger_as(pg_temp.u(3));
   assert (select count(*) from jsonb_array_elements(r->'entries') e where e->>'chapter_id' is null) = 0, 'the West Secretary reads West, not the Club fund';
   assert (select count(*) from jsonb_array_elements(r->'entries') e where e->>'chapter_id' = pg_temp.west()::text) = 4, 'all of West';
+  assert (select e->>'credit_total' from jsonb_array_elements(r->'report_totals') e where e->>'month' = '2026-08-01')::int = 82000,
+    'a reader of one fund gets every month worked out over all of them';
+  assert (select count(*) from jsonb_array_elements(r->'report_totals') e where e->>'month' = to_char(date_trunc('month', private.club_date()), 'YYYY-MM-DD')) = 1,
+    'up to this month';
   assert jsonb_array_length(pg_temp.ledger_as(pg_temp.u(7))->'entries') = 6, 'the Auditor reads every line';
   assert jsonb_array_length(pg_temp.ledger_as(pg_temp.u(5))->'entries') = 2, 'a President reads the Club fund';
   r := (select e from jsonb_array_elements(pg_temp.ledger_as(pg_temp.u(2))->'entries') e where e->>'code' = 'DB-001');
@@ -275,7 +282,9 @@ begin
   assert (select count(*) from budgets) = 1 and (select lines from budgets) = '{"DB-001": 60000}'::jsonb, 'one budget';
 
   assert pg_temp.try_as(pg_temp.u(4), format($q$select public.approve_budget(%L, 2026, '00000000-0000-0000-0000-00000000b001')$q$, pg_temp.west()))
-    = 'Only that chapter’s board can do that.', 'member approves';
+    = 'Only that fund’s board, or the National Chairman or Secretary, approves its budget.', 'member approves';
+  assert pg_temp.try_as(pg_temp.u(7), format($q$select public.approve_budget(%L, 2026, '00000000-0000-0000-0000-00000000b001')$q$, pg_temp.west()))
+    = 'Only that fund’s board, or the National Chairman or Secretary, approves its budget.', 'the Auditor approves (11.8)';
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.approve_budget(%L, 2026, '00000000-0000-0000-0000-00000000b002')$q$, pg_temp.west()))
     = 'Pick a carried board vote for this budget (13.4).', 'lost vote';
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.approve_budget(%L, 2026, '00000000-0000-0000-0000-00000000b003')$q$, pg_temp.west()))
@@ -287,7 +296,14 @@ begin
     = 'That budget is already approved.', 'twice';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.save_budget(%L, 2026, '{}')$q$, pg_temp.west()))
     = 'That budget is approved and locked. Reopen it to change it.', 'locked';
+  assert pg_temp.try_as(pg_temp.u(7), format($q$select public.reopen_budget(%L, 2026)$q$, pg_temp.west()))
+    = 'Only that fund’s board, or the National Chairman or Secretary, approves its budget.', 'the Auditor reopens (11.8)';
+  assert pg_temp.try_as(pg_temp.u(5), format($q$select public.reopen_budget(%L, 2026)$q$, pg_temp.west()))
+    = 'Only that fund’s board, or the National Chairman or Secretary, approves its budget.', 'another chapter’s President reopens';
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.reopen_budget(%L, 2026)$q$, pg_temp.west())) is null, 'reopened';
+  update votes set closed_at = now() - interval '1 hour' where id = '00000000-0000-0000-0000-00000000b001';
+  assert pg_temp.try_as(pg_temp.u(3), format($q$select public.approve_budget(%L, 2026, '00000000-0000-0000-0000-00000000b001')$q$, pg_temp.west()))
+    = 'That vote closed before the budget’s last change. It needs a new vote (13.4).', 'the old vote again';
   assert (select (approved_at, lines) from budgets) = (null::timestamptz, '{"DB-001": 60000}'::jsonb), 'reopening keeps the lines';
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.reopen_budget(%L, 2026)$q$, pg_temp.west())) = 'That budget isn’t approved.', 'reopen twice';
 

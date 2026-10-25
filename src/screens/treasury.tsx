@@ -267,12 +267,13 @@ export function TreasuryScreen({ navigation }: RootScreen<'Treasury'>) {
         </>
       ) : null}
 
-      {kept.includes(null) ? <FloatCard fy={fyOf(today)} current={floatFor(fyOf(today), data)} onSave={(c) => setCashFloat(fyOf(today), c).then(() => setMsg({ tone: 'ok', text: 'Cash float saved.' }), fail)} /> : null}
+      {kept.includes(null) ? <FloatCard key={`float-${floatFor(fyOf(today), data)}`} fy={fyOf(today)} current={floatFor(fyOf(today), data)} setThisYear={(data.cashFloats ?? []).some((f) => f.fy === fyOf(today))} onSave={(c) => setCashFloat(fyOf(today), c).then(() => setMsg({ tone: 'ok', text: 'Cash float saved.' }), fail)} /> : null}
     </Screen>
   );
 }
 
-function FloatCard({ fy, current, onSave }: { fy: number; current: number; onSave: (cents: number) => Promise<void> }) {
+/** `current` may be carried from an earlier year; saving the same amount sets it for this one. */
+function FloatCard({ fy, current, setThisYear, onSave }: { fy: number; current: number; setThisYear: boolean; onSave: (cents: number) => Promise<void> }) {
   const [text, setText] = useState((current / 100).toFixed(2).replace(/\.00$/, ''));
   const [busy, setBusy] = useState(false);
   const cents = text.trim() === '0' ? 0 : parseDollars(text);
@@ -286,7 +287,7 @@ function FloatCard({ fy, current, onSave }: { fy: number; current: number; onSav
           label="Save float"
           kind="secondary"
           busy={busy}
-          disabled={cents === null || cents === current}
+          disabled={cents === null || (setThisYear && cents === current)}
           onPress={() => {
             setBusy(true);
             onSave(cents!).finally(() => setBusy(false));
@@ -555,6 +556,7 @@ export function NewEntryScreen({ route, navigation }: RootScreen<'NewEntry'>) {
   const save = async () => {
     setError(null);
     if (cents === null) return setError('Enter an amount, like 250 or 125.50.');
+    if (kind === 'credit' && (received.error || !received.iso)) return setError('Enter the day it came in, like 08/11/2026.');
     setBusy(true);
     try {
       const id =
@@ -691,7 +693,16 @@ export function MonthReportScreen({ route, navigation }: RootScreen<'MonthReport
         <Small>{fyLabel(fyOf(month))}</Small>
         {presented ? <Chip label={`Presented ${formatAuDate(presented.presentedAt.slice(0, 10))}`} tone="ok" icon="checkmark" /> : null}
       </Stack>
-      {books ? <MonthStepper month={month} latest={monthOf(today)} onChange={(m) => navigation.setParams({ month: m })} /> : null}
+      {books ? (
+        <MonthStepper
+          month={month}
+          latest={monthOf(today)}
+          onChange={(m) => {
+            setMsg(null);
+            navigation.setParams({ month: m });
+          }}
+        />
+      ) : null}
 
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
       {presented && updatedSince(report, presented.presentedAt) ? (

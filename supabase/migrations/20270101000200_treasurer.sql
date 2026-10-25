@@ -305,6 +305,9 @@ begin
   if e.state <> 'approved' then raise exception 'That’s already been paid or voided.'; end if;
   if p_paid_on is null then raise exception 'Pick the date it was paid.'; end if;
   if p_paid_on > private.club_date() then raise exception 'That date hasn’t happened yet.'; end if;
+  if p_paid_on < (select max(private.club_date(approved_at)) from public.ledger_approvals where entry_id = p_id) then
+    raise exception 'It can’t be paid before it was approved (13.3).';
+  end if;
   update public.ledger_entries set state = 'paid', entry_on = p_paid_on, updated_at = now() where id = p_id;
 end;
 $$;
@@ -402,19 +405,23 @@ begin
 end;
 $$;
 
--- Approved by a carried vote of the chapter's board, or of the NEC for the Club fund (13.4).
+-- Approved by a carried vote of the chapter's board, or of the NEC for the Club fund, that closed
+-- after the budget's last change (13.4). Recorded by whoever approves that fund's spending.
 create or replace function public.approve_budget(p_chapter uuid, p_fy int, p_vote uuid)
 returns void language plpgsql security definer set search_path = '' as $$
-declare me uuid := private.require_member(); b public.budgets;
+declare me uuid := private.require_member(); b public.budgets; v public.votes;
 begin
-  perform private.require_scope(p_chapter);
+  if not private.approves_for(p_chapter) then
+    raise exception 'Only that fund’s board, or the National Chairman or Secretary, approves its budget.';
+  end if;
   select * into b from public.budgets where chapter_id is not distinct from p_chapter and fy = p_fy for update;
   if not found then raise exception 'Save the budget first.'; end if;
   if b.approved_at is not null then raise exception 'That budget is already approved.'; end if;
-  if not exists (
-    select 1 from public.votes where id = p_vote and result = 'carried' and chapter_id is not distinct from p_chapter
-      and electorate = case when p_chapter is null then 'nec' else 'chapter_board' end::public.electorate) then
-    raise exception 'Pick a carried board vote for this budget (13.4).';
+  select * into v from public.votes where id = p_vote and result = 'carried' and chapter_id is not distinct from p_chapter
+    and electorate = case when p_chapter is null then 'nec' else 'chapter_board' end::public.electorate;
+  if not found then raise exception 'Pick a carried board vote for this budget (13.4).'; end if;
+  if v.closed_at is null or v.closed_at <= b.updated_at then
+    raise exception 'That vote closed before the budget’s last change. It needs a new vote (13.4).';
   end if;
   update public.budgets set approved_vote_id = p_vote, approved_at = now(), approved_by = me
   where chapter_id is not distinct from p_chapter and fy = p_fy;
@@ -425,7 +432,9 @@ create or replace function public.reopen_budget(p_chapter uuid, p_fy int)
 returns void language plpgsql security definer set search_path = '' as $$
 begin
   perform private.require_member();
-  perform private.require_scope(p_chapter);
+  if not private.approves_for(p_chapter) then
+    raise exception 'Only that fund’s board, or the National Chairman or Secretary, approves its budget.';
+  end if;
   update public.budgets set approved_vote_id = null, approved_at = null, approved_by = null, updated_at = now()
   where chapter_id is not distinct from p_chapter and fy = p_fy and approved_at is not null;
   if not found then raise exception 'That budget isn’t approved.'; end if;
@@ -482,12 +491,21 @@ begin
       from public.cash_floats), '[]'::jsonb) else '[]'::jsonb end,
     'budgets', case when reads_reports then coalesce((
       select jsonb_agg(jsonb_build_object('chapter_id', chapter_id, 'fy', fy, 'lines', lines, 'approved_vote_id', approved_vote_id,
-        'approved_at', approved_at, 'approved_by', approved_by) order by fy, chapter_id)
+        'approved_at', approved_at, 'approved_by', approved_by, 'updated_at', updated_at) order by fy, chapter_id)
       from public.budgets), '[]'::jsonb) else '[]'::jsonb end,
     'reports', case when reads_reports then coalesce((
       select jsonb_agg(jsonb_build_object('month', month, 'presented_at', presented_at, 'presented_by', presented_by) order by month desc)
       from public.treasurer_reports), '[]'::jsonb) else '[]'::jsonb end,
-    'report_totals', case when reads_reports then coalesce((
+    -- Whoever reads any fund gets every month worked out over all funds, since they can't add up
+    -- the funds they can't read; members get the presented months.
+    'report_totals', case when exists (
+        select 1 from (select null::uuid as id union all select id from public.chapters) f where private.sees_ledger(f.id)) then coalesce((
+      select jsonb_agg(private.month_report(m::date) order by m desc)
+      from generate_series(
+        date_trunc('month', coalesce(least((select min(entry_on) from public.ledger_entries),
+                                           (select make_date(min(fy), 7, 1) from public.fund_openings)), private.club_date())),
+        date_trunc('month', private.club_date()), interval '1 month') m), '[]'::jsonb)
+      when reads_reports then coalesce((
       select jsonb_agg(private.month_report(month) order by month desc) from public.treasurer_reports), '[]'::jsonb)
       else '[]'::jsonb end);
 end;

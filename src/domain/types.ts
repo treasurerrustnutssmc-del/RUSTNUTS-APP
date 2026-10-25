@@ -582,6 +582,8 @@ export interface Budget {
   approvedVoteId: string | null;
   approvedAt: string | null;
   approvedBy: string | null;
+  /** Last saved or reopened. The approving vote has to close after it (13.4). */
+  updatedAt: string;
 }
 
 /** A month the treasurer has presented to members (13.8). `month` is its first day. */

@@ -670,7 +670,7 @@ Object.assign(DEMO_DATA, {
   ],
   budgets: [
     { chapterId: 'ch-west', fy: s4Fy, lines: { 'CR-001': 500000, 'CR-006': 30000, 'DB-001': 120000, 'DB-007': 60000, 'DB-002': 50000 },
-      approvedVoteId: null, approvedAt: null, approvedBy: null },
+      approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: at(ago(60)) },
   ],
   treasurerReports: [{ month: lastMonth, presentedAt: at(thisMonth), presentedBy: 'm-sparks' }],
 } satisfies Partial<ClubData>);

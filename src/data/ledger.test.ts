@@ -24,8 +24,9 @@ test('a debit: the recorder approves first, a second approver makes it payable, 
   assert.throws(() => act.payDebit(ctx('m-sparks', data), r.id, '2026-10-24'), /two approvals/);
   data = act.approveDebit(ctx('m-gravel', data), r.id);
   assert.equal(e().state, 'approved');
-  data = act.payDebit(ctx('m-sparks', data), r.id, '2026-10-24');
-  assert.deepEqual([e().state, e().entryOn], ['paid', '2026-10-24']);
+  assert.throws(() => act.payDebit(ctx('m-sparks', data), r.id, '2026-10-24'), /before it was approved/);
+  data = act.payDebit(ctx('m-sparks', data), r.id, '2026-10-25');
+  assert.deepEqual([e().state, e().entryOn], ['paid', '2026-10-25']);
 });
 
 test('a payee who records their own payment doesn’t count as an approver', () => {
@@ -65,7 +66,7 @@ test('openings and float replace that year’s value; budgets save, approve and 
   assert.deepEqual(data.cashFloats, [{ fy: 2026, amountCents: 40000 }]);
 
   data = act.saveBudget(ctx('m-sparks', data), 'ch-west', 2026, { 'DB-001': 50000 });
-  const vote = { ...DEMO_DATA.votes![0], id: 'v-b', chapterId: 'ch-west', electorate: 'chapter_board' as const, result: 'carried' as const };
+  const vote = { ...DEMO_DATA.votes![0], id: 'v-b', chapterId: 'ch-west', electorate: 'chapter_board' as const, result: 'carried' as const, closedAt: '2026-10-25T02:00:00.000Z' };
   data = act.approveBudget(ctx('m-gravel', { ...data, votes: [vote] }), 'ch-west', 2026, 'v-b');
   assert.deepEqual([data.budgets![0].approvedVoteId, data.budgets![0].approvedBy], ['v-b', 'm-gravel']);
   assert.throws(() => act.saveBudget(ctx('m-sparks', data), 'ch-west', 2026, {}), /locked/);
@@ -75,6 +76,12 @@ test('openings and float replace that year’s value; budgets save, approve and 
 
   data = act.presentReport(ctx('m-sparks', data), '2026-09-01');
   assert.deepEqual(data.treasurerReports, [{ month: '2026-09-01', presentedAt: NOW, presentedBy: 'm-sparks' }]);
+});
+
+test('an answer that isn’t the books reads as no books', () => {
+  for (const odd of [[], 'x', 1, null, { entries: 'x' }] as unknown[]) {
+    assert.deepEqual(toLedger(odd as never).ledger, []);
+  }
 });
 
 test('the live ledger read becomes app records', () => {
@@ -87,7 +94,7 @@ test('the live ledger read becomes app records', () => {
     }],
     openings: [{ chapter_id: 'c1', fy: 2026, amount_cents: 100 }],
     floats: [{ fy: 2026, amount_cents: 40000 }],
-    budgets: [{ chapter_id: 'c1', fy: 2026, lines: { 'DB-001': 5 }, approved_vote_id: null, approved_at: null, approved_by: null }],
+    budgets: [{ chapter_id: 'c1', fy: 2026, lines: { 'DB-001': 5 }, approved_vote_id: null, approved_at: null, approved_by: null, updated_at: '2026-10-01T00:00:00+00:00' }],
     reports: [{ month: '2026-09-01', presented_at: '2026-10-03T00:00:00+00:00', presented_by: 'm1' }],
     report_totals: [{
       month: '2026-09-01', opening_cents: '800000' as unknown as number, credits: [{ code: 'CR-001', cents: 5 }], credit_total: 5,

@@ -8,7 +8,7 @@ import { fyOf } from '../src/domain/fees';
 import { readGpx } from '../src/domain/gpx';
 import { monthReport } from '../src/domain/ledger'; // Stage 5B
 import {
-  LEDGER_AT, monthFrom, fixtureData, // Stage 5B
+  LEDGER_AT, BUDGET_AT, monthFrom, fixtureData, // Stage 5B
   BRIEFED_AT, BUS_AT, BUS_DECLINE_REASON, caseAction, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
   resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
@@ -499,8 +499,8 @@ for (const f of fx.cashFloats ?? []) {
 }
 for (const b of fx.budgets ?? []) {
   sql(
-    `insert into public.budgets (chapter_id, fy, lines, approved_at) values (${chapter(b.chapter)}, ${fyOf(today) + b.fyOffset}, ` +
-      `${json(b.lines)}, ${b.approved ? `${q(LEDGER_AT)}::timestamptz` : 'null'});`,
+    `insert into public.budgets (chapter_id, fy, lines, approved_at, updated_at) values (${chapter(b.chapter)}, ${fyOf(today) + b.fyOffset}, ` +
+      `${json(b.lines)}, ${b.approved ? `${q(LEDGER_AT)}::timestamptz` : 'null'}, ${q(b.changedAt ?? BUDGET_AT)}::timestamptz);`,
   );
 }
 for (const r of fx.treasurerReports ?? []) {

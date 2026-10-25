@@ -4941,6 +4941,48 @@
       "allowed": false
     },
     {
+      "name": "The Auditor approves a budget (11.8)",
+      "as": "kim",
+      "action": "approveBudget",
+      "chapter": "west",
+      "fyOffset": 0,
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "The Auditor reopens a budget (11.8)",
+      "as": "kim",
+      "action": "reopenBudget",
+      "chapter": "north",
+      "fyOffset": 0,
+      "allowed": false
+    },
+    {
+      "name": "Another chapter's President reopens a budget",
+      "as": "rusty",
+      "action": "reopenBudget",
+      "chapter": "north",
+      "fyOffset": 0,
+      "allowed": false
+    },
+    {
+      "name": "A vote from before the budget's last change approves it",
+      "as": "chair",
+      "action": "approveBudget",
+      "chapter": null,
+      "fyOffset": -1,
+      "vote": "nec-carried",
+      "allowed": false
+    },
+    {
+      "name": "Paying before it was approved",
+      "as": "penny",
+      "action": "payDebit",
+      "entry": "west-approved",
+      "paidOn": "2026-09-01",
+      "allowed": false
+    },
+    {
       "name": "Presenting last month's report",
       "as": "penny",
       "action": "presentReport",
@@ -5683,6 +5725,15 @@
         "DB-001": 1000
       },
       "approved": true
+    },
+    {
+      "chapter": null,
+      "fyOffset": -1,
+      "lines": {
+        "DB-001": 10000
+      },
+      "approved": false,
+      "changedAt": "2026-06-01T00:00:00.000Z"
     }
   ],
   "treasurerReports": [

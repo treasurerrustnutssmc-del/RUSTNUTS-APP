@@ -19,7 +19,7 @@ export interface LedgerJson {
   floats: { fy: number; amount_cents: number }[];
   budgets: {
     chapter_id: string | null; fy: number; lines: Partial<Record<LedgerCode, number>>; approved_vote_id: string | null;
-    approved_at: string | null; approved_by: string | null;
+    approved_at: string | null; approved_by: string | null; updated_at: string;
   }[];
   reports: { month: string; presented_at: string; presented_by: string | null }[];
   report_totals: ReportJson[];
@@ -45,9 +45,13 @@ function toReport(r: ReportJson): MonthReport {
   };
 }
 
-export function toLedger(json: LedgerJson | null | undefined): Required<LedgerData> {
+const list = <T>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
+
+export function toLedger(raw: LedgerJson | null | undefined): Required<LedgerData> {
+  // Anything but a plain object (an old database without club_ledger, a stub) reads as no books.
+  const json = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
   return {
-    ledger: (json?.entries ?? []).map((e) => ({
+    ledger: list(json?.entries).map((e) => ({
       id: e.id,
       chapterId: e.chapter_id,
       code: e.code,
@@ -64,19 +68,20 @@ export function toLedger(json: LedgerJson | null | undefined): Required<LedgerDa
       updatedAt: instant(e.updated_at),
       voidReason: e.void_reason,
       voidedBy: e.voided_by,
-      approvals: (e.approvals ?? []).map((a) => ({ memberId: a.member_id, approvedAt: instant(a.approved_at) })),
+      approvals: list(e.approvals).map((a) => ({ memberId: a.member_id, approvedAt: instant(a.approved_at) })),
     })),
-    fundOpenings: (json?.openings ?? []).map((o) => ({ chapterId: o.chapter_id, fy: o.fy, amountCents: o.amount_cents })),
-    cashFloats: (json?.floats ?? []).map((f) => ({ fy: f.fy, amountCents: f.amount_cents })),
-    budgets: (json?.budgets ?? []).map((b) => ({
+    fundOpenings: list(json?.openings).map((o) => ({ chapterId: o.chapter_id, fy: o.fy, amountCents: o.amount_cents })),
+    cashFloats: list(json?.floats).map((f) => ({ fy: f.fy, amountCents: f.amount_cents })),
+    budgets: list(json?.budgets).map((b) => ({
       chapterId: b.chapter_id,
       fy: b.fy,
       lines: b.lines ?? {},
       approvedVoteId: b.approved_vote_id,
       approvedAt: maybeInstant(b.approved_at),
       approvedBy: b.approved_by,
+      updatedAt: instant(b.updated_at),
     })),
-    treasurerReports: (json?.reports ?? []).map((r) => ({ month: r.month, presentedAt: instant(r.presented_at), presentedBy: r.presented_by })),
-    reportTotals: (json?.report_totals ?? []).map(toReport),
+    treasurerReports: list(json?.reports).map((r) => ({ month: r.month, presentedAt: instant(r.presented_at), presentedBy: r.presented_by })),
+    reportTotals: list(json?.report_totals).map(toReport),
   };
 }

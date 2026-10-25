@@ -113,7 +113,7 @@ function withBudget(data: ClubData, chapterId: string | null, fy: number, change
 
 export function saveBudget(ctx: DemoCtx, chapterId: string | null, fy: number, lines: Partial<Record<LedgerCode, number>>): ClubData {
   refuse(budgetProblem(ctx.me, chapterId, fy, lines, ctx.data));
-  return withBudget(ctx.data, chapterId, fy, () => ({ chapterId, fy, lines, approvedVoteId: null, approvedAt: null, approvedBy: null }));
+  return withBudget(ctx.data, chapterId, fy, () => ({ chapterId, fy, lines, approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: nowOf(ctx) }));
 }
 
 export function approveBudget(ctx: DemoCtx, chapterId: string | null, fy: number, voteId: string): ClubData {
@@ -123,7 +123,7 @@ export function approveBudget(ctx: DemoCtx, chapterId: string | null, fy: number
 
 export function reopenBudget(ctx: DemoCtx, chapterId: string | null, fy: number): ClubData {
   refuse(reopenBudgetProblem(ctx.me, chapterId, fy, ctx.data));
-  return withBudget(ctx.data, chapterId, fy, (b) => ({ ...b!, approvedVoteId: null, approvedAt: null, approvedBy: null }));
+  return withBudget(ctx.data, chapterId, fy, (b) => ({ ...b!, approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: nowOf(ctx) }));
 }
 
 export function presentReport(ctx: DemoCtx, month: string): ClubData {

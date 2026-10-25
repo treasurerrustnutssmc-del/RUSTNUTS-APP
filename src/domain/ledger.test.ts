@@ -4,7 +4,7 @@ import { DEMO_DATA } from '../data/demoData';
 import {
   addFeeProblem, approveBudgetProblem, approveProblem, approvesFor, bankedLate, BUDGET_VOTE, budgetLines, budgetProblem,
   creditProblem, debitProblem, feesToAdd, fundBalance, keepsBooks, KEEPS_ONLY, monthReport, NEEDS_TWO, PAYEE_CANT_APPROVE,
-  payProblem, presentProblem, reopenBudgetProblem, seesLedger, seesReports, updatedSince, voidProblem, workingDaysBetween,
+  BUDGET_BOARD, BUDGET_STALE_VOTE, PAID_BEFORE_APPROVED, payProblem, presentProblem, reopenBudgetProblem, seesLedger, seesReports, updatedSince, voidProblem, workingDaysBetween,
 } from './ledger';
 import type { ClubData, LedgerEntry, Vote } from './types';
 
@@ -74,7 +74,7 @@ test('recording money in and money out', () => {
 });
 
 test('two approvers, neither the payee, before it’s paid (13.3)', () => {
-  const awaiting = entry({ code: 'DB-006', state: 'awaiting', entryOn: null, payeeMemberId: 'm-torque', approvals: [{ memberId: 'm-sparks', approvedAt: 'x' }] });
+  const awaiting = entry({ code: 'DB-006', state: 'awaiting', entryOn: null, payeeMemberId: 'm-torque', approvals: [{ memberId: 'm-sparks', approvedAt: '2026-10-20T01:00:00.000Z' }] });
   const data = { ...base, ledger: [awaiting] };
   assert.equal(approveProblem(me('m-torque'), awaiting.id, data), PAYEE_CANT_APPROVE);
   assert.equal(approveProblem(me('m-sparks'), awaiting.id, data), 'You’ve already approved this.');
@@ -162,14 +162,14 @@ test('budgets: book-keepers edit, a carried board vote approves, then it’s loc
   assert.equal(budgetProblem(me('m-sparks'), 'ch-west', 2026, { 'XX-1': 1 }, base), 'Pick a payment code.');
   assert.equal(budgetProblem(me('m-gravel'), 'ch-west', 2026, {}, base), KEEPS_ONLY);
 
-  const vote = (over: Partial<Vote>): Vote => ({ ...DEMO_DATA.votes![0], id: 'v-b', chapterId: 'ch-west', electorate: 'chapter_board', result: 'carried', ...over });
-  const budget = { chapterId: 'ch-west', fy: 2026, lines: { 'DB-001': 50000 }, approvedVoteId: null, approvedAt: null, approvedBy: null };
+  const vote = (over: Partial<Vote>): Vote => ({ ...DEMO_DATA.votes![0], id: 'v-b', chapterId: 'ch-west', electorate: 'chapter_board', result: 'carried', closedAt: '2026-07-08T00:00:00.000Z', ...over });
+  const budget = { chapterId: 'ch-west', fy: 2026, lines: { 'DB-001': 50000 }, approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: '2026-07-01T00:00:00.000Z' };
   const data = (v: Vote) => ({ ...base, budgets: [budget], votes: [v] });
   assert.equal(approveBudgetProblem(me('m-gravel'), 'ch-west', 2026, 'v-b', data(vote({}))), null, 'any board seat');
   assert.equal(approveBudgetProblem(me('m-gravel'), 'ch-west', 2026, 'v-b', data(vote({ result: 'lost' }))), BUDGET_VOTE);
   assert.equal(approveBudgetProblem(me('m-gravel'), 'ch-west', 2026, 'v-b', data(vote({ electorate: 'chapter_patched' }))), BUDGET_VOTE, 'no member budget vote (13.4)');
   assert.equal(approveBudgetProblem(me('m-gravel'), 'ch-west', 2026, 'v-b', data(vote({ chapterId: 'ch-north' }))), BUDGET_VOTE);
-  assert.equal(approveBudgetProblem(me('m-spanner'), 'ch-west', 2026, 'v-b', data(vote({}))), 'Only that chapter’s board can do that.');
+  assert.equal(approveBudgetProblem(me('m-spanner'), 'ch-west', 2026, 'v-b', data(vote({}))), BUDGET_BOARD);
   assert.equal(approveBudgetProblem(me('m-gravel'), 'ch-west', 2027, 'v-b', data(vote({}))), 'Save the budget first.');
 
   const locked = { ...base, budgets: [{ ...budget, approvedAt: '2026-08-01T00:00:00Z', approvedVoteId: 'v-b', approvedBy: 'm-gravel' }] };
@@ -201,4 +201,29 @@ test('presenting a month: the Club fund’s book-keepers, once it’s over', () 
   assert.equal(presentProblem(me('m-torque'), '2026-09-01', base, TODAY), KEEPS_ONLY);
   const done = { ...base, treasurerReports: [{ month: '2026-09-01', presentedAt: 'x', presentedBy: 'm-sparks' }] };
   assert.equal(presentProblem(me('m-sparks'), '2026-09-01', done, TODAY), 'That month is already presented.');
+});
+
+test('review fixes: budget approvers, fresh votes and paying after approval', () => {
+  const vote = (over: Partial<Vote>): Vote => ({
+    id: 'v-b', chapterId: 'ch-west', meetingId: null, subjectMemberId: null, question: 'Budget', details: null,
+    electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 3, openedAt: '2026-07-01T00:00:00.000Z',
+    closesAt: '2026-07-08T00:00:00.000Z', closedAt: '2026-07-08T00:00:00.000Z', result: 'carried', castingVote: null,
+    tally: null, electorIds: [], votedIds: [], ballots: [], createdBy: null, ...over,
+  } as Vote);
+  const draft = { chapterId: 'ch-west', fy: 2026, lines: {}, approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: '2026-07-01T00:00:00.000Z' };
+  const data: ClubData = { ...base, votes: [vote({})], budgets: [draft] };
+  assert.equal(approveBudgetProblem(me('m-torque'), 'ch-west', 2026, 'v-b', data), null, 'a board seat approves its budget');
+  assert.equal(approveBudgetProblem(me('m-ace'), 'ch-west', 2026, 'v-b', data), BUDGET_BOARD, 'the Auditor changes nothing (11.8)');
+  assert.equal(approveBudgetProblem(me('m-smokey'), 'ch-west', 2026, 'v-b', data), BUDGET_BOARD, 'not another chapter’s President');
+  const changed = { ...data, budgets: [{ ...draft, updatedAt: '2026-07-09T00:00:00.000Z' }] };
+  assert.equal(approveBudgetProblem(me('m-torque'), 'ch-west', 2026, 'v-b', changed), BUDGET_STALE_VOTE, 'a vote from before the last change');
+  const approved = { ...data, budgets: [{ ...draft, approvedVoteId: 'v-b', approvedAt: '2026-07-09T00:00:00.000Z', approvedBy: 'm-torque' }] };
+  assert.equal(reopenBudgetProblem(me('m-ace'), 'ch-west', 2026, approved), BUDGET_BOARD);
+  assert.equal(reopenBudgetProblem(me('m-torque'), 'ch-west', 2026, approved), null);
+
+  const e = entry({ code: 'DB-001', state: 'approved', entryOn: null, payeeName: 'Bunnings',
+    approvals: [{ memberId: 'm-torque', approvedAt: '2026-10-10T01:00:00.000Z' }, { memberId: 'm-rusty', approvedAt: '2026-10-12T01:00:00.000Z' }] });
+  const paying = { ...base, ledger: [e] };
+  assert.equal(payProblem(me('m-sparks'), e.id, '2026-10-11', paying, TODAY), PAID_BEFORE_APPROVED);
+  assert.equal(payProblem(me('m-sparks'), e.id, '2026-10-12', paying, TODAY), null);
 });
