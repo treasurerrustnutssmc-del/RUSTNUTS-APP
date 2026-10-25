@@ -3,6 +3,7 @@
 // Stage 5: meetings and votes
 import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, Threshold } from '../domain/types';
 import type { BusinessJson } from './businessLive';
+import type { LedgerJson } from './ledgerLive'; // Stage 5B
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
 type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';
@@ -450,6 +451,29 @@ export type Database = {
       };
       cast_ballot: { Args: { p_vote: string; p_choice: BallotChoice }; Returns: undefined };
       close_vote: { Args: { p_vote: string; p_casting: 'yes' | 'no' | 'decline' | null }; Returns: undefined };
+      // Stage 5B: treasurer
+      club_ledger: { Args: never; Returns: LedgerJson };
+      record_credit: {
+        Args: { p_chapter: string | null; p_code: string; p_description: string; p_amount_cents: number; p_received_on: string | null; p_entry_on: string };
+        Returns: string;
+      };
+      record_debit: {
+        Args: {
+          p_chapter: string | null; p_code: string; p_description: string; p_amount_cents: number; p_payee_member: string | null;
+          p_payee_name: string | null; p_paid_on: string | null;
+        };
+        Returns: string;
+      };
+      approve_debit: { Args: { p_id: string }; Returns: undefined };
+      pay_debit: { Args: { p_id: string; p_paid_on: string }; Returns: undefined };
+      void_entry: { Args: { p_id: string; p_reason: string }; Returns: undefined };
+      add_fee_payment: { Args: { p_payment: string }; Returns: string };
+      set_opening: { Args: { p_chapter: string | null; p_fy: number; p_amount_cents: number }; Returns: undefined };
+      set_cash_float: { Args: { p_fy: number; p_amount_cents: number }; Returns: undefined };
+      save_budget: { Args: { p_chapter: string | null; p_fy: number; p_lines: Partial<Record<string, number>> }; Returns: undefined };
+      approve_budget: { Args: { p_chapter: string | null; p_fy: number; p_vote: string }; Returns: undefined };
+      reopen_budget: { Args: { p_chapter: string | null; p_fy: number }; Returns: undefined };
+      present_report: { Args: { p_month: string }; Returns: undefined };
       // Lane E: live ride
       start_live_ride: { Args: { p_ride: string }; Returns: string };
       live_ride_state: { Args: { p_ride: string }; Returns: LiveStateJson };
