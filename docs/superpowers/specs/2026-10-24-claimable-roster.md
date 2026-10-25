@@ -52,3 +52,7 @@ two kinds of account apart by password. Anonymous accounts are refused.
   stuck on Ask to join.
 - Founder and national roles can come from the roster, unlike `appoint_position`, because only
   an admin loads it. `appointed_by` is left empty for these.
+
+## Addendum 25/10/2026: phone, emergency contact and bike
+
+Jeff chose to bring these across from the West sheet. The roster gets optional `phone`, `emergency_name`, `emergency_relationship`, `emergency_phone`, `bike_make`, `bike_model` and `bike_rego` columns (CSV columns of the same names, all optional so older sheets still load). At claim, the phone goes into `member_private`, the contact into `emergency_contacts` (labelled "Emergency contact" when the sheet gives no relationship) and the bike into `bikes` plus `bike_registrations`. A contact needs a name and number, and a bike needs a make and model, so the loader and table checks refuse half of either rather than fail a member's first sign-in. Date of birth and home address stay out: the app has nowhere to keep them and Jeff didn't ask for them.

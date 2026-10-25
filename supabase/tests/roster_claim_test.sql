@@ -172,3 +172,57 @@ begin
   assert not exists (select 1 from positions where member_id = foggy and role <> 'founder'), 'no seat';
   assert exists (select 1 from positions where member_id = foggy and role = 'founder'), 'an honour stays';
 end $$;
+
+\echo 'Phone, emergency contact and bike from the sheet land in their profile'
+do $$
+declare cocky constant uuid := '00000000-0000-0000-0000-0000000000ab';
+declare saint constant uuid := '00000000-0000-0000-0000-0000000000ac';
+begin
+  insert into auth.users (id, email, email_confirmed_at) values
+    (cocky, 'cocky@example.com', now()), (saint, 'saint@example.com', now());
+  insert into private.roster (email, chapter_id, full_name, status, phone, emergency_name, emergency_relationship,
+                              emergency_phone, bike_make, bike_model, bike_rego)
+  select 'cocky@example.com', id, 'David Galea', 'fng', '0400 111 222', 'Lou H', null, '0400 333 444',
+         'Yamaha', 'XVS650', '1AB-2CD' from chapters where slug = 'west';
+  insert into private.roster (email, chapter_id, full_name, status, bike_make, bike_model)
+  select 'saint@example.com', id, 'Nick Jarvis', 'fng', 'Honda', 'CMX' from chapters where slug = 'west';
+
+  assert pg_temp.claim_as(cocky), 'claim links them';
+  assert (select phone from member_private where member_id = cocky) = '0400 111 222', 'their phone';
+  assert exists (
+    select 1 from emergency_contacts
+    where member_id = cocky and name = 'Lou H' and phone = '0400 333 444' and relationship = 'Emergency contact'
+  ), 'their emergency contact, labelled until they say how they know them';
+  assert exists (
+    select 1 from bikes b join bike_registrations r on r.bike_id = b.id
+    where b.member_id = cocky and b.make = 'Yamaha' and b.model = 'XVS650' and r.rego = '1AB-2CD'
+  ), 'their bike and rego';
+
+  assert pg_temp.claim_as(saint), 'claim links them';
+  assert (select phone from member_private where member_id = saint) is null, 'no phone given';
+  assert not exists (select 1 from emergency_contacts where member_id = saint), 'no emergency contact given';
+  assert exists (select 1 from bikes where member_id = saint and make = 'Honda' and model = 'CMX'), 'their bike';
+  assert not exists (select 1 from bike_registrations r join bikes b on b.id = r.bike_id where b.member_id = saint),
+    'no rego given';
+end $$;
+
+\echo 'The roster refuses half an emergency contact or half a bike'
+do $$
+declare west uuid := (select id from chapters where slug = 'west');
+begin
+  begin
+    insert into private.roster (email, chapter_id, full_name, status, emergency_name) values ('h1@example.com', west, 'H', 'fng', 'Lou');
+    raise exception 'took a contact with no number';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into private.roster (email, chapter_id, full_name, status, bike_make) values ('h2@example.com', west, 'H', 'fng', 'Honda');
+    raise exception 'took a bike with no model';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into private.roster (email, chapter_id, full_name, status, bike_rego) values ('h3@example.com', west, 'H', 'fng', '1AB');
+    raise exception 'took a rego with no bike';
+  exception when check_violation then null;
+  end;
+end $$;
