@@ -2,6 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CHANGES_TOO_LONG,
+  CREW_NOT_SIGNED,
+  SIGN_FIRST,
+  goingProblem,
+  mustSignFirst,
   MAX_RULES_CHANGES,
   MAX_RULES_TEXT,
   NOT_PUBLISHER,
@@ -704,4 +708,67 @@ test('signoffStart and signoffSummary: Who’s signed opens on your own chapter,
   const nRc = member('n-rc');
   const d2 = { ...d, members: [...d.members, nRc], positions: [...d.positions, position('n-rc', 'road_captain', 'ch-north')] };
   assert.equal(signoffStart(nRc, d2), 'ch-north');
+});
+
+// ---------------------------------------------------------------------------
+// The Going gate (2026-10-25-road-rules-going-gate-design.md)
+// ---------------------------------------------------------------------------
+
+test('the Going gate’s messages are the spec’s words, with the curly ’', () => {
+  assert.equal(SIGN_FIRST, 'Sign the Road Rules first.');
+  assert.equal(CREW_NOT_SIGNED, 'They haven’t signed the Road Rules yet.');
+});
+
+test('mustSignFirst and goingProblem: unsigned and expired are stopped from Going, every other state is not', () => {
+  const current = member('current');
+  const due = member('due');
+  const expired = member('expired');
+  const older = member('older');
+  const legacy = member('legacy', { status: 'legacy' });
+  const d = data({
+    members: [rider, current, due, expired, older, legacy, pending],
+    roadRules: [version(1)],
+    roadRulesSignoffs: [
+      signoff('current', 1, '2026-06-01T00:00:00.000Z'),
+      signoff('due', 1, '2025-11-15T00:00:00.000Z'),
+      signoff('expired', 1, '2025-09-01T00:00:00.000Z'),
+    ],
+  });
+  const cases: [Member, RoadRulesStatusState | 'not asked', boolean][] = [
+    [rider, 'unsigned', true],
+    [expired, 'expired', true],
+    [current, 'current', false],
+    [due, 'due_soon', false],
+    [legacy, 'not asked', false],
+    [pending, 'not asked', false],
+  ];
+  for (const [m, state, stopped] of cases) {
+    if (state !== 'not asked') assert.equal(roadRulesStatus(m, d, TODAY).state, state, `${m.id} is ${state}`);
+    assert.equal(mustSignFirst(m, d, TODAY), stopped, `${m.id}: must sign first`);
+    assert.equal(goingProblem(m, 'going', d, TODAY), stopped ? SIGN_FIRST : null, `${m.id}: Going`);
+    assert.equal(goingProblem(m, 'maybe', d, TODAY), null, `${m.id}: Maybe always works`);
+    assert.equal(goingProblem(m, 'no', d, TODAY), null, `${m.id}: Can’t make it always works`);
+  }
+
+  // Nothing published: nobody is stopped.
+  const none = data({ members: [rider] });
+  assert.equal(roadRulesStatus(rider, none, TODAY).state, 'none');
+  assert.equal(mustSignFirst(rider, none, TODAY), false);
+  assert.equal(goingProblem(rider, 'going', none, TODAY), null);
+
+  // A fresh version after you signed: your older sign-off no longer counts.
+  const fresh = data({
+    members: [older],
+    roadRules: [version(1), version(2, { fresh: true, publishedAt: '2026-10-01T00:00:00.000Z' })],
+    roadRulesSignoffs: [signoff('older', 1, '2026-06-01T00:00:00.000Z')],
+  });
+  assert.equal(roadRulesStatus(older, fresh, TODAY).state, 'unsigned');
+  assert.equal(goingProblem(older, 'going', fresh, TODAY), SIGN_FIRST, 'signed an older version');
+  // A small fix carries the sign-off over.
+  const fix = { ...fresh, roadRules: [version(1), version(2, { fresh: false })] };
+  assert.equal(goingProblem(older, 'going', fix, TODAY), null, 'a small fix carries over');
+
+  // Signed out: nothing to say here (rsvpProblem says Sign in first).
+  assert.equal(mustSignFirst(null, d, TODAY), false);
+  assert.equal(goingProblem(null, 'going', d, TODAY), null);
 });

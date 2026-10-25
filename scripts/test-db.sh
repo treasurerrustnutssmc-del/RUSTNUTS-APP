@@ -93,6 +93,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_road_rules -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_road_rules -f "$ROOT/supabase/tests/road_rules_test.sql"
+# The Going gate (Road Rules on set_rsvp and set_crew), on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_going_gate" >/dev/null
+"${PSQL[@]}" -d rustnuts_going_gate -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_going_gate -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_going_gate -f "$ROOT/supabase/tests/going_gate_test.sql"
 # The Rusty Bus, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_bus" >/dev/null
 "${PSQL[@]}" -d rustnuts_bus -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null

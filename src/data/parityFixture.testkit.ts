@@ -70,8 +70,11 @@ export interface ParityFixture {
   briefingReads?: { ride: string; member: string }[];
   /** Road Rules versions already published, all at RULES_AT by no one. Empty What changed is stored as null. */
   roadRules?: { number: number; body: string; changes: string; fresh: boolean }[];
-  /** Road Rules sign-offs already made, all at RULES_AT. */
-  roadRulesSignoffs?: { member: string; version: number }[];
+  /**
+   * Road Rules sign-offs already made: at RULES_AT, or `signedDays` from today (negative: days ago),
+   * so a sign-off stays current, due soon or run out whenever the cases are run.
+   */
+  roadRulesSignoffs?: { member: string; version: number; signedDays?: number }[];
   /**
    * Rusty Bus bookings already made, with their days counted from today, all booked (and decided
    * or cancelled, by no one) at BUS_AT. A declined one has the reason "Not this time."
@@ -94,6 +97,10 @@ export const BRIEFED_AT = '2026-10-01T00:00:00.000Z';
 
 /** When the fixture's Road Rules were published and signed. */
 export const RULES_AT = '2026-10-01T00:00:00.000Z';
+
+/** When a fixture sign-off was made: RULES_AT, or its signedDays from today, at midday in Melbourne. */
+export const fixtureSignedAt = (s: { signedDays?: number }, today: string): string =>
+  s.signedDays === undefined ? RULES_AT : `${addDays(today, s.signedDays)}T02:00:00.000Z`;
 
 /** When the fixture's Rusty Bus bookings were made, decided and cancelled. */
 export const BUS_AT = '2026-10-01T00:00:00.000Z';
@@ -206,7 +213,9 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
     })),
     briefingReads: (fixture.briefingReads ?? []).map((r) => ({ rideId: r.ride, memberId: r.member, readAt: BRIEFED_AT })),
     roadRules: (fixture.roadRules ?? []).map((v) => ({ ...v, publishedAt: RULES_AT, publishedBy: null })),
-    roadRulesSignoffs: (fixture.roadRulesSignoffs ?? []).map((s) => ({ memberId: s.member, version: s.version, signedAt: RULES_AT })),
+    roadRulesSignoffs: (fixture.roadRulesSignoffs ?? []).map((s) => ({
+      memberId: s.member, version: s.version, signedAt: fixtureSignedAt(s, today),
+    })),
     busBookings: (fixture.busBookings ?? []).map((b) => ({
       id: b.key, firstDay: addDays(today, b.firstDays), lastDay: addDays(today, b.lastDays), purpose: b.purpose, rideId: b.ride,
       driverId: b.driver, notes: '', status: b.status, bookedBy: b.bookedBy, bookedAt: BUS_AT,

@@ -443,3 +443,64 @@ test('the rows of the Crew section', () => {
     ['road_captain', 'tail_gunner', 'assistant_tail_gunner', 'officer'],
   );
 });
+
+// ---------------------------------------------------------------------------
+// The Going gate: an unsigned member can't be put on the crew (crewing makes them Going)
+// ---------------------------------------------------------------------------
+
+const rules = (signoffs: { memberId: string; signedAt: string }[]): Partial<ClubData> => ({
+  roadRules: [{ number: 1, body: '# Road Rules', changes: '', fresh: true, publishedAt: '2025-07-01T00:00:00.000Z', publishedBy: null }],
+  roadRulesSignoffs: signoffs.map((s) => ({ ...s, version: 1 })),
+});
+// On NOW (1 Nov 2026 in Melbourne): westPres signed recently, westComm's ran out, rider never signed.
+const signed = rules([
+  { memberId: 'west-pres', signedAt: '2026-06-01T00:00:00.000Z' },
+  { memberId: 'west-comm', signedAt: '2025-09-01T00:00:00.000Z' },
+  { memberId: 'nec', signedAt: '2026-06-01T00:00:00.000Z' },
+]);
+const NOT_SIGNED = 'They haven’t signed the Road Rules yet.';
+
+test('crewing needs the Road Rules signed, checked after eligibility and before the rest', () => {
+  const d = data(signed);
+  assert.equal(crewProblem(westPres, WEST_RIDE, rider, 'officer', d, NOW), NOT_SIGNED, 'never signed');
+  assert.equal(crewProblem(westPres, WEST_RIDE, westComm, 'road_captain', d, NOW), NOT_SIGNED, 'ran out');
+  assert.equal(crewProblem(rider, WEST_RIDE, rider, 'officer', d, NOW), NOT_SIGNED, 'volunteering yourself, too');
+  assert.equal(crewProblem(westPres, WEST_RIDE, nec, 'officer', d, NOW), null, 'signed');
+  assert.equal(crewProblem(westPres, WEST_RIDE, westPres, 'road_captain', d, NOW), null, 'signed, yourself');
+  // Eligibility comes first.
+  assert.equal(crewProblem(westPres, WEST_RIDE, fng, 'officer', d, NOW), 'Only Full and Nomad members can crew a ride.');
+  assert.equal(crewProblem(westPres, WEST_RIDE, hiatus, 'officer', d, NOW), 'Members on hiatus can’t crew a ride.');
+  assert.equal(
+    crewProblem(westPres, WEST_RIDE, rider, 'tail_gunner', { ...d, privates: [priv('rider', null)] }, NOW),
+    'Tail Gunners need a current first aid certificate on file.',
+  );
+  // Then the Road Rules, before "can't make it" and a taken spot.
+  assert.equal(crewProblem(westPres, WEST_RIDE, rider, 'officer', { ...d, rsvps: [rsvp('west-ride', 'rider', 'no')] }, NOW), NOT_SIGNED);
+  assert.equal(
+    crewProblem(rider, WEST_RIDE, rider, 'road_captain', { ...d, crew: [spot('west-ride', 'nec', 'road_captain')] }, NOW),
+    NOT_SIGNED,
+  );
+  // Asked of an unsigned member, but "who manages" still comes before.
+  assert.equal(crewProblem(rider, WEST_RIDE, westComm, 'officer', d, NOW), 'Only the board or ride committee can put someone else on the crew.');
+  // Nothing published: nobody is stopped.
+  assert.equal(crewProblem(westPres, WEST_RIDE, rider, 'officer', data(), NOW), null);
+  assert.equal(canVolunteer(rider, WEST_RIDE, 'officer', d, NOW), false, 'no “I’ll do it” until they sign');
+  assert.equal(canVolunteer(westPres, WEST_RIDE, 'officer', d, NOW), true);
+});
+
+test('the pick list leaves unsigned members out of the pickable groups and lists them apart', () => {
+  const d = data({
+    ...signed,
+    rsvps: [rsvp('west-ride', 'rider', 'going'), rsvp('west-ride', 'north-rc', 'no')],
+  });
+  const today = '2026-11-01';
+  const groups = pickGroups(WEST_RIDE, 'officer', westPres, d, today);
+  const pickable = [...groups.going, ...groups.holders, ...groups.rest].map((m) => m.id);
+  assert.deepEqual(pickable.sort(), ['nec', 'west-pres'], 'only the signed are pickable');
+  // Rider (never signed, already Going), aidEdge (never signed) and westComm (ran out), by name;
+  // north-rc said no, and the FNG, the member on hiatus and the applicant can't crew at all.
+  assert.deepEqual(groups.unsigned.map((m) => m.id), ['aid-edge', 'rider', 'west-comm']);
+  assert.deepEqual(pickList(WEST_RIDE, 'officer', westPres, d, today).map((m) => m.id).sort(), ['nec', 'west-pres']);
+  // Nothing published: nobody is set apart.
+  assert.deepEqual(pickGroups(WEST_RIDE, 'officer', westPres, data(), today).unsigned, []);
+});

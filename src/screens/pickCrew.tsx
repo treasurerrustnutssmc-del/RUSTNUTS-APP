@@ -1,5 +1,6 @@
 // Pick crew: a crew manager chooses who takes a spot on a ride. Those going come first, then the
 // standing holders of the same position, then everyone else who can crew. Tapping a name saves it.
+// Members who could crew but haven't signed the Road Rules are listed last, unavailable, with why.
 
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,13 +10,14 @@ import { formatAuDate, weekday } from '../domain/dates';
 import { ROLE_LABEL, ROLE_SHORT } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
+import { currentRoadRules, signoffLine } from '../domain/roadRules';
 import type { Member } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 import { Avatar, Body, Card, Chip, H1, Ionicons, Notice, Row, Screen, SectionTitle, Small, Stack, StatusChip } from '../ui/primitives';
 
 export function PickCrewScreen({ route, navigation }: RootScreen<'PickCrew'>) {
-  const { me, data, setCrew } = useClub();
+  const { me, data, today, setCrew } = useClub();
   const { rideId, role } = route.params;
   const [busy, setBusy] = useState<string | null>(null);
   // The member whose pick failed, with why, shown under their name.
@@ -36,7 +38,7 @@ export function PickCrewScreen({ route, navigation }: RootScreen<'PickCrew'>) {
   const crew = data.crew ?? [];
   const holder = role === 'officer' ? undefined : crew.find((s) => s.rideId === ride.id && s.role === role);
   const holderMember = holder ? data.members.find((m) => m.id === holder.memberId) : undefined;
-  const groups = pickGroups(ride, role, me, data);
+  const groups = pickGroups(ride, role, me, data, today);
   // Officers have no limit, so those already on as Officers aren't offered again.
   const offer = (members: Member[]) =>
     role === 'officer' ? members.filter((m) => spotOf(ride.id, m.id, data.crew) !== 'officer') : members;
@@ -46,6 +48,7 @@ export function PickCrewScreen({ route, navigation }: RootScreen<'PickCrew'>) {
     { title: `${chapter ? `${chapter.name} ` : ''}${ROLE_LABEL[role]}s`, members: offer(groups.holders) },
     { title: 'Everyone else', members: offer(groups.rest) },
   ].filter((g) => g.members.length > 0);
+  const unsigned = offer(groups.unsigned);
 
   const pick = async (m: Member) => {
     if (busy) return;
@@ -79,13 +82,12 @@ export function PickCrewScreen({ route, navigation }: RootScreen<'PickCrew'>) {
         <>
           <Stack gap={space.xs}>
             <Body>
-              Full and Nomad members who aren’t on hiatus can crew. Tail Gunners and Assistant Tail Gunners need a current
-              first aid certificate. Whoever you pick is put down as going.
+              {`Full and Nomad members who aren’t on hiatus${currentRoadRules(data) ? ' and have signed the Road Rules' : ''} can crew. Tail Gunners and Assistant Tail Gunners need a current first aid certificate. Whoever you pick is put down as going.`}
             </Body>
             {holderMember ? <Small>{`${displayName(holderMember)} has this spot now. Picking someone else replaces them.`}</Small> : null}
           </Stack>
 
-          {sections.length === 0 ? (
+          {sections.length === 0 && unsigned.length === 0 ? (
             <Notice title="Nobody to pick yet.">Members show up here once they can crew this ride.</Notice>
           ) : null}
 
@@ -109,6 +111,18 @@ export function PickCrewScreen({ route, navigation }: RootScreen<'PickCrew'>) {
               </Card>
             </Stack>
           ))}
+
+          {unsigned.length > 0 ? (
+            <Stack gap={space.sm}>
+              <SectionTitle title="Not signed" action={<Text style={styles.count}>{unsigned.length}</Text>} />
+              <Small>They can crew once they’ve signed the Road Rules.</Small>
+              <Card style={{ padding: 0, gap: 0 }}>
+                {unsigned.map((m, i) => (
+                  <UnsignedRow key={m.id} member={m} line={signoffLine(m, data, today)} last={i === unsigned.length - 1} />
+                ))}
+              </Card>
+            </Stack>
+          ) : null}
         </>
       )}
     </Screen>
@@ -191,6 +205,38 @@ function PickRow({
   );
 }
 
+/** Someone who could crew but hasn't signed the Road Rules: shown, not pickable, with their sign-off line. */
+function UnsignedRow({ member, line, last }: { member: Member; line: string; last: boolean }) {
+  const name = displayName(member);
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${name}${member.fullName !== name ? `, ${member.fullName}` : ''}, can’t be picked: ${line}`}
+      style={[styles.item, styles.row, last && { borderBottomWidth: 0 }]}
+    >
+      <View style={styles.dim}>
+        <Avatar text={initials(member)} size={40} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <Row style={{ gap: space.sm, flexWrap: 'nowrap' }}>
+          <Text numberOfLines={1} style={[type.name, { flexShrink: 1, color: colors.boneDim }]}>
+            {name}
+          </Text>
+          {member.roadName ? (
+            <Small numberOfLines={1} style={{ flexShrink: 1 }}>
+              {member.fullName}
+            </Small>
+          ) : null}
+        </Row>
+        <Row style={{ gap: 6 }}>
+          <Ionicons name="document-text-outline" size={14} color={colors.warn} />
+          <Text style={styles.unsignedLine}>{line}</Text>
+        </Row>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   ride: { ...type.name, color: colors.bone },
   rideDate: { fontFamily: fonts.stencil, color: colors.boneDim },
@@ -205,5 +251,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
   },
   dim: { opacity: 0.45 },
+  unsignedLine: { fontFamily: fonts.stencil, fontSize: 13, lineHeight: 18, letterSpacing: 0.4, color: colors.warn },
   error: { paddingHorizontal: space.md, paddingBottom: space.md },
 });

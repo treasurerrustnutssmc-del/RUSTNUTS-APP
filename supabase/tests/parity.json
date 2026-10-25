@@ -946,6 +946,79 @@
       "allowed": false
     },
     {
+      "name": "A member who never signed the Road Rules says they're going",
+      "as": "rusty",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "going",
+      "allowed": false
+    },
+    {
+      "name": "A member whose Road Rules sign-off ran out says they're going",
+      "as": "crank",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "going",
+      "allowed": false
+    },
+    {
+      "name": "A member whose Road Rules sign-off is due soon says they're going",
+      "as": "jet",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "going",
+      "allowed": true
+    },
+    {
+      "name": "A member who never signed the Road Rules says maybe",
+      "as": "rusty",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "maybe",
+      "allowed": true
+    },
+    {
+      "name": "A member who never signed the Road Rules says they can't make it",
+      "as": "rusty",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "no",
+      "allowed": true
+    },
+    {
+      "name": "With no Road Rules published, a member who never signed says they're going",
+      "as": "rusty",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "going",
+      "noRoadRules": true,
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member says they're going without signing the Road Rules",
+      "as": "hacker",
+      "action": "rsvp",
+      "ride": "future-west",
+      "answer": "going",
+      "allowed": true
+    },
+    {
+      "name": "A member who never signed the Road Rules says they're going to a cancelled ride",
+      "as": "rusty",
+      "action": "rsvp",
+      "ride": "cancelled-north",
+      "answer": "going",
+      "allowed": false
+    },
+    {
+      "name": "A member who never signed the Road Rules says they're going to a ride that already started",
+      "as": "rusty",
+      "action": "rsvp",
+      "ride": "past-club",
+      "answer": "going",
+      "allowed": false
+    },
+    {
       "name": "West Secretary opens a meeting check-in",
       "as": "torque",
       "action": "openCheckin",
@@ -1936,6 +2009,61 @@
       "action": "crew",
       "ride": "cancelled-north",
       "member": "spanner",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "A board member crews a member who never signed the Road Rules",
+      "as": "torque",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "rusty",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "A board member crews a member whose Road Rules sign-off ran out",
+      "as": "torque",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "crank",
+      "role": "road_captain",
+      "allowed": false
+    },
+    {
+      "name": "A board member crews a member whose Road Rules sign-off is due soon",
+      "as": "torque",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "jet",
+      "role": "officer",
+      "allowed": true
+    },
+    {
+      "name": "A member who never signed the Road Rules volunteers for the crew",
+      "as": "smokey",
+      "action": "crew",
+      "ride": "future-club",
+      "member": "smokey",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "With no Road Rules published, a board member crews a member who never signed",
+      "as": "torque",
+      "action": "crew",
+      "ride": "future-west",
+      "member": "rusty",
+      "role": "officer",
+      "noRoadRules": true,
+      "allowed": true
+    },
+    {
+      "name": "A board member crews an unsigned member who said they can't make it: the Road Rules come first",
+      "as": "rhys",
+      "action": "crew",
+      "ride": "future-club",
+      "member": "smokey",
       "role": "officer",
       "allowed": false
     },
@@ -4430,6 +4558,11 @@
       "ride": "future-club",
       "member": "jet",
       "answer": "going"
+    },
+    {
+      "ride": "future-club",
+      "member": "smokey",
+      "answer": "no"
     }
   ],
   "stage4": {
@@ -4692,11 +4825,28 @@
   "roadRulesSignoffs": [
     {
       "member": "torque",
-      "version": 2
+      "version": 2,
+      "signedDays": -5
     },
     {
       "member": "spanner",
-      "version": 1
+      "version": 1,
+      "signedDays": -60
+    },
+    {
+      "member": "kim",
+      "version": 2,
+      "signedDays": -30
+    },
+    {
+      "member": "jet",
+      "version": 2,
+      "signedDays": -350
+    },
+    {
+      "member": "crank",
+      "version": 1,
+      "signedDays": -400
     }
   ],
   "directs": [

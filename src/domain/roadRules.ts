@@ -8,7 +8,7 @@ import { byName } from './crew';
 import { expiryState, formatAuDate } from './dates';
 import { lastDay, melbourneDate } from './rides';
 import { routeChapterName, signedInProblem } from './routes';
-import type { ClubData, Member, Ride, RoadRulesVersion } from './types';
+import type { ClubData, Member, Ride, RoadRulesVersion, RsvpAnswer } from './types';
 
 /** The longest the Road Rules text can be, in characters (code points). */
 export const MAX_RULES_TEXT = 20000;
@@ -24,6 +24,9 @@ export const RULES_TOO_LONG = 'That’s too long (20000 characters at most).';
 export const CHANGES_TOO_LONG = 'Keep what changed to 500 characters at most.';
 export const NO_RULES = 'There are no Road Rules to sign yet.';
 export const SIGN_OUTDATED = 'The Road Rules changed while you had them open. Read the new version, then sign.';
+/** The Going gate: set_rsvp's refusal of Going, and set_crew's of an unsigned target. */
+export const SIGN_FIRST = 'Sign the Road Rules first.';
+export const CREW_NOT_SIGNED = 'They haven’t signed the Road Rules yet.';
 
 /** Whether an error is one of the two refusals that mean a newer version of the Road Rules is waiting to be loaded. */
 export function isRoadRulesVersionRefusal(e: unknown): boolean {
@@ -284,6 +287,24 @@ export const needsSigning = (state: RoadRulesState): boolean => state === 'unsig
 /** Whether `member` is one of the members askedToSign covers (so not Legacy, and not an applicant). */
 export function asksToSign(member: Member | null): boolean {
   return !!member && isAsked(member);
+}
+
+/**
+ * The Going gate: whether `member` must sign the Road Rules before saying Going or being put on a
+ * crew. That's someone who's asked to sign (approved, not Legacy) and is unsigned or expired at the
+ * Melbourne date `today`. Due soon still counts as signed, and with nothing published nobody is
+ * stopped. The database's set_rsvp and set_crew use private.road_rules_signed the same way.
+ */
+export function mustSignFirst(member: Member | null, data: ClubData, today: string): boolean {
+  return !!member && asksToSign(member) && needsSigning(roadRulesStatus(member, data, today).state);
+}
+
+/**
+ * Why `me` can't give this answer for the Road Rules, or null. Only Going is gated: Maybe and
+ * Can't make it always work. set_rsvp checks it after rsvpProblem's checks, so callers do too.
+ */
+export function goingProblem(me: Member | null, answer: RsvpAnswer, data: ClubData, today: string): string | null {
+  return answer === 'going' && mustSignFirst(me, data, today) ? SIGN_FIRST : null;
 }
 
 /**

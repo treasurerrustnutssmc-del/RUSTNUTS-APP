@@ -6,6 +6,7 @@ import { activePositions, isNational, managesChapterRides } from './access';
 import { daysBetween } from './dates';
 import { CREW_ROLES } from './labels';
 import { endOfFirstDay, melbourneDate } from './rides';
+import { CREW_NOT_SIGNED, mustSignFirst } from './roadRules';
 import type { ClubData, CrewRole, CrewSpot, Member, Ride } from './types';
 
 /** The chapter whose slug is the ride's category (North and West rides), if any. */
@@ -69,6 +70,8 @@ export function crewProblem(
   if (target.id !== me.id && !manages) return 'Only the board or ride committee can put someone else on the crew.';
   const eligibility = eligibilityProblem(target, role, ride, data);
   if (eligibility) return eligibility;
+  // Crewing makes them Going, so the Going gate applies to whoever is put on.
+  if (mustSignFirst(target, data, melbourneDate(now))) return CREW_NOT_SIGNED;
   if (target.id !== me.id && data.rsvps.some((r) => r.rideId === ride.id && r.memberId === target.id && r.answer === 'no')) {
     return 'They said they can’t make it.';
   }
@@ -152,22 +155,29 @@ export function crewNeeded(ride: Ride, crew: CrewSpot[]): boolean {
 export const byName = (a: Member, b: Member) =>
   (a.roadName ?? a.fullName).toLowerCase().localeCompare((b.roadName ?? b.fullName).toLowerCase());
 
-/** Who `me` can pick for a spot, in the three groups `pickList` lists in order. */
+/**
+ * Who `me` can pick for a spot, in the three groups `pickList` lists in order, and apart from them
+ * `unsigned`: members who could crew but haven't signed the Road Rules (or theirs ran out) at the
+ * Melbourne date `today`, by name, for the screen to show as unavailable.
+ */
 export function pickGroups(
   ride: Ride,
   role: CrewRole,
   me: Member,
   data: ClubData,
-): { going: Member[]; holders: Member[]; rest: Member[]; chapterId: string } {
+  today: string = melbourneDate(new Date().toISOString()),
+): { going: Member[]; holders: Member[]; rest: Member[]; unsigned: Member[]; chapterId: string } {
   const chapterId = rideChapterId(ride, data) ?? me.chapterId;
   const answer = (m: Member) => data.rsvps.find((r) => r.rideId === ride.id && r.memberId === m.id)?.answer;
   const holds = (m: Member) =>
     activePositions(m.id, data.positions).some((p) => p.role === role && p.chapterId === chapterId);
-  const eligible = data.members.filter((m) => answer(m) !== 'no' && eligibilityProblem(m, role, ride, data) === null);
+  const could = data.members.filter((m) => answer(m) !== 'no' && eligibilityProblem(m, role, ride, data) === null);
+  const eligible = could.filter((m) => !mustSignFirst(m, data, today));
   return {
     going: eligible.filter((m) => answer(m) === 'going').sort(byName),
     holders: eligible.filter((m) => answer(m) !== 'going' && holds(m)).sort(byName),
     rest: eligible.filter((m) => answer(m) !== 'going' && !holds(m)).sort(byName),
+    unsigned: could.filter((m) => mustSignFirst(m, data, today)).sort(byName),
     chapterId,
   };
 }
@@ -175,10 +185,11 @@ export function pickGroups(
 /**
  * Who `me` can pick for a spot: eligible members, those going first, then standing holders of the
  * same position (in the ride's chapter for a North or West ride, otherwise in `me`'s), then the
- * rest. Each group is by road name. Members who said they can't make it are left out.
+ * rest. Each group is by road name. Members who said they can't make it, or who must sign the
+ * Road Rules first, are left out.
  */
-export function pickList(ride: Ride, role: CrewRole, me: Member, data: ClubData): Member[] {
-  const { going, holders, rest } = pickGroups(ride, role, me, data);
+export function pickList(ride: Ride, role: CrewRole, me: Member, data: ClubData, today?: string): Member[] {
+  const { going, holders, rest } = pickGroups(ride, role, me, data, today);
   return [...going, ...holders, ...rest];
 }
 

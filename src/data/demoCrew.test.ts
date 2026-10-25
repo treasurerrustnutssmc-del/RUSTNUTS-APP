@@ -31,12 +31,13 @@ const refusal = (fn: () => unknown): string => {
   throw new Error('was allowed');
 };
 
+// Diesel never signed the Road Rules (the demo keeps him to show the Going gate), so these put Sparks on.
 test('a manager puts a member on the crew, and they are going', () => {
-  const data = setCrew(ctxFor('m-torque'), 'r-1', 'm-diesel', 'road_captain');
-  assert.deepEqual(spotsOf(data), ['m-diesel:road_captain']);
+  const data = setCrew(ctxFor('m-torque'), 'r-1', 'm-sparks', 'road_captain');
+  assert.deepEqual(spotsOf(data), ['m-sparks:road_captain']);
   assert.equal(data.crew![0].assignedBy, 'm-torque');
   assert.equal(data.crew![0].assignedAt, NOW);
-  assert.equal(answerOf(data, 'm-diesel'), 'going');
+  assert.equal(answerOf(data, 'm-sparks'), 'going');
 });
 
 test('a member volunteers themselves, and a maybe becomes going', () => {
@@ -64,14 +65,14 @@ test('moving to another spot replaces your old one', () => {
 });
 
 test('crew on other rides are left alone', () => {
-  const data = setCrew(ctxFor('m-torque', [spot('m-diesel', 'road_captain', 'r-4')]), 'r-1', 'm-diesel', 'road_captain');
-  assert.deepEqual(spotsOf(data, 'r-4'), ['m-diesel:road_captain']);
-  assert.deepEqual(spotsOf(data, 'r-1'), ['m-diesel:road_captain']);
+  const data = setCrew(ctxFor('m-torque', [spot('m-sparks', 'road_captain', 'r-4')]), 'r-1', 'm-sparks', 'road_captain');
+  assert.deepEqual(spotsOf(data, 'r-4'), ['m-sparks:road_captain']);
+  assert.deepEqual(spotsOf(data, 'r-1'), ['m-sparks:road_captain']);
 });
 
 test('the action is pure: the club it was given is not changed', () => {
   const ctx = ctxFor('m-torque');
-  setCrew(ctx, 'r-1', 'm-diesel', 'road_captain');
+  setCrew(ctx, 'r-1', 'm-sparks', 'road_captain');
   assert.deepEqual(ctx.data.crew, []);
 });
 
@@ -122,9 +123,9 @@ test('leave refusals pass leaveProblem’s words through', () => {
 });
 
 test('the shared parity cases can drive the crew actions', () => {
-  const data = runDemoAction(ctxFor('m-torque'), { action: 'crew', ride: 'r-1', member: 'm-diesel', role: 'road_captain' });
-  assert.deepEqual(spotsOf(data), ['m-diesel:road_captain']);
-  const left = runDemoAction(ctxFor('m-diesel', data.crew), { action: 'leaveCrew', ride: 'r-1', member: 'm-diesel' });
+  const data = runDemoAction(ctxFor('m-torque'), { action: 'crew', ride: 'r-1', member: 'm-sparks', role: 'road_captain' });
+  assert.deepEqual(spotsOf(data), ['m-sparks:road_captain']);
+  const left = runDemoAction(ctxFor('m-sparks', data.crew), { action: 'leaveCrew', ride: 'r-1', member: 'm-sparks' });
   assert.deepEqual(spotsOf(left), []);
 });
 
