@@ -56,7 +56,7 @@ import {
   waiveProblem,
 } from '../domain/fees';
 import { decideApplicationProblem, fngReviewProblem } from '../domain/joining';
-import { recordAgmProblem } from '../domain/clubYear';
+import { agmDateProblem, recordAgmProblem } from '../domain/clubYear';
 import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
 // Lane E: offline
@@ -586,7 +586,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       return (r.data as number) ?? 0;
     },
     recordAgm: async (heldOn) => {
-      deny(recordAgmProblem(visibleMe, data.positions));
+      deny(recordAgmProblem(visibleMe, data.positions) ?? agmDateProblem(heldOn));
       ok(await supabase().rpc('record_agm', { p_held_on: heldOn }));
       await after();
     },

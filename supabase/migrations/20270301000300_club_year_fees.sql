@@ -29,10 +29,13 @@ returns int language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Whole months left in that club year for someone patched on that date, counting the month they
--- were patched, up to the next AGM's month. 12 (the full year) when patched on or before the AGM.
+-- were patched, up to the next AGM's month. 12 (the full year) when patched on or before the AGM
+-- or in its month; 0 when patched after the year ended.
 create or replace function private.pro_rata_months(p_patched date, p_year int)
 returns int language sql stable security definer set search_path = '' as $$
-  select case when p_patched is null or p_patched <= private.agm_on(p_year) then 12
+  select case when p_patched is null or p_patched <= private.agm_on(p_year)
+                   or date_trunc('month', p_patched) = date_trunc('month', private.agm_on(p_year)) then 12
+              when p_patched >= private.agm_on(p_year + 1) then 0
               else least(12, greatest(1,
                 (extract(year from private.agm_on(p_year + 1))::int * 12 + extract(month from private.agm_on(p_year + 1))::int)
                 - (extract(year from p_patched)::int * 12 + extract(month from p_patched)::int)))
@@ -65,6 +68,7 @@ begin
     raise exception 'Only the National Chairman or Secretary records the AGM.';
   end if;
   if p_held_on is null then raise exception 'Pick the AGM date.'; end if;
+  if extract(month from p_held_on) < 7 then raise exception 'The AGM is held between July and December.'; end if;
   insert into public.agms (year, held_on, recorded_by) values (extract(year from p_held_on)::int, p_held_on, auth.uid())
   on conflict (year) do update set held_on = excluded.held_on, recorded_by = excluded.recorded_by, recorded_at = now();
 end;
@@ -90,6 +94,7 @@ begin
   join public.fee_rates r on r.chapter_id = m.chapter_id and r.fy = p_fy and r.status = m.status
   cross join lateral (select case when m.status = 'full' then private.pro_rata_months(m.patched_on, p_fy) else 12 end as months) pr
   where m.chapter_id = p_chapter and m.approval = 'approved' and not m.on_hiatus
+    and pr.months > 0 -- patched after that year ended
   on conflict (member_id, fy, kind) where kind in ('annual', 'continuation') do nothing;
   get diagnostics n = row_count;
   return n;
@@ -126,7 +131,7 @@ declare
   target public.members%rowtype;
   due record;
   today date := private.club_date();
-  fng_fee int;
+  full_fee int;
 begin
   if me is null then raise exception 'Sign in first.'; end if;
   if p_member = me then raise exception 'You can’t record your own review.'; end if;
@@ -159,15 +164,16 @@ begin
   elsif p_outcome = 'not_continuing' then
     update public.members set status = 'supporter', updated_at = now() where id = p_member;
   elsif p_at_months >= 12 and not target.on_hiatus then
-    -- Past twelve months, carrying on as an FNG costs half the chapter's FNG fee for the year,
+    -- Past twelve months, carrying on as an FNG costs half the chapter's Full fee for the club year
+    -- (Jeff, 25 Oct 2026: "half the full member fee"),
     -- once ever (4.11). Members on hiatus don't pay.
-    select amount_cents into fng_fee from public.fee_rates
-    where chapter_id = target.chapter_id and fy = private.club_year_of(today) and status = 'fng';
-    if fng_fee / 2 > 0 and not exists (
+    select amount_cents into full_fee from public.fee_rates
+    where chapter_id = target.chapter_id and fy = private.club_year_of(today) and status = 'full';
+    if full_fee / 2 > 0 and not exists (
       select 1 from public.charges where member_id = p_member and kind = 'continuation'
     ) then
       insert into public.charges (member_id, chapter_id, fy, kind, description, amount_cents, due_on, raised_by)
-      values (p_member, target.chapter_id, private.club_year_of(today), 'continuation', 'FNG continuation fee', fng_fee / 2,
+      values (p_member, target.chapter_id, private.club_year_of(today), 'continuation', 'FNG continuation fee', full_fee / 2,
               today + 30, me);
     end if;
   end if;
@@ -193,6 +199,16 @@ returns jsonb language sql stable security invoker set search_path = '' as $$
   );
 $$;
 
+create or replace function public.set_continuation_fee(p_chapter uuid, p_fy int, p_amount_cents int)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not private.can_set_fees(p_chapter) then
+    raise exception 'Only that chapter’s board sets its fees.';
+  end if;
+  raise exception 'The continuation fee is half the Full fee (4.11), so the app works it out.';
+end;
+$$;
+
 -- Someone becoming Full (from anything but Nomad) is charged that club year's Full fee, pro rata,
 -- if it's set and they have no fee for the year yet. One trigger, so every way in is covered
 -- (an FNG review, a status change, an NEC reinstatement). Members on hiatus don't pay.
@@ -207,7 +223,8 @@ begin
   if old.status in ('full', 'nomad') or new.approval <> 'approved' or new.on_hiatus then return new; end if;
   select * into r from public.fee_rates where chapter_id = new.chapter_id and fy = yr and status = 'full';
   if not found then return new; end if;
-  months := private.pro_rata_months(coalesce(new.patched_on, today), yr);
+  -- From today: a reinstated member keeps their old patched_on.
+  months := private.pro_rata_months(today, yr);
   insert into public.charges (member_id, chapter_id, fy, kind, description, amount_cents, due_on, raised_by)
   values (new.id, new.chapter_id, yr, 'annual', private.pro_rata_note(months), private.pro_rata_cents(r.amount_cents, months),
           greatest(r.due_on, today + 30), auth.uid())

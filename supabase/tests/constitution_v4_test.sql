@@ -197,7 +197,7 @@ begin
   assert (select status from members where id = fred) = 'full', 'Fred is Full';
 end $$;
 
-\echo 'The continuation fee is half the FNG fee, charged once ever, and nobody types it in'
+\echo 'The continuation fee is half the Full fee, charged once ever, and nobody types it in'
 do $$
 declare
   sec constant uuid := '00000000-0000-0000-0000-0000000000a1';
@@ -207,10 +207,10 @@ declare
   zed uuid := '00000000-0000-0000-0000-0000000000c1';
 begin
   assert pg_temp.try_as(tre, format('select public.set_continuation_fee(%L, %s, 5000)', west, fy))
-    = 'The continuation fee is half the FNG fee (4.11), so the app works it out.', 'not by hand';
+    = 'The continuation fee is half the Full fee (4.11), so the app works it out.', 'not by hand';
   assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a3', format('select public.set_continuation_fee(%L, %s, 5000)', west, fy))
     = 'Only that chapter’s board sets its fees.', 'not a member either';
-  assert pg_temp.try_as(tre, format($q$select public.set_fee_rate(%L, %s, 'fng', 25001, %L)$q$, west, fy, private.club_date() + 30)) is null, 'FNG fee';
+  assert pg_temp.try_as(tre, format($q$select public.set_fee_rate(%L, %s, 'full', 25001, %L)$q$, west, fy, private.club_date() + 30)) is null, 'Full fee';
 
   insert into auth.users (id, email, email_confirmed_at) values (zed, 'zed@example.com', now());
   insert into members (id, chapter_id, full_name, status, approval, fng_started_on)

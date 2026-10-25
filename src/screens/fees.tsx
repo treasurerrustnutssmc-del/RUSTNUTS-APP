@@ -471,7 +471,7 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
         ))}
       </View>
       <Small>
-        {`The FNG continuation fee is half the FNG fee, charged once when a review past twelve months says carry on (4.11)${cont !== null ? `: ${formatCents(cont)} this year` : ''}.`}
+        {`The FNG continuation fee is half the Full fee, charged once when a review past twelve months says carry on (4.11)${cont !== null ? `: ${formatCents(cont)} this year` : ''}.`}
       </Small>
       <Field label="Due by" value={due.text} onChangeText={due.setText} keyboardType="number-pad" error={due.error} />
       {error ? <Notice tone="danger">{error}</Notice> : null}

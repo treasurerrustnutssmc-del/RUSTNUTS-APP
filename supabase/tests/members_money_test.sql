@@ -182,10 +182,10 @@ declare
   west uuid := (select id from chapters where slug = 'west');
 begin
   assert (select at_months from private.fng_due(fred)) = 12, 'the 12-month review is due';
-  -- The continuation fee is half the FNG fee (constitution v4 4.11).
-  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a2', format($q$select public.set_fee_rate(%L, %s, 'fng', 15000, %L)$q$, west, private.club_year_of(private.club_date()), private.club_date() + 30)) is null, 'FNG fee set';
+  -- The continuation fee is half the Full fee (4.11; Jeff, 25 Oct 2026).
+  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a2', format($q$select public.set_fee_rate(%L, %s, 'full', 15000, %L)$q$, west, private.club_year_of(private.club_date()), private.club_date() + 30)) is null, 'Full fee set';
   assert pg_temp.try_as(sec, format($q$select public.record_fng_review(%L, 12, 'continue', 6, 0, 0, null)$q$, fred)) is null, 'reviewed';
-  assert (select count(*) from charges where member_id = fred and kind = 'continuation' and amount_cents = 7500) = 1, 'half the FNG fee raised';
+  assert (select count(*) from charges where member_id = fred and kind = 'continuation' and amount_cents = 7500) = 1, 'half the Full fee raised';
   assert (select at_months from private.fng_due(fred)) = 15, 'next is the 15-month review';
   assert pg_temp.try_as(sec, format($q$select public.record_fng_review(%L, 12, 'continue', 6, 0, 0, null)$q$, fred))
     = 'Record the review that’s due.', 'not the same review twice';
@@ -292,7 +292,7 @@ begin
   assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a2', $q$select public.record_agm('2031-08-20')$q$) = 'Only the National Chairman or Secretary records the AGM.', 'not a treasurer';
   assert pg_temp.try_as(chair, $q$select public.record_agm('2031-08-20')$q$) is null, 'the chairman records it';
   assert pg_temp.try_as(chair, $q$select public.record_agm('2031-08-25')$q$) is null, 'and can correct it';
-  assert (select count(*) from agms) = 1 and private.agm_on(2031) = date '2031-08-25', 'one AGM a year, corrected';
+  assert (select count(*) from agms where year = 2031) = 1 and private.agm_on(2031) = date '2031-08-25', 'one AGM a year, corrected';
   assert private.club_year_of(date '2031-08-24') = 2030 and private.club_year_of(date '2031-08-25') = 2031, 'by the recorded AGM';
   assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a4', $q$select jsonb_array_length(public.members_money()->'agms')$q$) = '1', 'members see it';
   assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a8', 'select count(*) from public.agms') = '0', 'a stranger doesn''t';
@@ -301,6 +301,10 @@ begin
   assert private.pro_rata_months(date '2031-10-15', 2031) = 10, 'October to August';
   assert private.pro_rata_months(date '2031-08-25', 2031) = 12 and private.pro_rata_months(date '2031-08-28', 2031) = 12, 'the AGM day and month are a full year';
   assert private.pro_rata_months(date '2020-01-01', 2031) = 12, 'patched before the year';
+  assert private.pro_rata_months(date '2032-08-05', 2031) = 0, 'patched after the year ended';
+  insert into agms (year, held_on) values (2032, date '2032-07-25');
+  assert private.pro_rata_months(date '2031-08-28', 2031) = 12 and private.pro_rata_months(date '2031-10-15', 2031) = 9, 'an earlier next AGM';
+  assert pg_temp.try_as(chair, $q$select public.record_agm('2033-06-30')$q$) = 'The AGM is held between July and December.', 'not before July';
   assert private.pro_rata_cents(36000, 10) = 30000 and private.pro_rata_cents(10000, 10) = 8300 and private.pro_rata_cents(36000, 12) = 36000, 'cents';
 
   -- Raising fees: pro rata for someone patched this club year, the full year for everyone else.
@@ -312,8 +316,10 @@ begin
 
   -- Being patched in later adds the fee once; not from Nomad, and not on hiatus.
   update members set status = 'full', patched_on = make_date(yr, 10, 15) where id = '00000000-0000-0000-0000-0000000000c2';
-  assert (select (amount_cents, description, due_on >= private.club_date() + 30) = (30000, 'Pro rata, 10 of 12 months', true)
-          from charges where member_id = '00000000-0000-0000-0000-0000000000c2' and fy = yr and kind = 'annual'), 'patch-in fee';
+  -- From the day they become Full, whatever patched_on says (a reinstated member keeps their old one).
+  assert (select (amount_cents, description is not distinct from private.pro_rata_note(private.pro_rata_months(private.club_date(), yr)), due_on >= private.club_date() + 30)
+                 = (private.pro_rata_cents(36000, private.pro_rata_months(private.club_date(), yr)), true, true)
+          from charges where member_id = '00000000-0000-0000-0000-0000000000c2' and fy = yr and kind = 'annual'), 'patch-in fee, pro rata from today';
   update members set status = 'supporter' where id = '00000000-0000-0000-0000-0000000000c2';
   update members set status = 'full' where id = '00000000-0000-0000-0000-0000000000c2';
   assert (select count(*) from charges where member_id = '00000000-0000-0000-0000-0000000000c2') = 1, 'once';

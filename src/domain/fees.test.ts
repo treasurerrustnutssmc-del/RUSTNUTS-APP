@@ -113,13 +113,13 @@ test('setting fees', () => {
   assert.equal(feeRateProblem(who(data, 'auditor'), 'west', 'full', 25000, data), SET_FEES_ONLY);
   assert.equal(feeRateProblem(who(data, 'rider'), 'west', 'full', 25000, data), SET_FEES_ONLY);
   assert.equal(feeRateProblem(null, 'west', 'full', 25000, data), SET_FEES_ONLY);
-  assert.equal(continuationFeeProblem(who(data, 'sec'), 'west', 5000, data), 'The continuation fee is half the FNG fee (4.11), so the app works it out.');
+  assert.equal(continuationFeeProblem(who(data, 'sec'), 'west', 5000, data), 'The continuation fee is half the Full fee (4.11), so the app works it out.');
   assert.equal(feeRateProblem(tre, 'west', 'legacy', 25000, data), 'That status doesn’t pay fees.');
   assert.equal(feeRateProblem(tre, 'west', 'introduced', 25000, data), 'That status doesn’t pay fees.');
   assert.equal(feeRateProblem(tre, 'west', 'full', 0, data), 'Enter an amount over $0.');
   assert.equal(feeRateProblem(tre, 'west', 'full', 12.5, data), 'Enter an amount over $0.');
   // Half the FNG fee, worked out by the app (constitution v4 4.11): nobody types it in.
-  assert.equal(continuationFeeProblem(tre, 'west', 5000, data), 'The continuation fee is half the FNG fee (4.11), so the app works it out.');
+  assert.equal(continuationFeeProblem(tre, 'west', 5000, data), 'The continuation fee is half the Full fee (4.11), so the app works it out.');
   assert.equal(continuationFeeProblem(who(data, 'rider'), 'west', 5000, data), SET_FEES_ONLY);
   assert.equal(paymentDetailsProblem(tre, 'west', data), null);
   assert.equal(paymentDetailsProblem(who(data, 'northsec'), 'west', data), MONEY_ONLY);

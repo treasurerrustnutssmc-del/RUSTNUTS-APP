@@ -1589,7 +1589,7 @@
       "allowed": false
     },
     {
-      "name": "Treasurer types in a continuation fee (it’s half the FNG fee now)",
+      "name": "Treasurer types in a continuation fee (it’s half the Full fee now)",
       "as": "penny",
       "action": "setContinuationFee",
       "chapter": "west",
@@ -1668,21 +1668,28 @@
       "name": "National Chairman records the AGM",
       "as": "chair",
       "action": "recordAgm",
-      "heldOnDays": -60,
+      "heldOn": "2026-08-20",
       "allowed": true
     },
     {
       "name": "National Secretary records the AGM",
       "as": "lou",
       "action": "recordAgm",
-      "heldOnDays": -60,
+      "heldOn": "2026-08-20",
       "allowed": true
     },
     {
       "name": "A chapter treasurer can't record the AGM",
       "as": "penny",
       "action": "recordAgm",
-      "heldOnDays": -60,
+      "heldOn": "2026-08-20",
+      "allowed": false
+    },
+    {
+      "name": "An AGM date before July is refused",
+      "as": "chair",
+      "action": "recordAgm",
+      "heldOn": "2026-06-30",
       "allowed": false
     },
     {

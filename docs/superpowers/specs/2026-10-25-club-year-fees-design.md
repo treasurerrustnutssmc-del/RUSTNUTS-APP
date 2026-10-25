@@ -38,3 +38,11 @@ Status: approved by Claude 25 Oct 2026 (Jeff can veto). Architectural: it change
 - Domain (node:test): clubYearOf on, before and after a recorded AGM and the 1 August default; label; proRataCents (Oct to Aug = 10/12 → $300; patched on the AGM day = full; AGM month after the AGM = full; rounding to the dollar; patched before the year = full).
 - Demo actions: raise fees pro rata; patch-in adds a charge once; no charge without a Full rate; on hiatus pays nothing.
 - Database (members_money_test, parity): the same, plus record_agm is NEC Chair/Secretary only, the trigger fires once, and receipts use the club year.
+
+## Changed after Jeff's follow-up and review (25 Oct 2026)
+
+- Jeff: "That should read half the full member fee after 12 months, everyone else is free." The FNG continuation fee is now half the chapter's **Full** fee for the club year ($180), and only Full members have a yearly rate. Live gets no rate for any other status.
+- The patch-in charge counts from the day someone becomes Full, not from `patched_on`, because a reinstated member keeps their old patch date.
+- Pro rata is the full year when the patch falls in the AGM's own month, even if the next AGM is recorded in an earlier month. It is nothing when the patch was after that year ended, and Raise fees skips those members.
+- An AGM date must fall between July and December ("The AGM is held between July and December.").
+- Known and left: Raise fees still goes by `patched_on`, so a reinstated member who is charged by Raise fees, rather than by the trigger, pays the full year. With only Full members paying, nobody holds a different annual charge that would block the Full one.

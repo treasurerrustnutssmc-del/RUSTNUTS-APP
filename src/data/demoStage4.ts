@@ -3,7 +3,7 @@
 // the same words as the database's actions (checked by src/data/parity.test.ts).
 
 import { checkInProblem, closeProblem, canRunCheckin, markProblem, newCode, normalizeCode, openCheckinProblem, rideChapterId, type OpenCheckinInput } from '../domain/attendance';
-import { clubYearOf, proRata, proRataNote, recordAgmProblem } from '../domain/clubYear';
+import { agmDateProblem, clubYearOf, proRata, proRataNote, recordAgmProblem } from '../domain/clubYear';
 import { addDays } from '../domain/dates';
 import {
   claimProblem,
@@ -152,7 +152,7 @@ export function recordFngReview(ctx: DemoCtx, memberId: string, atMonths: number
         : m,
     ),
   };
-  // Past twelve months, carrying on costs half the chapter's FNG fee for the year, once ever
+  // Past twelve months, carrying on costs half the chapter's Full fee for the year, once ever
   // (constitution v4 4.11), and nothing while on hiatus.
   data = withPatchInFee(ctx, memberId, data);
   const fy = clubYearOf(ctx.today, ctx.data.agms);
@@ -210,6 +210,7 @@ export function raiseFees(ctx: DemoCtx, chapterId: string, fy: number): { data: 
     if (!rate || charges.some((c) => c.memberId === m.id && c.fy === fy && c.kind === 'annual')) continue;
     // A Full member patched after this year's AGM pays for the months left (Jeff, 25 Oct 2026).
     const { cents, months } = m.status === 'full' && m.patchedOn ? proRata(rate.amountCents, m.patchedOn, fy, ctx.data.agms) : { cents: rate.amountCents, months: 12 };
+    if (months === 0) continue; // patched after that year ended
     charges.push({
       id: newId('c'), memberId: m.id, chapterId, fy, kind: 'annual', description: proRataNote(months), amountCents: cents,
       dueOn: rate.dueOn, createdAt: nowOf(ctx), waivedAt: null,
@@ -222,7 +223,7 @@ export function raiseFees(ctx: DemoCtx, chapterId: string, fy: number): { data: 
 /** Records (or corrects) the date of a year's AGM, which starts that club year. */
 export function recordAgm(ctx: DemoCtx, heldOn: string): ClubData {
   deny(recordAgmProblem(ctx.me, ctx.data.positions));
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(heldOn)) throw new Error('Pick the AGM date.');
+  deny(agmDateProblem(heldOn));
   const year = Number(heldOn.slice(0, 4));
   return { ...ctx.data, agms: [...(ctx.data.agms ?? []).filter((a) => a.year !== year), { year, heldOn }] };
 }

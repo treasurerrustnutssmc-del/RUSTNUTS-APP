@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { agmAssumed, agmOn, clubYearLabel, clubYearOf, patchInCharge, proRata, recordAgmProblem, RECORD_AGM_ONLY } from './clubYear';
+import { AGM_MONTHS, agmAssumed, agmDateProblem, agmOn, clubYearLabel, clubYearOf, patchInCharge, proRata, recordAgmProblem, RECORD_AGM_ONLY } from './clubYear';
 import type { ClubData, Member, Position } from './types';
 
 const agms = [{ year: 2026, heldOn: '2026-08-20' }];
@@ -45,6 +45,16 @@ const data = (over: Partial<ClubData> = {}): ClubData => ({
   ...over,
 } as ClubData);
 
+test('a recorded next AGM in an earlier month still makes the AGM month a full year', () => {
+  const both = [{ year: 2026, heldOn: '2026-08-20' }, { year: 2027, heldOn: '2027-07-25' }];
+  assert.deepEqual(proRata(36000, '2026-08-25', 2026, both), { cents: 36000, months: 12 });
+  assert.deepEqual(proRata(36000, '2026-10-15', 2026, both), { cents: 27000, months: 9 });
+});
+
+test('patched after the year ended owes nothing for it', () => {
+  assert.deepEqual(proRata(36000, '2027-08-05', 2026, agms), { cents: 0, months: 0 });
+});
+
 test('being patched in adds that year’s Full fee, pro rata', () => {
   const before = member({});
   const after = member({ status: 'full', patchedOn: '2026-10-15' });
@@ -52,6 +62,11 @@ test('being patched in adds that year’s Full fee, pro rata', () => {
     memberId: 'fred', chapterId: 'west', fy: 2026, kind: 'annual', description: 'Pro rata, 10 of 12 months',
     amountCents: 30000, dueOn: '2026-12-31', waivedAt: null,
   });
+});
+
+test('a reinstated member pays pro rata from the day they’re Full again, not their old patch date', () => {
+  const after = member({ status: 'full', patchedOn: '2020-04-18' });
+  assert.equal(patchInCharge(member({ status: 'supporter', patchedOn: '2020-04-18' }), after, data(), '2026-10-15')?.amountCents, 30000);
 });
 
 test('a patch-in late in the year is due 30 days on, not on a date already gone', () => {
@@ -78,4 +93,12 @@ test('only the National Chairman or Secretary records the AGM', () => {
   assert.equal(recordAgmProblem(me, pos('treasurer')), RECORD_AGM_ONLY);
   assert.equal(recordAgmProblem(null, []), RECORD_AGM_ONLY);
   assert.equal(RECORD_AGM_ONLY, 'Only the National Chairman or Secretary records the AGM.');
+});
+
+test('an AGM date has to fall between July and December', () => {
+  assert.equal(agmDateProblem('2026-08-20'), null);
+  assert.equal(agmDateProblem('2026-12-31'), null);
+  assert.equal(agmDateProblem('2026-06-30'), AGM_MONTHS);
+  assert.equal(agmDateProblem('nonsense'), 'Pick the AGM date.');
+  assert.equal(AGM_MONTHS, 'The AGM is held between July and December.');
 });

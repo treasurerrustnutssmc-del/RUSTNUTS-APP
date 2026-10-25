@@ -224,7 +224,7 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
           ) : outcome === 'not_continuing' ? (
             <Small>They stay with the club as a Supporter.</Small>
           ) : outcome === 'continue' && due.atMonths >= 12 && fee !== null && !paidContinuation && !member.onHiatus ? (
-            <Small>{`Past twelve months, carrying on adds the one-off ${formatCents(fee)} continuation fee, half the FNG fee (4.11).`}</Small>
+            <Small>{`Past twelve months, carrying on adds the one-off ${formatCents(fee)} continuation fee, half the Full fee (4.11).`}</Small>
           ) : null}
           <VotesFields onChange={setVotes} />
           <Field label="Note for the board" value={note} onChangeText={setNote} multiline maxLength={500} hint="Only the board sees this." />
