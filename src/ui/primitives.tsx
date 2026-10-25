@@ -226,10 +226,15 @@ export function SectionTitle({ title, action }: { title: string; action?: React.
 
 type ChipTone = 'red' | 'redOutline' | 'steel' | 'bone' | 'ok' | 'warn' | 'danger';
 
-export function Chip({ label, tone = 'steel', icon }: { label: string; tone?: ChipTone; icon?: IconName }) {
+/**
+ * A small stencil label. `active` is for a chip inside a Pressable: pressed or hovered, a steel chip
+ * lifts to steelHi with a stronger edge (its opaque fill would hide the Pressable's own highlight).
+ */
+export function Chip({ label, tone = 'steel', icon, active = false }: { label: string; tone?: ChipTone; icon?: IconName; active?: boolean }) {
   const t = chipTones[tone];
+  const lift = active && tone === 'steel' ? { backgroundColor: colors.steelHi, borderColor: colors.lineStrong } : null;
   return (
-    <View style={[styles.chip, { backgroundColor: t.bg, borderColor: t.border }]}>
+    <View style={[styles.chip, { backgroundColor: t.bg, borderColor: t.border }, lift]}>
       {icon ? <Ionicons name={icon} size={11} color={t.fg} /> : null}
       <Text style={[styles.chipText, { color: t.fg }]}>{label}</Text>
     </View>

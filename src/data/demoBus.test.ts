@@ -150,7 +150,7 @@ test('the demo: a Waiting request of Spanner’s whose days passed without an an
 });
 
 test('the demo: a Booked charity ride whose ride moved, holding the bus on the new ride’s day', () => {
-  const held = bookings().filter((b) => rideCalledOff(b, DEMO_DATA));
+  const held = bookings().filter((b) => rideCalledOff(b, DEMO_DATA, TODAY));
   assert.equal(held.length, 1);
   const [b] = held;
   assert.equal(b.status, 'approved');

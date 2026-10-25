@@ -123,7 +123,7 @@ function BookingRow({
   onPress: () => void;
 }) {
   const ride = busRide(booking, data);
-  const calledOff = rideCalledOff(booking, data);
+  const calledOff = rideCalledOff(booking, data, today);
   const days = formatDays(booking.firstDay, booking.lastDay);
   const label = [days, showStatus ? busShownStatus(booking, today) : null, meta, ride?.title, calledOff ? RIDE_CALLED_OFF : null, extraLabel];
   return (
@@ -356,7 +356,7 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
   }
 
   const ride = busRide(booking, data);
-  const calledOff = rideCalledOff(booking, data);
+  const calledOff = rideCalledOff(booking, data, today);
   const name = (id: string | null) => busPersonName(id, data);
   const length = daysBetween(booking.firstDay, booking.lastDay) + 1;
   const waiting = booking.status === 'requested';

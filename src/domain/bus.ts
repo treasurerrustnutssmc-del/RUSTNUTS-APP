@@ -340,11 +340,20 @@ export function busOverRide(ride: Ride, data: ClubData): BusBooking | undefined 
   return clashesWith(rideRange(ride), data).find((b) => b.rideId !== ride.id);
 }
 
-/** The ride screen's chip: "Rusty Bus booked", with the booking's days when they aren't exactly the ride's. */
+/**
+ * The ride screen's chip: "Rusty Bus booked" or "Rusty Bus asked for" ("still booked" and "still
+ * asked for" on a cancelled ride), with the booking's days when they aren't exactly the ride's.
+ */
 export function busChipLabel(booking: BusBooking, ride: Ride): string {
-  const label = booking.status === 'approved' ? 'Rusty Bus booked' : 'Rusty Bus asked for';
+  const still = ride.cancelledAt ? ' still' : '';
+  const label = booking.status === 'approved' ? `Rusty Bus${still} booked` : `Rusty Bus${still} asked for`;
   const own = rideRange(ride);
   return booking.firstDay === own.first && booking.lastDay === own.last ? label : `${label} ${formatDays(booking.firstDay, booking.lastDay)}`;
+}
+
+/** The chip's tone: green for Booked, amber for asked for, and amber for anything held on a cancelled ride. */
+export function busChipTone(booking: BusBooking, ride: Ride): 'ok' | 'warn' {
+  return booking.status === 'approved' && !ride.cancelledAt ? 'ok' : 'warn';
 }
 
 /** Who can drive: every approved member, by name. */
@@ -363,11 +372,12 @@ export function busRide(booking: BusBooking, data: ClubData): Ride | undefined {
 }
 
 /**
- * Whether a Booked or Waiting booking's ride is on the calendar but cancelled. The sync cancels a
- * ride and adds a new one when its time moves, so this also means "moved". A booking already off
- * isn't flagged (there's nothing left to do), nor is one whose ride isn't loaded (live loads rides
- * from today on): its ride line just goes.
+ * Whether a Booked or Waiting booking whose days aren't over has a ride on the calendar that's
+ * cancelled. The sync cancels a ride and adds a new one when its time moves, so this also means
+ * "moved". Only bookings someone can still act on are flagged: not one already off, nor one whose
+ * days have passed (Not answered included). Nor one whose ride isn't loaded (live loads rides from
+ * today on): its ride line just goes.
  */
-export function rideCalledOff(booking: BusBooking, data: ClubData): boolean {
-  return isLive(booking) && !!busRide(booking, data)?.cancelledAt;
+export function rideCalledOff(booking: BusBooking, data: ClubData, today: string): boolean {
+  return isLive(booking) && booking.lastDay >= today && !!busRide(booking, data)?.cancelledAt;
 }

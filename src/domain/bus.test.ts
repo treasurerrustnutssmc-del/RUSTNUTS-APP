@@ -32,6 +32,7 @@ import {
   bookedStraightAway,
   busDrivers,
   busChipLabel,
+  busChipTone,
   busForRide,
   busMonthLabel,
   busOverRide,
@@ -619,14 +620,20 @@ test('a Booked or Waiting booking whose linked ride was cancelled is flagged as 
   assert.equal(RIDE_CALLED_OFF, 'The ride was called off or moved.');
   assert.equal(RIDE_CALLED_OFF_HINT, 'Cancel this booking if the bus isn’t needed, or book again for the new ride.');
   const d = data();
-  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone' }), d), true);
-  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-1' }), d), false);
-  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: null }), d), false, 'no ride');
-  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-missing' }), d), false, 'a ride not loaded just loses its line');
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone' }), d, TODAY), true);
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-1' }), d, TODAY), false);
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: null }), d, TODAY), false, 'no ride');
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-missing' }), d, TODAY), false, 'a ride not loaded just loses its line');
   // Only while the booking still holds or asks for the bus: once it's off, there's nothing to do.
-  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone', status: 'requested' }), d), true);
-  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone', status: 'cancelled' }), d), false);
-  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone', status: 'declined' }), d), false);
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone', status: 'requested' }), d, TODAY), true);
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone', status: 'cancelled' }), d, TODAY), false);
+  assert.equal(rideCalledOff(booking('b', TODAY, TODAY, { rideId: 'r-gone', status: 'declined' }), d, TODAY), false);
+  // Nor a Not answered one: its days passed, so nobody can cancel it or book again for it.
+  const asked = booking('b', '2026-10-20', '2026-10-24', { rideId: 'r-gone', status: 'requested', decidedBy: null, decidedAt: null });
+  assert.equal(rideCalledOff(asked, d, TODAY), false, 'not answered');
+  assert.equal(rideCalledOff(asked, d, '2026-10-24'), true, 'still Waiting on its last day');
+  // A Booked one whose days have passed is history too.
+  assert.equal(rideCalledOff(booking('b', '2026-10-20', '2026-10-24', { rideId: 'r-gone' }), d, TODAY), false, 'days passed');
 });
 
 test('busOverRide is a Booked booking on the ride’s days that isn’t linked to it', () => {
@@ -664,6 +671,21 @@ test('busChipLabel adds the booking’s days when they aren’t exactly the ride
   assert.equal(busChipLabel(booking('b', '2026-11-09', '2026-11-09', { rideId: 'r-1', status: 'requested' }), r1), 'Rusty Bus asked for');
   assert.equal(busChipLabel(booking('b', '2026-11-14', '2026-11-15', { rideId: 'r-two' }), two), 'Rusty Bus booked');
   assert.equal(busChipLabel(booking('b', '2026-11-14', '2026-11-14', { rideId: 'r-two' }), two), 'Rusty Bus booked 14/11/2026');
+});
+
+test('on a cancelled ride the chip says the bus is still held, in amber', () => {
+  const r1 = data().rides[0]; // 09/11/2026
+  const gone = { ...r1, cancelledAt: '2026-10-20T00:00:00.000Z' };
+  const booked = booking('b', '2026-11-09', '2026-11-09', { rideId: 'r-1' });
+  const asked = { ...booked, status: 'requested' as const };
+  assert.equal(busChipLabel(booked, gone), 'Rusty Bus still booked');
+  assert.equal(busChipLabel(asked, gone), 'Rusty Bus still asked for');
+  assert.equal(busChipLabel({ ...booked, firstDay: '2026-11-08' }, gone), 'Rusty Bus still booked 08/11/2026 – 09/11/2026');
+  assert.equal(busChipTone(booked, gone), 'warn');
+  assert.equal(busChipTone(asked, gone), 'warn');
+  // On a ride that's on: Booked is green, asked for is amber.
+  assert.equal(busChipTone(booked, r1), 'ok');
+  assert.equal(busChipTone(asked, r1), 'warn');
 });
 
 test('busForRide is the newest Booked or Waiting booking on that ride', () => {

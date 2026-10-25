@@ -12,7 +12,7 @@ import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABE
 import { displayName, initials, memberName } from '../domain/profile';
 import { libraryFor, rideRouteProblem, routeOf } from '../domain/routes';
 import { roadRulesStatus, showsRoadRulesNudge } from '../domain/roadRules'; // Road Rules
-import { RIDE_BUS_BUSY, busChipLabel, busForRide, busOverRide, busRowLine, canBookBus } from '../domain/bus'; // Rusty Bus
+import { RIDE_BUS_BUSY, busChipLabel, busChipTone, busForRide, busOverRide, busRowLine, canBookBus } from '../domain/bus'; // Rusty Bus
 import {
   calendarFreshness,
   defaultCategories,
@@ -304,10 +304,17 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   const mayBookBus = !bus && !cancelled && lastDay(ride) >= today && managesRide(me, ride, data) && canBookBus(me, data);
   const busElsewhere = mayBookBus ? busOverRide(ride, data) : undefined;
   const booksBus = mayBookBus && !busElsewhere;
+  // On a cancelled ride, the chip opens the booking itself, which says the ride was called off or
+  // moved and how to free the bus; otherwise the Bus screen.
   const busChip = bus
-    ? { label: busChipLabel(bus, ride), tone: bus.status === 'approved' ? ('ok' as const) : ('warn' as const) }
+    ? {
+        label: busChipLabel(bus, ride),
+        tone: busChipTone(bus, ride),
+        open: cancelled ? () => navigation.navigate('BusBooking', { bookingId: bus.id }) : () => navigation.navigate('Bus'),
+        see: cancelled ? 'see the booking' : 'see the Rusty Bus',
+      }
     : busElsewhere
-      ? { label: RIDE_BUS_BUSY, tone: 'steel' as const }
+      ? { label: RIDE_BUS_BUSY, tone: 'steel' as const, open: () => navigation.navigate('Bus'), see: 'see the Rusty Bus' }
       : null;
 
   const answer = async (a: RsvpAnswer) => {
@@ -360,15 +367,17 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
           {busChip ? (
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel={`${busChip.label}, see the Rusty Bus`}
+              accessibilityLabel={`${busChip.label}, ${busChip.see}`}
               hitSlop={{ top: 12, bottom: 12 }}
-              onPress={() => navigation.navigate('Bus')}
+              onPress={busChip.open}
               style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                 styles.busChip,
                 (pressed || hovered) && { backgroundColor: colors.steel },
               ]}
             >
-              <Chip label={busChip.label} tone={busChip.tone} icon="bus" />
+              {({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => (
+                <Chip label={busChip.label} tone={busChip.tone} icon="bus" active={pressed || !!hovered} />
+              )}
             </Pressable>
           ) : null}
         </Row>
