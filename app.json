@@ -104,6 +104,14 @@
             "audioType": "communication"
           }
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "# LiveKit's WebRTC looks these classes up by name when it loads; its own rules keep the unprefixed package.\n-keep class livekit.org.jni_zero.** { *; }\n-keep class livekit.org.webrtc.** { *; }"
+          }
+        }
       ]
     ],
     "owner": "rustnutssmcs-team",

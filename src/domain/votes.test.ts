@@ -141,7 +141,7 @@ test('a patch vote is secret and unanimous among the chapter’s Full Members, a
   assert.equal(openVoteProblem(m('m-torque'), patch({ threshold: 'majority' }), d, NOW), wrongRule);
   assert.equal(openVoteProblem(m('m-torque'), patch({ secret: false }), d, NOW), wrongRule, 'only the outcome is recorded (4.9)');
   assert.equal(openVoteProblem(m('m-torque'), patch({ electorate: 'chapter_board', quorum: 3 }), d, NOW), wrongRule);
-  assert.equal(openVoteProblem(m('m-smokey'), patch({ chapterId: null, electorate: 'club_patched' }), d, NOW), wrongSubject, 'patch votes belong to a chapter');
+  assert.equal(openVoteProblem(m('m-smokey'), patch({ chapterId: null, electorate: 'club_patched' }), d, NOW), 'A reinstatement vote is an NEC majority vote on a member who isn’t Full, Nomad or an FNG (5.6).', 'patch votes belong to a chapter; a club-wide vote on someone is the NEC bringing them back');
   const early = 'A patch vote can open only nine months into the FNG’s trial (4.7).';
   const startedOn = (iso: string | null) => ({ ...d, members: d.members.map((x) => (x.id === 'm-throttle' ? { ...x, fngStartedOn: iso } : x)) });
   assert.equal(openVoteProblem(m('m-torque'), patch(), startedOn('2026-01-25'), NOW), early, 'eight and a bit months');
@@ -216,10 +216,10 @@ test('the rule line', () => {
 
 test('the patch vote on a member: the open one, or else the latest result', () => {
   const t = 'm-throttle';
-  const lost = vote({ id: 'old', subjectMemberId: t, closedAt: '2026-05-01T09:00:00.000Z', result: 'lost' });
-  const carried = vote({ id: 'new', subjectMemberId: t, closedAt: '2026-09-01T09:00:00.000Z', result: 'carried' });
-  const open = vote({ id: 'open', subjectMemberId: t });
-  const other = vote({ id: 'other', subjectMemberId: 'm-dylan' });
+  const lost = vote({ id: 'old', electorate: 'chapter_patched', subjectMemberId: t, closedAt: '2026-05-01T09:00:00.000Z', result: 'lost' });
+  const carried = vote({ id: 'new', electorate: 'chapter_patched', subjectMemberId: t, closedAt: '2026-09-01T09:00:00.000Z', result: 'carried' });
+  const open = vote({ id: 'open', electorate: 'chapter_patched', subjectMemberId: t });
+  const other = vote({ id: 'other', electorate: 'chapter_patched', subjectMemberId: 'm-dylan' });
   assert.equal(patchVoteFor(t, []), null);
   assert.equal(patchVoteFor(t, [lost, other])?.id, 'old');
   assert.equal(patchVoteFor(t, [carried, lost])?.id, 'new', 'latest result');
