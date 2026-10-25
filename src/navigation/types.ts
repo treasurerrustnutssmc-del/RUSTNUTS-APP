@@ -75,6 +75,14 @@ export type RootParams = {
   MediaViewer: { items: FeedItem[]; index: number };
   // Lane E: share in
   ShareIn: { text: string; media: PickedMedia[]; notes: string[] };
+  // Stage 5B: treasurer. A fund is 'club' or a chapter id.
+  Treasury: undefined;
+  Ledger: { fund: string };
+  LedgerEntry: { entryId: string };
+  NewEntry: { kind?: 'credit' | 'debit'; fund?: string } | undefined;
+  MonthReport: { month: string };
+  Budget: { fund: string; fy?: number };
+  ClubFinances: undefined;
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

@@ -1,7 +1,7 @@
 // The ride calendar: the club website's rides by month, filtered by colour, and one ride with
 // Going / Maybe / Can't make it, its route and its crew. Rides come from the calendar sync; nobody edits them here.
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { briefingOf, editBriefingProblem, hazardSummary, moreLabel, readCount, readCountLine, readState } from '../domain/briefings';
@@ -11,7 +11,7 @@ import type { CrewRowSlot } from '../domain/crew';
 import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABEL } from '../domain/labels';
 import { displayName, initials, memberName } from '../domain/profile';
 import { libraryFor, rideRouteProblem, routeOf } from '../domain/routes';
-import { roadRulesStatus, showsRoadRulesNudge } from '../domain/roadRules'; // Road Rules
+import { mustSignFirst, roadRulesStatus, showsRoadRulesNudge, signToGoText } from '../domain/roadRules'; // Road Rules
 import { RIDE_BUS_BUSY, busChipLabel, busChipTone, busForRide, busOverRide, busRowLine, canBookBus } from '../domain/bus'; // Rusty Bus
 import {
   calendarFreshness,
@@ -273,6 +273,9 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   const { me, data, today, setRsvp } = useClub();
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The Going gate prompt's sentence, which the turned-off Going points to. Unique per screen,
+  // since the web keeps earlier screens mounted.
+  const signToGoId = useId();
   const ride = data.rides.find((r) => r.id === route.params.rideId);
 
   if (!ride || !me) {
@@ -287,6 +290,9 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   const cancelled = !!ride.cancelledAt;
   const problem = rsvpProblem(me, ride, new Date().toISOString());
   const mine = data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null;
+  // The Going gate: while the ride takes answers, an unsigned or expired member gets the prompt
+  // above the answers in place of the nudge, and Going is off until they sign.
+  const mustSign = !problem && mustSignFirst(me, data, today);
   const counts = rsvpCounts(ride.id, data.rsvps);
   const people = (answer: RsvpAnswer) =>
     data.rsvps
@@ -430,8 +436,8 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       {/* Lane E: share */}
       <ShareRideButton ride={ride} />
 
-      {/* Road Rules: a nudge, not a gate. Unsigned riders can still say Going. */}
-      {showsRoadRulesNudge(me, ride, data, today) ? (
+      {/* Road Rules: the nudge, when the ride isn't taking answers (the prompt above the answers covers the rest). */}
+      {!mustSign && showsRoadRulesNudge(me, ride, data, today) ? (
         <RoadRulesNudge me={me} data={data} today={today} onOpen={() => navigation.navigate('RoadRules')} />
       ) : null}
 
@@ -441,12 +447,23 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         {mySpot && !problem ? (
           <Notice>{`You’re on the crew as ${ROLE_LABEL[mySpot]}. Changing your answer takes you off it.`}</Notice>
         ) : null}
+        {mustSign ? (
+          <SignToGoPrompt
+            id={signToGoId}
+            me={me}
+            data={data}
+            today={today}
+            mine={mine}
+            onOpen={() => navigation.navigate('RoadRules')}
+          />
+        ) : null}
         <View style={styles.answers}>
           {ANSWERS.map((a) => {
             // While an answer saves, it shows as chosen with a spinner and the others dim.
             const saving = busy === a;
             const selected = busy ? saving : mine === a;
-            const disabled = !!problem || busy !== null;
+            const gated = mustSign && a === 'going';
+            const disabled = !!problem || busy !== null || gated;
             return (
               <Pressable
                 key={a}
@@ -456,13 +473,16 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
                 aria-disabled={disabled}
                 aria-busy={saving}
                 accessibilityLabel={RSVP_LABEL[a]}
+                accessibilityHint={gated ? GOING_HINT : undefined}
+                aria-describedby={gated ? signToGoId : undefined}
                 disabled={disabled}
                 onPress={() => answer(a)}
                 style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                   styles.answer,
                   selected && styles.answerSelected,
                   !selected && !disabled && (pressed || hovered) && { backgroundColor: colors.steelHi },
-                  (!!problem || (busy !== null && !saving)) && styles.disabled,
+                  // A Going given before the sign-off lapsed stays, at full strength; it's only off to tap.
+                  (!!problem || (gated && !selected) || (busy !== null && !saving)) && styles.disabled,
                 ]}
               >
                 {saving ? (
@@ -522,6 +542,56 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
 // ---------------------------------------------------------------------------
 // Road Rules
 // ---------------------------------------------------------------------------
+
+/** The Going button's hint while the gate is on. On the web it also points to the prompt's sentence. */
+const GOING_HINT = 'Off until you sign the Road Rules.';
+
+/**
+ * The Going gate's prompt, right above the answers: "Sign the Road Rules to say Going." (or, when a
+ * Going already stands, "Sign the Road Rules before you ride.") and a big Read and sign. It's the
+ * screen's red unless an answer is already chosen (that answer has the red).
+ */
+function SignToGoPrompt({
+  id,
+  me,
+  data,
+  today,
+  mine,
+  onOpen,
+}: {
+  /** The sentence's id, which the turned-off Going points to. */
+  id: string;
+  me: Member;
+  data: ClubData;
+  today: string;
+  mine: RsvpAnswer | null;
+  onOpen: () => void;
+}) {
+  const text = signToGoText(roadRulesStatus(me, data, today), mine);
+  return (
+    <Notice tone="warn">
+      <Stack gap={space.md}>
+        <Stack gap={space.xs}>
+          <Text nativeID={id} style={[type.body, { color: colors.bone }]}>
+            {text.lead}
+          </Text>
+          {text.notes.map((note) => (
+            <Small key={note} style={{ color: colors.boneDim }}>
+              {note}
+            </Small>
+          ))}
+        </Stack>
+        <Button
+          label="Read and sign"
+          icon="document-text-outline"
+          kind={mine !== null ? 'secondary' : 'primary'}
+          onPress={onOpen}
+          style={styles.signToGo}
+        />
+      </Stack>
+    </Notice>
+  );
+}
 
 /** "Sign the Road Rules before you ride", for a rider who's unsigned or whose sign-off ran out. */
 function RoadRulesNudge({ me, data, today, onOpen }: { me: Member; data: ClubData; today: string; onOpen: () => void }) {
@@ -963,6 +1033,7 @@ const styles = StyleSheet.create({
   answerSelected: { backgroundColor: colors.red, borderColor: colors.redBright },
   answerText: { fontFamily: fonts.stencil, fontSize: 14, lineHeight: 18, letterSpacing: 0, color: colors.boneDim, textAlign: 'center' },
   disabled: { opacity: 0.45 },
+  signToGo: { minHeight: 56, alignSelf: 'stretch' },
   crewRow: {
     gap: space.sm,
     paddingVertical: space.md,

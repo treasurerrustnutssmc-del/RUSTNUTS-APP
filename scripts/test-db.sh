@@ -93,6 +93,27 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_road_rules -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_road_rules -f "$ROOT/supabase/tests/road_rules_test.sql"
+# The Going gate (Road Rules on set_rsvp and set_crew), on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_going_gate" >/dev/null
+"${PSQL[@]}" -d rustnuts_going_gate -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_going_gate -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_going_gate -f "$ROOT/supabase/tests/going_gate_test.sql"
+# The Going gate pasted before the Road Rules: it must refuse and change nothing.
+"${PSQL[@]}" -c "create database rustnuts_gate_order" >/dev/null
+"${PSQL[@]}" -d rustnuts_gate_order -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  [[ "$(basename "$f")" < "20261024160000" ]] || continue
+  "${PSQL[@]}" -d rustnuts_gate_order -f "$f" >/dev/null 2>&1
+done
+if out="$("${PSQL[@]}" -d rustnuts_gate_order -f "$ROOT/supabase/migrations/20261025180000_going_needs_road_rules.sql" 2>&1)"; then
+  echo "The Going gate migration applied without the Road Rules"; exit 1
+fi
+echo "$out" | grep -q 'Paste road-rules.sql first.' || { echo "Wrong refusal: $out"; exit 1; }
+"${PSQL[@]}" -d rustnuts_gate_order -tAc "select count(*) from pg_proc where proname in ('set_rsvp', 'set_crew') and prosrc like '%road_rules%'" | grep -qx 0 \
+  || { echo "The Going gate changed set_rsvp or set_crew without the Road Rules"; exit 1; }
+echo 'The Going gate migration refuses to go in before the Road Rules, and changes nothing'
 # The Rusty Bus, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_bus" >/dev/null
 "${PSQL[@]}" -d rustnuts_bus -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
@@ -163,4 +184,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_v4 -f "$ROOT/supabase/tests/constitution_v4_test.sql"
 
+# Stage 5B: the treasurer's books, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_treasurer" >/dev/null
+"${PSQL[@]}" -d rustnuts_treasurer -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_treasurer -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_treasurer -f "$ROOT/supabase/tests/treasurer_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
+

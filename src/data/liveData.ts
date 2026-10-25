@@ -7,6 +7,7 @@ import { cleanRoadRules, type RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
 import type { ClubData, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
+import { toLedger } from './ledgerLive'; // Stage 5B
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
 
@@ -87,6 +88,17 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     await db.rpc('club_business').then(
       (r) => {
         if (r.error) console.warn('club_business:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+  );
+
+  // Stage 5B: the treasurer's books, the same way: empty rather than blocking the app.
+  const ledger = toLedger(
+    await db.rpc('club_ledger').then(
+      (r) => {
+        if (r.error) console.warn('club_ledger:', r.error.message);
         return r.error ? null : r.data;
       },
       () => null,
@@ -253,6 +265,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
     // Stage 5: meetings and votes
     ...business,
+    ...ledger,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
   };
 }

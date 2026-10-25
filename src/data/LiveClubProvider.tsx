@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
 import { bookProblem, cancelProblem, decideProblem } from '../domain/bus';
-import { isRoadRulesVersionRefusal, publishProblem, signProblem } from '../domain/roadRules';
+import { goingProblem, isRoadRulesVersionRefusal, publishProblem, signProblem } from '../domain/roadRules';
 import {
   actionItemProblem,
   approveMinutesProblem,
@@ -66,6 +66,10 @@ import { authStorageKeys, createClubCache, isConnectionError, startupUser } from
 // Lane E: notifications
 import { loadNotificationPrefs, saveNotificationPrefs } from './notificationsApi';
 import { forgetThisDevice } from './pushDevice';
+import {
+  addFeeProblem, approveBudgetProblem, approveProblem, budgetProblem, creditProblem, debitProblem, floatProblem, openingProblem,
+  payProblem, presentProblem, reopenBudgetProblem, voidProblem,
+} from '../domain/ledger'; // Stage 5B
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -388,7 +392,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
 
     setRsvp: async (rideId, answer) => {
-      const problem = rsvpProblem(visibleMe, data.rides.find((r) => r.id === rideId), new Date().toISOString());
+      const problem =
+        rsvpProblem(visibleMe, data.rides.find((r) => r.id === rideId), new Date().toISOString()) ??
+        goingProblem(visibleMe, answer, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('set_rsvp', { p_ride: rideId, p_answer: answer }));
       await after();
@@ -752,6 +758,80 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const problem = cancelProblem(visibleMe, booking, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('cancel_bus', cancelBusArgs(bookingId)));
+      await after();
+    },
+
+    // Stage 5B: treasurer. Each checks the same rule first (for a quick, clear answer), then asks the database.
+    recordCredit: async (input) => {
+      deny(creditProblem(visibleMe, input, data, today));
+      const r = ok(
+        await supabase().rpc('record_credit', {
+          p_chapter: input.chapterId, p_code: input.code, p_description: input.description.trim(), p_amount_cents: input.amountCents,
+          p_received_on: input.receivedOn, p_entry_on: input.entryOn,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    recordDebit: async (input) => {
+      deny(debitProblem(visibleMe, input, data, today));
+      const r = ok(
+        await supabase().rpc('record_debit', {
+          p_chapter: input.chapterId, p_code: input.code, p_description: input.description.trim(), p_amount_cents: input.amountCents,
+          p_payee_member: input.payeeMemberId, p_payee_name: input.payeeName?.trim() || null, p_paid_on: input.paidOn,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    approveDebit: async (id) => {
+      deny(approveProblem(visibleMe, id, data));
+      ok(await supabase().rpc('approve_debit', { p_id: id }));
+      await after();
+    },
+    payDebit: async (id, paidOn) => {
+      deny(payProblem(visibleMe, id, paidOn, data, today));
+      ok(await supabase().rpc('pay_debit', { p_id: id, p_paid_on: paidOn }));
+      await after();
+    },
+    voidEntry: async (id, reason) => {
+      deny(voidProblem(visibleMe, id, reason, data));
+      ok(await supabase().rpc('void_entry', { p_id: id, p_reason: reason.trim() }));
+      await after();
+    },
+    addFeePayment: async (paymentId) => {
+      deny(addFeeProblem(visibleMe, paymentId, data));
+      ok(await supabase().rpc('add_fee_payment', { p_payment: paymentId }));
+      await after();
+    },
+    setOpening: async (chapterId, fy, amountCents) => {
+      deny(openingProblem(visibleMe, chapterId, fy, amountCents, data));
+      ok(await supabase().rpc('set_opening', { p_chapter: chapterId, p_fy: fy, p_amount_cents: amountCents }));
+      await after();
+    },
+    setCashFloat: async (fy, amountCents) => {
+      deny(floatProblem(visibleMe, fy, amountCents, data));
+      ok(await supabase().rpc('set_cash_float', { p_fy: fy, p_amount_cents: amountCents }));
+      await after();
+    },
+    saveBudget: async (chapterId, fy, lines) => {
+      deny(budgetProblem(visibleMe, chapterId, fy, lines, data));
+      ok(await supabase().rpc('save_budget', { p_chapter: chapterId, p_fy: fy, p_lines: lines }));
+      await after();
+    },
+    approveBudget: async (chapterId, fy, voteId) => {
+      deny(approveBudgetProblem(visibleMe, chapterId, fy, voteId, data));
+      ok(await supabase().rpc('approve_budget', { p_chapter: chapterId, p_fy: fy, p_vote: voteId }));
+      await after();
+    },
+    reopenBudget: async (chapterId, fy) => {
+      deny(reopenBudgetProblem(visibleMe, chapterId, fy, data));
+      ok(await supabase().rpc('reopen_budget', { p_chapter: chapterId, p_fy: fy }));
+      await after();
+    },
+    presentReport: async (month) => {
+      deny(presentProblem(visibleMe, month, data, today));
+      ok(await supabase().rpc('present_report', { p_month: month }));
       await after();
     },
 

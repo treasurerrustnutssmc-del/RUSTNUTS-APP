@@ -26,6 +26,7 @@ import { ReminderSync } from '../data/reminders';
 // Lane E: share in
 import { IncomingShare } from '../data/shareIn';
 import { ShareInScreen } from '../screens/shareIn';
+import { BudgetScreen, ClubFinancesScreen, LedgerEntryScreen, LedgerScreen, MonthReportScreen, NewEntryScreen, TreasuryScreen } from '../screens/treasury';
 // Lane E: ride comms
 import { OnAirBar } from '../screens/rideComms';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
@@ -214,6 +215,14 @@ export function RootNavigator() {
             <Stack.Screen name="RideWall" component={RideWallScreen} options={{ title: 'Ride wall' }} />
             {/* Lane E: share in */}
             <Stack.Screen name="ShareIn" component={ShareInScreen} options={{ title: 'Share to the club' }} />
+            {/* Stage 5B: treasurer */}
+            <Stack.Screen name="Treasury" component={TreasuryScreen} options={{ title: 'Treasury' }} />
+            <Stack.Screen name="Ledger" component={LedgerScreen} options={{ title: 'Ledger' }} />
+            <Stack.Screen name="LedgerEntry" component={LedgerEntryScreen} options={{ title: 'Entry' }} />
+            <Stack.Screen name="NewEntry" component={NewEntryScreen} options={{ title: 'New entry' }} />
+            <Stack.Screen name="MonthReport" component={MonthReportScreen} options={{ title: 'Treasurer’s Report' }} />
+            <Stack.Screen name="Budget" component={BudgetScreen} options={{ title: 'Budget' }} />
+            <Stack.Screen name="ClubFinances" component={ClubFinancesScreen} options={{ title: 'Club finances' }} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}
