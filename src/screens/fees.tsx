@@ -15,14 +15,13 @@ import {
   chargesOf,
   dueState,
   formatCents,
-  fyLabel,
-  fyOf,
   parseDollars,
   paymentReference,
   paysFees,
   totalOwing,
   continuationFeeFor,
 } from '../domain/fees';
+import { agmAssumed, agmOn, clubYearLabel, clubYearOf, recordAgmProblem } from '../domain/clubYear';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { Charge, Member, MemberStatus, Payment, PaymentMethod } from '../domain/types';
@@ -58,8 +57,8 @@ const METHOD_LABEL: Record<PaymentMethod, string> = { payid: 'PayID', bank: 'Ban
 const METHODS: PaymentMethod[] = ['payid', 'bank', 'cash'];
 
 function chargeTitle(c: Charge) {
-  if (c.kind === 'annual') return `Fees ${fyLabel(c.fy)}`;
-  if (c.kind === 'continuation') return `FNG continuation ${fyLabel(c.fy)}`;
+  if (c.kind === 'annual') return `Fees ${clubYearLabel(c.fy)}`;
+  if (c.kind === 'continuation') return `FNG continuation ${clubYearLabel(c.fy)}`;
   return c.description ?? 'Charge';
 }
 
@@ -212,6 +211,7 @@ function ChargeCard({ charge, member, lead, onDone }: { charge: Charge; member: 
         {balance.owingCents > 0 ? <KeyValue label="Still owing" value={formatCents(balance.owingCents)} /> : null}
         <KeyValue label="Due" value={formatAuDate(charge.dueOn)} />
       </Stack>
+      {charge.kind === 'annual' && charge.description ? <Small>{`${charge.description}, from being patched in.`}</Small> : null}
 
       {payments.map((p) => (
         <View key={p.id} style={{ gap: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: colors.line }}>
@@ -417,7 +417,7 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
   if (!canSet) {
     return (
       <Card>
-        <H2>{`Fees ${fyLabel(fy)}`}</H2>
+        <H2>{`Fees ${clubYearLabel(fy)}`}</H2>
         {rates.length === 0 ? <Small>Not set yet.</Small> : null}
         {PAYING_STATUSES.map((s) => {
           const r = rates.find((x) => x.status === s);
@@ -445,7 +445,7 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
     setBusy(true);
     try {
       for (const x of toSave) await setFeeRate(chapterId, fy, x.s, x.cents!, due.iso);
-      onDone(`Fees for ${fyLabel(fy)} saved.`);
+      onDone(`Fees for ${clubYearLabel(fy)} saved.`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -455,7 +455,7 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
 
   return (
     <Card>
-      <H2>{`Fees ${fyLabel(fy)}`}</H2>
+      <H2>{`Fees ${clubYearLabel(fy)}`}</H2>
       <Small>The board sets these. Leave a status blank if it doesn’t pay. Members on hiatus aren’t charged.</Small>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.md, rowGap: space.md }}>
         {PAYING_STATUSES.map((st) => (
@@ -476,6 +476,44 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
       <Field label="Due by" value={due.text} onChangeText={due.setText} keyboardType="number-pad" error={due.error} />
       {error ? <Notice tone="danger">{error}</Notice> : null}
       <Button label="Save fees" kind="secondary" busy={busy} onPress={save} />
+    </Card>
+  );
+}
+
+/** When this club year started: the AGM, as recorded, or 1 August until it is. */
+function AgmCard({ onDone }: { onDone: (msg: string) => void }) {
+  const { me, data, today, recordAgm } = useClub();
+  const year = clubYearOf(today, data.agms);
+  const assumed = agmAssumed(year, data.agms);
+  const date = useDate(agmOn(year, data.agms));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canRecord = recordAgmProblem(me, data.positions) === null;
+  const save = async () => {
+    if (!date.iso) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await recordAgm(date.iso);
+      onDone(`AGM saved: ${formatAuDate(date.iso)}.`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card>
+      <H2>{`Club year ${clubYearLabel(year)}`}</H2>
+      <KeyValue label={assumed ? 'AGM (assumed)' : 'AGM'} value={formatAuDate(agmOn(year, data.agms))} />
+      <Small>Fees run from one AGM to the next. Someone patched in partway through pays for the months left.</Small>
+      {canRecord ? (
+        <>
+          <Field label="AGM date" value={date.text} onChangeText={date.setText} keyboardType="number-pad" error={date.error} />
+          {error ? <Notice tone="danger">{error}</Notice> : null}
+          <Button label="Save the AGM date" kind="secondary" busy={busy} disabled={!date.iso} onPress={save} />
+        </>
+      ) : null}
     </Card>
   );
 }
@@ -524,7 +562,7 @@ function PayIdCard({ chapterId, onDone }: { chapterId: string; onDone: (msg: str
 export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees'>) {
   const { me, data, today, raiseFees, confirmPayment, rejectPayment } = useClub();
   const chapter = data.chapters.find((c) => c.id === route.params.chapterId);
-  const thisFy = fyOf(today);
+  const thisFy = clubYearOf(today, data.agms);
   const [fy, setFy] = useState(thisFy);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'danger'; text: string } | null>(null);
   const [key, setKey] = useState(0);
@@ -574,7 +612,7 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
       <Stack gap={space.sm}>
         <H1>{`${chapter.name} fees`}</H1>
         <Choices<string>
-          options={years.map((y) => ({ value: String(y), label: fyLabel(y) }))}
+          options={years.map((y) => ({ value: String(y), label: clubYearLabel(y) }))}
           value={String(fy)}
           onChange={(v) => setFy(Number(v))}
         />
@@ -595,12 +633,12 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
         </Row>
         {manager && notRaised.length > 0 ? (
           <ConfirmButton
-            label={`Raise ${fyLabel(fy)} fees`}
+            label={`Raise ${clubYearLabel(fy)} fees`}
             confirmLabel={`Charge ${notRaised.length} ${notRaised.length === 1 ? 'member' : 'members'}`}
             kind="secondary"
             icon="add-circle-outline"
             onConfirm={() =>
-              raiseFees(chapter.id, fy).then((n) => done(`${n} ${n === 1 ? 'member' : 'members'} charged for ${fyLabel(fy)}. They see it on their Home screen.`), fail)
+              raiseFees(chapter.id, fy).then((n) => done(`${n} ${n === 1 ? 'member' : 'members'} charged for ${clubYearLabel(fy)}. They see it on their Home screen.`), fail)
             }
           />
         ) : manager ? (
@@ -674,6 +712,7 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
       </Card>
 
       <SectionTitle title="Settings" />
+      <AgmCard key={`agm-${key}`} onDone={done} />
       <RatesCard key={`rates-${fy}-${key}`} chapterId={chapter.id} fy={fy} onDone={done} />
       {manager ? <PayIdCard key={`payid-${key}`} chapterId={chapter.id} onDone={done} /> : null}
     </Screen>

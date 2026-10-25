@@ -5,7 +5,8 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { attendanceCount } from '../domain/attendance';
 import { formatAuDate, monthsBetween } from '../domain/dates';
-import { continuationFeeFor, formatCents, fyOf } from '../domain/fees';
+import { clubYearOf } from '../domain/clubYear';
+import { continuationFeeFor, formatCents } from '../domain/fees';
 import { INTRO, REVIEW_EARLY_DAYS, fngDue, fngOutcomeStatus, fngReviewProblem, fngReviews, introProgress, type FngOutcome } from '../domain/joining';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
@@ -152,7 +153,7 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
 
   const past = fngReviews(member.id, data.decisions ?? []);
   const due = fngDue(member, data.decisions ?? [], today);
-  const fee = continuationFeeFor(member.chapterId, fyOf(today), data);
+  const fee = continuationFeeFor(member.chapterId, clubYearOf(today, data.agms), data);
   const paidContinuation = (data.charges ?? []).some((c) => c.memberId === member.id && c.kind === 'continuation');
   const patchBlock = due ? fngReviewProblem(me, member, due.atMonths, 'patch', votes, data, today) : null;
   const since = member.fngStartedOn ? attendanceCount(member.id, data, member.fngStartedOn) : null;
