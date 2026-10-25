@@ -537,30 +537,41 @@ Object.assign(DEMO_DATA, {
 // The Rusty Bus: Booked for Ride for Kids on its own date, out today on a recovery that Diesel is
 // driving, a Waiting request of Spanner's that clashes with the charity booking, and a no to
 // Spanner from last week. Dated from the same today as Stage 4 (s4Today), with at()'s times in UTC.
+// From the day before Ride for Kids, the charity booking moves to a month from today with no ride
+// (the spec's fallback), so the demo always has a booking and a clashing request still to come,
+// and neither ever shares a day with today's recovery (two Booked bookings never share a day).
 // ---------------------------------------------------------------------------
 
 const rideForKids = DEMO_DATA.rides.find((r) => r.id === 'r-6')!;
-const kidsDay = melbourneDate(rideForKids.startsAt);
+const kidsDayAhead = melbourneDate(rideForKids.startsAt) > addDays(s4Today, 1);
+const charityDay = kidsDayAhead ? melbourneDate(rideForKids.startsAt) : addDays(s4Today, 30);
+/** Today's recovery was booked earlier today: three hours ago, or just now in Melbourne's first hours. */
+const recoveryBookedAt = (() => {
+  const now = Date.now();
+  const stamps = [3 * 3600_000, 60_000, 0].map((ms) => new Date(now - ms).toISOString());
+  return stamps.find((t) => melbourneDate(t) === s4Today) ?? stamps[stamps.length - 1];
+})();
 const noBusDecision = { decidedBy: null, decidedAt: null, declineReason: '', cancelledBy: null, cancelledAt: null };
 
 Object.assign(DEMO_DATA, {
   busBookings: [
     {
       // Booked by the West Secretary, a bus manager, so it was Booked straight away.
-      id: 'bus-1', firstDay: kidsDay, lastDay: kidsDay, purpose: 'charity_ride', rideId: 'r-6', driverId: 'm-gravel',
+      id: 'bus-1', firstDay: charityDay, lastDay: charityDay, purpose: 'charity_ride', rideId: kidsDayAhead ? 'r-6' : null,
+      driverId: 'm-gravel',
       notes: 'Support vehicle for Ride for Kids: water, spares, and room in the back for a bike that gives up.',
       status: 'approved', bookedBy: 'm-torque', bookedAt: at(ago(20), '08:00:00'),
       decidedBy: 'm-torque', decidedAt: at(ago(20), '08:00:00'), declineReason: '', cancelledBy: null, cancelledAt: null,
     },
     {
-      // A recovery for today, so it was Booked straight away. 14:05 UTC is just after midnight in Melbourne.
+      // A recovery for today, so it was Booked straight away.
       id: 'bus-2', firstDay: s4Today, lastDay: s4Today, purpose: 'recovery', rideId: null, driverId: 'm-diesel',
       notes: 'Chook’s bike died near Bacchus Marsh on the way home last night. Bringing it back to the clubhouse.',
-      status: 'approved', bookedBy: 'm-chook', bookedAt: at(ago(1), '14:05:00'),
-      decidedBy: 'm-chook', decidedAt: at(ago(1), '14:05:00'), declineReason: '', cancelledBy: null, cancelledAt: null,
+      status: 'approved', bookedBy: 'm-chook', bookedAt: recoveryBookedAt,
+      decidedBy: 'm-chook', decidedAt: recoveryBookedAt, declineReason: '', cancelledBy: null, cancelledAt: null,
     },
     {
-      id: 'bus-3', firstDay: addDays(kidsDay, -1), lastDay: kidsDay, purpose: 'club_event', rideId: null, driverId: 'm-spanner',
+      id: 'bus-3', firstDay: addDays(charityDay, -1), lastDay: charityDay, purpose: 'club_event', rideId: null, driverId: 'm-spanner',
       notes: 'West family day at the clubhouse: the marquee, the barbecue and the eskies.',
       status: 'requested', bookedBy: 'm-spanner', bookedAt: at(ago(3)), ...noBusDecision,
     },

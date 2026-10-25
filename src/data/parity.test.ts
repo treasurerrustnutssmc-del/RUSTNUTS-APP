@@ -74,6 +74,13 @@ test('the Rusty Bus cases cover the spec’s eleven, with days counted from toda
   has('bookBus', 'book: a recovery booked straight away', (c) => c.allowed && c.purpose === 'recovery' && straight(c));
   has('bookBus', 'book: a clash on straight away', (c) => straight(c) && says(BUS_CLASH)(c));
   has('bookBus', 'book: a past start', says(BUS_PAST_START));
+  // The spec's "recovery in 3 days" waits, so it may be asked for over a Booked day.
+  const overBooked = (c: (typeof bus)[number]) =>
+    (fixture.busBookings ?? []).some(
+      (b) => b.status === 'approved' && b.firstDays <= Number(c.lastDays) && Number(c.firstDays) <= b.lastDays,
+    );
+  has('bookBus', 'book: a recovery in three days waits over a Booked day', (c) =>
+    c.allowed && c.purpose === 'recovery' && c.firstDays === 3 && !straight(c) && overBooked(c));
   has('bookBus', 'book: an FNG refused', (c) => me(c)?.status === 'fng' && says(NOT_BUS_BOOKER)(c));
   has('decideBus', 'decide: a yes', (c) => c.allowed && c.yes === true);
   has('decideBus', 'decide: a clashing yes', (c) => c.yes === true && says(BUS_CLASH)(c));

@@ -68,15 +68,23 @@ const withBooked = (first: string, last: string): ClubData => ({
 // The demo's bookings
 // ---------------------------------------------------------------------------
 
-test('the demo: a Booked charity ride on Ride for Kids, on that ride’s own date', () => {
+test('the demo: a Booked charity ride on Ride for Kids on its own date, or a month out with no ride once it’s past', () => {
   const ride = DEMO_DATA.rides.find((r) => r.id === 'r-6')!;
   assert.equal(ride.title, 'Ride for Kids (supported)');
   const charity = bookings().filter((b) => b.purpose === 'charity_ride');
   assert.equal(charity.length, 1);
   const [b] = charity;
-  assert.equal(b.rideId, 'r-6');
   assert.equal(b.status, 'approved');
-  assert.equal(b.firstDay, melbourneDate(ride.startsAt), 'the ride’s Melbourne date');
+  // Linked while Spanner's request (the day before it, through it) stays clear of today's recovery.
+  const kidsDay = melbourneDate(ride.startsAt);
+  if (kidsDay > addDays(TODAY, 1)) {
+    assert.equal(b.rideId, 'r-6');
+    assert.equal(b.firstDay, kidsDay, 'the ride’s Melbourne date');
+  } else {
+    assert.equal(b.rideId, null, 'the ride is (nearly) past, so it links to no ride');
+    assert.equal(b.firstDay, addDays(TODAY, 30), 'a month from today');
+  }
+  assert.ok(b.firstDay >= TODAY, 'still to come, whenever the demo is opened');
   assert.equal(b.lastDay, b.firstDay, 'one day');
   assert.ok(managesBus(member(b.decidedBy!), DEMO_DATA), 'said yes to by the board');
 });
@@ -89,7 +97,8 @@ test('the demo: a Booked recovery today, driven by Diesel, so the bus is out tod
   assert.equal(b.firstDay, TODAY);
   assert.equal(b.lastDay, TODAY);
   assert.equal(b.driverId, 'm-diesel');
-  assert.equal(melbourneDate(b.bookedAt), TODAY, 'booked this morning, straight away');
+  assert.equal(melbourneDate(b.bookedAt), TODAY, 'booked earlier today, straight away');
+  assert.ok(b.bookedAt <= new Date().toISOString(), 'never booked in the future');
   assert.equal(b.decidedAt, b.bookedAt, 'booked straight away: decided when it was booked');
   assert.equal(b.decidedBy, b.bookedBy);
   assert.equal(busToday(DEMO_DATA, TODAY)?.id, b.id);

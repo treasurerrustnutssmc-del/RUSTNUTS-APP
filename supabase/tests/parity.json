@@ -3693,8 +3693,8 @@
       "name": "A recovery in three days waits, so it may overlap a Booked day",
       "as": "gravel",
       "action": "bookBus",
-      "firstDays": 12,
-      "lastDays": 12,
+      "firstDays": 3,
+      "lastDays": 3,
       "purpose": "recovery",
       "ride": null,
       "driver": "gravel",
@@ -4721,6 +4721,16 @@
       "ride": null,
       "driver": "gravel",
       "bookedBy": "gravel",
+      "status": "approved"
+    },
+    {
+      "key": "booked-day-three",
+      "firstDays": 3,
+      "lastDays": 3,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "rusty",
+      "bookedBy": "rusty",
       "status": "approved"
     },
     {
