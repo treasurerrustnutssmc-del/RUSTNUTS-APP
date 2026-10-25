@@ -27,7 +27,9 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Saving the minutes and then sharing or confirming them happens in one press, so the second
   // step has to build on the first, not on what was rendered.
   const latest = useRef(data);
-  latest.current = data;
+  useEffect(() => {
+    latest.current = data;
+  }, [data]);
   const fresh = (): act.DemoCtx => ({ ...ctx, data: latest.current });
   const keep = (next: ClubData) => {
     latest.current = next;
