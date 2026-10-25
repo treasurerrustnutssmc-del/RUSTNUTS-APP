@@ -40,4 +40,6 @@ jobs:
           # The publishable key is meant to ship inside the app; the database rules do the protecting.
           EXPO_PUBLIC_SUPABASE_URL: https://mfhbvsybudneimgbfjpy.supabase.co
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_SQmN9OqIfZoyxopWB_wpNA_WjzUfHkK
+          # GIPHY's app key for GIF search, from the GIPHY_KEY repository secret. Unset means no GIF button.
+          EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.GIPHY_KEY }}
         run: eas update --channel preview --message "${{ github.event.head_commit.message || 'Manual update' }}" --non-interactive
