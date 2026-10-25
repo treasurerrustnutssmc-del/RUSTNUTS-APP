@@ -3468,6 +3468,27 @@
       "allowed": true
     },
     {
+      "name": "The board shares draft minutes after the meeting",
+      "as": "torque",
+      "action": "shareMinutes",
+      "meeting": "west-general-past",
+      "allowed": true
+    },
+    {
+      "name": "The board shares minutes before the meeting",
+      "as": "torque",
+      "action": "shareMinutes",
+      "meeting": "west-board-future",
+      "allowed": false
+    },
+    {
+      "name": "A member shares draft minutes",
+      "as": "spanner",
+      "action": "shareMinutes",
+      "meeting": "west-general-past",
+      "allowed": false
+    },
+    {
       "name": "The board approves minutes before the meeting",
       "as": "torque",
       "action": "approveMinutes",
@@ -3698,6 +3719,34 @@
       "vote": "west-board-tied",
       "casting": "yes",
       "allowed": true
+    },
+    {
+      "name": "The chair lets a tied vote fall without casting, so it's lost",
+      "as": "rusty",
+      "action": "closeVote",
+      "vote": "west-board-tied",
+      "casting": "decline",
+      "allowed": true
+    },
+    {
+      "name": "A board member who isn't the chair lets a tie fall",
+      "as": "torque",
+      "action": "closeVote",
+      "vote": "west-board-tied",
+      "casting": "decline",
+      "allowed": false
+    },
+    {
+      "name": "A board of two opens a board vote",
+      "as": "smokey",
+      "action": "openVote",
+      "chapter": "north",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7,
+      "allowed": false
     },
     {
       "name": "A Full member asks for the Rusty Bus (it waits for a yes)",

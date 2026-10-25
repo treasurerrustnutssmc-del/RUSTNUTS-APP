@@ -294,3 +294,23 @@ Jeff sent the constitution (29 Jul 2026 draft, in the project files at `referenc
 - Who conducts a patch vote: any board member can open one, rather than only the President (4.8).
 - Changing an FNG to Full on Manage member isn't tied to a carried patch vote.
 - A President of two chapters casts a single NEC ballot.
+
+## Constitution v4 (25 Oct 2026)
+
+Jeff sent v4, the Final Club Edition (`reference/Rustnuts SMC Constitution v4 2026-10-25.pdf`). It replaces the 29 Jul draft, which is now in `reference/superseded/`. Bounded change, self-approved. It's built in `20270101000100_constitution_v4.sql`: min_quorum, open_vote, close_vote and club_business are replaced with their signatures unchanged, and share_minutes is added.
+
+- **Board quorum (8.5, new):** a majority of the board's distinct members, with at least three taking part. A board of fewer than three can't hold a vote: "A board vote needs at least three board members (8.5)." The vote form says so in place of the quorum field.
+- **Ties (9.10):** the chair may give the casting vote or decline, and a declined tie is lost. `close_vote` takes `'decline'` as well as yes and no, and stores no casting vote for it. Closing a tie with nothing passed is refused for everyone, the chair included, so the chair always makes a deliberate choice: "It’s a tie. The chair gives a casting vote or lets it fall." The chair's card has "Close with casting vote" and "Let it fall".
+- **Minutes (10.8):** after the meeting the board presses "Share draft with members" (`share_minutes`, new column `minutes_shared_at`). Everyone who sees the meeting then reads the draft, marked as a draft, and the board confirms it at the next meeting. The screens say "confirm" rather than "approve". The 7-day reminder runs until the draft is shared. Board and NEC meeting minutes still stay with whoever runs them, and notes stay with the board until they're shared. (An independent review caught that showing drafts automatically from the start time would have published prep notes mid-meeting.)
+- **A tie that's let fall** shows "Tied with no casting vote, so it’s lost (9.10)." on the closed vote.
+- **Unchanged and still right under v4:** a third for chapter and national quorums (10.6), 51% of the NEC (11.5), Nomads off chapter votes (10.7), the NEC vote cast by a chapter's sitting or acting President with the Chairperson voting only on a tie (11.2), patch votes (4.7–4.9), the chair order (10.9), and abstentions not being votes cast (2.4).
+
+**Not covered yet (v4):**
+- The 51%-of-chapters part of the national quorum (10.6).
+- The National Chairperson conducting a patch vote when the President can't (4.8).
+- Good Standing as a condition of voting (2, "Club Voting Member").
+- Conflicted people left out of a vote and its quorum (8.5, 11.10).
+- No casting vote on elections, discipline or amendments (9.10, 10.7). Votes have no purpose field yet, so every vote is treated as ordinary business.
+- Thresholds counted against everyone eligible rather than votes cast (16.2, 14.4A).
+- Confirming minutes isn't tied to the next meeting having been held, and drafts waiting to be confirmed don't show in the board's summary.
+

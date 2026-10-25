@@ -63,10 +63,15 @@ export function canSeeMeeting(me: Member | null, meeting: Meeting, positions: Po
   return isPrivateKind(meeting.kind) ? runsScope(me, meeting.chapterId, positions) : true;
 }
 
-/** Drafts stay with whoever runs the meeting; approved minutes go to everyone who sees it. */
+const started = (meeting: Meeting, now: string) => new Date(now).getTime() >= new Date(meeting.startsAt).getTime();
+
+/**
+ * Everyone who sees a meeting sees its minutes once the board shares the draft, marked as a draft
+ * until they're confirmed (10.8). Until then, notes for the minutes stay with whoever runs it.
+ */
 export function canSeeMinutes(me: Member | null, meeting: Meeting, positions: Position[]): boolean {
   if (!canSeeMeeting(me, meeting, positions)) return false;
-  return meeting.minutesApprovedAt !== null || runsScope(me, meeting.chapterId, positions);
+  return meeting.minutesApprovedAt !== null || !!meeting.minutesSharedAt || runsScope(me, meeting.chapterId, positions);
 }
 
 export function canSeeActionItem(me: Member | null, item: ActionItem, positions: Position[]): boolean {
@@ -161,7 +166,6 @@ function meetingProblem(me: Member | null, meeting: Meeting | undefined, data: C
   return null;
 }
 
-const started = (meeting: Meeting, now: string) => new Date(now).getTime() >= new Date(meeting.startsAt).getTime();
 
 export function cancelMeetingProblem(me: Member | null, meeting: Meeting | undefined, data: ClubData, now: string): string | null {
   return meetingProblem(me, meeting, data) ?? (started(meeting!, now) ? 'That meeting has already started.' : null);
@@ -169,6 +173,14 @@ export function cancelMeetingProblem(me: Member | null, meeting: Meeting | undef
 
 export function saveMinutesProblem(me: Member | null, meeting: Meeting | undefined, data: ClubData): string | null {
   return meetingProblem(me, meeting, data) ?? (meeting!.minutesApprovedAt ? 'Those minutes are approved and locked.' : null);
+}
+
+/** The board sends the draft to members after the meeting, within seven days (10.8). */
+export function shareMinutesProblem(me: Member | null, meeting: Meeting | undefined, data: ClubData, now: string): string | null {
+  const problem = approveMinutesProblem(me, meeting, data, now);
+  if (problem) return problem;
+  if (meeting!.minutesSharedAt) return 'The draft is already out to members.';
+  return null;
 }
 
 export function approveMinutesProblem(me: Member | null, meeting: Meeting | undefined, data: ClubData, now: string): string | null {
@@ -184,10 +196,12 @@ export function minutesDueOn(meeting: Meeting): string {
   return addDays(melbourneDate(meeting.startsAt), MINUTES_DUE_DAYS);
 }
 
-export function minutesState(meeting: Meeting, now: string): 'upcoming' | 'cancelled' | 'approved' | 'due' | 'overdue' {
+/** 'draft': shared with members, waiting to be confirmed at the next meeting (10.8). */
+export function minutesState(meeting: Meeting, now: string): 'upcoming' | 'cancelled' | 'approved' | 'draft' | 'due' | 'overdue' {
   if (meeting.cancelledAt) return 'cancelled';
   if (meeting.minutesApprovedAt) return 'approved';
   if (!started(meeting, now)) return 'upcoming';
+  if (meeting.minutesSharedAt) return 'draft';
   return melbourneDate(now) > minutesDueOn(meeting) ? 'overdue' : 'due';
 }
 

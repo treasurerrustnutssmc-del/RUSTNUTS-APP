@@ -415,8 +415,11 @@ export interface Meeting {
   startsAt: string; // instant (ISO with Z), shown in Melbourne time
   location: string | null;
   agenda: AgendaItem[];
-  /** Draft or approved minutes. Left out for people who don't run the meeting until approved. */
+  /** Draft or confirmed minutes. Left out for people who don't run the meeting until the draft is shared. */
   minutes: string | null;
+  /** When the board shared the draft with members (10.8). Missing means not shared. */
+  minutesSharedAt?: string | null;
+  /** When the board confirmed the minutes (shown as "confirmed"; the field keeps its first name). */
   minutesApprovedAt: string | null;
   minutesApprovedBy: string | null;
   cancelledAt: string | null;

@@ -10,6 +10,7 @@ import { cleanRoadRules, currentRoadRules, publishProblem, signProblem, type Roa
 import { NO_TRACK, readGpx } from '../domain/gpx';
 import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
+import type { Casting } from '../domain/votes';
 import { APPROVE_AS, NATIONAL_ROLES } from '../domain/labels';
 import type {
   BallotChoice,
@@ -555,13 +556,14 @@ export type DemoAction =
   // Stage 5: meetings and votes
   | { action: 'saveMeeting'; chapter: string | null; kind: MeetingKind; title: string; startsAt: string }
   | { action: 'approveMinutes'; meeting: string }
+  | { action: 'shareMinutes'; meeting: string }
   | { action: 'saveActionItem'; chapter: string | null; meeting: string | null; title: string; owner: string }
   | {
       action: 'openVote'; chapter: string | null; subject: string | null; electorate: Electorate; threshold: Threshold;
       secret?: boolean; quorum: number; days: number;
     }
   | { action: 'castBallot'; vote: string; choice: BallotChoice }
-  | { action: 'closeVote'; vote: string; casting: 'yes' | 'no' | null }
+  | { action: 'closeVote'; vote: string; casting: Casting | null }
   | { action: 'crew'; ride: string; member: string; role: CrewRole }
   | { action: 'leaveCrew'; ride: string; member: string }
   | { action: 'saveRoute'; route: string | null; routeName: string; chapter: string | null; notes?: string; gpx: string | null }
@@ -668,6 +670,8 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       }).data;
     case 'approveMinutes':
       return business.approveMinutes(ctx, a.meeting);
+    case 'shareMinutes':
+      return business.shareMinutes(ctx, a.meeting);
     case 'saveActionItem':
       return business.saveActionItem(ctx, {
         id: null, chapterId: a.chapter, meetingId: a.meeting, title: a.title, ownerId: a.owner, dueOn: null,

@@ -41,7 +41,7 @@ import type {
   Threshold,
   Vote,
 } from '../domain/types';
-import { castProblem, chairOf, defaultQuorum, electorsFor, ruleLine } from '../domain/votes';
+import { castProblem, chairOf, defaultQuorum, electorsFor, ruleLine, TIE } from '../domain/votes';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import {
@@ -134,7 +134,8 @@ function DateBlock({ iso, muted }: { iso: string; muted?: boolean }) {
 }
 
 const MINUTES_CHIP = {
-  approved: { label: 'Minutes approved', tone: 'ok' },
+  approved: { label: 'Minutes confirmed', tone: 'ok' },
+  draft: { label: 'Draft minutes', tone: 'steel' },
   due: { label: 'Minutes due', tone: 'warn' },
   overdue: { label: 'Minutes overdue', tone: 'danger' },
   cancelled: { label: 'Cancelled', tone: 'danger' },
@@ -367,7 +368,7 @@ function Fact({ icon, text }: { icon: React.ComponentProps<typeof Ionicons>['nam
 }
 
 export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
-  const { me, data, saveMinutes, approveMinutes, cancelMeeting } = useClub();
+  const { me, data, saveMinutes, shareMinutes, approveMinutes, cancelMeeting } = useClub();
   const meeting = (data.meetings ?? []).find((m) => m.id === route.params.meetingId);
   const [draft, setDraft] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -403,7 +404,15 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
       await approveMinutes(meeting.id);
       setDraft(null);
     });
+  const share = () =>
+    minutesAction.run(async () => {
+      // Save what's on screen first, so members get what the board read.
+      if (draft !== null && draft !== (meeting.minutes ?? '')) await saveMinutes(meeting.id, draft);
+      await shareMinutes(meeting.id);
+      setDraft(null);
+    });
   const approveBlock = approveMinutesProblem(me, { ...meeting, minutes: text }, data, now);
+  const shared = meeting.minutesSharedAt ?? null;
 
   return (
     <Screen>
@@ -448,7 +457,7 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
       <Stack gap={space.sm}>
         <SectionTitle
           title="Minutes"
-          action={MINUTES_CHIP[state] && state !== 'cancelled' && (runs || state === 'approved') ? <Chip label={MINUTES_CHIP[state]!.label} tone={MINUTES_CHIP[state]!.tone} /> : undefined}
+          action={MINUTES_CHIP[state] && state !== 'cancelled' && (runs || state === 'approved' || state === 'draft') ? <Chip label={MINUTES_CHIP[state]!.label} tone={MINUTES_CHIP[state]!.tone} /> : undefined}
         />
         {editingMinutes ? (
           <Card>
@@ -464,31 +473,40 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
               style={{ minHeight: 180 }}
             />
             {state === 'due' || state === 'overdue' ? (
-              <Small>{`Due ${formatAuDate(minutesDueOn(meeting))}, two weeks after the meeting.`}</Small>
+              <Small>{`Share the draft with members by ${formatAuDate(minutesDueOn(meeting))}, a week after the meeting (10.8).`}</Small>
+            ) : shared ? (
+              <Small>{`Shared with members ${formatAuDate(melbourneDate(shared))}. They see saved changes. Confirm the minutes at the next meeting (10.8).`}</Small>
             ) : null}
             {saved && draft === null ? <Small style={{ color: colors.ok }}>Saved.</Small> : null}
             <ErrorNotice error={minutesAction.error} />
             <Button label="Save draft" kind="secondary" busy={minutesAction.busy} disabled={draft === null} onPress={save} />
             {started ? (
               approveBlock ? (
-                <Small>{approveBlock === 'Write the minutes first.' ? 'Write the minutes, then approve them here.' : approveBlock}</Small>
+                <Small>{approveBlock === 'Write the minutes first.' ? 'Write the minutes, then share the draft and confirm them here.' : approveBlock}</Small>
               ) : (
-                <ConfirmButton label="Approve minutes" confirmLabel="Approve and lock" kind="primary" icon="checkmark" onConfirm={approve} />
+                <>
+                  {shared ? null : (
+                    <ConfirmButton label="Share draft with members" confirmLabel="Send it to members" kind="secondary" icon="send" onConfirm={share} />
+                  )}
+                  <ConfirmButton label="Confirm minutes" confirmLabel="Confirm and lock" kind="primary" icon="checkmark" onConfirm={approve} />
+                </>
               )
             ) : (
-              <Small>Once the meeting’s been held, approve the minutes here. They’re locked after that, and members can read them.</Small>
+              <Small>Notes saved here stay with the board. After the meeting, share the draft with members, then confirm the minutes at the next meeting (10.8).</Small>
             )}
           </Card>
         ) : canSeeMinutes(me, meeting, data.positions) && meeting.minutes ? (
           <Card>
             <Body selectable>{meeting.minutes}</Body>
             {meeting.minutesApprovedAt ? (
-              <Small>{`Approved ${formatAuDate(melbourneDate(meeting.minutesApprovedAt))} by ${memberName(meeting.minutesApprovedBy, data)}`}</Small>
-            ) : null}
+              <Small>{`Confirmed ${formatAuDate(melbourneDate(meeting.minutesApprovedAt))} by ${memberName(meeting.minutesApprovedBy, data)}`}</Small>
+            ) : (
+              <Small>Draft. The board confirms the minutes at the next meeting (10.8).</Small>
+            )}
           </Card>
         ) : (
           <Card>
-            <Small>{cancelled ? 'This meeting was cancelled.' : 'The minutes go up here once the board approves them.'}</Small>
+            <Small>{cancelled ? 'This meeting was cancelled.' : 'The board shares the draft minutes here after the meeting.'}</Small>
           </Card>
         )}
       </Stack>
@@ -713,7 +731,6 @@ function IconButton({ icon, label, onPress, disabled }: { icon: React.ComponentP
 
 const CHOICES: BallotChoice[] = ['yes', 'no', 'abstain'];
 const CHOICE_ICON = { yes: 'thumbs-up', no: 'thumbs-down', abstain: 'remove-circle' } as const;
-const TIE = 'It’s a tie. The chair closes it with the casting vote.';
 
 export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
   const { me, data, castBallot, closeVote } = useClub();
@@ -770,7 +787,11 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
               <KeyValue label="Abstain" value={String(vote.tally.abstain)} />
             </Stack>
           ) : null}
-          {vote.castingVote ? <Small>{`Tied, so the chair gave the casting vote: ${BALLOT_LABEL[vote.castingVote]}.`}</Small> : null}
+          {vote.castingVote ? (
+            <Small>{`Tied, so the chair gave the casting vote: ${BALLOT_LABEL[vote.castingVote]}.`}</Small>
+          ) : vote.result === 'lost' && vote.threshold === 'majority' && vote.tally && vote.tally.yes > 0 && vote.tally.yes === vote.tally.no ? (
+            <Small>Tied with no casting vote, so it’s lost (9.10).</Small>
+          ) : null}
           {vote.result === 'no_quorum' ? <Small>{`Fewer than ${vote.quorum} ballots came in, so the vote doesn’t count.`}</Small> : null}
           {subject && vote.result === 'carried' && runs ? (
             <Button
@@ -851,7 +872,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
             <Small>{`It can be closed once it’s past closing time, or as soon as everyone has voted.`}</Small>
           ) : tied && isChair ? (
             <Card>
-              <Body>It’s a tie. As chair, you have the casting vote.</Body>
+              <Body>It’s a tie. As chair, you can give the casting vote, or let it fall and it’s lost (9.10).</Body>
               <Choices<'yes' | 'no'> options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} value={casting} onChange={setCasting} />
               <ConfirmButton
                 label="Close with casting vote"
@@ -859,10 +880,16 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
                 kind="secondary"
                 onConfirm={() => casting && closing.run(() => closeVote(vote.id, casting))}
               />
+              <ConfirmButton
+                label="Let it fall"
+                confirmLabel="Close it as lost"
+                kind="secondary"
+                onConfirm={() => closing.run(() => closeVote(vote.id, 'decline'))}
+              />
             </Card>
           ) : (
             <>
-              <ErrorNotice error={tied ? 'It’s a tie. The chair has the casting vote, so ask them to close it.' : closing.error} />
+              <ErrorNotice error={tied ? 'It’s a tie, so only the chair can close it. Ask them to.' : closing.error} />
               <ConfirmButton label="Close vote and count" confirmLabel="Close it now" kind="secondary" onConfirm={() => closing.run(() => closeVote(vote.id, null))} />
             </>
           )}
@@ -916,7 +943,7 @@ const THRESHOLDS: Threshold[] = ['majority', 'two_thirds', 'unanimous'];
 
 /** How the default quorum is worked out, for the hint under the field. */
 const QUORUM_RULE: Record<Electorate, string> = {
-  chapter_board: 'more than half the board',
+  chapter_board: 'more than half the board, and at least three (8.5)',
   chapter_patched: 'a third, rounded up (10.6)',
   club_patched: 'a third, rounded up (10.6)',
   nec: '51%, rounded up (11.5)',
@@ -1010,7 +1037,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
           <Choices<Threshold> label="To pass" options={THRESHOLDS.map((t) => ({ value: t, label: THRESHOLD_LABEL[t] }))} value={threshold} onChange={setThreshold} />
           <Small>
             {threshold === 'majority'
-              ? 'More yes than no. Abstaining counts towards quorum only. A tie goes to the chair’s casting vote.'
+              ? 'More yes than no. Abstaining counts towards quorum only. A tie goes to the chair, who can cast a deciding vote or let it fall.'
               : threshold === 'two_thirds'
                 ? 'At least two yes for every one no.'
                 : 'Every voter has to vote yes. An abstention or a missing ballot stops it.'}
@@ -1019,7 +1046,9 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
         </>
       ) : null}
       {/* A patch vote needs every ballot anyway, so its quorum stays at the least allowed. */}
-      {!subject ? (
+      {electorate === 'chapter_board' && size < 3 ? (
+        <Small>{`This board has ${size} ${size === 1 ? 'member' : 'members'}. A board vote needs at least three (8.5).`}</Small>
+      ) : !subject ? (
         <Field
           label="Quorum"
           value={quorumText ?? String(defaultQuorum(electorate, size))}

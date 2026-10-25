@@ -4,6 +4,7 @@ import { DEMO_DATA } from '../data/demoData';
 import {
   actionItemProblem,
   approveMinutesProblem,
+  shareMinutesProblem,
   canSeeActionItem,
   canSeeMeeting,
   canSeeMinutes,
@@ -78,11 +79,12 @@ test('who sees which meetings and minutes', () => {
   assert.equal(canSeeMeeting(m('m-torque'), nec, P), false);
   assert.equal(canSeeMeeting(m('m-smokey'), nec, P), true);
 
-  assert.equal(canSeeMinutes(m('m-spanner'), general, P), false, 'drafts stay with the board');
+  assert.equal(canSeeMinutes(m('m-spanner'), general, P), false, 'notes stay with the board until it shares the draft');
+  assert.equal(canSeeMinutes(m('m-spanner'), { ...general, minutesSharedAt: '2026-11-05T00:00:00.000Z' }, P), true, 'the shared draft goes to members (10.8)');
   assert.equal(canSeeMinutes(m('m-torque'), general, P), true);
   const approved = { ...general, minutesApprovedAt: '2026-11-10T00:00:00.000Z' };
   assert.equal(canSeeMinutes(m('m-spanner'), approved, P), true);
-  assert.equal(canSeeMinutes(m('m-spanner'), { ...board, minutesApprovedAt: '2026-11-10T00:00:00.000Z' }, P), false);
+  assert.equal(canSeeMinutes(m('m-spanner'), { ...board, minutesApprovedAt: '2026-11-10T00:00:00.000Z' }, P), false, 'board minutes stay with the board');
 });
 
 test('action items are seen by their owner and whoever runs the scope', () => {
@@ -140,6 +142,16 @@ test('writing and approving minutes', () => {
   assert.equal(approveMinutesProblem(m('m-torque'), meeting({ minutes: 'All present.' }), d, AFTER), null);
 });
 
+test('the board shares the draft minutes with members after the meeting (10.8)', () => {
+  const held = meeting({ kind: 'general', minutes: 'All present.' });
+  assert.equal(shareMinutesProblem(m('m-torque'), held, d, AFTER), null);
+  assert.equal(shareMinutesProblem(m('m-spanner'), held, d, AFTER), 'Only that chapter’s board can do that.');
+  assert.equal(shareMinutesProblem(m('m-torque'), held, d, NOW), 'The meeting hasn’t happened yet.');
+  assert.equal(shareMinutesProblem(m('m-torque'), { ...held, minutes: ' ' }, d, AFTER), 'Write the minutes first.');
+  assert.equal(shareMinutesProblem(m('m-torque'), { ...held, minutesSharedAt: AFTER }, d, AFTER), 'The draft is already out to members.');
+  assert.equal(shareMinutesProblem(m('m-torque'), { ...held, minutesApprovedAt: AFTER }, d, AFTER), 'Those minutes are approved and locked.');
+});
+
 test('minutes fall due 7 Melbourne days after the meeting (10.8)', () => {
   // 12:30 UTC on 3 Nov is 11:30 pm in Melbourne (AEDT): still the 3rd.
   const late = meeting({ startsAt: '2026-11-03T12:30:00.000Z' });
@@ -147,6 +159,12 @@ test('minutes fall due 7 Melbourne days after the meeting (10.8)', () => {
   assert.equal(minutesState(late, '2026-11-03T12:00:00.000Z'), 'upcoming');
   assert.equal(minutesState(late, '2026-11-10T12:00:00.000Z'), 'due', 'due through the 10th');
   assert.equal(minutesState(late, '2026-11-10T13:30:00.000Z'), 'overdue', '11th in Melbourne');
+  assert.equal(minutesState({ ...late, minutes: 'All present.' }, '2026-11-20T00:00:00.000Z'), 'overdue', 'written but not shared is still owed');
+  assert.equal(
+    minutesState({ ...late, minutes: 'All present.', minutesSharedAt: '2026-11-05T00:00:00.000Z' }, '2026-11-20T00:00:00.000Z'),
+    'draft',
+    'shared: out to members, waiting to be confirmed',
+  );
   assert.equal(minutesState({ ...late, minutesApprovedAt: AFTER }, '2026-12-01T00:00:00.000Z'), 'approved');
   assert.equal(minutesState({ ...late, cancelledAt: NOW }, '2026-12-01T00:00:00.000Z'), 'cancelled');
 });

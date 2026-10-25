@@ -13,6 +13,7 @@ import {
   cancelMeetingProblem,
   saveMeetingProblem,
   saveMinutesProblem,
+  shareMinutesProblem,
   setDoneProblem,
 } from '../domain/meetings';
 import { crewProblem, leaveProblem } from '../domain/crew';
@@ -422,6 +423,13 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const problem = saveMinutesProblem(visibleMe, (data.meetings ?? []).find((x) => x.id === id), data);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('save_minutes', { p_id: id, p_text: text }));
+      await after();
+    },
+    shareMinutes: async (id) => {
+      // As with confirming, the saved text may be newer than what's loaded, so the database decides on blank minutes.
+      const problem = shareMinutesProblem(visibleMe, (data.meetings ?? []).find((x) => x.id === id), data, new Date().toISOString());
+      if (problem && problem !== 'Write the minutes first.') throw new NotAllowedError(problem);
+      ok(await supabase().rpc('share_minutes', { p_id: id }));
       await after();
     },
     approveMinutes: async (id) => {
