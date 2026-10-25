@@ -235,7 +235,7 @@ export const NEEDS_PATCH_VOTE = 'Full membership needs a carried patch vote of t
 /**
  * Why `me` can't move `target` to `status`, or null. Mirrors the database's set_member_status.
  * An FNG reaches Full or Nomad only through a carried patch vote (4.9); anyone else coming back
- * to Full or Nomad needs a carried NEC vote (5.6), and then their board makes the change. Positions
+ * to Full or Nomad needs a carried NEC vote (5.6), and then the NEC makes the change. Positions
  * end first when the new status can't hold them. `today` is the Melbourne date.
  */
 export function statusChangeProblem(me: Member | null, target: Member, status: MemberStatus, data: ClubData, today: string): string | null {
@@ -245,6 +245,8 @@ export function statusChangeProblem(me: Member | null, target: Member, status: M
   if (patched(status) && !patched(target.status)) {
     if (target.status === 'fng') {
       if (!hasCarriedPatchVote(target.id, data)) return NEEDS_PATCH_VOTE;
+    } else if (!isNational(me!.id, data.positions)) {
+      return 'Only the NEC can bring someone back to Full or Nomad (5.6).';
     } else if (!hasCarriedReinstateVote(target.id, data, today)) {
       return NEEDS_NEC_VOTE;
     }

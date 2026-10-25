@@ -1,6 +1,7 @@
 -- Bringing someone back to Full or Nomad needs the NEC's approval (5.6), Jeff's call on 25 Oct 2026:
--- a carried NEC majority vote about them, closed in the last 90 days (inferred). Then their
--- chapter's board makes the change. One NEC member alone can't. Mirrors src/domain/access.ts
+-- a carried NEC majority vote about them, closed in the last 90 days (inferred). Then the NEC
+-- makes the change; one NEC member can't do it without the vote, and a chapter board can't at all.
+-- close_vote blanks the ballots of patch votes only (4.9): an NEC vote on someone keeps its count. Mirrors src/domain/access.ts
 -- (statusChangeProblem) and votes.ts (openVoteProblem), same rules, same words.
 -- A club-wide vote with a subject is that reinstatement vote; a chapter one is still a patch vote.
 -- create or replace keeps each function's existing grants.
@@ -105,6 +106,8 @@ begin
       if not private.has_carried_patch_vote(p_member) then
         raise exception 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).';
       end if;
+    elsif not private.is_national() then
+      raise exception 'Only the NEC can bring someone back to Full or Nomad (5.6).';
     elsif not private.has_carried_reinstate_vote(p_member) then
       raise exception 'Coming back to Full or Nomad needs a carried NEC vote (5.6).';
     end if;
@@ -132,5 +135,48 @@ begin
     on_hiatus = case when p_status = 'legacy' then false else on_hiatus end,
     updated_at = now()
   where id = p_member;
+end;
+$$;
+
+create or replace function public.close_vote(p_vote uuid, p_casting text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := private.require_member();
+  v public.votes%rowtype;
+  n_yes int; n_no int; n_abstain int; n_electors int;
+  outcome record;
+  chair uuid;
+begin
+  select * into v from public.votes where id = p_vote for update;
+  if not found then raise exception 'No such vote.'; end if;
+  perform private.require_scope(v.chapter_id);
+  if v.closed_at is not null then raise exception 'That vote has already closed.'; end if;
+  if now() < v.closes_at and exists (select 1 from public.vote_electors where vote_id = p_vote and voted_at is null) then
+    raise exception 'Wait until it closes, or until everyone has voted.';
+  end if;
+  select count(*) filter (where choice = 'yes'), count(*) filter (where choice = 'no'), count(*) filter (where choice = 'abstain')
+  into n_yes, n_no, n_abstain from public.vote_ballots where vote_id = p_vote;
+  select count(*) into n_electors from public.vote_electors where vote_id = p_vote;
+  outcome := private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, null, n_electors);
+  chair := private.chair_of(v.chapter_id);
+  -- The chair casts or declines, and a declined tie is lost (9.10).
+  if outcome.tied and chair is not null and (p_casting is null or me <> chair) then
+    raise exception 'It’s a tie. The chair gives a casting vote or lets it fall.';
+  end if;
+  if not outcome.tied and p_casting is not null then raise exception 'There’s no tie, so no casting vote.'; end if;
+  if p_casting in ('yes', 'no') and chair is null then
+    raise exception 'Nobody’s in the chair, so a tie is lost. Close it without a casting vote.';
+  end if;
+  if p_casting is not null and p_casting not in ('yes', 'no', 'decline') then raise exception 'Pick an answer.'; end if;
+  outcome := private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, p_casting, n_electors);
+
+  -- A patch vote keeps only its result (4.9): no counts, and its ballots are blanked.
+  if v.subject_member_id is not null and v.electorate = 'chapter_patched' then
+    update public.vote_ballots set choice = null where vote_id = p_vote;
+    n_yes := null; n_no := null; n_abstain := null;
+  end if;
+  update public.votes set closed_at = now(), result = outcome.result, casting_vote = nullif(p_casting, 'decline'),
+    yes_count = n_yes, no_count = n_no, abstain_count = n_abstain
+  where id = p_vote;
 end;
 $$;

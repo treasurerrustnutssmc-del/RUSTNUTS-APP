@@ -117,7 +117,7 @@ begin
   assert pg_temp.try_as(sec, format(status, fred, 'full'))
     = 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).', 'an NEC vote isn''t a patch vote';
   assert pg_temp.try_as(sec, format(status, gus, 'full'))
-    = 'Coming back to Full or Nomad needs a carried NEC vote (5.6).', 'the board can''t reinstate alone';
+    = 'Only the NEC can bring someone back to Full or Nomad (5.6).', 'the board can''t reinstate';
   assert pg_temp.try_as(chair, format(status, gus, 'full'))
     = 'Coming back to Full or Nomad needs a carried NEC vote (5.6).', 'nor can one NEC member';
   insert into votes (chapter_id, subject_member_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result)
@@ -128,12 +128,41 @@ begin
     = 'Coming back to Full or Nomad needs a carried NEC vote (5.6).', 'a chapter vote or a stale NEC vote doesn''t count';
   insert into votes (chapter_id, subject_member_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result)
   values (null, gus, 'Bring Gus back?', 'nec', 'majority', 1, now() - interval '3 days', now() - interval '1 day', now() - interval '1 day', 'carried');
-  assert pg_temp.try_as(sec, format(status, gus, 'full')) is null, 'with the NEC''s yes, the board brings him back';
+  assert pg_temp.try_as(sec, format(status, gus, 'full'))
+    = 'Only the NEC can bring someone back to Full or Nomad (5.6).', 'not the board, even after the NEC''s yes';
+  assert pg_temp.try_as(chair, format(status, gus, 'full')) is null, 'with the NEC''s yes, the NEC brings him back';
   assert pg_temp.try_as(sec, format(status, '00000000-0000-0000-0000-0000000000b1', 'nomad'))
     = 'End their board and national seats first (9.1).', 'the Treasurer can''t go Nomad with the seat';
   assert pg_temp.try_as(chair, format(status, sec, 'supporter')) = 'End their positions first.', 'positions end first';
   assert pg_temp.try_as(sec, format(status, '00000000-0000-0000-0000-0000000000a5', 'fng'))
     = 'A learner permit rider can’t become an FNG yet (3.2).', 'no learner FNGs';
+end $$;
+
+\echo 'Closing an NEC vote on someone keeps its count and ballots; a patch vote keeps only the result'
+do $$
+declare
+  chair constant uuid := '00000000-0000-0000-0000-0000000000a2';
+  sec constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  gus constant uuid := '00000000-0000-0000-0000-0000000000a9';
+  yuri constant uuid := '00000000-0000-0000-0000-0000000000a7';
+  west uuid := (select id from chapters where slug = 'west');
+  nec uuid;
+  patch uuid;
+begin
+  insert into votes (chapter_id, subject_member_id, question, electorate, threshold, quorum, closes_at)
+  values (null, gus, 'Bring Gus back again?', 'nec', 'majority', 1, now() - interval '1 minute') returning id into nec;
+  insert into vote_electors (vote_id, member_id, voted_at) values (nec, sec, now());
+  insert into vote_ballots (vote_id, member_id, choice) values (nec, sec, 'yes');
+  assert pg_temp.try_as(chair, format('select public.close_vote(%L, null)', nec)) is null, 'the NEC closes it';
+  assert (select yes_count from votes where id = nec) = 1, 'the count is kept';
+  assert (select choice from vote_ballots where vote_id = nec) = 'yes', 'the ballot is kept';
+  insert into votes (chapter_id, subject_member_id, question, electorate, threshold, secret, quorum, closes_at)
+  values (west, yuri, 'Patch Yuri?', 'chapter_patched', 'unanimous', true, 1, now() - interval '1 minute') returning id into patch;
+  insert into vote_electors (vote_id, member_id, voted_at) values (patch, sec, now());
+  insert into vote_ballots (vote_id, member_id, choice) values (patch, null, 'yes');
+  assert pg_temp.try_as(sec, format('select public.close_vote(%L, null)', patch)) is null, 'the board closes it';
+  assert (select yes_count from votes where id = patch) is null, 'no count kept (4.9)';
+  assert (select choice from vote_ballots where vote_id = patch) is null, 'no ballot kept (4.9)';
 end $$;
 
 \echo 'A learner permit applicant can''t be let in as an FNG'

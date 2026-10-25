@@ -41,7 +41,7 @@ import type {
   Threshold,
   Vote,
 } from '../domain/types';
-import { castProblem, chairOf, defaultQuorum, electorsFor, ruleLine, TIE } from '../domain/votes';
+import { castProblem, chairOf, defaultQuorum, electorsFor, REINSTATABLE, ruleLine, TIE } from '../domain/votes';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import {
@@ -793,7 +793,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
             <Small>Tied with no casting vote, so it’s lost (9.10).</Small>
           ) : null}
           {vote.result === 'no_quorum' ? <Small>{`Fewer than ${vote.quorum} ballots came in, so the vote doesn’t count.`}</Small> : null}
-          {subject && vote.result === 'carried' && runs ? (
+          {subject && vote.result === 'carried' && runs && (vote.electorate !== 'nec' || REINSTATABLE.includes(subject.status)) ? (
             <Button
               label={vote.electorate === 'nec' ? `Bring ${displayName(subject)} back` : `Record ${displayName(subject)}’s patch`}
               kind="secondary"
@@ -969,7 +969,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   const [electorate, setElectorate] = useState<Electorate>(reinstate ? 'nec' : subject ? 'chapter_patched' : electoratesFor(scope)[0]);
   const [threshold, setThreshold] = useState<Threshold>(subject && !reinstate ? 'unanimous' : 'majority');
   const [question, setQuestion] = useState(
-    reinstate ? `Bring ${displayName(subject)} back as a Full member?` : subject ? `Patch ${displayName(subject)} as a Full member?` : '',
+    reinstate ? `Bring ${displayName(subject)} back to Full or Nomad?` : subject ? `Patch ${displayName(subject)} as a Full member?` : '',
   );
   const [details, setDetails] = useState('');
   const [secret, setSecret] = useState(!!subject && !reinstate);
@@ -1022,7 +1022,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
       ) : null}
       {reinstate ? (
         <Notice title="NEC vote">
-          {`Each chapter’s President votes for their chapter (11.2), and it passes on a majority. If it carries, the ${scopeLabel(subject!.chapterId, data)} board can bring ${displayName(subject!)} back to Full or Nomad within 90 days (5.6).`}
+          {`Each chapter’s President votes for their chapter (11.2), and it passes on a majority. If it carries, the NEC can bring ${displayName(subject!)} back to Full or Nomad within 90 days (5.6).`}
         </Notice>
       ) : subject ? (
         <Notice title="Patch vote">
@@ -1052,6 +1052,8 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
           </Small>
           <Toggle label="Secret ballot" description="Nobody, the board included, sees who voted which way." value={secret} onChange={setSecret} />
         </>
+      ) : reinstate ? (
+        <Toggle label="Secret ballot" description="Nobody, the NEC included, sees which way each President voted." value={secret} onChange={setSecret} />
       ) : null}
       {/* A patch vote needs every ballot anyway, so its quorum stays at the least allowed. */}
       {electorate === 'chapter_board' && size < 3 ? (

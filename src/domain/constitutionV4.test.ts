@@ -99,6 +99,7 @@ test('the two-year and full-term rules show as warnings, not refusals', () => {
 // --- B. Status changes can't skip the patch vote ------------------------------------------------
 
 const NEEDS_PATCH_VOTE = 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).';
+const ONLY_NEC = 'Only the NEC can bring someone back to Full or Nomad (5.6).';
 const NEC_REINSTATES = 'Coming back to Full or Nomad needs a carried NEC vote (5.6).';
 const REINSTATE_VOTE = 'A reinstatement vote is an NEC majority vote on a member who isn’t Full, Nomad or an FNG (5.6).';
 
@@ -126,22 +127,23 @@ const necVote = (memberId: string, result: Vote['result'], closedAt: string | nu
 test('coming back to Full or Nomad needs a carried NEC vote', () => {
   const data = v4Club();
   const today = '2026-10-25';
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'sup'), 'full', data, today), NEC_REINSTATES);
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'legacy'), 'nomad', data, today), NEC_REINSTATES);
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'sup'), 'full', data, today), ONLY_NEC);
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'legacy'), 'nomad', data, today), ONLY_NEC);
   assert.equal(statusChangeProblem(who(data, 'chair'), who(data, 'sup'), 'full', data, today), NEC_REINSTATES, 'one NEC member alone isn’t the NEC');
   const lost = { ...data, votes: [necVote('sup', 'lost')] };
   assert.equal(statusChangeProblem(who(lost, 'chair'), who(lost, 'sup'), 'full', lost, today), NEC_REINSTATES);
   const open = { ...data, votes: [necVote('sup', null, null)] };
   assert.equal(statusChangeProblem(who(open, 'chair'), who(open, 'sup'), 'full', open, today), NEC_REINSTATES);
   const patch = { ...data, votes: [patchVote('sup', 'carried')] };
-  assert.equal(statusChangeProblem(who(patch, 'sec'), who(patch, 'sup'), 'full', patch, today), NEC_REINSTATES, 'a chapter vote isn’t the NEC');
+  assert.equal(statusChangeProblem(who(patch, 'chair'), who(patch, 'sup'), 'full', patch, today), NEC_REINSTATES, 'a chapter vote isn’t the NEC');
   const carried = { ...data, votes: [necVote('sup', 'carried')] };
-  assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'sup'), 'full', carried, today), null, 'then the board makes the change');
+  assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'sup'), 'full', carried, today), null, 'then the NEC makes the change');
+  assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'sup'), 'full', carried, today), ONLY_NEC, 'not the chapter board on its own');
   assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'sup'), 'nomad', carried, today), null);
-  assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'legacy'), 'full', carried, today), NEC_REINSTATES, 'the vote is about one member');
+  assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'legacy'), 'full', carried, today), NEC_REINSTATES, 'the vote is about one member');
   // An approval goes stale after 90 days (inferred).
-  assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'sup'), 'full', carried, '2027-01-18'), null);
-  assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'sup'), 'full', carried, '2027-01-19'), NEC_REINSTATES);
+  assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'sup'), 'full', carried, '2027-01-18'), null);
+  assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'sup'), 'full', carried, '2027-01-19'), NEC_REINSTATES);
   // An FNG still needs their chapter's patch vote, not the NEC's.
   const fng = { ...data, votes: [necVote('fng', 'carried')] };
   assert.equal(statusChangeProblem(who(fng, 'sec'), who(fng, 'fng'), 'full', fng, today), NEEDS_PATCH_VOTE);

@@ -353,8 +353,10 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         {reinstatable && !statusBlock ? (
           <Small>
             {necSaidYes
-              ? 'The NEC voted yes, so their board can bring them back to Full or Nomad (5.6).'
-              : 'Coming back to Full or Nomad needs a yes vote from the NEC first (5.6).'}
+              ? 'The NEC voted yes, so the NEC can bring them back to Full or Nomad (5.6).'
+              : reinstateVote?.result === 'carried'
+                ? 'The NEC’s yes is more than 90 days old, so it needs a new vote (5.6).'
+                : 'Coming back to Full or Nomad needs a yes vote from the NEC first (5.6).'}
           </Small>
         ) : null}
         {reinstateVote && !reinstateOpen ? (

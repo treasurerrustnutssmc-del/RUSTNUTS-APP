@@ -91,6 +91,21 @@ test('a patch vote records only its result (4.9)', () => {
   assert.deepEqual(v.ballots, [], 'no ballots kept');
 });
 
+test('an NEC vote on bringing someone back keeps its count and ballots (5.6)', () => {
+  const opened = act.openVote(ctx('m-rusty'), {
+    chapterId: null, meetingId: null, subjectMemberId: 'm-rooster', question: 'Bring Rooster back?', details: null,
+    electorate: 'nec', threshold: 'majority', secret: false, quorum: 1, closesAt: '2026-10-31T02:00:00.000Z',
+  });
+  let data = opened.data;
+  const electors = data.votes!.find((v) => v.id === opened.id)!.electorIds;
+  for (const who of electors) data = act.castBallot(ctx(who, data), opened.id, 'yes');
+  data = act.closeVote(ctx('m-rusty', data), opened.id, null);
+  const v = data.votes!.find((x) => x.id === opened.id)!;
+  assert.equal(v.result, 'carried');
+  assert.deepEqual(v.tally, { yes: electors.length, no: 0, abstain: 0 });
+  assert.equal(v.ballots.length, electors.length);
+});
+
 test('a tie goes to the chair', () => {
   const opened = act.openVote(ctx('m-torque'), {
     chapterId: 'ch-west', meetingId: null, subjectMemberId: null, question: 'Tie?', details: null,
