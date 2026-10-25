@@ -11,6 +11,7 @@ import type { RootScreen, TabScreen } from '../navigation/types';
 import { NotificationSettings } from './notificationSettings';
 import { colors, space, type } from '../theme';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
+import { seesReports } from '../domain/ledger'; // Stage 5B
 import { asksToSign, currentRoadRules, myRoadRulesLine, needsSigning, roadRulesStatus } from '../domain/roadRules'; // Road Rules
 import {
   Avatar,
@@ -152,12 +153,22 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       <SectionTitle title="Fees" action={<LockNote text="You + board" />} />
       <Card style={{ padding: 0, gap: 0 }}>
         <ListRow
-          last
           left={<IconBadge icon="cash-outline" tone={totalOwing(me.id, data) > 0 ? 'red' : 'steel'} />}
           title={totalOwing(me.id, data) > 0 ? `${formatCents(totalOwing(me.id, data))} owing` : 'All paid up'}
           subtitle={me.onHiatus && totalOwing(me.id, data) === 0 ? 'On hiatus: no new fees while you’re away' : 'Charges, payments and receipts'}
           onPress={() => navigation.navigate('MemberFees', { memberId: me.id })}
+          last={!seesReports(me)}
         />
+        {/* Stage 5B: presented Treasurer's Reports (13.8) */}
+        {seesReports(me) ? (
+          <ListRow
+            last
+            left={<IconBadge icon="document-text-outline" />}
+            title="Club finances"
+            subtitle="The Treasurer’s Report each month"
+            onPress={() => navigation.navigate('ClubFinances')}
+          />
+        ) : null}
       </Card>
       {/* Lane E: notifications */}
       <NotificationSettings />

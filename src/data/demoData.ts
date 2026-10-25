@@ -664,7 +664,7 @@ Object.assign(DEMO_DATA, {
     book('le-10', 'ch-west', 'DB-006', 'Refund of a double payment', 12500, 9, {
       state: 'approved', entryOn: null, payeeMemberId: 'm-gravel', approvals: twoOk(8),
     }),
-    book('le-11', 'ch-west', 'DB-001', 'Club gazebo (vote v-2)', 59900, 2, {
+    book('le-11', 'ch-west', 'DB-001', 'Club gazebo', 59900, 2, {
       state: 'awaiting', entryOn: null, payeeName: 'Gazebo Warehouse', approvals: [{ memberId: 'm-sparks', approvedAt: at(ago(2)) }],
     }),
   ],

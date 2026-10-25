@@ -16,6 +16,8 @@ import { colors, fonts, space, type } from '../theme';
 import { fngDue } from '../domain/joining';
 import { BoardCheckins } from './checkin';
 import { BoardFees } from './fees';
+import { TreasuryRow } from './treasury';
+import { seesAnyLedger } from '../domain/ledger';
 import { IntroProgressCard, VotesFields } from './fng';
 import { sortedPositions } from '../ui/MemberBits';
 import {
@@ -146,6 +148,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   };
   // Road Rules: who's signed, for anyone who can open that list (the NEC and the chapter boards).
   const signoffs = signoffSummary(me, data, today);
+  const books = seesAnyLedger(me, data);
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
@@ -171,7 +174,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
           title="Meetings and votes"
           subtitle="Agendas, minutes, action items and votes"
           onPress={() => navigation.navigate('Business')}
-          last={signoffs === null}
+          last={signoffs === null && !books}
         />
         {signoffs !== null ? (
           <ListRow
@@ -179,9 +182,11 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
             title="Road Rules sign-off"
             subtitle={<Text style={styles.rowMeta}>{signoffs}</Text>}
             onPress={() => navigation.navigate('RoadRulesSignoffs')}
-            last
+            last={!books}
           />
         ) : null}
+        {/* Stage 5B: treasurer */}
+        <TreasuryRow last />
       </Card>
 
       <SectionTitle title="Waiting for approval" action={<Small>{pending.length}</Small>} />
