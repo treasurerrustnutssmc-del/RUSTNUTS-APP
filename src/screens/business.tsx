@@ -10,7 +10,7 @@ import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import {
   BALLOT_LABEL,
   ELECTORATE_LABEL,
-  MEETING_KIND_LABEL,
+  meetingKindLabel,
   RESULT_LABEL,
   THRESHOLD_LABEL,
   electoratesFor,
@@ -22,6 +22,8 @@ import {
   canSeeMinutes,
   minutesDueOn,
   minutesState,
+  noticeLine,
+  noticeWarning,
   runsScope,
   setDoneProblem,
 } from '../domain/meetings';
@@ -151,7 +153,7 @@ function MeetingRow({ meeting, last, onPress }: { meeting: Meeting; last: boolea
     `${weekday(date)} ${formatAuDate(date)}`,
     melbourneTime(meeting.startsAt),
     meeting.location,
-    MEETING_KIND_LABEL[meeting.kind],
+    meetingKindLabel(meeting.kind, meeting.chapterId),
     chip?.label,
   ]
     .filter(Boolean)
@@ -178,7 +180,7 @@ function MeetingRow({ meeting, last, onPress }: { meeting: Meeting; last: boolea
           {meeting.location ? ` · ${meeting.location}` : ''}
         </Text>
         <Row style={{ gap: 6, marginTop: 2 }}>
-          <Chip label={MEETING_KIND_LABEL[meeting.kind]} tone="bone" />
+          <Chip label={meetingKindLabel(meeting.kind, meeting.chapterId)} tone="bone" />
           {chip ? <Chip label={chip.label} tone={chip.tone} /> : null}
         </Row>
       </View>
@@ -407,7 +409,7 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
     <Screen>
       <Card>
         <Row style={{ gap: 6 }}>
-          <Chip label={MEETING_KIND_LABEL[meeting.kind]} tone="bone" />
+          <Chip label={meetingKindLabel(meeting.kind, meeting.chapterId)} tone="bone" />
           <Chip label={scopeLabel(meeting.chapterId, data)} tone="steel" />
           {cancelled ? <Chip label="Cancelled" tone="danger" /> : null}
         </Row>
@@ -616,6 +618,8 @@ export function EditMeetingScreen({ route, navigation }: RootScreen<'EditMeeting
   const dateError = date.trim() && !dateIso ? 'Use DD/MM/YYYY, like 04/11/2026.' : null;
   const timeError = time.trim() && !hhmm ? 'Like 7:30 pm or 19:30.' : dateIso && hhmm && !startsAt ? 'That time doesn’t exist: the clocks go forward then.' : null;
   const kinds = kindsFor(scope);
+  const noticeWarn = startsAt ? noticeWarning({ id: existing?.id ?? null, chapterId: scope, kind, title, startsAt, location, agenda }, new Date().toISOString(), existing ?? null) : null;
+  const noticeNote = noticeWarn ?? noticeLine(kind, scope);
   const pickScope = (s: string) => {
     const next = s === 'club' ? null : s;
     setScope(next);
@@ -646,7 +650,7 @@ export function EditMeetingScreen({ route, navigation }: RootScreen<'EditMeeting
           onChange={pickScope}
         />
       ) : null}
-      <Choices<MeetingKind> label="Kind of meeting" options={kinds.map((k) => ({ value: k, label: MEETING_KIND_LABEL[k] }))} value={kind} onChange={setKind} />
+      <Choices<MeetingKind> label="Kind of meeting" options={kinds.map((k) => ({ value: k, label: meetingKindLabel(k, scope) }))} value={kind} onChange={setKind} />
       <Field label="Title" value={title} onChangeText={setTitle} placeholder="November board meeting" />
       <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
         <View style={{ flex: 3 }}>
@@ -656,6 +660,7 @@ export function EditMeetingScreen({ route, navigation }: RootScreen<'EditMeeting
           <Field label="Time" value={time} onChangeText={setTime} placeholder="7:30 pm" error={timeError} />
         </View>
       </Row>
+      {noticeNote ? <Small style={noticeWarn ? { color: colors.warn } : undefined}>{noticeNote}</Small> : null}
       <Field label="Place (optional)" value={location} onChangeText={setLocation} placeholder="Clubhouse, or Video call" />
 
       <Stack gap={space.sm}>

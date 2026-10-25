@@ -74,11 +74,63 @@ export function canSeeActionItem(me: Member | null, item: ActionItem, positions:
   return item.ownerId === me.id || runsScope(me, item.chapterId, positions);
 }
 
+/**
+ * The days' notice a meeting needs, and how a refusal names it (constitution v4 10.4, 11.5).
+ * Board meetings have no notice rule. NEC meetings need 7 days but may go ahead sooner when urgent,
+ * so they only warn.
+ */
+function noticeRule(kind: MeetingKind, chapterId: string | null): { days: number; name: string } | null {
+  if (chapterId !== null) {
+    if (kind === 'general') return { days: 7, name: 'A chapter meeting' };
+    if (kind === 'special') return { days: 7, name: 'A special meeting' };
+    if (kind === 'agm') return { days: 14, name: 'An Annual Chapter Meeting' };
+    return null;
+  }
+  if (kind === 'general' || kind === 'special') return { days: 14, name: 'A National Club meeting' };
+  if (kind === 'agm') return { days: 14, name: 'The Association AGM' };
+  return null;
+}
+
+const NEC_NOTICE_DAYS = 7;
+const DAY_MS = 86_400_000;
+const msOf = (iso: string) => new Date(iso).getTime();
+
+/**
+ * Notice counts when a meeting is called, or moved earlier, for a time still to come. A meeting
+ * dated in the past is a record of one already held.
+ */
+function noticeApplies(input: MeetingInput, existing: Meeting | null | undefined, now: string): boolean {
+  if (msOf(input.startsAt) <= msOf(now)) return false;
+  return !existing || msOf(input.startsAt) < msOf(existing.startsAt);
+}
+
+function noticeProblem(input: MeetingInput, existing: Meeting | null | undefined, now: string): string | null {
+  const rule = noticeRule(input.kind, input.chapterId);
+  if (!rule || !noticeApplies(input, existing, now)) return null;
+  return msOf(input.startsAt) - msOf(now) < rule.days * DAY_MS ? `${rule.name} needs ${rule.days} days’ notice (10.4).` : null;
+}
+
+/** The notice a kind of meeting needs, for the form ("Needs 14 days’ notice (10.4)."), or null. */
+export function noticeLine(kind: MeetingKind, chapterId: string | null): string | null {
+  if (kind === 'nec') return `Needs ${NEC_NOTICE_DAYS} days’ notice, unless it’s urgent (11.5).`;
+  const rule = noticeRule(kind, chapterId);
+  return rule ? `Needs ${rule.days} days’ notice (10.4).` : null;
+}
+
+/** The NEC's short-notice warning, shown on the form (it doesn't refuse). */
+export function noticeWarning(input: MeetingInput, now: string, existing: Meeting | null = null): string | null {
+  if (input.kind !== 'nec' || !input.startsAt || !noticeApplies(input, existing, now)) return null;
+  return msOf(input.startsAt) - msOf(now) < NEC_NOTICE_DAYS * DAY_MS
+    ? 'NEC meetings need 7 days’ notice unless most of the NEC agree to an urgent one (11.5).'
+    : null;
+}
+
 export function saveMeetingProblem(
   me: Member | null,
   input: MeetingInput,
   existing: Meeting | null | undefined,
   data: ClubData,
+  now: string,
 ): string | null {
   const signedIn = signedInProblem(me);
   if (signedIn) return signedIn;
@@ -90,7 +142,7 @@ export function saveMeetingProblem(
   if (!input.startsAt) return 'Pick a date and time.';
   if (!kindsFor(input.chapterId).includes(input.kind)) return 'That kind of meeting doesn’t fit here.';
   if (input.agenda.some((a) => !a.title.trim())) return 'Each agenda item needs a title.';
-  return null;
+  return noticeProblem(input, existing, now);
 }
 
 function meetingProblem(me: Member | null, meeting: Meeting | undefined, data: ClubData): string | null {

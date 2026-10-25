@@ -1,32 +1,32 @@
 // Core club records. These mirror the Supabase tables in supabase/migrations.
 
 export type MemberStatus =
-  | 'introduced' // in the 3-month introduction phase (constitution 3.2)
+  | 'introduced' // in the 3-month introduction phase (constitution v4 4.2)
   | 'fng' // trial member
   | 'full' // fully patched
   | 'nomad' // full member living away from an active chapter
   | 'supporter'
-  | 'family'
+  | 'family' // app-only: family who use the app, no Club rights (v4 has no Family category)
   | 'legacy'; // left the club in good standing
 
 export type ApprovalState = 'pending' | 'approved' | 'declined' | 'suspended';
 
 export type PositionRole =
-  // Executive board (constitution 9.1)
+  // Chapter Board (constitution v4 8.1)
   | 'president'
   | 'vice_president'
   | 'secretary'
   | 'treasurer'
   | 'sergeant_at_arms'
   | 'road_captain'
-  // Non-board club positions (constitution 11)
+  // Non-Board Club positions (constitution v4 8.2, 8.3)
   | 'officer'
   | 'tail_gunner'
   | 'social_media_officer'
   | 'club_coach'
   | 'ride_committee'
   | 'assistant_tail_gunner'
-  // National Executive Committee roles (constitution 13, 15.5)
+  // National roles (constitution v4 11.2, 11.3, 11.8)
   | 'nec_chair'
   | 'nec_secretary'
   | 'nec_auditor'

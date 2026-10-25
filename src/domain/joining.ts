@@ -1,13 +1,14 @@
-// The way in: the introduction phase (constitution 3.2), the board's decision, and the FNG
-// reviews at 6, 9 and 12 months and every 3 months after (5.2, 5.4, 5.5). The database's
+// The way in: the introduction phase (constitution v4 4.2), the board's decision (4.5), and the
+// FNG reviews at 6, 9 and 12 months and every 3 months after (4.7, 4.10). The database's
 // decide_application and record_fng_review actions apply the same rules with the same words.
 
-import { isBoardOf } from './access';
+import { hasCarriedPatchVote, isBoardOf, isLearner, LEARNER_FNG, NEEDS_PATCH_VOTE } from './access';
 import { attendanceCount } from './attendance';
 import { daysBetween } from './dates';
 import { APPROVE_AS } from './labels';
 import { addMonths } from './profile';
 import type { ClubData, DecisionOutcome, Member, MemberDecision, MemberStatus, Votes } from './types';
+import { patchVoteTooEarly } from './votes';
 
 export const INTRO = { months: 3, meetings: 2, rides: 1 };
 
@@ -91,6 +92,7 @@ export function decideApplicationProblem(
   }
   if (target.approval !== 'pending') return 'This person isn’t waiting for approval.';
   if (status !== null && !APPROVE_AS.includes(status)) return 'Let them in as Introduced, FNG, Supporter or Family.';
+  if (status === 'fng' && isLearner(target.id, data)) return LEARNER_FNG;
   return votesProblem(votes);
 }
 
@@ -117,8 +119,10 @@ export function fngReviewProblem(
   if (daysBetween(today, due.date) > REVIEW_EARLY_DAYS) return 'That review isn’t due yet.';
   const v = votesProblem(votes);
   if (v) return v;
-  if (outcome === 'patch' && !((votes.for ?? 0) >= 1 && votes.against === 0)) {
-    return 'Full membership needs a unanimous vote: at least one for and none against.';
+  // Patching in is the chapter's Full Members' call, by a patch vote, not the board's tally (4.9).
+  if (outcome === 'patch') {
+    if (patchVoteTooEarly(target.fngStartedOn, today)) return 'Full Membership can’t be granted before nine months (4.7).';
+    if (!hasCarriedPatchVote(target.id, data)) return NEEDS_PATCH_VOTE;
   }
   return null;
 }

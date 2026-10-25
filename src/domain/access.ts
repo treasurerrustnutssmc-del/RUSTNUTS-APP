@@ -3,7 +3,8 @@
 // more than the server would hand over.
 
 import { BOARD_ROLES, NATIONAL_ROLES, TITLE_ROLES } from './labels';
-import type { ClubData, Member, Position, PositionRole } from './types';
+import { addMonths } from './profile';
+import type { ClubData, Member, MemberStatus, Position, PositionRole } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'member' | 'board' | 'national';
 
@@ -150,9 +151,88 @@ export function appointProblem(
       return 'Only that chapter’s board can appoint here.';
     }
   }
+  const unfit = holdProblem(target, role, data.positions);
+  if (unfit) return unfit;
   const open = data.positions.filter((p) => p.endedOn === null && p.role === role && p.chapterId === seatChapter);
   if (open.some((p) => p.memberId === target.id)) return 'They already hold that role.';
   if ((BOARD_ROLES.includes(role) || national) && open.length > 0) return 'That seat is taken. End the current term first.';
+  return null;
+}
+
+const patched = (status: MemberStatus) => status === 'full' || status === 'nomad';
+const SEAT_ROLES: PositionRole[] = [...BOARD_ROLES, ...NATIONAL_ROLES];
+
+/**
+ * Whether `target` may hold `role` (constitution v4): only Full and Nomad members hold Club
+ * positions (4.6, 5.8); Nomads hold Non-Board roles only (9.1); the National Auditor can't also
+ * be a President or Treasurer (11.8). Mirrors private.hold_problem.
+ */
+function holdProblem(target: Member, role: PositionRole, positions: Position[]): string | null {
+  if (!patched(target.status)) return 'Only Full and Nomad members hold Club positions (4.6, 5.8).';
+  if (target.status === 'nomad' && SEAT_ROLES.includes(role)) return 'Nomads can’t hold a board or national seat (9.1).';
+  const holds = (roles: PositionRole[]) => activePositions(target.id, positions).some((p) => roles.includes(p.role));
+  if ((role === 'nec_auditor' && holds(['president', 'treasurer'])) || ((role === 'president' || role === 'treasurer') && holds(['nec_auditor']))) {
+    return 'The National Auditor can’t also be a President or Treasurer (11.8).';
+  }
+  return null;
+}
+
+/**
+ * Rules with exemptions the app can't see (founding officers, an NEC waiver), so they're shown on
+ * the Appoint screen rather than refused: two years as a Full Member for a board seat (9.1), and a
+ * full term in another board seat before President or Vice President (9.4).
+ */
+export function appointWarnings(target: Member, role: PositionRole, data: ClubData, today: string): string[] {
+  if (!BOARD_ROLES.includes(role)) return [];
+  const warnings: string[] = [];
+  if (target.patchedOn !== null && addMonths(target.patchedOn, 24) > today) {
+    warnings.push('Board nominees need two years as a Full Member, unless the NEC waived it or they’re a founding officer (9.1).');
+  }
+  if (role === 'president' || role === 'vice_president') {
+    const servedTerm = data.positions.some(
+      (p) => p.memberId === target.id && p.role !== role && BOARD_ROLES.includes(p.role) && addMonths(p.startedOn, 24) <= (p.endedOn ?? today),
+    );
+    if (!servedTerm) {
+      warnings.push('A President or Vice President should have served a full term in another board seat, unless they’re a founding officer or the NEC gave an exemption (9.4).');
+    }
+  }
+  return warnings;
+}
+
+/** A patch vote on this member has closed Carried (4.9). */
+export function hasCarriedPatchVote(memberId: string, data: ClubData): boolean {
+  return (data.votes ?? []).some((v) => v.subjectMemberId === memberId && v.closedAt !== null && v.result === 'carried');
+}
+
+/** Their licence on file is a learner permit, so they can't be an FNG yet (3.2). */
+export function isLearner(memberId: string, data: ClubData): boolean {
+  return data.privates.find((p) => p.memberId === memberId)?.licenceClass === 'learner';
+}
+
+export const LEARNER_FNG = 'A learner permit rider can’t become an FNG yet (3.2).';
+export const NEEDS_PATCH_VOTE = 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).';
+
+/**
+ * Why `me` can't move `target` to `status`, or null. Mirrors the database's set_member_status.
+ * An FNG reaches Full or Nomad only through a carried patch vote (4.9); anyone else coming back
+ * to Full or Nomad is a reinstatement or transfer the NEC authorises (5.6). Positions end first
+ * when the new status can't hold them.
+ */
+export function statusChangeProblem(me: Member | null, target: Member, status: MemberStatus, data: ClubData): string | null {
+  if (me?.id === target.id) return 'You can’t change your own status.';
+  if (!isBoardOf(me, target.chapterId, data.positions)) return 'Only that chapter’s board can change this member’s status.';
+  if (target.approval !== 'approved') return 'Approve them first.';
+  if (patched(status) && !patched(target.status)) {
+    if (target.status === 'fng') {
+      if (!hasCarriedPatchVote(target.id, data)) return NEEDS_PATCH_VOTE;
+    } else if (!isNational(me!.id, data.positions)) {
+      return 'Only the NEC can bring someone back to Full or Nomad (5.6).';
+    }
+  }
+  if (status === 'fng' && isLearner(target.id, data)) return LEARNER_FNG;
+  const held = activePositions(target.id, data.positions).filter((p) => !TITLE_ROLES.includes(p.role));
+  if (!patched(status) && held.length > 0) return 'End their positions first.';
+  if (status === 'nomad' && held.some((p) => SEAT_ROLES.includes(p.role))) return 'End their board and national seats first (9.1).';
   return null;
 }
 

@@ -21,6 +21,7 @@ import {
   paymentReference,
   paysFees,
   totalOwing,
+  continuationFeeFor,
 } from '../domain/fees';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
@@ -401,15 +402,14 @@ export function MemberFeesScreen({ route }: RootScreen<'MemberFees'>) {
 // ---------------------------------------------------------------------------
 
 function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; onDone: (msg: string) => void }) {
-  const { me, data, setFeeRate, setContinuationFee } = useClub();
+  const { me, data, setFeeRate } = useClub();
   const canSet = canSetFees(me, chapterId, data.positions);
   const rates = (data.feeRates ?? []).filter((r) => r.chapterId === chapterId && r.fy === fy);
-  const cont = (data.continuationFees ?? []).find((f) => f.chapterId === chapterId && f.fy === fy);
+  const cont = continuationFeeFor(chapterId, fy, data);
   const dollars = (c: number | undefined) => (c === undefined ? '' : (c / 100).toFixed(2).replace(/\.00$/, ''));
   const [amounts, setAmounts] = useState<Partial<Record<MemberStatus, string>>>(
     Object.fromEntries(PAYING_STATUSES.map((s) => [s, dollars(rates.find((r) => r.status === s)?.amountCents)])),
   );
-  const [contText, setContText] = useState(dollars(cont?.amountCents));
   const due = useDate(rates[0]?.dueOn ?? `${fy}-07-31`);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -423,7 +423,7 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
           const r = rates.find((x) => x.status === s);
           return r ? <KeyValue key={s} label={STATUS_LABEL[s]} value={formatCents(r.amountCents)} /> : null;
         })}
-        {cont ? <KeyValue label="FNG continuation" value={formatCents(cont.amountCents)} /> : null}
+        {cont !== null ? <KeyValue label="FNG continuation" value={formatCents(cont)} /> : null}
         {rates[0] ? <KeyValue label="Due" value={formatAuDate(rates[0].dueOn)} /> : null}
       </Card>
     );
@@ -434,7 +434,7 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
     if (!due.iso) return setError('Use DD/MM/YYYY, like 31/07/2027.');
     // A rate that's already set can be changed but not cleared (there's no way to un-set one yet).
     const cleared = PAYING_STATUSES.filter((st) => !(amounts[st] ?? '').trim() && rates.some((r) => r.status === st));
-    if (cleared.length || (!contText.trim() && cont)) {
+    if (cleared.length) {
       return setError('A fee that’s already set can’t be left blank. Put the amount back in, or ask Claude to add a way to stop charging it.');
     }
     const toSave = PAYING_STATUSES.flatMap((st) => {
@@ -442,12 +442,9 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
       return t ? [{ s: st, cents: parseDollars(t) }] : [];
     });
     if (toSave.some((x) => x.cents === null)) return setError('Enter amounts like 250 or 125.50.');
-    const contCents = contText.trim() ? parseDollars(contText) : undefined;
-    if (contCents === null) return setError('Enter the continuation fee like 50.');
     setBusy(true);
     try {
       for (const x of toSave) await setFeeRate(chapterId, fy, x.s, x.cents!, due.iso);
-      if (contCents !== undefined) await setContinuationFee(chapterId, fy, contCents);
       onDone(`Fees for ${fyLabel(fy)} saved.`);
     } catch (e) {
       setError((e as Error).message);
@@ -472,11 +469,10 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
             />
           </View>
         ))}
-        <View style={{ width: '47%', flexGrow: 1 }}>
-          <Field label="Continuation ($)" value={contText} onChangeText={setContText} keyboardType="decimal-pad" placeholder="–" />
-        </View>
       </View>
-      <Small>The continuation fee is added when a review past twelve months says carry on.</Small>
+      <Small>
+        {`The FNG continuation fee is half the FNG fee, charged once when a review past twelve months says carry on (4.11)${cont !== null ? `: ${formatCents(cont)} this year` : ''}.`}
+      </Small>
       <Field label="Due by" value={due.text} onChangeText={due.setText} keyboardType="number-pad" error={due.error} />
       {error ? <Notice tone="danger">{error}</Notice> : null}
       <Button label="Save fees" kind="secondary" busy={busy} onPress={save} />

@@ -659,6 +659,64 @@
       "allowed": false
     },
     {
+      "name": "Board appoints an FNG as an Officer",
+      "as": "torque",
+      "action": "appoint",
+      "member": "finn",
+      "chapter": "west",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "Board appoints the National Auditor as Treasurer",
+      "as": "torque",
+      "action": "appoint",
+      "member": "kim",
+      "chapter": "west",
+      "role": "treasurer",
+      "allowed": false
+    },
+    {
+      "name": "Board makes an FNG Full without a patch vote",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "finn",
+      "status": "full",
+      "allowed": false
+    },
+    {
+      "name": "Board brings a Legacy member back to Full",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "hacker",
+      "status": "full",
+      "allowed": false
+    },
+    {
+      "name": "The NEC brings a Legacy member back to Full",
+      "as": "chair",
+      "action": "setStatus",
+      "member": "hacker",
+      "status": "full",
+      "allowed": true
+    },
+    {
+      "name": "Board moves its Vice President to Nomad",
+      "as": "rusty",
+      "action": "setStatus",
+      "member": "torque",
+      "status": "nomad",
+      "allowed": false
+    },
+    {
+      "name": "Board moves its Tail Gunner to Nomad",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "spanner",
+      "status": "nomad",
+      "allowed": true
+    },
+    {
       "name": "Board appoints a Legacy member",
       "as": "torque",
       "action": "appoint",
@@ -1235,7 +1293,7 @@
       "allowed": true
     },
     {
-      "name": "Board patches an FNG on a unanimous vote",
+      "name": "Board patches an FNG on its own tally, without a patch vote",
       "as": "torque",
       "action": "fngReview",
       "member": "fred",
@@ -1247,7 +1305,7 @@
         "abstained": 0
       },
       "note": "",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "Board patches an FNG with one vote against",
@@ -1458,13 +1516,13 @@
       "allowed": false
     },
     {
-      "name": "Treasurer sets the continuation fee",
+      "name": "Treasurer types in a continuation fee (it’s half the FNG fee now)",
       "as": "penny",
       "action": "setContinuationFee",
       "chapter": "west",
       "fyOffset": 0,
       "amountCents": 5000,
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "Treasurer sets a $0 continuation fee",
@@ -1476,13 +1534,13 @@
       "allowed": false
     },
     {
-      "name": "Chapter Secretary sets the continuation fee",
+      "name": "Chapter Secretary types in a continuation fee",
       "as": "torque",
       "action": "setContinuationFee",
       "chapter": "west",
       "fyOffset": 0,
       "amountCents": 6000,
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "Member sets the continuation fee",

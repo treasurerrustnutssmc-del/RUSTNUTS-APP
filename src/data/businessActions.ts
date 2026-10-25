@@ -32,7 +32,7 @@ const votesOf = (data: ClubData) => data.votes ?? [];
 
 export function saveMeeting(ctx: DemoCtx, input: MeetingInput): { data: ClubData; id: string } {
   const existing = input.id === null ? null : meetingsOf(ctx.data).find((x) => x.id === input.id);
-  refuse(saveMeetingProblem(ctx.me, input, existing, ctx.data));
+  refuse(saveMeetingProblem(ctx.me, input, existing, ctx.data, nowOf(ctx)));
   const fields = {
     chapterId: input.chapterId,
     kind: input.kind,

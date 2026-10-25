@@ -155,4 +155,12 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_voice -f "$ROOT/supabase/tests/ride_voice_test.sql"
 
+# Constitution v4: positions, status, FNG reviews, the continuation fee and meeting notice.
+"${PSQL[@]}" -c "create database rustnuts_v4" >/dev/null
+"${PSQL[@]}" -d rustnuts_v4 -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_v4 -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_v4 -f "$ROOT/supabase/tests/constitution_v4_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
