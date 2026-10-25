@@ -10,6 +10,7 @@ import { meetingKindLabel } from './labels';
 import { noticeWarning, saveMeetingProblem, type MeetingInput } from './meetings';
 import { club, member, who } from './stage4.testkit';
 import type { ClubData, MemberPrivate, Position, Vote } from './types';
+import { openVoteProblem, patchVoteFor, reinstateVoteFor, type VoteInput } from './votes';
 
 const seat = (id: string, memberId: string, chapterId: string | null, role: Position['role'], startedOn = '2025-01-01'): Position => ({
   id, memberId, chapterId, role, startedOn, endedOn: null,
@@ -98,50 +99,99 @@ test('the two-year and full-term rules show as warnings, not refusals', () => {
 // --- B. Status changes can't skip the patch vote ------------------------------------------------
 
 const NEEDS_PATCH_VOTE = 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).';
-const NEC_REINSTATES = 'Only the NEC can bring someone back to Full or Nomad (5.6).';
+const NEC_REINSTATES = 'Coming back to Full or Nomad needs a carried NEC vote (5.6).';
+const REINSTATE_VOTE = 'A reinstatement vote is an NEC majority vote on a member who isn’t Full, Nomad or an FNG (5.6).';
 
 test('an FNG becomes Full only after a carried patch vote', () => {
   const data = v4Club();
   const sec = who(data, 'sec');
-  assert.equal(statusChangeProblem(sec, who(data, 'fng'), 'full', data), NEEDS_PATCH_VOTE);
-  assert.equal(statusChangeProblem(sec, who(data, 'fng'), 'nomad', data), NEEDS_PATCH_VOTE);
+  assert.equal(statusChangeProblem(sec, who(data, 'fng'), 'full', data, '2026-10-25'), NEEDS_PATCH_VOTE);
+  assert.equal(statusChangeProblem(sec, who(data, 'fng'), 'nomad', data, '2026-10-25'), NEEDS_PATCH_VOTE);
   const lost = { ...data, votes: [patchVote('fng', 'lost')] };
-  assert.equal(statusChangeProblem(sec, who(lost, 'fng'), 'full', lost), NEEDS_PATCH_VOTE);
+  assert.equal(statusChangeProblem(sec, who(lost, 'fng'), 'full', lost, '2026-10-25'), NEEDS_PATCH_VOTE);
   const open = { ...data, votes: [patchVote('fng', null, null)] };
-  assert.equal(statusChangeProblem(sec, who(open, 'fng'), 'full', open), NEEDS_PATCH_VOTE);
+  assert.equal(statusChangeProblem(sec, who(open, 'fng'), 'full', open, '2026-10-25'), NEEDS_PATCH_VOTE);
   const carried = { ...data, votes: [patchVote('fng', 'carried')] };
-  assert.equal(statusChangeProblem(sec, who(carried, 'fng'), 'full', carried), null);
+  assert.equal(statusChangeProblem(sec, who(carried, 'fng'), 'full', carried, '2026-10-25'), null);
   // A vote from an earlier trial doesn't count (5.6): the trial restarted after it.
   const old = { ...data, votes: [{ ...patchVote('fng', 'carried'), openedAt: '2025-01-10T00:00:00.000Z' }] };
-  assert.equal(statusChangeProblem(sec, who(old, 'fng'), 'full', old), NEEDS_PATCH_VOTE);
+  assert.equal(statusChangeProblem(sec, who(old, 'fng'), 'full', old, '2026-10-25'), NEEDS_PATCH_VOTE);
 });
 
-test('only the NEC reinstates someone to Full or Nomad', () => {
+const necVote = (memberId: string, result: Vote['result'], closedAt: string | null = '2026-10-20T00:00:00.000Z'): Vote => ({
+  ...patchVote(memberId, result, closedAt), id: `nec-${memberId}-${result}`, chapterId: null, question: 'Reinstate?',
+  electorate: 'nec', threshold: 'majority', secret: false,
+});
+
+test('coming back to Full or Nomad needs a carried NEC vote', () => {
   const data = v4Club();
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'sup'), 'full', data), NEC_REINSTATES);
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'legacy'), 'nomad', data), NEC_REINSTATES);
-  assert.equal(statusChangeProblem(who(data, 'chair'), who(data, 'sup'), 'full', data), null);
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'rider'), 'nomad', data), null, 'Full to Nomad is the board’s');
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'nomad'), 'full', data), null, 'and back');
+  const today = '2026-10-25';
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'sup'), 'full', data, today), NEC_REINSTATES);
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'legacy'), 'nomad', data, today), NEC_REINSTATES);
+  assert.equal(statusChangeProblem(who(data, 'chair'), who(data, 'sup'), 'full', data, today), NEC_REINSTATES, 'one NEC member alone isn’t the NEC');
+  const lost = { ...data, votes: [necVote('sup', 'lost')] };
+  assert.equal(statusChangeProblem(who(lost, 'chair'), who(lost, 'sup'), 'full', lost, today), NEC_REINSTATES);
+  const open = { ...data, votes: [necVote('sup', null, null)] };
+  assert.equal(statusChangeProblem(who(open, 'chair'), who(open, 'sup'), 'full', open, today), NEC_REINSTATES);
+  const patch = { ...data, votes: [patchVote('sup', 'carried')] };
+  assert.equal(statusChangeProblem(who(patch, 'sec'), who(patch, 'sup'), 'full', patch, today), NEC_REINSTATES, 'a chapter vote isn’t the NEC');
+  const carried = { ...data, votes: [necVote('sup', 'carried')] };
+  assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'sup'), 'full', carried, today), null, 'then the board makes the change');
+  assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'sup'), 'nomad', carried, today), null);
+  assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'legacy'), 'full', carried, today), NEC_REINSTATES, 'the vote is about one member');
+  // An approval goes stale after 90 days (inferred).
+  assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'sup'), 'full', carried, '2027-01-18'), null);
+  assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'sup'), 'full', carried, '2027-01-19'), NEC_REINSTATES);
+  // An FNG still needs their chapter's patch vote, not the NEC's.
+  const fng = { ...data, votes: [necVote('fng', 'carried')] };
+  assert.equal(statusChangeProblem(who(fng, 'sec'), who(fng, 'fng'), 'full', fng, today), NEEDS_PATCH_VOTE);
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'rider'), 'nomad', data, today), null, 'Full to Nomad is the board’s');
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'nomad'), 'full', data, today), null, 'and back');
+});
+
+test('a reinstatement vote is an NEC majority vote on someone not Full, Nomad or FNG', () => {
+  const data = v4Club();
+  const chair = who(data, 'chair');
+  const now = '2026-10-25T00:00:00.000Z';
+  const input: VoteInput = {
+    chapterId: null, meetingId: null, subjectMemberId: 'sup', question: 'Reinstate?', details: null,
+    electorate: 'nec', threshold: 'majority', secret: false, quorum: 1, closesAt: '2026-11-01T00:00:00.000Z',
+  };
+  assert.equal(openVoteProblem(chair, input, data, now), null);
+  assert.equal(openVoteProblem(chair, { ...input, secret: true }, data, now), null, 'secret or not is the NEC’s call');
+  assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'legacy' }, data, now), null);
+  assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'rider' }, data, now), REINSTATE_VOTE);
+  assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'fng' }, data, now), REINSTATE_VOTE);
+  assert.equal(openVoteProblem(chair, { ...input, threshold: 'unanimous' }, data, now), REINSTATE_VOTE);
+  assert.equal(openVoteProblem(chair, { ...input, electorate: 'club_patched', quorum: 3 }, data, now), REINSTATE_VOTE);
+  // A chapter subject vote is still a patch vote.
+  assert.equal(
+    openVoteProblem(who(data, 'sec'), { ...input, chapterId: 'west', electorate: 'chapter_patched', threshold: 'unanimous', secret: true, quorum: 2 }, data, now),
+    'A patch vote is for an approved FNG of that chapter.',
+  );
+  // The member screen finds each kind of vote separately.
+  const both = [patchVote('sup', 'lost'), necVote('sup', 'carried')];
+  assert.equal(patchVoteFor('sup', both)?.electorate, 'chapter_patched');
+  assert.equal(reinstateVoteFor('sup', both)?.electorate, 'nec');
 });
 
 test('positions end before someone moves to a status that can’t hold them', () => {
   const base = v4Club();
   const data = { ...base, positions: [...base.positions, seat('p-off', 'rider', 'west', 'officer'), seat('p-rc', 'nomad', 'west', 'officer')] };
   const sec = who(data, 'sec');
-  assert.equal(statusChangeProblem(sec, who(data, 'rider'), 'supporter', data), 'End their positions first.');
-  assert.equal(statusChangeProblem(sec, who(data, 'rider'), 'nomad', data), null, 'Nomads keep Non-Board roles');
-  assert.equal(statusChangeProblem(sec, who(data, 'tre'), 'nomad', data), 'End their board and national seats first (9.1).');
-  assert.equal(statusChangeProblem(who(data, 'chair'), who(data, 'sec'), 'family', data), 'End their positions first.');
-  assert.equal(statusChangeProblem(sec, who(data, 'rider'), 'legacy', data), 'End their positions first.');
+  assert.equal(statusChangeProblem(sec, who(data, 'rider'), 'supporter', data, '2026-10-25'), 'End their positions first.');
+  assert.equal(statusChangeProblem(sec, who(data, 'rider'), 'nomad', data, '2026-10-25'), null, 'Nomads keep Non-Board roles');
+  assert.equal(statusChangeProblem(sec, who(data, 'tre'), 'nomad', data, '2026-10-25'), 'End their board and national seats first (9.1).');
+  assert.equal(statusChangeProblem(who(data, 'chair'), who(data, 'sec'), 'family', data, '2026-10-25'), 'End their positions first.');
+  assert.equal(statusChangeProblem(sec, who(data, 'rider'), 'legacy', data, '2026-10-25'), 'End their positions first.');
 });
 
 test('the old status-change checks still come first', () => {
   const data = v4Club();
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'sec'), 'nomad', data), 'You can’t change your own status.');
-  assert.equal(statusChangeProblem(who(data, 'rider'), who(data, 'fng'), 'supporter', data), 'Only that chapter’s board can change this member’s status.');
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'applicant'), 'fng', data), 'Approve them first.');
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'fng'), 'supporter', data), null);
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'sec'), 'nomad', data, '2026-10-25'), 'You can’t change your own status.');
+  assert.equal(statusChangeProblem(who(data, 'rider'), who(data, 'fng'), 'supporter', data, '2026-10-25'), 'Only that chapter’s board can change this member’s status.');
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'applicant'), 'fng', data, '2026-10-25'), 'Approve them first.');
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'fng'), 'supporter', data, '2026-10-25'), null);
 });
 
 // --- C. Learner riders can't become FNGs --------------------------------------------------------
@@ -154,7 +204,7 @@ test('a learner permit rider can’t become an FNG', () => {
   const sec = who(data, 'sec');
   assert.equal(decideApplicationProblem(sec, who(data, 'applicant'), 'fng', none, data), LEARNER);
   assert.equal(decideApplicationProblem(sec, who(data, 'applicant'), 'introduced', none, data), null);
-  assert.equal(statusChangeProblem(sec, who(data, 'sup'), 'fng', data), LEARNER);
+  assert.equal(statusChangeProblem(sec, who(data, 'sup'), 'fng', data, '2026-10-25'), LEARNER);
   const probationary = v4Club({ privates: [priv('applicant', { licenceClass: 'probationary_open' })] });
   assert.equal(decideApplicationProblem(sec, who(probationary, 'applicant'), 'fng', none, probationary), null);
   assert.equal(decideApplicationProblem(sec, who(v4Club(), 'applicant'), 'fng', none, v4Club()), null, 'no licence on file doesn’t block');

@@ -763,7 +763,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
       <Card>
         <Row style={{ gap: 6 }}>
           <Chip label={scopeLabel(vote.chapterId, data)} tone="steel" />
-          {subject ? <Chip label="Patch vote" tone="redOutline" /> : null}
+          {subject ? <Chip label={vote.electorate === 'nec' ? 'NEC vote' : 'Patch vote'} tone="redOutline" /> : null}
           {vote.secret ? <Chip label="Secret ballot" tone="bone" icon="lock-closed" /> : null}
         </Row>
         <H1>{vote.question}</H1>
@@ -795,7 +795,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
           {vote.result === 'no_quorum' ? <Small>{`Fewer than ${vote.quorum} ballots came in, so the vote doesn’t count.`}</Small> : null}
           {subject && vote.result === 'carried' && runs ? (
             <Button
-              label={`Record ${displayName(subject)}’s patch`}
+              label={vote.electorate === 'nec' ? `Bring ${displayName(subject)} back` : `Record ${displayName(subject)}’s patch`}
               kind="secondary"
               onPress={() => navigation.navigate('ManageMember', { memberId: subject.id })}
             />
@@ -960,15 +960,19 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   const params = route.params ?? {};
   const scopes = scopesRun(me, data);
   const subject = params.subjectMemberId ? data.members.find((m) => m.id === params.subjectMemberId) : undefined;
+  // A vote about a member: the chapter's patch vote on an FNG (4.9), or the NEC's on bringing someone back (5.6).
+  const reinstate = !!subject && subject.status !== 'fng';
   const fixedScope = params.chapterId !== undefined || !!subject;
   const [scope, setScope] = useState<string | null>(
-    subject ? subject.chapterId : params.chapterId !== undefined ? params.chapterId : scopes[0] ?? null,
+    reinstate ? null : subject ? subject.chapterId : params.chapterId !== undefined ? params.chapterId : scopes[0] ?? null,
   );
-  const [electorate, setElectorate] = useState<Electorate>(subject ? 'chapter_patched' : electoratesFor(scope)[0]);
-  const [threshold, setThreshold] = useState<Threshold>(subject ? 'unanimous' : 'majority');
-  const [question, setQuestion] = useState(subject ? `Patch ${displayName(subject)} as a Full member?` : '');
+  const [electorate, setElectorate] = useState<Electorate>(reinstate ? 'nec' : subject ? 'chapter_patched' : electoratesFor(scope)[0]);
+  const [threshold, setThreshold] = useState<Threshold>(subject && !reinstate ? 'unanimous' : 'majority');
+  const [question, setQuestion] = useState(
+    reinstate ? `Bring ${displayName(subject)} back as a Full member?` : subject ? `Patch ${displayName(subject)} as a Full member?` : '',
+  );
   const [details, setDetails] = useState('');
-  const [secret, setSecret] = useState(!!subject);
+  const [secret, setSecret] = useState(!!subject && !reinstate);
   const size = electorsFor(electorate, scope, data).length;
   const [quorumText, setQuorumText] = useState<string | null>(null);
   const close = defaultClose();
@@ -1016,7 +1020,11 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
           onChange={pickScope}
         />
       ) : null}
-      {subject ? (
+      {reinstate ? (
+        <Notice title="NEC vote">
+          {`Each chapter’s President votes for their chapter (11.2), and it passes on a majority. If it carries, the ${scopeLabel(subject!.chapterId, data)} board can bring ${displayName(subject!)} back to Full or Nomad within 90 days (5.6).`}
+        </Notice>
+      ) : subject ? (
         <Notice title="Patch vote">
           {`Every Full Member of the ${scopeLabel(scope, data)} gets a secret ballot, and every one of them has to vote yes (4.9). Only the result is shown.`}
         </Notice>

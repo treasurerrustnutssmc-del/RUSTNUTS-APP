@@ -5,6 +5,7 @@
 import { BOARD_ROLES, NATIONAL_ROLES, TITLE_ROLES } from './labels';
 import { addMonths } from './profile';
 import { melbourneDate } from './rides';
+import { addDays } from './dates';
 import type { ClubData, Member, MemberStatus, Position, PositionRole } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'member' | 'board' | 'national';
@@ -207,7 +208,7 @@ export function appointWarnings(target: Member, role: PositionRole, data: ClubDa
 export function hasCarriedPatchVote(memberId: string, data: ClubData): boolean {
   const since = data.members.find((m) => m.id === memberId)?.fngStartedOn ?? null;
   return (data.votes ?? []).some(
-    (v) => v.subjectMemberId === memberId && v.closedAt !== null && v.result === 'carried' && (since === null || melbourneDate(v.openedAt) >= since),
+    (v) => v.subjectMemberId === memberId && v.electorate === 'chapter_patched' && v.closedAt !== null && v.result === 'carried' && (since === null || melbourneDate(v.openedAt) >= since),
   );
 }
 
@@ -217,23 +218,35 @@ export function isLearner(memberId: string, data: ClubData): boolean {
 }
 
 export const LEARNER_FNG = 'A learner permit rider can’t become an FNG yet (3.2).';
+/** How long a carried NEC reinstatement vote stays good for (inferred). */
+export const REINSTATE_VOTE_DAYS = 90;
+
+/** The NEC voted, in the last 90 days, to bring this member back to Full or Nomad (5.6). */
+export function hasCarriedReinstateVote(memberId: string, data: ClubData, today: string): boolean {
+  const since = addDays(today, -REINSTATE_VOTE_DAYS);
+  return (data.votes ?? []).some(
+    (v) => v.subjectMemberId === memberId && v.electorate === 'nec' && v.closedAt !== null && v.result === 'carried' && melbourneDate(v.closedAt) >= since,
+  );
+}
+
+export const NEEDS_NEC_VOTE = 'Coming back to Full or Nomad needs a carried NEC vote (5.6).';
 export const NEEDS_PATCH_VOTE = 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).';
 
 /**
  * Why `me` can't move `target` to `status`, or null. Mirrors the database's set_member_status.
  * An FNG reaches Full or Nomad only through a carried patch vote (4.9); anyone else coming back
- * to Full or Nomad is a reinstatement or transfer the NEC authorises (5.6). Positions end first
- * when the new status can't hold them.
+ * to Full or Nomad needs a carried NEC vote (5.6), and then their board makes the change. Positions
+ * end first when the new status can't hold them. `today` is the Melbourne date.
  */
-export function statusChangeProblem(me: Member | null, target: Member, status: MemberStatus, data: ClubData): string | null {
+export function statusChangeProblem(me: Member | null, target: Member, status: MemberStatus, data: ClubData, today: string): string | null {
   if (me?.id === target.id) return 'You can’t change your own status.';
   if (!isBoardOf(me, target.chapterId, data.positions)) return 'Only that chapter’s board can change this member’s status.';
   if (target.approval !== 'approved') return 'Approve them first.';
   if (patched(status) && !patched(target.status)) {
     if (target.status === 'fng') {
       if (!hasCarriedPatchVote(target.id, data)) return NEEDS_PATCH_VOTE;
-    } else if (!isNational(me!.id, data.positions)) {
-      return 'Only the NEC can bring someone back to Full or Nomad (5.6).';
+    } else if (!hasCarriedReinstateVote(target.id, data, today)) {
+      return NEEDS_NEC_VOTE;
     }
   }
   if (status === 'fng' && isLearner(target.id, data)) return LEARNER_FNG;

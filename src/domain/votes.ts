@@ -8,7 +8,11 @@ import { activePositions } from './access';
 import { BOARD_ROLES, electoratesFor } from './labels';
 import { runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
-import type { ClubData, Electorate, Member, Position, Tally, Threshold, Vote, VoteResult } from './types';
+import type { ClubData, Electorate, Member, MemberStatus, Position, Tally, Threshold, Vote, VoteResult } from './types';
+
+/** Who the NEC can vote to bring back to Full or Nomad (5.6). */
+export const REINSTATABLE: MemberStatus[] = ['supporter', 'legacy', 'family', 'introduced'];
+export const REINSTATE_VOTE = 'A reinstatement vote is an NEC majority vote on a member who isn’t Full, Nomad or an FNG (5.6).';
 
 /** How long a vote can stay open (inferred). */
 export const MAX_OPEN_DAYS = 60;
@@ -150,9 +154,15 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
   }
   if (!input.closesAt || !(ms(input.closesAt) > ms(now))) return 'Pick a closing time in the future.';
   if (ms(input.closesAt) > ms(now) + MAX_OPEN_DAYS * 86_400_000) return 'Votes can stay open for 60 days at most.';
-  if (input.subjectMemberId !== null) {
+  if (input.subjectMemberId !== null && input.chapterId === null) {
+    // Bringing someone back to Full or Nomad is the NEC's decision (5.6).
     const subject = data.members.find((x) => x.id === input.subjectMemberId);
-    if (!subject || input.chapterId === null || subject.chapterId !== input.chapterId || subject.approval !== 'approved' || subject.status !== 'fng') {
+    if (!subject || subject.approval !== 'approved' || !REINSTATABLE.includes(subject.status) || input.electorate !== 'nec' || input.threshold !== 'majority') {
+      return REINSTATE_VOTE;
+    }
+  } else if (input.subjectMemberId !== null) {
+    const subject = data.members.find((x) => x.id === input.subjectMemberId);
+    if (!subject || subject.chapterId !== input.chapterId || subject.approval !== 'approved' || subject.status !== 'fng') {
       return 'A patch vote is for an approved FNG of that chapter.';
     }
     if (input.electorate !== 'chapter_patched' || input.threshold !== 'unanimous' || !input.secret) {
@@ -238,12 +248,18 @@ export function ruleLine(vote: Pick<Vote, 'threshold' | 'quorum' | 'electorIds' 
   return parts.join(' · ');
 }
 
-/** The patch vote on a member: the open one if there is one, else the one that closed last. */
-export function patchVoteFor(memberId: string, votes: Vote[]): Vote | null {
-  const theirs = votes.filter((v) => v.subjectMemberId === memberId);
+/** The latest vote of one kind about a member: the open one if there is one, else the one that closed last. */
+function subjectVoteFor(memberId: string, votes: Vote[], electorate: Electorate): Vote | null {
+  const theirs = votes.filter((v) => v.subjectMemberId === memberId && v.electorate === electorate);
   return (
     theirs.find((v) => v.closedAt === null) ??
     theirs.sort((a, b) => b.closedAt!.localeCompare(a.closedAt!))[0] ??
     null
   );
 }
+
+/** The chapter's patch vote on an FNG (4.9). */
+export const patchVoteFor = (memberId: string, votes: Vote[]) => subjectVoteFor(memberId, votes, 'chapter_patched');
+
+/** The NEC's vote on bringing a member back to Full or Nomad (5.6). */
+export const reinstateVoteFor = (memberId: string, votes: Vote[]) => subjectVoteFor(memberId, votes, 'nec');

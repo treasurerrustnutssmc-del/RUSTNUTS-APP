@@ -164,7 +164,7 @@ export function decline(ctx: DemoCtx, memberId: string): ClubData {
 export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus): ClubData {
   if (ctx.me?.id === memberId) throw new NotAllowedError('You can’t change your own status.');
   const target = findMember(ctx.data, memberId);
-  const problem = statusChangeProblem(ctx.me, target, status, ctx.data);
+  const problem = statusChangeProblem(ctx.me, target, status, ctx.data, ctx.today);
   if (problem) throw new NotAllowedError(problem);
   if (status === 'legacy') {
     return patchMember(ctx.data, memberId, { status, onHiatus: false, ...statusDates(target, status, ctx.today) });

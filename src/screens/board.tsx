@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { appointProblem, appointWarnings, endTermProblem, pendingFor, statusChangeProblem } from '../domain/access';
+import { appointProblem, appointWarnings, endTermProblem, hasCarriedReinstateVote, pendingFor, statusChangeProblem } from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
 import { signoffSummary } from '../domain/roadRules';
 import { melbourneDate } from '../domain/rides';
-import { nineMonthsAfter, patchVoteFor, patchVoteTooEarly } from '../domain/votes';
+import { nineMonthsAfter, patchVoteFor, patchVoteTooEarly, REINSTATABLE, reinstateVoteFor } from '../domain/votes';
 import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole, Votes } from '../domain/types';
@@ -277,7 +277,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const roleOptions = [...BOARD_ROLES, ...CLUB_ROLES, ...NATIONAL_ROLES].filter(
     (r) => appointProblem(me, member, member.chapterId, r, data) === null,
   );
-  const statusBlock = status && status !== member.status ? statusChangeProblem(me, member, status, data) : null;
+  const statusBlock = status && status !== member.status ? statusChangeProblem(me, member, status, data, today) : null;
   const warnings = role ? appointWarnings(member, role, data, today) : [];
   const holdsNothing = member.status !== 'full' && member.status !== 'nomad';
   // Stage 5: the patch vote on this FNG (open, or the latest result), or the chance to start one.
@@ -291,6 +291,12 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
     member.status === 'fng' &&
     member.approval === 'approved' &&
     runsScope(me, member.chapterId, data.positions);
+  // Coming back to Full or Nomad: the NEC's vote (5.6), which the NEC starts.
+  const reinstatable = REINSTATABLE.includes(member.status) && member.approval === 'approved';
+  const reinstateVote = reinstatable ? reinstateVoteFor(member.id, data.votes ?? []) : null;
+  const reinstateOpen = reinstateVote !== null && reinstateVote.closedAt === null;
+  const necSaidYes = hasCarriedReinstateVote(member.id, data, today);
+  const canStartReinstateVote = reinstatable && !reinstateOpen && !necSaidYes && runsScope(me, null, data.positions);
 
   const run = async (fn: () => Promise<void>, ok: string) => {
     try {
@@ -343,6 +349,32 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         ) : null}
         {!patchVote && tooEarly && member.status === 'fng' ? (
           <Small>{`A patch vote can open from ${formatAuDate(nineMonthsAfter(member.fngStartedOn!))}, nine months into the trial (4.7).`}</Small>
+        ) : null}
+        {reinstatable && !statusBlock ? (
+          <Small>
+            {necSaidYes
+              ? 'The NEC voted yes, so their board can bring them back to Full or Nomad (5.6).'
+              : 'Coming back to Full or Nomad needs a yes vote from the NEC first (5.6).'}
+          </Small>
+        ) : null}
+        {reinstateVote && !reinstateOpen ? (
+          <Small>
+            {`NEC vote closed ${formatAuDate(melbourneDate(reinstateVote.closedAt!))}: ${RESULT_LABEL[reinstateVote.result!]}.`}
+          </Small>
+        ) : null}
+        {reinstateVote ? (
+          <Button
+            label={reinstateOpen ? 'See the NEC vote' : 'See the NEC result'}
+            kind="secondary"
+            onPress={() => navigation.navigate('Vote', { voteId: reinstateVote.id })}
+          />
+        ) : null}
+        {canStartReinstateVote ? (
+          <Button
+            label="Start NEC vote"
+            kind="secondary"
+            onPress={() => navigation.navigate('NewVote', { subjectMemberId: member.id })}
+          />
         ) : null}
         {canStartPatchVote ? (
           <Button
