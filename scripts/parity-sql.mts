@@ -6,7 +6,9 @@
 import { addDays } from '../src/domain/dates';
 import { fyOf } from '../src/domain/fees';
 import { readGpx } from '../src/domain/gpx';
+import { monthReport } from '../src/domain/ledger'; // Stage 5B
 import {
+  LEDGER_AT, monthFrom, fixtureData, // Stage 5B
   BRIEFED_AT, BUS_AT, BUS_DECLINE_REASON, caseAction, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
   resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
@@ -80,9 +82,10 @@ for (const x of fx.meetings) {
 }
 for (const v of fx.votes) {
   sql(
-    `insert into public.votes (id, chapter_id, question, electorate, threshold, quorum, opened_at, closes_at) values (` +
+    `insert into public.votes (id, chapter_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result) values (` +
       `${id('v', v.key)}, ${chapter(v.chapter)}, ${q(v.key)}, ${q(v.electorate)}, ${q(v.threshold)}, ${v.quorum}, ` +
-      `'2025-12-01T00:00:00Z', ${q(v.closesAt)}::timestamptz);`,
+      `'2025-12-01T00:00:00Z', ${q(v.closesAt)}::timestamptz, ` +
+      `${v.result ? "'2026-01-01T00:00:00Z'" : 'null'}, ${v.result ? q(v.result) : 'null'});`,
   );
   for (const e of v.electors) {
     const voted = v.ballots.some((b) => b.member === e);
@@ -332,6 +335,38 @@ const saveRouteCall = (c: ParityCase & Record<string, any>): string => {
   );
 };
 
+const ledgerCall = (c: ParityCase & Record<string, any>): string => {
+  switch (c.action) {
+    case 'recordCredit':
+      return `public.record_credit(${chapter(c.chapter)}, ${q(c.code)}, ${q(c.description)}, ${c.amountCents}, ${date(c.receivedOn ?? null)}, ${date(c.entryOn ?? null)})`;
+    case 'recordDebit':
+      return (
+        `public.record_debit(${chapter(c.chapter)}, ${q(c.code)}, ${q(c.description)}, ${c.amountCents}, ` +
+        `${c.payee ? id('m', c.payee) : 'null'}, ${textOrNull(c.payeeName)}, ${date(c.paidOn ?? null)})`
+      );
+    case 'approveDebit':
+      return `public.approve_debit(${id('le', c.entry)})`;
+    case 'payDebit':
+      return `public.pay_debit(${id('le', c.entry)}, ${date(c.paidOn ?? null)})`;
+    case 'voidEntry':
+      return `public.void_entry(${id('le', c.entry)}, ${q(c.reason)})`;
+    case 'addFeePayment':
+      return `public.add_fee_payment(${id('pay', c.payment)})`;
+    case 'setOpening':
+      return `public.set_opening(${chapter(c.chapter)}, ${c.fy}, ${c.amountCents})`;
+    case 'setCashFloat':
+      return `public.set_cash_float(${c.fy}, ${c.amountCents})`;
+    case 'saveBudget':
+      return `public.save_budget(${chapter(c.chapter)}, ${c.fy}, ${json(c.lines)})`;
+    case 'approveBudget':
+      return `public.approve_budget(${chapter(c.chapter)}, ${c.fy}, ${id('v', c.vote)})`;
+    case 'reopenBudget':
+      return `public.reopen_budget(${chapter(c.chapter)}, ${c.fy})`;
+    default:
+      return `public.present_report(${date(c.month)})`;
+  }
+};
+
 const call = (c: ParityCase & Record<string, any>): string => {
   const stage4 = stage4Call(resolveCase(c, today) as ParityCase & Record<string, any>);
   if (stage4) return stage4;
@@ -408,6 +443,20 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.cast_ballot(${id('v', c.vote)}, ${q(c.choice)})`;
     case 'closeVote':
       return `public.close_vote(${id('v', c.vote)}, ${c.casting ? q(c.casting) : 'null'})`;
+    // Stage 5B: the treasurer's books. Dates come as …Days from today.
+    case 'recordCredit':
+    case 'recordDebit':
+    case 'approveDebit':
+    case 'payDebit':
+    case 'voidEntry':
+    case 'addFeePayment':
+    case 'setOpening':
+    case 'setCashFloat':
+    case 'saveBudget':
+    case 'approveBudget':
+    case 'reopenBudget':
+    case 'presentReport':
+      return ledgerCall(resolveCase(c, today) as ParityCase & Record<string, any>);
     case 'chatSend':
       return `public.send_message(${caseChat}, ${text(c.body, c.repeat)}, ${gifs(c.gifs)}, ${c.replyTo ? id('msg', c.replyTo) : 'null'})`;
     case 'chatRemove':
@@ -426,6 +475,59 @@ const call = (c: ParityCase & Record<string, any>): string => {
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
 };
+
+// Stage 5B: the treasurer's books, inserted as the owner.
+for (const e of fx.ledger ?? []) {
+  const credit = e.code.startsWith('CR');
+  sql(
+    `insert into public.ledger_entries (id, chapter_id, code, description, amount_cents, received_on, entry_on, payee_member_id, ` +
+      `payee_name, payment_id, state, recorded_at, updated_at, void_reason) values (` +
+      `${id('le', e.key)}, ${chapter(e.chapter)}, ${q(e.code)}, ${q(e.key)}, ${e.amountCents}, ${credit ? date(e.entryOn) : 'null'}, ` +
+      `${date(e.entryOn)}, ${e.payee ? id('m', e.payee) : 'null'}, ${e.payee || credit ? 'null' : "'Payee'"}, ` +
+      `${e.payment ? id('pay', e.payment) : 'null'}, ${q(e.state)}, ${q(LEDGER_AT)}::timestamptz, ${q(LEDGER_AT)}::timestamptz, ` +
+      `${e.state === 'void' ? "'Fixture'" : 'null'});`,
+  );
+  for (const m of e.approvals ?? []) {
+    sql(`insert into public.ledger_approvals (entry_id, member_id, approved_at) values (${id('le', e.key)}, ${id('m', m)}, ${q(LEDGER_AT)}::timestamptz);`);
+  }
+}
+for (const o of fx.fundOpenings ?? []) {
+  sql(`insert into public.fund_openings (chapter_id, fy, amount_cents) values (${chapter(o.chapter)}, ${o.fy}, ${o.amountCents});`);
+}
+for (const f of fx.cashFloats ?? []) {
+  sql(`insert into public.cash_floats (fy, amount_cents) values (${f.fy}, ${f.amountCents});`);
+}
+for (const b of fx.budgets ?? []) {
+  sql(
+    `insert into public.budgets (chapter_id, fy, lines, approved_at) values (${chapter(b.chapter)}, ${fyOf(today) + b.fyOffset}, ` +
+      `${json(b.lines)}, ${b.approved ? `${q(LEDGER_AT)}::timestamptz` : 'null'});`,
+  );
+}
+for (const r of fx.treasurerReports ?? []) {
+  sql(`insert into public.treasurer_reports (month, presented_at) values (${date(monthFrom(today, r.monthOffset))}, ${q(LEDGER_AT)}::timestamptz);`);
+}
+// The monthly report: the database works out the same numbers as the demo.
+if (fx.reportMonth) {
+  const r = monthReport(fx.reportMonth, fixtureData([], today));
+  const funds = Object.entries(r.funds).map(([k, v]) => [k === 'club' ? null : k, v] as const);
+  sql('do $report$ declare r jsonb := private.month_report(' + date(fx.reportMonth) + '); begin');
+  const check = (expr: string, want: string, what: string) =>
+    sql(`  if (${expr}) is distinct from ${want} then raise exception 'PARITY: the report''s ${what} differs: %', ${expr}; end if;`);
+  check(`(r->>'opening_cents')::bigint`, String(r.openingCents), 'opening');
+  check(`(r->>'credit_total')::bigint`, String(r.creditTotal), 'credit total');
+  check(`(r->>'debit_total')::bigint`, String(r.debitTotal), 'debit total');
+  check(`(r->>'total_cents')::bigint`, String(r.totalCents), 'total');
+  check(`(r->>'float_cents')::bigint`, String(r.floatCents), 'float');
+  check(`(r->>'bank_cents')::bigint`, String(r.bankCents), 'bank balance');
+  check(`r->'credits'`, json(r.credits), 'credits by code');
+  check(`r->'debits'`, json(r.debits), 'debits by code');
+  for (const [slug, cents] of funds) {
+    const key = slug === null ? q('club') : `(select id::text from public.chapters where slug = ${q(slug)})`;
+    check(`(r->'funds'->>${key})::bigint`, String(cents), `${slug ?? 'Club'} fund`);
+  }
+  sql('end $report$;');
+  sql(`\\echo '  The ${fx.reportMonth.slice(0, 7)} Treasurer''s Report adds up the same in the demo and the database'`);
+}
 
 sql('\\echo Parity: the demo and the database agree on who can do what');
 for (const c of fx.cases) {

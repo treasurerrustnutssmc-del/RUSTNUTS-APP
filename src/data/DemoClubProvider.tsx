@@ -11,6 +11,7 @@ import * as act from './demoActions';
 import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
 import * as s4 from './demoStage4';
+import * as ledger from './ledgerActions';
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
@@ -153,6 +154,27 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     cancelBus: async (bookingId) => setData(act.cancelBus(ctx, bookingId)),
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => setData((d) => ({ ...d, notificationPrefs: prefs })),
+    // Stage 5B: treasurer
+    recordCredit: async (input) => {
+      const result = ledger.recordCredit(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    recordDebit: async (input) => {
+      const result = ledger.recordDebit(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    approveDebit: async (id) => setData(ledger.approveDebit(ctx, id)),
+    payDebit: async (id, paidOn) => setData(ledger.payDebit(ctx, id, paidOn)),
+    voidEntry: async (id, reason) => setData(ledger.voidEntry(ctx, id, reason)),
+    addFeePayment: async (paymentId) => setData(ledger.addFeePayment(ctx, paymentId).data),
+    setOpening: async (chapterId, fy, amountCents) => setData(ledger.setOpening(ctx, chapterId, fy, amountCents)),
+    setCashFloat: async (fy, amountCents) => setData(ledger.setCashFloat(ctx, fy, amountCents)),
+    saveBudget: async (chapterId, fy, lines) => setData(ledger.saveBudget(ctx, chapterId, fy, lines)),
+    approveBudget: async (chapterId, fy, voteId) => setData(ledger.approveBudget(ctx, chapterId, fy, voteId)),
+    reopenBudget: async (chapterId, fy) => setData(ledger.reopenBudget(ctx, chapterId, fy)),
+    presentReport: async (month) => setData(ledger.presentReport(ctx, month)),
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;

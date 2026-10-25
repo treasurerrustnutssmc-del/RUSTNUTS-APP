@@ -8,6 +8,7 @@ import type { RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { Casting, VoteInput } from '../domain/votes';
+import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
 import type {
   BallotChoice,
   Bike,
@@ -15,6 +16,7 @@ import type {
   ClubData,
   CrewRole,
   EmergencyContact,
+  LedgerCode, // Stage 5B
   LicenceClass,
   Member,
   MemberPrivate,
@@ -200,6 +202,24 @@ export interface ClubContextValue {
   decideBus: (bookingId: string, yes: boolean, reason: string) => Promise<void>;
   /** Calls off a Waiting or Booked booking (whoever booked it, its driver or the board). */
   cancelBus: (bookingId: string) => Promise<void>;
+  // Stage 5B: treasurer
+  /** Money in, banked. Resolves to the entry's id. */
+  recordCredit: (input: CreditInput) => Promise<string>;
+  /** Money out, waiting for two approvals (bank fees are paid straight away). Resolves to the entry's id. */
+  recordDebit: (input: DebitInput) => Promise<string>;
+  approveDebit: (entryId: string) => Promise<void>;
+  payDebit: (entryId: string, paidOn: string) => Promise<void>;
+  voidEntry: (entryId: string, reason: string) => Promise<void>;
+  /** Puts a confirmed fee payment in the ledger as CR-001. */
+  addFeePayment: (paymentId: string) => Promise<void>;
+  setOpening: (chapterId: string | null, fy: number, amountCents: number) => Promise<void>;
+  setCashFloat: (fy: number, amountCents: number) => Promise<void>;
+  saveBudget: (chapterId: string | null, fy: number, lines: Partial<Record<LedgerCode, number>>) => Promise<void>;
+  /** Approves a budget by a carried board (or NEC) vote, and locks it (13.4). */
+  approveBudget: (chapterId: string | null, fy: number, voteId: string) => Promise<void>;
+  reopenBudget: (chapterId: string | null, fy: number) => Promise<void>;
+  /** Presents a month's Treasurer's Report to members (13.8). `month` is its first day. */
+  presentReport: (month: string) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);

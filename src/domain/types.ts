@@ -239,7 +239,7 @@ export interface BusBooking {
   cancelledAt: string | null;
 }
 
-export interface ClubData {
+export interface ClubData extends LedgerData {
   chapters: Chapter[];
   members: Member[];
   privates: MemberPrivate[];
@@ -527,4 +527,93 @@ export interface NotificationPrefs {
   newRides: boolean;
   /** Board only: someone in the chapter is waiting for approval. */
   approvals: boolean;
+}
+
+// Stage 5B: treasurer ---------------------------------------------------------------------------
+
+export type LedgerCode =
+  | 'CR-001' | 'CR-002' | 'CR-003' | 'CR-004' | 'CR-005' | 'CR-006' | 'CR-007'
+  | 'DB-001' | 'DB-002' | 'DB-003' | 'DB-004' | 'DB-005' | 'DB-006' | 'DB-007';
+
+/** A debit waits for two approvals, then is paid; a credit is paid (banked) when recorded. */
+export type EntryState = 'awaiting' | 'approved' | 'paid' | 'void';
+
+/** One line of the club's books, in a chapter's fund or the Club fund (chapterId null). */
+export interface LedgerEntry {
+  id: string;
+  chapterId: string | null;
+  code: LedgerCode;
+  description: string;
+  amountCents: number;
+  /** Credits: when the money came in. */
+  receivedOn: string | null;
+  /** When it was banked, or a debit paid. Null until then. */
+  entryOn: string | null;
+  payeeMemberId: string | null;
+  payeeName: string | null;
+  /** The Stage 4 fee payment it came from. */
+  paymentId: string | null;
+  state: EntryState;
+  recordedBy: string | null;
+  recordedAt: string;
+  updatedAt: string;
+  voidReason: string | null;
+  voidedBy: string | null;
+  approvals: { memberId: string; approvedAt: string }[];
+}
+
+/** A fund's balance on 1 July of a financial year. */
+export interface FundOpening {
+  chapterId: string | null;
+  fy: number;
+  amountCents: number;
+}
+
+export interface CashFloat {
+  fy: number;
+  amountCents: number;
+}
+
+/** A fund's budget for a year: cents per code. Locked once a carried vote approves it (13.4). */
+export interface Budget {
+  chapterId: string | null;
+  fy: number;
+  lines: Partial<Record<LedgerCode, number>>;
+  approvedVoteId: string | null;
+  approvedAt: string | null;
+  approvedBy: string | null;
+}
+
+/** A month the treasurer has presented to members (13.8). `month` is its first day. */
+export interface TreasurerReport {
+  month: string;
+  presentedAt: string;
+  presentedBy: string | null;
+}
+
+/** The monthly Treasurer's Report, laid out like the club's own. */
+export interface MonthReport {
+  month: string;
+  openingCents: number;
+  credits: { code: LedgerCode; cents: number }[];
+  creditTotal: number;
+  debits: { code: LedgerCode; cents: number }[];
+  debitTotal: number;
+  /** Each fund's balance at the end of the month, keyed 'club' or by chapter id. */
+  funds: Record<string, number>;
+  totalCents: number;
+  floatCents: number;
+  bankCents: number;
+  /** The last change to any entry in the month. */
+  lastChangeAt: string | null;
+}
+
+export interface LedgerData {
+  ledger?: LedgerEntry[];
+  fundOpenings?: FundOpening[];
+  cashFloats?: CashFloat[];
+  budgets?: Budget[];
+  treasurerReports?: TreasurerReport[];
+  /** Live only: presented months worked out by the database, for members who can't read the lines. */
+  reportTotals?: MonthReport[];
 }
