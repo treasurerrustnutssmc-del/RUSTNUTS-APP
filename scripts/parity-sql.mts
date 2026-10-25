@@ -4,6 +4,7 @@
 
 // Stage 4
 import { addDays } from '../src/domain/dates';
+import { clubYearOf } from '../src/domain/clubYear';
 import { fyOf } from '../src/domain/fees';
 import { readGpx } from '../src/domain/gpx';
 import { monthReport } from '../src/domain/ledger'; // Stage 5B
@@ -133,13 +134,13 @@ if (s4) {
   for (const r of s4.rates) {
     sql(
       `insert into public.fee_rates (chapter_id, fy, status, amount_cents, due_on) values (` +
-        `${chapter(r.chapter)}, ${fyOf(today) + r.fyOffset}, ${q(r.status)}, ${r.amountCents}, ${date(addDays(today, r.dueOnDays))});`,
+        `${chapter(r.chapter)}, ${clubYearOf(today) + r.fyOffset}, ${q(r.status)}, ${r.amountCents}, ${date(addDays(today, r.dueOnDays))});`,
     );
   }
   for (const c of s4.charges) {
     sql(
       `insert into public.charges (id, member_id, chapter_id, fy, kind, description, amount_cents, due_on, waived_at) values (` +
-        `${id('c', c.key)}, ${id('m', c.member)}, ${chapter(c.chapter)}, ${fyOf(today)}, ${q(c.kind)}, ` +
+        `${id('c', c.key)}, ${id('m', c.member)}, ${chapter(c.chapter)}, ${clubYearOf(today)}, ${q(c.kind)}, ` +
         `${c.kind === 'other' ? "'Fixture'" : 'null'}, ${c.amountCents}, ${date(addDays(today, c.dueOnDays))}, ` +
         `${c.waived ? "'2026-01-01T00:00:00Z'" : 'null'});`,
     );
@@ -179,6 +180,8 @@ const stage4Call = (c: ParityCase & Record<string, any>): string | null => {
       return `public.set_payment_details(${chapter(c.chapter)}, ${textOrNull(c.payid)}, null, null, null)`;
     case 'raiseFees':
       return `public.raise_fees(${chapter(c.chapter)}, ${c.fy})`;
+    case 'recordAgm':
+      return `public.record_agm(${date(c.heldOn)})`;
     case 'raiseCharge':
       return `public.raise_charge(${id('m', c.member)}, ${q(c.description)}, ${c.amountCents}, ${date(c.dueOn)})`;
     case 'waiveCharge':

@@ -203,7 +203,7 @@ declare
   sec constant uuid := '00000000-0000-0000-0000-0000000000a1';
   tre constant uuid := '00000000-0000-0000-0000-0000000000b1';
   west uuid := (select id from chapters where slug = 'west');
-  fy int := private.fy_of(private.club_date());
+  fy int := private.club_year_of(private.club_date());
   zed uuid := '00000000-0000-0000-0000-0000000000c1';
 begin
   assert pg_temp.try_as(tre, format('select public.set_continuation_fee(%L, %s, 5000)', west, fy))

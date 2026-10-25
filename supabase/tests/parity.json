@@ -1665,6 +1665,27 @@
       "allowed": false
     },
     {
+      "name": "National Chairman records the AGM",
+      "as": "chair",
+      "action": "recordAgm",
+      "heldOnDays": -60,
+      "allowed": true
+    },
+    {
+      "name": "National Secretary records the AGM",
+      "as": "lou",
+      "action": "recordAgm",
+      "heldOnDays": -60,
+      "allowed": true
+    },
+    {
+      "name": "A chapter treasurer can't record the AGM",
+      "as": "penny",
+      "action": "recordAgm",
+      "heldOnDays": -60,
+      "allowed": false
+    },
+    {
       "name": "Treasurer raises a one-off charge",
       "as": "penny",
       "action": "raiseCharge",
