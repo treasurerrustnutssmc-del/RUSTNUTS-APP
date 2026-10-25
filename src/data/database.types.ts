@@ -111,7 +111,16 @@ export type Database = {
       };
       // Lane E: notifications
       notification_prefs: {
-        Row: { member_id: string; ride_reminders: boolean; ride_changes: boolean; new_rides: boolean; approvals: boolean; updated_at: string };
+        Row: {
+          member_id: string;
+          ride_reminders: boolean;
+          ride_changes: boolean;
+          new_rides: boolean;
+          approvals: boolean;
+          /** Missing until rev-sound.sql is live. */
+          rev_sound?: boolean;
+          updated_at: string;
+        };
         Insert: { member_id: string };
         Update: Record<string, never>;
         Relationships: [];
@@ -547,7 +556,7 @@ export type Database = {
       register_push_device: { Args: { p_token: string; p_platform: string }; Returns: undefined };
       forget_push_device: { Args: { p_token: string }; Returns: undefined };
       save_notification_prefs: {
-        Args: { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean };
+        Args: { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean; p_rev_sound: boolean };
         Returns: undefined;
       };
     };

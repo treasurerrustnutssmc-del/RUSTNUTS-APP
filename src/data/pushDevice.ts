@@ -6,6 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { ensureChannels } from './notificationChannels';
 import { supabase } from './supabase';
 
 const KEY = 'push.token';
@@ -14,6 +15,8 @@ export async function registerThisDevice(): Promise<void> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
   try {
     if (!(await Notifications.getPermissionsAsync()).granted) return;
+    // Pushes name their channel; it has to exist on the phone before one arrives.
+    await ensureChannels();
     const { data: token } = await Notifications.getExpoPushTokenAsync();
     const { error } = await supabase().rpc('register_push_device', { p_token: token, p_platform: Platform.OS });
     if (!error) await AsyncStorage.setItem(KEY, token);

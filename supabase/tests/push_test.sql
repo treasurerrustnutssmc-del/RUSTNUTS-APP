@@ -223,10 +223,17 @@ begin
   update rides set starts_at = now() + interval '82 days' where id = '00000000-0000-0000-0000-0000000000b9';
   res := public.push_take(10);
   assert res->'messages'->0->'tokens' = '["ExponentPushToken[rita]"]'::jsonb, res::text;
+  assert (res->'messages'->0->>'rev')::boolean, 'the Harley rev is on for a member who hasn''t changed it';
   assert (select status from private.push_outbox where id = (res->'messages'->0->>'id')::bigint) = 'sending';
   perform public.push_done(array[(res->'messages'->0->>'id')::bigint], '{}', array['ExponentPushToken[rita]']);
   assert (select status from private.push_outbox where id = (res->'messages'->0->>'id')::bigint) = 'sent';
   assert not exists (select 1 from push_devices where token = 'ExponentPushToken[rita]'), 'a dead token is removed';
+  -- Switched off: the sender is told, so it uses the plain sound.
+  perform pg_temp.try_as(rita, 'authenticated', $s$select public.register_push_device('ExponentPushToken[rita]', 'ios')$s$);
+  perform pg_temp.try_as(rita, 'authenticated', 'select public.save_notification_prefs(true, true, false, true, false)');
+  update rides set starts_at = now() + interval '83 days' where id = '00000000-0000-0000-0000-0000000000b9';
+  res := public.push_take(10);
+  assert res->'messages'->0->'rev' = 'false'::jsonb, res::text;
   assert pg_temp.try_as(null, 'anon', $s$select public.forget_push_device('ExponentPushToken[shared]')$s$) is null,
     'a phone that signed out with no signal removes itself later, signed out';
   assert not exists (select 1 from push_devices where token = 'ExponentPushToken[shared]'), 'signing out removes this phone';

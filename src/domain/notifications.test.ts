@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_PREFS, reminderDiff, reminderPlan, type Reminder } from './notifications';
+import { ANDROID_CHANNELS, DEFAULT_PREFS, REV_SOUND, reminderDiff, reminderPlan, soundFor, type Reminder } from './notifications';
 import type { Ride, Rsvp } from './types';
 
 const NOW = '2026-11-05T00:00:00.000Z';
@@ -12,7 +12,8 @@ const going = (rideId: string, answer: Rsvp['answer'] = 'going'): Rsvp => ({ rid
 
 test('a ride you’re going to: a reminder 2 hours before', () => {
   assert.deepEqual(reminderPlan([ride()], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW), [
-    { id: 'ride-r-1', rideId: 'r-1', at: '2026-11-06T19:30:00.000Z', title: 'Ride in 2 hours', body: 'West breakfast run · 8:30 am · BP Ravenhall' },
+    { id: 'ride-r-1', rideId: 'r-1', at: '2026-11-06T19:30:00.000Z', title: 'Ride in 2 hours', body: 'West breakfast run · 8:30 am · BP Ravenhall',
+      channelId: 'ride-reminders-rev', sound: 'v_twin_rev.wav' },
   ]);
   assert.equal(reminderPlan([ride({ location: null })], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW)[0].body, 'West breakfast run · 8:30 am');
 });
@@ -21,6 +22,7 @@ test('an all-day ride: 7 am Melbourne time on its first day, daylight saving or 
   const allDay = ride({ allDay: true, startsAt: '2026-11-06T13:00:00.000Z', endsAt: '2026-11-08T13:00:00.000Z', title: 'Camp weekend' });
   assert.deepEqual(reminderPlan([allDay], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW)[0], {
     id: 'ride-r-1', rideId: 'r-1', at: '2026-11-06T20:00:00.000Z', title: 'Ride today', body: 'Camp weekend · All day · BP Ravenhall',
+    channelId: 'ride-reminders-rev', sound: 'v_twin_rev.wav',
   });
   // Clocks go forward at 2 am on Sunday 4 October 2026.
   const dstDay = ride({ allDay: true, startsAt: '2026-10-03T14:00:00.000Z', endsAt: '2026-10-04T13:00:00.000Z' });
@@ -49,7 +51,7 @@ test('the soonest 30 only, so the phone never runs out of room', () => {
 });
 
 test('what to schedule and cancel', () => {
-  const r = (id: string, at: string): Reminder => ({ id, rideId: id, at, title: 't', body: 'b' });
+  const r = (id: string, at: string): Reminder => ({ id, rideId: id, at, title: 't', body: 'b', channelId: 'ride-reminders', sound: 'default' });
   const plan = [r('ride-a', '2026-11-06T19:30:00.000Z'), r('ride-b', '2026-11-07T19:30:00.000Z'), r('ride-c', '2026-11-08T19:30:00.000Z')];
   const scheduled = [
     { id: 'ride-a', at: '2026-11-06T19:30:00.000Z' }, // unchanged
@@ -62,4 +64,43 @@ test('what to schedule and cancel', () => {
   assert.deepEqual(reminderDiff([], scheduled).cancel.sort(), ['ride-a', 'ride-b', 'ride-z'], 'turned off: all of them go');
   const renamed = reminderDiff([r('ride-a', '2026-11-06T19:30:00.000Z')], [{ id: 'ride-a', at: '2026-11-06T19:30:00.000Z', body: 'old name' }]);
   assert.deepEqual([renamed.add.map((x) => x.id), renamed.cancel], [['ride-a'], ['ride-a']], 'a renamed ride gets the new text');
+});
+
+test('the Harley rev is on unless a member switches it off', () => {
+  assert.equal(DEFAULT_PREFS.revSound, true);
+  assert.equal(REV_SOUND, 'v_twin_rev.wav');
+});
+
+test('reminders and club news rev; live ride alerts always use the urgent sound', () => {
+  assert.deepEqual(soundFor('reminder', true), { channelId: 'ride-reminders-rev', sound: 'v_twin_rev.wav' });
+  assert.deepEqual(soundFor('reminder', false), { channelId: 'ride-reminders', sound: 'default' });
+  assert.deepEqual(soundFor('club', true), { channelId: 'club-rev', sound: 'v_twin_rev.wav' });
+  assert.deepEqual(soundFor('club', false), { channelId: 'club', sound: 'default' });
+  assert.deepEqual(soundFor('live-alert', true), { channelId: 'ride-alerts', sound: 'default' });
+  assert.deepEqual(soundFor('live-alert', false), { channelId: 'ride-alerts', sound: 'default' });
+});
+
+test('every channel a notification can use is one the phone sets up, with the matching sound', () => {
+  const ids = new Set(ANDROID_CHANNELS.map((c) => c.id));
+  assert.equal(ids.size, ANDROID_CHANNELS.length, 'no channel twice');
+  for (const kind of ['reminder', 'club', 'live-alert'] as const) {
+    for (const rev of [true, false]) {
+      const { channelId, sound } = soundFor(kind, rev);
+      assert.equal(ANDROID_CHANNELS.find((c) => c.id === channelId)?.sound, sound, `${kind} ${rev}`);
+    }
+  }
+});
+
+test('switching the rev off moves reminders to the plain sound', () => {
+  const [r] = reminderPlan([ride()], [going('r-1')], 'm-me', { ...DEFAULT_PREFS, revSound: false }, NOW);
+  assert.deepEqual([r.channelId, r.sound], ['ride-reminders', 'default']);
+});
+
+test('a reminder scheduled with the other sound is replaced; one from before the rev counts as the plain sound', () => {
+  const [r] = reminderPlan([ride()], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW);
+  assert.deepEqual(reminderDiff([r], [{ id: r.id, at: r.at, body: r.body, sound: 'default' }]), { add: [r], cancel: [r.id] });
+  assert.deepEqual(reminderDiff([r], [{ id: r.id, at: r.at, body: r.body }]), { add: [r], cancel: [r.id] });
+  assert.deepEqual(reminderDiff([r], [{ id: r.id, at: r.at, body: r.body, sound: REV_SOUND }]), { add: [], cancel: [] });
+  const [plain] = reminderPlan([ride()], [going('r-1')], 'm-me', { ...DEFAULT_PREFS, revSound: false }, NOW);
+  assert.deepEqual(reminderDiff([plain], [{ id: r.id, at: r.at, body: r.body }]), { add: [], cancel: [] });
 });

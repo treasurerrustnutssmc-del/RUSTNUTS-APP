@@ -11,7 +11,14 @@ export async function loadNotificationPrefs(db: SupabaseClient<Database>): Promi
   const { data, error } = await db.from('notification_prefs').select('*').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  return { rideReminders: data.ride_reminders, rideChanges: data.ride_changes, newRides: data.new_rides, approvals: data.approvals };
+  return {
+    rideReminders: data.ride_reminders,
+    rideChanges: data.ride_changes,
+    newRides: data.new_rides,
+    approvals: data.approvals,
+    // Missing until rev-sound.sql is live: the rev is on.
+    revSound: data.rev_sound ?? true,
+  };
 }
 
 export async function saveNotificationPrefs(db: SupabaseClient<Database>, prefs: NotificationPrefs): Promise<void> {
@@ -20,6 +27,7 @@ export async function saveNotificationPrefs(db: SupabaseClient<Database>, prefs:
     p_ride_changes: prefs.rideChanges,
     p_new_rides: prefs.newRides,
     p_approvals: prefs.approvals,
+    p_rev_sound: prefs.revSound,
   });
   if (error) throw friendlyError(error);
 }

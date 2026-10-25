@@ -3,15 +3,15 @@
 // off, someone else signed in). The club sends nothing.
 
 import * as Notifications from 'expo-notifications';
-import { AndroidImportance, SchedulableTriggerInputTypes } from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 import { DEFAULT_PREFS, reminderDiff, reminderPlan, type Reminder } from '../domain/notifications';
 import { useClub } from './ClubStore';
+import { ensureChannels } from './notificationChannels';
 import { forgetThisDevice, registerThisDevice } from './pushDevice';
 
 const KIND = 'ride-reminder';
-const CHANNEL = 'ride-reminders';
 
 // One sync at a time, so two loads in a row can't schedule the same reminder twice.
 let syncing: Promise<unknown> = Promise.resolve();
@@ -21,14 +21,18 @@ export function syncReminders(plan: Reminder[]): Promise<void> {
   const next = syncing.then(async () => {
     const scheduled = (await Notifications.getAllScheduledNotificationsAsync())
       .filter((n) => n.content.data?.kind === KIND)
-      .map((n) => ({ id: n.identifier, at: String(n.content.data?.at ?? ''), body: n.content.body ?? '' }));
+      .map((n) => ({
+        id: n.identifier,
+        at: String(n.content.data?.at ?? ''),
+        body: n.content.body ?? '',
+        // Missing on reminders set before the Harley rev: those have the plain sound.
+        sound: typeof n.content.data?.sound === 'string' ? n.content.data.sound : undefined,
+      }));
     const { add, cancel } = reminderDiff(plan, scheduled);
     for (const id of cancel) await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
     if (add.length === 0) return;
     // Android 13 only shows the permission prompt once a channel exists.
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(CHANNEL, { name: 'Ride reminders', importance: AndroidImportance.DEFAULT }).catch(() => {});
-    }
+    await ensureChannels();
     // Ask once; after a no, leave it to the phone's settings rather than asking at every launch.
     let permission = await Notifications.getPermissionsAsync().catch(() => null);
     if (!permission?.granted && permission?.canAskAgain) permission = await Notifications.requestPermissionsAsync().catch(() => null);
@@ -36,8 +40,9 @@ export function syncReminders(plan: Reminder[]): Promise<void> {
     for (const r of add) {
       await Notifications.scheduleNotificationAsync({
         identifier: r.id,
-        content: { title: r.title, body: r.body, data: { kind: KIND, at: r.at, rideId: r.rideId } },
-        trigger: { type: SchedulableTriggerInputTypes.DATE, date: new Date(r.at), channelId: CHANNEL },
+        // iPhone plays the notification's sound; Android plays the channel's.
+        content: { title: r.title, body: r.body, sound: r.sound, data: { kind: KIND, at: r.at, rideId: r.rideId, sound: r.sound } },
+        trigger: { type: SchedulableTriggerInputTypes.DATE, date: new Date(r.at), channelId: r.channelId },
       }).catch(() => {});
     }
   });
@@ -57,7 +62,7 @@ export function ReminderSync() {
     () => reminderPlan(data.rides, data.rsvps, me?.id ?? null, prefs, new Date().toISOString()),
     [data.rides, data.rsvps, me?.id, prefs],
   );
-  const key = JSON.stringify(plan.map((r) => [r.id, r.at, r.body]));
+  const key = JSON.stringify(plan.map((r) => [r.id, r.at, r.body, r.sound]));
   useEffect(() => {
     // Until a load finishes (or when it failed with nothing on screen) the plan would wrongly be empty.
     // The demo's rides are made up: no real reminders for them.

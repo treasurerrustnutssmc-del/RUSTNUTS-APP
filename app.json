@@ -59,7 +59,10 @@
       [
         "expo-notifications",
         {
-          "color": "#B92632"
+          "color": "#B92632",
+          "sounds": [
+            "./assets/sounds/v_twin_rev.wav"
+          ]
         }
       ],
       [

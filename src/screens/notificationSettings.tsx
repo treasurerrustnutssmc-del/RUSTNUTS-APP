@@ -64,6 +64,12 @@ export function NotificationSettings() {
             onChange={change('approvals')}
           />
         ) : null}
+        <Toggle
+          label="Harley rev"
+          description="Notifications sound like a V-twin revving. Live ride alerts keep the urgent alarm."
+          value={prefs.revSound}
+          onChange={change('revSound')}
+        />
         <Small>Reminders work now. The rest start when the app launches.</Small>
         {error ? <Notice tone="danger">{error}</Notice> : null}
       </Card>
