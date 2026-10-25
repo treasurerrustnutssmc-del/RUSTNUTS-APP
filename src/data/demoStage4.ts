@@ -6,6 +6,7 @@ import { checkInProblem, closeProblem, canRunCheckin, markProblem, newCode, norm
 import { addDays } from '../domain/dates';
 import {
   claimProblem,
+  continuationFeeFor,
   continuationFeeProblem,
   decidePaymentProblem,
   feeRateProblem,
@@ -151,18 +152,19 @@ export function recordFngReview(ctx: DemoCtx, memberId: string, atMonths: number
         : m,
     ),
   };
-  // Past twelve months, carrying on costs the chapter's continuation fee, if it has one (not while on hiatus).
+  // Past twelve months, carrying on costs half the chapter's FNG fee for the year, once ever
+  // (constitution v4 4.11), and nothing while on hiatus.
   const fy = fyOf(ctx.today);
-  const fee = (ctx.data.continuationFees ?? []).find((f) => f.chapterId === target.chapterId && f.fy === fy);
-  const already = (ctx.data.charges ?? []).some((c) => c.memberId === memberId && c.fy === fy && c.kind === 'continuation');
-  if (outcome === 'continue' && atMonths >= 12 && fee && !already && !target.onHiatus) {
+  const fee = continuationFeeFor(target.chapterId, fy, ctx.data);
+  const already = (ctx.data.charges ?? []).some((c) => c.memberId === memberId && c.kind === 'continuation');
+  if (outcome === 'continue' && atMonths >= 12 && fee !== null && fee > 0 && !already && !target.onHiatus) {
     data = {
       ...data,
       charges: [
         ...(data.charges ?? []),
         {
           id: newId('c'), memberId, chapterId: target.chapterId, fy, kind: 'continuation', description: 'FNG continuation fee',
-          amountCents: fee.amountCents, dueOn: addDays(ctx.today, 30), createdAt: nowOf(ctx), waivedAt: null,
+          amountCents: fee, dueOn: addDays(ctx.today, 30), createdAt: nowOf(ctx), waivedAt: null,
         },
       ],
     };

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
+import { appointProblem, appointWarnings, endTermProblem, pendingFor, statusChangeProblem } from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
 import { signoffSummary } from '../domain/roadRules';
@@ -277,6 +277,9 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const roleOptions = [...BOARD_ROLES, ...CLUB_ROLES, ...NATIONAL_ROLES].filter(
     (r) => appointProblem(me, member, member.chapterId, r, data) === null,
   );
+  const statusBlock = status && status !== member.status ? statusChangeProblem(me, member, status, data) : null;
+  const warnings = role ? appointWarnings(member, role, data, today) : [];
+  const holdsNothing = member.status !== 'full' && member.status !== 'nomad';
   // Stage 5: the patch vote on this FNG (open, or the latest result), or the chance to start one.
   const patchVote = patchVoteFor(member.id, data.votes ?? []);
   const patchOpen = patchVote !== null && patchVote.closedAt === null;
@@ -320,9 +323,11 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
           value={status}
           onChange={setStatus}
         />
-        <Small>
-          Record the outcome once the vote is done. Full membership needs a yes from every Full Member of the chapter (4.9).
-        </Small>
+        {statusBlock ? (
+          <Small style={{ color: colors.warn }}>{statusBlock}</Small>
+        ) : member.status === 'fng' ? (
+          <Small>An FNG becomes Full once their patch vote carries: a yes from every Full Member of the chapter (4.9).</Small>
+        ) : null}
         {/* Stage 5: patch votes */}
         {patchVote && !patchOpen ? (
           <Small>
@@ -348,7 +353,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         ) : null}
         <Button
           label="Change status"
-          disabled={!status || status === member.status}
+          disabled={!status || status === member.status || statusBlock !== null}
           onPress={() => status && run(() => setMemberStatus(member.id, status), `${displayName(member)} is now ${STATUS_LABEL[status]}.`)}
         />
       </Card>
@@ -377,6 +382,9 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
               value={role}
               onChange={setRole}
             />
+            {warnings.map((w) => (
+              <Small key={w} style={{ color: colors.warn }}>{w}</Small>
+            ))}
             <Button
               label="Appoint"
               kind="secondary"
@@ -391,7 +399,11 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
             />
           </>
         ) : (
-          <Small>No open roles you can fill for {displayName(member)}. Seats that are taken free up when the current term ends.</Small>
+          <Small>
+            {holdsNothing
+              ? 'Only Full and Nomad members hold Club positions (4.6, 5.8).'
+              : `No open roles you can fill for ${displayName(member)}. Seats that are taken free up when the current term ends.`}
+          </Small>
         )}
       </Card>
     </Screen>

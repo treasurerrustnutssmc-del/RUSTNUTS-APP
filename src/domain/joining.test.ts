@@ -78,7 +78,6 @@ test('recording an FNG review', () => {
   const fng = who(data, 'fng');
   const today = '2026-10-24';
   assert.equal(fngReviewProblem(sec, fng, 6, 'continue', none, data, today), null);
-  assert.equal(fngReviewProblem(sec, fng, 6, 'patch', { for: 9, against: 0, abstained: 1 }, data, today), null);
   assert.equal(fngReviewProblem(sec, fng, 6, 'not_continuing', none, data, today), null);
   assert.equal(fngReviewProblem(null, fng, 6, 'continue', none, data, today), 'Sign in first.');
   assert.equal(fngReviewProblem(fng, fng, 6, 'continue', none, data, today), 'You can’t record your own review.');
@@ -89,10 +88,10 @@ test('recording an FNG review', () => {
   assert.equal(fngReviewProblem(sec, fng, 6, 'continue', none, data, '2026-09-23'), 'That review isn’t due yet.');
   assert.equal(fngReviewProblem(sec, fng, 6, 'continue', none, data, '2026-09-24'), null, 'up to 30 days early is fine');
   assert.equal(fngReviewProblem(sec, fng, 6, 'continue', { for: 1, against: -1, abstained: 0 }, data, today), 'Vote counts can’t be negative.');
-  const unanimous = 'Full membership needs a unanimous vote: at least one for and none against.';
-  assert.equal(fngReviewProblem(sec, fng, 6, 'patch', none, data, today), unanimous);
-  assert.equal(fngReviewProblem(sec, fng, 6, 'patch', { for: 8, against: 1, abstained: 0 }, data, today), unanimous);
-  assert.equal(fngReviewProblem(sec, fng, 6, 'patch', { for: 0, against: 0, abstained: 3 }, data, today), unanimous);
+  // Patching in needs nine months and a carried patch vote, not the board's tally (constitution v4
+  // 4.7, 4.9): see constitutionV4.test.ts.
+  const tooEarly = 'Full Membership can’t be granted before nine months (4.7).';
+  assert.equal(fngReviewProblem(sec, fng, 6, 'patch', { for: 9, against: 0, abstained: 1 }, data, today), tooEarly);
 });
 
 test('what each review outcome makes them', () => {

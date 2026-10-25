@@ -110,9 +110,19 @@ export function feeRateProblem(me: Member | null, chapterId: string, status: Mem
   return isAmount(amountCents) ? null : AMOUNT;
 }
 
-export function continuationFeeProblem(me: Member | null, chapterId: string, amountCents: number, data: ClubData): string | null {
+/**
+ * The one-time fee for carrying on as an FNG past twelve months: half the chapter's FNG fee for
+ * the year, rounded down to the cent (constitution v4 4.11). Null when that year has no FNG fee.
+ */
+export function continuationFeeFor(chapterId: string, fy: number, data: ClubData): number | null {
+  const rate = (data.feeRates ?? []).find((r) => r.chapterId === chapterId && r.fy === fy && r.status === 'fng');
+  return rate ? Math.floor(rate.amountCents / 2) : null;
+}
+
+/** The continuation fee isn't set by hand any more (4.11). Kept so old screens get a clear answer. */
+export function continuationFeeProblem(me: Member | null, chapterId: string, _amountCents: number, data: ClubData): string | null {
   if (!canSetFees(me, chapterId, data.positions)) return SET_FEES_ONLY;
-  return isAmount(amountCents) ? null : AMOUNT;
+  return 'The continuation fee is half the FNG fee (4.11), so the app works it out.';
 }
 
 export function paymentDetailsProblem(me: Member | null, chapterId: string, data: ClubData): string | null {

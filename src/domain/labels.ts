@@ -128,13 +128,25 @@ export const RSVP_LABEL: Record<RsvpAnswer, string> = {
 
 // Stage 5: meetings and votes ----------------------------------------------------------------
 
-export const MEETING_KIND_LABEL: Record<MeetingKind, string> = {
-  board: 'Board meeting',
-  general: 'General meeting',
-  agm: 'AGM',
-  special: 'Special meeting',
-  nec: 'NEC meeting',
-};
+/**
+ * A meeting kind's name, which depends on whose meeting it is (constitution v4 10.2, 10.3): a
+ * chapter's annual meeting is its Annual Chapter Meeting, not the statutory AGM, which belongs to
+ * the Association (the whole club, chapterId null).
+ */
+export function meetingKindLabel(kind: MeetingKind, chapterId: string | null): string {
+  switch (kind) {
+    case 'board':
+      return 'Board meeting';
+    case 'general':
+      return chapterId === null ? 'National Club meeting' : 'Chapter meeting';
+    case 'agm':
+      return chapterId === null ? 'Association AGM' : 'Annual Chapter Meeting';
+    case 'special':
+      return 'Special meeting';
+    case 'nec':
+      return 'NEC meeting';
+  }
+}
 
 /** The kinds of meeting a chapter (or the whole club, when null) holds. */
 export function kindsFor(chapterId: string | null): MeetingKind[] {

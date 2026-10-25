@@ -397,7 +397,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     // Stage 5: meetings and votes
     saveMeeting: async (input) => {
       const existing = input.id === null ? null : (data.meetings ?? []).find((x) => x.id === input.id);
-      const problem = saveMeetingProblem(visibleMe, input, existing, data);
+      const problem = saveMeetingProblem(visibleMe, input, existing, data, new Date().toISOString());
       if (problem) throw new NotAllowedError(problem);
       const r = ok(
         await supabase().rpc('save_meeting', {

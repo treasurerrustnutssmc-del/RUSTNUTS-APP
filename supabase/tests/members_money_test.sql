@@ -182,9 +182,10 @@ declare
   west uuid := (select id from chapters where slug = 'west');
 begin
   assert (select at_months from private.fng_due(fred)) = 12, 'the 12-month review is due';
-  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a2', format('select public.set_continuation_fee(%L, %s, 5000)', west, private.fy_of(private.club_date()))) is null, 'fee set';
+  -- The continuation fee is half the FNG fee (constitution v4 4.11).
+  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a2', format($q$select public.set_fee_rate(%L, %s, 'fng', 15000, %L)$q$, west, private.fy_of(private.club_date()), private.club_date() + 30)) is null, 'FNG fee set';
   assert pg_temp.try_as(sec, format($q$select public.record_fng_review(%L, 12, 'continue', 6, 0, 0, null)$q$, fred)) is null, 'reviewed';
-  assert (select count(*) from charges where member_id = fred and kind = 'continuation' and amount_cents = 5000) = 1, 'fee raised';
+  assert (select count(*) from charges where member_id = fred and kind = 'continuation' and amount_cents = 7500) = 1, 'half the FNG fee raised';
   assert (select at_months from private.fng_due(fred)) = 15, 'next is the 15-month review';
   assert pg_temp.try_as(sec, format($q$select public.record_fng_review(%L, 12, 'continue', 6, 0, 0, null)$q$, fred))
     = 'Record the review that’s due.', 'not the same review twice';

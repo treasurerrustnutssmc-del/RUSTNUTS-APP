@@ -5,7 +5,7 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { attendanceCount } from '../domain/attendance';
 import { formatAuDate, monthsBetween } from '../domain/dates';
-import { formatCents, fyOf } from '../domain/fees';
+import { continuationFeeFor, formatCents, fyOf } from '../domain/fees';
 import { INTRO, REVIEW_EARLY_DAYS, fngDue, fngOutcomeStatus, fngReviewProblem, fngReviews, introProgress, type FngOutcome } from '../domain/joining';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
@@ -57,7 +57,7 @@ function BareBox({ children }: { children: React.ReactNode }) {
   return <View style={{ gap: space.md, paddingTop: space.md, borderTopWidth: 1, borderTopColor: colors.line }}>{children}</View>;
 }
 
-/** The three things an introduced applicant needs before the board votes (constitution 3.2). */
+/** The three things an introduced applicant needs before the board votes (constitution v4 4.2). */
 export function IntroProgressCard({ member, self, bare }: { member: Member; self?: boolean; bare?: boolean }) {
   const { data, today } = useClub();
   const p = introProgress(member, data, today);
@@ -152,7 +152,9 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
 
   const past = fngReviews(member.id, data.decisions ?? []);
   const due = fngDue(member, data.decisions ?? [], today);
-  const fee = (data.continuationFees ?? []).find((f) => f.chapterId === member.chapterId && f.fy === fyOf(today));
+  const fee = continuationFeeFor(member.chapterId, fyOf(today), data);
+  const paidContinuation = (data.charges ?? []).some((c) => c.memberId === member.id && c.kind === 'continuation');
+  const patchBlock = due ? fngReviewProblem(me, member, due.atMonths, 'patch', votes, data, today) : null;
   const since = member.fngStartedOn ? attendanceCount(member.id, data, member.fngStartedOn) : null;
   const tooEarly = due ? fngReviewProblem(me, member, due.atMonths, 'continue', { for: null, against: null, abstained: null }, data, today) === 'That review isn’t due yet.' : false;
 
@@ -215,16 +217,18 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
             onChange={setOutcome}
           />
           {outcome === 'patch' ? (
-            <Small>Full membership needs a unanimous vote: at least one for and none against (5.4).</Small>
+            <Small style={patchBlock ? { color: colors.warn } : undefined}>
+              {patchBlock ?? 'Their patch vote carried. Record the board’s count here too, if it took one.'}
+            </Small>
           ) : outcome === 'not_continuing' ? (
             <Small>They stay with the club as a Supporter.</Small>
-          ) : outcome === 'continue' && due.atMonths >= 12 && fee && !member.onHiatus ? (
-            <Small>{`Past twelve months, carrying on adds the ${formatCents(fee.amountCents)} continuation fee to their fees.`}</Small>
+          ) : outcome === 'continue' && due.atMonths >= 12 && fee !== null && !paidContinuation && !member.onHiatus ? (
+            <Small>{`Past twelve months, carrying on adds the one-off ${formatCents(fee)} continuation fee, half the FNG fee (4.11).`}</Small>
           ) : null}
           <VotesFields onChange={setVotes} />
           <Field label="Note for the board" value={note} onChangeText={setNote} multiline maxLength={500} hint="Only the board sees this." />
           {error ? <Notice tone="danger">{error}</Notice> : null}
-          <Button label="Record the review" disabled={!outcome || tooEarly} busy={busy} onPress={save} />
+          <Button label="Record the review" disabled={!outcome || tooEarly || (outcome === 'patch' && patchBlock !== null)} busy={busy} onPress={save} />
         </Card>
       ) : (
         <Notice tone="info">{`${displayName(member)} isn’t an FNG any more.`}</Notice>

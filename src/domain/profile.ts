@@ -103,8 +103,8 @@ export function addMonths(iso: string, months: number): string {
 }
 
 /**
- * FNG reviews fall at 6, 9 and 12 months (constitution 5.2 and 5.4), then every
- * 3 months if no decision has been made (5.5). Returns the next one on or after today.
+ * FNG reviews fall at 6, 9 and 12 months (constitution v4 4.7, 4.10), then every
+ * 3 months if no decision has been made (4.10). Returns the next one on or after today.
  */
 export function nextFngReview(fngStartedOn: string, today: string): { atMonths: number; date: string; overdue12: boolean } {
   let months = 6;
