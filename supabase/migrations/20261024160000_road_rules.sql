@@ -12,7 +12,9 @@ create table public.road_rules_versions (
   changes text check (char_length(changes) <= 500),
   fresh boolean not null,
   published_by uuid references public.members (id) on delete set null,
-  published_at timestamptz not null default now()
+  published_at timestamptz not null default now(),
+  -- Version 1 always needs a fresh sign-off, as publish_road_rules records it.
+  check (number <> 1 or fresh)
 );
 
 -- Each member's latest sign-off: which version, and when. It goes with its member.

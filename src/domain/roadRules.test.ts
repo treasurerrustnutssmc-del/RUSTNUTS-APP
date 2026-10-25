@@ -14,6 +14,12 @@ import {
   asksToSign,
   cleanRoadRules,
   currentRoadRules,
+  draftProblem,
+  isRoadRulesVersionRefusal,
+  openRoadRules,
+  pinnedRoadRules,
+  readVersionLabel,
+  RULES_UPDATED,
   goodUntil,
   myRoadRulesLine,
   needsSigning,
@@ -30,6 +36,8 @@ import {
   signoffGroups,
   signoffLine,
   signoffMembers,
+  signoffStart,
+  signoffSummary,
   unsignedGoing,
   type RoadRulesInput,
   type RoadRulesState as RoadRulesStatusState,
@@ -575,4 +583,125 @@ test('signBoxLine: when you signed and until when, or when it ran out', () => {
   // A sign-off late at night UTC is the next morning in Melbourne.
   assert.equal(signBoxLine(at('current', '2027-10-02'), '2026-10-01T20:00:00.000Z'), 'Signed on 02/10/2026. Good until 02/10/2027.');
   assert.equal(signBoxLine(at('unsigned', null), null), null);
+});
+
+// ---------------------------------------------------------------------------
+// The final review's fixes
+// ---------------------------------------------------------------------------
+
+test('the two version refusals, and telling them apart from the rest', () => {
+  assert.equal(isRoadRulesVersionRefusal(new Error(PUBLISH_CONFLICT)), true);
+  assert.equal(isRoadRulesVersionRefusal(new Error(SIGN_OUTDATED)), true);
+  for (const message of [NOT_PUBLISHER, NO_RULES, RULES_EMPTY, 'The briefing changed while you had it open. Read the new version, then tap Got it.']) {
+    assert.equal(isRoadRulesVersionRefusal(new Error(message)), false, message);
+  }
+  assert.equal(isRoadRulesVersionRefusal(SIGN_OUTDATED), false, 'only errors');
+  assert.equal(isRoadRulesVersionRefusal(null), false);
+});
+
+test('opening Road Rules pins the version asked for, or the current one, and the current number then', () => {
+  const d = data({ roadRules: [version(1), version(2), version(3)] });
+  assert.deepEqual(openRoadRules(undefined, d), { shown: 3, openedOn: 3 }, 'the current one');
+  assert.deepEqual(openRoadRules(1, d), { shown: 1, openedOn: 3 }, 'an older one, asked for');
+  assert.deepEqual(openRoadRules(3, d), { shown: 3, openedOn: 3 }, 'the current one, asked for by number');
+  assert.deepEqual(openRoadRules(7, d), { shown: 3, openedOn: 3 }, 'one that isn’t there: the current one');
+  assert.deepEqual(openRoadRules(undefined, data()), { shown: 0, openedOn: 0 }, 'nothing published');
+});
+
+test('Road Rules keeps the version it opened on: a newer one is offered, not swapped in', () => {
+  const two = data({ roadRules: [version(1), version(2)] });
+  const three = data({ roadRules: [version(1), version(2), version(3, { publishedBy: 'nec' })] });
+  const pin = { shown: 2, openedOn: 2 };
+  assert.deepEqual(pinnedRoadRules(pin, two, 'rider'), { pin, version: version(2), older: false, newer: null }, 'nothing new');
+  const later = pinnedRoadRules(pin, three, 'rider');
+  assert.equal(later.pin, pin, 'the pin stays');
+  assert.deepEqual(later.version, version(2), 'version 2 still shows, and is what Sign sends');
+  assert.equal(later.older, false, 'it isn’t an older-version view: the sign box stays');
+  assert.deepEqual(later.newer, version(3, { publishedBy: 'nec' }), 'version 3 is offered');
+  assert.equal(signProblem(rider, later.version!.number, three), SIGN_OUTDATED, 'so a sign on it is refused');
+  // Reading the new one moves the pin.
+  const moved = { shown: 3, openedOn: 3 };
+  assert.deepEqual(pinnedRoadRules(moved, three, 'rider'), { pin: moved, version: version(3, { publishedBy: 'nec' }), older: false, newer: null });
+});
+
+test('Road Rules: an older version stays read-only, even when a newer one appears', () => {
+  const three = data({ roadRules: [version(1), version(2), version(3)] });
+  const pin = { shown: 1, openedOn: 2 };
+  assert.deepEqual(pinnedRoadRules(pin, three, 'rider'), { pin, version: version(1), older: true, newer: null });
+  const pinCurrent = { shown: 1, openedOn: 3 };
+  assert.deepEqual(pinnedRoadRules(pinCurrent, three, 'rider'), { pin: pinCurrent, version: version(1), older: true, newer: null });
+});
+
+test('Road Rules: opened with nothing published takes the first version, and your own publish is taken without asking', () => {
+  const none = { shown: 0, openedOn: 0 };
+  assert.deepEqual(pinnedRoadRules(none, data(), 'rider'), { pin: none, version: undefined, older: false, newer: null }, 'still nothing');
+  const one = data({ roadRules: [version(1)] });
+  assert.deepEqual(pinnedRoadRules(none, one, 'rider'), { pin: { shown: 1, openedOn: 1 }, version: version(1), older: false, newer: null });
+  const three = data({ roadRules: [version(1), version(2), version(3, { publishedBy: 'nec' })] });
+  const pin = { shown: 2, openedOn: 2 };
+  assert.deepEqual(
+    pinnedRoadRules(pin, three, 'nec'),
+    { pin: { shown: 3, openedOn: 3 }, version: version(3, { publishedBy: 'nec' }), older: false, newer: null },
+    'the publisher, back from Publish',
+  );
+  const unknown = data({ roadRules: [version(1), version(2), version(3, { publishedBy: null })] });
+  assert.equal(pinnedRoadRules(pin, unknown, null).newer?.number, 3, 'nobody known is never you');
+  // A pinned version missing from the data (a reload from an older saved copy) falls back to the current one.
+  assert.deepEqual(pinnedRoadRules({ shown: 5, openedOn: 5 }, three, 'rider').pin, { shown: 3, openedOn: 3 });
+});
+
+test('Road Rules: the notice and its button', () => {
+  assert.equal(RULES_UPDATED, 'A new version was published while you had this open.');
+  assert.equal(readVersionLabel(3), 'Read version 3');
+});
+
+test('draftProblem: what the Publish screen shows before the confirm tap, in publishProblem’s order', () => {
+  const ok = { body: '# Road Rules', changes: '', fresh: true };
+  assert.equal(draftProblem(ok), null);
+  assert.equal(draftProblem({ ...ok, body: ' \n\t ' }), RULES_EMPTY, 'empty after trimming');
+  assert.equal(draftProblem({ ...ok, body: '🏍'.repeat(MAX_RULES_TEXT) }), null, 'at the limit, in code points');
+  assert.equal(draftProblem({ ...ok, body: `  ${'x'.repeat(MAX_RULES_TEXT)}  ` }), null, 'trimmed first');
+  assert.equal(draftProblem({ ...ok, body: 'x'.repeat(MAX_RULES_TEXT + 1) }), RULES_TOO_LONG);
+  assert.equal(draftProblem({ ...ok, changes: 'x'.repeat(MAX_RULES_CHANGES + 1) }), CHANGES_TOO_LONG);
+  assert.equal(draftProblem({ ...ok, changes: ` ${'x'.repeat(MAX_RULES_CHANGES)} ` }), null);
+  assert.equal(draftProblem({ body: '', changes: 'x'.repeat(MAX_RULES_CHANGES + 1), fresh: true }), RULES_EMPTY, 'empty first');
+  assert.equal(
+    draftProblem({ body: 'x'.repeat(MAX_RULES_TEXT + 1), changes: 'x'.repeat(MAX_RULES_CHANGES + 1), fresh: true }),
+    RULES_TOO_LONG,
+    'then the text, then what changed',
+  );
+  // And publishProblem gives the same answer once the earlier checks pass.
+  const d = data({ roadRules: [version(1)] });
+  for (const input of [ok, { ...ok, body: '' }, { ...ok, body: 'x'.repeat(MAX_RULES_TEXT + 1) }, { ...ok, changes: 'x'.repeat(501) }]) {
+    assert.equal(publishProblem(nec, input, 1, d), draftProblem(input));
+  }
+});
+
+test('signoffChapters: chapters in name order, whatever order the data has them in', () => {
+  const geelong: Chapter = { id: 'ch-geelong', slug: 'geelong', name: 'Geelong', area: 'Geelong', state: 'VIC' };
+  const d = data({ chapters: [west, geelong, north] });
+  assert.deepEqual(signoffChapters(nec, d), ['ch-geelong', 'ch-north', 'ch-west', null]);
+  assert.deepEqual(signoffChapters(nec, data({ chapters: [north, west] })), ['ch-north', 'ch-west', null]);
+});
+
+test('signoffStart and signoffSummary: Who’s signed opens on your own chapter, and its count', () => {
+  const signedW = member('signed-w');
+  const northRider = member('north-rider', { chapterId: 'ch-north' });
+  const d = data({
+    chapters: [west, north],
+    members: [nec, northPres, westVp, rider, signedW, northRider],
+    roadRules: [version(1)],
+    roadRulesSignoffs: [signoff('signed-w', 1, '2026-10-01T00:00:00.000Z'), signoff('nec', 1, '2026-10-01T00:00:00.000Z')],
+  });
+  assert.equal(signoffStart(westVp, d), 'ch-west', 'a West board member: West');
+  assert.equal(signoffStart(nec, d), 'ch-north', 'the NEC: their own chapter');
+  assert.equal(signoffStart(rider, d), undefined, 'no list at all');
+  assert.equal(signoffSummary(westVp, d, TODAY), '1 of 3 signed · West');
+  assert.equal(signoffSummary(nec, d, TODAY), '1 of 3 signed · North');
+  assert.equal(signoffSummary(rider, d, TODAY), null, 'not for someone who can’t open Who’s signed');
+  assert.equal(signoffSummary(westVp, data({ chapters: [west, north] }), TODAY), 'Nothing to sign yet', 'nothing published');
+  // A board member whose own chapter isn't one they sit on starts on the first one they do.
+  const nRc = member('n-rc');
+  const d2 = { ...d, members: [...d.members, nRc], positions: [...d.positions, position('n-rc', 'road_captain', 'ch-north')] };
+  assert.equal(signoffStart(nRc, d2), 'ch-north');
 });

@@ -31,7 +31,7 @@
 
 ## Review Focus
 1. **Carry-over:** a small-fix version (not fresh) keeps existing sign-offs current, and a fresh version makes them `unsigned` until the member signs again. This holds in both layers.
-2. **Expiry edges:** a sign-off on 29/02/2028 is good until 28/02/2029. On the good-until date it's still current. The day after, it's expired. 30 days before, it's due_soon. The app and `private.road_rules_signed` agree.
+2. **Expiry edges:** a sign-off on 29/02/2028 is good until 28/02/2029. On the good-until date the sign-off is still signed, shown as due soon (`due_soon`). The day after, it's expired. 30 days before, it's due_soon. The app and `private.road_rules_signed` agree.
 3. **Version conflicts:** a publish while someone else has just published, or a sign on an older version, is refused, and the live app reloads so the newer version shows.
 4. **No versions yet:** every screen behaves cleanly with zero versions. There's no nudge, Me shows nothing to sign, and publishers see Write the first version.
 5. **Who's asked:** Legacy members and applicants never show in Not signed. A member who becomes Legacy drops out of the lists.

@@ -7,7 +7,7 @@ import { charCount } from './chat';
 import { byName } from './crew';
 import { expiryState, formatAuDate } from './dates';
 import { lastDay, melbourneDate } from './rides';
-import { signedInProblem } from './routes';
+import { routeChapterName, signedInProblem } from './routes';
 import type { ClubData, Member, Ride, RoadRulesVersion } from './types';
 
 /** The longest the Road Rules text can be, in characters (code points). */
@@ -24,6 +24,11 @@ export const RULES_TOO_LONG = 'That’s too long (20000 characters at most).';
 export const CHANGES_TOO_LONG = 'Keep what changed to 500 characters at most.';
 export const NO_RULES = 'There are no Road Rules to sign yet.';
 export const SIGN_OUTDATED = 'The Road Rules changed while you had them open. Read the new version, then sign.';
+
+/** Whether an error is one of the two refusals that mean a newer version of the Road Rules is waiting to be loaded. */
+export function isRoadRulesVersionRefusal(e: unknown): boolean {
+  return e instanceof Error && (e.message === PUBLISH_CONFLICT || e.message === SIGN_OUTDATED);
+}
 
 /** What a publisher types: the text, what changed, and whether everyone signs again. */
 export interface RoadRulesInput {
@@ -96,10 +101,18 @@ export function publishProblem(me: Member | null, input: RoadRulesInput, seen: n
   if (opening) return opening;
   if (!publishesRoadRules(me, data)) return NOT_PUBLISHER;
   if ((currentRoadRules(data)?.number ?? 0) !== seen) return PUBLISH_CONFLICT;
-  const { body, changes } = cleanRoadRules(input, data);
+  return draftProblem(input);
+}
+
+/**
+ * What's wrong with the text itself, or null: the last three publish checks, in their order
+ * (empty, too long, what changed too long). The Publish screen shows it as you type.
+ */
+export function draftProblem(input: RoadRulesInput): string | null {
+  const body = input.body.trim();
   if (body === '') return RULES_EMPTY;
   if (charCount(body) > MAX_RULES_TEXT) return RULES_TOO_LONG;
-  if (charCount(changes) > MAX_RULES_CHANGES) return CHANGES_TOO_LONG;
+  if (charCount(input.changes.trim()) > MAX_RULES_CHANGES) return CHANGES_TOO_LONG;
   return null;
 }
 
@@ -115,6 +128,58 @@ export function signProblem(me: Member | null, version: number, data: ClubData):
   if (!current) return NO_RULES;
   if (version !== current.number) return SIGN_OUTDATED;
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// The version a screen has open
+// ---------------------------------------------------------------------------
+
+/** The Road Rules screen's notice when a newer version is published while it's open. */
+export const RULES_UPDATED = 'A new version was published while you had this open.';
+
+/** The notice's button: "Read version 3". */
+export const readVersionLabel = (n: number): string => `Read version ${n}`;
+
+/**
+ * What the Road Rules screen pinned: the number it shows (`shown`), and the current number when
+ * it opened or last moved on (`openedOn`, 0 when nothing was published). Shown below openedOn is
+ * an older version, read-only.
+ */
+export interface RoadRulesPin {
+  shown: number;
+  openedOn: number;
+}
+
+/** The pin when the screen opens: the version asked for if it's there, otherwise the current one. */
+export function openRoadRules(asked: number | undefined, data: ClubData): RoadRulesPin {
+  const current = currentRoadRules(data)?.number ?? 0;
+  const there = asked !== undefined && (data.roadRules ?? []).some((v) => v.number === asked);
+  return { shown: there ? asked : current, openedOn: current };
+}
+
+/**
+ * What the Road Rules screen shows: the pinned version, not whatever is current now, so the text
+ * never changes under a reader and Sign always sends the version read. A version published since
+ * comes back as `newer`, for the screen to offer (an older-version view offers nothing: it stays
+ * read-only).
+ * - Opened with nothing published, or the pinned version missing: the current one is pinned.
+ * - Published by `meId` (the publisher back from Publish): taken without asking.
+ * The screen keeps `pin` each time; it is the same object when nothing moved.
+ */
+export function pinnedRoadRules(
+  pin: RoadRulesPin,
+  data: ClubData,
+  meId: string | null,
+): { pin: RoadRulesPin; version: RoadRulesVersion | undefined; older: boolean; newer: RoadRulesVersion | null } {
+  const current = currentRoadRules(data);
+  if (!current) return { pin, version: undefined, older: false, newer: null };
+  const latest = { pin: { shown: current.number, openedOn: current.number }, version: current, older: false, newer: null };
+  const pinned = (data.roadRules ?? []).find((v) => v.number === pin.shown);
+  if (pin.openedOn === 0 || !pinned) return latest;
+  const older = pin.shown < pin.openedOn;
+  if (older || current.number <= pin.shown) return { pin, version: pinned, older, newer: null };
+  if (meId !== null && current.publishedBy === meId) return latest;
+  return { pin, version: pinned, older: false, newer: current };
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -239,18 +304,33 @@ export function unsignedGoing(ride: Ride, data: ClubData, today: string): Member
     .sort(byName);
 }
 
-const chapterOrder = (slug: string) => (slug === 'north' ? 0 : slug === 'west' ? 1 : 2);
-
 /**
- * The Who's signed chapter choices for `me`, North then West (the Rides chips' order), with null
- * for Whole club. The NEC gets every chapter and Whole club; any other board member only the
+ * The Who's signed chapter choices for `me`, in name order (North, then West, as the live app loads
+ * them), with null for Whole club. The NEC gets every chapter and Whole club; any other board member only the
  * chapters they hold a board seat in. Empty for everyone else, who doesn't see the list.
  */
 export function signoffChapters(me: Member | null, data: ClubData): (string | null)[] {
   if (!me || me.approval !== 'approved') return [];
-  const chapters = [...data.chapters].sort((a, b) => chapterOrder(a.slug) - chapterOrder(b.slug));
+  const chapters = [...data.chapters].sort((a, b) => a.name.localeCompare(b.name));
   if (isNational(me.id, data.positions)) return [...chapters.map((c) => c.id), null];
   return chapters.filter((c) => isBoardOf(me, c.id, data.positions)).map((c) => c.id);
+}
+
+/** The chapter Who's signed opens on: your own when you can see it, otherwise your first choice. */
+export function signoffStart(me: Member | null, data: ClubData): string | null | undefined {
+  const options = signoffChapters(me, data);
+  return me && options.includes(me.chapterId) ? me.chapterId : options[0];
+}
+
+/**
+ * "2 of 10 signed · West": the Who's signed count for the chapter that screen opens on, for the
+ * links to it. "Nothing to sign yet" before anything is published; null for anyone who can't open it.
+ */
+export function signoffSummary(me: Member | null, data: ClubData, today: string): string | null {
+  const start = signoffStart(me, data);
+  if (start === undefined) return null;
+  if (!currentRoadRules(data)) return 'Nothing to sign yet';
+  return `${signedCountLine(signoffGroups(signoffMembers(start, data), data, today))} · ${routeChapterName(start, data)}`;
 }
 
 /** The members a Who's signed choice covers: one chapter, or everyone for Whole club (null). */

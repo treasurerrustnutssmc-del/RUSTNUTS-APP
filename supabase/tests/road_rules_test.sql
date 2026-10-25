@@ -139,6 +139,7 @@ declare
     'public.sign_road_rules(int)'::regprocedure];
   f regprocedure;
   signed constant regprocedure := 'private.road_rules_signed(uuid)'::regprocedure;
+  good_until constant regprocedure := 'private.road_rules_good_until(timestamptz)'::regprocedure;
 begin
   assert (select bool_and(prosecdef and proconfig @> array['search_path=""']) from pg_proc where oid = any (fns)),
     'definer, empty search_path';
@@ -155,6 +156,12 @@ begin
   assert not has_function_privilege('anon', signed, 'execute'), 'anon can''t run road_rules_signed';
   assert not has_function_privilege('public', signed, 'execute'), 'public can''t run road_rules_signed';
   assert not has_function_privilege('authenticated', signed, 'execute'), 'members can''t run road_rules_signed';
+  -- Its helper too, despite the broad grant on the private schema.
+  assert not has_function_privilege('anon', good_until, 'execute'), 'anon can''t run road_rules_good_until';
+  assert not has_function_privilege('public', good_until, 'execute'), 'public can''t run road_rules_good_until';
+  assert not has_function_privilege('authenticated', good_until, 'execute'), 'members can''t run road_rules_good_until';
+  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000f1', 'select private.road_rules_good_until(now())')
+    like 'permission denied%', 'not even the NEC Chairman, through the API';
 
   assert pg_temp.publish(null, 'Ride safe', null, true, 0) is not null, 'the public can''t publish';
   assert pg_temp.sign(null, 1) is not null, 'nor sign';
@@ -395,6 +402,22 @@ begin
   exception when not_null_violation then null;
   end;
   begin
+    update road_rules_versions set fresh = false where number = 1;
+    assert false, 'version 1 stopped needing a fresh sign-off';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into road_rules_versions (number, body, fresh) values (1, 'Ride safe', false);
+    assert false, 'a version 1 that isn''t fresh got in';
+  exception when check_violation then null;
+  end;
+  -- A later version can be a small fix; undone after.
+  begin
+    insert into road_rules_versions (number, body, fresh) values (9, 'Ride safe', false);
+    raise sqlstate 'U0001';
+  exception when sqlstate 'U0001' then null;
+  end;
+  begin
     insert into road_rules_versions (number, body, fresh) values (3, 'Ride safe', true);
     assert false, 'a second version 3 got in';
   exception when unique_violation then null;
@@ -530,8 +553,9 @@ $$;
 -- Whether a second session can take the Road Rules lock right now, without waiting.
 create function pg_temp.other_session_can(p_shared boolean) returns boolean language sql as $$
   select ok from dblink(
-    format('dbname=%s host=%s port=%s user=postgres', current_database(),
-      split_part(current_setting('unix_socket_directories'), ',', 1), current_setting('port')),
+    -- The same database, socket, port and user as the connection the test runs on.
+    format('dbname=%s host=%s port=%s user=%s', current_database(),
+      split_part(current_setting('unix_socket_directories'), ',', 1), current_setting('port'), session_user),
     format('select %s(hashtext(''road_rules_publish''))',
       case when p_shared then 'pg_try_advisory_xact_lock_shared' else 'pg_try_advisory_xact_lock' end)
   ) as t(ok boolean);

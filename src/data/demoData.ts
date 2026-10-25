@@ -505,10 +505,8 @@ The Road Captain (RC) leads the ride and makes the safety calls. When the RC can
 
 Safety first, then the ride, then the coffee.`;
 
-const rulesToday = melbourneDate(new Date().toISOString()); // the same "today" as the app
-/** An instant on a Melbourne date: 09:30 UTC is the evening of that date in Melbourne. */
-const onDate = (date: string) => `${date}T09:30:00.000Z`;
-
+// Dated from the same today as Stage 4 (s4Today), at the same time of day (at(): 09:30 UTC, the
+// evening of that date in Melbourne).
 Object.assign(DEMO_DATA, {
   roadRules: [
     {
@@ -516,7 +514,7 @@ Object.assign(DEMO_DATA, {
       body: RULES_SAMPLE,
       changes: '',
       fresh: true,
-      publishedAt: onDate(addMonths(rulesToday, -16)),
+      publishedAt: at(addMonths(s4Today, -16)),
       publishedBy: 'm-rusty',
     },
     {
@@ -524,13 +522,13 @@ Object.assign(DEMO_DATA, {
       body: RULES_SAMPLE.replace('Nobody passes the RC.', 'Nobody overtakes the RC.'),
       changes: 'A wording fix: “Nobody passes the RC” now reads “Nobody overtakes the RC”. Your sign-off carries over.',
       fresh: false,
-      publishedAt: onDate(addDays(rulesToday, -24)),
+      publishedAt: at(addDays(s4Today, -24)),
       publishedBy: 'm-rusty',
     },
   ],
   roadRulesSignoffs: [
-    { memberId: 'm-torque', version: 2, signedAt: onDate(addDays(rulesToday, -5)) },
-    { memberId: 'm-spanner', version: 1, signedAt: onDate(addDays(addMonths(rulesToday, -11), -20)) },
-    { memberId: 'm-rusty', version: 1, signedAt: onDate(addMonths(rulesToday, -13)) },
+    { memberId: 'm-torque', version: 2, signedAt: at(addDays(s4Today, -5)) },
+    { memberId: 'm-spanner', version: 1, signedAt: at(addDays(addMonths(s4Today, -11), -20)) },
+    { memberId: 'm-rusty', version: 1, signedAt: at(addMonths(s4Today, -13)) },
   ],
 } satisfies Partial<ClubData>);

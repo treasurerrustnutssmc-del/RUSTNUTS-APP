@@ -13,10 +13,17 @@ import {
   MAX_RULES_CHANGES,
   MAX_RULES_TEXT,
   NOT_PUBLISHER,
+  RULES_EMPTY,
   RULES_TOO_LONG,
+  RULES_UPDATED,
+  SIGN_OUTDATED,
   currentRoadRules,
+  draftProblem,
+  openRoadRules,
+  pinnedRoadRules,
   publishProblem,
   publishesRoadRules,
+  readVersionLabel,
   roadRulesStatus,
   rulesBlocks,
   signBoxLine,
@@ -25,6 +32,8 @@ import {
   signoffGroups,
   signoffLine,
   signoffMembers,
+  signoffStart,
+  signoffSummary,
 } from '../domain/roadRules';
 import { melbourneDate } from '../domain/rides';
 import { routeChapterName } from '../domain/routes';
@@ -65,21 +74,22 @@ function publishedLine(v: RoadRulesVersion, data: ClubData): string {
 // Road Rules
 // ---------------------------------------------------------------------------
 
-/** "2 of 10 signed · West": the Who's signed count for the chapter that screen opens on. */
-function signoffSummary(me: Member, data: ClubData, today: string): string {
-  const options = signoffChapters(me, data);
-  const start = options.includes(me.chapterId) ? me.chapterId : (options[0] ?? null);
-  return `${signedCountLine(signoffGroups(signoffMembers(start, data), data, today))} · ${routeChapterName(start, data)}`;
-}
-
 export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRules'>) {
   const { me, data, today } = useClub();
+  // The screen keeps the version it opened on (the one asked for, or the current one then), so the
+  // text never changes under the reader and Sign sends the version read. A newer one is offered in
+  // a notice instead (pinnedRoadRules).
+  const [pin, setPin] = useState(() => openRoadRules(nav.params?.version, data));
+  const view = pinnedRoadRules(pin, data, me?.id ?? null);
+  // Keep what's shown pinned (the first version to arrive, or your own publish), while rendering,
+  // as React recommends for state that follows props.
+  if (view.pin !== pin) setPin(view.pin);
   if (!me) return null;
   const current = currentRoadRules(data);
   const publisher = publishesRoadRules(me, data);
   const seesSignoffs = signoffChapters(me, data).length > 0;
 
-  if (!current) {
+  if (!current || !view.version) {
     return (
       <Screen>
         <Notice title="No Road Rules yet">{NOTHING_YET}</Notice>
@@ -91,9 +101,10 @@ export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRule
   }
 
   // An older version opens read-only: no sign box, and a way back to the current one.
-  const asked = nav.params?.version;
-  const older = asked !== undefined && asked < current.number ? (data.roadRules ?? []).find((v) => v.number === asked) : undefined;
-  const shown = older ?? current;
+  const shown = view.version;
+  const older = view.older;
+  const newer = view.newer;
+  const readNewer = newer ? () => setPin({ shown: newer.number, openedOn: newer.number }) : undefined;
   const toCurrent = () => {
     const { routes, index } = navigation.getState();
     const before = routes[index - 1];
@@ -103,6 +114,19 @@ export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRule
 
   return (
     <Screen>
+      {/* A newer version was published while this was open: say so, and switch only when asked.
+          While it's empty it takes back the screen's gap, so it adds no space above the title. */}
+      <View accessibilityLiveRegion="polite" role="alert" style={newer ? null : styles.emptyRegion}>
+        {newer && readNewer ? (
+          <Notice tone="warn" title="New version">
+            <Stack gap={space.md}>
+              <Small style={{ color: colors.boneDim }}>{RULES_UPDATED}</Small>
+              <Button label={readVersionLabel(newer.number)} icon="refresh" kind="secondary" onPress={readNewer} style={styles.readNewer} />
+            </Stack>
+          </Notice>
+        ) : null}
+      </View>
+
       <Stack gap={space.xs}>
         <H1>{`Version ${shown.number}`}</H1>
         <Text style={styles.published}>{publishedLine(shown, data)}</Text>
@@ -137,7 +161,7 @@ export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRule
 
       <RulesText body={shown.body} />
 
-      {older ? null : <SignBox version={current} />}
+      {older ? null : <SignBox key={shown.number} version={shown} newer={newer} onReadNewer={readNewer} />}
 
       {!older && (publisher || seesSignoffs) ? (
         <Stack gap={space.sm}>
@@ -151,7 +175,7 @@ export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRule
                 last
                 left={<IconBadge icon="people-outline" />}
                 title="Who’s signed"
-                subtitle={<Text style={styles.rowMeta}>{signoffSummary(me, data, today)}</Text>}
+                subtitle={<Text style={styles.rowMeta}>{signoffSummary(me, data, today) ?? ''}</Text>}
                 onPress={() => navigation.navigate('RoadRulesSignoffs')}
               />
             </Card>
@@ -213,8 +237,19 @@ function RulesText({ body }: { body: string }) {
   );
 }
 
-/** Sign, or when you signed and until when, with Sign again. */
-function SignBox({ version }: { version: RoadRulesVersion }) {
+/**
+ * Sign, or when you signed and until when, with Sign again. `version` is the one on screen, which
+ * Sign sends; when it's been overtaken (`newer`), the refusal offers the newer one too.
+ */
+function SignBox({
+  version,
+  newer,
+  onReadNewer,
+}: {
+  version: RoadRulesVersion;
+  newer: RoadRulesVersion | null;
+  onReadNewer?: () => void;
+}) {
   const { me, data, today, signRoadRules } = useClub();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -228,7 +263,7 @@ function SignBox({ version }: { version: RoadRulesVersion }) {
     setError(null);
     setBusy(true);
     try {
-      // The version on screen, so a sign-off always means the text the member read.
+      // The version on screen (the pinned one), so a sign-off always means the text the member read.
       await signRoadRules(version.number);
     } catch (e) {
       setError((e as Error).message);
@@ -277,7 +312,25 @@ function SignBox({ version }: { version: RoadRulesVersion }) {
         <View accessibilityLiveRegion="polite" role="alert">
           {error ? (
             <View style={{ marginTop: space.md }}>
-              <Notice tone="danger">{error}</Notice>
+              <Notice tone="danger">
+                {error === SIGN_OUTDATED && newer && onReadNewer ? (
+                  <Stack gap={space.md}>
+                    <Small style={{ color: colors.boneDim }}>{error}</Small>
+                    <Button
+                      label={readVersionLabel(newer.number)}
+                      icon="refresh"
+                      kind="secondary"
+                      onPress={() => {
+                        setError(null);
+                        onReadNewer();
+                      }}
+                      style={styles.readNewer}
+                    />
+                  </Stack>
+                ) : (
+                  error
+                )}
+              </Notice>
             </View>
           ) : null}
         </View>
@@ -318,6 +371,8 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
   const bodyTooLong = count > MAX_RULES_TEXT;
   const changesTooLong = charCount(changes.trim()) > MAX_RULES_CHANGES;
   const everyone = first || fresh;
+  // Empty or too long shows as you type, and Publish stays off until it's fixed.
+  const problem = draftProblem({ body, changes, fresh });
 
   const publish = async () => {
     if (saving) return;
@@ -360,7 +415,7 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
           multiline
           autoCapitalize="sentences"
           hint="Start a line with # for a heading or - for a bullet. Leave a blank line between paragraphs."
-          error={bodyTooLong ? RULES_TOO_LONG : null}
+          error={problem === RULES_EMPTY ? RULES_EMPTY : bodyTooLong ? RULES_TOO_LONG : null}
           style={styles.bodyInput}
         />
         {count > COUNT_FROM ? (
@@ -410,11 +465,16 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
             }
             kind="primary"
             icon="megaphone-outline"
+            disabled={problem !== null}
             onConfirm={publish}
           />
         )}
         <View accessibilityLiveRegion="polite" role="alert">
-          {error ? <Notice tone="danger">{error}</Notice> : null}
+          {error ? (
+            <Notice tone="danger">{error}</Notice>
+          ) : problem ? (
+            <Small style={{ color: colors.danger }}>{problem}</Small>
+          ) : null}
         </View>
       </Stack>
     </Screen>
@@ -438,7 +498,7 @@ export function RoadRulesSignoffsScreen({ navigation }: RootScreen<'RoadRulesSig
     );
   }
   // Your own chapter to start with, as on the Rides tab.
-  const start = options.includes(me.chapterId) ? me.chapterId : options[0];
+  const start = signoffStart(me, data) ?? null;
   const chosen = picked !== undefined && options.includes(picked) ? picked : start;
 
   if (!currentRoadRules(data)) {
@@ -560,6 +620,8 @@ const styles = StyleSheet.create({
   signedText: { fontFamily: fonts.stencil, fontSize: 17, lineHeight: 24, letterSpacing: 0.4, flex: 1 },
   signButton: { minHeight: 64 },
   signAgain: { alignSelf: 'flex-start', marginLeft: -space.lg },
+  readNewer: { alignSelf: 'flex-start' },
+  emptyRegion: { marginBottom: -space.lg },
   rowMeta: { fontFamily: fonts.stencil, fontSize: 13, lineHeight: 18, letterSpacing: 0.3, color: colors.boneDim },
   bodyInput: { minHeight: 320 },
   count: { fontFamily: fonts.stencil, fontSize: 13, letterSpacing: 0.3, color: colors.boneDim, fontVariant: ['tabular-nums'], textAlign: 'right' },

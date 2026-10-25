@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { appointProblem, endTermProblem, pendingFor } from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
+import { signoffSummary } from '../domain/roadRules';
 import { melbourneDate } from '../domain/rides';
 import { nineMonthsAfter, patchVoteFor, patchVoteTooEarly } from '../domain/votes';
 import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole, Votes } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
-import { colors, space, type } from '../theme';
+import { colors, fonts, space, type } from '../theme';
 // Stage 4
 import { fngDue } from '../domain/joining';
 import { BoardCheckins } from './checkin';
@@ -143,6 +144,8 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
     const m = data.members.find((x) => x.id === id);
     return m ? displayName(m) : '';
   };
+  // Road Rules: who's signed, for anyone who can open that list (the NEC and the chapter boards).
+  const signoffs = signoffSummary(me, data, today);
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
@@ -168,8 +171,17 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
           title="Meetings and votes"
           subtitle="Agendas, minutes, action items and votes"
           onPress={() => navigation.navigate('Business')}
-          last
+          last={signoffs === null}
         />
+        {signoffs !== null ? (
+          <ListRow
+            left={<IconBadge icon="document-text-outline" />}
+            title="Road Rules sign-off"
+            subtitle={<Text style={styles.rowMeta}>{signoffs}</Text>}
+            onPress={() => navigation.navigate('RoadRulesSignoffs')}
+            last
+          />
+        ) : null}
       </Card>
 
       <SectionTitle title="Waiting for approval" action={<Small>{pending.length}</Small>} />
@@ -385,3 +397,8 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  // Counts on rows are stencil, as on Who's signed.
+  rowMeta: { fontFamily: fonts.stencil, fontSize: 13, lineHeight: 18, letterSpacing: 0.3, color: colors.boneDim },
+});

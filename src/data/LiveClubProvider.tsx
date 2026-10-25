@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
-import { publishProblem, signProblem } from '../domain/roadRules';
+import { isRoadRulesVersionRefusal, publishProblem, signProblem } from '../domain/roadRules';
 import {
   actionItemProblem,
   approveMinutesProblem,
@@ -30,7 +30,6 @@ import {
   type ClubContextValue,
 } from './clubContext';
 import {
-  isRoadRulesVersionRefusal,
   loadClub,
   publishRoadRulesArgs,
   readBriefingArgs,

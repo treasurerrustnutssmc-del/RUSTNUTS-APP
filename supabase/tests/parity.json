@@ -3204,7 +3204,7 @@
       "allowed": true
     },
     {
-      "name": "A first version opened on a version that no longer exists",
+      "name": "Publishing when the editor saw version 1 but nothing is published",
       "as": "chair",
       "action": "publishRoadRules",
       "body": "  # Road Rules\n\nRide safe, ride together.  ",

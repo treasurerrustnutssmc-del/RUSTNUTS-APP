@@ -433,7 +433,7 @@ function WriterSection({
                 key={m.id}
                 last={i === unsigned.length - 1}
                 title={displayName(m)}
-                subtitle={signoffLine(m, data, today)}
+                subtitle={<Text style={styles.rowMeta}>{signoffLine(m, data, today)}</Text>}
                 onPress={() => onMember(m.id)}
               />
             ))}
@@ -700,6 +700,8 @@ const styles = StyleSheet.create({
   showUpdate: { alignSelf: 'flex-start' },
   emptyRegion: { marginBottom: -space.lg },
   count: { fontFamily: fonts.stencil, fontSize: 16, color: colors.boneMute },
+  // The Road Rules rows' dates, in stencil as on Who's signed.
+  rowMeta: { fontFamily: fonts.stencil, fontSize: 13, lineHeight: 18, letterSpacing: 0.3, color: colors.boneDim },
   countLine: { fontFamily: fonts.stencil, fontSize: 14, lineHeight: 18, letterSpacing: 0.3, color: colors.boneDim },
   rideLine: { ...type.name, fontSize: 18, lineHeight: 24 },
   rideDate: { color: colors.boneDim },

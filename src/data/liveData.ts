@@ -3,7 +3,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanBriefing, isVersionRefusal, type BriefingInput } from '../domain/briefings';
-import { cleanRoadRules, PUBLISH_CONFLICT, SIGN_OUTDATED, type RoadRulesInput } from '../domain/roadRules';
+import { cleanRoadRules, type RoadRulesInput } from '../domain/roadRules';
 import type { ClubData, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
 import { EMPTY_DATA } from './clubContext';
@@ -312,9 +312,4 @@ export function publishRoadRulesArgs(input: RoadRulesInput, seen: number, data: 
 /** sign_road_rules's arguments: the version on screen. */
 export function signRoadRulesArgs(version: number) {
   return { p_version: version };
-}
-
-/** Whether an error is one of the two refusals that mean a newer version of the Road Rules is waiting to be loaded. */
-export function isRoadRulesVersionRefusal(e: unknown): boolean {
-  return e instanceof Error && (e.message === PUBLISH_CONFLICT || e.message === SIGN_OUTDATED);
 }

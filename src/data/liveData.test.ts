@@ -1,10 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { READ_OUTDATED, SAVE_CONFLICT, NOT_WRITER } from '../domain/briefings';
-import { NO_RULES, NOT_PUBLISHER, PUBLISH_CONFLICT, SIGN_OUTDATED } from '../domain/roadRules';
+import { isRoadRulesVersionRefusal, NO_RULES, NOT_PUBLISHER, PUBLISH_CONFLICT, SIGN_OUTDATED } from '../domain/roadRules';
 import { EMPTY_DATA } from './clubContext';
 import {
-  isRoadRulesVersionRefusal,
   loadClub,
   publishRoadRulesArgs,
   readBriefingArgs,
@@ -404,36 +403,23 @@ test('after a newer-version refusal the calendar reloads, then the refusal still
 // ---------------------------------------------------------------------------
 
 test('signed in: the Road Rules versions and sign-offs are read with the rest, and become app records', async () => {
-  const selects: Record<string, string> = {};
-  const rows: Record<string, unknown[]> = {
-    chapters: [west],
-    road_rules_versions: [
-      {
-        number: 1, body: '# Road Rules', changes: null, fresh: true, published_by: 'm1',
-        published_at: '2025-06-24T01:30:00.123456+00:00',
-      },
-      {
-        number: 2, body: '# Road Rules, fixed', changes: 'A typo', fresh: false, published_by: null,
-        published_at: '2026-09-30T02:00:00+00:00',
-      },
-    ],
-    road_rules_signoffs: [{ member_id: 'm2', version: 2, signed_at: '2026-10-19T03:04:05.678901+00:00' }],
-  };
-  const client = {
-    from: (name: string) => ({
-      select: (cols = '*') => {
-        selects[name] = cols;
-        const r = { data: rows[name] ?? [], error: null };
-        const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
-        return chain;
-      },
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      road_rules_versions: [
+        {
+          number: 1, body: '# Road Rules', changes: null, fresh: true, published_by: 'm1',
+          published_at: '2025-06-24T01:30:00.123456+00:00',
+        },
+        {
+          number: 2, body: '# Road Rules, fixed', changes: 'A typo', fresh: false, published_by: null,
+          published_at: '2026-09-30T02:00:00+00:00',
+        },
+      ],
+      road_rules_signoffs: [{ member_id: 'm2', version: 2, signed_at: '2026-10-19T03:04:05.678901+00:00' }],
     }),
-    rpc: (name: string) =>
-      Promise.resolve({ data: name === 'ride_calendar' ? { rides: [], rsvps: [], synced_at: null } : [], error: null }),
-  } as never;
-  const data = await loadClub(client, true);
-  assert.ok(selects.road_rules_versions, 'the versions are read');
-  assert.ok(selects.road_rules_signoffs, 'the sign-offs are read');
+    true,
+  );
   assert.deepEqual(data.roadRules, [
     { number: 1, body: '# Road Rules', changes: '', fresh: true, publishedBy: 'm1', publishedAt: '2025-06-24T01:30:00.123Z' },
     { number: 2, body: '# Road Rules, fixed', changes: 'A typo', fresh: false, publishedBy: null, publishedAt: '2026-09-30T02:00:00.000Z' },
@@ -453,18 +439,17 @@ test('signed out: no Road Rules are read', async () => {
   assert.deepEqual(data.roadRulesSignoffs, []);
 });
 
+/** stubClient, with one table's read failing. */
+function tableFails(table: string, message: string) {
+  const base = stubClient({ chapters: [west] }) as unknown as { from: (n: string) => unknown; rpc: unknown };
+  const r = { data: null, error: { message } };
+  const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+  return { from: (name: string) => (name === table ? { select: () => chain } : base.from(name)), rpc: base.rpc } as never;
+}
+
 test('a failure loading the Road Rules is an error, not an empty list', async () => {
-  const client = {
-    from: (name: string) => ({
-      select: () => {
-        const r = name === 'road_rules_signoffs' ? { data: null, error: { message: 'boom' } } : { data: name === 'chapters' ? [west] : [], error: null };
-        return { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
-      },
-    }),
-    rpc: (name: string) =>
-      Promise.resolve({ data: name === 'ride_calendar' ? { rides: [], rsvps: [], synced_at: null } : [], error: null }),
-  } as never;
-  await assert.rejects(loadClub(client, true), { message: 'boom' });
+  await assert.rejects(loadClub(tableFails('road_rules_versions', 'boom'), true), { message: 'boom' });
+  await assert.rejects(loadClub(tableFails('road_rules_signoffs', 'bang'), true), { message: 'bang' });
 });
 
 test('publishing the Road Rules sends them cleaned, with the version the editor opened on', () => {

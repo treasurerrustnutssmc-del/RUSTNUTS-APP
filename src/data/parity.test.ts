@@ -37,7 +37,9 @@ test('the Road Rules cases cover publishing and signing, with and without versio
   assert.ok((fixture.roadRules ?? []).length >= 2, 'the fixture has versions');
   assert.ok(has('publishRoadRules', (c) => c.allowed && !c.noRoadRules), 'a publish on top of the current version');
   assert.ok(has('publishRoadRules', (c) => c.allowed && c.noRoadRules === true), 'a first version');
-  assert.ok(has('publishRoadRules', (c) => !c.allowed && !c.noRoadRules && c.seen !== (fixture.roadRules ?? []).length), 'a clash');
+  // A clash: opened on a number that isn't the current (highest) one, whatever the numbers are.
+  const current = Math.max(0, ...(fixture.roadRules ?? []).map((v) => v.number));
+  assert.ok(has('publishRoadRules', (c) => !c.allowed && !c.noRoadRules && c.seen !== current), 'a clash');
   assert.ok(has('signRoadRules', (c) => c.allowed), 'a sign-off');
   assert.ok(has('signRoadRules', (c) => !c.allowed && c.noRoadRules === true), 'nothing to sign yet');
 });
