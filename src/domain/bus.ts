@@ -9,7 +9,7 @@ import { byName } from './crew';
 import { addDays, daysBetween, formatAuDate, parseAuDate } from './dates';
 import { BOARD_ROLES } from './labels';
 import { FORMER_MEMBER, memberName } from './profile';
-import { melbourneDate } from './rides';
+import { lastDay, melbourneDate } from './rides';
 import { signedInProblem } from './routes';
 import type { BusBooking, BusPurpose, BusStatus, ClubData, Member, Ride } from './types';
 
@@ -213,16 +213,52 @@ export function busToday(data: ClubData, today: string): BusBooking | undefined 
   return clashesWith({ first: today, last: today }, data)[0];
 }
 
-/** Booked and Waiting bookings not yet over, grouped by their first day's month ('YYYY-MM'), in date order. */
+/**
+ * Booked and Waiting bookings not yet over, grouped by month ('YYYY-MM'), in date order. A booking
+ * sits under the month of the later of its first day and today, so one already under way shows
+ * under this month rather than the month it started.
+ */
 export function upcomingBus(data: ClubData, today: string): { month: string; bookings: BusBooking[] }[] {
   const groups: { month: string; bookings: BusBooking[] }[] = [];
   for (const b of (data.busBookings ?? []).filter((x) => isLive(x) && x.lastDay >= today).sort(byFirstDay)) {
-    const month = b.firstDay.slice(0, 7);
+    const month = (b.firstDay > today ? b.firstDay : today).slice(0, 7);
     const last = groups[groups.length - 1];
     if (last && last.month === month) last.bookings.push(b);
     else groups.push({ month, bookings: [b] });
   }
   return groups;
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** '2026-11' → "November 2026", for upcomingBus's month headers. */
+export const busMonthLabel = (month: string): string => `${MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+
+/** The Rusty Bus screen's header: "Free today", or "Out today: Recovery, Diesel". */
+export function busTodayLine(data: ClubData, today: string): string {
+  const out = busToday(data, today);
+  return out ? `Out today: ${busPurposeLabel(out.purpose)}, ${busPersonName(out.driverId, data)}` : 'Free today';
+}
+
+/** The Rides list's Rusty Bus row: busTodayLine, with " · 2 waiting" for a bus manager when any are. */
+export function busRowLine(me: Member | null, data: ClubData, today: string): string {
+  const waiting = managesBus(me, data) ? waitingForYes(data, today).length : 0;
+  return waiting > 0 ? `${busTodayLine(data, today)} · ${waiting} waiting` : busTodayLine(data, today);
+}
+
+/** "Clashes with Recovery 03/11/2026" (and "and N more"), for clashesWith's result, or null for none. */
+export function clashLine(clashes: BusBooking[]): string | null {
+  const [first, ...rest] = clashes;
+  if (!first) return null;
+  const line = `Clashes with ${busPurposeLabel(first.purpose)} ${formatDays(first.firstDay, first.lastDay)}`;
+  return rest.length > 0 ? `${line} and ${rest.length} more` : line;
+}
+
+/** Calendar rides on any of these days (Melbourne dates), cancelled ones left out, by start: the form's "For a ride?" list. */
+export function ridesInDays(range: BusRange, data: ClubData): Ride[] {
+  return data.rides
+    .filter((r) => !r.cancelledAt && melbourneDate(r.startsAt) <= range.last && range.first <= lastDay(r))
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
 /** Waiting bookings whose days aren't over, oldest asked first: the managers' list. */

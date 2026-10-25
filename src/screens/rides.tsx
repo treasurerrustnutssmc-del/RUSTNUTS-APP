@@ -12,6 +12,7 @@ import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABE
 import { displayName, initials, memberName } from '../domain/profile';
 import { libraryFor, rideRouteProblem, routeOf } from '../domain/routes';
 import { roadRulesStatus, showsRoadRulesNudge } from '../domain/roadRules'; // Road Rules
+import { busForRide, busRowLine, canBookBus } from '../domain/bus'; // Rusty Bus
 import {
   calendarFreshness,
   defaultCategories,
@@ -104,7 +105,6 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
       {me.approval === 'approved' ? (
         <Card style={{ padding: 0, gap: 0 }}>
           <ListRow
-            last
             left={<IconBadge icon="map-outline" />}
             title="Route library"
             subtitle={
@@ -113,6 +113,14 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
               </Text>
             }
             onPress={() => navigation.navigate('Routes')}
+          />
+          {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
+          <ListRow
+            last
+            left={<IconBadge icon="bus-outline" />}
+            title="Rusty Bus"
+            subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
+            onPress={() => navigation.navigate('Bus')}
           />
         </Card>
       ) : null}
@@ -290,6 +298,9 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   const going = people('going');
   const maybe = people('maybe');
   const mySpot = spotOf(ride.id, me.id, data.crew);
+  // Rusty Bus: the booking on this ride, and a Book link for its writers (crew managers) while it's still to come.
+  const bus = busForRide(ride.id, data);
+  const booksBus = !bus && !cancelled && lastDay(ride) >= today && managesRide(me, ride, data) && canBookBus(me, data);
 
   const answer = async (a: RsvpAnswer) => {
     setError(null);
@@ -338,6 +349,24 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         <Row style={{ gap: 6 }}>
           <RideChip category={ride.category} />
           {cancelled ? <Chip label="Cancelled" tone="danger" /> : null}
+          {bus ? (
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={`${bus.status === 'approved' ? 'Rusty Bus booked' : 'Rusty Bus asked for'}, see the Rusty Bus`}
+              hitSlop={{ top: 12, bottom: 12 }}
+              onPress={() => navigation.navigate('Bus')}
+              style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+                styles.busChip,
+                (pressed || hovered) && { backgroundColor: colors.steel },
+              ]}
+            >
+              <Chip
+                label={bus.status === 'approved' ? 'Rusty Bus booked' : 'Rusty Bus asked for'}
+                tone={bus.status === 'approved' ? 'ok' : 'warn'}
+                icon="bus"
+              />
+            </Pressable>
+          ) : null}
         </Row>
         <H1 style={cancelled ? styles.struck : undefined}>{ride.title}</H1>
         <Stack gap={space.sm}>
@@ -366,6 +395,21 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
           ) : null}
         </Stack>
         {ride.notes ? <Body selectable>{ride.notes}</Body> : null}
+        {booksBus ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Book the Rusty Bus for this ride"
+            onPress={() => navigation.navigate('BookBus', { rideId: ride.id })}
+            style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+              styles.place,
+              { alignSelf: 'flex-start' },
+              (pressed || hovered) && { backgroundColor: colors.steel },
+            ]}
+          >
+            <Ionicons name="bus-outline" size={18} color={colors.redText} />
+            <Text style={styles.busLink}>Book the Rusty Bus</Text>
+          </Pressable>
+        ) : null}
       </Card>
 
       {/* Lane E: live ride */}
@@ -928,4 +972,13 @@ const styles = StyleSheet.create({
   briefingMore: { fontFamily: fonts.stencil, fontSize: 14, color: colors.boneMute },
   // Full row width, so a two-tap confirm and its Cancel fit on one line at phone size.
   crewActions: { gap: space.sm },
+  busChip: { borderRadius: radius.sm, alignSelf: 'flex-start' },
+  busLink: {
+    fontFamily: fonts.stencil,
+    fontSize: 15,
+    letterSpacing: 0.4,
+    color: colors.redText,
+    textDecorationLine: 'underline',
+    textDecorationColor: colors.redText,
+  },
 });

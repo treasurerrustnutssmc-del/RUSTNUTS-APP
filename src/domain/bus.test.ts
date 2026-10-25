@@ -27,18 +27,23 @@ import {
   bookedStraightAway,
   busDrivers,
   busForRide,
+  busMonthLabel,
   busPersonName,
   busPurposeLabel,
   busRide,
+  busRowLine,
   busStatusLabel,
   busToday,
+  busTodayLine,
   canBookBus,
   cancelProblem,
+  clashLine,
   clashesWith,
   decideProblem,
   formatDays,
   managesBus,
   myRecentOff,
+  ridesInDays,
   upcomingBus,
   waitingForYes,
   type BusInput,
@@ -462,6 +467,83 @@ test('upcomingBus is Booked and Waiting from today on, by first-day month, in da
     ],
   );
   assert.deepEqual(upcomingBus(data(), TODAY), []);
+});
+
+test('upcomingBus puts a booking already under way under this month, not the month it started', () => {
+  const d = data({
+    busBookings: [
+      booking('nov', '2026-11-05', '2026-11-05', { status: 'requested' }),
+      booking('running', '2026-10-28', '2026-11-04'),
+      booking('dec', '2026-12-01', '2026-12-01'),
+    ],
+  });
+  assert.deepEqual(
+    upcomingBus(d, '2026-11-03').map((g) => ({ month: g.month, ids: g.bookings.map((b) => b.id) })),
+    [
+      { month: '2026-11', ids: ['running', 'nov'] },
+      { month: '2026-12', ids: ['dec'] },
+    ],
+  );
+  // Before it starts, it sits under its own first day's month.
+  assert.deepEqual(upcomingBus(d, '2026-10-25')[0], { month: '2026-10', bookings: [d.busBookings![1]] });
+});
+
+test('busMonthLabel names the month in full', () => {
+  assert.equal(busMonthLabel('2026-11'), 'November 2026');
+  assert.equal(busMonthLabel('2027-01'), 'January 2027');
+});
+
+test('busTodayLine says whether the bus is out today, what for and who has it', () => {
+  const out = data({ busBookings: [booking('out', TODAY, TODAY, { purpose: 'recovery', driverId: 'nomad' })] });
+  assert.equal(busTodayLine(out, TODAY), 'Out today: Recovery, nomad');
+  assert.equal(busTodayLine(out, '2026-10-26'), 'Free today');
+  const gone = data({ busBookings: [booking('out', TODAY, TODAY, { driverId: null })] });
+  assert.equal(busTodayLine(gone, TODAY), 'Out today: Charity ride, A former member');
+  // Waiting bookings don't take the bus out.
+  assert.equal(busTodayLine(data({ busBookings: [booking('ask', TODAY, TODAY, { status: 'requested' })] }), TODAY), 'Free today');
+});
+
+test('busRowLine is the Rides list row: today’s line, with how many are waiting for the board', () => {
+  const d = data({
+    busBookings: [
+      booking('out', TODAY, TODAY, { purpose: 'recovery', driverId: 'nomad' }),
+      booking('ask-1', '2026-11-01', '2026-11-01', { status: 'requested' }),
+      booking('ask-2', '2026-11-02', '2026-11-02', { status: 'requested' }),
+      booking('ask-old', '2026-10-01', '2026-10-02', { status: 'requested' }),
+    ],
+  });
+  assert.equal(busRowLine(nec, d, TODAY), 'Out today: Recovery, nomad · 2 waiting');
+  assert.equal(busRowLine(rider, d, TODAY), 'Out today: Recovery, nomad');
+  assert.equal(busRowLine(nec, data(), TODAY), 'Free today');
+});
+
+test('clashLine names the first Booked booking hit, and how many more', () => {
+  const recovery = booking('rec', '2026-11-03', '2026-11-03', { purpose: 'recovery' });
+  const charity = booking('char', '2026-11-04', '2026-11-06');
+  const event = booking('ev', '2026-11-07', '2026-11-07', { purpose: 'club_event' });
+  assert.equal(clashLine([]), null);
+  assert.equal(clashLine([recovery]), 'Clashes with Recovery 03/11/2026');
+  assert.equal(clashLine([charity]), 'Clashes with Charity ride 04/11/2026 – 06/11/2026');
+  assert.equal(clashLine([recovery, charity]), 'Clashes with Recovery 03/11/2026 and 1 more');
+  assert.equal(clashLine([recovery, charity, event]), 'Clashes with Recovery 03/11/2026 and 2 more');
+});
+
+test('ridesInDays is the calendar rides on any of those days, cancelled ones left out, by start', () => {
+  const d = data({
+    rides: [
+      // 22:00 UTC is 9 am the next day in Melbourne.
+      ride('late', { startsAt: '2026-11-09T22:00:00.000Z' }),
+      ride('early', { startsAt: '2026-11-07T22:00:00.000Z' }),
+      ride('before', { startsAt: '2026-11-06T22:00:00.000Z' }),
+      ride('after', { startsAt: '2026-11-10T22:00:00.000Z' }),
+      ride('off', { startsAt: '2026-11-08T22:00:00.000Z', cancelledAt: '2026-11-01T00:00:00.000Z' }),
+      // A weekend that started before the first day but runs into it.
+      ride('weekend', { startsAt: '2026-11-05T13:00:00.000Z', endsAt: '2026-11-07T13:00:00.000Z', allDay: true }),
+    ],
+  });
+  assert.deepEqual(ridesInDays({ first: '2026-11-08', last: '2026-11-10' }, d).map((r) => r.id), ['early', 'late']);
+  assert.deepEqual(ridesInDays({ first: '2026-11-07', last: '2026-11-07' }, d).map((r) => r.id), ['weekend', 'before']);
+  assert.deepEqual(ridesInDays({ first: '2026-11-12', last: '2026-11-13' }, d), []);
 });
 
 test('waitingForYes is Waiting bookings not yet over, oldest asked first', () => {
