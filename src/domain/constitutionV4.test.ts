@@ -231,15 +231,15 @@ test('a Patch review needs nine months and a carried patch vote', () => {
 
 // --- D. The continuation fee --------------------------------------------------------------------
 
-test('the continuation fee is half the FNG fee for the year', () => {
+test('the continuation fee is half the Full fee for the year', () => {
   const rate = (status: 'fng' | 'full', amountCents: number) => ({ chapterId: 'west', fy: 2026, status, amountCents, dueOn: '2026-08-31' });
-  const data = v4Club({ feeRates: [rate('fng', 25_001), rate('full', 40_000)] });
+  const data = v4Club({ feeRates: [rate('fng', 40_000), rate('full', 25_001)] });
   assert.equal(continuationFeeFor('west', 2026, data), 12_500, 'rounded down to the cent');
-  assert.equal(continuationFeeFor('west', 2027, data), null, 'no FNG fee that year, no continuation fee');
+  assert.equal(continuationFeeFor('west', 2027, data), null, 'no Full fee that year, no continuation fee');
   assert.equal(continuationFeeFor('north', 2026, data), null);
   assert.equal(
     continuationFeeProblem(who(data, 'tre'), 'west', 5_000, data),
-    'The continuation fee is half the FNG fee (4.11), so the app works it out.',
+    'The continuation fee is half the Full fee (4.11), so the app works it out.',
   );
 });
 

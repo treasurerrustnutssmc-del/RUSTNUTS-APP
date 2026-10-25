@@ -12,6 +12,7 @@ import type {
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
 import { addDays } from '../domain/dates';
+import { clubYearOf } from '../domain/clubYear';
 import { fyOf } from '../domain/fees';
 import { addMonths } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
@@ -156,13 +157,18 @@ export interface Stage4Fixture {
 /** Today in Melbourne, which is what the database goes by. */
 export const parityToday = (): string => melbourneDate(new Date().toISOString());
 
-/** A case with its …Days fields turned into dates and fyOffset into a financial year. */
+/** Fee actions count years AGM to AGM; the treasurer's books by financial year. */
+const CLUB_YEAR_ACTIONS = new Set(['setFeeRate', 'setContinuationFee', 'raiseFees']);
+
+/** A case with its …Days fields turned into dates and fyOffset into a year (club or financial). */
 export function resolveCase(c: ParityCase, today: string): ParityCase {
   const out: Record<string, unknown> = { ...c };
   for (const [k, v] of Object.entries(c)) {
     if (k.endsWith('Days') && typeof v === 'number') out[k.slice(0, -4)] = addDays(today, v);
   }
-  if (typeof c.fyOffset === 'number') out.fy = fyOf(today) + c.fyOffset;
+  if (typeof c.fyOffset === 'number') {
+    out.fy = (CLUB_YEAR_ACTIONS.has(String(c.action)) ? clubYearOf(today) : fyOf(today)) + c.fyOffset;
+  }
   if (typeof c.monthOffset === 'number') out.month = monthFrom(today, c.monthOffset);
   return out as ParityCase;
 }
@@ -283,7 +289,7 @@ function withLedger(data: ClubData, today: string): ClubData {
 function withStage4(data: ClubData, today: string): ClubData {
   const s4 = fixture.stage4;
   if (!s4) return data;
-  const fy = fyOf(today);
+  const fy = clubYearOf(today); // fees run AGM to AGM (no AGM in the fixture: 1 August)
   return {
     ...data,
     members: [

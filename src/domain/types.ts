@@ -276,6 +276,8 @@ export interface ClubData extends LedgerData {
   attendance?: Attendance[];
   decisions?: MemberDecision[];
   feeRates?: FeeRate[];
+  /** Recorded AGM dates (fees run AGM to AGM). */
+  agms?: Agm[];
   continuationFees?: ContinuationFee[];
   charges?: Charge[];
   payments?: Payment[];
@@ -343,7 +345,13 @@ export type ChargeKind = 'annual' | 'continuation' | 'other';
 export type PaymentMethod = 'payid' | 'bank' | 'cash' | 'card';
 export type PaymentState = 'claimed' | 'confirmed' | 'rejected';
 
-/** A chapter's fee for one status in one financial year (fy 2026 = 1 Jul 2026 to 30 Jun 2027). */
+/** The date of a year's Association AGM, which starts that club year. */
+export interface Agm {
+  year: number;
+  heldOn: string;
+}
+
+/** A chapter's fee for one status in one club year (fy 2026 = the 2026 AGM to the 2027 AGM). */
 export interface FeeRate {
   chapterId: string;
   fy: number;

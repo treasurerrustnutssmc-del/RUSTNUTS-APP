@@ -122,6 +122,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       setData(result.data);
       return result.count;
     },
+    recordAgm: async (heldOn) => setData(s4.recordAgm(ctx, heldOn)),
     raiseCharge: async (memberId, description, amountCents, dueOn) => setData(s4.raiseCharge(ctx, memberId, description, amountCents, dueOn)),
     waiveCharge: async (chargeId) => setData(s4.waiveCharge(ctx, chargeId)),
     claimPayment: async (chargeId, amountCents, paidOn, method, reference) =>

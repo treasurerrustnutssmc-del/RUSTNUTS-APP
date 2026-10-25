@@ -5,7 +5,8 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { attendanceCount } from '../domain/attendance';
 import { formatAuDate, monthsBetween } from '../domain/dates';
-import { continuationFeeFor, formatCents, fyOf } from '../domain/fees';
+import { clubYearOf } from '../domain/clubYear';
+import { continuationFeeFor, formatCents } from '../domain/fees';
 import { INTRO, REVIEW_EARLY_DAYS, fngDue, fngOutcomeStatus, fngReviewProblem, fngReviews, introProgress, type FngOutcome } from '../domain/joining';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
@@ -152,7 +153,7 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
 
   const past = fngReviews(member.id, data.decisions ?? []);
   const due = fngDue(member, data.decisions ?? [], today);
-  const fee = continuationFeeFor(member.chapterId, fyOf(today), data);
+  const fee = continuationFeeFor(member.chapterId, clubYearOf(today, data.agms), data);
   const paidContinuation = (data.charges ?? []).some((c) => c.memberId === member.id && c.kind === 'continuation');
   const patchBlock = due ? fngReviewProblem(me, member, due.atMonths, 'patch', votes, data, today) : null;
   const since = member.fngStartedOn ? attendanceCount(member.id, data, member.fngStartedOn) : null;
@@ -223,7 +224,7 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
           ) : outcome === 'not_continuing' ? (
             <Small>They stay with the club as a Supporter.</Small>
           ) : outcome === 'continue' && due.atMonths >= 12 && fee !== null && !paidContinuation && !member.onHiatus ? (
-            <Small>{`Past twelve months, carrying on adds the one-off ${formatCents(fee)} continuation fee, half the FNG fee (4.11).`}</Small>
+            <Small>{`Past twelve months, carrying on adds the one-off ${formatCents(fee)} continuation fee, half the Full fee (4.11).`}</Small>
           ) : null}
           <VotesFields onChange={setVotes} />
           <Field label="Note for the board" value={note} onChangeText={setNote} multiline maxLength={500} hint="Only the board sees this." />

@@ -4,6 +4,7 @@
 // Stage 4
 import { addDays } from '../domain/dates';
 import { melbourneDate } from '../domain/rides';
+import { clubYearOf } from '../domain/clubYear';
 import { fyOf, receiptNo } from '../domain/fees';
 import { readGpx } from '../domain/gpx';
 import { addMonths } from '../domain/profile';
@@ -427,17 +428,19 @@ export function demoTodayRide(now: Date = new Date()): Ride {
 // ---------------------------------------------------------------------------
 
 const s4Today = melbourneDate(new Date().toISOString()); // the same "today" as the app
-const s4Fy = fyOf(s4Today);
-const s4Due = `${s4Fy}-07-31`;
+const s4Fy = fyOf(s4Today); // the treasurer's books
+const s4Year = clubYearOf(s4Today, []); // fees run AGM to AGM; no AGM recorded in the demo, so 1 August
+const s4Due = `${s4Year}-12-31`;
 const ago = (days: number) => addDays(s4Today, -days);
+const paid = (monthDay: string) => (`${s4Year}-${monthDay}` > s4Today ? s4Today : `${s4Year}-${monthDay}`); // early in the year, never ahead of today
 const at = (date: string, time = '09:30:00') => `${date}T${time}.000Z`;
 const went = (sessionId: string, memberIds: string[], date: string) =>
   memberIds.map((memberId) => ({ sessionId, memberId, checkedInAt: at(date), markedBy: null }));
 const annual = (id: string, memberId: string, chapterId: string, amountCents: number) => ({
-  id, memberId, chapterId, fy: s4Fy, kind: 'annual' as const, description: null, amountCents, dueOn: s4Due,
-  createdAt: at(`${s4Fy}-07-01`), waivedAt: null,
+  id, memberId, chapterId, fy: s4Year, kind: 'annual' as const, description: null, amountCents, dueOn: s4Due,
+  createdAt: at(`${s4Year}-08-01`), waivedAt: null,
 });
-const rate = (chapterId: string, status: MemberStatus, amountCents: number) => ({ chapterId, fy: s4Fy, status, amountCents, dueOn: s4Due });
+const rate = (chapterId: string, status: MemberStatus, amountCents: number) => ({ chapterId, fy: s4Year, status, amountCents, dueOn: s4Due });
 
 Object.assign(DEMO_DATA, {
   checkinSessions: [
@@ -460,28 +463,29 @@ Object.assign(DEMO_DATA, {
   feeRates: ['ch-west', 'ch-north'].flatMap((c) => [
     rate(c, 'full', 25000), rate(c, 'nomad', 25000), rate(c, 'fng', 15000), rate(c, 'supporter', 5000), rate(c, 'family', 5000),
   ]),
-  continuationFees: [{ chapterId: 'ch-west', fy: s4Fy, amountCents: 5000 }],
+  agms: [],
+  continuationFees: [{ chapterId: 'ch-west', fy: s4Year, amountCents: 5000 }],
   charges: [
     annual('ch-1', 'm-rusty', 'ch-west', 25000),
     annual('ch-2', 'm-torque', 'ch-west', 25000),
     annual('ch-3', 'm-spanner', 'ch-west', 25000),
     annual('ch-4', 'm-gravel', 'ch-west', 25000),
     annual('ch-5', 'm-throttle', 'ch-west', 15000),
-    { ...annual('ch-6', 'm-patches', 'ch-west', 5000), waivedAt: at(`${s4Fy}-08-02`) },
+    { ...annual('ch-6', 'm-patches', 'ch-west', 5000), waivedAt: at(`${s4Year}-08-02`) },
     annual('ch-7', 'm-jet', 'ch-north', 25000),
     annual('ch-8', 'm-crank', 'ch-north', 25000),
   ],
   payments: [
-    { id: 'pay-1', chargeId: 'ch-1', amountCents: 25000, paidOn: `${s4Fy}-07-02`, method: 'payid', reference: 'RUSTY FEES',
-      state: 'confirmed', claimedBy: 'm-rusty', receiptNo: receiptNo('west', s4Fy, 1), decidedAt: at(`${s4Fy}-07-03`) },
-    { id: 'pay-2', chargeId: 'ch-3', amountCents: 12500, paidOn: `${s4Fy}-07-10`, method: 'cash', reference: null,
-      state: 'confirmed', claimedBy: null, receiptNo: receiptNo('west', s4Fy, 2), decidedAt: at(`${s4Fy}-07-10`) },
-    { id: 'pay-3', chargeId: 'ch-4', amountCents: 10000, paidOn: `${s4Fy}-08-01`, method: 'payid', reference: 'GRAVEL FEES',
-      state: 'confirmed', claimedBy: 'm-gravel', receiptNo: receiptNo('west', s4Fy, 3), decidedAt: at(`${s4Fy}-08-02`) },
+    { id: 'pay-1', chargeId: 'ch-1', amountCents: 25000, paidOn: paid('08-02'), method: 'payid', reference: 'RUSTY FEES',
+      state: 'confirmed', claimedBy: 'm-rusty', receiptNo: receiptNo('west', s4Year, 1), decidedAt: at(paid('08-03')) },
+    { id: 'pay-2', chargeId: 'ch-3', amountCents: 12500, paidOn: paid('08-10'), method: 'cash', reference: null,
+      state: 'confirmed', claimedBy: null, receiptNo: receiptNo('west', s4Year, 2), decidedAt: at(paid('08-10')) },
+    { id: 'pay-3', chargeId: 'ch-4', amountCents: 10000, paidOn: paid('09-01'), method: 'payid', reference: 'GRAVEL FEES',
+      state: 'confirmed', claimedBy: 'm-gravel', receiptNo: receiptNo('west', s4Year, 3), decidedAt: at(paid('09-02')) },
     { id: 'pay-4', chargeId: 'ch-4', amountCents: 15000, paidOn: ago(1), method: 'payid', reference: 'GRAVEL FEES',
       state: 'claimed', claimedBy: 'm-gravel', receiptNo: null, decidedAt: null },
-    { id: 'pay-5', chargeId: 'ch-7', amountCents: 25000, paidOn: `${s4Fy}-07-15`, method: 'payid', reference: 'JET FEES',
-      state: 'confirmed', claimedBy: 'm-jet', receiptNo: receiptNo('north', s4Fy, 1), decidedAt: at(`${s4Fy}-07-16`) },
+    { id: 'pay-5', chargeId: 'ch-7', amountCents: 25000, paidOn: paid('08-15'), method: 'payid', reference: 'JET FEES',
+      state: 'confirmed', claimedBy: 'm-jet', receiptNo: receiptNo('north', s4Year, 1), decidedAt: at(paid('08-16')) },
   ],
   paymentDetails: [
     { chapterId: 'ch-west', payid: 'west@rustnuts.example', payidName: 'Rustnuts SMC West', bsb: null, accountNo: null },
@@ -642,7 +646,7 @@ Object.assign(DEMO_DATA, {
 
 const thisMonth = `${s4Today.slice(0, 7)}-01`;
 const lastMonth = `${addDays(thisMonth, -1).slice(0, 7)}-01`;
-const rustyPaid = `${s4Fy}-07-02`; // pay-1
+const rustyPaid = paid('08-02'); // pay-1
 const book = (id: string, chapterId: string | null, code: LedgerCode, description: string, amountCents: number, daysAgo: number,
   over: Partial<LedgerEntry> = {}): LedgerEntry => ({
   id, chapterId, code, description, amountCents, receivedOn: isCredit(code) ? ago(daysAgo) : null, entryOn: ago(daysAgo),

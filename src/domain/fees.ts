@@ -1,4 +1,4 @@
-// Fees by financial year (1 July to 30 June), charges, PayID claims and receipts. Money is whole
+// Fees by club year (AGM to AGM, see clubYear.ts), charges, PayID claims and receipts. Money is whole
 // cents. The database's fee actions apply the same rules with the same words.
 
 import { activePositions, holdsBoardSeat, isBoardOf } from './access';
@@ -67,7 +67,7 @@ export function dueState(charge: Charge, balance: Balance, today: string): 'over
   return days <= 30 ? 'soon' : 'later';
 }
 
-/** W26-0001: chapter initial, financial year, then a running number per chapter and year. */
+/** W26-0001: chapter initial, club year, then a running number per chapter and year. */
 export function receiptNo(chapterSlug: string, fy: number, seq: number): string {
   return `${chapterSlug.charAt(0).toUpperCase()}${String(fy % 100).padStart(2, '0')}-${String(seq).padStart(4, '0')}`;
 }
@@ -111,18 +111,19 @@ export function feeRateProblem(me: Member | null, chapterId: string, status: Mem
 }
 
 /**
- * The one-time fee for carrying on as an FNG past twelve months: half the chapter's FNG fee for
- * the year, rounded down to the cent (constitution v4 4.11). Null when that year has no FNG fee.
+ * The one-time fee for carrying on as an FNG past twelve months: half the chapter's Full fee for
+ * the club year, rounded down to the cent (4.11; Jeff, 25 Oct 2026: "half the full member fee").
+ * Null when that year has no Full fee.
  */
 export function continuationFeeFor(chapterId: string, fy: number, data: ClubData): number | null {
-  const rate = (data.feeRates ?? []).find((r) => r.chapterId === chapterId && r.fy === fy && r.status === 'fng');
+  const rate = (data.feeRates ?? []).find((r) => r.chapterId === chapterId && r.fy === fy && r.status === 'full');
   return rate ? Math.floor(rate.amountCents / 2) : null;
 }
 
 /** The continuation fee isn't set by hand any more (4.11). Kept so old screens get a clear answer. */
 export function continuationFeeProblem(me: Member | null, chapterId: string, _amountCents: number, data: ClubData): string | null {
   if (!canSetFees(me, chapterId, data.positions)) return SET_FEES_ONLY;
-  return 'The continuation fee is half the FNG fee (4.11), so the app works it out.';
+  return 'The continuation fee is half the Full fee (4.11), so the app works it out.';
 }
 
 export function paymentDetailsProblem(me: Member | null, chapterId: string, data: ClubData): string | null {

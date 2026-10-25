@@ -18,7 +18,7 @@ import {
   rideChapterId,
 } from '../domain/attendance';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
-import { fyLabel, fyOf } from '../domain/fees';
+import { agmOn, clubYearLabel, clubYearOf } from '../domain/clubYear';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
 import type { CheckinSession, Member, Ride } from '../domain/types';
@@ -571,14 +571,14 @@ export function HomeCheckinCard() {
   );
 }
 
-/** A member's rides and meetings this financial year. */
+/** A member's rides and meetings this club year (AGM to AGM). */
 export function AttendanceSummary({ member }: { member: Member }) {
   const { data, today } = useClub();
-  const fy = fyOf(today);
-  const { rides, meetings } = attendanceCount(member.id, data, `${fy}-07-01`);
+  const year = clubYearOf(today, data.agms);
+  const { rides, meetings } = attendanceCount(member.id, data, agmOn(year, data.agms));
   return (
     <>
-      <SectionTitle title="Turned up" action={<Text style={[type.name, { color: colors.boneMute }]}>{fyLabel(fy)}</Text>} />
+      <SectionTitle title="Turned up" action={<Text style={[type.name, { color: colors.boneMute }]}>{clubYearLabel(year)}</Text>} />
       <Card>
         <Row style={{ gap: space.xxl }}>
           <View style={{ gap: 2 }}>

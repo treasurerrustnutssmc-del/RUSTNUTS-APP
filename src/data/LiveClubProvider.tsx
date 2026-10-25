@@ -56,6 +56,7 @@ import {
   waiveProblem,
 } from '../domain/fees';
 import { decideApplicationProblem, fngReviewProblem } from '../domain/joining';
+import { agmDateProblem, recordAgmProblem } from '../domain/clubYear';
 import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
 // Lane E: offline
@@ -583,6 +584,11 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const r = ok(await supabase().rpc('raise_fees', { p_chapter: chapterId, p_fy: fy }));
       await after();
       return (r.data as number) ?? 0;
+    },
+    recordAgm: async (heldOn) => {
+      deny(recordAgmProblem(visibleMe, data.positions) ?? agmDateProblem(heldOn));
+      ok(await supabase().rpc('record_agm', { p_held_on: heldOn }));
+      await after();
     },
     raiseCharge: async (memberId, description, amountCents, dueOn) => {
       const target = data.members.find((m) => m.id === memberId);
