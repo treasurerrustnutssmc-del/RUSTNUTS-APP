@@ -9,9 +9,14 @@ alter table private.roster
   add column bike_make text,
   add column bike_model text,
   add column bike_rego text,
-  -- Half a contact or half a bike would fail the profile's own checks mid-claim, so refuse it here.
-  add constraint roster_emergency_whole check ((emergency_name is null) = (emergency_phone is null)),
-  add constraint roster_bike_whole check ((bike_make is null) = (bike_model is null) and (bike_rego is null or bike_make is not null));
+  -- Half a contact or half a bike (blank counts as missing) would fail the profile's own checks
+  -- mid-claim and stop the member signing in, so refuse it here.
+  add constraint roster_emergency_whole check (
+    (nullif(trim(emergency_name), '') is null) = (nullif(trim(emergency_phone), '') is null)
+    and (nullif(trim(emergency_relationship), '') is null or nullif(trim(emergency_name), '') is not null)),
+  add constraint roster_bike_whole check (
+    (nullif(trim(bike_make), '') is null) = (nullif(trim(bike_model), '') is null)
+    and (nullif(trim(bike_rego), '') is null or nullif(trim(bike_make), '') is not null));
 
 create or replace function public.claim_roster()
 returns boolean language plpgsql security definer set search_path = '' as $$
@@ -47,17 +52,17 @@ begin
   insert into public.member_private (member_id, email, phone) values (me, my_email, nullif(trim(entry.phone), ''));
 
   -- The sheet doesn't say how they know their contact; the member can fix the label.
-  if entry.emergency_name is not null then
+  if nullif(trim(entry.emergency_name), '') is not null then
     insert into public.emergency_contacts (member_id, name, relationship, phone)
     values (me, trim(entry.emergency_name), coalesce(nullif(trim(entry.emergency_relationship), ''), 'Emergency contact'),
             trim(entry.emergency_phone));
   end if;
 
-  if entry.bike_make is not null then
+  if nullif(trim(entry.bike_make), '') is not null then
     insert into public.bikes (member_id, make, model) values (me, trim(entry.bike_make), trim(entry.bike_model))
     returning id into bike;
     if nullif(trim(entry.bike_rego), '') is not null then
-      insert into public.bike_registrations (bike_id, rego) values (bike, trim(entry.bike_rego));
+      insert into public.bike_registrations (bike_id, rego) values (bike, upper(trim(entry.bike_rego)));
     end if;
   end if;
 

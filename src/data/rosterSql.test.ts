@@ -97,6 +97,7 @@ test('refuses half an emergency contact or half a bike', () => {
   assert.throws(() => parseRosterCsv(`${DETAILS}\na@b.com,west,A,,full,,,,,,,,,,,Low Rider,\n`), /line 2.*bike_make/i);
   assert.throws(() => parseRosterCsv(`${DETAILS}\na@b.com,west,A,,full,,,,,,,,,,,,1AB\n`), /line 2.*bike_make/i);
   assert.throws(() => parseRosterCsv(`${DETAILS}\na@b.com,west,A,,full,,,,,,,,,,Honda,,\n`), /line 2.*bike_model/i);
+  assert.throws(() => parseRosterCsv(`${DETAILS}\na@b.com,west,A,,full,,,,,,,,Wife,,,,\n`), /line 2.*emergency/i);
 });
 
 test('the SQL carries the details, and refreshes them on unclaimed rows', () => {
