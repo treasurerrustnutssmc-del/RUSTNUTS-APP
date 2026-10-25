@@ -242,6 +242,44 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      ride_briefings: {
+        Row: {
+          changes: string | null;
+          hazards: string[];
+          notes: string | null;
+          ride_id: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: { [_ in never]: never }; // a briefing changes only through save_briefing
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      road_rules_versions: {
+        Row: {
+          body: string;
+          changes: string | null;
+          fresh: boolean;
+          number: number;
+          published_at: string;
+          published_by: string | null;
+        };
+        Insert: { [_ in never]: never }; // versions are added only through publish_road_rules
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      road_rules_signoffs: {
+        Row: { member_id: string; signed_at: string; version: number };
+        Insert: { [_ in never]: never }; // sign-offs are made only through sign_road_rules
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      ride_briefing_reads: {
+        Row: { member_id: string; read_at: string; ride_id: string };
+        Insert: { [_ in never]: never }; // reads are made only through read_briefing
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -270,6 +308,13 @@ export type Database = {
       archive_route: { Args: { p_id: string }; Returns: undefined };
       set_ride_route: { Args: { p_ride: string; p_route: string | null }; Returns: undefined };
       route_gpx: { Args: { p_route: string }; Returns: string };
+      save_briefing: {
+        Args: { p_ride: string; p_hazards: string[]; p_changes: string; p_notes: string; p_seen: string | null };
+        Returns: undefined;
+      };
+      read_briefing: { Args: { p_ride: string; p_seen: string | null }; Returns: undefined };
+      publish_road_rules: { Args: { p_body: string; p_changes: string; p_fresh: boolean; p_seen: number }; Returns: number };
+      sign_road_rules: { Args: { p_version: number }; Returns: undefined };
       ride_calendar: {
         Args: never;
         Returns: {
@@ -279,6 +324,10 @@ export type Database = {
           crew?: Database['public']['Tables']['ride_crew']['Row'][];
           /** The routes of the rides shown (only rides that have one). Missing for anyone who isn't an approved member. */
           ride_routes?: { ride_id: string; route_id: string }[];
+          /** The briefings of the rides shown. Missing for anyone who isn't an approved member. */
+          briefings?: Database['public']['Tables']['ride_briefings']['Row'][];
+          /** Who has read which shown ride's briefing. Missing for anyone who isn't an approved member. */
+          briefing_reads?: Database['public']['Tables']['ride_briefing_reads']['Row'][];
           synced_at: string | null;
         };
       };

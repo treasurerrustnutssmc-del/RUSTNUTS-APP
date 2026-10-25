@@ -8,7 +8,7 @@ import { useClub } from '../data/ClubStore';
 import type { RouteInput } from '../data/clubContext';
 import { createPickGuard, type PickGuard } from '../data/pickGuard';
 import { pickGpxFile, releaseOnReturn } from '../data/routeFiles';
-import { formatAuDate } from '../domain/dates';
+import { formatAuDate, weekday } from '../domain/dates';
 import { readGpx, type GpxSummary } from '../domain/gpx';
 import {
   archiveRouteProblem,
@@ -48,7 +48,6 @@ import {
 } from '../ui/primitives';
 import { ChapterChip, chapterColours, OpenInMapsButton, RouteFacts, RouteRow, StopList } from '../ui/RouteBits';
 import { RouteShape } from '../ui/RouteShape';
-import { weekday } from './rides';
 
 /** Chapter filters and choices use this for "Whole club" (a route with no chapter). */
 const WHOLE_CLUB = 'whole-club';

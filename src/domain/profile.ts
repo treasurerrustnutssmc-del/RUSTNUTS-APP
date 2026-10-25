@@ -78,6 +78,15 @@ export function displayName(m: Pick<Member, 'roadName' | 'fullName'>): string {
   return m.roadName ?? m.fullName.split(' ')[0];
 }
 
+/** What the app calls someone whose member record has gone. */
+export const FORMER_MEMBER = 'A former member';
+
+/** A member's display name by id, or FORMER_MEMBER once they've left the club. */
+export function memberName(memberId: string, members: Member[]): string {
+  const m = members.find((x) => x.id === memberId);
+  return m ? displayName(m) : FORMER_MEMBER;
+}
+
 export function initials(m: Pick<Member, 'roadName' | 'fullName'>): string {
   const src = m.roadName ?? m.fullName;
   const parts = src.trim().split(/\s+/);

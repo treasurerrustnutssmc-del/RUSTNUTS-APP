@@ -7,7 +7,7 @@ import { addDays } from '../src/domain/dates';
 import { fyOf } from '../src/domain/fees';
 import { readGpx } from '../src/domain/gpx';
 import {
-  caseAction, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday, resolveCase, type ParityCase,
+  BRIEFED_AT, caseAction, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday, resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
@@ -258,6 +258,35 @@ for (const r of fx.routes ?? []) {
 for (const r of fx.rideRoutes ?? []) {
   sql(`insert into public.ride_routes (ride_id, route_id) values (${id('r', r.ride)}, ${id('rt', r.route)});`);
 }
+// A text[] literal, each line quoted by q(): array['a', 'b']::text[] (array[]::text[] when empty).
+const textArray = (lines: unknown[]) => `array[${lines.map(q).join(', ')}]::text[]`;
+const orNull = (s: string) => (s === '' ? 'null' : q(s));
+// The briefing version a case was made on, as the app sends it (null: none).
+const seen = (s: unknown) => (s === null || s === undefined ? 'null::timestamptz' : `${q(s)}::timestamptz`);
+for (const b of fx.briefings ?? []) {
+  sql(
+    `insert into public.ride_briefings (ride_id, hazards, changes, notes, updated_at) values (` +
+      `${id('r', b.ride)}, ${textArray(b.hazards)}, ${orNull(b.changes)}, ${orNull(b.notes)}, ${q(BRIEFED_AT)}::timestamptz);`,
+  );
+}
+for (const r of fx.briefingReads ?? []) {
+  sql(
+    `insert into public.ride_briefing_reads (ride_id, member_id, read_at) values (` +
+      `${id('r', r.ride)}, ${id('m', r.member)}, ${q(BRIEFED_AT)}::timestamptz);`,
+  );
+}
+for (const v of fx.roadRules ?? []) {
+  sql(
+    `insert into public.road_rules_versions (number, body, changes, fresh, published_at) values (` +
+      `${v.number}, ${q(v.body)}, ${orNull(v.changes)}, ${v.fresh}, ${q(RULES_AT)}::timestamptz);`,
+  );
+}
+for (const s of fx.roadRulesSignoffs ?? []) {
+  sql(
+    `insert into public.road_rules_signoffs (member_id, version, signed_at) values (` +
+      `${id('m', s.member)}, ${s.version}, ${q(RULES_AT)}::timestamptz);`,
+  );
+}
 
 /** A saveRoute call with the summary the app sends: read from the file, as LiveClubProvider does. */
 const saveRouteCall = (c: ParityCase & Record<string, any>): string => {
@@ -299,6 +328,21 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.archive_route(${id('rt', c.route)})`;
     case 'setRideRoute':
       return `public.set_ride_route(${id('r', c.ride)}, ${c.route ? id('rt', c.route) : 'null'})`;
+    case 'saveBriefing':
+      // The texts as typed, untrimmed: the database must clean them the same way the app does.
+      return (
+        `public.save_briefing(${id('r', c.ride)}, ${textArray(c.hazards)}, ${text(c.changes, c.repeat)}, ` +
+        `${text(c.notes, c.repeat)}, ${seen(c.seen)})`
+      );
+    case 'readBriefing':
+      return `public.read_briefing(${id('r', c.ride)}, ${seen(c.seen)})`;
+    case 'publishRoadRules':
+      // The texts and the switch as typed: the database must clean them the same way the app does.
+      return (
+        `public.publish_road_rules(${text(c.body, c.repeat)}, ${text(c.changes, c.repeat)}, ${c.fresh}, ${c.seen})`
+      );
+    case 'signRoadRules':
+      return `public.sign_road_rules(${c.version})`;
     case 'removeContact':
       return `public.remove_contact(${id('c', c.contact)})`;
     case 'saveBike':
@@ -354,8 +398,14 @@ for (const c of fx.cases) {
   }
   sql('begin;');
   for (const key of c.without ?? []) sql(`delete from public.positions where id = ${id('p', key)};`);
+  if (c.noRoadRules) {
+    // Nothing published yet, for this case only (rolled back with it).
+    sql('delete from public.road_rules_signoffs;');
+    sql('delete from public.road_rules_versions;');
+  }
   sql(`select set_config('parity.chat', coalesce(${c.chat ? chatId(String(c.chat)) : 'null'}::text, ''), true);`);
-  sql(`select set_config('request.jwt.claim.sub', ${id('m', c.as)}::text, true);`);
+  // No one signed in (as: null): an empty claim, so auth.uid() is null.
+  sql(`select set_config('request.jwt.claim.sub', ${c.as === null ? "''" : `${id('m', c.as)}::text`}, true);`);
   sql('set local role authenticated;');
   sql('do $parity$ begin');
   sql('  begin');

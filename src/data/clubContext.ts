@@ -3,6 +3,8 @@
 
 import { createContext, useContext } from 'react';
 import type { AccessLevel } from '../domain/access';
+import type { BriefingInput } from '../domain/briefings';
+import type { RoadRulesInput } from '../domain/roadRules';
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { VoteInput } from '../domain/votes';
 import type {
@@ -163,6 +165,28 @@ export interface ClubContextValue {
   setRideRoute: (rideId: string, routeId: string | null) => Promise<void>;
   /** One route's GPX file, for opening in a maps app. Archived routes still read. */
   routeGpx: (routeId: string) => Promise<string>;
+  /**
+   * Writes or replaces a ride's briefing (its crew managers and its Road Captain only), until the
+   * ride day ends. `seen` is the `updatedAt` the editor opened on (null when there was none);
+   * refused if someone else has saved since. Also marks the writer's own read.
+   */
+  saveBriefing: (rideId: string, input: BriefingInput, seen: string | null) => Promise<void>;
+  /**
+   * Got it: marks the ride's briefing read by you, now. `seen` is the `updatedAt` of the briefing
+   * on screen; refused if it has changed since. Works on past and cancelled rides too.
+   */
+  readBriefing: (rideId: string, seen: string | null) => Promise<void>;
+  /**
+   * Publishes the next version of the Road Rules (the NEC only). `seen` is the current version
+   * number the editor opened on (0 when there were none); refused if someone else has published
+   * since. Version 1 always asks everyone to sign.
+   */
+  publishRoadRules: (input: RoadRulesInput, seen: number) => Promise<void>;
+  /**
+   * Signs the Road Rules, now. `version` is the number on screen; refused if a newer version has
+   * been published since. Signing again while signed moves the date on.
+   */
+  signRoadRules: (version: number) => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);
@@ -199,6 +223,10 @@ export const EMPTY_DATA: ClubData = {
   crew: [],
   routes: [],
   rideRoutes: [],
+  briefings: [],
+  briefingReads: [],
+  roadRules: [],
+  roadRulesSignoffs: [],
 };
 
 /** Oldest motorcycle ever made, to next year's models. The database checks the same range. */

@@ -6,6 +6,7 @@ import { addDays } from '../domain/dates';
 import { melbourneDate } from '../domain/rides';
 import { fyOf, receiptNo } from '../domain/fees';
 import { readGpx } from '../domain/gpx';
+import { addMonths } from '../domain/profile';
 import type { ClubData, Member, MemberPrivate, MemberStatus, Ride, Route } from '../domain/types';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
@@ -362,6 +363,27 @@ export const DEMO_DATA: ClubData = {
   // The library, and the West breakfast run uses the West loop. North coffee and curves has no route yet.
   routes: demoRoutes,
   rideRoutes: [{ rideId: 'r-1', routeId: 'rt-west-loop' }],
+  // The West breakfast run's briefing. Diesel (its Road Captain) read an earlier version, then
+  // Torque added the roadworks on the evening of 23 Oct; Spanner read it at 7:42 am the next
+  // morning. Fixed instants, well before the ride's fixed start. North coffee and curves has none.
+  briefings: [
+    {
+      rideId: 'r-1',
+      hazards: [
+        'Fresh gravel on the Ballan–Daylesford Rd after Korweinguboora',
+        'Kangaroos at dusk on the way home',
+        'Roadworks at Bacchus Marsh: 40 km/h',
+      ],
+      changes: 'Single file through Myrniong, no staggered formation',
+      notes: 'Breakfast at the Daylesford bakery, cash only.',
+      updatedAt: '2026-10-23T09:15:00.000Z',
+      updatedBy: 'm-torque',
+    },
+  ],
+  briefingReads: [
+    { rideId: 'r-1', memberId: 'm-diesel', readAt: '2026-10-22T10:05:00.000Z' },
+    { rideId: 'r-1', memberId: 'm-spanner', readAt: '2026-10-23T20:42:00.000Z' },
+  ],
 };
 
 /** The people you can "view as" in the demo, one per access level. */
@@ -452,5 +474,61 @@ Object.assign(DEMO_DATA, {
   ],
   paymentDetails: [
     { chapterId: 'ch-west', payid: 'west@rustnuts.example', payidName: 'Rustnuts SMC West', bsb: null, accountNo: null },
+  ],
+} satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
+// The Road Rules: a made-up sample text, dated from today so the sign-off states always hold.
+// Torque is signed, Spanner is due soon, Rusty's sign-off has run out and Diesel never signed.
+// ---------------------------------------------------------------------------
+
+const RULES_SAMPLE = `# Sample Road Rules (demo only)
+
+A made-up sample to show how the Road Rules look in the app. It is not the club’s text: the NEC publishes the real Road Rules.
+
+# Who’s in charge on the road
+The Road Captain (RC) leads the ride and makes the safety calls. When the RC can’t, the call passes in this order: Road Captain, Sergeant-at-Arms, Vice President, President, then the NEC (constitution 7.6).
+- Follow a safety direction straight away. Talk it over at the next stop, not on the road.
+- The RC may vary a procedure for one ride because of safety, traffic, weather, road conditions or operational need (7.10). They say so at the briefing.
+
+# Before the ride
+- Be at the meeting point fuelled up, with time to spare before KSU (kickstands up).
+- Come to the briefing. Know the route, the stops and who the Tail Gunner is.
+
+# On the road
+- The RC leads. Nobody passes the RC.
+- On open roads, ride in a staggered formation: two seconds behind the rider directly ahead of you, one second behind the rider beside you.
+- Go to single file through towns, on bends, at roadworks and whenever the RC signals it.
+- No overtaking within the group. Keep your place unless the RC moves you.
+- The Tail Gunner (TG) rides at the back and stays there. If you stop, the TG stops with you.
+- Ride your own ride. If the pace is too quick, drop back and tell the TG at the next stop.
+
+Safety first, then the ride, then the coffee.`;
+
+// Dated from the same today as Stage 4 (s4Today), at the same time of day (at(): 09:30 UTC, the
+// evening of that date in Melbourne).
+Object.assign(DEMO_DATA, {
+  roadRules: [
+    {
+      number: 1,
+      body: RULES_SAMPLE,
+      changes: '',
+      fresh: true,
+      publishedAt: at(addMonths(s4Today, -16)),
+      publishedBy: 'm-rusty',
+    },
+    {
+      number: 2,
+      body: RULES_SAMPLE.replace('Nobody passes the RC.', 'Nobody overtakes the RC.'),
+      changes: 'A wording fix: “Nobody passes the RC” now reads “Nobody overtakes the RC”. Your sign-off carries over.',
+      fresh: false,
+      publishedAt: at(addDays(s4Today, -24)),
+      publishedBy: 'm-rusty',
+    },
+  ],
+  roadRulesSignoffs: [
+    { memberId: 'm-torque', version: 2, signedAt: at(addDays(s4Today, -5)) },
+    { memberId: 'm-spanner', version: 1, signedAt: at(addDays(addMonths(s4Today, -11), -20)) },
+    { memberId: 'm-rusty', version: 1, signedAt: at(addMonths(s4Today, -13)) },
   ],
 } satisfies Partial<ClubData>);

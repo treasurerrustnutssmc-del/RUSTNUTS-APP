@@ -2,6 +2,8 @@
 // database rows (snake_case) into the app's records (camelCase).
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { cleanBriefing, isVersionRefusal, type BriefingInput } from '../domain/briefings';
+import { cleanRoadRules, type RoadRulesInput } from '../domain/roadRules';
 import type { ClubData, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
 import { EMPTY_DATA } from './clubContext';
@@ -46,7 +48,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     () => undefined,
   );
 
-  const [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money] = await Promise.all([
+  const [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs] = await Promise.all([
     db.from('members').select('*'),
     db.from('member_private').select('*'),
     db.rpc('shared_phones'),
@@ -60,11 +62,14 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     db.rpc('ride_calendar'),
     // Stage 4: check-ins, decisions and fees in one value.
     db.rpc('members_money'),
+    // The Road Rules: every version and everyone's latest sign-off. Only approved members get rows.
+    db.from('road_rules_versions').select('*'),
+    db.from('road_rules_signoffs').select('*'),
   ]);
   // Until the database has Stage 4, the rest of the app still loads. Any other failure is an error,
   // so nobody is shown "you owe nothing" because a load went wrong.
   if (money.error && !MISSING_FUNCTION.includes(money.error.code ?? '')) throw toError(money.error);
-  for (const r of [members, privates, phones, bikes, regos, contacts, positions, routes, calendar]) {
+  for (const r of [members, privates, phones, bikes, regos, contacts, positions, routes, calendar, rulesVersions, rulesSignoffs]) {
     if (r.error) throw toError(r.error);
   }
   // Stage 5: meetings and votes. A failure here leaves the club business empty rather than
@@ -190,6 +195,34 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     rideRoutes: (calendar.data?.ride_routes ?? [])
       .filter((r) => r.route_id != null)
       .map((r) => ({ rideId: r.ride_id, routeId: r.route_id })),
+    // Also missing for anyone who isn't an approved member. The database keeps empty texts as null.
+    briefings: (calendar.data?.briefings ?? []).map((b) => ({
+      rideId: b.ride_id,
+      hazards: b.hazards ?? [],
+      changes: b.changes ?? '',
+      notes: b.notes ?? '',
+      updatedAt: instant(b.updated_at),
+      updatedBy: b.updated_by,
+    })),
+    briefingReads: (calendar.data?.briefing_reads ?? []).map((r) => ({
+      rideId: r.ride_id,
+      memberId: r.member_id,
+      readAt: instant(r.read_at),
+    })),
+    // A blank What changed is stored as null.
+    roadRules: (rulesVersions.data ?? []).map((v) => ({
+      number: v.number,
+      body: v.body,
+      changes: v.changes ?? '',
+      fresh: v.fresh,
+      publishedAt: instant(v.published_at),
+      publishedBy: v.published_by,
+    })),
+    roadRulesSignoffs: (rulesSignoffs.data ?? []).map((s) => ({
+      memberId: s.member_id,
+      version: s.version,
+      signedAt: instant(s.signed_at),
+    })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
     // Stage 5: meetings and votes
     ...business,
@@ -228,3 +261,55 @@ function stage4(m: MembersMoneyRows | null): Partial<ClubData> {
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// Ride briefings
+// ---------------------------------------------------------------------------
+
+/** save_briefing's arguments: the briefing cleaned, and the version the editor opened on (null: none). */
+export function saveBriefingArgs(rideId: string, input: BriefingInput, seen: string | null) {
+  const cleaned = cleanBriefing(input);
+  return { p_ride: rideId, p_hazards: cleaned.hazards, p_changes: cleaned.changes, p_notes: cleaned.notes, p_seen: seen };
+}
+
+/** read_briefing's arguments: the ride, and the version of its briefing on screen. */
+export function readBriefingArgs(rideId: string, seen: string | null) {
+  return { p_ride: rideId, p_seen: seen };
+}
+
+/**
+ * Runs a briefing action. When it's refused because a newer briefing has been saved (by the app's
+ * own check or by the database), the calendar reloads first so the screen shows the newer one,
+ * then the refusal goes on to the screen. `isNewer` says which refusals those are: the briefing
+ * ones unless told otherwise.
+ */
+export async function reloadOnNewerVersion(
+  action: () => Promise<void>,
+  reload: () => Promise<void>,
+  isNewer: (e: unknown) => boolean = isVersionRefusal,
+): Promise<void> {
+  try {
+    await action();
+  } catch (e) {
+    if (isNewer(e)) await reload();
+    throw e;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Road Rules
+// ---------------------------------------------------------------------------
+
+/**
+ * publish_road_rules's arguments: the texts cleaned (fresh on for version 1), and the current
+ * version number the editor opened on (0 when there were none).
+ */
+export function publishRoadRulesArgs(input: RoadRulesInput, seen: number, data: ClubData) {
+  const cleaned = cleanRoadRules(input, data);
+  return { p_body: cleaned.body, p_changes: cleaned.changes, p_fresh: cleaned.fresh, p_seen: seen };
+}
+
+/** sign_road_rules's arguments: the version on screen. */
+export function signRoadRulesArgs(version: number) {
+  return { p_version: version };
+}

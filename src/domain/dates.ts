@@ -25,6 +25,13 @@ export function formatAuDate(iso: string | null | undefined): string {
   return `${d}/${m}/${y}`;
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** "2026-11-08" → "Sun": the weekday of a calendar date. */
+export function weekday(date: string): string {
+  return WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "2026-11-08" → "8 Nov 2026" */

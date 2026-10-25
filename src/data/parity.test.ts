@@ -4,10 +4,44 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { demoAnswer, fixture } from './parityFixture.testkit';
+import { BRIEFED_AT, demoAnswer, fixture } from './parityFixture.testkit';
 
 test('the shared case list has cases', () => {
   assert.ok(fixture.cases.length >= 30);
+});
+
+test('every briefing case says which version it was made on', () => {
+  const briefed = new Set((fixture.briefings ?? []).map((b) => b.ride));
+  for (const c of fixture.cases.filter((x) => x.action === 'saveBriefing' || x.action === 'readBriefing')) {
+    assert.ok('seen' in c && (c.seen === null || typeof c.seen === 'string'), `"${c.name}" has no seen`);
+  }
+  // The version-check cases are there: both refusals, and a read of the version stored.
+  const named = (action: string, ride: (r: string) => boolean, seen: (s: unknown) => boolean, allowed: boolean) =>
+    fixture.cases.some((c) => c.action === action && ride(String(c.ride)) && seen(c.seen) && c.allowed === allowed);
+  const old = (s: unknown) => s === null || (typeof s === 'string' && Date.parse(s) < Date.parse(BRIEFED_AT) - 1);
+  assert.ok(named('readBriefing', (r) => briefed.has(r), old, false), 'Got it on an older version');
+  assert.ok(named('readBriefing', (r) => briefed.has(r), (s) => s === BRIEFED_AT, true), 'Got it on the version stored');
+  assert.ok(named('saveBriefing', (r) => briefed.has(r), (s) => s === null, false), 'a save opened when there was none');
+  assert.ok(named('saveBriefing', (r) => briefed.has(r), (s) => typeof s === 'string' && old(s), false), 'a save on an older version');
+});
+
+test('the Road Rules cases cover publishing and signing, with and without versions', () => {
+  const rules = fixture.cases.filter((c) => c.action === 'publishRoadRules' || c.action === 'signRoadRules');
+  for (const c of rules.filter((x) => x.action === 'publishRoadRules')) {
+    assert.ok(typeof c.seen === 'number', `"${c.name}" says which version the editor opened on`);
+  }
+  for (const c of rules.filter((x) => x.action === 'signRoadRules')) {
+    assert.ok(typeof c.version === 'number', `"${c.name}" says which version is on screen`);
+  }
+  const has = (action: string, test: (c: (typeof rules)[number]) => boolean) => rules.some((c) => c.action === action && test(c));
+  assert.ok((fixture.roadRules ?? []).length >= 2, 'the fixture has versions');
+  assert.ok(has('publishRoadRules', (c) => c.allowed && !c.noRoadRules), 'a publish on top of the current version');
+  assert.ok(has('publishRoadRules', (c) => c.allowed && c.noRoadRules === true), 'a first version');
+  // A clash: opened on a number that isn't the current (highest) one, whatever the numbers are.
+  const current = Math.max(0, ...(fixture.roadRules ?? []).map((v) => v.number));
+  assert.ok(has('publishRoadRules', (c) => !c.allowed && !c.noRoadRules && c.seen !== current), 'a clash');
+  assert.ok(has('signRoadRules', (c) => c.allowed), 'a sign-off');
+  assert.ok(has('signRoadRules', (c) => !c.allowed && c.noRoadRules === true), 'nothing to sign yet');
 });
 
 for (const c of fixture.cases) {

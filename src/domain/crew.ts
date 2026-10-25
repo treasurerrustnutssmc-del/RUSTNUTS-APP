@@ -149,7 +149,7 @@ export function crewNeeded(ride: Ride, crew: CrewSpot[]): boolean {
   return !filled('road_captain') || !filled('tail_gunner');
 }
 
-const byName = (a: Member, b: Member) =>
+export const byName = (a: Member, b: Member) =>
   (a.roadName ?? a.fullName).toLowerCase().localeCompare((b.roadName ?? b.fullName).toLowerCase());
 
 /** Who `me` can pick for a spot, in the three groups `pickList` lists in order. */

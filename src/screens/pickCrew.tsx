@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { crewChangeProblem, managesRide, pickGroups, spotOf } from '../domain/crew';
-import { formatAuDate } from '../domain/dates';
+import { formatAuDate, weekday } from '../domain/dates';
 import { ROLE_LABEL, ROLE_SHORT } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
@@ -13,7 +13,6 @@ import type { Member } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 import { Avatar, Body, Card, Chip, H1, Ionicons, Notice, Row, Screen, SectionTitle, Small, Stack, StatusChip } from '../ui/primitives';
-import { weekday } from './rides';
 
 export function PickCrewScreen({ route, navigation }: RootScreen<'PickCrew'>) {
   const { me, data, setCrew } = useClub();

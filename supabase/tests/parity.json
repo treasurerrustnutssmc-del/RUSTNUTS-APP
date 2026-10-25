@@ -248,6 +248,14 @@
       "role": "founder",
       "startedOn": "2019-01-01",
       "endedOn": null
+    },
+    {
+      "key": "jet-old-road-captain",
+      "member": "jet",
+      "chapter": "north",
+      "role": "road_captain",
+      "startedOn": "2024-08-16",
+      "endedOn": "2025-08-16"
     }
   ],
   "bikes": [
@@ -2249,6 +2257,430 @@
       "allowed": false
     },
     {
+      "name": "A board member rewrites a ride's briefing",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "  Gravel after Korweinguboora ",
+        "",
+        "Kangaroos at dusk"
+      ],
+      "changes": " Single file through Myrniong ",
+      "notes": "Cash only",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "A Road Captain on the board writes a club ride's first briefing",
+      "as": "crank",
+      "action": "saveBriefing",
+      "ride": "future-club",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "Regroup at Pyalong",
+      "notes": "",
+      "seen": null,
+      "allowed": true
+    },
+    {
+      "name": "The ride's Road Captain writes the briefing without a board seat",
+      "as": "gravel",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "Breakfast at Daylesford",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "A former Road Captain (seat ended) in an Officer spot on this ride writes the briefing",
+      "as": "jet",
+      "action": "saveBriefing",
+      "ride": "future-club",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": null,
+      "allowed": false
+    },
+    {
+      "name": "A member with no crew spot or seat writes the briefing",
+      "as": "spanner",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "An applicant writes a briefing",
+      "as": "dylan",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A briefing for a ride that already happened",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "past-club",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A briefing for a cancelled ride",
+      "as": "crank",
+      "action": "saveBriefing",
+      "ride": "cancelled-north",
+      "hazards": [
+        "Wet leaves on the Black Spur"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A briefing with 13 hazards",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Hazard 1",
+        "Hazard 2",
+        "Hazard 3",
+        "Hazard 4",
+        "Hazard 5",
+        "Hazard 6",
+        "Hazard 7",
+        "Hazard 8",
+        "Hazard 9",
+        "Hazard 10",
+        "Hazard 11",
+        "Hazard 12",
+        "Hazard 13"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A briefing with 12 hazards and blank lines between them",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Hazard 1",
+        "   ",
+        "Hazard 2",
+        "   ",
+        "Hazard 3",
+        "   ",
+        "Hazard 4",
+        "   ",
+        "Hazard 5",
+        "   ",
+        "Hazard 6",
+        "   ",
+        "Hazard 7",
+        "   ",
+        "Hazard 8",
+        "   ",
+        "Hazard 9",
+        "   ",
+        "Hazard 10",
+        "   ",
+        "Hazard 11",
+        "   ",
+        "Hazard 12",
+        "   "
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "A hazard of 121 characters",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A hazard of 120 characters ending in an emoji",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx🏍"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "A briefing with nothing in it but spaces",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "  ",
+        ""
+      ],
+      "changes": "   ",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A member taps Got it on a ride's briefing",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "A member taps Got it again",
+      "as": "gravel",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a ride with no briefing yet",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-club",
+      "seen": null,
+      "allowed": false
+    },
+    {
+      "name": "Got it on a cancelled ride that has a briefing",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "cancelled-north",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a ride that already happened",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "past-club",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a ride that no longer exists",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "gone",
+      "seen": null,
+      "allowed": false
+    },
+    {
+      "name": "An applicant taps Got it",
+      "as": "dylan",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "Changes of 2,001 characters",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [],
+      "changes": "x",
+      "notes": "",
+      "repeat": 2001,
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "Notes of 2,001 characters",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [],
+      "changes": "",
+      "notes": "x",
+      "repeat": 2001,
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "Notes of 2,000 emoji count as 2,000 characters",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [],
+      "changes": "",
+      "notes": "🏍",
+      "repeat": 2000,
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "A briefing written by someone not signed in",
+      "as": null,
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Fog"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "Got it from someone not signed in",
+      "as": null,
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "Got it on the version of the briefing stored",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-10-01T00:00:00.000Z",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a card 1 ms older than the briefing stored (the database's rounding)",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-09-30T23:59:59.999Z",
+      "allowed": true
+    },
+    {
+      "name": "Got it on a card opened before the briefing was last saved",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": "2026-09-30T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "Got it with no version of the briefing on screen",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-west",
+      "seen": null,
+      "allowed": false
+    },
+    {
+      "name": "Got it on an old card of a ride with no briefing",
+      "as": "spanner",
+      "action": "readBriefing",
+      "ride": "future-club",
+      "seen": "2026-09-30T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A board member saves over a briefing saved since they opened it",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Fog at Ballan"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-09-30T00:00:00.000Z",
+      "allowed": false
+    },
+    {
+      "name": "A board member writes a first briefing when one was saved while they typed",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Fog at Ballan"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": null,
+      "allowed": false
+    },
+    {
+      "name": "A clashing save is refused before its 13 hazards",
+      "as": "torque",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Hazard 1",
+        "Hazard 2",
+        "Hazard 3",
+        "Hazard 4",
+        "Hazard 5",
+        "Hazard 6",
+        "Hazard 7",
+        "Hazard 8",
+        "Hazard 9",
+        "Hazard 10",
+        "Hazard 11",
+        "Hazard 12",
+        "Hazard 13"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": null,
+      "allowed": false
+    },
+    {
+      "name": "A member with no crew spot or seat saves over a newer briefing",
+      "as": "spanner",
+      "action": "saveBriefing",
+      "ride": "future-west",
+      "hazards": [
+        "Fog at Ballan"
+      ],
+      "changes": "",
+      "notes": "",
+      "seen": "2026-09-30T00:00:00.000Z",
+      "allowed": false
+    },
+    {
       "name": "A member posts in the whole-club chat",
       "as": "spanner",
       "action": "chatSend",
@@ -2658,6 +3090,266 @@
       "action": "chatBlock",
       "member": "spanner",
       "blocked": true,
+      "allowed": false
+    },
+    {
+      "name": "An NEC member publishes a new version of the Road Rules",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": true
+    },
+    {
+      "name": "A sitting chapter President publishes a small fix to the Road Rules",
+      "as": "smokey",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": false,
+      "seen": 2,
+      "allowed": true
+    },
+    {
+      "name": "The NEC Secretary publishes the Road Rules",
+      "as": "lou",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": true
+    },
+    {
+      "name": "A board member who isn't on the NEC publishes the Road Rules",
+      "as": "torque",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "A Road Captain publishes the Road Rules",
+      "as": "crank",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "An applicant publishes the Road Rules",
+      "as": "dylan",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "The Road Rules published by someone not signed in",
+      "as": null,
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "A publish on top of a version published while they typed",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 1,
+      "allowed": false
+    },
+    {
+      "name": "A first version when one was published while they typed",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 0,
+      "allowed": false
+    },
+    {
+      "name": "A publish from a version newer than the current one",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 3,
+      "allowed": false
+    },
+    {
+      "name": "The first version of the Road Rules, asked not to be fresh",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": false,
+      "seen": 0,
+      "noRoadRules": true,
+      "allowed": true
+    },
+    {
+      "name": "Publishing when the editor saw version 1 but nothing is published",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 1,
+      "noRoadRules": true,
+      "allowed": false
+    },
+    {
+      "name": "Road Rules with nothing in them but spaces",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": " \n\t ",
+      "changes": "",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "Road Rules of 20,001 characters",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "x",
+      "changes": "",
+      "fresh": true,
+      "seen": 2,
+      "repeat": 20001,
+      "allowed": false
+    },
+    {
+      "name": "Road Rules of 20,000 emoji count as 20,000 characters",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "🏍",
+      "changes": "",
+      "fresh": true,
+      "seen": 2,
+      "repeat": 20000,
+      "allowed": true
+    },
+    {
+      "name": "What changed of 501 characters",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "x",
+      "changes": "x",
+      "fresh": true,
+      "seen": 2,
+      "repeat": 501,
+      "allowed": false
+    },
+    {
+      "name": "What changed of 500 emoji counts as 500 characters",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "x",
+      "changes": "🏍",
+      "fresh": true,
+      "seen": 2,
+      "repeat": 500,
+      "allowed": true
+    },
+    {
+      "name": "A clashing publish is refused before its empty text",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "  ",
+      "changes": "",
+      "fresh": true,
+      "seen": 1,
+      "allowed": false
+    },
+    {
+      "name": "A non-NEC publish is refused before its clash",
+      "as": "torque",
+      "action": "publishRoadRules",
+      "body": "  # Road Rules\n\nRide safe, ride together.  ",
+      "changes": " Clearer wording ",
+      "fresh": true,
+      "seen": 1,
+      "allowed": false
+    },
+    {
+      "name": "A member signs the current Road Rules",
+      "as": "spanner",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": true
+    },
+    {
+      "name": "A member signs the Road Rules for the first time",
+      "as": "gravel",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": true
+    },
+    {
+      "name": "A member signs again while signed",
+      "as": "torque",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member signs the Road Rules",
+      "as": "hacker",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": true
+    },
+    {
+      "name": "A member signs a version of the Road Rules that's no longer current",
+      "as": "spanner",
+      "action": "signRoadRules",
+      "version": 1,
+      "allowed": false
+    },
+    {
+      "name": "A member signs a version of the Road Rules that doesn't exist yet",
+      "as": "spanner",
+      "action": "signRoadRules",
+      "version": 3,
+      "allowed": false
+    },
+    {
+      "name": "A member signs when there are no Road Rules yet",
+      "as": "spanner",
+      "action": "signRoadRules",
+      "version": 1,
+      "noRoadRules": true,
+      "allowed": false
+    },
+    {
+      "name": "An applicant signs the Road Rules",
+      "as": "dylan",
+      "action": "signRoadRules",
+      "version": 2,
+      "allowed": false
+    },
+    {
+      "name": "The Road Rules signed by someone not signed in",
+      "as": null,
+      "action": "signRoadRules",
+      "version": 2,
       "allowed": false
     },
     {
@@ -3232,6 +3924,60 @@
     {
       "ride": "future-west",
       "route": "west-loop"
+    }
+  ],
+  "briefings": [
+    {
+      "ride": "future-west",
+      "hazards": [
+        "Roadworks at Bacchus Marsh"
+      ],
+      "changes": "",
+      "notes": "Breakfast at Daylesford"
+    },
+    {
+      "ride": "cancelled-north",
+      "hazards": [],
+      "changes": "No staggered formation",
+      "notes": ""
+    },
+    {
+      "ride": "past-club",
+      "hazards": [
+        "Kangaroos at dusk"
+      ],
+      "changes": "",
+      "notes": ""
+    }
+  ],
+  "briefingReads": [
+    {
+      "ride": "future-west",
+      "member": "gravel"
+    }
+  ],
+  "roadRules": [
+    {
+      "number": 1,
+      "body": "# Road Rules\n\nRide safe.",
+      "changes": "",
+      "fresh": true
+    },
+    {
+      "number": 2,
+      "body": "# Road Rules\n\nRide safely.",
+      "changes": "A typo",
+      "fresh": false
+    }
+  ],
+  "roadRulesSignoffs": [
+    {
+      "member": "torque",
+      "version": 2
+    },
+    {
+      "member": "spanner",
+      "version": 1
     }
   ],
   "directs": [

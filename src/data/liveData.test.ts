@@ -1,6 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadClub } from './liveData';
+import { READ_OUTDATED, SAVE_CONFLICT, NOT_WRITER } from '../domain/briefings';
+import { isRoadRulesVersionRefusal, NO_RULES, NOT_PUBLISHER, PUBLISH_CONFLICT, SIGN_OUTDATED } from '../domain/roadRules';
+import { EMPTY_DATA } from './clubContext';
+import {
+  loadClub,
+  publishRoadRulesArgs,
+  readBriefingArgs,
+  reloadOnNewerVersion,
+  saveBriefingArgs,
+  signRoadRulesArgs,
+} from './liveData';
 
 // A stand-in for the Supabase client: hands back fixed rows per table.
 function stubClient(tables: Record<string, unknown[]>, phones: unknown[] = []) {
@@ -312,4 +322,173 @@ test('signed in: no ride_routes key (not approved) loads no ride routes, and no 
   const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
   assert.deepEqual(data.rideRoutes, []);
   assert.deepEqual(data.routes, []);
+});
+
+test('signed in: the calendar’s briefings and reads become app records, null texts as empty', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      ride_calendar: {
+        rides: [],
+        rsvps: [],
+        briefings: [
+          {
+            ride_id: 'r1', hazards: ['Gravel', 'Kangaroos'], changes: 'Single file', notes: null,
+            updated_by: 'm1', updated_at: '2026-10-23T09:15:00.25+00:00',
+          },
+          { ride_id: 'r2', hazards: [], changes: null, notes: 'Cash only', updated_by: null, updated_at: '2026-10-23T10:00:00+00:00' },
+        ],
+        briefing_reads: [{ ride_id: 'r1', member_id: 'm2', read_at: '2026-10-23T20:42:00+00:00' }],
+        synced_at: null,
+      },
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.briefings, [
+    {
+      rideId: 'r1', hazards: ['Gravel', 'Kangaroos'], changes: 'Single file', notes: '',
+      updatedBy: 'm1', updatedAt: '2026-10-23T09:15:00.250Z',
+    },
+    { rideId: 'r2', hazards: [], changes: '', notes: 'Cash only', updatedBy: null, updatedAt: '2026-10-23T10:00:00.000Z' },
+  ]);
+  assert.deepEqual(data.briefingReads, [{ rideId: 'r1', memberId: 'm2', readAt: '2026-10-23T20:42:00.000Z' }]);
+});
+
+test('signed in: no briefings keys (not approved) loads no briefings and no reads', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
+  assert.deepEqual(data.briefings, []);
+  assert.deepEqual(data.briefingReads, []);
+});
+
+test('saving a briefing sends it cleaned, with the version the editor opened on', () => {
+  const input = { hazards: ['  Gravel ', '', 'Roos'], changes: ' Single file ', notes: '' };
+  assert.deepEqual(saveBriefingArgs('r1', input, '2026-10-23T09:15:00.000Z'), {
+    p_ride: 'r1', p_hazards: ['Gravel', 'Roos'], p_changes: 'Single file', p_notes: '', p_seen: '2026-10-23T09:15:00.000Z',
+  });
+  assert.equal(saveBriefingArgs('r1', input, null).p_seen, null, 'a new briefing: no version');
+});
+
+test('Got it sends the version on screen', () => {
+  assert.deepEqual(readBriefingArgs('r1', '2026-10-23T09:15:00.000Z'), { p_ride: 'r1', p_seen: '2026-10-23T09:15:00.000Z' });
+});
+
+test('after a newer-version refusal the calendar reloads, then the refusal still reaches the screen', async () => {
+  for (const message of [READ_OUTDATED, SAVE_CONFLICT]) {
+    let reloads = 0;
+    await assert.rejects(
+      reloadOnNewerVersion(async () => {
+        throw new Error(message);
+      }, async () => {
+        reloads += 1;
+      }),
+      { message },
+    );
+    assert.equal(reloads, 1, `one reload after "${message}"`);
+  }
+  // Any other refusal doesn't reload.
+  let reloads = 0;
+  const reload = async () => {
+    reloads += 1;
+  };
+  await assert.rejects(reloadOnNewerVersion(async () => {
+    throw new Error(NOT_WRITER);
+  }, reload), { message: NOT_WRITER });
+  // Nor does success (the action reloads by itself).
+  await reloadOnNewerVersion(async () => {}, reload);
+  assert.equal(reloads, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Road Rules
+// ---------------------------------------------------------------------------
+
+test('signed in: the Road Rules versions and sign-offs are read with the rest, and become app records', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      road_rules_versions: [
+        {
+          number: 1, body: '# Road Rules', changes: null, fresh: true, published_by: 'm1',
+          published_at: '2025-06-24T01:30:00.123456+00:00',
+        },
+        {
+          number: 2, body: '# Road Rules, fixed', changes: 'A typo', fresh: false, published_by: null,
+          published_at: '2026-09-30T02:00:00+00:00',
+        },
+      ],
+      road_rules_signoffs: [{ member_id: 'm2', version: 2, signed_at: '2026-10-19T03:04:05.678901+00:00' }],
+    }),
+    true,
+  );
+  assert.deepEqual(data.roadRules, [
+    { number: 1, body: '# Road Rules', changes: '', fresh: true, publishedBy: 'm1', publishedAt: '2025-06-24T01:30:00.123Z' },
+    { number: 2, body: '# Road Rules, fixed', changes: 'A typo', fresh: false, publishedBy: null, publishedAt: '2026-09-30T02:00:00.000Z' },
+  ]);
+  assert.deepEqual(data.roadRulesSignoffs, [{ memberId: 'm2', version: 2, signedAt: '2026-10-19T03:04:05.678Z' }]);
+});
+
+test('signed in: no Road Rules rows (not approved, or none yet) loads none', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], ride_calendar: { rides: [], rsvps: [], synced_at: null } } as never), true);
+  assert.deepEqual(data.roadRules, []);
+  assert.deepEqual(data.roadRulesSignoffs, []);
+});
+
+test('signed out: no Road Rules are read', async () => {
+  const data = await loadClub(stubClient({ chapters: [west], road_rules_versions: [{ number: 1 }] } as never), false);
+  assert.deepEqual(data.roadRules, []);
+  assert.deepEqual(data.roadRulesSignoffs, []);
+});
+
+/** stubClient, with one table's read failing. */
+function tableFails(table: string, message: string) {
+  const base = stubClient({ chapters: [west] }) as unknown as { from: (n: string) => unknown; rpc: unknown };
+  const r = { data: null, error: { message } };
+  const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+  return { from: (name: string) => (name === table ? { select: () => chain } : base.from(name)), rpc: base.rpc } as never;
+}
+
+test('a failure loading the Road Rules is an error, not an empty list', async () => {
+  await assert.rejects(loadClub(tableFails('road_rules_versions', 'boom'), true), { message: 'boom' });
+  await assert.rejects(loadClub(tableFails('road_rules_signoffs', 'bang'), true), { message: 'bang' });
+});
+
+test('publishing the Road Rules sends them cleaned, with the version the editor opened on', () => {
+  const data = { ...EMPTY_DATA, roadRules: [] };
+  assert.deepEqual(publishRoadRulesArgs({ body: '  # Road Rules \n', changes: '  ', fresh: false }, 0, data), {
+    p_body: '# Road Rules', p_changes: '', p_fresh: true, p_seen: 0,
+  }, 'version 1 is always fresh');
+  const withOne = {
+    ...EMPTY_DATA,
+    roadRules: [{ number: 1, body: 'x', changes: '', fresh: true, publishedAt: '2026-01-01T00:00:00.000Z', publishedBy: null }],
+  };
+  assert.deepEqual(publishRoadRulesArgs({ body: 'Fixed', changes: ' A typo ', fresh: false }, 1, withOne), {
+    p_body: 'Fixed', p_changes: 'A typo', p_fresh: false, p_seen: 1,
+  });
+});
+
+test('signing the Road Rules sends the version on screen', () => {
+  assert.deepEqual(signRoadRulesArgs(2), { p_version: 2 });
+});
+
+test('after a Road Rules version refusal the club reloads, then the refusal still reaches the screen', async () => {
+  for (const message of [PUBLISH_CONFLICT, SIGN_OUTDATED]) {
+    assert.equal(isRoadRulesVersionRefusal(new Error(message)), true, message);
+    let reloads = 0;
+    await assert.rejects(
+      reloadOnNewerVersion(
+        async () => {
+          throw new Error(message);
+        },
+        async () => {
+          reloads += 1;
+        },
+        isRoadRulesVersionRefusal,
+      ),
+      { message },
+    );
+    assert.equal(reloads, 1, `one reload after "${message}"`);
+  }
+  for (const message of [NOT_PUBLISHER, NO_RULES, READ_OUTDATED]) {
+    assert.equal(isRoadRulesVersionRefusal(new Error(message)), false, message);
+  }
 });

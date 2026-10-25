@@ -3,7 +3,9 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, endTermProblem, isBoardOf } from '../domain/access';
+import { cleanBriefing, readBriefingProblem, saveBriefingProblem, type BriefingInput } from '../domain/briefings';
 import { crewProblem, leaveProblem } from '../domain/crew';
+import { cleanRoadRules, currentRoadRules, publishProblem, signProblem, type RoadRulesInput } from '../domain/roadRules';
 import { NO_TRACK, readGpx } from '../domain/gpx';
 import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
@@ -403,6 +405,74 @@ export function routeGpx(ctx: DemoCtx, files: ReadonlyMap<string, string>, route
   return file;
 }
 
+/**
+ * Writes a ride's briefing, or replaces it: cleaned, and stamped with who and when, on top of the
+ * version the editor opened on (`seen`). The writer's own read moves to the same time, so their
+ * update never shows them as unread. Mirrors public.save_briefing.
+ */
+export function saveBriefing(ctx: DemoCtx, rideId: string, input: BriefingInput, seen: string | null): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const ride = ctx.data.rides.find((r) => r.id === rideId);
+  const problem = saveBriefingProblem(ctx.me, ride, input, ctx.data, now, seen);
+  if (problem) throw new NotAllowedError(problem);
+  const memberId = ctx.me!.id;
+  const others = (ctx.data.briefings ?? []).filter((b) => b.rideId !== rideId);
+  return {
+    ...ctx.data,
+    briefings: [...others, { rideId, ...cleanBriefing(input), updatedAt: now, updatedBy: memberId }],
+    briefingReads: withRead(ctx.data, rideId, memberId, now),
+  };
+}
+
+/** The reads with this member's read of this ride set to `at`. */
+function withRead(data: ClubData, rideId: string, memberId: string, at: string) {
+  const others = (data.briefingReads ?? []).filter((r) => !(r.rideId === rideId && r.memberId === memberId));
+  return [...others, { rideId, memberId, readAt: at }];
+}
+
+/**
+ * Got it: your read of the ride's briefing, now, for the version on screen (`seen`). Reading
+ * again moves it. Mirrors public.read_briefing.
+ */
+export function readBriefing(ctx: DemoCtx, rideId: string, seen: string | null): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const problem = readBriefingProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), ctx.data, seen);
+  if (problem) throw new NotAllowedError(problem);
+  return { ...ctx.data, briefingReads: withRead(ctx.data, rideId, ctx.me!.id, now) };
+}
+
+/**
+ * Publishes the next version of the Road Rules: cleaned (fresh forced on for version 1), and
+ * stamped with who and when. `seen` is the current number the editor opened on (0 when there
+ * were none). Mirrors public.publish_road_rules.
+ */
+export function publishRoadRules(ctx: DemoCtx, input: RoadRulesInput, seen: number): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const problem = publishProblem(ctx.me, input, seen, ctx.data);
+  if (problem) throw new NotAllowedError(problem);
+  const number = (currentRoadRules(ctx.data)?.number ?? 0) + 1;
+  return {
+    ...ctx.data,
+    roadRules: [
+      ...(ctx.data.roadRules ?? []),
+      { number, ...cleanRoadRules(input, ctx.data), publishedAt: now, publishedBy: ctx.me!.id },
+    ],
+  };
+}
+
+/**
+ * Signs the current version of the Road Rules, now: your one sign-off row is replaced. `version`
+ * is the number on screen. Mirrors public.sign_road_rules.
+ */
+export function signRoadRules(ctx: DemoCtx, version: number): ClubData {
+  const now = ctx.now ?? new Date().toISOString();
+  const problem = signProblem(ctx.me, version, ctx.data);
+  if (problem) throw new NotAllowedError(problem);
+  const memberId = ctx.me!.id;
+  const others = (ctx.data.roadRulesSignoffs ?? []).filter((s) => s.memberId !== memberId);
+  return { ...ctx.data, roadRulesSignoffs: [...others, { memberId, version, signedAt: now }] };
+}
+
 /** The actions the shared parity cases use, by name. */
 export type DemoAction =
   | { action: 'appoint'; member: string; chapter: string | null; role: PositionRole }
@@ -430,7 +500,15 @@ export type DemoAction =
   | { action: 'leaveCrew'; ride: string; member: string }
   | { action: 'saveRoute'; route: string | null; routeName: string; chapter: string | null; notes?: string; gpx: string | null }
   | { action: 'archiveRoute'; route: string }
-  | { action: 'setRideRoute'; ride: string; route: string | null };
+  | { action: 'setRideRoute'; ride: string; route: string | null }
+  // `repeat` writes the changes and the notes out that many times, for the length limits. `seen`
+  // is the briefing's version the action was made on (null: none).
+  | { action: 'saveBriefing'; ride: string; hazards: string[]; changes: string; notes: string; repeat?: number; seen: string | null }
+  | { action: 'readBriefing'; ride: string; seen: string | null }
+  // `repeat` writes the text and what changed out that many times, for the length limits. `seen`
+  // is the current version number the editor opened on (0: none).
+  | { action: 'publishRoadRules'; body: string; changes: string; fresh: boolean; seen: number; repeat?: number }
+  | { action: 'signRoadRules'; version: number };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -458,6 +536,22 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return archiveRoute(ctx, a.route);
     case 'setRideRoute':
       return setRideRoute(ctx, a.ride, a.route);
+    case 'saveBriefing':
+      return saveBriefing(ctx, a.ride, {
+        hazards: a.hazards,
+        changes: a.changes.repeat(a.repeat ?? 1),
+        notes: a.notes.repeat(a.repeat ?? 1),
+      }, a.seen);
+    case 'readBriefing':
+      return readBriefing(ctx, a.ride, a.seen);
+    case 'publishRoadRules':
+      return publishRoadRules(ctx, {
+        body: a.body.repeat(a.repeat ?? 1),
+        changes: a.changes.repeat(a.repeat ?? 1),
+        fresh: a.fresh,
+      }, a.seen);
+    case 'signRoadRules':
+      return signRoadRules(ctx, a.version);
     case 'removeContact':
       return removeContact(ctx, a.contact);
     case 'saveBike':

@@ -4,6 +4,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
+import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
+import { isRoadRulesVersionRefusal, publishProblem, signProblem } from '../domain/roadRules';
 import {
   actionItemProblem,
   approveMinutesProblem,
@@ -27,7 +29,14 @@ import {
   validateContact,
   type ClubContextValue,
 } from './clubContext';
-import { loadClub } from './liveData';
+import {
+  loadClub,
+  publishRoadRulesArgs,
+  readBriefingArgs,
+  reloadOnNewerVersion,
+  saveBriefingArgs,
+  signRoadRulesArgs,
+} from './liveData';
 // Stage 4
 import { canCheckIn, closeProblem, markProblem, openCheckinProblem } from '../domain/attendance';
 import {
@@ -674,6 +683,40 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       if (typeof result.data !== 'string') throw new Error(NO_ROUTE);
       return result.data;
     },
+
+    saveBriefing: (rideId, input, seen) =>
+      reloadOnNewerVersion(async () => {
+        const problem = saveBriefingProblem(visibleMe, data.rides.find((r) => r.id === rideId), input, data, new Date().toISOString(), seen);
+        if (problem) throw new NotAllowedError(problem);
+        ok(await supabase().rpc('save_briefing', saveBriefingArgs(rideId, input, seen)));
+        await after();
+      }, after),
+
+    readBriefing: (rideId, seen) =>
+      reloadOnNewerVersion(async () => {
+        const problem = readBriefingProblem(visibleMe, data.rides.find((r) => r.id === rideId), data, seen);
+        if (problem) throw new NotAllowedError(problem);
+        ok(await supabase().rpc('read_briefing', readBriefingArgs(rideId, seen)));
+        await after();
+      }, after),
+
+    // After a newer-version refusal (the app's or the database's), reload so the screen shows the
+    // newer version, then the refusal goes on to the screen.
+    publishRoadRules: (input, seen) =>
+      reloadOnNewerVersion(async () => {
+        const problem = publishProblem(visibleMe, input, seen, data);
+        if (problem) throw new NotAllowedError(problem);
+        ok(await supabase().rpc('publish_road_rules', publishRoadRulesArgs(input, seen, data)));
+        await after();
+      }, after, isRoadRulesVersionRefusal),
+
+    signRoadRules: (version) =>
+      reloadOnNewerVersion(async () => {
+        const problem = signProblem(visibleMe, version, data);
+        if (problem) throw new NotAllowedError(problem);
+        ok(await supabase().rpc('sign_road_rules', signRoadRulesArgs(version)));
+        await after();
+      }, after, isRoadRulesVersionRefusal),
 
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => {

@@ -167,6 +167,47 @@ export interface RideRoute {
   routeId: string;
 }
 
+/** The Road Captain's part of a ride's briefing card. A ride has at most one. */
+export interface Briefing {
+  rideId: string;
+  /** Short lines, one hazard each. */
+  hazards: string[];
+  /** One-off changes to the Road Rules for this ride (constitution 7.10). Empty when none. */
+  changes: string;
+  notes: string;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+/** A member's tap on Got it. It is current while it is at or after the briefing's `updatedAt`. */
+export interface BriefingRead {
+  rideId: string;
+  memberId: string;
+  readAt: string;
+}
+
+/**
+ * One published text of the Road Rules (constitution 7.10). The current version is the highest
+ * number. Versions are never edited or removed: a correction is a new version.
+ */
+export interface RoadRulesVersion {
+  number: number;
+  body: string;
+  /** What changed since the last version. Empty when none. */
+  changes: string;
+  /** Whether everyone signs again. Version 1 always does. */
+  fresh: boolean;
+  publishedAt: string;
+  publishedBy: string | null;
+}
+
+/** A member's latest Road Rules sign-off: one per member, moved on each signing. */
+export interface RoadRulesSignoff {
+  memberId: string;
+  version: number;
+  signedAt: string;
+}
+
 export interface ClubData {
   chapters: Chapter[];
   members: Member[];
@@ -183,6 +224,14 @@ export interface ClubData {
   routes?: Route[];
   /** Which route each ride uses. Missing means none. */
   rideRoutes?: RideRoute[];
+  /** The briefing for each ride that has one. Missing means none. */
+  briefings?: Briefing[];
+  /** Who has tapped Got it on which ride's briefing. Missing means none. */
+  briefingReads?: BriefingRead[];
+  /** Every published version of the Road Rules. Missing means none. */
+  roadRules?: RoadRulesVersion[];
+  /** Each member's latest Road Rules sign-off. Missing means none. */
+  roadRulesSignoffs?: RoadRulesSignoff[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
   // Lane E: notifications

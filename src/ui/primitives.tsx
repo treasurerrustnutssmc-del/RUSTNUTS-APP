@@ -337,6 +337,8 @@ export function ConfirmButton({
   icon,
   style,
   accessibilityLabel,
+  confirmNote,
+  disabled,
 }: {
   label: string;
   confirmLabel: string;
@@ -346,18 +348,40 @@ export function ConfirmButton({
   style?: StyleProp<ViewStyle>;
   /** For the first button, when its label alone wouldn't say what it acts on. */
   accessibilityLabel?: string;
+  /** A line shown above the confirm step, for what confirming will do when the label can't fit it. */
+  confirmNote?: string;
+  /** Off, and back to the first step if it was armed, while there's a reason it can't go ahead. */
+  disabled?: boolean;
 }) {
   const [armed, setArmed] = useState(false);
-  if (!armed) {
+  if (armed && disabled) setArmed(false);
+  if (!armed || disabled) {
     return (
-      <Button label={label} kind={kind} icon={icon} onPress={() => setArmed(true)} style={style} accessibilityLabel={accessibilityLabel} />
+      <Button
+        label={label}
+        kind={kind}
+        icon={icon}
+        disabled={disabled}
+        onPress={() => setArmed(true)}
+        style={style}
+        accessibilityLabel={accessibilityLabel}
+      />
     );
   }
-  return (
-    <Row style={[{ gap: space.sm }, style]}>
+  const confirm = (
+    <Row style={[{ gap: space.sm }, confirmNote ? null : style]}>
       <Button label={confirmLabel} kind="danger" onPress={() => { setArmed(false); onConfirm(); }} style={{ flex: 1 }} />
       <Button label="Cancel" kind="quiet" onPress={() => setArmed(false)} />
     </Row>
+  );
+  if (!confirmNote) return confirm;
+  return (
+    <View style={[{ gap: space.sm }, style]}>
+      <View accessibilityLiveRegion="polite">
+        <Body strong>{confirmNote}</Body>
+      </View>
+      {confirm}
+    </View>
   );
 }
 

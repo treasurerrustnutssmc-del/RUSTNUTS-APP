@@ -4,12 +4,14 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { formatAuDate } from '../domain/dates';
+import { briefingOf, editBriefingProblem, hazardSummary, moreLabel, readCount, readCountLine, readState } from '../domain/briefings';
+import { formatAuDate, weekday } from '../domain/dates';
 import { canVolunteer, crewChangeProblem, crewRows, leaveProblem, managesRide, showsCrewNeeded, spotOf } from '../domain/crew';
 import type { CrewRowSlot } from '../domain/crew';
 import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABEL } from '../domain/labels';
-import { displayName, initials } from '../domain/profile';
+import { displayName, initials, memberName } from '../domain/profile';
 import { libraryFor, rideRouteProblem, routeOf } from '../domain/routes';
+import { roadRulesStatus, showsRoadRulesNudge } from '../domain/roadRules'; // Road Rules
 import {
   calendarFreshness,
   defaultCategories,
@@ -51,13 +53,6 @@ import {
 } from '../ui/primitives';
 import { ChapterChip, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
 import { RouteShape } from '../ui/RouteShape';
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-/** The weekday of a YYYY-MM-DD calendar date. */
-export function weekday(date: string): string {
-  return WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
-}
 
 /** "7:30 am", "All day", or "All day, to 31/01/2027". */
 function startLabel(ride: Ride): string {
@@ -267,7 +262,7 @@ function RideRow({
 const ANSWERS: RsvpAnswer[] = ['going', 'maybe', 'no'];
 
 export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>) {
-  const { me, data, setRsvp } = useClub();
+  const { me, data, today, setRsvp } = useClub();
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const ride = data.rides.find((r) => r.id === route.params.rideId);
@@ -378,6 +373,11 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       {/* Lane E: share */}
       <ShareRideButton ride={ride} />
 
+      {/* Road Rules: a nudge, not a gate. Unsigned riders can still say Going. */}
+      {showsRoadRulesNudge(me, ride, data, today) ? (
+        <RoadRulesNudge me={me} data={data} today={today} onOpen={() => navigation.navigate('RoadRules')} />
+      ) : null}
+
       <Stack gap={space.sm}>
         <SectionTitle title="Your answer" />
         {problem ? <Notice tone={cancelled ? 'danger' : 'info'}>{problem}</Notice> : null}
@@ -439,6 +439,14 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         onChoose={() => navigation.navigate('PickRoute', { rideId: ride.id })}
       />
 
+      <BriefingSection
+        ride={ride}
+        me={me}
+        data={data}
+        onOpen={() => navigation.navigate('Briefing', { rideId: ride.id })}
+        onWrite={() => navigation.navigate('EditBriefing', { rideId: ride.id })}
+      />
+
       <CrewSection ride={ride} me={me} data={data} onPick={(role) => navigation.navigate('PickCrew', { rideId: ride.id, role })} />
       {/* Stage 3 (lane B): the ride's chat and photo wall */}
       <RideChatRows
@@ -451,6 +459,27 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       {!cancelled || going.length > 0 ? list('Going', going) : null}
       {!cancelled || maybe.length > 0 ? list('Maybe', maybe) : null}
     </Screen>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Road Rules
+// ---------------------------------------------------------------------------
+
+/** "Sign the Road Rules before you ride", for a rider who's unsigned or whose sign-off ran out. */
+function RoadRulesNudge({ me, data, today, onOpen }: { me: Member; data: ClubData; today: string; onOpen: () => void }) {
+  const status = roadRulesStatus(me, data, today);
+  return (
+    <Notice tone="warn" title="Sign the Road Rules before you ride">
+      <Stack gap={space.md}>
+        <Small style={{ color: colors.boneDim }}>
+          {status.state === 'expired'
+            ? `Your sign-off ran out on ${formatAuDate(status.goodUntil)}. Read them again and sign.`
+            : 'You haven’t signed the current Road Rules yet. They’re how the club rides together.'}
+        </Small>
+        <Button label="Read and sign" icon="document-text-outline" kind="secondary" onPress={onOpen} style={{ alignSelf: 'flex-start' }} />
+      </Stack>
+    </Notice>
   );
 }
 
@@ -563,6 +592,76 @@ function RouteSection({
 }
 
 // ---------------------------------------------------------------------------
+// The ride's briefing
+// ---------------------------------------------------------------------------
+
+/**
+ * The briefing in short: the first hazard and how many more, the read count, and the way into the
+ * card. With no briefing, its writers get Write briefing (until the ride day is over); everyone
+ * else, and anyone not yet approved, sees nothing.
+ */
+function BriefingSection({
+  ride,
+  me,
+  data,
+  onOpen,
+  onWrite,
+}: {
+  ride: Ride;
+  me: Member;
+  data: ClubData;
+  onOpen: () => void;
+  onWrite: () => void;
+}) {
+  if (me.approval !== 'approved') return null;
+  const briefing = briefingOf(ride.id, data);
+  const canWrite = editBriefingProblem(me, ride, data, new Date().toISOString()) === null;
+  if (!briefing && !canWrite) return null;
+
+  if (!briefing) {
+    return (
+      <Stack gap={space.sm}>
+        <SectionTitle title="Briefing" />
+        <Card>
+          <Text style={type.name}>No briefing yet</Text>
+          <Body>Hazards, any changes to the Road Rules, and anything else riders need before they leave home.</Body>
+          <Button label="Write briefing" icon="create-outline" kind="secondary" onPress={onWrite} />
+        </Card>
+      </Stack>
+    );
+  }
+
+  const summary = hazardSummary(briefing.hazards);
+  const more = summary ? moreLabel(summary.more) : null;
+  const state = readState(me, ride.id, data);
+  return (
+    <Stack gap={space.sm}>
+      <SectionTitle title="Briefing" />
+      <Card>
+        {summary ? (
+          <Row style={styles.briefingHazard}>
+            <Ionicons name="warning" size={20} color={colors.warn} style={{ marginTop: 1 }} />
+            <Text style={[type.name, { flex: 1 }]}>
+              {summary.first}
+              {more ? <Text style={styles.briefingMore}>{`  ${more}`}</Text> : null}
+            </Text>
+          </Row>
+        ) : (
+          <Text style={[type.name, { color: colors.boneDim }]}>No hazards listed</Text>
+        )}
+        <Row style={{ gap: 6 }}>
+          {briefing.changes ? <Chip label="Road Rules changed" tone="warn" icon="alert-circle" /> : null}
+          {state === 'current' ? <Chip label="You’ve read it" tone="ok" icon="checkmark" /> : null}
+          {state === 'stale' ? <Chip label="Updated since you read it" tone="warn" icon="refresh" /> : null}
+        </Row>
+        <Text style={styles.metaTime}>{readCountLine(readCount(ride, data))}</Text>
+        <Button label="Open briefing card" icon="document-text-outline" kind="secondary" onPress={onOpen} />
+      </Card>
+    </Stack>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // The ride's crew
 // ---------------------------------------------------------------------------
 
@@ -641,10 +740,7 @@ function CrewSection({
     }
   };
   const saving = (key: string) => (busy?.key === key ? busy.label : null);
-  const nameOf = (memberId: string) => {
-    const m = data.members.find((x) => x.id === memberId);
-    return m ? displayName(m) : 'A former member';
-  };
+  const nameOf = (memberId: string) => memberName(memberId, data.members);
   const canRemove = (memberId: string) => !locked && leaveProblem(me, ride, memberId, data, now) === null;
 
   const takeButton = (key: string, role: CrewRole) => (
@@ -828,6 +924,8 @@ const styles = StyleSheet.create({
   },
   crewTileText: { fontFamily: fonts.stencil, fontSize: 18, letterSpacing: 1, color: colors.bone },
   crewRole: { fontFamily: fonts.stencil, fontSize: 13, lineHeight: 18, letterSpacing: 0.4, color: colors.boneMute },
+  briefingHazard: { gap: space.sm, alignItems: 'flex-start', flexWrap: 'nowrap' },
+  briefingMore: { fontFamily: fonts.stencil, fontSize: 14, color: colors.boneMute },
   // Full row width, so a two-tap confirm and its Cancel fit on one line at phone size.
   crewActions: { gap: space.sm },
 });

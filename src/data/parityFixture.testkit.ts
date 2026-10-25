@@ -21,10 +21,13 @@ import { directId, runChatAction, type ChatAction, type ChatData } from './chat/
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
-  as: string;
+  /** The member acting, or null for someone not signed in. */
+  as: string | null;
   allowed: boolean;
   /** Fixture positions taken away for this case only (to free a seat). */
   without?: string[];
+  /** The case starts with no Road Rules published (and so no sign-offs). */
+  noRoadRules?: boolean;
 }
 
 export interface ParityFixture {
@@ -61,6 +64,14 @@ export interface ParityFixture {
   routes?: { key: string; name: string; chapter: string | null; archived: boolean }[];
   /** Which route each ride uses. */
   rideRoutes?: { ride: string; route: string }[];
+  /** Briefings already written, all at BRIEFED_AT. Empty texts are stored as null in the database. */
+  briefings?: { ride: string; hazards: string[]; changes: string; notes: string }[];
+  /** Got it taps already made, all at BRIEFED_AT. */
+  briefingReads?: { ride: string; member: string }[];
+  /** Road Rules versions already published, all at RULES_AT by no one. Empty What changed is stored as null. */
+  roadRules?: { number: number; body: string; changes: string; fresh: boolean }[];
+  /** Road Rules sign-offs already made, all at RULES_AT. */
+  roadRulesSignoffs?: { member: string; version: number }[];
   cases: ParityCase[];
   stage4?: Stage4Fixture;
   // Stage 3 (lane B): chats. A chat is named `club`, `nec`, `committee:ride`, `committee:charity`,
@@ -69,6 +80,12 @@ export interface ParityFixture {
   blocks?: { blocker: string; blocked: string }[];
   messages?: { key: string; chat: string; author: string; body: string; removed?: boolean }[];
 }
+
+/** When the fixture's briefings were written and read. */
+export const BRIEFED_AT = '2026-10-01T00:00:00.000Z';
+
+/** When the fixture's Road Rules were published and signed. */
+export const RULES_AT = '2026-10-01T00:00:00.000Z';
 
 /** Stage 4's part of the fixture. Dates are days (or months, for FNG starts) from today. */
 export interface Stage4Fixture {
@@ -167,6 +184,12 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
     })),
     routes: fixtureRoutes(),
     rideRoutes: (fixture.rideRoutes ?? []).map((r) => ({ rideId: r.ride, routeId: r.route })),
+    briefings: (fixture.briefings ?? []).map((b) => ({
+      rideId: b.ride, hazards: b.hazards, changes: b.changes, notes: b.notes, updatedAt: BRIEFED_AT, updatedBy: null,
+    })),
+    briefingReads: (fixture.briefingReads ?? []).map((r) => ({ rideId: r.ride, memberId: r.member, readAt: BRIEFED_AT })),
+    roadRules: (fixture.roadRules ?? []).map((v) => ({ ...v, publishedAt: RULES_AT, publishedBy: null })),
+    roadRulesSignoffs: (fixture.roadRulesSignoffs ?? []).map((s) => ({ memberId: s.member, version: s.version, signedAt: RULES_AT })),
   };
   return withStage4(base, today);
 }
@@ -244,7 +267,8 @@ export function caseAction(c: ParityCase): DemoAction {
 /** What the demo says to this case: null when it allows it, otherwise its refusal message. */
 export function demoAnswer(c: ParityCase): string | null {
   const today = parityToday();
-  const data = fixtureData(c.without ?? [], today);
+  const fixed = fixtureData(c.without ?? [], today);
+  const data = c.noRoadRules ? { ...fixed, roadRules: [], roadRulesSignoffs: [] } : fixed;
   const me = data.members.find((m) => m.id === c.as) ?? null;
   try {
     if (STAGE4_ACTIONS.has(String(c.action))) {
