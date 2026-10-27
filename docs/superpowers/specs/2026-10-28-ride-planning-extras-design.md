@@ -105,15 +105,17 @@ Asking:
 6. `That member no longer exists.`
 7. They can't hold your spot: the crew eligibility words (`Only Full and Nomad members can crew a ride.`, `Members on hiatus can’t crew a ride.`, `Tail Gunners need a current first aid certificate on file.`, `They haven’t signed the Road Rules yet.`)
 8. They said Can't make it: `They said they can’t make it.`
-9. A trade where you can't hold their spot: the same eligibility words, about you.
-10. You already have an open ask on this ride: `You’ve already asked someone. Withdraw that first.`
-11. Note over 200: `Keep the note to 200 characters at most.`
+9. They already hold the same spot (two Officers): `They already have that spot.`
+10. A trade where you can't hold their spot: the same eligibility words, about you.
+11. You already have an open ask on this ride: `You’ve already asked someone. Withdraw that first.`
+12. Note over 200: `Keep the note to 200 characters at most.`
 
 Answering (only the person asked):
 1. `No such swap.` 2. Not you: `That ask isn’t for you.` 3. Not open: `That ask has already been answered.`
+A no stops here: it always closes an open ask, even on a cancelled or past ride. On a yes:
 4. The ride checks (cancelled, after the ride day).
 5. The asker no longer holds that spot, or (for a trade) you no longer hold the spot you had: `The crew has changed since. Ask again.`
-6. On a yes, the eligibility checks again (things may have changed).
+6. The eligibility checks again, for you and (on a trade) the asker, since things may have changed.
 
 A yes moves the spots and makes the taker Going; the asker stays Going. A no just closes it. Withdrawing: `No such swap.`, `Only whoever asked can withdraw it.`, `That ask has already been answered.`
 

@@ -78,13 +78,13 @@ Everything in this section is in scope. Each line says where it stands today.
 |---|---|
 | Colour-coded ride calendar read from the same Google calendar as the website, synced every 15 minutes | **Live.** The labels (North, West, Rustnuts, Supported Club Rides, Non-Nuts) are merged (PR #25) but need a `sync-rides` redeploy |
 | RSVPs (Going, Maybe, Can't make it) | **Live** |
-| Ride roles: RC, Tail Gunner, Assistant TG, Officers per ride | **Live.** Swap requests that the other person accepts wait on notifications; today a swap is one person stepping down and another stepping in |
+| Ride roles: RC, Tail Gunner, Assistant TG, Officers per ride | **Live.** Swap requests (ask, the other person accepts or declines, trades when both hold spots) built, with a phone alert when the app opens; push still held |
 | Locked GPX routes: once published only the RC or board can change them | **Live.** "Pings everyone signed up when it changes" waits on push |
 | One-tap open in nav that follows the route (OsmAnd, MyRoute-app) | **Live** (GPX hand-off). Garmin not done |
-| Route library | **Live.** Member ratings not started |
-| Ride planner for the RC: route, fuel, coffee and lunch stops | **Partly:** routes and the briefing card's stops are live; a dedicated planner is not started |
-| Fuel stops planned around the smallest tank in the pack | **Not started** |
-| Weather check on ride morning, one-tap "ride's off" or "postponed" | **Not started** (weather needs a provider account, Jeff's call) |
+| Route library | **Live.** Member star ratings built (ride planning extras branch; live once its SQL is pasted) |
+| Ride planner for the RC: route, fuel, coffee and lunch stops | **Built:** Plan the ride (fuel, coffee, lunch, regroup stops by km and time) for the ride's managers and RC; stops show on the ride and briefing card |
+| Fuel stops planned around the smallest tank in the pack | **Built:** bike range on each bike; the plan warns on any leg over 90% of the smallest tank among Going and crew |
+| Weather check on ride morning, one-tap "ride's off" or "postponed" | **Partly:** one-tap Ride's off / Postponed / Back on built (banner, chips, ride chat line, reminders paused); the weather check still needs a provider account, Jeff's call |
 | Pre-ride briefing card: route, stops, hazards, who's TG, changes for this ride | **Live** |
 | Road Rules sign-off, board sees who's outstanding | **Live.** Unsigned members can't say Going or be crewed (Jeff: "no exempt") |
 | Rusty Bus booking (charity rides and vehicle recovery) | **Live.** Later: editing, driver warnings, keys, odometer and running costs |
@@ -93,7 +93,7 @@ Everything in this section is in scope. Each line says where it stands today.
 | Emergency button: emergency contacts, one-tap 000, location | **Merged, waiting** on phone tests |
 | Ride-day headcount check-in | **Live** (QR check-in plus the leader ticking people off) |
 | Ride comms: open-mic voice built for the bike (hands-free, wind and engine noise suppression), headset mute | **Merged, waiting.** LiveKit project and key are set up and the token check answers; needs a two-phone ride test, and the Cardo/Sena headset button is unproven |
-| Big 4 and Not Dead Yet Run (formerly President's Run) hub: registrations, accommodation, payments | **Not started.** Needs a Big 4 flag on rides first |
+| Big 4 and Not Dead Yet Run (formerly President's Run) hub: registrations, accommodation, payments | **Partly:** registrations and accommodation hub built (staying, pillion, sharing, beds, close date, shareable list). Payments not started. The Big 4 flag comes from the attendance lane |
 
 ### Social
 
