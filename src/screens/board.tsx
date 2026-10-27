@@ -17,6 +17,7 @@ import { fngDue } from '../domain/joining';
 import { BoardCheckins } from './checkin';
 import { BoardFees } from './fees';
 import { TreasuryRow } from './treasury';
+import { BoardAdminCard } from './adminRows'; // Stage 5D
 import { seesAnyLedger } from '../domain/ledger';
 import { IntroProgressCard, VotesFields } from './fng';
 import { sortedPositions } from '../ui/MemberBits';
@@ -188,6 +189,9 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
         {/* Stage 5B: treasurer */}
         <TreasuryRow last />
       </Card>
+
+      {/* Stage 5D: conduct records, merch, national */}
+      <BoardAdminCard />
 
       <SectionTitle title="Waiting for approval" action={<Small>{pending.length}</Small>} />
       {pending.length === 0 ? (

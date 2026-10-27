@@ -35,6 +35,10 @@ import { ChapterFeesScreen, MemberFeesScreen } from '../screens/fees';
 import { FngReviewScreen } from '../screens/fng';
 // Stage 7: social extras
 import { BirthdayScreen } from '../screens/social';
+// Stage 5D: conduct records, merch, national contributions and new chapters
+import { ConductRecordScreen, ConductScreen, RecordConductScreen } from '../screens/conduct';
+import { MerchItemScreen, MerchOrderScreen, MerchScreen, ProposeMerchScreen } from '../screens/merch';
+import { ChapterProposalScreen, ContributionScreen, NationalScreen, ProposeChapterScreen, ProposeContributionScreen } from '../screens/national';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -225,6 +229,19 @@ export function RootNavigator() {
             <Stack.Screen name="MonthReport" component={MonthReportScreen} options={{ title: 'Treasurer’s Report' }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ title: 'Budget' }} />
             <Stack.Screen name="ClubFinances" component={ClubFinancesScreen} options={{ title: 'Club finances' }} />
+            {/* Stage 5D: conduct records, merch, national contributions and new chapters */}
+            <Stack.Screen name="Conduct" component={ConductScreen} options={{ title: 'Conduct records' }} />
+            <Stack.Screen name="ConductRecord" component={ConductRecordScreen} options={{ title: 'Record' }} />
+            <Stack.Screen name="RecordConduct" component={RecordConductScreen} options={{ title: 'Record a decision' }} />
+            <Stack.Screen name="Merch" component={MerchScreen} options={{ title: 'Merch' }} />
+            <Stack.Screen name="MerchItem" component={MerchItemScreen} options={{ title: 'Merch' }} />
+            <Stack.Screen name="MerchOrder" component={MerchOrderScreen} options={{ title: 'Order' }} />
+            <Stack.Screen name="ProposeMerch" component={ProposeMerchScreen} options={{ title: 'Put up an item' }} />
+            <Stack.Screen name="National" component={NationalScreen} options={{ title: 'National' }} />
+            <Stack.Screen name="Contribution" component={ContributionScreen} options={{ title: 'Contribution' }} />
+            <Stack.Screen name="ProposeContribution" component={ProposeContributionScreen} options={{ title: 'Ask the chapters' }} />
+            <Stack.Screen name="ChapterProposal" component={ChapterProposalScreen} options={{ title: 'New chapter' }} />
+            <Stack.Screen name="ProposeChapter" component={ProposeChapterScreen} options={{ title: 'New chapter' }} />
             {/* Stage 7: social extras */}
             <Stack.Screen name="Birthday" component={BirthdayScreen} options={{ title: 'Birthday shout-out' }} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />

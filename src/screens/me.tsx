@@ -14,6 +14,7 @@ import { MeSocialSection } from './social';
 import { colors, space, type } from '../theme';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import { seesReports } from '../domain/ledger'; // Stage 5B
+import { MeAdminSection } from './adminRows'; // Stage 5D
 import { asksToSign, currentRoadRules, myRoadRulesLine, needsSigning, roadRulesStatus } from '../domain/roadRules'; // Road Rules
 import {
   Avatar,
@@ -172,6 +173,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
           />
         ) : null}
       </Card>
+      {/* Stage 5D: merch and your conduct records */}
+      <MeAdminSection />
       {/* Lane E: notifications */}
       <NotificationSettings />
       {/* Stage 7: social extras */}

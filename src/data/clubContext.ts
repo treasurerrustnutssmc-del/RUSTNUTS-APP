@@ -17,6 +17,7 @@ import type {
   CrewRole,
   EmergencyContact,
   LedgerCode, // Stage 5B
+  AppealOutcome, // Stage 5D
   LicenceClass,
   Member,
   MemberPrivate,
@@ -35,7 +36,6 @@ import type { FngOutcome } from '../domain/joining';
 import type { ConductInput } from '../domain/conduct';
 import type { MerchInput, OrderInput } from '../domain/merch';
 import type { ChapterInput, ContributionInput } from '../domain/national';
-import type { AppealOutcome } from '../domain/types';
 
 export class NotAllowedError extends Error {}
 

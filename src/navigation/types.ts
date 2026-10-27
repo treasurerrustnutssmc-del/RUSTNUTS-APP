@@ -85,6 +85,19 @@ export type RootParams = {
   MonthReport: { month: string };
   Budget: { fund: string; fy?: number };
   ClubFinances: undefined;
+  // Stage 5D: conduct records, merch, national contributions and new chapters
+  Conduct: { mine?: boolean } | undefined;
+  ConductRecord: { recordId: string };
+  RecordConduct: { memberId?: string } | undefined;
+  Merch: undefined;
+  MerchItem: { itemId: string };
+  MerchOrder: { orderId: string };
+  ProposeMerch: undefined;
+  National: undefined;
+  Contribution: { contributionId: string };
+  ProposeContribution: undefined;
+  ChapterProposal: { proposalId: string };
+  ProposeChapter: undefined;
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

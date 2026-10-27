@@ -8,6 +8,7 @@ import type {
   BallotChoice, BusPurpose, BusStatus, ChargeKind, CheckinKind, ClubData, CrewRole, Electorate, MeetingKind, Member, MemberStatus, PaymentState, PositionRole,
   RideCategory, Route, RsvpAnswer, Threshold,
   EntryState, LedgerCode, VoteResult, // Stage 5B
+  ConductKind, MerchStatus, OrderStatus, // Stage 5D
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -23,7 +24,6 @@ import { directId, runChatAction, type ChatAction, type ChatData } from './chat/
 import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
 import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'; // Stage 5D
 import { sharesFor } from '../domain/national'; // Stage 5D
-import type { ConductKind, MerchStatus, OrderStatus } from '../domain/types'; // Stage 5D
 import { runSocialAction, type SocialAction } from './social/demoSocialActions'; // Stage 7: social extras
 
 export interface ParityCase extends Record<string, unknown> {

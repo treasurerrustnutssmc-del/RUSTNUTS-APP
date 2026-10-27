@@ -24,6 +24,7 @@ import { HomeFeesCard } from './fees';
 import { IntroProgressCard } from './fng';
 // Stage 7: social extras
 import { HomeShoutoutsCard } from './social';
+import { ChaptersNationalRow } from './adminRows'; // Stage 5D
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -539,6 +540,8 @@ export function ChaptersScreen({ navigation }: RootScreen<'Chapters'>) {
             );
           })}
       </Card>
+      {/* Stage 5D: new chapters and national contributions */}
+      <ChaptersNationalRow />
     </Screen>
   );
 }
