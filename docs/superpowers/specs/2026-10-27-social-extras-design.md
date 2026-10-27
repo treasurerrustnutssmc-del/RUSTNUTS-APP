@@ -59,7 +59,7 @@ allowed, but it needs a new development build before anyone can try it on a phon
 
 **What members see.** A "Shout-outs" card on Home, below the check-in and fees cards, when anyone
 has a birthday or patch anniversary today or in the next 6 days. Today's people come first with a
-red "Today" chip; the rest show their day ("Thu 30/10"). Each row: avatar, name, what it is
+red "Today" chip; tomorrow says "Tomorrow" and the rest show their day ("Thu 30/10"). Each row: avatar, name, what it is
 ("Birthday", "3 years patched"), and taps through to the member. Today's rows have a "Say g'day"
 button that opens a private chat with them (the existing `openDirect`), so nothing is posted for
 them. With nobody in the window, the card doesn't show.

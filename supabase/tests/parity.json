@@ -5281,6 +5281,22 @@
       "month": 13,
       "day": 1,
       "allowed": false
+    },
+    {
+      "name": "A pending applicant is refused before their day is checked",
+      "as": "dylan",
+      "action": "socialSetBirthday",
+      "month": 2,
+      "day": 30,
+      "allowed": false
+    },
+    {
+      "name": "A pending applicant can't take a birthday off either",
+      "as": "dylan",
+      "action": "socialSetBirthday",
+      "month": null,
+      "day": null,
+      "allowed": false
     }
   ],
   "chapters": [

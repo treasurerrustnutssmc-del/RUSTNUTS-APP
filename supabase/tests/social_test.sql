@@ -152,6 +152,10 @@ begin
   assert pg_temp.count_as(fergus, 'member_birthdays') = 2, 'so does Fergus';
   assert pg_temp.count_as(paul, 'member_birthdays') = 0, 'pending reads none';
   assert pg_temp.count_as(sid, 'member_birthdays') = 0, 'suspended reads none';
+  -- A member who's suspended keeps their row, hidden from everyone.
+  update members set approval = 'suspended' where id = fergus;
+  assert pg_temp.count_as(fran, 'member_birthdays') = 1, 'a suspended member''s birthday is hidden';
+  update members set approval = 'approved' where id = fergus;
   assert pg_temp.count_as(null, 'member_birthdays') = -1, 'anon can''t read the table at all';
 
   err := pg_temp.try_as(fran, format('insert into member_birthdays (member_id, month, day) values (%L, 1, 1)', paul));

@@ -72,7 +72,7 @@ export const MONTH_OPTIONS = MONTH_NAMES.map((name, i) => ({ month: i + 1, name,
 /**
  * Birthdays and patch anniversaries in the next `days` days (today first), for approved members
  * the viewer can see. Patch anniversaries are for members who are Full or Nomad now, from one
- * year on. Ordered by date, then birthdays before anniversaries, then name.
+ * year on. Ordered by date, then birthdays before anniversaries, then you, then name.
  */
 export function shoutoutsFor(
   viewer: Member | null,
@@ -109,6 +109,7 @@ export function shoutoutsFor(
     (a, b) =>
       a.daysAway - b.daysAway ||
       kindOrder(a.kind) - kindOrder(b.kind) ||
+      Number(b.isMe) - Number(a.isMe) ||
       displayName(a.member).localeCompare(displayName(b.member)),
   );
 }

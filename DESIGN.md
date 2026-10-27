@@ -332,5 +332,5 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 
 ## Stage 7: social extras
 
-- **Shout-outs card (Home):** a stencil "Shout-outs" title, then one row per person: avatar, name in stencil, a gift or ribbon icon with "Birthday" or "3 years patched" in body text, and the day on the right in stencil ("Sat 31/10"), or a red "Today" chip. Today's rows (not your own) end with a round 44pt outlined chat button beside the row, never inside it, so a press can't reach both.
+- **Shout-outs card (Home):** a stencil "Shout-outs" title, then one row per person: avatar, name in stencil, a gift or ribbon icon with "Birthday" or "3 years patched" in body text, and the day on the right in stencil ("Sat 31/10"), or a red "Today" chip. Today's rows (not your own) end with a 44pt outlined "G’day" button (chat icon and stencil word) beside the row, never inside it, so a press can't reach both.
 - **Day and month grid (Birthday):** steel squares with stencil numbers, the picked one in bright club red. Four months or six days to a row so the grid fills the card at phone width; every square is 44pt tall.

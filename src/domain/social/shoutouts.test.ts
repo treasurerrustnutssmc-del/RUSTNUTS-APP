@@ -101,6 +101,13 @@ test('only approved members, and nobody for a viewer who is not approved', () =>
   assert.deepEqual(shoutoutsFor(null, members, birthdays, '2026-10-27'), []);
 });
 
+test('the viewer comes first among the same day and kind', () => {
+  const aaron = member({ id: 'aaron', fullName: 'Aaron' });
+  const zed = { ...me, fullName: 'Zed' };
+  const list = shoutoutsFor(zed, [zed, aaron], [bday('aaron', 10, 27), bday('me', 10, 27)], '2026-10-27');
+  assert.deepEqual(list.map((s) => s.member.id), ['me', 'aaron']);
+});
+
 test('the viewer is marked, and a birthday for someone not in the list is skipped', () => {
   const list = shoutoutsFor(me, [me], [bday('me', 10, 28), bday('gone', 10, 28)], '2026-10-27');
   assert.equal(list.length, 1);

@@ -19,12 +19,16 @@ create table public.member_birthdays (
   )
 );
 
--- Approved members read every shared birthday; nobody writes one through the API.
+-- Approved members read the birthdays of approved members (a suspended or declined member's stays
+-- hidden); nobody writes one through the API.
 alter table public.member_birthdays enable row level security;
 revoke all on public.member_birthdays from public, anon, authenticated;
 grant select on public.member_birthdays to authenticated;
 create policy member_birthdays_for_members on public.member_birthdays for select to authenticated
-  using (private.is_approved_member());
+  using (
+    private.is_approved_member()
+    and exists (select 1 from public.members m where m.id = member_id and m.approval = 'approved')
+  );
 
 -- Shares (or changes) your birthday. Two nulls take it off.
 create or replace function public.set_birthday(p_month int, p_day int)

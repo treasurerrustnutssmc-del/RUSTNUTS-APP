@@ -2,7 +2,7 @@
 
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { useSocial } from '../data/social/SocialProvider';
@@ -15,6 +15,7 @@ import {
   shoutoutDayLabel,
   shoutoutLine,
   shoutoutsFor,
+  type Birthday,
   type Shoutout,
 } from '../domain/social/shoutouts';
 import type { RootParams, RootScreen } from '../navigation/types';
@@ -115,18 +116,20 @@ function ShoutoutRow({ s, last }: { s: Shoutout; last: boolean }) {
             onPress={sayGday}
             hitSlop={4}
             style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
-              width: 44,
               height: 44,
+              paddingHorizontal: space.md,
               marginRight: space.md,
-              borderRadius: 22,
+              borderRadius: 4,
+              flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: 6,
               borderWidth: 1,
               borderColor: colors.lineStrong,
               backgroundColor: pressed || hovered ? colors.steel : 'transparent',
             })}
           >
-            <Ionicons name="chatbubble-outline" size={18} color={colors.bone} />
+            <Ionicons name="chatbubble-outline" size={16} color={colors.bone} />
+            <Text style={type.name}>G’day</Text>
           </Pressable>
         ) : null}
       </View>
@@ -172,13 +175,26 @@ export function MeSocialSection() {
 
 export function BirthdayScreen({ navigation }: RootScreen<'Birthday'>) {
   const { me } = useClub();
-  const { birthdays, setBirthday } = useSocial();
-  const mine = me ? birthdays.find((b) => b.memberId === me.id) ?? null : null;
+  const { ready, birthdays } = useSocial();
+  if (!me) return null;
+  if (!ready) {
+    return (
+      <Screen>
+        <ActivityIndicator color={colors.redText} />
+      </Screen>
+    );
+  }
+  const mine = birthdays.find((b) => b.memberId === me.id) ?? null;
+  // Keyed by what's saved, so the picks start from it once it's loaded.
+  return <BirthdayForm key={mine ? `${mine.month}-${mine.day}` : 'none'} mine={mine} onDone={() => navigation.goBack()} />;
+}
+
+function BirthdayForm({ mine, onDone }: { mine: Birthday | null; onDone: () => void }) {
+  const { setBirthday } = useSocial();
   const [month, setMonth] = useState<number | null>(mine?.month ?? null);
   const [day, setDay] = useState<number | null>(mine?.day ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  if (!me) return null;
 
   const pickMonth = (m: number) => {
     setMonth(m);
@@ -190,7 +206,7 @@ export function BirthdayScreen({ navigation }: RootScreen<'Birthday'>) {
     if (problem) return setError(problem);
     setBusy(true);
     setBirthday(m, d)
-      .then(() => navigation.goBack())
+      .then(onDone)
       .catch((e) => setError((e as Error).message))
       .finally(() => setBusy(false));
   };
