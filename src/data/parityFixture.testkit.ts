@@ -21,7 +21,7 @@ import { readGpx } from '../domain/gpx';
 import type { Conversation } from '../domain/chat';
 import { directId, runChatAction, type ChatAction, type ChatData } from './chat/demoChatActions';
 import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
-import { runSocialAction, type SocialAction } from './social/demoSocialActions'; // Stage 7: social extras
+import { runSocialAction, type SocialAction, type SocialData } from './social/demoSocialActions'; // Stage 7: social extras
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -374,7 +374,7 @@ export function demoAnswer(c: ParityCase): string | null {
     }
     // Stage 7: social extras
     if (String(c.action).startsWith('social')) {
-      runSocialAction({ social: { birthdays: [] }, club: data, me, today }, c as unknown as SocialAction);
+      runSocialAction({ social: fixtureSocial(), club: data, me, today }, c as unknown as SocialAction);
       return null;
     }
     if (String(c.action).startsWith('chat')) {
@@ -421,5 +421,20 @@ export function fixtureChat(): ChatData {
     reads: [],
     blocks: (fixture.blocks ?? []).map((b) => ({ blockerId: b.blocker, blockedId: b.blocked })),
     reports: [],
+  };
+}
+
+// Stage 7: social extras. The fixture's workshops, each with its fixture key as its id.
+export function fixtureSocial(): SocialData {
+  const f = fixture as ParityFixture & { mechanics?: { key: string; name: string; addedBy: string | null; archived: boolean }[] };
+  return {
+    birthdays: [],
+    pastPhotos: [],
+    skills: [],
+    mechanics: (f.mechanics ?? []).map((m) => ({
+      id: m.key, name: m.name, suburb: null, phone: null, website: null, speciality: null, notes: null,
+      addedBy: m.addedBy, addedAt: '2026-10-01T00:00:00.000Z', archivedAt: m.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    vouches: [],
   };
 }

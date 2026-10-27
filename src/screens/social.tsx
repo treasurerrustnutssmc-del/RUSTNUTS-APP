@@ -9,6 +9,7 @@ import { useSocial } from '../data/social/SocialProvider';
 import type { FeedItem } from '../data/chat/chatContext';
 import { formatAuDate } from '../domain/dates';
 import { onThisDay, yearsAgoLabel, type YearGroup } from '../domain/social/onThisDay';
+import { skillLabel } from '../domain/social/help';
 import { displayName, initials } from '../domain/profile';
 import {
   birthdayLabel,
@@ -270,23 +271,30 @@ export function OnThisDayScreen() {
 // Me: social settings
 // ---------------------------------------------------------------------------
 
-/** Me: your birthday shout-out (and, later, the rest of your social bits). */
+/** Me: your birthday shout-out and what you can help with. */
 export function MeSocialSection() {
   const { me } = useClub();
-  const { birthdays } = useSocial();
+  const { birthdays, skills } = useSocial();
   const navigation = useNavigation<Nav>();
   if (!me || me.approval !== 'approved') return null;
   const mine = birthdays.find((b) => b.memberId === me.id) ?? null;
+  const mySkills = skills.find((s) => s.memberId === me.id)?.skills ?? [];
   return (
     <>
       <SectionTitle title="Social" />
       <Card style={{ padding: 0, gap: 0 }}>
         <ListRow
-          last
           left={<IconBadge icon="gift-outline" tone={mine ? 'red' : 'steel'} />}
           title="Birthday shout-out"
           subtitle={mine ? birthdayLabel(mine) : 'Not shared. Add it for a shout-out on Home.'}
           onPress={() => navigation.navigate('Birthday')}
+        />
+        <ListRow
+          last
+          left={<IconBadge icon="construct-outline" tone={mySkills.length ? 'red' : 'steel'} />}
+          title="I can help with"
+          subtitle={mySkills.length ? mySkills.map(skillLabel).join(', ') : 'Nothing yet. Say what you can lend a hand with.'}
+          onPress={() => navigation.navigate('MySkills')}
         />
       </Card>
     </>

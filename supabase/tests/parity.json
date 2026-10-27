@@ -5297,6 +5297,259 @@
       "month": null,
       "day": null,
       "allowed": false
+    },
+    {
+      "name": "A Full member sets their skills",
+      "as": "rusty",
+      "action": "socialSetSkills",
+      "skills": [
+        "tyres",
+        "electrics",
+        "tyres"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "An FNG clears their skills",
+      "as": "finn",
+      "action": "socialSetSkills",
+      "skills": [],
+      "allowed": true
+    },
+    {
+      "name": "A pending applicant can't set skills",
+      "as": "dylan",
+      "action": "socialSetSkills",
+      "skills": [
+        "nope"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "A skill that isn't on the list",
+      "as": "rusty",
+      "action": "socialSetSkills",
+      "skills": [
+        "tyres",
+        "juggling"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "Any approved member adds a workshop",
+      "as": "finn",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": " Sunshine ",
+      "phone": "",
+      "website": "https://bobs.example",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A pending applicant can't add a workshop",
+      "as": "dylan",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A workshop needs a name",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "   ",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A workshop name of 81 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A website needs http or https",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "bobs.example",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Notes of 501 characters are too long",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "allowed": false
+    },
+    {
+      "name": "Whoever added a workshop changes it",
+      "as": "gravel",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "Gravel’s favourite",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A West Secretary changes someone else's workshop",
+      "as": "torque",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "The NEC Chairman changes someone else's workshop",
+      "as": "chair",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A Tail Gunner can't change someone else's workshop",
+      "as": "spanner",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Nobody edits a workshop that's off the list",
+      "as": "gravel",
+      "action": "socialSaveMechanic",
+      "mechanic": "closed-shop",
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A pending applicant is refused before the workshop is looked at",
+      "as": "dylan",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Whoever added it takes a workshop off the list",
+      "as": "gravel",
+      "action": "socialArchiveMechanic",
+      "mechanic": "gravels-shop",
+      "allowed": true
+    },
+    {
+      "name": "A North President takes a workshop off the list",
+      "as": "smokey",
+      "action": "socialArchiveMechanic",
+      "mechanic": "gravels-shop",
+      "allowed": true
+    },
+    {
+      "name": "A member can't take someone else's workshop off",
+      "as": "spanner",
+      "action": "socialArchiveMechanic",
+      "mechanic": "gravels-shop",
+      "allowed": false
+    },
+    {
+      "name": "A workshop can't come off the list twice",
+      "as": "gravel",
+      "action": "socialArchiveMechanic",
+      "mechanic": "closed-shop",
+      "allowed": false
+    },
+    {
+      "name": "Any approved member says they've used a workshop",
+      "as": "spanner",
+      "action": "socialVouchMechanic",
+      "mechanic": "gravels-shop",
+      "on": true,
+      "allowed": true
+    },
+    {
+      "name": "A member takes back their vouch",
+      "as": "spanner",
+      "action": "socialVouchMechanic",
+      "mechanic": "gravels-shop",
+      "on": false,
+      "allowed": true
+    },
+    {
+      "name": "Nobody vouches for a workshop that's off the list",
+      "as": "spanner",
+      "action": "socialVouchMechanic",
+      "mechanic": "closed-shop",
+      "on": true,
+      "allowed": false
+    },
+    {
+      "name": "A pending applicant can't vouch",
+      "as": "dylan",
+      "action": "socialVouchMechanic",
+      "mechanic": "gravels-shop",
+      "on": true,
+      "allowed": false
     }
   ],
   "chapters": [
@@ -6051,5 +6304,19 @@
       "monthOffset": -2
     }
   ],
-  "reportMonth": "2026-08-01"
+  "reportMonth": "2026-08-01",
+  "mechanics": [
+    {
+      "key": "gravels-shop",
+      "name": "Gravel’s pick",
+      "addedBy": "gravel",
+      "archived": false
+    },
+    {
+      "key": "closed-shop",
+      "name": "Closed down",
+      "addedBy": "gravel",
+      "archived": true
+    }
+  ]
 }

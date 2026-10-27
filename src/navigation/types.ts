@@ -76,6 +76,10 @@ export type RootParams = {
   // Stage 7: social extras
   Birthday: undefined;
   OnThisDay: undefined;
+  WhoCanHelp: undefined;
+  Mechanic: { mechanicId: string };
+  EditMechanic: { mechanicId?: string } | undefined;
+  MySkills: undefined;
   // Lane E: share in
   ShareIn: { text: string; media: PickedMedia[]; notes: string[] };
   // Stage 5B: treasurer. A fund is 'club' or a chapter id.
