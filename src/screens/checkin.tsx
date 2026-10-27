@@ -258,9 +258,13 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
   const excused = (data.exemptions ?? []).filter((e) => e.sessionId === session.id);
   const excusedIds = new Set(excused.map((e) => e.memberId));
   const canExcuse = (m: Member) => exemptionProblem(me, session.id, m.id, 'x', data) === null;
+  const canExcuseAny = data.members.some((m) => !marks.has(m.id) && !excusedIds.has(m.id) && canExcuse(m));
   const canTick = (m: Member) => session.heldOn <= today && markProblem(me, session, m, data, today) === null;
+  // Before the day there's nothing to tick, only apologies to take.
+  const mode = session.heldOn > today ? 'excuse' : choice;
+  // Someone excused who turns up can still be ticked: turning up always counts.
   const tickable = data.members
-    .filter((m) => !marks.has(m.id) && !excusedIds.has(m.id) && (canTick(m) || canExcuse(m)))
+    .filter((m) => !marks.has(m.id) && (mode === 'excuse' ? !excusedIds.has(m.id) && canExcuse(m) : canTick(m)))
     .filter((m) => session.chapterId === null || m.chapterId === session.chapterId || q)
     .filter((m) => !q || `${m.fullName} ${m.roadName ?? ''}`.toLowerCase().includes(q))
     .sort((a, b) => displayName(a).localeCompare(displayName(b)));
@@ -277,8 +281,6 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
     }
   };
 
-  // Before the day there's nothing to tick, only apologies to take.
-  const mode = session.heldOn > today ? 'excuse' : choice;
   const excuse = async (memberId: string, why: string | null) => {
     setError(null);
     setBusyId(memberId);
@@ -384,9 +386,9 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
         </>
       ) : null}
 
-      {tickable.length > 0 || q ? (
+      {tickable.length > 0 || q || canExcuseAny ? (
         <>
-          <SectionTitle title={session.heldOn > today ? 'Apologies' : tickable.some(canExcuse) ? 'Tick off or excuse' : 'Tick someone off'} />
+          <SectionTitle title={session.heldOn > today ? 'Apologies' : canExcuseAny ? 'Tick off or excuse' : 'Tick someone off'} />
           <Field
             label="Find a member"
             value={search}
@@ -394,7 +396,7 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
             placeholder="Name or road name"
             autoCorrect={false}
           />
-          {tickable.some(canExcuse) && session.heldOn <= today ? (
+          {canExcuseAny && session.heldOn <= today ? (
             <Choices<'tick' | 'excuse'>
               options={[{ value: 'tick', label: 'Tick off' }, { value: 'excuse', label: 'Excuse' }]}
               value={mode}
@@ -407,7 +409,7 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
           <Card style={{ padding: 0, gap: 0 }}>
             {tickable.length === 0 ? (
               <View style={{ padding: space.lg }}>
-                <Small>Nobody by that name.</Small>
+                <Small>{q ? 'Nobody by that name.' : mode === 'excuse' ? 'Nobody left to excuse.' : 'Everyone’s ticked off.'}</Small>
               </View>
             ) : (
               tickable.slice(0, 40).map((m, i, list) => (

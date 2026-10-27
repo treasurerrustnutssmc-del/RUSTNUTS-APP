@@ -142,3 +142,33 @@ test('no requirement for other statuses, or on hiatus', () => {
   const away = member('m', { onHiatus: true });
   assert.deepEqual(standingOf(away, world(away), '2026-10-24'), { kind: 'full', from: '2026-08-01', onHiatus: true, lines: [] });
 });
+
+test('turning up always counts, even after an excuse', () => {
+  const m = member('m', { patchedOn: '2020-01-01' });
+  const sessions = Array.from({ length: 10 }, (_, i) => monthly(`s${i}`, `2026-09-${String(i + 10)}`));
+  const data = world(m, {
+    checkinSessions: sessions,
+    attendance: sessions.slice(0, 8).map((s) => came(s.id)),
+    exemptions: [excused('s0')], // excused in advance, came anyway
+  });
+  assert.deepEqual(line(standingOf(m, data, '2026-10-24'), 'meetings')?.state, 'met');
+  assert.equal(line(standingOf(m, data, '2026-10-24'), 'meetings')?.held, 10);
+  // The same for a Big 4 they rode.
+  const b = world(m, {
+    rides: [ride('b1', { startsAt: '2026-09-05T23:00:00.000Z', category: 'club' })],
+    big4Rides: [big4('b1')],
+    checkinSessions: [session('s1', { kind: 'ride', rideId: 'b1', chapterId: null, heldOn: '2026-09-06' })],
+    attendance: [came('s1')],
+    exemptions: [excused('s1')],
+  });
+  assert.equal(line(standingOf(m, b, '2026-10-24'), 'big4')?.attended, 1);
+});
+
+test('today’s meeting counts once it’s closed or they’ve checked in', () => {
+  const m = member('m', { patchedOn: '2020-01-01' });
+  const data = world(m, { checkinSessions: [monthly('a', '2026-09-17'), monthly('t', '2026-10-24')], attendance: [came('a')] });
+  assert.equal(line(standingOf(m, data, '2026-10-24'), 'meetings')?.held, 1);
+  assert.equal(line(standingOf(m, { ...data, attendance: [came('a'), came('t')] }, '2026-10-24'), 'meetings')?.held, 2);
+  const closed = { ...data, checkinSessions: [monthly('a', '2026-09-17'), monthly('t', '2026-10-24', { closedAt: '2026-10-24T11:00:00Z' })] };
+  assert.equal(line(standingOf(m, closed, '2026-10-24'), 'meetings')?.held, 2);
+});

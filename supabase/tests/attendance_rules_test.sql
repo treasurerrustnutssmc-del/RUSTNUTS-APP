@@ -152,7 +152,19 @@ begin
   err := pg_temp.try_as(sam, 'select set_meeting_type(''00000000-0000-0000-0000-00000000ee01'', ''bbq'')');
   assert err = 'Pick what kind of meeting it is.', err;
   err := pg_temp.try_as(sam, 'select set_meeting_type(''00000000-0000-0000-0000-00000000ee02'', ''event'')');
-  assert err = 'A meeting’s kind is set before it’s held (4.6).', err;
+  assert err = 'A meeting’s kind is set before the day it’s held (4.6).', err;
+  insert into checkin_sessions (id, kind, chapter_id, title, held_on, code) values
+    ('00000000-0000-0000-0000-00000000ee04', 'meeting', (select id from chapters where slug = 'west'), 'Tonight', private.club_date(), 'AAAAA4');
+  err := pg_temp.try_as(sam, 'select set_meeting_type(''00000000-0000-0000-0000-00000000ee04'', ''event'')');
+  assert err = 'A meeting’s kind is set before the day it’s held (4.6).', format('not on the day: %s', err);
+  -- Opening and classifying in one go; a bad kind opens nothing.
+  err := pg_temp.try_as(sam, format('select open_checkin(%L, null, %L, %L, %L, %L)', 'meeting', (select id from chapters where slug = 'west'), 'Barbie', private.club_date() + 3, 'bbq'));
+  assert err = 'Pick what kind of meeting it is.', err;
+  assert not exists (select 1 from checkin_sessions where title = 'Barbie'), 'nothing opened';
+  assert pg_temp.try_as(sam, format('select open_checkin(%L, null, %L, %L, %L, %L)', 'meeting', (select id from chapters where slug = 'west'), 'Barbie', private.club_date() + 3, 'event')) is null, 'opened';
+  assert (select meeting_type from checkin_sessions where title = 'Barbie') = 'event', 'as an event';
+  assert pg_temp.try_as(sam, format('select open_checkin(%L, null, %L, %L, %L)', 'meeting', (select id from chapters where slug = 'west'), 'Plain', private.club_date() + 3)) is null, 'the old five still works';
+  assert (select meeting_type from checkin_sessions where title = 'Plain') is null, 'as ordinary';
   assert pg_temp.try_as(sam, 'select set_meeting_type(''00000000-0000-0000-0000-00000000ee01'', ''special'')') is null, 'set';
   assert (select meeting_type from checkin_sessions where id = '00000000-0000-0000-0000-00000000ee01') = 'special', 'stored';
   begin

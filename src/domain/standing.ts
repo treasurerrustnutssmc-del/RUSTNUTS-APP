@@ -5,7 +5,7 @@
 // check-in for are "held"; an excused one drops out of that member's count. This only informs the
 // board: a status change still needs the 5.5 process.
 
-import { attended, isExcused, meetingTypeOf } from './attendance';
+import { attended, excusedAway, meetingTypeOf } from './attendance';
 import { appliesTo } from './big4';
 import { agmOn, clubYearOf } from './clubYear';
 import { melbourneDate } from './rides';
@@ -39,9 +39,11 @@ export function atLeast(held: number, num: number, den: number): number {
 }
 
 function countLine(
-  key: StandingLine['key'], label: string, sessions: CheckinSession[], member: Member, data: ClubData, num: number, den: number,
+  key: StandingLine['key'], label: string, sessions: CheckinSession[], member: Member, data: ClubData, today: string, num: number, den: number,
 ): StandingLine {
-  const counted = sessions.filter((s) => !isExcused(s.id, member.id, data));
+  const counted = sessions.filter((s) => !excusedAway(s.id, member.id, data))
+    // Today's, while it's still open, only counts for someone already checked in.
+    .filter((s) => s.heldOn < today || s.closedAt || attended(s.id, member.id, data));
   const came = counted.filter((s) => attended(s.id, member.id, data)).length;
   const needed = atLeast(counted.length, num, den);
   const state: StandingState = counted.length === 0 ? 'none' : came >= needed ? 'met' : 'behind';
@@ -58,7 +60,7 @@ function big4Line(member: Member, data: ClubData, from: string, yearEnd: string,
     const day = melbourneDate(ride.startsAt);
     if (day < from || day >= yearEnd) continue;
     const s = (data.checkinSessions ?? []).find((x) => x.rideId === ride.id);
-    if (s && isExcused(s.id, member.id, data)) continue;
+    if (s && excusedAway(s.id, member.id, data)) continue;
     if (s && attended(s.id, member.id, data)) came++;
     else if (day >= today) upcoming++;
     else if (s) missed++;
@@ -86,8 +88,8 @@ export function standingOf(member: Member, data: ClubData, today: string): Stand
       kind, from, onHiatus: false,
       lines: [
         nomad
-          ? countLine('meetings', 'Meetings · two in three', ordinary, member, data, 2, 3)
-          : countLine('meetings', 'Monthly meetings · 80%', ordinary, member, data, 4, 5),
+          ? countLine('meetings', 'Meetings · two in three', ordinary, member, data, today, 2, 3)
+          : countLine('meetings', 'Monthly meetings · 80%', ordinary, member, data, today, 4, 5),
         big4Line(member, data, from, agmOn(year + 1, data.agms), today, nomad ? 1 : 2),
       ],
     };
@@ -101,9 +103,9 @@ export function standingOf(member: Member, data: ClubData, today: string): Stand
     return {
       kind: 'fng', from, onHiatus: false,
       lines: [
-        countLine('rides', 'Rides · 50%', trial.filter((s) => s.kind === 'ride' && (s.chapterId === null || home(s))), member, data, 1, 2),
-        countLine('meetings', 'Monthly meetings · 50%', trial.filter((s) => home(s) && meetingTypeOf(s) === 'ordinary'), member, data, 1, 2),
-        countLine('events', 'Other events · 50%', trial.filter((s) => home(s) && meetingTypeOf(s) === 'event'), member, data, 1, 2),
+        countLine('rides', 'Rides · 50%', trial.filter((s) => s.kind === 'ride' && (s.chapterId === null || home(s))), member, data, today, 1, 2),
+        countLine('meetings', 'Monthly meetings · 50%', trial.filter((s) => home(s) && meetingTypeOf(s) === 'ordinary'), member, data, today, 1, 2),
+        countLine('events', 'Other events · 50%', trial.filter((s) => home(s) && meetingTypeOf(s) === 'event'), member, data, today, 1, 2),
       ],
     };
   }

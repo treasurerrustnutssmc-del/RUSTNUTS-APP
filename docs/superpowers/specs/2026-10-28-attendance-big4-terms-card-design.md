@@ -35,7 +35,7 @@ Shape agreed with the ride planning extras thread: app type `Big4Ride { rideId, 
 
 ## 2. Meeting categories (4.6, 5.2)
 
-`checkin_sessions` gets `meeting_type text null check in ('ordinary', 'special', 'event')`, null for rides. Existing meeting check-ins have none and count as **ordinary** (they were the monthly meetings). `open_checkin` is left as it is (changing its arguments would need the old version removed, and live files keep that word out); a new action `set_meeting_type(p_session, p_type)` sets the kind, and the app calls it straight after opening anything that isn't ordinary. Refusals: "That check-in no longer exists.", "Only that chapter’s board can run this check-in.", "Only a meeting check-in has a kind.", "Pick what kind of meeting it is.", "A meeting’s kind is set before it’s held (4.6)." The Open a meeting check-in screen gets three choices: **Monthly meeting** (ordinary; an Annual Chapter Meeting held with it counts once, as this), **Special or annual**, **Other event**. Classified in advance (4.6), and changeable only until the day it's held.
+`checkin_sessions` gets `meeting_type text null check in ('ordinary', 'special', 'event')`, null for rides. Existing meeting check-ins have none and count as **ordinary** (they were the monthly meetings). A six-argument `open_checkin(..., p_meeting_type)` sits beside the original five-argument one (no defaults, so every call names which; replacing the old one would need the word live files keep out). It opens and classifies in one go, so a bad kind opens nothing. The app uses it for anything but an ordinary meeting. `set_meeting_type(p_session, p_type)` changes the kind, only before the day it's held. Refusals: "That check-in no longer exists.", "Only that chapter’s board can run this check-in.", "Only a meeting check-in has a kind.", "Pick what kind of meeting it is.", "A meeting’s kind is set before the day it’s held (4.6)." The Open a meeting check-in screen gets three choices: **Monthly meeting** (ordinary; an Annual Chapter Meeting held with it counts once, as this), **Special or annual**, **Other event**. Classified in advance (4.6), and changeable only until the day it's held.
 
 The new column is read with a plain select (column grant), so `members_money()` isn't redefined.
 
@@ -63,7 +63,8 @@ All counts use 2.4: the smallest whole number that meets the percentage (`ceil(h
 | Anyone else, or on hiatus | none | none | none |
 
 - **Held** means a check-in was opened for it, dated in the window, on or before today. A meeting nobody opened check-in for can't be counted for or against anyone.
-- **Excused** activities leave that member's held count.
+- **Excused** activities leave that member's held count, unless they came after all: turning up always counts.
+- **Today's meeting** counts once it's closed, or for someone already checked in.
 - **Applicable Big 4:** designated for every chapter or the member's chapter, not cancelled, not excused for them. A past Big 4 with no check-in drops out (nobody can show they went; "if fewer are held, the requirement reduces", 5.11). A future one counts as still to come.
 - **States:** Met (attended ≥ needed); for Big 4, **To go** (not met but enough Big 4s are still on the calendar); otherwise **Behind**. Meetings are judged on the year so far, so they're Met or Behind.
 - **On hiatus:** no requirement shown ("On hiatus" note). *Inferred: hiatus works as standing relief under 4.12; Jeff can veto.*
@@ -100,6 +101,10 @@ A "Membership card" row on Me opens a card: the real logo (`assets/logo.png`), n
 One paste file, `/mnt/project-files/build/attendance-big4.sql`, identical to the migration, queued through the coordinator for the "Apply pending SQL in Supabase" thread. No real data loaded, nothing designated.
 
 ## Next steps (not in this change)
+
+- Excusing someone from a Big 4 ahead of time (an excuse needs the ride's check-in, opened on the day).
+- Changing a Big 4's chapter from the ride screen (the action supports it; today it's take off and designate again).
+- Who can excuse: the chapter board plus everyone the app counts as national, which includes the National Auditor and other chapters' Presidents (inherited from `is_board_of`). The NEC powers split in the v4 audit should narrow this.
 
 - Block a Going RSVP on a Big 4 for Supporters and for members without 5.4 eligibility (needs `set_rsvp`, owned by lane A).
 - Status-change fairness (5.5): the 14-day notice workflow from an attendance shortfall.

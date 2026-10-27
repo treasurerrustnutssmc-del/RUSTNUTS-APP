@@ -148,6 +148,11 @@ export function isExcused(sessionId: string, memberId: string, data: ClubData): 
   return (data.exemptions ?? []).some((e) => e.sessionId === sessionId && e.memberId === memberId);
 }
 
+/** Excused and didn't come after all: it drops out of their count. Turning up always counts. */
+export function excusedAway(sessionId: string, memberId: string, data: ClubData): boolean {
+  return isExcused(sessionId, memberId, data) && !attended(sessionId, memberId, data);
+}
+
 export function attended(sessionId: string, memberId: string, data: ClubData): boolean {
   return (data.attendance ?? []).some((a) => a.sessionId === sessionId && a.memberId === memberId);
 }
@@ -166,13 +171,13 @@ export function exemptionProblem(me: Member | null, sessionId: string, memberId:
   return null;
 }
 
-/** Why `me` can't set a meeting check-in's category, or null. Set before the meeting is held (4.6). */
+/** Why `me` can't change a meeting check-in's category, or null. Only before the day it's held (4.6: in advance). */
 export function meetingTypeProblem(me: Member | null, sessionId: string, type: MeetingType, data: ClubData, today: string): string | null {
   const session = (data.checkinSessions ?? []).find((s) => s.id === sessionId);
   if (!session) return 'That check-in no longer exists.';
   if (!canRunCheckin(me, session.chapterId, data.positions)) return RUN_ONLY;
   if (session.kind !== 'meeting') return 'Only a meeting check-in has a kind.';
   if (!MEETING_TYPES.includes(type)) return 'Pick what kind of meeting it is.';
-  if (session.heldOn < today) return 'A meeting’s kind is set before it’s held (4.6).';
+  if (session.heldOn <= today) return 'A meeting’s kind is set before the day it’s held (4.6).';
   return null;
 }

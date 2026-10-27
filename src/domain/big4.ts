@@ -3,7 +3,7 @@
 // database's designate_big4 and undesignate_big4 apply the same rules with the same words.
 
 import { activePositions } from './access';
-import { isExcused, meetingTypeOf } from './attendance';
+import { excusedAway, meetingTypeOf } from './attendance';
 import { melbourneDate } from './rides';
 import type { Big4Ride, ClubData, Member, Position, PositionRole } from './types';
 
@@ -69,7 +69,7 @@ export function big4Eligibility(
   const recent = (data.checkinSessions ?? [])
     .filter((s) => s.kind === 'meeting' && s.chapterId === member.chapterId && meetingTypeOf(s) !== 'event')
     // Held already (a meeting still to come can't be missed yet) and before the ride.
-    .filter((s) => s.heldOn < rideDate && s.heldOn <= today && !isExcused(s.id, member.id, data))
+    .filter((s) => s.heldOn < rideDate && s.heldOn <= today && !excusedAway(s.id, member.id, data))
     .sort((a, b) => b.heldOn.localeCompare(a.heldOn))
     .slice(0, 3);
   const came = recent.filter((s) => (data.attendance ?? []).some((a) => a.sessionId === s.id && a.memberId === member.id)).length;

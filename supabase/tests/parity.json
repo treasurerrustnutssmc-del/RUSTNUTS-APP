@@ -5377,12 +5377,12 @@
       "allowed": true
     },
     {
-      "name": "West's Secretary marks today's meeting as special",
+      "name": "West's Secretary changes today's meeting kind",
       "as": "torque",
       "action": "setMeetingType",
       "session": "today-west",
       "type": "special",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "West's Secretary changes yesterday's meeting kind",

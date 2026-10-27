@@ -95,8 +95,26 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Meeting categories (4.6, 5.2): set by whoever runs the check-in, before the meeting is held
+-- Meeting categories (4.6, 5.2): classified when the check-in is opened, and changeable only
+-- before the day it's held. A six-argument open_checkin sits beside the old one (no defaults, so a
+-- call always names which), opening and classifying in one go.
 -- ---------------------------------------------------------------------------
+
+create or replace function public.open_checkin(p_kind text, p_ride uuid, p_chapter uuid, p_title text, p_held_on date, p_meeting_type text)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  new_id uuid;
+begin
+  new_id := public.open_checkin(p_kind, p_ride, p_chapter, p_title, p_held_on);
+  if p_kind = 'meeting' then
+    if p_meeting_type is null or p_meeting_type not in ('ordinary', 'special', 'event') then
+      raise exception 'Pick what kind of meeting it is.';
+    end if;
+    update public.checkin_sessions set meeting_type = p_meeting_type where id = new_id;
+  end if;
+  return new_id;
+end;
+$$;
 
 create or replace function public.set_meeting_type(p_session uuid, p_type text)
 returns void language plpgsql security definer set search_path = '' as $$
@@ -108,7 +126,7 @@ begin
   if not private.can_run_checkin(s.chapter_id) then raise exception 'Only that chapter’s board can run this check-in.'; end if;
   if s.kind <> 'meeting' then raise exception 'Only a meeting check-in has a kind.'; end if;
   if p_type is null or p_type not in ('ordinary', 'special', 'event') then raise exception 'Pick what kind of meeting it is.'; end if;
-  if s.held_on < private.club_date() then raise exception 'A meeting’s kind is set before it’s held (4.6).'; end if;
+  if s.held_on <= private.club_date() then raise exception 'A meeting’s kind is set before the day it’s held (4.6).'; end if;
   update public.checkin_sessions set meeting_type = p_type where id = p_session;
 end;
 $$;
@@ -145,7 +163,7 @@ $$;
 
 revoke all on function private.can_designate_big4() from public, anon;
 grant execute on function private.can_designate_big4() to authenticated;
-revoke all on function public.designate_big4(uuid, uuid), public.undesignate_big4(uuid), public.set_meeting_type(uuid, text),
+revoke all on function public.open_checkin(text, uuid, uuid, text, date, text), public.designate_big4(uuid, uuid), public.undesignate_big4(uuid), public.set_meeting_type(uuid, text),
   public.set_exemption(uuid, uuid, text) from public, anon;
-grant execute on function public.designate_big4(uuid, uuid), public.undesignate_big4(uuid), public.set_meeting_type(uuid, text),
+grant execute on function public.open_checkin(text, uuid, uuid, text, date, text), public.designate_big4(uuid, uuid), public.undesignate_big4(uuid), public.set_meeting_type(uuid, text),
   public.set_exemption(uuid, uuid, text) to authenticated;

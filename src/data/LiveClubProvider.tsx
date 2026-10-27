@@ -512,12 +512,11 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
           p_chapter: input.chapterId,
           p_title: input.title.trim() || null,
           p_held_on: input.kind === 'meeting' ? input.heldOn : null,
+          // Anything but an ordinary meeting goes to the six-argument version, which opens and
+          // classifies it in one go (4.6). Ordinary keeps the original call.
+          ...(input.kind === 'meeting' && input.meetingType && input.meetingType !== 'ordinary' ? { p_meeting_type: input.meetingType } : {}),
         }),
       );
-      // A meeting opens as ordinary; anything else is set straight after (4.6: classified in advance).
-      if (input.kind === 'meeting' && input.meetingType && input.meetingType !== 'ordinary') {
-        ok(await supabase().rpc('set_meeting_type', { p_session: r.data as string, p_type: input.meetingType }));
-      }
       await after();
       return r.data as string;
     },

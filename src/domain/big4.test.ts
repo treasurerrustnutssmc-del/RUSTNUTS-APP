@@ -101,3 +101,12 @@ test('Big 4 eligibility: two of the three most recent official meetings (5.4)', 
   r = big4Eligibility(rider, '2026-07-01', { ...base, attendance: [] }, today);
   assert.deepEqual(r, { attended: 0, of: 0, needed: 0, ok: true });
 });
+
+test('a meeting they were excused from but came to still counts (5.4)', () => {
+  const data = club({
+    checkinSessions: [session('m1', { heldOn: '2026-08-20' }), session('m2', { heldOn: '2026-09-20' }), session('m3', { heldOn: '2026-10-20' })],
+    attendance: [came('m3', 'rider'), came('m2', 'rider')],
+    exemptions: [{ sessionId: 'm3', memberId: 'rider', reason: 'Work', grantedBy: 'sec', grantedAt: '2026-10-01T00:00:00Z' }],
+  });
+  assert.deepEqual(big4Eligibility(member('rider'), '2026-11-07', data, today), { attended: 2, of: 3, needed: 2, ok: true });
+});

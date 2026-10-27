@@ -515,7 +515,11 @@ export type Database = {
       // Stage 4: members and money
       members_money: { Args: never; Returns: MembersMoneyRows };
       open_checkin: {
-        Args: { p_kind: string; p_ride: string | null; p_chapter: string | null; p_title: string | null; p_held_on: string | null };
+        Args: {
+          p_kind: string; p_ride: string | null; p_chapter: string | null; p_title: string | null; p_held_on: string | null;
+          /** Attendance rules: the six-argument version opens and classifies a meeting in one go. */
+          p_meeting_type?: MeetingType;
+        };
         Returns: string;
       };
       checkin_code: { Args: { p_session: string }; Returns: string };
