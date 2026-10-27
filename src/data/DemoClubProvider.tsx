@@ -7,6 +7,7 @@ import { melbourneDate } from '../domain/rides';
 import type { ClubData } from '../domain/types';
 import { ClubContext, type ClubContextValue } from './clubContext';
 import * as business from './businessActions';
+import * as planning from './planningActions'; // Ride planning extras
 import * as act from './demoActions';
 import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
@@ -157,6 +158,21 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     decideBus: async (bookingId, yes, reason) => setData(act.decideBus(ctx, bookingId, yes, reason)),
     cancelBus: async (bookingId) => setData(act.cancelBus(ctx, bookingId)),
+    // Ride planning extras
+    setBikeRange: async (bikeId, rangeKm) => keep(planning.setBikeRange(fresh(), bikeId, rangeKm)),
+    saveRidePlan: async (rideId, stops, seen) => keep(planning.saveRidePlan(fresh(), rideId, stops, seen)),
+    rateRoute: async (routeId, stars, comment) => keep(planning.rateRoute(fresh(), routeId, stars, comment)),
+    callRide: async (rideId, state, reason, newDay) => keep(planning.callRide(fresh(), rideId, state, reason, newDay)),
+    saveHub: async (rideId, input) => keep(planning.saveHub(fresh(), rideId, input)),
+    registerHub: async (rideId, input) => keep(planning.registerHub(fresh(), rideId, input)),
+    withdrawHub: async (rideId) => keep(planning.withdrawHub(fresh(), rideId)),
+    askSwap: async (rideId, toId, note) => {
+      const result = planning.askSwap(fresh(), rideId, toId, note);
+      keep(result.data);
+      return result.id;
+    },
+    answerSwap: async (swapId, yes) => keep(planning.answerSwap(fresh(), swapId, yes)),
+    withdrawSwap: async (swapId) => keep(planning.withdrawSwap(fresh(), swapId)),
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => setData((d) => ({ ...d, notificationPrefs: prefs })),
     // Stage 5B: treasurer

@@ -6,6 +6,16 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
 import { bookProblem, cancelProblem, decideProblem } from '../domain/bus';
+// Ride planning extras
+import { rangeProblem } from '../domain/fuel';
+import { registerProblem, saveHubProblem, withdrawHubProblem } from '../domain/hubs';
+import { rateProblem } from '../domain/ratings';
+import { callProblem } from '../domain/rideCalls';
+import { isPlanConflict, savePlanProblem } from '../domain/ridePlan';
+import { answerSwapProblem, askSwapProblem, withdrawSwapProblem } from '../domain/swaps';
+import {
+  askSwapArgs, callRideArgs, rateRouteArgs, registerHubArgs, saveHubArgs, saveRidePlanArgs, setBikeRangeArgs,
+} from './planningLive';
 import { goingProblem, isRoadRulesVersionRefusal, publishProblem, signProblem } from '../domain/roadRules';
 import {
   actionItemProblem,
@@ -784,6 +794,61 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const problem = cancelProblem(visibleMe, booking, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('cancel_bus', cancelBusArgs(bookingId)));
+      await after();
+    },
+
+    // Ride planning extras: the app's rules first, then the database's action, then a reload.
+    setBikeRange: async (bikeId, rangeKm) => {
+      deny(rangeProblem(visibleMe, data.bikes.find((b) => b.id === bikeId), rangeKm));
+      ok(await supabase().rpc('set_bike_range', setBikeRangeArgs(bikeId, rangeKm)));
+      await after();
+    },
+    saveRidePlan: (rideId, stops, seen) =>
+      reloadOnNewerVersion(async () => {
+        deny(savePlanProblem(visibleMe, data.rides.find((r) => r.id === rideId), stops, seen, data, new Date().toISOString()));
+        ok(await supabase().rpc('save_ride_plan', saveRidePlanArgs(rideId, stops, seen)));
+        await after();
+      }, after, isPlanConflict),
+    rateRoute: async (routeId, stars, comment) => {
+      deny(rateProblem(visibleMe, (data.routes ?? []).find((r) => r.id === routeId), stars, comment));
+      ok(await supabase().rpc('rate_route', rateRouteArgs(routeId, stars, comment)));
+      await after();
+    },
+    callRide: async (rideId, state, reason, newDay) => {
+      deny(callProblem(visibleMe, data.rides.find((r) => r.id === rideId), state, reason, newDay, data, new Date().toISOString()));
+      ok(await supabase().rpc('call_ride', callRideArgs(rideId, state, reason, newDay)));
+      await after();
+    },
+    saveHub: async (rideId, input) => {
+      deny(saveHubProblem(visibleMe, data.rides.find((r) => r.id === rideId), input, data, new Date().toISOString()));
+      ok(await supabase().rpc('save_hub', saveHubArgs(rideId, input)));
+      await after();
+    },
+    registerHub: async (rideId, input) => {
+      deny(registerProblem(visibleMe, data.rides.find((r) => r.id === rideId), input, data, new Date().toISOString(), today));
+      ok(await supabase().rpc('register_hub', registerHubArgs(rideId, input)));
+      await after();
+    },
+    withdrawHub: async (rideId) => {
+      deny(withdrawHubProblem(visibleMe, data.rides.find((r) => r.id === rideId), data, new Date().toISOString()));
+      ok(await supabase().rpc('withdraw_hub', { p_ride: rideId }));
+      await after();
+    },
+    askSwap: async (rideId, toId, note) => {
+      deny(askSwapProblem(visibleMe, data.rides.find((r) => r.id === rideId), toId, note, data, new Date().toISOString()));
+      const result = ok(await supabase().rpc('ask_swap', askSwapArgs(rideId, toId, note)));
+      await after();
+      return result.data ?? '';
+    },
+    answerSwap: async (swapId, yes) => {
+      const swap = (data.crewSwaps ?? []).find((s) => s.id === swapId);
+      deny(answerSwapProblem(visibleMe, swap, yes, data, new Date().toISOString()));
+      ok(await supabase().rpc('answer_swap', { p_swap: swapId, p_yes: yes }));
+      await after();
+    },
+    withdrawSwap: async (swapId) => {
+      deny(withdrawSwapProblem(visibleMe, (data.crewSwaps ?? []).find((s) => s.id === swapId)));
+      ok(await supabase().rpc('withdraw_swap', { p_swap: swapId }));
       await after();
     },
 
