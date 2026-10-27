@@ -80,21 +80,24 @@ test('Big 4 eligibility: two of the three most recent official meetings (5.4)', 
   const rider = member('rider');
   const base = club({ checkinSessions: meetings });
   // Last three before 7 Nov: m4, m3, m2. Events and other chapters don't count.
-  let r = big4Eligibility(rider, '2026-11-07', { ...base, attendance: [came('m4', 'rider'), came('m1', 'rider'), came('ev', 'rider'), came('nm', 'rider')] });
+  let r = big4Eligibility(rider, '2026-11-07', { ...base, attendance: [came('m4', 'rider'), came('m1', 'rider'), came('ev', 'rider'), came('nm', 'rider')] }, today);
   assert.deepEqual(r, { attended: 1, of: 3, needed: 2, ok: false });
-  r = big4Eligibility(rider, '2026-11-07', { ...base, attendance: [came('m4', 'rider'), came('m3', 'rider')] });
+  r = big4Eligibility(rider, '2026-11-07', { ...base, attendance: [came('m4', 'rider'), came('m3', 'rider')] }, today);
   assert.deepEqual(r, { attended: 2, of: 3, needed: 2, ok: true });
   // An excused meeting is skipped: the three become m4, m2, m1.
   r = big4Eligibility(rider, '2026-11-07', {
     ...base,
     attendance: [came('m4', 'rider'), came('m1', 'rider')],
     exemptions: [{ sessionId: 'm3', memberId: 'rider', reason: 'Work', grantedBy: 'sec', grantedAt: '2026-09-21T00:00:00Z' }],
-  });
+  }, today);
   assert.deepEqual(r, { attended: 2, of: 3, needed: 2, ok: true });
   // Only one meeting held so far: that one is needed.
-  r = big4Eligibility(rider, '2026-07-25', { ...base, attendance: [] });
+  r = big4Eligibility(rider, '2026-07-25', { ...base, attendance: [] }, today);
   assert.deepEqual(r, { attended: 0, of: 1, needed: 1, ok: false });
+  // A meeting still to come doesn't count: on 15 Oct, m4 (20 Oct) hasn't happened.
+  r = big4Eligibility(rider, '2026-11-07', { ...base, attendance: [came('m3', 'rider'), came('m2', 'rider')] }, '2026-10-15');
+  assert.deepEqual(r, { attended: 2, of: 3, needed: 2, ok: true });
   // None held: nothing needed.
-  r = big4Eligibility(rider, '2026-07-01', { ...base, attendance: [] });
+  r = big4Eligibility(rider, '2026-07-01', { ...base, attendance: [] }, today);
   assert.deepEqual(r, { attended: 0, of: 0, needed: 0, ok: true });
 });

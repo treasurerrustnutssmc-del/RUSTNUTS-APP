@@ -223,7 +223,7 @@ export function Big4Card({ ride }: { ride: Ride }) {
   const chapterChoices = [{ value: 'all', label: 'Whole club' }, ...data.chapters.map((c) => ({ value: c.id, label: c.name }))];
 
   const applies = big4 && (big4.chapterId === null || big4.chapterId === me.chapterId);
-  const eligibility = applies && ['full', 'nomad', 'fng'].includes(me.status) && me.approval === 'approved' ? big4Eligibility(me, rideDate, data) : null;
+  const eligibility = applies && ['full', 'nomad', 'fng'].includes(me.status) && me.approval === 'approved' ? big4Eligibility(me, rideDate, data, today) : null;
 
   if (!big4 && !canChange) return null;
   return (

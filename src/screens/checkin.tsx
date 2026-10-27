@@ -223,6 +223,7 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
   // Excusing someone (4.12, 5.3): whose reason is being typed.
   const [excusing, setExcusing] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [choice, setChoice] = useState<'tick' | 'excuse'>('tick');
   const { width } = useWindowDimensions();
   const qrSize = Math.min(width - space.lg * 4, 300);
 
@@ -276,6 +277,8 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
     }
   };
 
+  // Before the day there's nothing to tick, only apologies to take.
+  const mode = session.heldOn > today ? 'excuse' : choice;
   const excuse = async (memberId: string, why: string | null) => {
     setError(null);
     setBusyId(memberId);
@@ -383,7 +386,7 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
 
       {tickable.length > 0 || q ? (
         <>
-          <SectionTitle title={session.heldOn <= today ? 'Tick someone off' : 'Apologies'} />
+          <SectionTitle title={session.heldOn > today ? 'Apologies' : tickable.some(canExcuse) ? 'Tick off or excuse' : 'Tick someone off'} />
           <Field
             label="Find a member"
             value={search}
@@ -391,8 +394,15 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
             placeholder="Name or road name"
             autoCorrect={false}
           />
-          {tickable.some(canExcuse) ? (
-            <Small>Tap a name to excuse them for work, family, health, injury or distance. It won’t count against them.</Small>
+          {tickable.some(canExcuse) && session.heldOn <= today ? (
+            <Choices<'tick' | 'excuse'>
+              options={[{ value: 'tick', label: 'Tick off' }, { value: 'excuse', label: 'Excuse' }]}
+              value={mode}
+              onChange={(v) => { setChoice(v); setExcusing(null); }}
+            />
+          ) : null}
+          {mode === 'excuse' ? (
+            <Small>Excuse anyone away for work, family, health, injury or distance (4.12). It won’t count against them.</Small>
           ) : null}
           <Card style={{ padding: 0, gap: 0 }}>
             {tickable.length === 0 ? (
@@ -407,8 +417,20 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
                     left={<Avatar text={initials(m)} size={40} />}
                     title={displayName(m)}
                     subtitle={m.approval === 'pending' ? 'Applicant' : m.fullName !== displayName(m) ? m.fullName : undefined}
-                    onPress={canExcuse(m) ? () => { setExcusing(excusing === m.id ? null : m.id); setReason(''); } : undefined}
-                    right={canTick(m) ? <Button label="Tick" kind="secondary" icon="checkmark" busy={busyId === m.id} onPress={() => mark(m.id, true)} /> : undefined}
+                    right={
+                      mode === 'excuse' ? (
+                        canExcuse(m) ? (
+                          <Button
+                            label="Excuse"
+                            kind="secondary"
+                            accessibilityLabel={`Excuse ${displayName(m)}`}
+                            onPress={() => { setExcusing(excusing === m.id ? null : m.id); setReason(''); }}
+                          />
+                        ) : undefined
+                      ) : canTick(m) ? (
+                        <Button label="Tick" kind="secondary" icon="checkmark" busy={busyId === m.id} onPress={() => mark(m.id, true)} />
+                      ) : undefined
+                    }
                   />
                   {excusing === m.id ? (
                     <View style={{ padding: space.lg, paddingTop: 0, gap: space.sm }}>

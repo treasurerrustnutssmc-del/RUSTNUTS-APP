@@ -61,12 +61,15 @@ export function undesignateBig4Problem(me: Member | null, rideId: string, data: 
 /**
  * 5.4: before a Big 4, two of the three most recent official meetings (ordinary or special) of the
  * home chapter, held before the ride's date. Meetings they were excused from are skipped. With
- * fewer than two held, all of them are needed.
+ * fewer than two held, all of them are needed. Meetings not yet held don't count either way.
  */
-export function big4Eligibility(member: Member, rideDate: string, data: ClubData): { attended: number; of: number; needed: number; ok: boolean } {
+export function big4Eligibility(
+  member: Member, rideDate: string, data: ClubData, today: string,
+): { attended: number; of: number; needed: number; ok: boolean } {
   const recent = (data.checkinSessions ?? [])
     .filter((s) => s.kind === 'meeting' && s.chapterId === member.chapterId && meetingTypeOf(s) !== 'event')
-    .filter((s) => s.heldOn < rideDate && !isExcused(s.id, member.id, data))
+    // Held already (a meeting still to come can't be missed yet) and before the ride.
+    .filter((s) => s.heldOn < rideDate && s.heldOn <= today && !isExcused(s.id, member.id, data))
     .sort((a, b) => b.heldOn.localeCompare(a.heldOn))
     .slice(0, 3);
   const came = recent.filter((s) => (data.attendance ?? []).some((a) => a.sessionId === s.id && a.memberId === member.id)).length;
