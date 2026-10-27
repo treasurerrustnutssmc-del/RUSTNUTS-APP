@@ -82,6 +82,8 @@ export interface Bike {
   year: number | null;
   nickname: string | null;
   isProject: boolean;
+  /** Ride planning extras: km on a full tank before the fuel light comes on. Missing or null: not set. */
+  rangeKm?: number | null;
 }
 
 /** Registration details: the member and their chapter board only. */
@@ -267,6 +269,13 @@ export interface ClubData extends LedgerData {
   busBookings?: BusBooking[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
+  // Ride planning extras. Missing means none.
+  ridePlans?: RidePlan[];
+  routeRatings?: RouteRating[];
+  rideCalls?: RideCall[];
+  rideHubs?: RideHub[];
+  hubRegistrations?: HubRegistration[];
+  crewSwaps?: CrewSwap[];
   // Lane E: notifications
   /** The signed-in member's saved notification settings, or null for the defaults. */
   notificationPrefs?: NotificationPrefs | null;
@@ -657,4 +666,99 @@ export interface AttendanceExemption {
   reason: string;
   grantedBy: string | null;
   grantedAt: string;
+}
+
+// Ride planning extras --------------------------------------------------------------------------
+
+export type StopKind = 'fuel' | 'coffee' | 'lunch' | 'regroup' | 'other';
+
+/** One stop on a ride's plan. km is how far along the route; time is 24-hour HH:MM. */
+export interface PlanStop {
+  kind: StopKind;
+  name: string;
+  km: number | null;
+  time: string | null;
+}
+
+/** The RC's plan of stops for a ride. A ride has at most one. */
+export interface RidePlan {
+  rideId: string;
+  /** In km order, stops without a km after those with one. */
+  stops: PlanStop[];
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+/** A member's stars for a route. One each; rating again replaces it. */
+export interface RouteRating {
+  routeId: string;
+  memberId: string;
+  stars: number;
+  /** Empty when none. */
+  comment: string;
+  ratedAt: string;
+}
+
+/** Off, Postponed, or Back on (which counts as no call). */
+export type RideCallState = 'off' | 'postponed' | 'on';
+
+/** The writer's word on a ride, apart from the club calendar. A ride has at most one. */
+export interface RideCall {
+  rideId: string;
+  state: RideCallState;
+  /** Empty when none. */
+  reason: string;
+  /** Postponed only: the new day, when one was given. */
+  newDay: string | null;
+  calledBy: string | null;
+  calledAt: string;
+}
+
+/** Registrations and accommodation for an overnight or big ride (the Big 4, the Not Dead Yet Run). */
+export interface RideHub {
+  rideId: string;
+  /** Only FNG, Full and Nomad members can register (Supporters can't join Club-only rides). */
+  membersOnly: boolean;
+  /** The last day to register, when there is one. */
+  closesOn: string | null;
+  /** How many places the group booking has, when it's limited. */
+  beds: number | null;
+  /** Empty when none. */
+  accommodation: string;
+  notes: string;
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+export type HubStaying = 'group' | 'own' | 'camping' | 'day';
+
+/** A member's registration. A withdrawn one keeps its row. */
+export interface HubRegistration {
+  rideId: string;
+  memberId: string;
+  staying: HubStaying;
+  pillion: boolean;
+  /** Empty when none. */
+  shareWith: string;
+  notes: string;
+  registeredAt: string;
+  withdrawnAt: string | null;
+}
+
+export type SwapState = 'asked' | 'accepted' | 'declined' | 'withdrawn';
+
+/** A crew member's ask for someone to take their spot, or trade when the other holds one. */
+export interface CrewSwap {
+  id: string;
+  rideId: string;
+  askedBy: string;
+  role: CrewRole;
+  askedTo: string;
+  /** The spot the person asked held when asked (a trade), or null. */
+  theirRole: CrewRole | null;
+  /** Empty when none. */
+  note: string;
+  state: SwapState;
+  askedAt: string;
+  answeredAt: string | null;
 }
