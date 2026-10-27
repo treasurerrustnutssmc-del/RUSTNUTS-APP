@@ -2,6 +2,7 @@
 
 // Stage 5: meetings and votes
 import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, Threshold } from '../domain/types';
+import type { MeetingType } from '../domain/types'; // attendance rules
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson } from './ledgerLive'; // Stage 5B
 
@@ -303,6 +304,26 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      // Attendance rules and Big 4 rides
+      big4_rides: {
+        Row: { ride_id: string; chapter_id: string | null; designated_by: string | null; designated_at: string };
+        Insert: { [_ in never]: never }; // only through designate_big4 and undesignate_big4
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      attendance_exemptions: {
+        Row: { session_id: string; member_id: string; reason: string; granted_by: string | null; granted_at: string };
+        Insert: { [_ in never]: never }; // only through set_exemption
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      // Only the columns read directly; the rest come through members_money().
+      checkin_sessions: {
+        Row: { id: string; meeting_type: MeetingType | null };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -351,6 +372,11 @@ export type Database = {
       };
       decide_bus: { Args: { p_booking: string; p_yes: boolean; p_reason: string | null }; Returns: undefined };
       cancel_bus: { Args: { p_booking: string }; Returns: undefined };
+      // Attendance rules and Big 4 rides
+      designate_big4: { Args: { p_ride: string; p_chapter: string | null }; Returns: undefined };
+      undesignate_big4: { Args: { p_ride: string }; Returns: undefined };
+      set_meeting_type: { Args: { p_session: string; p_type: MeetingType }; Returns: undefined };
+      set_exemption: { Args: { p_session: string; p_member: string; p_reason: string | null }; Returns: undefined };
       ride_calendar: {
         Args: never;
         Returns: {
