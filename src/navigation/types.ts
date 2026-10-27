@@ -86,6 +86,13 @@ export type RootParams = {
   MonthReport: { month: string };
   Budget: { fund: string; fy?: number };
   ClubFinances: undefined;
+  // Stage 5C: document library. `version` opens that version instead of the one in force.
+  Documents: undefined;
+  Document: { id: string; version?: string };
+  NewDocument: undefined;
+  PublishDocument: { id: string };
+  DocumentApproval: { versionId: string };
+  DocumentSignoffs: { id: string };
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

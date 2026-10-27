@@ -108,12 +108,15 @@ export function Screen({
   scroll = true,
   padTop = false,
   onRefresh,
+  scroller,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
   padTop?: boolean;
   /** Pull down to refresh (live data only). */
   onRefresh?: () => Promise<void>;
+  /** Hands over the scroll view, for a screen that jumps to a place in its content. */
+  scroller?: (view: ScrollViewInstance | null) => void;
 }) {
   const insets = useSafeAreaInsets();
   const { scrollRef, contentRef, keyboard, field, onContentSizeChange } = useKeyboardRoom();
@@ -145,7 +148,10 @@ export function Screen({
       <View style={styles.screen}>
         {scroll ? (
           <ScrollView
-            ref={scrollRef}
+            ref={(view) => {
+              scrollRef.current = view;
+              scroller?.(view);
+            }}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             refreshControl={refreshControl}

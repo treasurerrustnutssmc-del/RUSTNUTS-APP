@@ -15,6 +15,7 @@ import { colors, space, type } from '../theme';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import { seesReports } from '../domain/ledger'; // Stage 5B
 import { asksToSign, currentRoadRules, myRoadRulesLine, needsSigning, roadRulesStatus } from '../domain/roadRules'; // Road Rules
+import { DocumentsMeRow } from './documents'; // Stage 5C
 import {
   Avatar,
   Button,
@@ -151,6 +152,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
 
       {/* Road Rules sign-off: for everyone who's asked to sign */}
       {asksToSign(me) ? <RoadRulesRow onOpen={() => navigation.navigate('RoadRules')} /> : null}
+      {/* Stage 5C: document library */}
+      <DocumentsMeRow />
 
       <SectionTitle title="Fees" action={<LockNote text="You + board" />} />
       <Card style={{ padding: 0, gap: 0 }}>

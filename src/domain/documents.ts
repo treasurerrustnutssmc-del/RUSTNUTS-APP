@@ -5,7 +5,7 @@
 
 import { charCount } from './chat';
 import { byName } from './crew';
-import { expiryState } from './dates';
+import { expiryState, formatAuDate } from './dates';
 import { runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { addMonths } from './profile';
 import { rulesBlocks } from './roadRules';
@@ -392,4 +392,35 @@ export function findInDocument(body: string, query: string): BlockRef[] {
     if (hits.length === MAX_FINDS) break;
   }
   return hits;
+}
+
+// ---------------------------------------------------------------------------
+// What the screens show
+// ---------------------------------------------------------------------------
+
+export function stateLabel(state: VersionState, version: DocumentVersion): string {
+  switch (state) {
+    case 'awaiting':
+      return 'Awaiting approval';
+    case 'upcoming':
+      return `Commences ${formatAuDate(version.commencesOn)}`;
+    case 'in_force':
+      return 'In force';
+    default:
+      return 'Superseded';
+  }
+}
+
+/** For publishers: "Review due 01/07/2026" in its last 30 days, or overdue. Null otherwise. */
+export function reviewLine(doc: ClubDocument, data: ClubData, today: string): string | null {
+  const state = reviewState(doc, data, today);
+  const due = formatAuDate(reviewDueOn(doc, data, today));
+  if (state === 'overdue') return `Review overdue: it was due ${due}`;
+  if (state === 'due_soon') return `Review due ${due}`;
+  return null;
+}
+
+/** How many documents `me` publishes that are due or overdue for review, for the Board row. */
+export function reviewsDue(me: Member | null, data: ClubData, today: string): number {
+  return (data.documents ?? []).filter((d) => publishesDocument(me, d.chapterId, data.positions) && reviewLine(d, data, today) !== null).length;
 }

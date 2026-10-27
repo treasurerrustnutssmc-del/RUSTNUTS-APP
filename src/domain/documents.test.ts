@@ -7,7 +7,7 @@ import {
   LABEL_EMPTY, LABEL_TOO_LONG, libraryGroups, markReviewedProblem, NO_CYCLE, NO_DOCUMENT, NO_VERSION, NOT_ASKED, NOT_IN_FORCE, NOTHING_IN_FORCE,
   NO_SIGN_OFF, PICK_BODY, PUBLISH_CONFLICT, publishesDocument, publishVersionProblem, readsDocument, recordApprovalProblem, REVIEW_CYCLE,
   reviewDueOn, reviewState, shownVersion, signDocumentProblem, signoffBase, signStatus, askedToSignDocument, TITLE_EMPTY, TITLE_TOO_LONG,
-  versionState, type ApprovalInput, type DocumentInput, type VersionInput,
+  versionState, stateLabel, reviewLine, reviewsDue, type ApprovalInput, type DocumentInput, type VersionInput,
 } from './documents';
 import type { ClubData, ClubDocument, DocumentSignoff, DocumentVersion } from './types';
 
@@ -303,4 +303,18 @@ test('find lists matching blocks, case-insensitive, from two characters, at most
   assert.deepEqual(findInDocument(TEXT, ' RUSTNUTS '), [{ index: 3, text: '1.1. The club is called Rustnuts.' }]);
   assert.deepEqual(findInDocument(TEXT, 'rides').map((h) => h.index), [4]);
   assert.equal(findInDocument(Array.from({ length: 80 }, () => 'ride on').join('\n\n'), 'ride').length, 50);
+});
+
+test('state and review lines for the screens', () => {
+  const v = versions.find((x) => x.documentId === 'd-west' && x.number === 2)!;
+  assert.equal(stateLabel('awaiting', v), 'Awaiting approval');
+  assert.equal(stateLabel('upcoming', v), 'Commences 01/06/2026');
+  assert.equal(stateLabel('in_force', v), 'In force');
+  assert.equal(stateLabel('superseded', v), 'Superseded');
+  assert.equal(reviewLine(FEES, base, TODAY), 'Review overdue: it was due 01/07/2026');
+  assert.equal(reviewLine(FEES, base, '2026-06-01'), 'Review due 01/07/2026');
+  assert.equal(reviewLine(FEES, base, '2026-05-01'), null);
+  assert.equal(reviewLine(FORM, base, TODAY), null);
+  assert.equal(reviewsDue(me('m-rusty'), base, TODAY), 1);
+  assert.equal(reviewsDue(me('m-torque'), base, TODAY), 0);
 });
