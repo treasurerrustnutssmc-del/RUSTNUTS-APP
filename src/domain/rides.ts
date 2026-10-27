@@ -60,7 +60,7 @@ export function endOfFirstDay(ride: Ride): number {
 }
 
 /** When answers close: at the start, or for an all-day ride when its first day is over. */
-function answersClose(ride: Ride): number {
+export function answersClose(ride: Ride): number {
   return ride.allDay ? endOfFirstDay(ride) : new Date(ride.startsAt).getTime();
 }
 
