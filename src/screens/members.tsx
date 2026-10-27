@@ -5,12 +5,13 @@ import {
   canManageMember,
   canSeePhone,
   canSeePrivate,
+  isBoardOf,
   pendingFor,
   visibleMembers,
   withHolders,
 } from '../domain/access';
 import { businessFor } from '../domain/business';
-import { describeExpiry, expiryState, formatLongDate, monthsBetween } from '../domain/dates';
+import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
@@ -20,6 +21,8 @@ import { colors, space } from '../theme';
 // Stage 4
 import { canSeeFees } from '../domain/fees';
 import { AttendanceSummary, HomeCheckinCard } from './checkin';
+import { StandingCard } from './attendance';
+import { termEndsOn, termState } from '../domain/terms';
 import { HomeFeesCard } from './fees';
 import { IntroProgressCard } from './fng';
 // Stage 7: social extras
@@ -353,7 +356,8 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
             <KeyValue
               key={p.id}
               label={ROLE_LABEL[p.role]}
-              value={`Since ${formatLongDate(p.startedOn)}`}
+              value={`Since ${formatLongDate(p.startedOn)}${termEndsOn(p) ? ` · term ${termState(p, today) === 'ended' ? 'ended' : 'ends'} ${formatAuDate(termEndsOn(p))}` : ''}`}
+              tone={termState(p, today) === 'ended' ? 'warn' : undefined}
             />
           ))}
           {member.joinedOn ? <KeyValue label="With the club since" value={formatLongDate(member.joinedOn)} /> : null}
@@ -382,6 +386,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
       {/* Stage 4: the way in, turn-up and fees */}
       {member.approval === 'pending' && member.status === 'introduced' && canManage ? <IntroProgressCard member={member} /> : null}
       {member.approval === 'approved' ? <AttendanceSummary member={member} /> : null}
+      {member.approval === 'approved' && (member.id === me?.id || isBoardOf(me, member.chapterId, data.positions)) ? <StandingCard member={member} /> : null}
       {!isSelf && member.approval === 'approved' && canSeeFees(me, member.chapterId, data.positions) ? (
         <Button label="Fees" kind="secondary" icon="cash-outline" onPress={() => navigation.navigate('MemberFees', { memberId: member.id })} />
       ) : null}

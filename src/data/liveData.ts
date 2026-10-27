@@ -5,7 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { cleanBriefing, isVersionRefusal, type BriefingInput } from '../domain/briefings';
 import { cleanRoadRules, type RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
-import type { ClubData, MemberPrivate, Route } from '../domain/types';
+import type { ClubData, MeetingType, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
 import { toLedger } from './ledgerLive'; // Stage 5B
 import { EMPTY_DATA } from './clubContext';
@@ -104,6 +104,19 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       () => null,
     ),
   );
+
+  // Attendance rules and Big 4 rides: empty rather than blocking the app (also before the live
+  // database has the tables).
+  const [big4, exemptions, meetingTypes] = await Promise.all([
+    db.from('big4_rides').select('*'),
+    db.from('attendance_exemptions').select('*'),
+    db.from('checkin_sessions').select('id, meeting_type'),
+  ]).catch(() => [null, null, null] as const);
+  const rowsOf = <T,>(r: { data: T[] | null; error: { message: string } | null } | null, what: string): T[] => {
+    if (r?.error) console.warn(`${what}:`, r.error.message);
+    return r?.error ? [] : (r?.data ?? []);
+  };
+  const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
@@ -266,8 +279,19 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     // Stage 5: meetings and votes
     ...business,
     ...ledger,
-    ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
+    ...withMeetingTypes(stage4(money.error ? null : (money.data as MembersMoneyRows | null)), typeOf),
+    // Attendance rules and Big 4 rides
+    big4Rides: rowsOf(big4, 'big4_rides').map((b) => ({
+      rideId: b.ride_id, chapterId: b.chapter_id, designatedBy: b.designated_by, designatedAt: instant(b.designated_at),
+    })),
+    exemptions: rowsOf(exemptions, 'attendance_exemptions').map((e) => ({
+      sessionId: e.session_id, memberId: e.member_id, reason: e.reason, grantedBy: e.granted_by, grantedAt: instant(e.granted_at),
+    })),
   };
+}
+
+function withMeetingTypes(s4: Partial<ClubData>, typeOf: Map<string, MeetingType | null>): Partial<ClubData> {
+  return { ...s4, checkinSessions: s4.checkinSessions?.map((s) => ({ ...s, meetingType: typeOf.get(s.id) ?? null })) };
 }
 
 // Stage 4
