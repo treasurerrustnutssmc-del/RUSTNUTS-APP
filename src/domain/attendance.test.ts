@@ -9,6 +9,7 @@ import {
   exemptionProblem,
   isExcused,
   meetingTypeOf,
+  meetingTypeProblem,
   markProblem,
   normalizeCode,
   openCheckinProblem,
@@ -157,4 +158,15 @@ test('excusing someone from a check-in (4.12, 5.3)', () => {
   assert.equal(exemptionProblem(sec, 's1', 'tre', 'Work trip', data), 'They checked in, so there’s nothing to excuse.');
   assert.equal(isExcused('s1', 'fng', data), true);
   assert.equal(isExcused('s1', 'rider', data), false);
+});
+
+test('a meeting’s kind can be changed by its runners until it’s held', () => {
+  const data = club({ checkinSessions: [session('s1'), session('old', { heldOn: '2026-10-20' }), session('ride', { kind: 'ride', rideId: 'r-west' })] });
+  const sec = who(data, 'sec');
+  assert.equal(meetingTypeProblem(sec, 's1', 'special', data, today), null);
+  assert.equal(meetingTypeProblem(sec, 'nope', 'special', data, today), 'That check-in no longer exists.');
+  assert.equal(meetingTypeProblem(who(data, 'rider'), 's1', 'special', data, today), 'Only that chapter’s board can run this check-in.');
+  assert.equal(meetingTypeProblem(sec, 'ride', 'special', data, today), 'Only a meeting check-in has a kind.');
+  assert.equal(meetingTypeProblem(sec, 's1', 'bbq' as never, data, today), 'Pick what kind of meeting it is.');
+  assert.equal(meetingTypeProblem(sec, 'old', 'event', data, today), 'A meeting’s kind is set before it’s held (4.6).');
 });

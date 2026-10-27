@@ -200,5 +200,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_social -f "$ROOT/supabase/tests/social_test.sql"
 
+# Attendance rules and Big 4 rides, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_attendance" >/dev/null
+"${PSQL[@]}" -d rustnuts_attendance -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_attendance -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_attendance -f "$ROOT/supabase/tests/attendance_rules_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
 
