@@ -239,7 +239,7 @@ export interface BusBooking {
   cancelledAt: string | null;
 }
 
-export interface ClubData extends LedgerData {
+export interface ClubData extends LedgerData, AdminData {
   chapters: Chapter[];
   members: Member[];
   privates: MemberPrivate[];
@@ -626,4 +626,168 @@ export interface LedgerData {
   treasurerReports?: TreasurerReport[];
   /** Live only: presented months worked out by the database, for members who can't read the lines. */
   reportTotals?: MonthReport[];
+}
+
+// Stage 5D: conduct records, merch, national contributions and new chapters ----------------------
+
+/**
+ * Internal decisions (vest 6.9, ride safety 7.9, attendance 5.5, other) get a 14-day review;
+ * formal Association outcomes (reprimand, suspension, expulsion, 14.4) a 7-day appeal.
+ */
+export type ConductKind = 'vest' | 'ride_safety' | 'attendance' | 'other' | 'reprimand' | 'suspension' | 'expulsion';
+
+/** Set aside deletes the record (6.9). A formal appeal is only confirmed (upheld) or set aside (revoked). */
+export type AppealOutcome = 'confirmed' | 'varied' | 'set_aside';
+
+/** The member's review or appeal of one record. */
+export interface ConductAppeal {
+  lodgedOn: string;
+  lodgedBy: string | null;
+  grounds: string;
+  /** The three hearing it, once set up. */
+  panelIds: string[];
+  hearingOn: string | null;
+  outcome: AppealOutcome | null;
+  /** Empty when none. */
+  outcomeNote: string;
+  decidedOn: string | null;
+  decidedBy: string | null;
+  withdrawnOn: string | null;
+}
+
+/** A short factual record of a conduct decision. It deletes itself (src/domain/conduct.ts). */
+export interface ConductRecord {
+  id: string;
+  memberId: string;
+  /** The member's chapter when it was recorded. */
+  chapterId: string;
+  kind: ConductKind;
+  summary: string;
+  /** Empty when none. */
+  rule: string;
+  decidedOn: string;
+  /** When written notice was given: the decision date for formal outcomes. */
+  noticeOn: string;
+  suspendedUntil: string | null;
+  recordedBy: string | null;
+  recordedAt: string;
+  /** Kept through this date for an active matter (6.9). */
+  holdUntil: string | null;
+  /** Empty when none. */
+  holdReason: string;
+  appeal: ConductAppeal | null;
+}
+
+export type MerchStatus = 'proposed' | 'on_sale' | 'declined' | 'closed';
+
+/** A chapter's merch (or the whole club's, chapterId null). Designs need board approval (15.1). */
+export interface MerchItem {
+  id: string;
+  chapterId: string | null;
+  name: string;
+  /** Empty when none. */
+  details: string;
+  /** Empty means one size. */
+  sizes: string[];
+  priceCents: number;
+  /** Carries the patch: Full and Nomad members only. */
+  patchedOnly: boolean;
+  status: MerchStatus;
+  proposedBy: string | null;
+  proposedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  /** Empty when none. */
+  declineReason: string;
+}
+
+export type OrderStatus = 'waiting' | 'approved' | 'paid' | 'handed_over' | 'declined' | 'cancelled';
+
+export interface MerchOrder {
+  id: string;
+  itemId: string;
+  memberId: string;
+  /** Null for a one-size item. */
+  size: string | null;
+  qty: number;
+  /** The price when ordered. */
+  unitCents: number;
+  /** Empty when none. */
+  note: string;
+  status: OrderStatus;
+  orderedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  /** Empty when none. */
+  declineReason: string;
+  paidOn: string | null;
+  /** The CR-005 ledger line it made. */
+  ledgerEntryId: string | null;
+  handedOverOn: string | null;
+}
+
+export type ContributionStatus = 'proposed' | 'approved' | 'not_approved' | 'withdrawn';
+
+/** A chapter's part of a national contribution, fixed when it was proposed (13.6). */
+export interface ContributionShare {
+  chapterId: string;
+  votingMembers: number;
+  cents: number;
+}
+
+/** A chapter board's decision, by its closed vote (13.6 "each decision minuted"). */
+export interface ContributionDecision {
+  chapterId: string;
+  yes: boolean;
+  voteId: string;
+  recordedBy: string | null;
+  recordedAt: string;
+}
+
+/** A national event or project budget the NEC asks the chapters to fund (13.6). */
+export interface Contribution {
+  id: string;
+  title: string;
+  purpose: string;
+  totalCents: number;
+  status: ContributionStatus;
+  proposedBy: string | null;
+  proposedAt: string;
+  settledAt: string | null;
+  shares: ContributionShare[];
+  decisions: ContributionDecision[];
+}
+
+/** The parts a new chapter's written proposal covers (12.1). */
+export type ChapterPart = 'location' | 'membership' | 'leadership' | 'budget' | 'operations';
+
+export type ProposalStatus = 'proposed' | 'approved' | 'not_approved' | 'withdrawn';
+
+/** A proposed new chapter (12.1). Approval creates it. */
+export interface ChapterProposal {
+  id: string;
+  name: string;
+  area: string;
+  state: string;
+  plan: Record<ChapterPart, string>;
+  founderIds: string[];
+  presidentId: string;
+  saaId: string;
+  status: ProposalStatus;
+  proposedBy: string | null;
+  proposedAt: string;
+  voteId: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  /** The chapter it became. */
+  chapterId: string | null;
+}
+
+export interface AdminData {
+  /** Conduct records the viewer may see, still kept. Missing means none. */
+  conduct?: ConductRecord[];
+  merchItems?: MerchItem[];
+  merchOrders?: MerchOrder[];
+  contributions?: Contribution[];
+  chapterProposals?: ChapterProposal[];
 }
