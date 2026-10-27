@@ -4,6 +4,7 @@
 import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, Threshold } from '../domain/types';
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson } from './ledgerLive'; // Stage 5B
+import type { DocumentsJson } from './documentsLive'; // Stage 5C
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
 type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';
@@ -474,6 +475,26 @@ export type Database = {
       approve_budget: { Args: { p_chapter: string | null; p_fy: number; p_vote: string }; Returns: undefined };
       reopen_budget: { Args: { p_chapter: string | null; p_fy: number }; Returns: undefined };
       present_report: { Args: { p_month: string }; Returns: undefined };
+      // Stage 5C: document library
+      club_documents: { Args: never; Returns: DocumentsJson };
+      document_body: { Args: { p_version: string }; Returns: string | null };
+      create_document: {
+        Args: { p_chapter: string | null; p_kind: string; p_title: string; p_asks_sign_off: boolean; p_review_months: number | null };
+        Returns: string;
+      };
+      publish_document_version: {
+        Args: {
+          p_document: string; p_expected: number; p_label: string; p_body: string; p_what_changed: string; p_fresh_sign_off: boolean;
+          p_approving_body: string | null; p_approved_on: string | null; p_commences_on: string | null;
+        };
+        Returns: string;
+      };
+      record_document_approval: {
+        Args: { p_version: string; p_approving_body: string | null; p_approved_on: string | null; p_commences_on: string | null };
+        Returns: undefined;
+      };
+      mark_document_reviewed: { Args: { p_document: string }; Returns: undefined };
+      sign_document: { Args: { p_version: string }; Returns: undefined };
       // Lane E: live ride
       start_live_ride: { Args: { p_ride: string }; Returns: string };
       live_ride_state: { Args: { p_ride: string }; Returns: LiveStateJson };

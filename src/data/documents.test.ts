@@ -72,3 +72,27 @@ test('the demo library starts with v4 awaiting approval, in its full text', () =
   assert.equal(v[0].approvedOn, null);
   assert.match(v[0].body!, /15\.5\. Every controlled document must state its title, version, approving body/);
 });
+
+test('the live read maps to the app’s documents, with text to load', async () => {
+  const { toDocuments } = await import('./documentsLive');
+  const out = toDocuments({
+    documents: [{
+      id: 'd1', chapter_id: null, kind: 'constitution', title: 'Constitution', asks_sign_off: false, review_months: 12,
+      reviewed_on: null, created_by: null, created_at: '2026-10-25T03:00:00+00:00',
+    }],
+    versions: [{
+      id: 'v1', document_id: 'd1', number: 1, label: 'v4', what_changed: '', fresh_sign_off: true, approving_body: null,
+      approved_on: null, commences_on: null, published_by: null, published_at: '2026-10-25T03:00:00+00:00',
+    }],
+    signoffs: [{ version_id: 'v1', document_id: 'd1', member_id: 'm1', signed_at: '2026-10-26T01:00:00+00:00' }],
+  }, { v1: 'Text' });
+  assert.deepEqual(out.documents![0], {
+    id: 'd1', chapterId: null, kind: 'constitution', title: 'Constitution', asksSignOff: false, reviewMonths: 12, reviewedOn: null,
+    createdBy: null, createdAt: '2026-10-25T03:00:00.000Z',
+  });
+  assert.equal(out.documentVersions![0].body, 'Text');
+  assert.equal(out.documentVersions![0].publishedAt, '2026-10-25T03:00:00.000Z');
+  assert.deepEqual(out.documentSignoffs, [{ versionId: 'v1', documentId: 'd1', memberId: 'm1', signedAt: '2026-10-26T01:00:00.000Z' }]);
+  assert.deepEqual(toDocuments(null, {}), { documents: [], documentVersions: [], documentSignoffs: [] });
+  assert.deepEqual(toDocuments({ documents: 'nope' } as never, {}), { documents: [], documentVersions: [], documentSignoffs: [] });
+});

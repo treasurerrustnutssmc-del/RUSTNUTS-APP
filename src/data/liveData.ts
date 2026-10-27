@@ -8,6 +8,7 @@ import type { BusInput } from '../domain/bus';
 import type { ClubData, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
 import { toLedger } from './ledgerLive'; // Stage 5B
+import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
 
@@ -103,6 +104,18 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       },
       () => null,
     ),
+  );
+
+  // Stage 5C: the document library, the same way. Texts load when a version is opened.
+  const documents = toDocuments(
+    await db.rpc('club_documents').then(
+      (r) => {
+        if (r.error) console.warn('club_documents:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+    loadedBodies,
   );
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
@@ -266,6 +279,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     // Stage 5: meetings and votes
     ...business,
     ...ledger,
+    ...documents,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
   };
 }
