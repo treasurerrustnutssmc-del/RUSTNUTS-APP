@@ -63,7 +63,7 @@ export function MeAdminSection() {
   const toPay = myOrders.filter((o) => o.status === 'approved').length;
   return (
     <>
-      <SectionTitle title="Club gear and records" />
+      <SectionTitle title={mine.length > 0 ? 'Club gear and records' : 'Club gear'} />
       <Card style={{ padding: 0, gap: 0 }}>
         <ListRow
           last={mine.length === 0}

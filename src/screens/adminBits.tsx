@@ -88,18 +88,24 @@ export function MemberPicker({
   hint?: string;
 }) {
   const [find, setFind] = useState('');
-  const shown = choices.filter((m) => matches(m, find)).sort((a, b) => displayName(a).localeCompare(displayName(b)));
+  // Whoever's picked stays in the list while finding someone else.
+  const shown = choices
+    .filter((m) => picked.includes(m.id) || matches(m, find))
+    .sort((a, b) => displayName(a).localeCompare(displayName(b)));
   const toggle = (id: string) => {
     if (!multi) return onChange([id]);
     onChange(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
   };
   return (
     <View style={{ gap: 6 }}>
-      <Label>{label}</Label>
-      {hint ? <Small>{hint}</Small> : null}
       {choices.length > 8 ? (
-        <Field label="Find a member" value={find} onChangeText={setFind} placeholder="Road name or name" autoCapitalize="none" autoCorrect={false} />
-      ) : null}
+        <Field label={label} value={find} onChangeText={setFind} placeholder="Find by road name or name" autoCapitalize="none" autoCorrect={false} hint={hint} />
+      ) : (
+        <>
+          <Label>{label}</Label>
+          {hint ? <Small>{hint}</Small> : null}
+        </>
+      )}
       <View style={styles.pickList}>
         {shown.length === 0 ? (
           <View style={{ padding: space.md }}>

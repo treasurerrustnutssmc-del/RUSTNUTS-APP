@@ -89,7 +89,7 @@ export function NationalScreen({ navigation }: RootScreen<'National'>) {
               key={k.id}
               last={i === contributions.length - 1}
               left={<IconBadge icon="flag-outline" />}
-              title={k.title}
+              title={<Text style={type.name} numberOfLines={2}>{k.title}</Text>}
               subtitle={
                 <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
                   <Text style={styles.meta}>{`${k.decisions.filter((d) => d.yes).length} of ${k.shares.length} chapters said yes`}</Text>
@@ -200,7 +200,7 @@ export function ContributionScreen({ route }: RootScreen<'Contribution'>) {
       <Card>
         <Body selectable>{k.purpose}</Body>
         <Small>{`Asked by ${nameOf(k.proposedBy, data.members)} on ${formatAuDate(melbourneDate(k.proposedAt))}`}</Small>
-        {k.status === 'proposed' ? <Fact icon="people-outline" text={`${yes} of ${needed} yeses needed`} /> : null}
+        {k.status === 'proposed' ? <Fact icon="people-outline" text={`${yes} yes so far · ${needed} needed`} /> : null}
       </Card>
 
       <SectionTitle title="Each chapter’s share" />

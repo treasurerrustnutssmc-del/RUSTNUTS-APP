@@ -256,13 +256,17 @@ export function MerchItemScreen({ route, navigation }: RootScreen<'MerchItem'>) 
           <SectionTitle title="Your call" />
           <Card>
             <Small>Someone on the board other than whoever put it up says yes (15.1). Club-wide gear is the NEC’s call.</Small>
-            <ActionWithReason
-              label="Say yes, put it on sale"
-              icon="checkmark"
-              busy={busy === 'yes'}
-              reason={fail ?? (yesProblem && item.proposedBy === me.id ? yesProblem : null)}
-              onPress={() => run('yes', () => decideMerch(item.id, true, ''), 'It’s on sale.')}
-            />
+            {yesProblem && item.proposedBy === me.id ? (
+              <Notice tone="info">You put it up, so someone else on the board gives the yes.</Notice>
+            ) : (
+              <ActionWithReason
+                label="Say yes, put it on sale"
+                icon="checkmark"
+                busy={busy === 'yes'}
+                reason={fail}
+                onPress={() => run('yes', () => decideMerch(item.id, true, ''), 'It’s on sale.')}
+              />
+            )}
             <Field label="Reason for a no" value={reason} onChangeText={setReason} maxLength={300} />
             <ConfirmButton label="Say no" confirmLabel="Yes, decline it" kind="secondary" onConfirm={() => run('no', () => decideMerch(item.id, false, reason), 'Declined.')} />
           </Card>
