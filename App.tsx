@@ -4,6 +4,8 @@ import { ActivityIndicator, Platform, View } from 'react-native';
 import { SafeAreaInsetsContext, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ClubProvider, useClub } from './src/data/ClubStore';
 import { ChatProvider } from './src/data/chat/ChatProvider';
+// Stage 7: social extras
+import { SocialProvider } from './src/data/social/SocialProvider';
 // Lane E: ride comms
 import { RideVoiceProvider } from './src/data/rideVoice';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -61,7 +63,10 @@ export default function App() {
       <ChatProvider>
         {/* Lane E: ride comms */}
         <RideVoiceProvider>
-          <Shell />
+          {/* Stage 7: social extras */}
+          <SocialProvider>
+            <Shell />
+          </SocialProvider>
         </RideVoiceProvider>
       </ChatProvider>
     </ClubProvider>

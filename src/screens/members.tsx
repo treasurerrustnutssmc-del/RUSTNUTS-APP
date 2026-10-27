@@ -22,6 +22,8 @@ import { canSeeFees } from '../domain/fees';
 import { AttendanceSummary, HomeCheckinCard } from './checkin';
 import { HomeFeesCard } from './fees';
 import { IntroProgressCard } from './fng';
+// Stage 7: social extras
+import { HomeShoutoutsCard } from './social';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -109,6 +111,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       {/* Stage 4: today's check-in and what you owe */}
       <HomeCheckinCard />
       <HomeFeesCard />
+      {/* Stage 7: birthdays and patch anniversaries this week */}
+      <HomeShoutoutsCard />
 
       {isBoard && (pending.length > 0 || boardAlerts.length > 0) ? (
         <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
