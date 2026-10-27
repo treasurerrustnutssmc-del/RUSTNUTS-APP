@@ -6,6 +6,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from '
 import { useClub } from '../data/ClubStore';
 import { openInMapsApp } from '../data/routeFiles';
 import { formatClimb, formatKm, routeChapterName } from '../domain/routes';
+import { routeScore, starsLine } from '../domain/ratings';
 import type { ClubData, Route } from '../domain/types';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import { Button, Card, Chip, Ionicons, Notice, Row, Small, Stack } from './primitives';
@@ -51,15 +52,18 @@ export function RouteFacts({ route }: { route: Pick<Route, 'distanceM' | 'climbM
   );
 }
 
-/** The route's stops, numbered in the order the file lists them. */
-export function StopList({ stops, flat = false }: { stops: Route['stops']; flat?: boolean }) {
+/** The route's stops (or a ride's planned ones, with a detail line), numbered in order. */
+export function StopList({ stops, flat = false }: { stops: { name: string; detail?: string }[]; flat?: boolean }) {
   if (stops.length === 0) return null;
   const rows = stops.map((s, i) => (
     <View key={`${i}-${s.name}`} style={[styles.stop, i === stops.length - 1 && { borderBottomWidth: 0 }]}>
       <View style={styles.stopTile}>
         <Text style={styles.stopNumber}>{i + 1}</Text>
       </View>
-      <Text style={[type.name, { flex: 1 }]}>{s.name}</Text>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={type.name}>{s.name}</Text>
+        {s.detail ? <Text style={styles.stopDetail}>{s.detail}</Text> : null}
+      </View>
     </View>
   ));
   return flat ? <View>{rows}</View> : <Card style={{ padding: 0, gap: 0 }}>{rows}</Card>;
@@ -86,7 +90,8 @@ export function RouteRow({
   disabled?: boolean;
   error?: string | null;
 }) {
-  const label = [route.name, routeChapterName(route.chapterId, data), routeFacts(route), current ? 'on this ride now' : null]
+  const stars = starsLine(routeScore(route.id, data.routeRatings));
+  const label = [route.name, routeChapterName(route.chapterId, data), routeFacts(route), stars, current ? 'on this ride now' : null]
     .filter(Boolean)
     .join(', ');
   const off = current || disabled;
@@ -112,6 +117,7 @@ export function RouteRow({
             {route.name}
           </Text>
           <Text style={styles.distance}>{routeFacts(route)}</Text>
+          <Text style={styles.stars}>{stars}</Text>
           <Row style={{ gap: 6 }}>
             <ChapterChip chapterId={route.chapterId} data={data} />
             {current ? <Chip label="On this ride" tone="ok" icon="checkmark" /> : null}
@@ -192,6 +198,8 @@ const styles = StyleSheet.create({
   },
   stopTile: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.steel, borderRadius: radius.sm },
   stopNumber: { fontFamily: fonts.stencil, fontSize: 15, color: colors.bone, fontVariant: ['tabular-nums'] },
+  stars: { fontFamily: fonts.stencil, fontSize: 14, color: colors.boneDim },
+  stopDetail: { fontFamily: fonts.stencil, fontSize: 14, color: colors.boneDim, marginTop: 2 },
   item: { borderBottomWidth: 1, borderBottomColor: colors.line },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 72, padding: space.md },
   rowError: { paddingHorizontal: space.md, paddingBottom: space.md },

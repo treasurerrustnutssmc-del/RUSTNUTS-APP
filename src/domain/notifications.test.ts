@@ -63,3 +63,10 @@ test('what to schedule and cancel', () => {
   const renamed = reminderDiff([r('ride-a', '2026-11-06T19:30:00.000Z')], [{ id: 'ride-a', at: '2026-11-06T19:30:00.000Z', body: 'old name' }]);
   assert.deepEqual([renamed.add.map((x) => x.id), renamed.cancel], [['ride-a'], ['ride-a']], 'a renamed ride gets the new text');
 });
+
+test('a ride called off or postponed gets no reminder; one back on does', () => {
+  const call = (state: 'off' | 'postponed' | 'on') => [{ rideId: 'r-1', state, reason: '', newDay: null, calledBy: 'm-rc', calledAt: NOW }];
+  assert.deepEqual(reminderPlan([ride()], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW, call('off')), []);
+  assert.deepEqual(reminderPlan([ride()], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW, call('postponed')), []);
+  assert.equal(reminderPlan([ride()], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW, call('on')).length, 1);
+});

@@ -2,7 +2,7 @@
 // nothing; the rest come as pushes once the app launches (part 3b).
 
 import { melbourneDate, melbourneTime } from './rides';
-import type { NotificationPrefs, Ride, Rsvp } from './types';
+import type { NotificationPrefs, Ride, RideCall, Rsvp } from './types';
 
 export const DEFAULT_PREFS: NotificationPrefs = { rideReminders: true, rideChanges: true, newRides: false, approvals: true };
 
@@ -32,12 +32,21 @@ function sevenAm(startsAt: string): number {
 }
 
 /** Reminders for rides this member is going to: 2 hours before, or 7 am on an all-day ride's first day. */
-export function reminderPlan(rides: Ride[], rsvps: Rsvp[], meId: string | null, prefs: NotificationPrefs, now: string): Reminder[] {
+export function reminderPlan(
+  rides: Ride[],
+  rsvps: Rsvp[],
+  meId: string | null,
+  prefs: NotificationPrefs,
+  now: string,
+  calls: RideCall[] = [],
+): Reminder[] {
   if (!meId || !prefs.rideReminders) return [];
+  // A ride called off or postponed has no reminder until it's back on.
+  const called = new Set(calls.filter((c) => c.state !== 'on').map((c) => c.rideId));
   const goingTo = new Set(rsvps.filter((r) => r.memberId === meId && r.answer === 'going').map((r) => r.rideId));
   const nowMs = Date.parse(now);
   return rides
-    .filter((r) => goingTo.has(r.id) && !r.cancelledAt)
+    .filter((r) => goingTo.has(r.id) && !r.cancelledAt && !called.has(r.id))
     .map((r): Reminder => {
       const at = r.allDay ? sevenAm(r.startsAt) : Date.parse(r.startsAt) - 2 * HOUR;
       const when = r.allDay ? 'All day' : melbourneTime(r.startsAt);

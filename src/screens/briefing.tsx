@@ -37,6 +37,7 @@ import { ROLE_LABEL, ROLE_SHORT } from '../domain/labels';
 import { displayName } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
 import { routeOf, signedInProblem } from '../domain/routes';
+import { briefingStops, STOP_LABEL } from '../domain/ridePlan'; // Ride planning extras
 import { currentRoadRules, signoffLine, unsignedGoing } from '../domain/roadRules'; // Road Rules
 import type { Ride } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
@@ -118,6 +119,11 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
 
   const cancelled = !!ride.cancelledAt;
   const route = routeOf(ride.id, data);
+  // The ride's planned stops when it has a plan, else the route's own.
+  const stops = briefingStops(ride.id, data).map((s) => ({
+    name: s.name,
+    detail: [s.kind ? STOP_LABEL[s.kind] : null, s.km != null ? `km ${Math.round(s.km * 10) / 10}` : null, s.time ?? null].filter(Boolean).join(' · ') || undefined,
+  }));
   const crew = briefingCrew(ride.id, data);
   const state = readState(me, ride.id, data);
   const myRead = (data.briefingReads ?? []).find((r) => r.rideId === ride.id && r.memberId === me.id);
@@ -204,8 +210,16 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
               <H2>Route</H2>
               <Text style={styles.big}>{route.name}</Text>
               <RouteFacts route={route} />
-              {route.stops.length > 0 ? <StopList stops={route.stops} flat /> : null}
+              {stops.length > 0 ? <StopList stops={stops} flat /> : null}
               <OpenInMapsButton route={route} kind="secondary" />
+            </Stack>
+          </>
+        ) : stops.length > 0 ? (
+          <>
+            <Divider />
+            <Stack gap={space.md}>
+              <H2>Stops</H2>
+              <StopList stops={stops} flat />
             </Stack>
           </>
         ) : null}
