@@ -75,6 +75,7 @@ export type RootParams = {
   MediaViewer: { items: FeedItem[]; index: number };
   // Stage 7: social extras
   Birthday: undefined;
+  OnThisDay: undefined;
   // Lane E: share in
   ShareIn: { text: string; media: PickedMedia[]; notes: string[] };
   // Stage 5B: treasurer. A fund is 'club' or a chapter id.

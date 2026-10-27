@@ -4,12 +4,15 @@
 
 import { approvalProblem } from '../../domain/chat';
 import { birthdayProblem, type Birthday } from '../../domain/social/shoutouts';
+import type { FeedItem } from '../chat/chatContext';
 import type { ClubData, Member } from '../../domain/types';
 import { NotAllowedError } from '../clubContext';
 
 export interface SocialData {
   /** Shared birthdays only: taking one off removes it here (the database keeps a "not shared" row). */
   birthdays: Birthday[];
+  /** Photos from earlier years, for On this day (the demo's chats only go back a fortnight). */
+  pastPhotos: FeedItem[];
 }
 
 export interface SocialCtx {

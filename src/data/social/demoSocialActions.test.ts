@@ -28,3 +28,13 @@ test('refusals come from the shared rules', () => {
   assert.throws(() => setBirthday(ctxAs('m-rusty'), 4, 31), /That day isn’t in that month\./);
   assert.throws(() => setBirthday({ ...ctxAs('m-rusty'), me: null }, 1, 1), /Sign in first\./);
 });
+
+test('the demo always has On this day photos: a year ago and three years ago', async () => {
+  const { onThisDay } = await import('../../domain/social/onThisDay');
+  for (const today of ['2026-10-28', '2027-02-28', '2027-01-01', '2026-12-31']) {
+    const groups = onThisDay(demoSocialData(today).pastPhotos, today);
+    assert.deepEqual(groups.map((g) => [g.yearsAgo, g.items.length]), [[1, 2], [3, 1]], today);
+  }
+  // A leap day has no date a year back: the demo stays valid, with nothing to show.
+  assert.deepEqual(onThisDay(demoSocialData('2028-02-29').pastPhotos, '2028-02-29'), []);
+});

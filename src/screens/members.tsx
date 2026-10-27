@@ -23,7 +23,7 @@ import { AttendanceSummary, HomeCheckinCard } from './checkin';
 import { HomeFeesCard } from './fees';
 import { IntroProgressCard } from './fng';
 // Stage 7: social extras
-import { HomeShoutoutsCard } from './social';
+import { HomeOnThisDayCard, HomeShoutoutsCard } from './social';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -113,6 +113,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       <HomeFeesCard />
       {/* Stage 7: birthdays and patch anniversaries this week */}
       <HomeShoutoutsCard />
+      <HomeOnThisDayCard />
 
       {isBoard && (pending.length > 0 || boardAlerts.length > 0) ? (
         <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>

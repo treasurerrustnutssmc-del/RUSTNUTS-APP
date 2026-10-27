@@ -8,6 +8,7 @@ import { approvalProblem } from '../../domain/chat';
 import { birthdayProblem, type Birthday } from '../../domain/social/shoutouts';
 import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
+import { toFeedItem, type FeedJson } from '../chat/liveChat';
 import { toBirthdays, type BirthdayRow } from './liveSocial';
 import { SocialContext, type SocialContextValue } from './socialContext';
 
@@ -31,6 +32,14 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     setReady(true);
   }, [approved]);
 
+  // Kept the same between renders, so a screen that loads on change doesn't load forever.
+  const photosOnThisDay = useCallback(async () => {
+    if (!approved) return [];
+    const { data, error } = await db().rpc('photos_on_this_day');
+    if (error) throw friendlyError(error);
+    return ((data ?? []) as FeedJson[]).map(toFeedItem);
+  }, [approved]);
+
   useEffect(() => {
     Promise.resolve()
       .then(load)
@@ -47,6 +56,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       if (error) throw friendlyError(error);
       await load();
     },
+    photosOnThisDay,
     refresh: load,
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

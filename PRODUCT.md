@@ -104,3 +104,4 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 
 - **Why:** the small reasons to open the app on a day with no ride. Design in `docs/superpowers/specs/2026-10-27-social-extras-design.md`, built one piece at a time.
 - **Shout-outs:** birthdays and patch anniversaries this week, on Home. Birthdays are opt-in from Me and keep the day and month only, never the year. Anniversaries are for members who are Full or Nomad now, from one year patched. "Say g'day" opens a private chat; the app never posts for anyone.
+- **On this day:** photos and videos posted on today's date in earlier years, on Home, by the photo feed's rules (group chats you can read, never private chats, nothing removed, nobody you've blocked).
