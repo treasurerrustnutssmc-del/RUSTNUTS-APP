@@ -12,6 +12,7 @@ import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
 import * as s4 from './demoStage4';
 import * as ledger from './ledgerActions';
+import * as docs from './documentActions';
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
@@ -176,6 +177,21 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     approveBudget: async (chapterId, fy, voteId) => setData(ledger.approveBudget(ctx, chapterId, fy, voteId)),
     reopenBudget: async (chapterId, fy) => setData(ledger.reopenBudget(ctx, chapterId, fy)),
     presentReport: async (month) => setData(ledger.presentReport(ctx, month)),
+    // Stage 5C: document library
+    createDocument: async (input) => {
+      const result = docs.createDocument(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    publishDocumentVersion: async (documentId, expected, input) => {
+      const result = docs.publishDocumentVersion(ctx, documentId, expected, input);
+      setData(result.data);
+      return result.id;
+    },
+    recordDocumentApproval: async (versionId, approval) => setData(docs.recordDocumentApproval(ctx, versionId, approval)),
+    markDocumentReviewed: async (documentId) => setData(docs.markDocumentReviewed(ctx, documentId)),
+    signDocument: async (versionId) => setData(docs.signDocument(ctx, versionId)),
+    loadDocumentBody: async (versionId) => (ctx.data.documentVersions ?? []).find((v) => v.id === versionId)?.body ?? '',
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;
