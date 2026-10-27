@@ -33,6 +33,8 @@ import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen
 import { CheckInScreen, OpenMeetingScreen, RunCheckinScreen } from '../screens/checkin';
 import { ChapterFeesScreen, MemberFeesScreen } from '../screens/fees';
 import { FngReviewScreen } from '../screens/fng';
+// Stage 7: social extras
+import { BirthdayScreen } from '../screens/social';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -223,6 +225,8 @@ export function RootNavigator() {
             <Stack.Screen name="MonthReport" component={MonthReportScreen} options={{ title: 'Treasurer’s Report' }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ title: 'Budget' }} />
             <Stack.Screen name="ClubFinances" component={ClubFinancesScreen} options={{ title: 'Club finances' }} />
+            {/* Stage 7: social extras */}
+            <Stack.Screen name="Birthday" component={BirthdayScreen} options={{ title: 'Birthday shout-out' }} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}

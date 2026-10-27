@@ -5201,6 +5201,86 @@
       "action": "presentReport",
       "monthOffset": -1,
       "allowed": false
+    },
+    {
+      "name": "A Full member shares their birthday",
+      "as": "rusty",
+      "action": "socialSetBirthday",
+      "month": 3,
+      "day": 7,
+      "allowed": true
+    },
+    {
+      "name": "An FNG shares a 29 February birthday",
+      "as": "finn",
+      "action": "socialSetBirthday",
+      "month": 2,
+      "day": 29,
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member shares their birthday",
+      "as": "hacker",
+      "action": "socialSetBirthday",
+      "month": 12,
+      "day": 25,
+      "allowed": true
+    },
+    {
+      "name": "A member takes their birthday off",
+      "as": "torque",
+      "action": "socialSetBirthday",
+      "month": null,
+      "day": null,
+      "allowed": true
+    },
+    {
+      "name": "A pending applicant can't share a birthday",
+      "as": "dylan",
+      "action": "socialSetBirthday",
+      "month": 3,
+      "day": 7,
+      "allowed": false
+    },
+    {
+      "name": "A birthday needs a day as well as a month",
+      "as": "rusty",
+      "action": "socialSetBirthday",
+      "month": 3,
+      "day": null,
+      "allowed": false
+    },
+    {
+      "name": "A birthday needs a month as well as a day",
+      "as": "rusty",
+      "action": "socialSetBirthday",
+      "month": null,
+      "day": 7,
+      "allowed": false
+    },
+    {
+      "name": "31 April isn't a birthday",
+      "as": "rusty",
+      "action": "socialSetBirthday",
+      "month": 4,
+      "day": 31,
+      "allowed": false
+    },
+    {
+      "name": "30 February isn't a birthday",
+      "as": "rusty",
+      "action": "socialSetBirthday",
+      "month": 2,
+      "day": 30,
+      "allowed": false
+    },
+    {
+      "name": "Month 13 isn't a birthday",
+      "as": "rusty",
+      "action": "socialSetBirthday",
+      "month": 13,
+      "day": 1,
+      "allowed": false
     }
   ],
   "chapters": [

@@ -1,0 +1,30 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { DEMO_DATA as demoData } from '../demoData';
+import { setBirthday, type SocialCtx } from './demoSocialActions';
+import { demoSocialData } from './demoSocialData';
+
+const ctxAs = (memberId: string): SocialCtx => ({
+  social: demoSocialData('2026-10-27'),
+  club: demoData,
+  me: demoData.members.find((m) => m.id === memberId) ?? null,
+  today: '2026-10-27',
+});
+
+test('the demo has a birthday today and one later this week', () => {
+  const b = demoSocialData('2026-10-27').birthdays;
+  assert.deepEqual(b.find((x) => x.memberId === 'm-torque'), { memberId: 'm-torque', month: 10, day: 27 });
+  assert.deepEqual(b.find((x) => x.memberId === 'm-smokey'), { memberId: 'm-smokey', month: 10, day: 30 });
+});
+
+test('sharing, changing and taking off a birthday', () => {
+  const ctx = ctxAs('m-rusty');
+  const changed = setBirthday(ctx, 1, 2).birthdays.filter((b) => b.memberId === 'm-rusty');
+  assert.deepEqual(changed, [{ memberId: 'm-rusty', month: 1, day: 2 }]);
+  assert.equal(setBirthday(ctx, null, null).birthdays.some((b) => b.memberId === 'm-rusty'), false);
+});
+
+test('refusals come from the shared rules', () => {
+  assert.throws(() => setBirthday(ctxAs('m-rusty'), 4, 31), /That day isn’t in that month\./);
+  assert.throws(() => setBirthday({ ...ctxAs('m-rusty'), me: null }, 1, 1), /Sign in first\./);
+});

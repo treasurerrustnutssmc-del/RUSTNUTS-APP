@@ -21,6 +21,7 @@ import { readGpx } from '../domain/gpx';
 import type { Conversation } from '../domain/chat';
 import { directId, runChatAction, type ChatAction, type ChatData } from './chat/demoChatActions';
 import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
+import { runSocialAction, type SocialAction } from './social/demoSocialActions'; // Stage 7: social extras
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -369,6 +370,11 @@ export function demoAnswer(c: ParityCase): string | null {
     }
     if (LEDGER_ACTIONS.has(String(c.action))) {
       runLedgerAction({ data, me, today }, resolveCase(c, today) as unknown as LedgerAction);
+      return null;
+    }
+    // Stage 7: social extras
+    if (String(c.action).startsWith('social')) {
+      runSocialAction({ social: { birthdays: [] }, club: data, me, today }, c as unknown as SocialAction);
       return null;
     }
     if (String(c.action).startsWith('chat')) {
