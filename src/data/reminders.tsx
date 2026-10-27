@@ -54,8 +54,8 @@ export function ReminderSync() {
   const prefs = data.notificationPrefs ?? DEFAULT_PREFS;
   // Recomputed when the data changes; the time only matters for dropping reminders already past.
   const plan = useMemo(
-    () => reminderPlan(data.rides, data.rsvps, me?.id ?? null, prefs, new Date().toISOString()),
-    [data.rides, data.rsvps, me?.id, prefs],
+    () => reminderPlan(data.rides, data.rsvps, me?.id ?? null, prefs, new Date().toISOString(), data.rideCalls),
+    [data.rides, data.rsvps, me?.id, prefs, data.rideCalls],
   );
   const key = JSON.stringify(plan.map((r) => [r.id, r.at, r.body]));
   useEffect(() => {

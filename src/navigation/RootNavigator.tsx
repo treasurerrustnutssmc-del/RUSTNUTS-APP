@@ -17,12 +17,14 @@ import { RideDetailScreen, RidesScreen } from '../screens/rides';
 import { PickCrewScreen } from '../screens/pickCrew';
 import { EditRouteScreen, PickRouteScreen, RouteScreen, RoutesScreen } from '../screens/routes';
 import { BriefingScreen, EditBriefingScreen } from '../screens/briefing';
+import { AskSwapScreen, CallRideScreen, EditHubScreen, HubScreen, PlanRideScreen } from '../screens/ridePlanning';
 import { EditRoadRulesScreen, RoadRulesScreen, RoadRulesSignoffsScreen } from '../screens/roadRules';
 import { BookBusScreen, BusBookingScreen, BusScreen } from '../screens/bus';
 // Lane E: live ride
 import { LiveRideScreen } from '../screens/liveRide';
 // Lane E: notifications
 import { ReminderSync } from '../data/reminders';
+import { LocalAlertSync } from '../data/localAlerts'; // Ride planning extras
 // Lane E: share in
 import { IncomingShare } from '../data/shareIn';
 import { ShareInScreen } from '../screens/shareIn';
@@ -150,6 +152,7 @@ export function RootNavigator() {
     <NavigationContainer theme={navTheme}>
       {/* Lane E: notifications */}
       <ReminderSync />
+      <LocalAlertSync />
       {/* Keyed by who's signed in, so switching people always starts fresh on their home screen. */}
       <Stack.Navigator key={stackKey} screenOptions={headerOptions}>
         {loadError ? (
@@ -194,6 +197,11 @@ export function RootNavigator() {
             {/* ride briefings */}
             <Stack.Screen name="Briefing" component={BriefingScreen} options={{ title: 'Briefing card' }} />
             <Stack.Screen name="EditBriefing" component={EditBriefingScreen} options={{ title: 'Edit briefing' }} />
+            <Stack.Screen name="PlanRide" component={PlanRideScreen} options={{ title: 'Plan the ride' }} />
+            <Stack.Screen name="CallRide" component={CallRideScreen} options={{ title: 'Ride’s off or postponed' }} />
+            <Stack.Screen name="Hub" component={HubScreen} options={{ title: 'Registrations' }} />
+            <Stack.Screen name="EditHub" component={EditHubScreen} options={{ title: 'Run the hub' }} />
+            <Stack.Screen name="AskSwap" component={AskSwapScreen} options={{ title: 'Ask to swap' }} />
             {/* Road Rules sign-off */}
             <Stack.Screen name="RoadRules" component={RoadRulesScreen} options={{ title: 'Road Rules' }} />
             <Stack.Screen name="EditRoadRules" component={EditRoadRulesScreen} options={{ title: 'Publish Road Rules' }} />

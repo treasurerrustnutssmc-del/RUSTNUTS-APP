@@ -200,15 +200,15 @@ export const DEMO_DATA: ClubData = {
   ],
 
   bikes: [
-    { id: 'b-1', memberId: 'm-rusty', make: 'Harley-Davidson', model: 'Road King', year: 2014, nickname: 'The Barge', isProject: false },
+    { id: 'b-1', memberId: 'm-rusty', make: 'Harley-Davidson', model: 'Road King', year: 2014, nickname: 'The Barge', isProject: false, rangeKm: 320 },
     { id: 'b-2', memberId: 'm-torque', make: 'Triumph', model: 'Bonneville T120', year: 2019, nickname: 'Bonnie', isProject: false },
-    { id: 'b-3', memberId: 'm-diesel', make: 'Harley-Davidson', model: 'Street Glide', year: 2017, nickname: 'Midnight', isProject: false },
+    { id: 'b-3', memberId: 'm-diesel', make: 'Harley-Davidson', model: 'Street Glide', year: 2017, nickname: 'Midnight', isProject: false, rangeKm: 300 },
     { id: 'b-4', memberId: 'm-sparks', make: 'Indian', model: 'Scout Bobber', year: 2021, nickname: null, isProject: false },
     { id: 'b-5', memberId: 'm-gravel', make: 'Harley-Davidson', model: 'Fat Boy', year: 2012, nickname: 'Tank', isProject: false },
-    { id: 'b-6', memberId: 'm-spanner', make: 'Harley-Davidson', model: 'Softail Slim', year: 2016, nickname: 'Old Faithful', isProject: false },
+    { id: 'b-6', memberId: 'm-spanner', make: 'Harley-Davidson', model: 'Softail Slim', year: 2016, nickname: 'Old Faithful', isProject: false, rangeKm: 230 },
     { id: 'b-7', memberId: 'm-spanner', make: 'Honda', model: 'CB750', year: 1978, nickname: 'The Resurrection', isProject: true },
-    { id: 'b-8', memberId: 'm-chook', make: 'Yamaha', model: 'XVS1300', year: 2010, nickname: null, isProject: false },
-    { id: 'b-9', memberId: 'm-throttle', make: 'Kawasaki', model: 'Vulcan S', year: 2020, nickname: 'Little Red', isProject: false },
+    { id: 'b-8', memberId: 'm-chook', make: 'Yamaha', model: 'XVS1300', year: 2010, nickname: null, isProject: false, rangeKm: 280 },
+    { id: 'b-9', memberId: 'm-throttle', make: 'Kawasaki', model: 'Vulcan S', year: 2020, nickname: 'Little Red', isProject: false, rangeKm: 180 },
     { id: 'b-10', memberId: 'm-patches', make: 'BMW', model: 'R1200GS', year: 2015, nickname: null, isProject: false },
     { id: 'b-11', memberId: 'm-smokey', make: 'Harley-Davidson', model: 'Heritage Classic', year: 2018, nickname: 'Smoke Signal', isProject: false },
     { id: 'b-12', memberId: 'm-jet', make: 'Harley-Davidson', model: 'Sport Glide', year: 2022, nickname: null, isProject: false },
@@ -396,6 +396,38 @@ export const DEMO_DATA: ClubData = {
     { rideId: 'r-1', memberId: 'm-diesel', readAt: '2026-10-22T10:05:00.000Z' },
     { rideId: 'r-1', memberId: 'm-spanner', readAt: '2026-10-23T20:42:00.000Z' },
   ],
+  // Ride planning extras. Diesel planned the West breakfast run's stops; Throttle's Vulcan has the
+  // smallest tank in that pack. Three members have rated the West loop. The Christmas ride takes
+  // registrations for the clubhouse sleepover.
+  ridePlans: [
+    {
+      rideId: 'r-1',
+      stops: [
+        { kind: 'fuel', name: 'BP Bacchus Marsh', km: 46, time: '09:10' },
+        { kind: 'coffee', name: 'Breakfast, Daylesford bakery', km: 96, time: '10:15' },
+        { kind: 'fuel', name: 'Ballan servo', km: 140, time: '11:30' },
+      ],
+      updatedAt: '2026-10-22T08:30:00.000Z',
+      updatedBy: 'm-diesel',
+    },
+  ],
+  routeRatings: [
+    { routeId: 'rt-west-loop', memberId: 'm-diesel', stars: 5, comment: 'Best breakfast loop we’ve got.', ratedAt: '2026-10-19T09:00:00.000Z' },
+    { routeId: 'rt-west-loop', memberId: 'm-spanner', stars: 4, comment: 'Watch the gravel after Korweinguboora.', ratedAt: '2026-10-20T09:00:00.000Z' },
+    { routeId: 'rt-west-loop', memberId: 'm-chook', stars: 4, comment: '', ratedAt: '2026-10-21T09:00:00.000Z' },
+  ],
+  rideCalls: [],
+  rideHubs: [
+    {
+      rideId: 'r-4', membersOnly: true, closesOn: '2026-11-28', beds: 12,
+      accommodation: 'Swags and spare rooms at the clubhouse, Williams Landing. Showers on site.',
+      notes: 'Bring a plate for the Kris Kringle lunch.', updatedBy: 'm-torque', updatedAt: '2026-10-22T08:00:00.000Z',
+    },
+  ],
+  hubRegistrations: [
+    { rideId: 'r-4', memberId: 'm-crank', staying: 'group', pillion: true, shareWith: 'Smokey', notes: '', registeredAt: '2026-10-22T12:40:00.000Z', withdrawnAt: null },
+  ],
+  crewSwaps: [],
 };
 
 /** The people you can "view as" in the demo, one per access level. */

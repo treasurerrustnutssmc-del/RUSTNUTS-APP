@@ -1,10 +1,11 @@
 // Generated from the live Supabase schema (Stage 1). Regenerate after changing migrations.
 
 // Stage 5: meetings and votes
-import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, MeetingType, Threshold } from '../domain/types';
+import type {
+  AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
+} from '../domain/types'; // HubStaying, PlanStop, RideCallState, SwapState: ride planning extras
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson } from './ledgerLive'; // Stage 5B
-import type { HubStaying, PlanStop, RideCallState, SwapState } from '../domain/types'; // Ride planning extras
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
 type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';

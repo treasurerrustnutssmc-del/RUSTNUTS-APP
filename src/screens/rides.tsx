@@ -23,12 +23,14 @@ import {
   rsvpProblem,
   upcomingByMonth,
 } from '../domain/rides';
-import type { ClubData, CrewRole, Member, Ride, RideCategory, RsvpAnswer } from '../domain/types';
+import type { ClubData, CrewRole, Member, Ride, RideCall, RideCategory, RsvpAnswer } from '../domain/types';
+import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
 import { LiveRideCard } from './liveRide';
 // Lane E: share
 import { ShareRideButton } from './shareRide';
+import { HubSection, RideCallBanner, RidePlanSection, SwapSection } from './ridePlanning'; // Ride planning extras
 // Stage 3 (lane B): ride chat and wall
 import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
@@ -176,6 +178,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
                 spot={spotOf(ride.id, me.id, data.crew)}
                 crewNeeded={showsCrewNeeded(me, ride, data, today)}
                 big4={isBig4(ride.id, data)}
+                call={activeCall(ride.id, data)}
                 last={i === g.rides.length - 1}
                 onPress={() => navigation.navigate('RideDetail', { rideId: ride.id })}
               />
@@ -196,6 +199,7 @@ function RideRow({
   spot,
   crewNeeded,
   big4,
+  call,
   last,
   onPress,
 }: {
@@ -208,6 +212,8 @@ function RideRow({
   crewNeeded: boolean;
   /** The NEC made it a Big 4 (5.11). */
   big4: boolean;
+  /** The ride's Off or Postponed call, if any. */
+  call: RideCall | null;
   last: boolean;
   onPress: () => void;
 }) {
@@ -216,6 +222,7 @@ function RideRow({
   const label = [
     ride.title,
     cancelled ? 'cancelled' : null,
+    !cancelled && call ? callTitle(call) : null,
     `${weekday(date)} ${formatAuDate(date)}`,
     startLabel(ride),
     ride.location,
@@ -258,6 +265,7 @@ function RideRow({
             <Chip label="Cancelled" tone="danger" />
           ) : (
             <>
+              {call ? <Chip label={callTitle(call)} tone={call.state === 'off' ? 'danger' : 'warn'} icon="rainy" /> : null}
               {going > 0 ? <Chip label={`${going} going`} tone="bone" /> : null}
               {mine ? <Chip label={`You: ${RSVP_LABEL[mine]}`} tone={ANSWER_TONE[mine]} icon={ANSWER_ICON[mine]} /> : null}
               {spot ? <Chip label={ROLE_SHORT[spot]} tone="bone" icon="shield-half" /> : null}
@@ -312,6 +320,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   const going = people('going');
   const maybe = people('maybe');
   const mySpot = spotOf(ride.id, me.id, data.crew);
+  const call = activeCall(ride.id, data);
   // Rusty Bus: the booking on this ride, and a Book link for its writers (crew managers) while it's still to come.
   // When another Booked booking already holds the bus on its days, they see that instead of the link.
   const bus = busForRide(ride.id, data);
@@ -379,6 +388,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
           <RideChip category={ride.category} />
           {isBig4(ride.id, data) ? <Chip label="Big 4" tone="red" icon="trophy" /> : null}
           {cancelled ? <Chip label="Cancelled" tone="danger" /> : null}
+          {!cancelled && call ? <Chip label={callTitle(call)} tone={call.state === 'off' ? 'danger' : 'warn'} icon="rainy" /> : null}
           {busChip ? (
             <Pressable
               accessibilityRole="link"
@@ -439,6 +449,9 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
           </Pressable>
         ) : null}
       </Card>
+
+      {/* Ride planning extras: the ride's off or postponed */}
+      <RideCallBanner ride={ride} me={me} data={data} />
 
       {/* Lane E: live ride */}
       <LiveRideCard ride={ride} onOpen={() => navigation.navigate('LiveRide', { rideId: ride.id })} />
@@ -534,7 +547,25 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         onWrite={() => navigation.navigate('EditBriefing', { rideId: ride.id })}
       />
 
+      {/* Ride planning extras: stops and fuel, the hub, crew swaps */}
+      <RidePlanSection
+        ride={ride}
+        me={me}
+        data={data}
+        onPlan={() => navigation.navigate('PlanRide', { rideId: ride.id })}
+        onCall={() => navigation.navigate('CallRide', { rideId: ride.id })}
+      />
+      <HubSection
+        ride={ride}
+        me={me}
+        data={data}
+        today={today}
+        onOpen={() => navigation.navigate('Hub', { rideId: ride.id })}
+        onEdit={() => navigation.navigate('EditHub', { rideId: ride.id })}
+      />
+
       <CrewSection ride={ride} me={me} data={data} onPick={(role) => navigation.navigate('PickCrew', { rideId: ride.id, role })} />
+      <SwapSection ride={ride} me={me} data={data} onAsk={() => navigation.navigate('AskSwap', { rideId: ride.id })} />
       {/* Stage 3 (lane B): the ride's chat and photo wall */}
       <RideChatRows
         rideId={ride.id}
