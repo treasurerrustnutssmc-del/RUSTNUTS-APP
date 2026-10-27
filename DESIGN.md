@@ -329,3 +329,8 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - **Composer:** steel field one line high that grows to six lines, with photo, camera (phones only) and a stencil GIF button to its left, and a red send square to its right. The GIF panel opens under it and says "Powered by GIPHY".
 - **Media:** one photo fills the bubble at its own shape (from 2:1 wide to a little taller than square); two to four sit in a two-across grid. Videos show a still with a play mark. Link cards are steel with the site in stencil.
 - **Photos screen:** Latest / Ride walls choices, a three-across grid with 3pt gaps, and a black full-screen viewer with the poster's name, the date and "Open the chat".
+
+## Stage 7: social extras
+
+- **Shout-outs card (Home):** a stencil "Shout-outs" title, then one row per person: avatar, name in stencil, a gift or ribbon icon with "Birthday" or "3 years patched" in body text, and the day on the right in stencil ("Sat 31/10"), or a red "Today" chip. Today's rows (not your own) end with a 44pt outlined "G’day" button (chat icon and stencil word) beside the row, never inside it, so a press can't reach both.
+- **Day and month grid (Birthday):** steel squares with stencil numbers, the picked one in bright club red. Four months or six days to a row so the grid fills the card at phone width; every square is 44pt tall.

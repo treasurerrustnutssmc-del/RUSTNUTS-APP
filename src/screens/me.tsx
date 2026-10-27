@@ -9,6 +9,8 @@ import type { LicenceClass } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: notifications
 import { NotificationSettings } from './notificationSettings';
+// Stage 7: social extras
+import { MeSocialSection } from './social';
 import { colors, space, type } from '../theme';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import { seesReports } from '../domain/ledger'; // Stage 5B
@@ -172,6 +174,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       </Card>
       {/* Lane E: notifications */}
       <NotificationSettings />
+      {/* Stage 7: social extras */}
+      <MeSocialSection />
 
       <SectionTitle title="Privacy" />
       <Card>

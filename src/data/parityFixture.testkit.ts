@@ -24,6 +24,7 @@ import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActi
 import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'; // Stage 5D
 import { sharesFor } from '../domain/national'; // Stage 5D
 import type { ConductKind, MerchStatus, OrderStatus } from '../domain/types'; // Stage 5D
+import { runSocialAction, type SocialAction } from './social/demoSocialActions'; // Stage 7: social extras
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -438,6 +439,11 @@ export function demoAnswer(c: ParityCase): string | null {
     }
     if (LEDGER_ACTIONS.has(String(c.action))) {
       runLedgerAction({ data, me, today }, resolveCase(c, today) as unknown as LedgerAction);
+      return null;
+    }
+    // Stage 7: social extras
+    if (String(c.action).startsWith('social')) {
+      runSocialAction({ social: { birthdays: [] }, club: data, me, today }, c as unknown as SocialAction);
       return null;
     }
     if (String(c.action).startsWith('chat')) {

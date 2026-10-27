@@ -546,6 +546,9 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.report_message(${id('msg', c.message)}, ${text(c.reason, c.repeat)})`;
     case 'chatBlock':
       return `public.set_block(${id('m', c.member)}, ${c.blocked})`;
+    // Stage 7: social extras
+    case 'socialSetBirthday':
+      return `public.set_birthday(${c.month ?? 'null'}, ${c.day ?? 'null'})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
