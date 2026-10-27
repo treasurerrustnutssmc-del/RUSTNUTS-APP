@@ -12,6 +12,7 @@ import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
 import * as s4 from './demoStage4';
 import * as ledger from './ledgerActions';
+import * as admin from './adminActions'; // Stage 5D
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
@@ -176,6 +177,56 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     approveBudget: async (chapterId, fy, voteId) => setData(ledger.approveBudget(ctx, chapterId, fy, voteId)),
     reopenBudget: async (chapterId, fy) => setData(ledger.reopenBudget(ctx, chapterId, fy)),
     presentReport: async (month) => setData(ledger.presentReport(ctx, month)),
+    // Stage 5D: board and admin
+    recordConduct: async (input) => {
+      const result = admin.recordConduct(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    holdConduct: async (id, until, reason) => setData(admin.holdConduct(ctx, id, until, reason)),
+    removeConduct: async (id) => setData(admin.removeConduct(ctx, id)),
+    lodgeAppeal: async (id, grounds) => setData(admin.lodgeAppeal(ctx, id, grounds)),
+    setHearing: async (id, panelIds, hearingOn) => setData(admin.setHearing(ctx, id, panelIds, hearingOn)),
+    decideAppeal: async (id, outcome, note) => setData(admin.decideAppeal(ctx, id, outcome, note)),
+    withdrawAppeal: async (id) => setData(admin.withdrawAppeal(ctx, id)),
+    proposeMerch: async (input) => {
+      const result = admin.proposeMerch(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    decideMerch: async (id, yes, reason) => setData(admin.decideMerch(ctx, id, yes, reason)),
+    closeMerch: async (id) => setData(admin.closeMerch(ctx, id)),
+    orderMerch: async (input) => {
+      const result = admin.orderMerch(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    decideOrder: async (id, yes, reason) => setData(admin.decideOrder(ctx, id, yes, reason)),
+    payOrder: async (id, paidOn) => {
+      const result = admin.payOrder(ctx, id, paidOn);
+      setData(result.data);
+      return result.id;
+    },
+    handOver: async (id) => setData(admin.handOver(ctx, id)),
+    cancelOrder: async (id) => setData(admin.cancelOrder(ctx, id)),
+    proposeContribution: async (input) => {
+      const result = admin.proposeContribution(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    decideContribution: async (id, chapterId, voteId) => setData(admin.decideContribution(ctx, id, chapterId, voteId)),
+    withdrawContribution: async (id) => setData(admin.withdrawContribution(ctx, id)),
+    proposeChapter: async (input) => {
+      const result = admin.proposeChapter(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    settleChapter: async (id, voteId) => {
+      const result = admin.settleChapter(ctx, id, voteId);
+      setData(result.data);
+      return result.chapterId;
+    },
+    withdrawChapter: async (id) => setData(admin.withdrawChapter(ctx, id)),
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;
