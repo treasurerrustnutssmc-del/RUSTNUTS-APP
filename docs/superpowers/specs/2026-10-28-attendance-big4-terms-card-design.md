@@ -35,7 +35,7 @@ Shape agreed with the ride planning extras thread: app type `Big4Ride { rideId, 
 
 ## 2. Meeting categories (4.6, 5.2)
 
-`checkin_sessions` gets `meeting_type text null check in ('ordinary', 'special', 'event')`, null for rides. Existing meeting check-ins have none and count as **ordinary** (they were the monthly meetings). `open_checkin` gains a sixth argument `p_meeting_type` (default `'ordinary'`) and refuses "Pick what kind of meeting it is." for a bad value. The Open a meeting check-in screen gets three chips: **Monthly meeting** (ordinary; an Annual Chapter Meeting held with it counts once, as this), **Special or annual meeting**, **Other event**. Classified when opened, which is in advance (4.6: "classified in advance"). No action changes it later.
+`checkin_sessions` gets `meeting_type text null check in ('ordinary', 'special', 'event')`, null for rides. Existing meeting check-ins have none and count as **ordinary** (they were the monthly meetings). `open_checkin` is left as it is (changing its arguments would need the old version removed, and live files keep that word out); a new action `set_meeting_type(p_session, p_type)` sets the kind, and the app calls it straight after opening anything that isn't ordinary. Refusals: "That check-in no longer exists.", "Only that chapter’s board can run this check-in.", "Only a meeting check-in has a kind.", "Pick what kind of meeting it is.", "A meeting’s kind is set before it’s held (4.6)." The Open a meeting check-in screen gets three choices: **Monthly meeting** (ordinary; an Annual Chapter Meeting held with it counts once, as this), **Special or annual**, **Other event**. Classified in advance (4.6), and changeable only until the day it's held.
 
 The new column is read with a plain select (column grant), so `members_money()` isn't redefined.
 
@@ -49,7 +49,7 @@ The new column is read with a plain select (column grant), so `members_money()` 
 - "They checked in, so there’s nothing to excuse."
 - "That check-in no longer exists."
 
-UI: on the Run check-in screen, a board member sees an **Excused** section and, in "Tick someone off", an "Excuse" action per member that asks for the reason. Excused rows show the reason.
+UI: on the Run check-in screen, a board member sees an **Excused** section (with Clear) and can switch the member list between **Tick off** and **Excuse**; Excuse asks for the reason. Before the day, the list takes apologies only.
 
 ## 4. Where a member stands (`src/domain/standing.ts`)
 
@@ -68,10 +68,10 @@ All counts use 2.4: the smallest whole number that meets the percentage (`ceil(h
 - **States:** Met (attended ≥ needed); for Big 4, **To go** (not met but enough Big 4s are still on the calendar); otherwise **Behind**. Meetings are judged on the year so far, so they're Met or Behind.
 - **On hiatus:** no requirement shown ("On hiatus" note). *Inferred: hiatus works as standing relief under 4.12; Jeff can veto.*
 
-**Big 4 eligibility (5.4)** `big4Eligibility(member, ride, data)`: the three most recent official meetings (ordinary or special) of the home chapter held before the ride's date, skipping ones the member was excused from; they need two (or all of them if fewer than two were held). Shown on the ride for an FNG, Full or Nomad: "Eligible: 2 of the last 3 meetings" or "Needs 2 of the last 3 meetings (you’ve made 1). The board can excuse work, family, health, injury or distance." A Supporter sees "Supporters can’t join Big 4 Club-only rides (5.8)." This change shows it; it does not block an RSVP (that's `set_rsvp`, which lane A and the Going gate own; listed as next step).
+**Big 4 eligibility (5.4)** `big4Eligibility(member, rideDate, data, today)`: the three most recent official meetings (ordinary or special) of the home chapter held before the ride's date and already held, skipping ones the member was excused from; they need two (or all of them if fewer than two were held). Shown on the ride for an FNG, Full or Nomad: "Eligible: 2 of the last 3 meetings" or "Needs 2 of the last 3 meetings (you’ve made 1). The board can excuse work, family, health, injury or distance." A Supporter sees "Supporters can’t join Big 4 Club-only rides (5.8)." This change shows it; it does not block an RSVP (that's `set_rsvp`, which lane A and the Going gate own; listed as next step).
 
 **Screens**
-- **Me** and a member's profile: "Turned up" becomes "This club year": the requirement lines with chips, under the existing counts.
+- **Me** and a member's profile (the member and their board only): an "Attendance rules" card with the requirement lines and chips, under the existing "Turned up" counts.
 - **FNG tracker** (`fng.tsx`): the three 50% lines.
 - **Board → Attendance** (new screen `Attendance`, from the board's Check-ins card): the chapter's Full, Nomad and FNG members, Behind first, each with their lines. Board of that chapter or national only (the same people who see attendance records today).
 - **Ride detail:** a Big 4 chip; the 5.4 line for the viewer; for the NEC, "Make this a Big 4" / "Not a Big 4" (`ConfirmButton` for removal), with "Whole club" or a chapter.
@@ -92,7 +92,7 @@ A "Membership card" row on Me opens a card: the real logo (`assets/logo.png`), n
 ## 7. Testing
 
 - `npm test`: `big4.test.ts`, `standing.test.ts`, `terms.test.ts`, `card.test.ts`, exemption and meeting-type rules in `attendance.test.ts`, demo actions; written first, seen failing.
-- `npm run test:db`: `supabase/tests/attendance_rules_test.sql` (who can designate and excuse, the refusals, RLS on the two tables, meeting type), plus parity cases `designateBig4`, `undesignateBig4`, `setExemption`, `openCheckin` with a meeting type.
+- `npm run test:db`: `supabase/tests/attendance_rules_test.sql` (who can designate and excuse, the refusals, RLS on the two tables, meeting type), plus parity cases `designateBig4`, `undesignateBig4`, `setMeetingType`, `setExemption`.
 - Typecheck, lint, an independent reviewer on the diff, Impeccable checks by hand on Me, Attendance, Run check-in, Open meeting, ride detail, Board and the card at 390×844 in the demo build.
 
 ## 8. Live
