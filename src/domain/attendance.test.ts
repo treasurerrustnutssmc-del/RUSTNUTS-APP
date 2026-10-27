@@ -6,6 +6,9 @@ import {
   canRunCheckin,
   checkInProblem,
   closeProblem,
+  exemptionProblem,
+  isExcused,
+  meetingTypeOf,
   markProblem,
   normalizeCode,
   openCheckinProblem,
@@ -123,4 +126,35 @@ test('attendance counts rides and meetings by the date they were held', () => {
   assert.deepEqual(attendanceCount('rider', data, '2026-07-01'), { rides: 1, meetings: 2 });
   assert.deepEqual(attendanceCount('rider', data, '2026-07-01', '2026-08-31'), { rides: 0, meetings: 2 });
   assert.deepEqual(attendanceCount('sec', data, '2026-07-01'), { rides: 0, meetings: 0 });
+});
+
+test('a meeting check-in says what it counts towards when it’s opened', () => {
+  const data = club();
+  const sec = who(data, 'sec');
+  const meeting = { kind: 'meeting' as const, rideId: null, chapterId: 'west', title: 'Club meeting', heldOn: today };
+  assert.equal(openCheckinProblem(sec, { ...meeting, meetingType: 'event' }, data, today), null);
+  assert.equal(openCheckinProblem(sec, { ...meeting, meetingType: 'bbq' as never }, data, today), 'Pick what kind of meeting it is.');
+  assert.equal(meetingTypeOf(session('a')), 'ordinary');
+  assert.equal(meetingTypeOf(session('a', { meetingType: 'special' })), 'special');
+  assert.equal(meetingTypeOf(session('a', { kind: 'ride', rideId: 'r-west', meetingType: null })), null);
+});
+
+test('excusing someone from a check-in (4.12, 5.3)', () => {
+  const data = club({
+    checkinSessions: [session('s1')],
+    attendance: [{ sessionId: 's1', memberId: 'tre', checkedInAt: '2026-10-24T09:00:00Z', markedBy: null }],
+    exemptions: [{ sessionId: 's1', memberId: 'fng', reason: 'Work', grantedBy: 'sec', grantedAt: '2026-10-24T09:00:00Z' }],
+  });
+  const sec = who(data, 'sec');
+  assert.equal(exemptionProblem(sec, 's1', 'rider', 'Work trip', data), null);
+  assert.equal(exemptionProblem(sec, 's1', 'fng', null, data), null);
+  assert.equal(exemptionProblem(who(data, 'chair'), 's1', 'rider', 'Work trip', data), null);
+  assert.equal(exemptionProblem(sec, 'nope', 'rider', 'Work trip', data), 'That check-in no longer exists.');
+  assert.equal(exemptionProblem(sec, 's1', 'nobody', 'Work trip', data), 'That member no longer exists.');
+  assert.equal(exemptionProblem(who(data, 'rider'), 's1', 'fng', 'Work trip', data), 'Only their chapter’s board can excuse them.');
+  assert.equal(exemptionProblem(who(data, 'northsec'), 's1', 'rider', 'Work trip', data), 'Only their chapter’s board can excuse them.');
+  assert.equal(exemptionProblem(sec, 's1', 'sec', 'Work trip', data), 'Someone else on the board has to excuse you.');
+  assert.equal(exemptionProblem(sec, 's1', 'tre', 'Work trip', data), 'They checked in, so there’s nothing to excuse.');
+  assert.equal(isExcused('s1', 'fng', data), true);
+  assert.equal(isExcused('s1', 'rider', data), false);
 });
