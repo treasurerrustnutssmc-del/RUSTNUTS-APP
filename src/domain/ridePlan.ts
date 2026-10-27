@@ -22,6 +22,9 @@ export const BAD_TIME = 'Write times as 24-hour HH:MM, like 10:30.';
 export const PLAN_CONFLICT =
   'Someone else saved this plan while you were editing. Your changes aren’t saved: copy them, then open the plan again.';
 
+/** Whether a refusal is the plan's version check (the screen reloads to show the newer plan). */
+export const isPlanConflict = (e: unknown): boolean => e instanceof Error && e.message === PLAN_CONFLICT;
+
 const TIME = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 const length = (s: string): number => [...s].length;
 

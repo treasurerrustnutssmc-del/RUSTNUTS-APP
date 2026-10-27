@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import type {
   BallotChoice, BusPurpose, BusStatus, ChargeKind, CheckinKind, ClubData, CrewRole, Electorate, MeetingKind, Member, MemberStatus, PaymentState, PositionRole,
   RideCategory, Route, RsvpAnswer, Threshold,
+  HubStaying, PlanStop, RideCallState, SwapState, // Ride planning extras
   EntryState, LedgerCode, VoteResult, // Stage 5B
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
@@ -89,6 +90,14 @@ export interface ParityFixture {
     bookedBy: string | null; status: BusStatus;
   }[];
   cases: ParityCase[];
+  // Ride planning extras, all made at PLANNED_AT by no one (a swap by its asker).
+  bikeRanges?: { bike: string; rangeKm: number }[];
+  ridePlans?: { ride: string; stops: PlanStop[] }[];
+  routeRatings?: { route: string; member: string; stars: number }[];
+  rideCalls?: { ride: string; state: RideCallState; reason: string }[];
+  rideHubs?: { ride: string; membersOnly: boolean; beds: number | null }[];
+  hubRegistrations?: { ride: string; member: string; staying: HubStaying; pillion: boolean }[];
+  crewSwaps?: { key: string; ride: string; askedBy: string; role: CrewRole; askedTo: string; theirRole: CrewRole | null; state: SwapState }[];
   stage4?: Stage4Fixture;
   // Stage 3 (lane B): chats. A chat is named `club`, `nec`, `committee:ride`, `committee:charity`,
   // `chapter:<slug>`, `board:<slug>`, `ride:<ride key>` or `direct:<key>:<key>` (keys in order).
@@ -132,6 +141,9 @@ export const RULES_AT = '2026-10-01T00:00:00.000Z';
 /** When a fixture sign-off was made: RULES_AT, or its signedDays from today, at midday in Melbourne. */
 export const fixtureSignedAt = (s: { signedDays?: number }, today: string): string =>
   s.signedDays === undefined ? RULES_AT : `${addDays(today, s.signedDays)}T02:00:00.000Z`;
+
+/** When the fixture's ride planning extras were made. */
+export const PLANNED_AT = '2026-10-01T00:00:00.000Z';
 
 /** When the fixture's Rusty Bus bookings were made, decided and cancelled. */
 export const BUS_AT = '2026-10-01T00:00:00.000Z';
@@ -262,7 +274,29 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  return withLedger(withStage4(base, today), today);
+  return withPlanning(withLedger(withStage4(base, today), today));
+}
+
+// Ride planning extras.
+function withPlanning(data: ClubData): ClubData {
+  const range = (bikeId: string) => (fixture.bikeRanges ?? []).find((r) => r.bike === bikeId)?.rangeKm ?? null;
+  return {
+    ...data,
+    bikes: data.bikes.map((b) => ({ ...b, rangeKm: range(b.id) })),
+    ridePlans: (fixture.ridePlans ?? []).map((p) => ({ rideId: p.ride, stops: p.stops, updatedAt: PLANNED_AT, updatedBy: null })),
+    routeRatings: (fixture.routeRatings ?? []).map((r) => ({ routeId: r.route, memberId: r.member, stars: r.stars, comment: '', ratedAt: PLANNED_AT })),
+    rideCalls: (fixture.rideCalls ?? []).map((c) => ({ rideId: c.ride, state: c.state, reason: c.reason, newDay: null, calledBy: null, calledAt: PLANNED_AT })),
+    rideHubs: (fixture.rideHubs ?? []).map((h) => ({
+      rideId: h.ride, membersOnly: h.membersOnly, closesOn: null, beds: h.beds, accommodation: '', notes: '', updatedBy: null, updatedAt: PLANNED_AT,
+    })),
+    hubRegistrations: (fixture.hubRegistrations ?? []).map((r) => ({
+      rideId: r.ride, memberId: r.member, staying: r.staying, pillion: r.pillion, shareWith: '', notes: '', registeredAt: PLANNED_AT, withdrawnAt: null,
+    })),
+    crewSwaps: (fixture.crewSwaps ?? []).map((s) => ({
+      id: s.key, rideId: s.ride, askedBy: s.askedBy, role: s.role, askedTo: s.askedTo, theirRole: s.theirRole, note: '', state: s.state,
+      askedAt: PLANNED_AT, answeredAt: s.state === 'asked' ? null : PLANNED_AT,
+    })),
+  };
 }
 
 // Stage 5B: the treasurer's books.

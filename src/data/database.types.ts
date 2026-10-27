@@ -4,6 +4,7 @@
 import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, Threshold } from '../domain/types';
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson } from './ledgerLive'; // Stage 5B
+import type { HubStaying, PlanStop, RideCallState, SwapState } from '../domain/types'; // Ride planning extras
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
 type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';
@@ -83,6 +84,8 @@ export type Database = {
           model: string;
           nickname: string | null;
           year: number | null;
+          /** Ride planning extras; missing before that migration is live. */
+          range_km?: number | null;
         };
         Insert: {
           created_at?: string;
@@ -291,6 +294,52 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      // Ride planning extras: each changes only through its actions.
+      ride_plans: {
+        Row: { ride_id: string; stops: PlanStop[]; updated_by: string | null; updated_at: string };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      route_ratings: {
+        Row: { route_id: string; member_id: string; stars: number; comment: string | null; rated_at: string };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      ride_calls: {
+        Row: { ride_id: string; state: RideCallState; reason: string | null; new_day: string | null; called_by: string | null; called_at: string };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      ride_hubs: {
+        Row: {
+          ride_id: string; members_only: boolean; closes_on: string | null; beds: number | null; accommodation: string | null;
+          notes: string | null; updated_by: string | null; updated_at: string;
+        };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      hub_registrations: {
+        Row: {
+          ride_id: string; member_id: string; staying: HubStaying; pillion: boolean; share_with: string | null; notes: string | null;
+          registered_at: string; withdrawn_at: string | null;
+        };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      crew_swaps: {
+        Row: {
+          id: string; ride_id: string; asked_by: string; role: CrewRole; asked_to: string; their_role: CrewRole | null; note: string | null;
+          state: SwapState; asked_at: string; answered_at: string | null;
+        };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       road_rules_signoffs: {
         Row: { member_id: string; signed_at: string; version: number };
         Insert: { [_ in never]: never }; // sign-offs are made only through sign_road_rules
@@ -351,6 +400,23 @@ export type Database = {
       };
       decide_bus: { Args: { p_booking: string; p_yes: boolean; p_reason: string | null }; Returns: undefined };
       cancel_bus: { Args: { p_booking: string }; Returns: undefined };
+      // Ride planning extras
+      set_bike_range: { Args: { p_bike: string; p_range: number | null }; Returns: undefined };
+      save_ride_plan: { Args: { p_ride: string; p_stops: PlanStop[]; p_seen: string | null }; Returns: undefined };
+      rate_route: { Args: { p_route: string; p_stars: number; p_comment: string | null }; Returns: undefined };
+      call_ride: { Args: { p_ride: string; p_state: RideCallState; p_reason: string | null; p_new_day: string | null }; Returns: undefined };
+      save_hub: {
+        Args: { p_ride: string; p_members_only: boolean; p_closes_on: string | null; p_beds: number | null; p_accommodation: string | null; p_notes: string | null };
+        Returns: undefined;
+      };
+      register_hub: {
+        Args: { p_ride: string; p_staying: HubStaying; p_pillion: boolean; p_share_with: string | null; p_notes: string | null };
+        Returns: undefined;
+      };
+      withdraw_hub: { Args: { p_ride: string }; Returns: undefined };
+      ask_swap: { Args: { p_ride: string; p_to: string; p_note: string | null }; Returns: string };
+      answer_swap: { Args: { p_swap: string; p_yes: boolean }; Returns: undefined };
+      withdraw_swap: { Args: { p_swap: string }; Returns: undefined };
       ride_calendar: {
         Args: never;
         Returns: {

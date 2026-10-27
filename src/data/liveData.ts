@@ -8,6 +8,7 @@ import type { BusInput } from '../domain/bus';
 import type { ClubData, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
 import { toLedger } from './ledgerLive'; // Stage 5B
+import { loadPlanning } from './planningLive'; // Ride planning extras
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
 
@@ -105,6 +106,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     ),
   );
 
+  // Ride planning extras: its own queries, so ride_calendar() stays as it is.
+  const planning = await loadPlanning(db);
+
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
     email: p.email,
@@ -157,6 +161,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       year: b.year,
       nickname: b.nickname,
       isProject: b.is_project,
+      rangeKm: b.range_km ?? null,
     })),
     registrations: (regos.data ?? []).map((r) => ({ bikeId: r.bike_id, rego: r.rego, regoExpiry: r.rego_expiry })),
     emergencyContacts: (contacts.data ?? []).map((c) => ({
@@ -263,6 +268,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       cancelledAt: b.cancelled_at ? instant(b.cancelled_at) : null,
     })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
+    ...planning,
     // Stage 5: meetings and votes
     ...business,
     ...ledger,

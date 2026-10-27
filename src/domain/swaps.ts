@@ -31,9 +31,9 @@ function rideProblem(ride: Ride | undefined, now: string): string | null {
   return null;
 }
 
-/** Why `member` can't hold `role` on this ride: the crew checks, then the Road Rules. */
-function holdProblem(member: Member, role: CrewRole, ride: Ride, data: ClubData): string | null {
-  return eligibilityProblem(member, role, ride, data) ?? (mustSignFirst(member, data, melbourneDate(ride.startsAt)) ? CREW_NOT_SIGNED : null);
+/** Why `member` can't hold `role` on this ride: the crew checks, then the Road Rules as of now. */
+function holdProblem(member: Member, role: CrewRole, ride: Ride, data: ClubData, now: string): string | null {
+  return eligibilityProblem(member, role, ride, data) ?? (mustSignFirst(member, data, melbourneDate(now)) ? CREW_NOT_SIGNED : null);
 }
 
 /** Why `me` can't ask `targetId` to swap, or null when they can. Mirrors public.ask_swap. */
@@ -45,13 +45,13 @@ export function askSwapProblem(me: Member | null, ride: Ride | undefined, target
   if (targetId === me!.id) return PICK_SOMEONE_ELSE;
   const target = data.members.find((m) => m.id === targetId);
   if (!target) return 'That member no longer exists.';
-  const theirs = holdProblem(target, mine, ride!, data);
+  const theirs = holdProblem(target, mine, ride!, data, now);
   if (theirs) return theirs;
   if (data.rsvps.some((r) => r.rideId === ride!.id && r.memberId === targetId && r.answer === 'no')) return 'They said they can’t make it.';
   const their = spot(ride!.id, targetId, data);
   if (their === mine) return ALREADY_THAT_SPOT;
   if (their) {
-    const myOwn = holdProblem(me!, their, ride!, data);
+    const myOwn = holdProblem(me!, their, ride!, data, now);
     if (myOwn) return myOwn;
   }
   if ((data.crewSwaps ?? []).some((s) => s.rideId === ride!.id && s.askedBy === me!.id && s.state === 'asked')) return ALREADY_ASKED;
@@ -76,10 +76,10 @@ export function answerSwapProblem(me: Member | null, swap: CrewSwap | undefined,
   const riding = rideProblem(ride, now);
   if (riding) return riding;
   if (!swapIsCurrent(swap, data)) return CREW_CHANGED;
-  const mine = holdProblem(me!, swap.role, ride!, data);
+  const mine = holdProblem(me!, swap.role, ride!, data, now);
   if (mine) return mine;
   const asker = data.members.find((m) => m.id === swap.askedBy);
-  if (swap.theirRole && asker) return holdProblem(asker, swap.theirRole, ride!, data);
+  if (swap.theirRole && asker) return holdProblem(asker, swap.theirRole, ride!, data, now);
   return null;
 }
 

@@ -10,7 +10,7 @@ import { readGpx } from '../src/domain/gpx';
 import { monthReport } from '../src/domain/ledger'; // Stage 5B
 import {
   LEDGER_AT, BUDGET_AT, monthFrom, fixtureData, // Stage 5B
-  BRIEFED_AT, BUS_AT, BUS_DECLINE_REASON, caseAction, fixtureSignedAt, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
+  BRIEFED_AT, BUS_AT, PLANNED_AT, BUS_DECLINE_REASON, caseAction, fixtureSignedAt, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
   resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
 
@@ -373,6 +373,8 @@ const ledgerCall = (c: ParityCase & Record<string, any>): string => {
 const call = (c: ParityCase & Record<string, any>): string => {
   const stage4 = stage4Call(resolveCase(c, today) as ParityCase & Record<string, any>);
   if (stage4) return stage4;
+  const planning = planningCall(c);
+  if (planning) return planning;
   switch (c.action) {
     case 'appoint':
       return `public.appoint_position(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)})`;
@@ -476,6 +478,68 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.set_block(${id('m', c.member)}, ${c.blocked})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
+  }
+};
+
+// Ride planning extras, inserted as the owner.
+const planned = `${q(PLANNED_AT)}::timestamptz`;
+for (const r of fx.bikeRanges ?? []) sql(`update public.bikes set range_km = ${r.rangeKm} where id = ${id('b', r.bike)};`);
+for (const p of fx.ridePlans ?? []) {
+  sql(`insert into public.ride_plans (ride_id, stops, updated_at) values (${id('r', p.ride)}, ${json(p.stops)}, ${planned});`);
+}
+for (const r of fx.routeRatings ?? []) {
+  sql(`insert into public.route_ratings (route_id, member_id, stars, rated_at) values (${id('rt', r.route)}, ${id('m', r.member)}, ${r.stars}, ${planned});`);
+}
+for (const c of fx.rideCalls ?? []) {
+  sql(`insert into public.ride_calls (ride_id, state, reason, called_at) values (${id('r', c.ride)}, ${q(c.state)}, ${c.reason ? q(c.reason) : 'null'}, ${planned});`);
+}
+for (const h of fx.rideHubs ?? []) {
+  sql(`insert into public.ride_hubs (ride_id, members_only, beds, updated_at) values (${id('r', h.ride)}, ${h.membersOnly}, ${h.beds ?? 'null'}, ${planned});`);
+}
+for (const r of fx.hubRegistrations ?? []) {
+  sql(
+    `insert into public.hub_registrations (ride_id, member_id, staying, pillion, registered_at) values (` +
+      `${id('r', r.ride)}, ${id('m', r.member)}, ${q(r.staying)}, ${r.pillion}, ${planned});`,
+  );
+}
+for (const w of fx.crewSwaps ?? []) {
+  sql(
+    `insert into public.crew_swaps (id, ride_id, asked_by, role, asked_to, their_role, state, asked_at, answered_at) values (` +
+      `${id('sw', w.key)}, ${id('r', w.ride)}, ${id('m', w.askedBy)}, ${q(w.role)}, ${id('m', w.askedTo)}, ` +
+      `${w.theirRole ? q(w.theirRole) : 'null'}, ${q(w.state)}, ${planned}, ${w.state === 'asked' ? 'null' : planned});`,
+  );
+}
+
+/** A ride planning extras call, its texts as typed (the database trims them). */
+const planningCall = (c: ParityCase & Record<string, any>): string | null => {
+  switch (c.action) {
+    case 'setBikeRange':
+      return `public.set_bike_range(${id('b', c.bike)}, ${c.rangeKm ?? 'null'})`;
+    case 'saveRidePlan': {
+      const stops = c.repeatStops ? Array.from({ length: c.repeatStops }, () => c.stops[0]) : c.stops;
+      return `public.save_ride_plan(${id('r', c.ride)}, ${json(stops)}, ${seen(c.seen)})`;
+    }
+    case 'rateRoute':
+      return `public.rate_route(${id('rt', c.route)}, ${c.stars}, ${text(c.comment, c.repeat)})`;
+    case 'callRide':
+      return `public.call_ride(${id('r', c.ride)}, ${q(c.state)}, ${text(c.reason, c.repeat)}, ${date(c.newDay ?? null)})`;
+    case 'saveHub':
+      return (
+        `public.save_hub(${id('r', c.ride)}, ${c.membersOnly}, ${date(c.closesOn ?? null)}, ${c.beds ?? 'null'}, ` +
+        `${q(c.accommodation)}, ${q(c.notes)})`
+      );
+    case 'registerHub':
+      return `public.register_hub(${id('r', c.ride)}, ${q(c.staying)}, ${c.pillion}, ${q(c.shareWith)}, ${q(c.notes)})`;
+    case 'withdrawHub':
+      return `public.withdraw_hub(${id('r', c.ride)})`;
+    case 'askSwap':
+      return `public.ask_swap(${id('r', c.ride)}, ${id('m', c.to)}, ${text(c.note, c.repeat)})`;
+    case 'answerSwap':
+      return `public.answer_swap(${id('sw', c.swap)}, ${c.yes})`;
+    case 'withdrawSwap':
+      return `public.withdraw_swap(${id('sw', c.swap)})`;
+    default:
+      return null;
   }
 };
 

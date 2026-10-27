@@ -5201,6 +5201,631 @@
       "action": "presentReport",
       "monthOffset": -1,
       "allowed": false
+    },
+    {
+      "name": "A member sets their own bike's range",
+      "as": "spanner",
+      "action": "setBikeRange",
+      "allowed": true,
+      "bike": "spanner-softail",
+      "rangeKm": 200
+    },
+    {
+      "name": "A member clears their own bike's range",
+      "as": "spanner",
+      "action": "setBikeRange",
+      "allowed": true,
+      "bike": "spanner-softail",
+      "rangeKm": null
+    },
+    {
+      "name": "A member tries to set someone else's bike's range",
+      "as": "torque",
+      "action": "setBikeRange",
+      "allowed": false,
+      "bike": "spanner-softail",
+      "rangeKm": 200
+    },
+    {
+      "name": "A bike range under 30 km is refused",
+      "as": "spanner",
+      "action": "setBikeRange",
+      "allowed": false,
+      "bike": "spanner-softail",
+      "rangeKm": 20
+    },
+    {
+      "name": "An applicant can't set a bike range",
+      "as": "dylan",
+      "action": "setBikeRange",
+      "allowed": false,
+      "bike": "dylan-street-bob",
+      "rangeKm": 200
+    },
+    {
+      "name": "A ride's Road Captain saves its plan, names untrimmed",
+      "as": "gravel",
+      "action": "saveRidePlan",
+      "allowed": true,
+      "ride": "future-west",
+      "stops": [
+        {
+          "kind": "lunch",
+          "name": " Lunch at the pub ",
+          "km": 95,
+          "time": "12:30"
+        },
+        {
+          "kind": "fuel",
+          "name": "Kinglake",
+          "km": 40,
+          "time": null
+        }
+      ],
+      "seen": null
+    },
+    {
+      "name": "A member who isn't the RC or a manager can't plan the ride",
+      "as": "spanner",
+      "action": "saveRidePlan",
+      "allowed": false,
+      "ride": "future-west",
+      "stops": [],
+      "seen": null
+    },
+    {
+      "name": "Nobody plans a ride after its day",
+      "as": "torque",
+      "action": "saveRidePlan",
+      "allowed": false,
+      "ride": "past-club",
+      "stops": [],
+      "seen": null
+    },
+    {
+      "name": "Nobody plans a cancelled ride",
+      "as": "torque",
+      "action": "saveRidePlan",
+      "allowed": false,
+      "ride": "cancelled-north",
+      "stops": [],
+      "seen": null
+    },
+    {
+      "name": "A plan with 16 stops is refused",
+      "as": "gravel",
+      "action": "saveRidePlan",
+      "allowed": false,
+      "ride": "future-west",
+      "stops": [
+        {
+          "kind": "fuel",
+          "name": "Kinglake",
+          "km": 40,
+          "time": null
+        }
+      ],
+      "repeatStops": 16,
+      "seen": null
+    },
+    {
+      "name": "A plan with 15 stops is fine",
+      "as": "gravel",
+      "action": "saveRidePlan",
+      "allowed": true,
+      "ride": "future-west",
+      "stops": [
+        {
+          "kind": "fuel",
+          "name": "Kinglake",
+          "km": 40,
+          "time": null
+        }
+      ],
+      "repeatStops": 15,
+      "seen": null
+    },
+    {
+      "name": "A stop with a blank name is refused",
+      "as": "gravel",
+      "action": "saveRidePlan",
+      "allowed": false,
+      "ride": "future-west",
+      "stops": [
+        {
+          "kind": "fuel",
+          "name": "   ",
+          "km": 40,
+          "time": null
+        }
+      ],
+      "seen": null
+    },
+    {
+      "name": "A stop past 2000 km is refused",
+      "as": "gravel",
+      "action": "saveRidePlan",
+      "allowed": false,
+      "ride": "future-west",
+      "stops": [
+        {
+          "kind": "fuel",
+          "name": "Far",
+          "km": 2001,
+          "time": null
+        }
+      ],
+      "seen": null
+    },
+    {
+      "name": "A stop time that isn't HH:MM is refused",
+      "as": "gravel",
+      "action": "saveRidePlan",
+      "allowed": false,
+      "ride": "future-west",
+      "stops": [
+        {
+          "kind": "fuel",
+          "name": "Early",
+          "km": 10,
+          "time": "9:30"
+        }
+      ],
+      "seen": null
+    },
+    {
+      "name": "Saving over a newer plan is refused",
+      "as": "torque",
+      "action": "saveRidePlan",
+      "allowed": false,
+      "ride": "future-club",
+      "stops": [],
+      "seen": null
+    },
+    {
+      "name": "Saving on the version on screen replaces the plan",
+      "as": "torque",
+      "action": "saveRidePlan",
+      "allowed": true,
+      "ride": "future-club",
+      "stops": [],
+      "seen": "2026-10-01T00:00:00.000Z"
+    },
+    {
+      "name": "A member rates a route",
+      "as": "spanner",
+      "action": "rateRoute",
+      "allowed": true,
+      "route": "west-loop",
+      "stars": 5,
+      "comment": "  Great bends  "
+    },
+    {
+      "name": "A member changes their rating",
+      "as": "torque",
+      "action": "rateRoute",
+      "allowed": true,
+      "route": "west-loop",
+      "stars": 2,
+      "comment": ""
+    },
+    {
+      "name": "An archived route can't be rated",
+      "as": "spanner",
+      "action": "rateRoute",
+      "allowed": false,
+      "route": "old-west",
+      "stars": 5,
+      "comment": ""
+    },
+    {
+      "name": "Zero stars is refused",
+      "as": "spanner",
+      "action": "rateRoute",
+      "allowed": false,
+      "route": "west-loop",
+      "stars": 0,
+      "comment": ""
+    },
+    {
+      "name": "A comment over 280 characters is refused",
+      "as": "spanner",
+      "action": "rateRoute",
+      "allowed": false,
+      "route": "west-loop",
+      "stars": 4,
+      "comment": "é",
+      "repeat": 281
+    },
+    {
+      "name": "An applicant can't rate a route",
+      "as": "dylan",
+      "action": "rateRoute",
+      "allowed": false,
+      "route": "west-loop",
+      "stars": 4,
+      "comment": ""
+    },
+    {
+      "name": "A ride's Road Captain calls it off, with the chat line",
+      "as": "gravel",
+      "action": "callRide",
+      "allowed": true,
+      "ride": "future-west",
+      "state": "off",
+      "reason": " Rain ",
+      "newDay": null
+    },
+    {
+      "name": "A member who isn't the RC or a manager can't call the ride",
+      "as": "spanner",
+      "action": "callRide",
+      "allowed": false,
+      "ride": "future-west",
+      "state": "off",
+      "reason": "",
+      "newDay": null
+    },
+    {
+      "name": "A cancelled ride can't be called",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": false,
+      "ride": "cancelled-north",
+      "state": "off",
+      "reason": "",
+      "newDay": null
+    },
+    {
+      "name": "A past ride can't be called",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": false,
+      "ride": "past-club",
+      "state": "off",
+      "reason": "",
+      "newDay": null
+    },
+    {
+      "name": "A postponed ride's new day must be after the ride",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": false,
+      "ride": "future-west",
+      "state": "postponed",
+      "reason": "",
+      "newDay": "2029-12-31"
+    },
+    {
+      "name": "A manager postpones a ride a week",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": true,
+      "ride": "future-west",
+      "state": "postponed",
+      "reason": "Weather",
+      "newDay": "2030-01-08"
+    },
+    {
+      "name": "Only a postponed ride takes a new day",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": false,
+      "ride": "future-west",
+      "state": "off",
+      "reason": "",
+      "newDay": "2030-01-08"
+    },
+    {
+      "name": "A reason over 200 characters is refused",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": false,
+      "ride": "future-west",
+      "state": "off",
+      "reason": "x",
+      "repeat": 201,
+      "newDay": null
+    },
+    {
+      "name": "A manager puts a ride back on",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": true,
+      "ride": "future-west",
+      "state": "on",
+      "reason": "",
+      "newDay": null
+    },
+    {
+      "name": "A board member opens a hub on a West ride",
+      "as": "torque",
+      "action": "saveHub",
+      "allowed": true,
+      "ride": "future-west",
+      "membersOnly": true,
+      "closesOn": null,
+      "beds": 20,
+      "accommodation": " Bright Motel ",
+      "notes": ""
+    },
+    {
+      "name": "A member without a board seat can't run a hub",
+      "as": "spanner",
+      "action": "saveHub",
+      "allowed": false,
+      "ride": "future-club",
+      "membersOnly": true,
+      "closesOn": null,
+      "beds": null,
+      "accommodation": "",
+      "notes": ""
+    },
+    {
+      "name": "Zero group beds is refused",
+      "as": "torque",
+      "action": "saveHub",
+      "allowed": false,
+      "ride": "future-club",
+      "membersOnly": true,
+      "closesOn": null,
+      "beds": 0,
+      "accommodation": "",
+      "notes": ""
+    },
+    {
+      "name": "A member registers with the group",
+      "as": "spanner",
+      "action": "registerHub",
+      "allowed": true,
+      "ride": "future-club",
+      "staying": "group",
+      "pillion": false,
+      "shareWith": " Torque ",
+      "notes": ""
+    },
+    {
+      "name": "The group booking is full with a pillion",
+      "as": "spanner",
+      "action": "registerHub",
+      "allowed": false,
+      "ride": "future-club",
+      "staying": "group",
+      "pillion": true,
+      "shareWith": "",
+      "notes": ""
+    },
+    {
+      "name": "Camping doesn't take a group bed",
+      "as": "spanner",
+      "action": "registerHub",
+      "allowed": true,
+      "ride": "future-club",
+      "staying": "camping",
+      "pillion": true,
+      "shareWith": "",
+      "notes": ""
+    },
+    {
+      "name": "An FNG registers for a members-only hub",
+      "as": "finn",
+      "action": "registerHub",
+      "allowed": true,
+      "ride": "future-club",
+      "staying": "own",
+      "pillion": false,
+      "shareWith": "",
+      "notes": ""
+    },
+    {
+      "name": "Someone in the introduction phase can't register for a members-only hub",
+      "as": "nick",
+      "action": "registerHub",
+      "allowed": false,
+      "ride": "future-club",
+      "staying": "own",
+      "pillion": false,
+      "shareWith": "",
+      "notes": ""
+    },
+    {
+      "name": "A ride with no hub takes no registrations",
+      "as": "spanner",
+      "action": "registerHub",
+      "allowed": false,
+      "ride": "future-west",
+      "staying": "own",
+      "pillion": false,
+      "shareWith": "",
+      "notes": ""
+    },
+    {
+      "name": "A past ride's hub is closed",
+      "as": "spanner",
+      "action": "registerHub",
+      "allowed": false,
+      "ride": "past-club",
+      "staying": "day",
+      "pillion": false,
+      "shareWith": "",
+      "notes": ""
+    },
+    {
+      "name": "Notes over 200 characters are refused",
+      "as": "spanner",
+      "action": "registerHub",
+      "allowed": false,
+      "ride": "future-club",
+      "staying": "own",
+      "pillion": false,
+      "shareWith": "",
+      "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "name": "A registered member withdraws",
+      "as": "jet",
+      "action": "withdrawHub",
+      "allowed": true,
+      "ride": "future-club"
+    },
+    {
+      "name": "Withdrawing without a registration is refused",
+      "as": "spanner",
+      "action": "withdrawHub",
+      "allowed": false,
+      "ride": "future-club"
+    },
+    {
+      "name": "The RC asks a member to take their spot",
+      "as": "gravel",
+      "action": "askSwap",
+      "allowed": true,
+      "ride": "future-west",
+      "to": "spanner",
+      "note": " Work came up "
+    },
+    {
+      "name": "Asking someone who said they can't make it is refused",
+      "as": "gravel",
+      "action": "askSwap",
+      "allowed": false,
+      "ride": "future-west",
+      "to": "kim",
+      "note": ""
+    },
+    {
+      "name": "Asking yourself is refused",
+      "as": "gravel",
+      "action": "askSwap",
+      "allowed": false,
+      "ride": "future-west",
+      "to": "gravel",
+      "note": ""
+    },
+    {
+      "name": "Someone not on the crew can't ask",
+      "as": "torque",
+      "action": "askSwap",
+      "allowed": false,
+      "ride": "future-west",
+      "to": "spanner",
+      "note": ""
+    },
+    {
+      "name": "Asking an applicant to crew is refused",
+      "as": "gravel",
+      "action": "askSwap",
+      "allowed": false,
+      "ride": "future-west",
+      "to": "dylan",
+      "note": ""
+    },
+    {
+      "name": "Asking someone whose Road Rules ran out is refused",
+      "as": "gravel",
+      "action": "askSwap",
+      "allowed": false,
+      "ride": "future-west",
+      "to": "crank",
+      "note": ""
+    },
+    {
+      "name": "Asking someone on hiatus is refused",
+      "as": "gravel",
+      "action": "askSwap",
+      "allowed": false,
+      "ride": "future-west",
+      "to": "hal",
+      "note": ""
+    },
+    {
+      "name": "A note over 200 characters is refused",
+      "as": "gravel",
+      "action": "askSwap",
+      "allowed": false,
+      "ride": "future-west",
+      "to": "spanner",
+      "note": "x",
+      "repeat": 201
+    },
+    {
+      "name": "A second open ask on the same ride is refused",
+      "as": "jet",
+      "action": "askSwap",
+      "allowed": false,
+      "ride": "future-club",
+      "to": "spanner",
+      "note": ""
+    },
+    {
+      "name": "No asks after the ride day",
+      "as": "gravel",
+      "action": "askSwap",
+      "allowed": false,
+      "ride": "past-club",
+      "to": "spanner",
+      "note": ""
+    },
+    {
+      "name": "The person asked says yes",
+      "as": "torque",
+      "action": "answerSwap",
+      "allowed": true,
+      "swap": "swap-open",
+      "yes": true
+    },
+    {
+      "name": "Someone else can't answer an ask",
+      "as": "spanner",
+      "action": "answerSwap",
+      "allowed": false,
+      "swap": "swap-open",
+      "yes": true
+    },
+    {
+      "name": "An answered ask can't be answered again",
+      "as": "rusty",
+      "action": "answerSwap",
+      "allowed": false,
+      "swap": "swap-done",
+      "yes": true
+    },
+    {
+      "name": "A yes after the crew changed is refused",
+      "as": "torque",
+      "action": "answerSwap",
+      "allowed": false,
+      "swap": "swap-stale",
+      "yes": true
+    },
+    {
+      "name": "A no closes an ask even after the crew changed",
+      "as": "torque",
+      "action": "answerSwap",
+      "allowed": true,
+      "swap": "swap-stale",
+      "yes": false
+    },
+    {
+      "name": "The asker withdraws their ask",
+      "as": "jet",
+      "action": "withdrawSwap",
+      "allowed": true,
+      "swap": "swap-open"
+    },
+    {
+      "name": "Only the asker can withdraw",
+      "as": "torque",
+      "action": "withdrawSwap",
+      "allowed": false,
+      "swap": "swap-open"
+    },
+    {
+      "name": "An answered ask can't be withdrawn",
+      "as": "gravel",
+      "action": "withdrawSwap",
+      "allowed": false,
+      "swap": "swap-done"
     }
   ],
   "chapters": [
@@ -5955,5 +6580,80 @@
       "monthOffset": -2
     }
   ],
-  "reportMonth": "2026-08-01"
+  "reportMonth": "2026-08-01",
+  "bikeRanges": [
+    {
+      "bike": "spanner-softail",
+      "rangeKm": 220
+    }
+  ],
+  "ridePlans": [
+    {
+      "ride": "future-club",
+      "stops": [
+        {
+          "kind": "fuel",
+          "name": "Kinglake",
+          "km": 40,
+          "time": null
+        }
+      ]
+    }
+  ],
+  "routeRatings": [
+    {
+      "route": "west-loop",
+      "member": "torque",
+      "stars": 4
+    }
+  ],
+  "rideHubs": [
+    {
+      "ride": "future-club",
+      "membersOnly": true,
+      "beds": 2
+    },
+    {
+      "ride": "past-club",
+      "membersOnly": false,
+      "beds": null
+    }
+  ],
+  "hubRegistrations": [
+    {
+      "ride": "future-club",
+      "member": "jet",
+      "staying": "group",
+      "pillion": false
+    }
+  ],
+  "crewSwaps": [
+    {
+      "key": "swap-open",
+      "ride": "future-club",
+      "askedBy": "jet",
+      "role": "officer",
+      "askedTo": "torque",
+      "theirRole": null,
+      "state": "asked"
+    },
+    {
+      "key": "swap-done",
+      "ride": "future-west",
+      "askedBy": "gravel",
+      "role": "road_captain",
+      "askedTo": "rusty",
+      "theirRole": null,
+      "state": "declined"
+    },
+    {
+      "key": "swap-stale",
+      "ride": "future-west",
+      "askedBy": "spanner",
+      "role": "road_captain",
+      "askedTo": "torque",
+      "theirRole": null,
+      "state": "asked"
+    }
+  ]
 }
