@@ -67,3 +67,49 @@ export function signDocument(ctx: DemoCtx, versionId: string): ClubData {
     documentSignoffs: [...others, { versionId, documentId: version.documentId, memberId: ctx.me!.id, signedAt: nowOf(ctx) }],
   };
 }
+
+/**
+ * The document actions as parity.json names them. Dates come resolved from …Days fields, and
+ * `…Repeat` writes that text out that many times, for the length limits.
+ */
+export type DocumentAction =
+  | {
+      action: 'createDocument'; chapter: string | null; kind: DocumentInput['kind']; title: string; titleRepeat?: number;
+      asksSignOff: boolean; reviewMonths: number | null;
+    }
+  | {
+      action: 'publishDocumentVersion'; document: string; expected: number; label: string; labelRepeat?: number; body: string;
+      bodyRepeat?: number; whatChanged: string; changesRepeat?: number; fresh: boolean; approvingBody?: ApprovalInput['approvingBody'];
+      approved?: string; commences?: string;
+    }
+  | { action: 'recordDocumentApproval'; version: string; approvingBody?: ApprovalInput['approvingBody']; approved?: string; commences?: string }
+  | { action: 'markDocumentReviewed'; document: string }
+  | { action: 'signDocument'; version: string };
+
+export const DOCUMENT_ACTIONS = new Set<string>([
+  'createDocument', 'publishDocumentVersion', 'recordDocumentApproval', 'markDocumentReviewed', 'signDocument',
+]);
+
+const approvalOf = (a: { approvingBody?: ApprovalInput['approvingBody']; approved?: string; commences?: string }): ApprovalInput => ({
+  approvingBody: a.approvingBody ?? null, approvedOn: a.approved ?? null, commencesOn: a.commences ?? null,
+});
+
+export function runDocumentAction(ctx: DemoCtx, a: DocumentAction): ClubData {
+  switch (a.action) {
+    case 'createDocument':
+      return createDocument(ctx, {
+        chapterId: a.chapter, kind: a.kind, title: a.title.repeat(a.titleRepeat ?? 1), asksSignOff: a.asksSignOff, reviewMonths: a.reviewMonths,
+      }).data;
+    case 'publishDocumentVersion':
+      return publishDocumentVersion(ctx, a.document, a.expected, {
+        label: a.label.repeat(a.labelRepeat ?? 1), body: a.body.repeat(a.bodyRepeat ?? 1),
+        whatChanged: a.whatChanged.repeat(a.changesRepeat ?? 1), freshSignOff: a.fresh, approval: approvalOf(a),
+      }).data;
+    case 'recordDocumentApproval':
+      return recordDocumentApproval(ctx, a.version, approvalOf(a));
+    case 'markDocumentReviewed':
+      return markDocumentReviewed(ctx, a.document);
+    case 'signDocument':
+      return signDocument(ctx, a.version);
+  }
+}

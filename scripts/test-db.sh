@@ -200,5 +200,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_social -f "$ROOT/supabase/tests/social_test.sql"
 
+# Stage 5C: the document library, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_documents" >/dev/null
+"${PSQL[@]}" -d rustnuts_documents -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_documents -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_documents -f "$ROOT/supabase/tests/documents_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
 
