@@ -11,7 +11,7 @@ export interface DatedItem {
 }
 
 export interface YearGroup<T extends DatedItem> {
-  /** The ISO date it was posted (Melbourne). */
+  /** The ISO date its newest item was posted (Melbourne). A leap year can hold both 28 and 29 February. */
   date: string;
   yearsAgo: number;
   /** Newest first. */
@@ -31,19 +31,19 @@ function sameDay(date: string, today: string): boolean {
 /** Items posted on today's day and month in earlier years, grouped by year, newest year first. */
 export function onThisDay<T extends DatedItem>(items: T[], today: string): YearGroup<T>[] {
   const year = Number(today.slice(0, 4));
-  const groups = new Map<string, T[]>();
+  const groups = new Map<number, T[]>();
   for (const item of items) {
     const date = melbourneDate(item.createdAt);
-    if (Number(date.slice(0, 4)) >= year || !sameDay(date, today)) continue;
-    groups.set(date, [...(groups.get(date) ?? []), item]);
+    const itemYear = Number(date.slice(0, 4));
+    if (itemYear >= year || !sameDay(date, today)) continue;
+    groups.set(itemYear, [...(groups.get(itemYear) ?? []), item]);
   }
   return [...groups.entries()]
-    .sort(([a], [b]) => (a < b ? 1 : -1))
-    .map(([date, list]) => ({
-      date,
-      yearsAgo: year - Number(date.slice(0, 4)),
-      items: [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0)),
-    }));
+    .sort(([a], [b]) => b - a)
+    .map(([itemYear, list]) => {
+      const sorted = [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+      return { date: melbourneDate(sorted[0].createdAt), yearsAgo: year - itemYear, items: sorted };
+    });
 }
 
 /** "A year ago", "4 years ago". */

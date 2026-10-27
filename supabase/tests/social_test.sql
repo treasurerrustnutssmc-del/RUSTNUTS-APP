@@ -276,6 +276,17 @@ begin
     format('Nell (North) doesn''t see West''s chat, and hasn''t blocked Bo: %s', paths);
 
   assert pg_temp.value_as(paul, 'select public.photos_on_this_day()') = '[]', 'a pending applicant gets nothing';
+
+  -- The day rule on fixed dates, leap years included (the same cases as onThisDay.test.ts).
+  assert private.is_on_this_day('2025-10-28', '2026-10-28'), 'same day a year back';
+  assert not private.is_on_this_day('2026-10-28', '2026-10-28'), 'not this year';
+  assert not private.is_on_this_day('2027-10-28', '2026-10-28'), 'never a later year';
+  assert not private.is_on_this_day('2025-10-27', '2026-10-28'), 'not the day before';
+  assert private.is_on_this_day('2024-02-29', '2027-02-28'), '29 Feb on 28 Feb in a plain year';
+  assert private.is_on_this_day('2023-02-28', '2027-02-28'), '28 Feb on 28 Feb';
+  assert private.is_on_this_day('2024-02-29', '2028-02-29'), '29 Feb on 29 Feb in a leap year';
+  assert not private.is_on_this_day('2024-02-29', '2028-02-28'), 'but not on 28 Feb in a leap year';
+  assert private.is_on_this_day('2023-02-28', '2028-02-28'), '28 Feb on 28 Feb in a leap year';
   assert pg_temp.try_as(null, 'select public.photos_on_this_day()') like 'permission denied%', 'anon can''t call it';
 end $$;
 

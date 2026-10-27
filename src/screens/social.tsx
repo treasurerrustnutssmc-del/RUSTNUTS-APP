@@ -150,17 +150,16 @@ function ShoutoutRow({ s, last }: { s: Shoutout; last: boolean }) {
 // Home and its own screen: On this day
 // ---------------------------------------------------------------------------
 
-/** The photos for On this day, grouped by year, loaded once per screen. Null while loading. */
-function useOnThisDay(): YearGroup<FeedItem>[] | null {
+/** The photos for On this day, grouped by year, loaded once per screen. Null while loading; 'failed' when they couldn't be. */
+function useOnThisDay(): YearGroup<FeedItem>[] | 'failed' | null {
   const { today } = useClub();
   const { photosOnThisDay } = useSocial();
-  const [groups, setGroups] = useState<YearGroup<FeedItem>[] | null>(null);
+  const [groups, setGroups] = useState<YearGroup<FeedItem>[] | 'failed' | null>(null);
   useEffect(() => {
     let live = true;
     photosOnThisDay().then(
       (items) => live && setGroups(onThisDay(items, today)),
-      // Not live yet, or no connection: the card just doesn't show.
-      () => live && setGroups([]),
+      () => live && setGroups('failed'),
     );
     return () => {
       live = false;
@@ -204,7 +203,8 @@ export function HomeOnThisDayCard() {
   const navigation = useNavigation<Nav>();
   const groups = useOnThisDay();
   const size = useTile(3);
-  if (!groups || groups.length === 0) return null;
+  // Not live yet, or no connection: the card just doesn't show.
+  if (!groups || groups === 'failed' || groups.length === 0) return null;
   const all = groups.flatMap((g) => g.items);
   const newest = groups[0];
   const shown = all.slice(0, 3);
@@ -237,6 +237,13 @@ export function OnThisDayScreen() {
     return (
       <Screen>
         <ActivityIndicator color={colors.redText} />
+      </Screen>
+    );
+  }
+  if (groups === 'failed') {
+    return (
+      <Screen>
+        <Notice tone="danger" title="Couldn’t load these">Check your connection, then open On this day again.</Notice>
       </Screen>
     );
   }

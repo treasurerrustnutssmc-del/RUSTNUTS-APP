@@ -38,6 +38,11 @@ test('29 February shows on 28 February in other years, and on the day in leap ye
   assert.deepEqual(onThisDay([leapDay, feb28], '2028-02-28').map((g) => g.items[0].id), ['m']);
 });
 
+test('one group per year, even when a leap year has both 28 and 29 February', () => {
+  const groups = onThisDay([item('a', '2024-02-28T02:00:00.000Z'), item('b', '2024-02-29T02:00:00.000Z')], '2025-02-28');
+  assert.deepEqual(groups.map((g) => [g.date, g.yearsAgo, g.items.map((i) => i.id)]), [['2024-02-29', 1, ['b', 'a']]]);
+});
+
 test('years-ago labels', () => {
   assert.equal(yearsAgoLabel(1), 'A year ago');
   assert.equal(yearsAgoLabel(4), '4 years ago');
