@@ -1,8 +1,7 @@
 // Generated from the live Supabase schema (Stage 1). Regenerate after changing migrations.
 
 // Stage 5: meetings and votes
-import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, Threshold } from '../domain/types';
-import type { MeetingType } from '../domain/types'; // attendance rules
+import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, MeetingType, Threshold } from '../domain/types';
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson } from './ledgerLive'; // Stage 5B
 

@@ -3,6 +3,7 @@
 
 import { clubYearLabel, clubYearOf } from './clubYear';
 import { chargeBalance } from './fees';
+import { hasEarnedDisc } from './profile';
 import type { ClubData, Member } from './types';
 
 export type CardDues = { state: 'paid' } | { state: 'due'; dueOn: string } | null;
@@ -21,5 +22,5 @@ export function cardOf(member: Member, data: ClubData, today: string): CardInfo 
     const balance = chargeBalance(charge, data.payments ?? []);
     dues = balance.owingCents === 0 ? { state: 'paid' } : { state: 'due', dueOn: charge.dueOn };
   }
-  return { showDisc: member.status === 'full' || member.status === 'nomad', clubYear: clubYearLabel(year), dues };
+  return { showDisc: hasEarnedDisc(member), clubYear: clubYearLabel(year), dues };
 }

@@ -33,6 +33,8 @@ import { ShareRideButton } from './shareRide';
 import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import { RideCheckinCard } from './checkin'; // Stage 4
+import { Big4Card } from './attendance'; // Attendance rules and Big 4 rides
+import { isBig4 } from '../domain/big4';
 import {
   Avatar,
   Body,
@@ -173,6 +175,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
                 mine={data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null}
                 spot={spotOf(ride.id, me.id, data.crew)}
                 crewNeeded={showsCrewNeeded(me, ride, data, today)}
+                big4={isBig4(ride.id, data)}
                 last={i === g.rides.length - 1}
                 onPress={() => navigation.navigate('RideDetail', { rideId: ride.id })}
               />
@@ -192,6 +195,7 @@ function RideRow({
   mine,
   spot,
   crewNeeded,
+  big4,
   last,
   onPress,
 }: {
@@ -202,6 +206,8 @@ function RideRow({
   spot: CrewRole | null;
   /** Shown to crew managers when the RC or TG spot is open and the ride is close. */
   crewNeeded: boolean;
+  /** The NEC made it a Big 4 (5.11). */
+  big4: boolean;
   last: boolean;
   onPress: () => void;
 }) {
@@ -214,6 +220,7 @@ function RideRow({
     startLabel(ride),
     ride.location,
     RIDE_CATEGORY_LABEL[ride.category],
+    big4 ? 'Big 4' : null,
     !cancelled && going > 0 ? `${going} going` : null,
     !cancelled && mine ? `you: ${RSVP_LABEL[mine]}` : null,
     !cancelled && spot ? `you’re crew: ${ROLE_LABEL[spot]}` : null,
@@ -246,6 +253,7 @@ function RideRow({
         </Text>
         <Row style={{ gap: 6, marginTop: 2 }}>
           <RideChip category={ride.category} />
+          {big4 ? <Chip label="Big 4" tone="red" icon="trophy" /> : null}
           {cancelled ? (
             <Chip label="Cancelled" tone="danger" />
           ) : (
@@ -369,6 +377,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       <Card>
         <Row style={{ gap: 6 }}>
           <RideChip category={ride.category} />
+          {isBig4(ride.id, data) ? <Chip label="Big 4" tone="red" icon="trophy" /> : null}
           {cancelled ? <Chip label="Cancelled" tone="danger" /> : null}
           {busChip ? (
             <Pressable
@@ -507,6 +516,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         {counts.no > 0 ? <Small>{`${counts.no} can’t make it.`}</Small> : null}
       </Stack>
 
+      <Big4Card ride={ride} />
       <RideCheckinCard ride={ride} />
       <RouteSection
         ride={ride}

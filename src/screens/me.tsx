@@ -5,6 +5,7 @@ import { activePositions } from '../domain/access';
 import { formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
 import { LICENCE_LABEL, ROLE_LABEL } from '../domain/labels';
 import { displayName, hasEarnedDisc, initials } from '../domain/profile';
+import { StandingCard } from './attendance';
 import type { LicenceClass } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: notifications
@@ -101,6 +102,20 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
           <Button label="View" kind="quiet" onPress={() => navigation.navigate('MemberDetail', { memberId: me.id })} />
         </Row>
       </Card>
+
+      {/* Attendance rules and the membership card */}
+      {me.approval === 'approved' ? (
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            last
+            left={<IconBadge icon="card-outline" tone="red" />}
+            title="Membership card"
+            subtitle="Show it at club events"
+            onPress={() => navigation.navigate('MembershipCard')}
+          />
+        </Card>
+      ) : null}
+      <StandingCard member={me} />
 
       <SectionTitle title="Emergency contacts" action={<LockNote text="You + board" />} />
       <Card style={{ padding: 0, gap: 0 }}>

@@ -11,7 +11,10 @@ import {
   attendeesOf,
   canCheckIn,
   canRunCheckin,
+  exemptionProblem,
   markProblem,
+  meetingTypeOf,
+  MEETING_TYPES,
   normalizeCode,
   openCheckinProblem,
   qrPayload,
@@ -21,7 +24,7 @@ import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import { agmOn, clubYearLabel, clubYearOf } from '../domain/clubYear';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
-import type { CheckinSession, Member, Ride } from '../domain/types';
+import type { CheckinSession, MeetingType, Member, Ride } from '../domain/types';
 import type { RootParams, RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import { QrCode } from '../ui/QrCode';
@@ -46,6 +49,12 @@ import {
 } from '../ui/primitives';
 
 const KIND_LABEL = { ride: 'Ride', meeting: 'Meeting' } as const;
+const MEETING_TYPE_HINT: Record<MeetingType, string> = {
+  ordinary: 'Counts towards the 80% Full Members need, and an FNG’s meetings (5.2, 4.6). An Annual Chapter Meeting held with it counts once, as this.',
+  special: 'Counts towards the two-of-three before a Big 4 (5.4), not the 80%.',
+  event: 'Counts towards an FNG’s other events (4.6).',
+};
+export const MEETING_TYPE_LABEL: Record<MeetingType, string> = { ordinary: 'Monthly meeting', special: 'Special or annual', event: 'Other event' };
 
 const sessionsOf = (sessions: CheckinSession[] | undefined) => sessions ?? [];
 
@@ -205,12 +214,15 @@ export function CheckInScreen({ navigation }: RootScreen<'CheckIn'>) {
 // ---------------------------------------------------------------------------
 
 export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
-  const { me, data, today, checkinCode, markAttendance, closeCheckin } = useClub();
+  const { me, data, today, checkinCode, markAttendance, closeCheckin, setExemption } = useClub();
   const session = sessionsOf(data.checkinSessions).find((s) => s.id === route.params.sessionId);
   const [code, setCode] = useState<string | null>(session?.code ?? null);
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Excusing someone (4.12, 5.3): whose reason is being typed.
+  const [excusing, setExcusing] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
   const { width } = useWindowDimensions();
   const qrSize = Math.min(width - space.lg * 4, 300);
 
@@ -242,8 +254,12 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
   const marks = new Map((data.attendance ?? []).filter((a) => a.sessionId === session.id).map((a) => [a.memberId, a]));
   const live = !session.closedAt && session.heldOn === today;
   const q = search.trim().toLowerCase();
+  const excused = (data.exemptions ?? []).filter((e) => e.sessionId === session.id);
+  const excusedIds = new Set(excused.map((e) => e.memberId));
+  const canExcuse = (m: Member) => exemptionProblem(me, session.id, m.id, 'x', data) === null;
+  const canTick = (m: Member) => session.heldOn <= today && markProblem(me, session, m, data, today) === null;
   const tickable = data.members
-    .filter((m) => !marks.has(m.id) && markProblem(me, session, m, data, today) === null)
+    .filter((m) => !marks.has(m.id) && !excusedIds.has(m.id) && (canTick(m) || canExcuse(m)))
     .filter((m) => session.chapterId === null || m.chapterId === session.chapterId || q)
     .filter((m) => !q || `${m.fullName} ${m.roadName ?? ''}`.toLowerCase().includes(q))
     .sort((a, b) => displayName(a).localeCompare(displayName(b)));
@@ -260,11 +276,26 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
     }
   };
 
+  const excuse = async (memberId: string, why: string | null) => {
+    setError(null);
+    setBusyId(memberId);
+    try {
+      await setExemption(session.id, memberId, why);
+      setExcusing(null);
+      setReason('');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+  const type_ = meetingTypeOf(session);
+
   return (
     <Screen>
       <Card>
         <Row style={{ gap: 6 }}>
-          <Chip label={KIND_LABEL[session.kind]} tone="bone" />
+          <Chip label={type_ ? MEETING_TYPE_LABEL[type_] : KIND_LABEL[session.kind]} tone="bone" />
           {session.closedAt ? <Chip label="Closed" tone="steel" /> : live ? <Chip label="Open now" tone="ok" /> : null}
         </Row>
         <H1>{session.title}</H1>
@@ -328,9 +359,31 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
         )}
       </Card>
 
-      {session.heldOn <= today ? (
+      {excused.length > 0 ? (
         <>
-          <SectionTitle title="Tick someone off" />
+          <SectionTitle title="Excused" action={<Text style={[type.name, { color: colors.boneMute }]}>{excused.length}</Text>} />
+          <Card style={{ padding: 0, gap: 0 }}>
+            {excused.map((e, i) => {
+              const m = data.members.find((x) => x.id === e.memberId);
+              if (!m) return null;
+              return (
+                <ListRow
+                  key={e.memberId}
+                  last={i === excused.length - 1}
+                  left={<Avatar text={initials(m)} size={40} />}
+                  title={displayName(m)}
+                  subtitle={e.reason}
+                  right={canExcuse(m) ? <Button label="Clear" kind="quiet" busy={busyId === m.id} onPress={() => excuse(m.id, null)} /> : undefined}
+                />
+              );
+            })}
+          </Card>
+        </>
+      ) : null}
+
+      {tickable.length > 0 || q ? (
+        <>
+          <SectionTitle title={session.heldOn <= today ? 'Tick someone off' : 'Apologies'} />
           <Field
             label="Find a member"
             value={search}
@@ -338,25 +391,41 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
             placeholder="Name or road name"
             autoCorrect={false}
           />
+          {tickable.some(canExcuse) ? (
+            <Small>Tap a name to excuse them for work, family, health, injury or distance. It won’t count against them.</Small>
+          ) : null}
           <Card style={{ padding: 0, gap: 0 }}>
             {tickable.length === 0 ? (
               <View style={{ padding: space.lg }}>
-                <Small>{q ? 'Nobody by that name to tick off.' : 'Everyone’s ticked off.'}</Small>
+                <Small>Nobody by that name.</Small>
               </View>
             ) : (
               tickable.slice(0, 40).map((m, i, list) => (
-                <ListRow
-                  key={m.id}
-                  last={i === list.length - 1}
-                  left={<Avatar text={initials(m)} size={40} />}
-                  title={displayName(m)}
-                  subtitle={m.approval === 'pending' ? 'Applicant' : m.fullName !== displayName(m) ? m.fullName : undefined}
-                  right={<Button label="Tick" kind="secondary" icon="checkmark" busy={busyId === m.id} onPress={() => mark(m.id, true)} />}
-                />
+                <View key={m.id}>
+                  <ListRow
+                    last={i === list.length - 1 && excusing !== m.id}
+                    left={<Avatar text={initials(m)} size={40} />}
+                    title={displayName(m)}
+                    subtitle={m.approval === 'pending' ? 'Applicant' : m.fullName !== displayName(m) ? m.fullName : undefined}
+                    onPress={canExcuse(m) ? () => { setExcusing(excusing === m.id ? null : m.id); setReason(''); } : undefined}
+                    right={canTick(m) ? <Button label="Tick" kind="secondary" icon="checkmark" busy={busyId === m.id} onPress={() => mark(m.id, true)} /> : undefined}
+                  />
+                  {excusing === m.id ? (
+                    <View style={{ padding: space.lg, paddingTop: 0, gap: space.sm }}>
+                      <Field label={`Why ${displayName(m)} is excused`} value={reason} onChangeText={setReason} maxLength={200} placeholder="Working away" />
+                      <Row style={{ gap: space.sm }}>
+                        <Button label="Excuse" busy={busyId === m.id} disabled={!reason.trim()} onPress={() => excuse(m.id, reason)} style={{ flex: 1 }} />
+                        <Button label="Cancel" kind="quiet" onPress={() => setExcusing(null)} />
+                      </Row>
+                    </View>
+                  ) : null}
+                </View>
               ))
             )}
           </Card>
         </>
+      ) : session.heldOn <= today ? (
+        <Small>Everyone’s ticked off.</Small>
       ) : null}
 
       {!session.closedAt ? (
@@ -384,6 +453,7 @@ export function OpenMeetingScreen({ navigation }: RootScreen<'OpenMeeting'>) {
     chapters.find((c) => c.id === me?.chapterId)?.id ?? chapters[0]?.id ?? null,
   );
   const [title, setTitle] = useState('Chapter meeting');
+  const [meetingType, setMeetingType] = useState<MeetingType>('ordinary');
   const [dateText, setDateText] = useState(formatAuDate(today));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -395,7 +465,7 @@ export function OpenMeetingScreen({ navigation }: RootScreen<'OpenMeeting'>) {
       setError('Use DD/MM/YYYY, like 08/11/2026.');
       return;
     }
-    const input = { kind: 'meeting' as const, rideId: null, chapterId, title, heldOn };
+    const input = { kind: 'meeting' as const, rideId: null, chapterId, title, heldOn, meetingType };
     const problem = openCheckinProblem(me, input, data, today);
     if (problem) {
       setError(problem);
@@ -427,6 +497,13 @@ export function OpenMeetingScreen({ navigation }: RootScreen<'OpenMeeting'>) {
           />
         ) : null}
         <Field label="What it is" value={title} onChangeText={setTitle} maxLength={60} />
+        <Choices<MeetingType>
+          label="Counts as"
+          options={MEETING_TYPES.map((t) => ({ value: t, label: MEETING_TYPE_LABEL[t] }))}
+          value={meetingType}
+          onChange={setMeetingType}
+        />
+        <Small>{MEETING_TYPE_HINT[meetingType]}</Small>
         <Field
           label="Date"
           value={dateText}
