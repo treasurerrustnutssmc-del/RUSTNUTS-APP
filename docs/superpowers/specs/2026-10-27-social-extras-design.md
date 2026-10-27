@@ -102,16 +102,17 @@ nothing is writable directly.
 ## PR 2: On this day
 
 **What members see.** When there are photos or videos posted on today's day and month in an
-earlier year, Home shows an "On this day" card: the year ("3 years ago · 28/10/2023"), a row of up
-to 6 thumbnails, tap one to open the viewer, "See all" to open a list of them grouped by year. The
-Photos screen gets the same strip at the top. No photos, no card.
+earlier year, Home shows an "On this day" card: "A year ago" (or just the day, "28/10", when there
+are several years), the newest three as squares, tap one to open the viewer, and "See all" for a
+screen of them grouped by year ("3 years ago · 28/10/2023"). No photos, no card. (The Photos screen
+is lane B's and stays as it is; the Home card's "See all" is the way in.)
 
 **Rules:** the same chats you can read, never private chats, never removed messages, never GIFs,
 never from people you've blocked: exactly `club_photos`' rules. Dates are Melbourne dates. 29
 February photos show on 28 February in other years.
 
 **Database** (`20270415000100_on_this_day.sql`): `public.photos_on_this_day()` returning the same
-JSON shape as `club_photos`, newest year first, at most 60 items. Read-only, approved members only,
+JSON shape as `club_photos`, newest first, from at most 60 messages. Read-only, approved members only,
 `security definer`, built on `private.media_json` and `private.can_read_chat`.
 
 **Demo:** a handful of demo photos dated on today's date one and three years back.

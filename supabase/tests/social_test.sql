@@ -56,6 +56,18 @@ begin
   return null;
 end $$;
 
+-- Runs a query as a signed-in user and returns its one value as text. Errors go on up.
+create function pg_temp.value_as(who uuid, stmt text) returns text language plpgsql as $$
+declare out text;
+begin
+  perform set_config('request.jwt.claim.sub', who::text, true);
+  set local role authenticated;
+  execute stmt into out;
+  reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
+  return out;
+end $$;
+
 create function pg_temp.count_as(who uuid, tbl text) returns bigint language plpgsql as $$
 declare n bigint;
 begin
@@ -186,6 +198,96 @@ begin
   end;
   delete from members where id = fergus;
   assert not exists (select 1 from member_birthdays where member_id = fergus), 'gone with Fergus';
+end $$;
+
+\o
+\echo 'On this day: photos from today''s date in earlier years, by club_photos'' rules'
+\o /dev/null
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-0000-0000-0000000005b1', 'wendy@example.com', now()), -- West Full
+  ('00000000-0000-0000-0000-0000000005b2', 'nell@example.com', now()),  -- North Full
+  ('00000000-0000-0000-0000-0000000005b3', 'bo@example.com', now());    -- West Full, blocked by Wendy
+insert into members (id, chapter_id, full_name, status, approval)
+select v.id::uuid, c.id, v.name, 'full', 'approved'
+from (values
+  ('00000000-0000-0000-0000-0000000005b1', 'west', 'Wendy West'),
+  ('00000000-0000-0000-0000-0000000005b2', 'north', 'Nell North'),
+  ('00000000-0000-0000-0000-0000000005b3', 'west', 'Bo Blocked')
+) as v(id, slug, name)
+join chapters c on c.slug = v.slug;
+insert into member_blocks (blocker_id, blocked_id) values
+  ('00000000-0000-0000-0000-0000000005b1', '00000000-0000-0000-0000-0000000005b3');
+
+-- A message with one picture (or GIF), posted at noon Melbourne time on a date.
+create function pg_temp.posted(chat uuid, author uuid, on_day date, kind text, path text, removed boolean default false)
+returns void language sql as $$
+  with m as (
+    insert into messages (conversation_id, author_id, body, created_at, removed_at)
+    values (chat, author, null, (on_day + time '12:00') at time zone 'Australia/Melbourne', case when removed then now() end)
+    returning id
+  )
+  insert into message_media (message_id, conversation_id, kind, path, width, height)
+  select m.id, chat, kind::chat_media_kind, path, 100, 100 from m;
+$$;
+
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  bo constant uuid := '00000000-0000-0000-0000-0000000005b3';
+  t constant date := private.club_date();
+  -- 4 and 8 years back, so a leap day today still has a leap day to look back on.
+  four constant date := (t - interval '4 years')::date;
+  eight constant date := (t - interval '8 years')::date;
+  club uuid := (select id from conversations where kind = 'club');
+  west uuid := (select id from conversations where kind = 'chapter' and chapter_id = (select id from chapters where slug = 'west'));
+  direct uuid;
+begin
+  insert into conversations (kind, direct_key) values ('direct', 'pair') returning id into direct;
+  insert into conversation_members values (direct, wendy), (direct, nell);
+  perform pg_temp.posted(club, nell, four, 'photo', 'club-four.jpg');
+  perform pg_temp.posted(club, nell, four, 'gif', 'https://media.giphy.com/media/x/giphy.gif');
+  perform pg_temp.posted(west, wendy, eight, 'video', 'west-eight.mp4');
+  perform pg_temp.posted(club, nell, t, 'photo', 'club-today.jpg');
+  perform pg_temp.posted(club, nell, four - 1, 'photo', 'club-day-before.jpg');
+  perform pg_temp.posted(club, nell, four, 'photo', 'club-removed.jpg', true);
+  perform pg_temp.posted(direct, nell, four, 'photo', 'direct.jpg');
+  perform pg_temp.posted(club, bo, four, 'photo', 'club-bo.jpg');
+end $$;
+
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  paul constant uuid := '00000000-0000-0000-0000-0000000005a3';
+  feed jsonb;
+  paths text[];
+begin
+  feed := pg_temp.value_as(wendy, 'select public.photos_on_this_day()')::jsonb;
+  select array_agg(x->>'path' order by ord) into paths from jsonb_array_elements(feed) with ordinality as e(x, ord);
+  assert paths = array['club-four.jpg', 'west-eight.mp4'],
+    format('Wendy sees the club photo and her chapter''s video, newest first, nothing else: %s', paths);
+  assert feed->0 ? 'author_id' and feed->0 ? 'conversation_id' and feed->0 ? 'created_at' and feed->0 ? 'kind',
+    'each item has club_photos'' shape';
+
+  feed := pg_temp.value_as(nell, 'select public.photos_on_this_day()')::jsonb;
+  select array_agg(x->>'path' order by ord) into paths from jsonb_array_elements(feed) with ordinality as e(x, ord);
+  assert paths = array['club-four.jpg', 'club-bo.jpg'] or paths = array['club-bo.jpg', 'club-four.jpg'],
+    format('Nell (North) doesn''t see West''s chat, and hasn''t blocked Bo: %s', paths);
+
+  assert pg_temp.value_as(paul, 'select public.photos_on_this_day()') = '[]', 'a pending applicant gets nothing';
+
+  -- The day rule on fixed dates, leap years included (the same cases as onThisDay.test.ts).
+  assert private.is_on_this_day('2025-10-28', '2026-10-28'), 'same day a year back';
+  assert not private.is_on_this_day('2026-10-28', '2026-10-28'), 'not this year';
+  assert not private.is_on_this_day('2027-10-28', '2026-10-28'), 'never a later year';
+  assert not private.is_on_this_day('2025-10-27', '2026-10-28'), 'not the day before';
+  assert private.is_on_this_day('2024-02-29', '2027-02-28'), '29 Feb on 28 Feb in a plain year';
+  assert private.is_on_this_day('2023-02-28', '2027-02-28'), '28 Feb on 28 Feb';
+  assert private.is_on_this_day('2024-02-29', '2028-02-29'), '29 Feb on 29 Feb in a leap year';
+  assert not private.is_on_this_day('2024-02-29', '2028-02-28'), 'but not on 28 Feb in a leap year';
+  assert private.is_on_this_day('2023-02-28', '2028-02-28'), '28 Feb on 28 Feb in a leap year';
+  assert pg_temp.try_as(null, 'select public.photos_on_this_day()') like 'permission denied%', 'anon can''t call it';
 end $$;
 
 \o

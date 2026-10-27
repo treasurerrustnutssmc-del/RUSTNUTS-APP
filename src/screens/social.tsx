@@ -1,11 +1,14 @@
-// Stage 7: the social extras. Shout-outs on Home, and your own social settings on Me.
+// Stage 7: the social extras. Shout-outs and On this day on Home, and your own social settings on Me.
 
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
-import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { useSocial } from '../data/social/SocialProvider';
+import type { FeedItem } from '../data/chat/chatContext';
+import { formatAuDate } from '../domain/dates';
+import { onThisDay, yearsAgoLabel, type YearGroup } from '../domain/social/onThisDay';
 import { displayName, initials } from '../domain/profile';
 import {
   birthdayLabel,
@@ -19,7 +22,8 @@ import {
   type Shoutout,
 } from '../domain/social/shoutouts';
 import type { RootParams, RootScreen } from '../navigation/types';
-import { colors, space, type } from '../theme';
+import { colors, MAX_CONTENT_WIDTH, space, type } from '../theme';
+import { MediaTile } from '../ui/ChatBits';
 import {
   Avatar,
   Button,
@@ -139,6 +143,126 @@ function ShoutoutRow({ s, last }: { s: Shoutout; last: boolean }) {
         </View>
       ) : null}
     </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Home and its own screen: On this day
+// ---------------------------------------------------------------------------
+
+/** The photos for On this day, grouped by year, loaded once per screen. Null while loading; 'failed' when they couldn't be. */
+function useOnThisDay(): YearGroup<FeedItem>[] | 'failed' | null {
+  const { today } = useClub();
+  const { photosOnThisDay } = useSocial();
+  const [groups, setGroups] = useState<YearGroup<FeedItem>[] | 'failed' | null>(null);
+  useEffect(() => {
+    let live = true;
+    photosOnThisDay().then(
+      (items) => live && setGroups(onThisDay(items, today)),
+      () => live && setGroups('failed'),
+    );
+    return () => {
+      live = false;
+    };
+  }, [photosOnThisDay, today]);
+  return groups;
+}
+
+const TILE_GAP = 3;
+
+/** The width of one square when `columns` of them fill a card (or the screen, with `inset` false). */
+function useTile(columns: number, inset = true) {
+  const { width } = useWindowDimensions();
+  const inner = Math.min(width, MAX_CONTENT_WIDTH) - space.lg * 2 - (inset ? space.lg * 2 : 0);
+  return Math.floor((inner - TILE_GAP * (columns - 1)) / columns);
+}
+
+function Tiles({ items, all, size }: { items: FeedItem[]; all: FeedItem[]; size: number }) {
+  const navigation = useNavigation<Nav>();
+  const { data } = useClub();
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: TILE_GAP }}>
+      {items.map((m) => {
+        const who = data.members.find((x) => x.id === m.authorId);
+        return (
+          <MediaTile
+            key={m.id}
+            media={m}
+            style={{ width: size, height: size, borderRadius: 2 }}
+            onPress={() => navigation.navigate('MediaViewer', { items: all, index: all.indexOf(m) })}
+            label={`${m.kind === 'video' ? 'Video' : 'Photo'} from ${who ? displayName(who) : 'a former member'}`}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+/** Home: photos from this day in earlier years. Nothing shows when there are none. */
+export function HomeOnThisDayCard() {
+  const navigation = useNavigation<Nav>();
+  const groups = useOnThisDay();
+  const size = useTile(3);
+  // Not live yet, or no connection: the card just doesn't show.
+  if (!groups || groups === 'failed' || groups.length === 0) return null;
+  const all = groups.flatMap((g) => g.items);
+  const newest = groups[0];
+  const shown = all.slice(0, 3);
+  return (
+    <Card>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <H2>On this day</H2>
+        {/* One year back says how long ago; more than one just says the day. */}
+        <Text style={[type.name, { color: colors.boneDim, fontVariant: ['tabular-nums'] }]}>
+          {groups.length === 1 ? yearsAgoLabel(newest.yearsAgo) : formatAuDate(newest.date).slice(0, 5)}
+        </Text>
+      </Row>
+      <Tiles items={shown} all={all} size={size} />
+      {all.length > shown.length || groups.length > 1 ? (
+        <Button
+          label={`See all ${all.length}`}
+          kind="secondary"
+          icon="images-outline"
+          onPress={() => navigation.navigate('OnThisDay')}
+        />
+      ) : null}
+    </Card>
+  );
+}
+
+export function OnThisDayScreen() {
+  const groups = useOnThisDay();
+  const size = useTile(3, false);
+  if (!groups) {
+    return (
+      <Screen>
+        <ActivityIndicator color={colors.redText} />
+      </Screen>
+    );
+  }
+  if (groups === 'failed') {
+    return (
+      <Screen>
+        <Notice tone="danger" title="Couldn’t load these">Check your connection, then open On this day again.</Notice>
+      </Screen>
+    );
+  }
+  const all = groups.flatMap((g) => g.items);
+  return (
+    <Screen>
+      {groups.length === 0 ? (
+        <Notice title="Nothing from this day yet">Photos posted in the club’s chats show here on the same day in later years.</Notice>
+      ) : null}
+      {groups.map((g) => (
+        <View key={g.date} style={{ gap: space.sm }}>
+          <SectionTitle
+            title={yearsAgoLabel(g.yearsAgo)}
+            action={<Text style={[type.name, { color: colors.boneDim, fontVariant: ['tabular-nums'] }]}>{formatAuDate(g.date)}</Text>}
+          />
+          <Tiles items={g.items} all={all} size={size} />
+        </View>
+      ))}
+    </Screen>
   );
 }
 
