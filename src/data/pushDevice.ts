@@ -1,6 +1,6 @@
 // This phone's Expo push token, saved with the club on sign-in so pushes can reach it (once they're
-// switched on), and removed on sign-out. It only runs where notifications are already allowed (ride
-// reminders ask), and any failure is ignored: Android can't get a token until the app has its
+// switched on), and removed on sign-out. Each member is asked for notifications once, and any failure
+// is ignored: Android can't get a token until the app has its
 // Firebase project, which comes with launch.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,13 +10,23 @@ import { ensureChannels } from './notificationChannels';
 import { supabase } from './supabase';
 
 const KEY = 'push.token';
+const ASKED = 'push.asked';
 
 export async function registerThisDevice(): Promise<void> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
   try {
-    if (!(await Notifications.getPermissionsAsync()).granted) return;
-    // Pushes name their channel; it has to exist on the phone before one arrives.
+    // Pushes name their channel, so it has to exist before one arrives (and Android 13 only asks for
+    // notifications once a channel exists).
     await ensureChannels();
+    let permission = await Notifications.getPermissionsAsync();
+    // Ask once, so chat can reach every member, not just those going to a ride. After a no it's up to
+    // the phone's settings.
+    // Only if never answered: after a no from the ride reminders' ask, asking again could make it final.
+    if (permission.status === 'undetermined' && !(await AsyncStorage.getItem(ASKED))) {
+      await AsyncStorage.setItem(ASKED, '1');
+      permission = await Notifications.requestPermissionsAsync();
+    }
+    if (!permission.granted) return;
     const { data: token } = await Notifications.getExpoPushTokenAsync();
     const { error } = await supabase().rpc('register_push_device', { p_token: token, p_platform: Platform.OS });
     if (!error) await AsyncStorage.setItem(KEY, token);

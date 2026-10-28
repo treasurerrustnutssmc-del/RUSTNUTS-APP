@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "894354971707",
+    "project_id": "rustnuts-d3716",
+    "storage_bucket": "rustnuts-d3716.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:894354971707:android:34b260c114e8ced330101e",
+        "android_client_info": {
+          "package_name": "au.com.rustnutssmc.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvaFkH8rEeFaHXuB5Qni05K4RveGfVI3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

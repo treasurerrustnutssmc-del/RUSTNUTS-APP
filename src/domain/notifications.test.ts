@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, REV_SOUND, reminderDiff, reminderPlan, soundFor, type Reminder } from './notifications';
+import {
+  ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, type Reminder,
+} from './notifications';
 import type { Ride, Rsvp } from './types';
 
 const NOW = '2026-11-05T00:00:00.000Z';
@@ -83,7 +85,7 @@ test('reminders and club news rev; live ride alerts always use the urgent sound'
 test('every channel a notification can use is one the phone sets up, with the matching sound', () => {
   const ids = new Set(ANDROID_CHANNELS.map((c) => c.id));
   assert.equal(ids.size, ANDROID_CHANNELS.length, 'no channel twice');
-  for (const kind of ['reminder', 'club', 'live-alert'] as const) {
+  for (const kind of ['reminder', 'club', 'chat', 'live-alert'] as const) {
     for (const rev of [true, false]) {
       const { channelId, sound } = soundFor(kind, rev);
       assert.equal(ANDROID_CHANNELS.find((c) => c.id === channelId)?.sound, sound, `${kind} ${rev}`);
@@ -107,7 +109,35 @@ test('a reminder scheduled with the other sound is replaced; one from before the
 
 test('settings saved on the phone before the rev get it switched on; unknown stays unknown', () => {
   const old = { rideReminders: false, rideChanges: true, newRides: true, approvals: false } as never;
-  assert.deepEqual(completePrefs(old), { rideReminders: false, rideChanges: true, newRides: true, approvals: false, revSound: true });
+  assert.deepEqual(completePrefs(old), { rideReminders: false, rideChanges: true, newRides: true, approvals: false, revSound: true, chatMessages: true });
   assert.equal(completePrefs(null), null);
   assert.equal(completePrefs(undefined), undefined);
+});
+
+test('chat notifications are on unless a member switches them off', () => {
+  assert.equal(DEFAULT_PREFS.chatMessages, true);
+});
+
+test('chat has its own channels, so a member can quiet chat in the phone’s settings and keep ride news', () => {
+  assert.deepEqual(soundFor('chat', true), { channelId: 'chat-rev', sound: REV_SOUND });
+  assert.deepEqual(soundFor('chat', false), { channelId: 'chat', sound: 'default' });
+});
+
+test('tapping a notification opens what it’s about', () => {
+  assert.deepEqual(notificationTarget({ kind: 'chat', chatId: 'c1' }), { screen: 'Chat', params: { chatId: 'c1' } });
+  assert.deepEqual(notificationTarget({ kind: 'ride', rideId: 'r1' }), { screen: 'RideDetail', params: { rideId: 'r1' } });
+  assert.deepEqual(notificationTarget({ kind: 'ride-reminder', rideId: 'r1' }), { screen: 'RideDetail', params: { rideId: 'r1' } });
+  assert.deepEqual(notificationTarget({ kind: 'live-alert', rideId: 'r1' }), { screen: 'LiveRide', params: { rideId: 'r1' } });
+  assert.equal(notificationTarget({ kind: 'chat' }), null, 'no chat named');
+  assert.equal(notificationTarget({ kind: 'chat', chatId: 7 }), null, 'not an id');
+  assert.equal(notificationTarget({ kind: 'applicant' }), null, 'nothing particular to open');
+  assert.equal(notificationTarget(undefined), null);
+});
+
+test('a chat message isn’t shown as a banner while that chat is on screen', () => {
+  assert.equal(showWhileOpen({ kind: 'chat', chatId: 'c1' }, 'c1'), false);
+  assert.equal(showWhileOpen({ kind: 'chat', chatId: 'c2' }, 'c1'), true);
+  assert.equal(showWhileOpen({ kind: 'chat', chatId: 'c1' }, null), true);
+  assert.equal(showWhileOpen({ kind: 'live-alert', rideId: 'r1' }, 'c1'), true);
+  assert.equal(showWhileOpen(undefined, 'c1'), true);
 });

@@ -4,7 +4,7 @@
 import { melbourneDate, melbourneTime } from './rides';
 import type { NotificationPrefs, Ride, Rsvp } from './types';
 
-export const DEFAULT_PREFS: NotificationPrefs = { rideReminders: true, rideChanges: true, newRides: false, approvals: true, revSound: true };
+export const DEFAULT_PREFS: NotificationPrefs = { rideReminders: true, rideChanges: true, newRides: false, approvals: true, revSound: true, chatMessages: true };
 
 /** Settings kept on the phone by an app from before a setting existed get that setting's default.
  *  Null (never saved) and undefined (not known) pass through. */
@@ -15,8 +15,8 @@ export function completePrefs<T extends NotificationPrefs | null | undefined>(pr
 /** The Harley rev, bundled with the phone build (app.json, expo-notifications "sounds"). */
 export const REV_SOUND = 'v_twin_rev.wav';
 
-/** What a notification is: a ride reminder, news from the club, or a live ride alert (safety). */
-export type NotificationKind = 'reminder' | 'club' | 'live-alert';
+/** What a notification is: a ride reminder, news from the club, a chat message, or a live ride alert (safety). */
+export type NotificationKind = 'reminder' | 'club' | 'chat' | 'live-alert';
 
 /**
  * The Android channels the phone sets up. Android fixes a channel's sound once it exists, so the rev
@@ -28,14 +28,45 @@ export const ANDROID_CHANNELS: { id: string; name: string; urgent: boolean; soun
   { id: 'ride-reminders', name: 'Ride reminders', urgent: false, sound: 'default' },
   { id: 'club-rev', name: 'Club news (Harley rev)', urgent: false, sound: REV_SOUND },
   { id: 'club', name: 'Club news', urgent: false, sound: 'default' },
+  { id: 'chat-rev', name: 'Chat messages (Harley rev)', urgent: false, sound: REV_SOUND },
+  { id: 'chat', name: 'Chat messages', urgent: false, sound: 'default' },
   { id: 'ride-alerts', name: 'Live ride alerts', urgent: true, sound: 'default' },
 ];
 
 /** The Android channel and iPhone sound for a notification. Pushes use the same (supabase/functions/_shared/sendPush.ts). */
 export function soundFor(kind: NotificationKind, revSound: boolean): { channelId: string; sound: string } {
   if (kind === 'live-alert') return { channelId: 'ride-alerts', sound: 'default' };
-  const base = kind === 'reminder' ? 'ride-reminders' : 'club';
+  const base = kind === 'reminder' ? 'ride-reminders' : kind;
   return revSound ? { channelId: `${base}-rev`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
+}
+
+/** Where tapping a notification goes, from what it carries (pushes and the phone's own reminders). */
+export type NotificationTarget =
+  | { screen: 'Chat'; params: { chatId: string } }
+  | { screen: 'RideDetail'; params: { rideId: string } }
+  | { screen: 'LiveRide'; params: { rideId: string } };
+
+export function notificationTarget(data: Record<string, unknown> | null | undefined): NotificationTarget | null {
+  const id = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null);
+  const chatId = id(data?.chatId);
+  const rideId = id(data?.rideId);
+  switch (data?.kind) {
+    case 'chat':
+      return chatId ? { screen: 'Chat', params: { chatId } } : null;
+    case 'ride':
+    case 'ride-reminder':
+      return rideId ? { screen: 'RideDetail', params: { rideId } } : null;
+    case 'live-alert':
+      return rideId ? { screen: 'LiveRide', params: { rideId } } : null;
+    default:
+      return null;
+  }
+}
+
+/** Whether a notification that arrives while the app is open is shown: not a message for the chat
+ *  that's on screen, which already shows it. */
+export function showWhileOpen(data: Record<string, unknown> | null | undefined, viewingChatId: string | null): boolean {
+  return !(data?.kind === 'chat' && viewingChatId !== null && data.chatId === viewingChatId);
 }
 
 /** A reminder the phone should have scheduled. */
