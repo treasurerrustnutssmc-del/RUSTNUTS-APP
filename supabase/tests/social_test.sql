@@ -525,5 +525,89 @@ begin
   assert pg_temp.count_as(nell, format('listings where id = %L', item)) = 0, 'suspended seller hidden';
 end $$;
 
+\echo 'Build threads: the owner posts on a project bike; the poster or the board takes it down'
+\o /dev/null
+create function pg_temp.build_sql(bike uuid, body text, photos jsonb) returns text language sql as $$
+  select format('select public.post_build_update(%L, %L, %L)', bike, body, photos);
+$$;
+create function pg_temp.upload_build(who uuid, name text) returns void language sql as $$
+  insert into storage.objects (bucket_id, name, owner, owner_id) values ('build-media', name, who, who::text);
+$$;
+
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  bea constant uuid := '00000000-0000-0000-0000-0000000005c1';
+  paul constant uuid := '00000000-0000-0000-0000-0000000005a3';
+  w text := '00000000-0000-0000-0000-0000000005b1/';
+  project uuid;
+  road uuid;
+  nells uuid;
+  upd uuid;
+  u build_updates%rowtype;
+  err text;
+begin
+  insert into bikes (member_id, make, model, year, is_project) values (wendy, 'Honda', 'CB750', 1978, true) returning id into project;
+  insert into bikes (member_id, make, model, is_project) values (wendy, 'Triumph', 'Bonneville', false) returning id into road;
+  insert into bikes (member_id, make, model, is_project) values (nell, 'BSA', 'A65', true) returning id into nells;
+  perform pg_temp.upload_build(wendy, w || 'a.jpg');
+  perform pg_temp.upload_build(wendy, w || 'b.jpg');
+  perform pg_temp.upload_build(nell, '00000000-0000-0000-0000-0000000005b2/n.jpg');
+
+  upd := pg_temp.value_as(wendy, pg_temp.build_sql(project, '  Carbs off. ', jsonb_build_array(jsonb_build_object('path', w || 'a.jpg', 'width', 640.6, 'height', 480))))::uuid;
+  select * into u from build_updates where id = upd;
+  assert u.body = 'Carbs off.' and u.author_id = wendy and u.bike_id = project
+    and u.photos = jsonb_build_array(jsonb_build_object('path', w || 'a.jpg', 'width', 641, 'height', 480)), format('posted: %s', row_to_json(u));
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(project, '', jsonb_build_array(jsonb_build_object('path', w || 'b.jpg')))) is null, 'a photo alone';
+
+  -- The refusals, in order.
+  assert pg_temp.try_signed_out(pg_temp.build_sql(project, 'x', '[]')) = 'Sign in first.', 'signed out';
+  assert pg_temp.try_as(paul, pg_temp.build_sql(project, 'x', '[]')) = 'Only approved members can do that.', 'pending';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql('00000000-0000-0000-0000-000000000000', 'x', '[]')) = 'No such bike.', 'no bike';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(nells, 'x', '[]')) = 'Only the bike’s owner can post on its build.', 'not hers';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(road, 'x', '[]')) = 'Build threads are for project bikes. Mark it as a project in your garage first.', 'not a project';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(project, '  ', '[]')) = 'Write something or add a photo.', 'empty';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(project, repeat('x', 2001), '[]')) = 'Keep it to 2,000 characters at most.', 'long';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(project, repeat('🔧', 2000), '[]')) is null, '2,000 emoji are 2,000 characters';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(project, 'x',
+    (select jsonb_agg(jsonb_build_object('path', w || i || '.jpg')) from generate_series(1, 5) i))) = 'Up to 4 photos.', 'five photos';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(project, 'x', jsonb_build_array(jsonb_build_object('path', w || 'never.jpg')))) = 'That photo didn’t upload properly. Try again.', 'not uploaded';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(project, 'x', jsonb_build_array(jsonb_build_object('path', '00000000-0000-0000-0000-0000000005b2/n.jpg')))) = 'That photo didn’t upload properly. Try again.', 'Nell''s photo';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(project, 'x', jsonb_build_array(jsonb_build_object('path', w || 'a.jpg')))) = 'That photo didn’t upload properly. Try again.', 'already posted';
+
+  -- Reading.
+  assert pg_temp.count_as(nell, 'build_updates') = 3, 'Nell reads all three';
+  assert pg_temp.count_as(nell, format($q$storage.objects where name = %L$q$, w || 'a.jpg')) = 1, 'and the photo';
+  assert pg_temp.count_as(paul, 'build_updates') = 0, 'pending reads none';
+  assert pg_temp.count_as(null, 'build_updates') = -1, 'anon reads nothing';
+  assert pg_temp.try_as(wendy, $q$update build_updates set body = 'x'$q$) like 'permission denied%', 'no updates';
+  assert pg_temp.try_as(wendy, format($q$insert into storage.objects (bucket_id, name, owner, owner_id) values ('build-media', %L, auth.uid(), auth.uid()::text)$q$,
+    '00000000-0000-0000-0000-0000000005b2/sneaky.jpg')) is not null, 'not into Nell''s folder';
+
+  -- Taking down.
+  assert pg_temp.try_as(nell, format('select public.take_down_build_update(%L)', upd)) = 'Only whoever posted it or the board can take it down.', 'not Nell';
+  assert pg_temp.try_as(bea, format('select public.take_down_build_update(%L)', upd)) is null, 'the board';
+  assert (select taken_down_by = bea from build_updates where id = upd), 'kept, with who';
+  assert pg_temp.try_as(wendy, format('select public.take_down_build_update(%L)', upd)) = 'That update has already been taken down.', 'twice';
+  assert pg_temp.try_as(wendy, format('select public.take_down_build_update(%L)', '00000000-0000-0000-0000-000000000000')) = 'No such update.', 'gone';
+  assert pg_temp.count_as(nell, 'build_updates') = 2, 'hidden once down';
+  assert pg_temp.count_as(nell, format($q$storage.objects where name = %L$q$, w || 'a.jpg')) = 0, 'and its photo';
+  perform pg_temp.try_as(wendy, format($q$delete from storage.objects where bucket_id = 'build-media' and name = %L$q$, w || 'a.jpg'));
+  assert (select count(*) from storage.objects where bucket_id = 'build-media' and name = w || 'a.jpg') = 1, 'its photo is kept';
+
+  -- A bike that stops being a project keeps its thread, but takes no more posts.
+  update bikes set is_project = false where id = project;
+  assert pg_temp.count_as(nell, 'build_updates') = 2, 'still readable';
+  assert pg_temp.try_as(wendy, pg_temp.build_sql(project, 'x', '[]')) = 'Build threads are for project bikes. Mark it as a project in your garage first.', 'no more posts';
+
+  -- Removing the bike keeps its updates (and the board's take-down) and their photos.
+  delete from bikes where id = project;
+  assert (select count(*) from build_updates where author_id = wendy and bike_id is null) = 3, 'updates kept';
+  assert (select taken_down_by = bea from build_updates where id = upd), 'take-down kept';
+  perform pg_temp.try_as(wendy, format($q$delete from storage.objects where bucket_id = 'build-media' and name = %L$q$, w || 'a.jpg'));
+  assert (select count(*) from storage.objects where bucket_id = 'build-media' and name = w || 'a.jpg') = 1, 'photo still kept';
+end $$;
+
 \o
 \echo 'All social checks passed'

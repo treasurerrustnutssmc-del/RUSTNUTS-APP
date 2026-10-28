@@ -213,6 +213,8 @@ export const DEMO_DATA: ClubData = {
     { id: 'b-10', memberId: 'm-patches', make: 'BMW', model: 'R1200GS', year: 2015, nickname: null, isProject: false },
     { id: 'b-11', memberId: 'm-smokey', make: 'Harley-Davidson', model: 'Heritage Classic', year: 2018, nickname: 'Smoke Signal', isProject: false },
     { id: 'b-12', memberId: 'm-jet', make: 'Harley-Davidson', model: 'Sport Glide', year: 2022, nickname: null, isProject: false },
+    // Stage 7: a second project bike, for the demo's garage build threads.
+    { id: 'b-20', memberId: 'm-diesel', make: 'BSA', model: 'A65 Lightning', year: 1968, nickname: 'Lazarus', isProject: true },
     { id: 'b-13', memberId: 'm-crank', make: 'Victory', model: 'Cross Country', year: 2013, nickname: 'Big Vic', isProject: false },
     { id: 'b-14', memberId: 'm-ace', make: 'Triumph', model: 'Speed Triple', year: 2019, nickname: null, isProject: false },
     { id: 'b-15', memberId: 'm-ratchet', make: 'Harley-Davidson', model: 'Electra Glide', year: 2011, nickname: 'The Lounge', isProject: false },

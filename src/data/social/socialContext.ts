@@ -5,6 +5,7 @@ import { createContext, useContext } from 'react';
 import type { HelpSkill, Mechanic, MechanicInput, MechanicVouch, MemberSkills } from '../../domain/social/help';
 import type { Birthday } from '../../domain/social/shoutouts';
 import type { Listing, ListingInput } from '../../domain/social/swap';
+import type { BuildPost, BuildUpdate } from '../../domain/social/builds';
 import type { PickedMedia } from '../../domain/chat';
 import type { FeedItem, MediaSource } from '../chat/chatContext';
 
@@ -39,6 +40,13 @@ export interface SocialContextValue {
   takeDownListing: (id: string) => Promise<void>;
   /** Something an Image can show for a listing photo's path. */
   listingPhotoUrl: (path: string) => Promise<MediaSource>;
+  // Garage build threads
+  /** Build updates this member can read (screens pick what to show with buildsFor). */
+  buildUpdates: BuildUpdate[];
+  /** Posts an update on my project bike; `post.photos` is empty and `added` are the phone's photos. */
+  postBuildUpdate: (post: BuildPost, added: PickedMedia[]) => Promise<string>;
+  takeDownBuildUpdate: (id: string) => Promise<void>;
+  buildPhotoUrl: (path: string) => Promise<MediaSource>;
   refresh: () => Promise<void>;
 }
 

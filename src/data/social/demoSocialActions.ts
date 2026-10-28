@@ -26,6 +26,7 @@ import {
   type ListingKind,
   type ListingPhoto,
 } from '../../domain/social/swap';
+import { buildPostProblem, buildTakeDownProblem, cleanBuildPost, type BuildPost, type BuildUpdate } from '../../domain/social/builds';
 import type { ClubData, Member } from '../../domain/types';
 import type { FeedItem } from '../chat/chatContext';
 import { NotAllowedError } from '../clubContext';
@@ -42,6 +43,8 @@ export interface SocialData {
   vouches: MechanicVouch[];
   /** Every listing, taken-down ones included. */
   listings: Listing[];
+  /** Every build update, taken-down ones included. */
+  buildUpdates: BuildUpdate[];
 }
 
 export interface SocialCtx {
@@ -140,6 +143,26 @@ export function takeDownListing(ctx: SocialCtx, id: string): SocialData {
   return { ...ctx.social, listings: ctx.social.listings.map((l) => (l.id === id ? { ...l, takenDownAt: at } : l)) };
 }
 
+/** Posts an update on my project bike's build; hands back its id. */
+export function postBuildUpdate(ctx: SocialCtx, post: BuildPost): { social: SocialData; id: string } {
+  refuse(buildPostProblem(ctx.me, post, ctx.club.bikes, ctx.social.buildUpdates));
+  const me = ctx.me as Member;
+  const clean = cleanBuildPost(post);
+  const id = `build-${ctx.social.buildUpdates.length + 1}-${Date.now().toString(36)}`;
+  const added: BuildUpdate = {
+    id, bikeId: clean.bikeId, authorId: me.id, body: clean.body,
+    photos: clean.photos.map((p) => ({ path: p.path, width: Math.round(p.width), height: Math.round(p.height) })),
+    postedAt: ctx.now ?? new Date().toISOString(), takenDownAt: null,
+  };
+  return { social: { ...ctx.social, buildUpdates: [...ctx.social.buildUpdates, added] }, id };
+}
+
+export function takeDownBuildUpdate(ctx: SocialCtx, id: string): SocialData {
+  refuse(buildTakeDownProblem(ctx.me, id, ctx.social.buildUpdates, ctx.club.positions));
+  const at = ctx.now ?? new Date().toISOString();
+  return { ...ctx.social, buildUpdates: ctx.social.buildUpdates.map((u) => (u.id === id ? { ...u, takenDownAt: at } : u)) };
+}
+
 /** A parity.json case, as the social action it names. */
 export type SocialAction =
   | { action: 'socialSetBirthday'; month: number | null; day: number | null }
@@ -151,7 +174,9 @@ export type SocialAction =
   // Photos are file names in the signed-in member's own folder, or `other:<name>` for someone else's.
   | { action: 'socialSaveListing'; listing: string | null; kind: ListingKind; title: string; price: number | null; details: string; photos: string[] }
   | { action: 'socialMarkListingSold'; listing: string; sold: boolean }
-  | { action: 'socialTakeDownListing'; listing: string };
+  | { action: 'socialTakeDownListing'; listing: string }
+  | { action: 'socialPostBuildUpdate'; bike: string; body: string; photos: string[] }
+  | { action: 'socialTakeDownBuildUpdate'; update: string };
 
 /** A parity case's photo names as the photos the action is sent. */
 export function parityPhotos(me: Member | null, names: string[], otherId: string): ListingPhoto[] {
@@ -185,5 +210,9 @@ export function runSocialAction(ctx: SocialCtx, a: SocialAction): SocialData {
       return markListingSold(ctx, a.listing, a.sold);
     case 'socialTakeDownListing':
       return takeDownListing(ctx, a.listing);
+    case 'socialPostBuildUpdate':
+      return postBuildUpdate(ctx, { bikeId: a.bike, body: a.body, photos: parityPhotos(ctx.me, a.photos, 'someone-else') }).social;
+    case 'socialTakeDownBuildUpdate':
+      return takeDownBuildUpdate(ctx, a.update);
   }
 }

@@ -57,3 +57,11 @@ test('listing rows, and the save_listing call', async () => {
     p_id: null, p_kind: 'sell', p_title: ' T ', p_price: 5, p_details: '', p_photos: photos,
   });
 });
+
+test('build update rows', async () => {
+  const { toBuildUpdates } = await import('./liveSocial');
+  assert.deepEqual(
+    toBuildUpdates([{ id: 'u', bike_id: 'b', author_id: 'a', body: null, photos: [{ path: 'a/x.jpg', width: null, height: 5 }], posted_at: 't', taken_down_at: null }]),
+    [{ id: 'u', bikeId: 'b', authorId: 'a', body: null, photos: [{ path: 'a/x.jpg', width: 0, height: 5 }], postedAt: 't', takenDownAt: null }],
+  );
+});

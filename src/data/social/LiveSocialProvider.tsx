@@ -16,7 +16,9 @@ import {
 } from '../../domain/social/help';
 import { birthdayProblem, type Birthday } from '../../domain/social/shoutouts';
 import { listingProblem, soldProblem, takeDownProblem, type Listing, type ListingPhoto } from '../../domain/social/swap';
+import { buildPostProblem, buildTakeDownProblem, type BuildPhoto, type BuildUpdate } from '../../domain/social/builds';
 import type { MediaSource } from '../chat/chatContext';
+import type { PickedMedia } from '../../domain/chat';
 import { prepareUpload } from '../chat/media';
 import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
@@ -24,12 +26,14 @@ import { toFeedItem, uploadName, type FeedJson } from '../chat/liveChat';
 import {
   saveListingArgs,
   saveMechanicArgs,
+  toBuildUpdates,
   toListings,
   toBirthdays,
   toMechanics,
   toSkills,
   toVouches,
   type BirthdayRow,
+  type BuildUpdateRow,
   type ListingRow,
   type MechanicRow,
   type SkillsRow,
@@ -45,6 +49,7 @@ const refuse = (problem: string | null) => {
 };
 
 const BUCKET = 'swap-media';
+const BUILD_BUCKET = 'build-media';
 // Signed addresses last five minutes; each is reused for four.
 const URL_LIFE_S = 300;
 const URL_KEEP_MS = 4 * 60_000;
@@ -63,6 +68,8 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   const [mechanics, setMechanics] = useState<Mechanic[]>([]);
   const [vouches, setVouches] = useState<MechanicVouch[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
+  const [buildUpdates, setBuildUpdates] = useState<BuildUpdate[]>([]);
+  // Signed addresses, by bucket and path.
   const urls = useRef(new Map<string, { url: Promise<string>; until: number }>());
 
   const approved = me?.approval === 'approved';
@@ -73,18 +80,20 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     }
     // Each table on its own: one that isn't live yet (or a dropped connection) leaves that part
     // empty, not the rest broken.
-    const [b, s, m, v, l] = await Promise.all([
+    const [b, s, m, v, l, u] = await Promise.all([
       db().from('member_birthdays').select('member_id, month, day'),
       db().from('member_skills').select('member_id, skills'),
       db().from('mechanics').select('id, name, suburb, phone, website, speciality, notes, added_by, added_at, archived_at'),
       db().from('mechanic_vouches').select('mechanic_id, member_id, vouched'),
       db().from('listings').select('id, seller_id, kind, title, price_dollars, details, photos, listed_at, sold_at, taken_down_at'),
+      db().from('build_updates').select('id, bike_id, author_id, body, photos, posted_at, taken_down_at'),
     ]);
     if (!b.error) setBirthdays(toBirthdays((b.data ?? []) as BirthdayRow[]));
     if (!s.error) setSkillsList(toSkills((s.data ?? []) as SkillsRow[]));
     if (!m.error) setMechanics(toMechanics((m.data ?? []) as MechanicRow[]));
     if (!v.error) setVouches(toVouches((v.data ?? []) as VouchRow[]));
     if (!l.error) setListings(toListings((l.data ?? []) as ListingRow[]));
+    if (!u.error) setBuildUpdates(toBuildUpdates((u.data ?? []) as BuildUpdateRow[]));
     setReady(true);
   }, [approved]);
 
@@ -97,20 +106,38 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   }, [approved]);
 
   // One request per photo however many tiles ask at once.
-  const listingPhotoUrl = useCallback(async (path: string): Promise<MediaSource> => {
-    const kept = urls.current.get(path);
+  const signed = useCallback(async (bucket: string, path: string): Promise<MediaSource> => {
+    const key = `${bucket}/${path}`;
+    const kept = urls.current.get(key);
     if (kept && kept.until > Date.now()) return kept.url;
     const url = db()
-      .storage.from(BUCKET)
+      .storage.from(bucket)
       .createSignedUrl(path, URL_LIFE_S)
       .then(({ data, error }) => {
         if (error || !data) throw friendlyError(error);
         return data.signedUrl;
       });
-    urls.current.set(path, { url, until: Date.now() + URL_KEEP_MS });
-    url.catch(() => urls.current.delete(path));
+    urls.current.set(key, { url, until: Date.now() + URL_KEEP_MS });
+    url.catch(() => urls.current.delete(key));
     return url;
   }, []);
+  const listingPhotoUrl = useCallback((path: string) => signed(BUCKET, path), [signed]);
+  const buildPhotoUrl = useCallback((path: string) => signed(BUILD_BUCKET, path), [signed]);
+
+  // Shrinks and uploads the phone's photos into my folder of a bucket. The paths that went up are
+  // added to `uploaded` as they go, so a failure later can take them down again.
+  const uploadPhotos = async (bucket: string, added: PickedMedia[], uploaded: string[]): Promise<BuildPhoto[]> => {
+    const photos: BuildPhoto[] = [];
+    for (const p of added) {
+      const { file } = await prepareUpload(p);
+      const path = uploadName((me as { id: string }).id, file.contentType);
+      const { error } = await db().storage.from(bucket).upload(path, file.bytes, { contentType: file.contentType, upsert: false });
+      if (error) throw friendlyError(error);
+      uploaded.push(path);
+      photos.push({ path, width: Math.round(file.width), height: Math.round(file.height) });
+    }
+    return photos;
+  };
 
   useEffect(() => {
     Promise.resolve()
@@ -159,15 +186,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       const uploaded: string[] = [];
       let id: string;
       try {
-        const photos: ListingPhoto[] = [...input.photos];
-        for (const p of added) {
-          const { file } = await prepareUpload(p);
-          const path = uploadName((me as { id: string }).id, file.contentType);
-          const { error } = await db().storage.from(BUCKET).upload(path, file.bytes, { contentType: file.contentType, upsert: false });
-          if (error) throw friendlyError(error);
-          uploaded.push(path);
-          photos.push({ path, width: Math.round(file.width), height: Math.round(file.height) });
-        }
+        const photos: ListingPhoto[] = [...input.photos, ...(await uploadPhotos(BUCKET, added, uploaded))];
         id = (await call('save_listing', saveListingArgs(input, photos))) as string;
       } catch (e) {
         // Nothing half-saved: photos that went up for a listing that didn't are taken down again.
@@ -189,6 +208,28 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       await load();
     },
     listingPhotoUrl,
+    buildUpdates,
+    postBuildUpdate: async (post, added) => {
+      const standIns = added.map((p, i) => ({ path: `${me?.id ?? ''}/new-${i}`, width: p.width, height: p.height }));
+      refuse(buildPostProblem(me, { ...post, photos: [...post.photos, ...standIns] }, club.bikes, buildUpdates));
+      const uploaded: string[] = [];
+      let id: string;
+      try {
+        const photos = [...post.photos, ...(await uploadPhotos(BUILD_BUCKET, added, uploaded))];
+        id = (await call('post_build_update', { p_bike: post.bikeId, p_body: post.body, p_photos: photos })) as string;
+      } catch (e) {
+        if (uploaded.length) db().storage.from(BUILD_BUCKET).remove(uploaded).then(() => undefined, () => undefined);
+        throw e;
+      }
+      await load().catch(() => undefined);
+      return id;
+    },
+    takeDownBuildUpdate: async (id) => {
+      refuse(buildTakeDownProblem(me, id, buildUpdates, club.positions));
+      await call('take_down_build_update', { p_id: id });
+      await load();
+    },
+    buildPhotoUrl,
     refresh: load,
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

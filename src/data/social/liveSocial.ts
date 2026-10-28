@@ -3,6 +3,7 @@
 import type { HelpSkill, Mechanic, MechanicVouch, MemberSkills } from '../../domain/social/help';
 import type { Birthday } from '../../domain/social/shoutouts';
 import type { Listing, ListingInput, ListingKind, ListingPhoto } from '../../domain/social/swap';
+import type { BuildUpdate } from '../../domain/social/builds';
 
 export interface BirthdayRow {
   member_id: string;
@@ -80,3 +81,21 @@ export const toListings = (rows: ListingRow[]): Listing[] =>
 export const saveListingArgs = (i: ListingInput, photos: ListingPhoto[]) => ({
   p_id: i.id, p_kind: i.kind, p_title: i.title, p_price: i.priceDollars, p_details: i.details, p_photos: photos,
 });
+
+export interface BuildUpdateRow {
+  id: string;
+  /** None once the bike was removed from its garage. */
+  bike_id: string | null;
+  author_id: string;
+  body: string | null;
+  photos: { path: string; width: number | null; height: number | null }[] | null;
+  posted_at: string;
+  taken_down_at: string | null;
+}
+
+export const toBuildUpdates = (rows: BuildUpdateRow[]): BuildUpdate[] =>
+  rows.map((r) => ({
+    id: r.id, bikeId: r.bike_id ?? '', authorId: r.author_id, body: r.body,
+    photos: (r.photos ?? []).map((p) => ({ path: p.path, width: p.width ?? 0, height: p.height ?? 0 })),
+    postedAt: r.posted_at, takenDownAt: r.taken_down_at,
+  }));

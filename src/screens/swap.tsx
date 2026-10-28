@@ -51,27 +51,47 @@ import {
 
 type Nav = NavigationProp<RootParams>;
 
-/** A listing photo's address once it's ready (live photos are signed a moment later), or 'failed'. */
-function usePhotoSource(path: string | null): MediaSource | 'failed' | null {
-  const { listingPhotoUrl } = useSocial();
+/** A photo's address once it's ready (live photos are signed a moment later), or 'failed'. */
+function usePhotoSource(path: string | null, bucket: PhotoBucket): MediaSource | 'failed' | null {
+  const { listingPhotoUrl, buildPhotoUrl } = useSocial();
+  const photoUrl = bucket === 'build' ? buildPhotoUrl : listingPhotoUrl;
   const [source, setSource] = useState<{ path: string; value: MediaSource | 'failed' } | null>(null);
   useEffect(() => {
     if (!path) return;
     let live = true;
-    listingPhotoUrl(path).then(
+    photoUrl(path).then(
       (value) => live && setSource({ path, value }),
       () => live && setSource({ path, value: 'failed' }),
     );
     return () => {
       live = false;
     };
-  }, [path, listingPhotoUrl]);
+  }, [path, photoUrl]);
   return path && source?.path === path ? source.value : null;
 }
 
-/** One listing photo filling its box; a steel square with a tag icon when there's none. */
-function ListingPhotoBox({ path, uri, size, height, label }: { path?: string | null; uri?: string; size: number; height?: number; label: string }) {
-  const shown = usePhotoSource(path ?? null);
+/** Which bucket a photo lives in: swap and sell, or garage builds. */
+export type PhotoBucket = 'swap' | 'build';
+
+/** One photo filling its box; a steel square with an icon when there's none. Also used by the build threads. */
+export function ListingPhotoBox({
+  path,
+  uri,
+  size,
+  height,
+  label,
+  bucket = 'swap',
+  icon = 'pricetag-outline',
+}: {
+  path?: string | null;
+  uri?: string;
+  size: number;
+  height?: number;
+  label: string;
+  bucket?: PhotoBucket;
+  icon?: React.ComponentProps<typeof Ionicons>['name'];
+}) {
+  const shown = usePhotoSource(path ?? null, bucket);
   const failed = shown === 'failed';
   const source = uri ? { uri } : failed ? null : asImage(shown, path);
   return (
@@ -85,7 +105,7 @@ function ListingPhotoBox({ path, uri, size, height, label }: { path?: string | n
       ) : path && !failed ? (
         <ActivityIndicator color={colors.boneMute} />
       ) : (
-        <Ionicons name="pricetag-outline" size={size / 3} color={colors.boneMute} />
+        <Ionicons name={icon} size={size / 3} color={colors.boneMute} />
       )}
     </View>
   );
@@ -124,18 +144,16 @@ const listedOn = (l: Listing) => formatAuDate(melbourneDate(l.listedAt));
 // Members tab: the way in
 // ---------------------------------------------------------------------------
 
-export function SwapRow() {
+export function SwapRow({ last = false }: { last?: boolean }) {
   const navigation = useNavigation<Nav>();
   return (
-    <Card style={{ padding: 0, gap: 0 }}>
-      <ListRow
-        left={<IconBadge icon="pricetags" tone="red" />}
-        title="Swap and sell"
-        subtitle="Parts and gear for sale, to swap or free"
-        onPress={() => navigation.navigate('SwapSell')}
-        last
-      />
-    </Card>
+    <ListRow
+      left={<IconBadge icon="pricetags" tone="red" />}
+      title="Swap and sell"
+      subtitle="Parts and gear for sale, to swap or free"
+      onPress={() => navigation.navigate('SwapSell')}
+      last={last}
+    />
   );
 }
 

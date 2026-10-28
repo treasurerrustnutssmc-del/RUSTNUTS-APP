@@ -57,6 +57,16 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     markListingSold: async (id, sold) => setSocial(act.markListingSold(ctx(), id, sold)),
     takeDownListing: async (id) => setSocial(act.takeDownListing(ctx(), id)),
     listingPhotoUrl,
+    buildUpdates: social.buildUpdates,
+    postBuildUpdate: async (post, added) => {
+      const folder = me?.id ?? 'nobody';
+      const photos = [...post.photos, ...added.map((p) => ({ path: `${folder}/${p.uri}`, width: p.width, height: p.height }))];
+      const result = act.postBuildUpdate(ctx(), { ...post, photos });
+      setSocial(result.social);
+      return result.id;
+    },
+    takeDownBuildUpdate: async (id) => setSocial(act.takeDownBuildUpdate(ctx(), id)),
+    buildPhotoUrl: listingPhotoUrl,
     refresh: async () => {},
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;
