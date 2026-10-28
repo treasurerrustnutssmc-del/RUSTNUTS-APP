@@ -58,14 +58,24 @@ $$;
 revoke all on function private.can_read_swap_file(text) from public, anon;
 grant execute on function private.can_read_swap_file(text) to authenticated;
 
+-- Whether a file is on any listing, taken-down ones and suspended sellers' included (the caller
+-- can't see those, so this looks past row-level security).
+create or replace function private.swap_file_in_use(p_name text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.listings l where l.photos @> jsonb_build_array(jsonb_build_object('path', p_name)));
+$$;
+revoke all on function private.swap_file_in_use(text) from public, anon;
+grant execute on function private.swap_file_in_use(text) to authenticated;
+
 create policy swap_media_upload on storage.objects for insert to authenticated
   with check (bucket_id = 'swap-media' and split_part(name, '/', 1) = auth.uid()::text and private.is_approved_member());
 create policy swap_media_read on storage.objects for select to authenticated
   using (bucket_id = 'swap-media' and private.can_read_swap_file(name));
--- An upload that never made it onto a listing can be cleared away by whoever uploaded it.
+-- An upload that never made it onto a listing can be cleared away by whoever uploaded it. A photo
+-- on a listing stays, even once it's taken down.
 create policy swap_media_tidy on storage.objects for delete to authenticated
   using (bucket_id = 'swap-media' and owner_id = auth.uid()::text
-         and not exists (select 1 from public.listings l where l.photos @> jsonb_build_array(jsonb_build_object('path', name))));
+         and not private.swap_file_in_use(name));
 
 -- ---------------------------------------------------------------------------------------------
 -- Actions

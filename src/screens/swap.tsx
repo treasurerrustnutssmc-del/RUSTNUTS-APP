@@ -51,16 +51,16 @@ import {
 
 type Nav = NavigationProp<RootParams>;
 
-/** A listing photo's address once it's ready (live photos are signed a moment later). */
-function usePhotoSource(path: string | null): MediaSource | null {
+/** A listing photo's address once it's ready (live photos are signed a moment later), or 'failed'. */
+function usePhotoSource(path: string | null): MediaSource | 'failed' | null {
   const { listingPhotoUrl } = useSocial();
-  const [source, setSource] = useState<{ path: string; value: MediaSource } | null>(null);
+  const [source, setSource] = useState<{ path: string; value: MediaSource | 'failed' } | null>(null);
   useEffect(() => {
     if (!path) return;
     let live = true;
     listingPhotoUrl(path).then(
       (value) => live && setSource({ path, value }),
-      () => undefined,
+      () => live && setSource({ path, value: 'failed' }),
     );
     return () => {
       live = false;
@@ -72,7 +72,8 @@ function usePhotoSource(path: string | null): MediaSource | null {
 /** One listing photo filling its box; a steel square with a tag icon when there's none. */
 function ListingPhotoBox({ path, uri, size, height, label }: { path?: string | null; uri?: string; size: number; height?: number; label: string }) {
   const shown = usePhotoSource(path ?? null);
-  const source = uri ? { uri } : asImage(shown, path);
+  const failed = shown === 'failed';
+  const source = uri ? { uri } : failed ? null : asImage(shown, path);
   return (
     <View
       accessibilityRole="image"
@@ -81,7 +82,7 @@ function ListingPhotoBox({ path, uri, size, height, label }: { path?: string | n
     >
       {source ? (
         <Image source={source} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} contentFit="cover" transition={120} />
-      ) : path ? (
+      ) : path && !failed ? (
         <ActivityIndicator color={colors.boneMute} />
       ) : (
         <Ionicons name="pricetag-outline" size={size / 3} color={colors.boneMute} />
@@ -261,7 +262,8 @@ export function ListingScreen({ route, navigation }: RootScreen<'Listing'>) {
     );
   }
   const l = listings.find((x) => x.id === route.params.listingId);
-  if (!l || l.takenDownAt || !me) {
+  const blocked = !!l && chat.blocks.some((b) => (b.blockerId === me?.id && b.blockedId === l.sellerId) || (b.blockerId === l.sellerId && b.blockedId === me?.id));
+  if (!l || l.takenDownAt || !me || blocked) {
     return (
       <Screen>
         <Notice title="Not found">That listing isn’t up any more.</Notice>
@@ -350,7 +352,7 @@ export function EditListingScreen({ route, navigation }: RootScreen<'EditListing
       </Screen>
     );
   }
-  const existing = id ? listings.find((x) => x.id === id) : undefined;
+  const existing = id ? listings.find((x) => x.id === id && !x.takenDownAt) : undefined;
   if (id && !existing) {
     return (
       <Screen>
@@ -382,14 +384,21 @@ function ListingForm({ existing, navigation }: { existing: Listing | undefined; 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const room = MAX_LISTING_PHOTOS - kept.length - added.length;
-  const tile = Math.floor((Math.min(width, MAX_CONTENT_WIDTH) - space.lg * 4 - space.sm * 2) / 3);
+  // Inside the screen's and the card's padding, and the card's 1pt border each side.
+  const tile = Math.floor((Math.min(width, MAX_CONTENT_WIDTH) - space.lg * 4 - 2 - space.sm * 2) / 3);
 
   const input: ListingInput = { id: existing?.id ?? null, kind, title, priceDollars: kind === 'sell' ? parsePrice(price) : null, details, photos: kept };
 
   const pick = (source: 'library' | 'camera') => {
     setError(null);
     pickMedia(source, room, true)
-      .then((picked) => setAdded((a) => [...a, ...picked.filter((p) => p.kind === 'photo')].slice(0, MAX_LISTING_PHOTOS - kept.length)))
+      .then((picked) =>
+        setAdded((a) => {
+          // The same picture picked twice goes on once.
+          const fresh = picked.filter((p, i) => p.kind === 'photo' && !a.some((x) => x.uri === p.uri) && picked.findIndex((x) => x.uri === p.uri) === i);
+          return [...a, ...fresh].slice(0, MAX_LISTING_PHOTOS - kept.length);
+        }),
+      )
       .catch((e) => setError(e instanceof PickProblem ? e.message : 'That photo couldn’t be opened. Try another.'));
   };
 

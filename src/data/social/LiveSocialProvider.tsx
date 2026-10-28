@@ -157,6 +157,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       const standIns = added.map((p, i) => ({ path: `${me?.id ?? ''}/new-${i}`, width: p.width, height: p.height }));
       refuse(listingProblem(me, { ...input, photos: [...input.photos, ...standIns] }, listings));
       const uploaded: string[] = [];
+      let id: string;
       try {
         const photos: ListingPhoto[] = [...input.photos];
         for (const p of added) {
@@ -167,14 +168,15 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
           uploaded.push(path);
           photos.push({ path, width: Math.round(file.width), height: Math.round(file.height) });
         }
-        const id = (await call('save_listing', saveListingArgs(input, photos))) as string;
-        await load();
-        return id;
+        id = (await call('save_listing', saveListingArgs(input, photos))) as string;
       } catch (e) {
         // Nothing half-saved: photos that went up for a listing that didn't are taken down again.
         if (uploaded.length) db().storage.from(BUCKET).remove(uploaded).then(() => undefined, () => undefined);
         throw e;
       }
+      // It's saved: a reload that fails mustn't make it look as if it wasn't.
+      await load().catch(() => undefined);
+      return id;
     },
     markListingSold: async (id, sold) => {
       refuse(soldProblem(me, id, listings));

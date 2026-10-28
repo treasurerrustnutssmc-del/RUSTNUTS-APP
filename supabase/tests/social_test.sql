@@ -509,6 +509,11 @@ begin
   assert pg_temp.try_as(wendy, format('select public.mark_listing_sold(%L, true)', item)) = 'That listing has been taken down.', 'no selling after';
   assert pg_temp.count_as(nell, format('listings where id = %L', item)) = 0, 'hidden once down';
   assert pg_temp.count_as(nell, format($q$storage.objects where name = %L$q$, w || 'b.jpg')) = 0, 'and its photos';
+  -- Its seller can't clear its photos away, though they could an unused upload.
+  perform pg_temp.try_as(wendy, format($q$delete from storage.objects where bucket_id = 'swap-media' and name = %L$q$, w || 'b.jpg'));
+  assert (select count(*) from storage.objects where name = w || 'b.jpg') = 1, 'a taken-down listing keeps its photos';
+  perform pg_temp.try_as(wendy, format($q$delete from storage.objects where bucket_id = 'swap-media' and name = %L$q$, w || 'c.jpg'));
+  assert (select count(*) from storage.objects where name = w || 'c.jpg') = 0, 'an unused upload can be cleared';
   -- Its photos still can't go on another listing.
   assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'free', 'X', null, '',
     jsonb_build_array(jsonb_build_object('path', w || 'a.jpg')))) = 'That photo didn’t upload properly. Try again.', 'photos stay with it';
