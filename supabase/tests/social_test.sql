@@ -600,6 +600,13 @@ begin
   update bikes set is_project = false where id = project;
   assert pg_temp.count_as(nell, 'build_updates') = 2, 'still readable';
   assert pg_temp.try_as(wendy, pg_temp.build_sql(project, 'x', '[]')) = 'Build threads are for project bikes. Mark it as a project in your garage first.', 'no more posts';
+
+  -- Removing the bike keeps its updates (and the board's take-down) and their photos.
+  delete from bikes where id = project;
+  assert (select count(*) from build_updates where author_id = wendy and bike_id is null) = 3, 'updates kept';
+  assert (select taken_down_by = bea from build_updates where id = upd), 'take-down kept';
+  perform pg_temp.try_as(wendy, format($q$delete from storage.objects where bucket_id = 'build-media' and name = %L$q$, w || 'a.jpg'));
+  assert (select count(*) from storage.objects where bucket_id = 'build-media' and name = w || 'a.jpg') = 1, 'photo still kept';
 end $$;
 
 \o

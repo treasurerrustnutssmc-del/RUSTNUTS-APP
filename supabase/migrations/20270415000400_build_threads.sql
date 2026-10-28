@@ -6,7 +6,8 @@
 
 create table public.build_updates (
   id uuid primary key default gen_random_uuid(),
-  bike_id uuid not null references public.bikes (id) on delete cascade,
+  -- A bike removed from a garage leaves its updates (and who took any down) behind, hidden.
+  bike_id uuid references public.bikes (id) on delete set null,
   author_id uuid not null references public.members (id) on delete cascade,
   body text check (char_length(body) between 1 and 2000),
   -- [{path, width, height}]. Paths are in the poster's build-media folder.

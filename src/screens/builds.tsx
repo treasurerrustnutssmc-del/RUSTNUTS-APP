@@ -276,7 +276,7 @@ export function PostBuildUpdateScreen({ route, navigation }: RootScreen<'PostBui
     <Screen>
       {bike ? <H2>{bikeLabel(bike)}</H2> : null}
       <Card>
-        <Field label="What’s new" value={body} onChangeText={setBody} multiline placeholder="What you did, what broke, what’s next" maxLength={2000} />
+        <Field label="What’s new" value={body} onChangeText={setBody} multiline placeholder="What you did, what broke, what’s next" maxLength={4000} />
       </Card>
       <Card>
         <Text style={[type.name, { color: colors.boneDim }]}>{`Photos (up to ${MAX_BUILD_PHOTOS})`}</Text>
