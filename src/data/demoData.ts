@@ -10,6 +10,7 @@ import { readGpx } from '../domain/gpx';
 import { addMonths } from '../domain/profile';
 import type { ClubData, LedgerCode, LedgerEntry, Member, MemberPrivate, MemberStatus, Ride, Route } from '../domain/types';
 import { isCredit } from '../domain/ledger';
+import { V4_CONSTITUTION } from './demoConstitution';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
   roadName: null,
@@ -686,4 +687,112 @@ Object.assign(DEMO_DATA, {
       approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: at(ago(60)) },
   ],
   treasurerReports: [{ month: lastMonth, presentedAt: at(thisMonth), presentedBy: 'm-sparks' }],
+} satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
+// Stage 5C: the document library. Constitution v4 is the real text, waiting for its adoption to
+// be recorded (its own control table says the publication date isn't the commencement date). The
+// rest are made-up samples, dated from today: West's bylaws are in force at v2 (no fresh sign-off,
+// so Diesel's and Spanner's v1 sign-offs still count, and Torque hasn't signed), and the NEC's fee
+// schedule is overdue for review.
+// ---------------------------------------------------------------------------
+
+const docDay = (months: number) => addMonths(s4Today, months);
+const docAt = (months: number) => `${docDay(months)}T09:30:00.000Z`;
+const noApproval = { approvingBody: null, approvedOn: null, commencesOn: null };
+
+DEMO_DATA.documents = [
+  { id: 'doc-v4', chapterId: null, kind: 'constitution', title: 'Constitution', asksSignOff: false, reviewMonths: 12, reviewedOn: null, createdBy: null, createdAt: '2026-10-25T03:00:00.000Z' },
+  { id: 'doc-fees', chapterId: null, kind: 'policy', title: 'Fee schedule', asksSignOff: false, reviewMonths: 12, reviewedOn: null, createdBy: 'm-rusty', createdAt: docAt(-15) },
+  { id: 'doc-west', chapterId: 'ch-west', kind: 'policy', title: 'West Chapter bylaws', asksSignOff: true, reviewMonths: 24, reviewedOn: null, createdBy: 'm-torque', createdAt: docAt(-14) },
+  { id: 'doc-incident', chapterId: null, kind: 'procedure', title: 'Incident report', asksSignOff: false, reviewMonths: null, reviewedOn: null, createdBy: 'm-rusty', createdAt: docAt(-6) },
+];
+
+DEMO_DATA.documentVersions = [
+  {
+    id: 'dv-v4', documentId: 'doc-v4', number: 1, label: 'v4', body: V4_CONSTITUTION, whatChanged: '', freshSignOff: true,
+    ...noApproval, publishedBy: null, publishedAt: '2026-10-25T03:00:00.000Z',
+  },
+  {
+    id: 'dv-fees-1', documentId: 'doc-fees', number: 1, label: '2025–26', whatChanged: '', freshSignOff: true,
+    body: `# Sample fee schedule (demo only)
+
+A made-up sample to show how an NEC schedule looks in the app. The NEC publishes the real one.
+
+# Annual fees
+- Full Member: $360 a club year, AGM to AGM. Patching mid-year is pro rata.
+- FNG: a one-off $180 after twelve months.
+- Everyone else: free.`,
+    approvingBody: 'nec', approvedOn: docDay(-14), commencesOn: docDay(-14), publishedBy: 'm-rusty', publishedAt: docAt(-14),
+  },
+  {
+    id: 'dv-west-1', documentId: 'doc-west', number: 1, label: 'v1', whatChanged: '', freshSignOff: true,
+    body: `# Sample West Chapter bylaws (demo only)
+
+A made-up sample. West's board publishes the real bylaws.
+
+# Meetings
+West meets on the last Thursday of the month at the clubrooms.`,
+    approvingBody: 'chapter_board', approvedOn: docDay(-13), commencesOn: docDay(-13), publishedBy: 'm-torque', publishedAt: docAt(-13),
+  },
+  {
+    id: 'dv-west-2', documentId: 'doc-west', number: 2, label: 'v2', whatChanged: 'Meetings move to the last Wednesday.', freshSignOff: false,
+    body: `# Sample West Chapter bylaws (demo only)
+
+A made-up sample. West's board publishes the real bylaws.
+
+# Meetings
+West meets on the last Wednesday of the month at the clubrooms. A pre-meeting ride leaves at 6 pm.
+
+# Guests
+- Members may bring a guest to an ordinary meeting.
+- Tell the Secretary beforehand.`,
+    approvingBody: 'chapter_board', approvedOn: docDay(-2), commencesOn: docDay(-1), publishedBy: 'm-torque', publishedAt: docAt(-2),
+  },
+  {
+    id: 'dv-incident-1', documentId: 'doc-incident', number: 1, label: 'v1', whatChanged: '', freshSignOff: true,
+    body: `# Sample incident report (demo only)
+
+After any crash, injury or near miss on a club ride, the Road Captain writes down what happened within 48 hours.
+- Where and when it happened.
+- Who was involved and who helped.
+- What first aid was given and who was called.`,
+    approvingBody: 'nec', approvedOn: docDay(-6), commencesOn: docDay(-6), publishedBy: 'm-rusty', publishedAt: docAt(-6),
+  },
+];
+
+DEMO_DATA.documentSignoffs = [
+  { versionId: 'dv-west-1', documentId: 'doc-west', memberId: 'm-diesel', signedAt: docAt(-12) },
+  { versionId: 'dv-west-1', documentId: 'doc-west', memberId: 'm-spanner', signedAt: docAt(-12) },
+];
+
+// ---------------------------------------------------------------------------
+// Attendance rules and Big 4 rides: Phillip Island is a Big 4 for everyone, and so was a run six
+// weeks ago (with its check-in). Meetings are classified; Gravel was excused from today's (work).
+// ---------------------------------------------------------------------------
+
+const big4Past = { id: 'r-big4-past', title: 'Big 4: Great Ocean Road', startsAt: at(ago(42), '22:00:00'), endsAt: null, allDay: false,
+  location: 'Torquay', notes: 'Down the coast and back.', category: 'club' as const, cancelledAt: null };
+Object.assign(DEMO_DATA, {
+  rides: [...DEMO_DATA.rides, big4Past],
+  big4Rides: [
+    { rideId: 'r-7', chapterId: null, designatedBy: 'm-rusty', designatedAt: at(`${s4Year}-08-02`) },
+    { rideId: big4Past.id, chapterId: null, designatedBy: 'm-rusty', designatedAt: at(`${s4Year}-08-02`) },
+  ],
+  checkinSessions: [
+    ...(DEMO_DATA.checkinSessions ?? []).map((s) => ({ ...s, meetingType: s.id === 'cs-week' ? ('special' as const) : ('ordinary' as const) })),
+    { id: 'cs-2month', kind: 'meeting' as const, chapterId: 'ch-west', rideId: null, title: 'West monthly meeting', heldOn: ago(56),
+      openedBy: 'm-torque', closedAt: at(ago(56), '11:00:00'), code: 'MN2Y6T', meetingType: 'ordinary' as const },
+    { id: 'cs-bbq', kind: 'meeting' as const, chapterId: 'ch-west', rideId: null, title: 'West family barbie', heldOn: ago(14),
+      openedBy: 'm-torque', closedAt: at(ago(14), '15:00:00'), code: 'BBQ7KH', meetingType: 'event' as const },
+    { id: 'cs-big4', kind: 'ride' as const, chapterId: null, rideId: big4Past.id, title: big4Past.title, heldOn: addDays(ago(42), 1),
+      openedBy: 'm-rusty', closedAt: at(addDays(ago(42), 1), '08:00:00'), code: 'GOR4BG', meetingType: null },
+  ],
+  attendance: [
+    ...(DEMO_DATA.attendance ?? []),
+    ...went('cs-2month', ['m-rusty', 'm-torque', 'm-diesel', 'm-spanner', 'm-chook', 'm-throttle'], ago(56)),
+    ...went('cs-bbq', ['m-torque', 'm-spanner', 'm-kerry', 'm-patches'], ago(14)),
+    ...went('cs-big4', ['m-rusty', 'm-torque', 'm-spanner', 'm-sparks', 'm-throttle', 'm-jet', 'm-ratchet'], addDays(ago(42), 1)),
+  ],
+  exemptions: [{ sessionId: 'cs-today', memberId: 'm-gravel', reason: 'Working away', grantedBy: 'm-torque', grantedAt: at(s4Today, '08:00:00') }],
 } satisfies Partial<ClubData>);

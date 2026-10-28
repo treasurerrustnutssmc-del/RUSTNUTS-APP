@@ -66,6 +66,9 @@ export type RootParams = {
   FngReview: { memberId: string };
   MemberFees: { memberId: string };
   ChapterFees: { chapterId: string };
+  // Attendance rules, Big 4 rides and the membership card
+  Attendance: { chapterId?: string } | undefined;
+  MembershipCard: undefined;
   // Stage 3 (lane B): chats and photos
   Chat: { chatId: string; /** Lane E: share in. What was shared, as the starting draft. */ shared?: { text: string; media: PickedMedia[] } };
   NewChat: undefined;
@@ -73,6 +76,13 @@ export type RootParams = {
   Photos: undefined;
   RideWall: { rideId: string };
   MediaViewer: { items: FeedItem[]; index: number };
+  // Stage 7: social extras
+  Birthday: undefined;
+  OnThisDay: undefined;
+  WhoCanHelp: undefined;
+  Mechanic: { mechanicId: string };
+  EditMechanic: { mechanicId?: string } | undefined;
+  MySkills: undefined;
   // Lane E: share in
   ShareIn: { text: string; media: PickedMedia[]; notes: string[] };
   // Stage 5B: treasurer. A fund is 'club' or a chapter id.
@@ -83,6 +93,13 @@ export type RootParams = {
   MonthReport: { month: string };
   Budget: { fund: string; fy?: number };
   ClubFinances: undefined;
+  // Stage 5C: document library. `version` opens that version instead of the one in force.
+  Documents: undefined;
+  Document: { id: string; version?: string };
+  NewDocument: undefined;
+  PublishDocument: { id: string };
+  DocumentApproval: { versionId: string };
+  DocumentSignoffs: { id: string };
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

@@ -286,6 +286,15 @@ export interface ClubData extends LedgerData {
   meetings?: Meeting[];
   actionItems?: ActionItem[];
   votes?: Vote[];
+  // Stage 5C: the document library
+  documents?: ClubDocument[];
+  documentVersions?: DocumentVersion[];
+  documentSignoffs?: DocumentSignoff[];
+  // Attendance rules and Big 4 rides (constitution v4 4.6, 5.2–5.11)
+  /** Rides the NEC has designated Big 4. Missing means none. */
+  big4Rides?: Big4Ride[];
+  /** Members excused from a meeting or ride. Missing means none. */
+  exemptions?: AttendanceExemption[];
 }
 
 // ---------------------------------------------------------------------------
@@ -305,6 +314,8 @@ export interface CheckinSession {
   openedBy: string | null;
   closedAt: string | null;
   code?: string | null;
+  /** A meeting's category, set when it's opened. Null or missing on a meeting means ordinary; rides have none. */
+  meetingType?: MeetingType | null;
 }
 
 export interface Attendance {
@@ -628,4 +639,84 @@ export interface LedgerData {
   treasurerReports?: TreasurerReport[];
   /** Live only: presented months worked out by the database, for members who can't read the lines. */
   reportTotals?: MonthReport[];
+}
+
+// ---------------------------------------------------------------------------
+// Stage 5C: the document library (constitution v4 2.2, 15.3 to 15.7)
+// ---------------------------------------------------------------------------
+
+/** Registered Rules and Constitution are club-wide; a policy or procedure can be a chapter's. */
+export type DocumentKind = 'registered_rules' | 'constitution' | 'policy' | 'procedure';
+
+/** Who approved a version (15.5). */
+export type ApprovingBody = 'association_general_meeting' | 'association_committee' | 'full_members' | 'nec' | 'chapter_board';
+
+/** One controlled document. Its versions hold the text. */
+export interface ClubDocument {
+  id: string;
+  /** Null for a club-wide document. */
+  chapterId: string | null;
+  kind: DocumentKind;
+  title: string;
+  asksSignOff: boolean;
+  /** Months between reviews, or null for no review cycle. */
+  reviewMonths: number | null;
+  /** The last review marked without a change, as an ISO date. */
+  reviewedOn: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+/**
+ * One published text of a document. Versions are never edited: a correction is a new version.
+ * The three approval facts are all set or all null (not recorded yet).
+ */
+export interface DocumentVersion {
+  id: string;
+  documentId: string;
+  number: number;
+  label: string;
+  /** The text. Null in live until it's been loaded for reading. */
+  body: string | null;
+  /** Empty when none. */
+  whatChanged: string;
+  freshSignOff: boolean;
+  approvingBody: ApprovingBody | null;
+  approvedOn: string | null;
+  commencesOn: string | null;
+  /** Null for an imported version. */
+  publishedBy: string | null;
+  publishedAt: string;
+}
+
+/** A member's sign-off on one version. Signing again moves the date. */
+export interface DocumentSignoff {
+  versionId: string;
+  documentId: string;
+  memberId: string;
+  signedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Attendance rules, Big 4 rides and terms (constitution v4 4.6, 5.2–5.11, 9.2)
+// ---------------------------------------------------------------------------
+
+/** A ride the NEC designated, ahead of time, as a Big 4 (5.11). chapterId null = every chapter. */
+export interface Big4Ride {
+  rideId: string;
+  chapterId: string | null;
+  designatedBy: string | null;
+  designatedAt: string;
+}
+
+/** What a meeting check-in counts towards: ordinary monthly meetings, special or annual meetings, or other events. */
+export type MeetingType = 'ordinary' | 'special' | 'event';
+
+/** A member the board excused from one check-in (4.12, 5.3, 5.11): it drops out of their count. */
+export interface AttendanceExemption {
+  sessionId: string;
+  memberId: string;
+  reason: string;
+  grantedBy: string | null;
+  grantedAt: string;
 }

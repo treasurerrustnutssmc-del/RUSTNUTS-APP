@@ -5,14 +5,18 @@ import { activePositions } from '../domain/access';
 import { formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
 import { LICENCE_LABEL, ROLE_LABEL } from '../domain/labels';
 import { displayName, hasEarnedDisc, initials } from '../domain/profile';
+import { StandingCard } from './attendance';
 import type { LicenceClass } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: notifications
 import { NotificationSettings } from './notificationSettings';
+// Stage 7: social extras
+import { MeSocialSection } from './social';
 import { colors, space, type } from '../theme';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import { seesReports } from '../domain/ledger'; // Stage 5B
 import { asksToSign, currentRoadRules, myRoadRulesLine, needsSigning, roadRulesStatus } from '../domain/roadRules'; // Road Rules
+import { DocumentsMeRow } from './documents'; // Stage 5C
 import {
   Avatar,
   Button,
@@ -100,6 +104,20 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         </Row>
       </Card>
 
+      {/* Attendance rules and the membership card */}
+      {me.approval === 'approved' ? (
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            last
+            left={<IconBadge icon="card-outline" tone="red" />}
+            title="Membership card"
+            subtitle="Show it at club events"
+            onPress={() => navigation.navigate('MembershipCard')}
+          />
+        </Card>
+      ) : null}
+      <StandingCard member={me} />
+
       <SectionTitle title="Emergency contacts" action={<LockNote text="You + board" />} />
       <Card style={{ padding: 0, gap: 0 }}>
         {contacts.length === 0 ? (
@@ -149,6 +167,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
 
       {/* Road Rules sign-off: for everyone who's asked to sign */}
       {asksToSign(me) ? <RoadRulesRow onOpen={() => navigation.navigate('RoadRules')} /> : null}
+      {/* Stage 5C: document library */}
+      <DocumentsMeRow />
 
       <SectionTitle title="Fees" action={<LockNote text="You + board" />} />
       <Card style={{ padding: 0, gap: 0 }}>
@@ -172,6 +192,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       </Card>
       {/* Lane E: notifications */}
       <NotificationSettings />
+      {/* Stage 7: social extras */}
+      <MeSocialSection />
 
       <SectionTitle title="Privacy" />
       <Card>

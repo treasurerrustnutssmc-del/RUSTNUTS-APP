@@ -43,7 +43,8 @@ import {
   signRoadRulesArgs,
 } from './liveData';
 // Stage 4
-import { canCheckIn, closeProblem, markProblem, openCheckinProblem } from '../domain/attendance';
+import { canCheckIn, closeProblem, exemptionProblem, markProblem, openCheckinProblem } from '../domain/attendance';
+import { designateBig4Problem, undesignateBig4Problem } from '../domain/big4';
 import {
   claimProblem,
   continuationFeeProblem,
@@ -72,6 +73,11 @@ import {
   addFeeProblem, approveBudgetProblem, approveProblem, budgetProblem, creditProblem, debitProblem, floatProblem, openingProblem,
   payProblem, presentProblem, reopenBudgetProblem, voidProblem,
 } from '../domain/ledger'; // Stage 5B
+import {
+  cleanDocumentInput, cleanVersionInput, createDocumentProblem, markReviewedProblem, publishVersionProblem, recordApprovalProblem,
+  signDocumentProblem,
+} from '../domain/documents'; // Stage 5C
+import { loadedBodies } from './documentsLive'; // Stage 5C
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -142,6 +148,10 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       if (ticket !== latest.current) return;
       // Lane E: offline. Signed out during the load: don't show a signed-out load as theirs.
       if (uid && currentUser.current !== uid) return;
+      // Stage 5C: a text loaded while this refresh was in flight must not be dropped by it.
+      fresh.documentVersions = (fresh.documentVersions ?? []).map((v) =>
+        v.body === null && loadedBodies[v.id] !== undefined ? { ...v, body: loadedBodies[v.id] } : v,
+      );
       setData(fresh);
       setLoadedFor(uid ?? '');
       setLoadError(null);
@@ -514,6 +524,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
           p_chapter: input.chapterId,
           p_title: input.title.trim() || null,
           p_held_on: input.kind === 'meeting' ? input.heldOn : null,
+          // Anything but an ordinary meeting goes to the six-argument version, which opens and
+          // classifies it in one go (4.6). Ordinary keeps the original call.
+          ...(input.kind === 'meeting' && input.meetingType && input.meetingType !== 'ordinary' ? { p_meeting_type: input.meetingType } : {}),
         }),
       );
       await after();
@@ -537,6 +550,22 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const session = (data.checkinSessions ?? []).find((s) => s.id === sessionId);
       if (session) deny(closeProblem(visibleMe, session, data));
       ok(await supabase().rpc('close_checkin', { p_session: sessionId }));
+      await after();
+    },
+    // Attendance rules and Big 4 rides
+    designateBig4: async (rideId, chapterId) => {
+      deny(designateBig4Problem(visibleMe, rideId, chapterId, data, today));
+      ok(await supabase().rpc('designate_big4', { p_ride: rideId, p_chapter: chapterId }));
+      await after();
+    },
+    undesignateBig4: async (rideId) => {
+      deny(undesignateBig4Problem(visibleMe, rideId, data, today));
+      ok(await supabase().rpc('undesignate_big4', { p_ride: rideId }));
+      await after();
+    },
+    setExemption: async (sessionId, memberId, reason) => {
+      deny(exemptionProblem(visibleMe, sessionId, memberId, reason, data));
+      ok(await supabase().rpc('set_exemption', { p_session: sessionId, p_member: memberId, p_reason: reason?.trim() || null }));
       await after();
     },
     decideApplication: async (memberId, status, votes, note) => {
@@ -842,6 +871,69 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       deny(presentProblem(visibleMe, month, data, today));
       ok(await supabase().rpc('present_report', { p_month: month }));
       await after();
+    },
+
+    // Stage 5C: document library. The same rule first, then the database.
+    createDocument: async (raw) => {
+      deny(createDocumentProblem(visibleMe, raw, data));
+      const input = cleanDocumentInput(raw);
+      const r = ok(
+        await supabase().rpc('create_document', {
+          p_chapter: input.chapterId, p_kind: input.kind, p_title: input.title, p_asks_sign_off: input.asksSignOff,
+          p_review_months: input.reviewMonths,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    publishDocumentVersion: async (documentId, expected, raw) => {
+      deny(publishVersionProblem(visibleMe, documentId, expected, raw, data, today));
+      const input = cleanVersionInput(raw);
+      const r = ok(
+        await supabase().rpc('publish_document_version', {
+          p_document: documentId, p_expected: expected, p_label: input.label, p_body: input.body, p_what_changed: input.whatChanged,
+          p_fresh_sign_off: input.freshSignOff, p_approving_body: input.approval.approvingBody, p_approved_on: input.approval.approvedOn,
+          p_commences_on: input.approval.commencesOn,
+        }),
+      );
+      // The text just sent is the version's text, so it needn't be loaded again.
+      loadedBodies[r.data as string] = input.body;
+      await after();
+      return r.data as string;
+    },
+    recordDocumentApproval: async (versionId, approval) => {
+      deny(recordApprovalProblem(visibleMe, versionId, approval, data, today));
+      ok(
+        await supabase().rpc('record_document_approval', {
+          p_version: versionId, p_approving_body: approval.approvingBody, p_approved_on: approval.approvedOn,
+          p_commences_on: approval.commencesOn,
+        }),
+      );
+      await after();
+    },
+    markDocumentReviewed: async (documentId) => {
+      deny(markReviewedProblem(visibleMe, documentId, data, today));
+      ok(await supabase().rpc('mark_document_reviewed', { p_document: documentId }));
+      await after();
+    },
+    signDocument: async (versionId) => {
+      deny(signDocumentProblem(visibleMe, versionId, data, today));
+      ok(await supabase().rpc('sign_document', { p_version: versionId }));
+      await after();
+    },
+    loadDocumentBody: async (versionId) => {
+      const known = loadedBodies[versionId];
+      if (known !== undefined) return known;
+      const r = ok(await supabase().rpc('document_body', { p_version: versionId }));
+      const body = r.data as string | null;
+      // No text back means it can't be read yet: say so, and don't remember it as blank.
+      if (body === null) throw new Error('That version’s text couldn’t be loaded.');
+      loadedBodies[versionId] = body;
+      setData((d) => ({
+        ...d,
+        documentVersions: (d.documentVersions ?? []).map((v) => (v.id === versionId ? { ...v, body } : v)),
+      }));
+      return body;
     },
 
     // Lane E: notifications

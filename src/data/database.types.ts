@@ -1,9 +1,10 @@
 // Generated from the live Supabase schema (Stage 1). Regenerate after changing migrations.
 
 // Stage 5: meetings and votes
-import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, Threshold } from '../domain/types';
+import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, MeetingType, Threshold } from '../domain/types';
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson } from './ledgerLive'; // Stage 5B
+import type { DocumentsJson } from './documentsLive'; // Stage 5C
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
 type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';
@@ -312,6 +313,26 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      // Attendance rules and Big 4 rides
+      big4_rides: {
+        Row: { ride_id: string; chapter_id: string | null; designated_by: string | null; designated_at: string };
+        Insert: { [_ in never]: never }; // only through designate_big4 and undesignate_big4
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      attendance_exemptions: {
+        Row: { session_id: string; member_id: string; reason: string; granted_by: string | null; granted_at: string };
+        Insert: { [_ in never]: never }; // only through set_exemption
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      // Only the columns read directly; the rest come through members_money().
+      checkin_sessions: {
+        Row: { id: string; meeting_type: MeetingType | null };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -360,6 +381,11 @@ export type Database = {
       };
       decide_bus: { Args: { p_booking: string; p_yes: boolean; p_reason: string | null }; Returns: undefined };
       cancel_bus: { Args: { p_booking: string }; Returns: undefined };
+      // Attendance rules and Big 4 rides
+      designate_big4: { Args: { p_ride: string; p_chapter: string | null }; Returns: undefined };
+      undesignate_big4: { Args: { p_ride: string }; Returns: undefined };
+      set_meeting_type: { Args: { p_session: string; p_type: MeetingType }; Returns: undefined };
+      set_exemption: { Args: { p_session: string; p_member: string; p_reason: string | null }; Returns: undefined };
       ride_calendar: {
         Args: never;
         Returns: {
@@ -483,6 +509,26 @@ export type Database = {
       approve_budget: { Args: { p_chapter: string | null; p_fy: number; p_vote: string }; Returns: undefined };
       reopen_budget: { Args: { p_chapter: string | null; p_fy: number }; Returns: undefined };
       present_report: { Args: { p_month: string }; Returns: undefined };
+      // Stage 5C: document library
+      club_documents: { Args: never; Returns: DocumentsJson };
+      document_body: { Args: { p_version: string }; Returns: string | null };
+      create_document: {
+        Args: { p_chapter: string | null; p_kind: string; p_title: string; p_asks_sign_off: boolean; p_review_months: number | null };
+        Returns: string;
+      };
+      publish_document_version: {
+        Args: {
+          p_document: string; p_expected: number; p_label: string; p_body: string; p_what_changed: string; p_fresh_sign_off: boolean;
+          p_approving_body: string | null; p_approved_on: string | null; p_commences_on: string | null;
+        };
+        Returns: string;
+      };
+      record_document_approval: {
+        Args: { p_version: string; p_approving_body: string | null; p_approved_on: string | null; p_commences_on: string | null };
+        Returns: undefined;
+      };
+      mark_document_reviewed: { Args: { p_document: string }; Returns: undefined };
+      sign_document: { Args: { p_version: string }; Returns: undefined };
       // Lane E: live ride
       start_live_ride: { Args: { p_ride: string }; Returns: string };
       live_ride_state: { Args: { p_ride: string }; Returns: LiveStateJson };
@@ -499,7 +545,11 @@ export type Database = {
       // Stage 4: members and money
       members_money: { Args: never; Returns: MembersMoneyRows };
       open_checkin: {
-        Args: { p_kind: string; p_ride: string | null; p_chapter: string | null; p_title: string | null; p_held_on: string | null };
+        Args: {
+          p_kind: string; p_ride: string | null; p_chapter: string | null; p_title: string | null; p_held_on: string | null;
+          /** Attendance rules: the six-argument version opens and classifies a meeting in one go. */
+          p_meeting_type?: MeetingType;
+        };
         Returns: string;
       };
       checkin_code: { Args: { p_session: string }; Returns: string };
