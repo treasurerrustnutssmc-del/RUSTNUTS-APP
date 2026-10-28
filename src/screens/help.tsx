@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useSocial } from '../data/social/SocialProvider';
+import { displayName } from '../domain/profile';
 import {
   canEditMechanic,
   hasVouched,
@@ -169,6 +170,7 @@ export function MechanicScreen({ route, navigation }: RootScreen<'Mechanic'>) {
   const { me, data } = useClub();
   const { ready, mechanics, vouches, vouchMechanic, archiveMechanic } = useSocial();
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   if (!ready) return <Loading />;
   const m = mechanics.find((x) => x.id === route.params.mechanicId);
   if (!m || !me) {
@@ -181,9 +183,14 @@ export function MechanicScreen({ route, navigation }: RootScreen<'Mechanic'>) {
   const adder = data.members.find((x) => x.id === m.addedBy);
   const count = vouchCount(m.id, vouches);
   const mine = hasVouched(m.id, me.id, vouches);
-  const act = (p: Promise<unknown>) => {
+  // One change at a time, so a quick on-then-off can't land out of order.
+  const act = (p: () => Promise<unknown>) => {
+    if (busy) return;
     setError(null);
-    p.catch((e) => setError((e as Error).message));
+    setBusy(true);
+    p()
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setBusy(false));
   };
   const site = m.website;
 
@@ -194,7 +201,7 @@ export function MechanicScreen({ route, navigation }: RootScreen<'Mechanic'>) {
         {m.speciality ? <Body>{m.speciality}</Body> : null}
         {m.suburb ? <KeyValue label="Suburb" value={m.suburb} /> : null}
         <KeyValue label="Used by" value={count === 0 ? 'No one yet' : `${count} ${count === 1 ? 'member' : 'members'}`} />
-        <KeyValue label="Added by" value={adder ? (adder.roadName ?? adder.fullName) : 'A former member'} />
+        <KeyValue label="Added by" value={adder ? displayName(adder) : 'A former member'} />
         {m.notes ? <Body style={{ color: colors.boneDim }}>{m.notes}</Body> : null}
         {m.archivedAt ? <Notice tone="warn">Taken off the list.</Notice> : null}
       </Card>
@@ -210,7 +217,7 @@ export function MechanicScreen({ route, navigation }: RootScreen<'Mechanic'>) {
             label="I’ve used them"
             description="Tells other members you’d send your own bike there."
             value={mine}
-            onChange={(v) => act(vouchMechanic(m.id, v))}
+            onChange={(v) => act(() => vouchMechanic(m.id, v))}
           />
         </Card>
       ) : null}
