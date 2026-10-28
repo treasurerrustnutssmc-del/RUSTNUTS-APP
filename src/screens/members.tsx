@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Platform, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import {
   canManageMember,
@@ -18,7 +18,7 @@ import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phon
 import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { MemberChatButtons } from './chat';
-import { colors, space } from '../theme';
+import { colors, space, type } from '../theme';
 // Stage 4
 import { canSeeFees } from '../domain/fees';
 import { AttendanceSummary, HomeCheckinCard } from './checkin';
@@ -108,7 +108,15 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
           <Avatar text={initials(me)} size={56} />
           <View style={{ flex: 1, gap: 4 }}>
-            <H1>G’day, {displayName(me)}</H1>
+            {/* One line on phones: a longer name shrinks to fit rather than wrapping (the web ignores this). */}
+            <Text
+              style={type.h1}
+              numberOfLines={Platform.OS === 'web' ? undefined : 1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              G’day, {displayName(me)}
+            </Text>
             <Small style={{ color: colors.boneDim }}>
               {chapter?.name} chapter
               {positions.length ? ` · ${positionTitles(positions, data.chapters, me.chapterId, ROLE_LABEL).map((t) => t.text).join(', ')}` : ''}
