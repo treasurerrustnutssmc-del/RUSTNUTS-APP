@@ -5293,6 +5293,39 @@
       "allowed": false
     },
     {
+      "name": "A treasurer saves a meeting report",
+      "as": "penny",
+      "action": "saveMeetingReport",
+      "fromDays": -1,
+      "toDays": -1,
+      "notes": "Fees and merch",
+      "allowed": true
+    },
+    {
+      "name": "A Secretary saves a meeting report",
+      "as": "torque",
+      "action": "saveMeetingReport",
+      "fromDays": -1,
+      "toDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "A meeting report that runs past today",
+      "as": "penny",
+      "action": "saveMeetingReport",
+      "fromDays": -5,
+      "toDays": 1,
+      "allowed": false
+    },
+    {
+      "name": "A meeting report that ends before it starts",
+      "as": "penny",
+      "action": "saveMeetingReport",
+      "fromDays": -1,
+      "toDays": -5,
+      "allowed": false
+    },
+    {
       "name": "A Full member shares their birthday",
       "as": "rusty",
       "action": "socialSetBirthday",
@@ -10733,6 +10766,10 @@
     }
   ],
   "reportMonth": "2026-08-01",
+  "reportPeriod": {
+    "from": "2026-07-25",
+    "to": "2026-08-06"
+  },
   "bikeRanges": [
     {
       "bike": "spanner-softail",

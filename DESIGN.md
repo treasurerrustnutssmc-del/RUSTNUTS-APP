@@ -300,6 +300,8 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - The red on Treasury is the approval badge; Money in and Money out are secondary. "Approve this payment" and "Present to members" are the red actions on their screens. Voiding is a two-tap danger button with a reason.
 - The Treasurer's Report reads like the club's paper one: opening balance, the seven credit and seven debit codes (zeros in mute), each fund's closing balance, less the cash float, then the bank figure in H2.
 - Months step with a pair of 44px chevrons around the month name in stencil.
+- The report for a meeting follows Jeff's paper report: cash position (the bank figure in H2), each fund's closing with its opening, in and out underneath, month by month with the net, the read-out in italics inside quotes, then receipts and payments by code (largest first, a Totals / Each line switch for whoever reads the lines), the treasurer's notes and the checks with green ticks. Amounts out are in brackets, as on paper. "Present to members" is the one red action; Save draft and Share as PDF are secondary; Delete draft is a two-tap danger button.
+- The printed report is ink on white: the real logo top left, headings in the stencil, the club red only for rules and section titles, and the footer "RUSTNUTS SMC | A0119901K | Treasurer's report • <month>" on every page.
 
 ## Do's and Don'ts
 

@@ -6,6 +6,7 @@ import {
   FEES_CODE, floatProblem, openingProblem, payProblem, presentProblem, reopenBudgetProblem, voidProblem,
   type CreditInput, type DebitInput,
 } from '../domain/ledger';
+import { deleteMeetingProblem, meetingProblem, presentMeetingProblem, type MeetingReportInput } from '../domain/meetingReport';
 import type { Budget, ClubData, LedgerCode, LedgerEntry } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
@@ -131,6 +132,29 @@ export function presentReport(ctx: DemoCtx, month: string): ClubData {
   return { ...ctx.data, treasurerReports: [...(ctx.data.treasurerReports ?? []), { month, presentedAt: nowOf(ctx), presentedBy: ctx.me!.id }] };
 }
 
+/** Saves a new meeting report (id null) or changes a draft. */
+export function saveMeetingReport(ctx: DemoCtx, id: string | null, input: MeetingReportInput): { data: ClubData; id: string } {
+  refuse(meetingProblem(ctx.me, id, input, ctx.data, ctx.today));
+  const reports = ctx.data.meetingReports ?? [];
+  const fields = { fromOn: input.fromOn, toOn: input.toOn, notes: input.notes, savedBy: ctx.me!.id, savedAt: nowOf(ctx) };
+  if (id !== null) {
+    return { data: { ...ctx.data, meetingReports: reports.map((r) => (r.id === id ? { ...r, ...fields } : r)) }, id };
+  }
+  const report = { id: `mr-${newId()}`, ...fields, presentedBy: null, presentedAt: null };
+  return { data: { ...ctx.data, meetingReports: [...reports, report] }, id: report.id };
+}
+
+export function presentMeetingReport(ctx: DemoCtx, id: string): ClubData {
+  refuse(presentMeetingProblem(ctx.me, id, ctx.data));
+  const meetingReports = (ctx.data.meetingReports ?? []).map((r) => (r.id === id ? { ...r, presentedBy: ctx.me!.id, presentedAt: nowOf(ctx) } : r));
+  return { ...ctx.data, meetingReports };
+}
+
+export function deleteMeetingReport(ctx: DemoCtx, id: string): ClubData {
+  refuse(deleteMeetingProblem(ctx.me, id, ctx.data));
+  return { ...ctx.data, meetingReports: (ctx.data.meetingReports ?? []).filter((r) => r.id !== id) };
+}
+
 /** The treasurer actions the shared parity cases use, by name. Dates are ISO; a case gives them as …Days from today. */
 export type LedgerAction =
   | { action: 'recordCredit'; chapter: string | null; code: LedgerCode; description: string; amountCents: number; receivedOn?: string; entryOn?: string }
@@ -147,11 +171,12 @@ export type LedgerAction =
   | { action: 'saveBudget'; chapter: string | null; fy: number; lines: Partial<Record<LedgerCode, number>> }
   | { action: 'approveBudget'; chapter: string | null; fy: number; vote: string }
   | { action: 'reopenBudget'; chapter: string | null; fy: number }
-  | { action: 'presentReport'; month: string };
+  | { action: 'presentReport'; month: string }
+  | { action: 'saveMeetingReport'; from?: string; to?: string; notes?: string };
 
 export const LEDGER_ACTIONS = new Set<string>([
   'recordCredit', 'recordDebit', 'approveDebit', 'payDebit', 'voidEntry', 'addFeePayment', 'setOpening', 'setCashFloat',
-  'saveBudget', 'approveBudget', 'reopenBudget', 'presentReport',
+  'saveBudget', 'approveBudget', 'reopenBudget', 'presentReport', 'saveMeetingReport',
 ]);
 
 export function runLedgerAction(ctx: DemoCtx, a: LedgerAction): ClubData {
@@ -186,5 +211,7 @@ export function runLedgerAction(ctx: DemoCtx, a: LedgerAction): ClubData {
       return reopenBudget(ctx, a.chapter, a.fy);
     case 'presentReport':
       return presentReport(ctx, a.month);
+    case 'saveMeetingReport':
+      return saveMeetingReport(ctx, null, { fromOn: a.from ?? '', toOn: a.to ?? '', notes: a.notes ?? '' }).data;
   }
 }

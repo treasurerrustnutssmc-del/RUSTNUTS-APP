@@ -83,6 +83,7 @@ import {
   addFeeProblem, approveBudgetProblem, approveProblem, budgetProblem, creditProblem, debitProblem, floatProblem, openingProblem,
   payProblem, presentProblem, reopenBudgetProblem, voidProblem,
 } from '../domain/ledger'; // Stage 5B
+import { deleteMeetingProblem, meetingProblem, presentMeetingProblem } from '../domain/meetingReport';
 import {
   cleanDocumentInput, cleanVersionInput, createDocumentProblem, markReviewedProblem, publishVersionProblem, recordApprovalProblem,
   signDocumentProblem,
@@ -939,6 +940,22 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     presentReport: async (month) => {
       deny(presentProblem(visibleMe, month, data, today));
       ok(await supabase().rpc('present_report', { p_month: month }));
+      await after();
+    },
+    saveMeetingReport: async (id, input) => {
+      deny(meetingProblem(visibleMe, id, input, data, today));
+      const r = ok(await supabase().rpc('save_meeting_report', { p_id: id, p_from: input.fromOn, p_to: input.toOn, p_notes: input.notes }));
+      await after();
+      return r.data as string;
+    },
+    presentMeetingReport: async (id) => {
+      deny(presentMeetingProblem(visibleMe, id, data));
+      ok(await supabase().rpc('present_meeting_report', { p_id: id }));
+      await after();
+    },
+    deleteMeetingReport: async (id) => {
+      deny(deleteMeetingProblem(visibleMe, id, data));
+      ok(await supabase().rpc('delete_meeting_report', { p_id: id }));
       await after();
     },
 

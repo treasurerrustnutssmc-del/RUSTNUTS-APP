@@ -47,7 +47,7 @@ function toReport(r: ReportJson): MonthReport {
 
 const list = <T>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
 
-export function toLedger(raw: LedgerJson | null | undefined): Required<LedgerData> {
+export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<LedgerData, 'meetingReports' | 'meetingTotals'>> {
   // Anything but a plain object (an old database without club_ledger, a stub) reads as no books.
   const json = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
   return {
@@ -83,5 +83,51 @@ export function toLedger(raw: LedgerJson | null | undefined): Required<LedgerDat
     })),
     treasurerReports: list(json?.reports).map((r) => ({ month: r.month, presentedAt: instant(r.presented_at), presentedBy: r.presented_by })),
     reportTotals: list(json?.report_totals).map(toReport),
+  };
+}
+
+// The Treasurer's Report for a meeting: meeting_reports() -------------------------------------
+
+interface MovementJson { opening_cents: number; receipts_cents: number; payments_cents: number; closing_cents: number }
+
+export interface MeetingReportJson {
+  id: string; from_on: string; to_on: string; notes: string; saved_by: string | null; saved_at: string;
+  presented_by: string | null; presented_at: string | null;
+  figures: {
+    from: string; to: string; funds: Record<string, MovementJson>;
+    credits: { code: LedgerCode; cents: number }[]; debits: { code: LedgerCode; cents: number }[];
+    receipts_cents: number; payments_cents: number; opening_cents: number; closing_cents: number; float_cents: number;
+    months: { month: string; from: string; to: string; receipts_cents: number; payments_cents: number }[];
+    line_count: number; last_change_at: string | null;
+  };
+}
+
+const codes = (xs: { code: LedgerCode; cents: number }[] | undefined) => list(xs).map((c) => ({ code: c.code, cents: num(c.cents) }));
+
+export function toMeetingReports(raw: MeetingReportJson[] | null | undefined): Required<Pick<LedgerData, 'meetingReports' | 'meetingTotals'>> {
+  const rows = list(raw ?? undefined).filter((r) => r && typeof r === 'object' && typeof r.id === 'string');
+  return {
+    meetingReports: rows.map((r) => ({
+      id: r.id, fromOn: r.from_on, toOn: r.to_on, notes: r.notes ?? '', savedBy: r.saved_by, savedAt: instant(r.saved_at),
+      presentedBy: r.presented_by, presentedAt: maybeInstant(r.presented_at),
+    })),
+    meetingTotals: rows.filter((r) => r.figures).map(({ id, figures: f }) => ({
+      id,
+      from: f.from,
+      to: f.to,
+      funds: Object.fromEntries(Object.entries(f.funds ?? {}).map(([k, m]) => [k, {
+        openingCents: num(m.opening_cents), receiptsCents: num(m.receipts_cents), paymentsCents: num(m.payments_cents), closingCents: num(m.closing_cents),
+      }])),
+      credits: codes(f.credits),
+      debits: codes(f.debits),
+      receiptsCents: num(f.receipts_cents),
+      paymentsCents: num(f.payments_cents),
+      openingCents: num(f.opening_cents),
+      closingCents: num(f.closing_cents),
+      floatCents: num(f.float_cents),
+      months: list(f.months).map((m) => ({ month: m.month, from: m.from, to: m.to, receiptsCents: num(m.receipts_cents), paymentsCents: num(m.payments_cents) })),
+      lineCount: num(f.line_count),
+      lastChangeAt: maybeInstant(f.last_change_at),
+    })),
   };
 }

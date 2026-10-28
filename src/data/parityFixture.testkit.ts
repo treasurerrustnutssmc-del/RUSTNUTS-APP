@@ -125,6 +125,8 @@ export interface ParityFixture {
   treasurerReports?: { monthOffset: number }[];
   /** A month whose report the demo and the database must work out the same. */
   reportMonth?: string;
+  /** A period whose meeting report the demo and the database must work out the same. */
+  reportPeriod?: { from: string; to: string };
   // Stage 5C: the document library, all created and published at DOCS_AT.
   documents?: { key: string; chapter: string | null; kind: DocumentKind; title: string; asksSignOff: boolean; reviewMonths: number | null }[];
   /** Versions, their approval dates counted from today (none: awaiting approval). */
