@@ -21,6 +21,7 @@ import { MAX_RANGE, MIN_RANGE, RANGE_LIMITS } from '../domain/fuel'; // Ride pla
 import { readRange } from './ridePlanning'; // Ride planning extras
 import { DocumentsMeRow } from './documents'; // Stage 5C
 import { BadgesCard } from './badges'; // Stage 7: badges
+import { ClubLinksSection } from './clubLinks'; // Club links
 import {
   Avatar,
   Button,
@@ -201,6 +202,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       <NotificationSettings />
       {/* Stage 7: social extras */}
       <MeSocialSection />
+      {/* Club links: the website, shop, podcast and socials */}
+      <ClubLinksSection />
 
       <SectionTitle title="Privacy" />
       <Card>
