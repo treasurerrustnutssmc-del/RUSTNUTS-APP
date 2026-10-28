@@ -72,7 +72,10 @@ export interface ReportJson {
   reason: string | null;
   created_at: string;
   reporter_id: string;
-  message: { id: string; conversation_id: string; author_id: string; body: string | null; media_count: number; created_at: string };
+  message: {
+    id: string; conversation_id: string; author_id: string; body: string | null; media_count: number; created_at: string;
+    voice?: { path: string; duration_ms: number | null } | null;
+  };
   chat: ChatJson;
 }
 
@@ -139,6 +142,7 @@ export function toReport(r: ReportJson): ReportView {
     message: {
       id: r.message.id, conversationId: r.message.conversation_id, authorId: r.message.author_id, body: r.message.body,
       mediaCount: r.message.media_count, createdAt: instant(r.message.created_at),
+      voice: r.message.voice ? { path: r.message.voice.path, durationMs: r.message.voice.duration_ms } : null,
     },
     conversation: toConversation(r.chat),
   };

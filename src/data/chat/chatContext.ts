@@ -57,7 +57,11 @@ export interface ReportView {
   reason: string | null;
   createdAt: string;
   reporterId: string;
-  message: { id: string; conversationId: string; authorId: string; body: string | null; mediaCount: number; createdAt: string };
+  message: {
+    id: string; conversationId: string; authorId: string; body: string | null; mediaCount: number; createdAt: string;
+    /** A reported voice note's recording, so a moderator can listen to it. */
+    voice: { path: string; durationMs: number | null } | null;
+  };
   conversation: Conversation;
 }
 

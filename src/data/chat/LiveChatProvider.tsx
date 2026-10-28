@@ -57,8 +57,10 @@ async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
 }
 
 /** Storage says "too large" or "quota" in its own words; members get ours. */
-function uploadError(error: { message?: string; statusCode?: string }): Error {
+function uploadError(error: { message?: string; statusCode?: string }, contentType: string): Error {
   const msg = error.message ?? '';
+  // Before the voice notes paste, the club's storage doesn't take recordings yet.
+  if (/mime|type.*not supported/i.test(msg) && contentType.startsWith('audio/')) return new Error('Voice notes aren’t switched on yet. Try again later.');
   if (/maximum allowed size|too large|413/i.test(msg)) return new Error('That file is over 50 MB.');
   if (/quota|storage limit|exceeded/i.test(msg)) return new Error('The club’s photo space is full. Let the board know.');
   if (/mime|type.*not supported/i.test(msg)) return new Error('Only photos and videos can go in.');
@@ -197,7 +199,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   const upload = async (chatId: string, file: Upload, uploaded: string[]): Promise<string> => {
     const path = uploadName(chatId, file.contentType);
     const { error } = await db().storage.from(BUCKET).upload(path, file.bytes, { contentType: file.contentType, upsert: false });
-    if (error) throw uploadError(error);
+    if (error) throw uploadError(error, file.contentType);
     uploaded.push(path);
     return path;
   };

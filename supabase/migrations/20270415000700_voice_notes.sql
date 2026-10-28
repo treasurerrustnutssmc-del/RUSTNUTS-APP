@@ -7,10 +7,11 @@
 alter type public.chat_media_kind add value if not exists 'voice';
 
 -- The chat-media bucket also takes voice notes: AAC (phones and Safari) and WebM (Chrome, Firefox).
+-- (No list at all would mean any type, so that's left as it is.)
 update storage.buckets
 set allowed_mime_types = allowed_mime_types
   || array(select t from unnest(array['audio/mp4', 'audio/webm']) t where not (t = any (allowed_mime_types)))
-where id = 'chat-media';
+where id = 'chat-media' and allowed_mime_types is not null;
 
 -- ---------------------------------------------------------------------------------------------
 -- Sending: the same as before, plus the voice note rules.
@@ -48,7 +49,8 @@ begin
   item := (select value from jsonb_array_elements(media) where jsonb_typeof(value) = 'object' and value->>'kind' = 'voice' limit 1);
   if item is not null then
     if body <> '' or n > 1 then raise exception 'A voice note goes on its own.'; end if;
-    if jsonb_typeof(item->'durationMs') is distinct from 'number' or (item->>'durationMs')::numeric <= 0 then
+    -- Read as a number only when it is one, so anything else gets the app's words, not Postgres's.
+    if coalesce(case when jsonb_typeof(item->'durationMs') = 'number' then (item->>'durationMs')::numeric end, 0) < 1 then
       raise exception 'That voice note didn’t record properly. Try again.';
     end if;
     if (item->>'durationMs')::numeric > 120000 then raise exception 'Voice notes can be up to 2 minutes.'; end if;
@@ -65,6 +67,10 @@ begin
     end if;
     select coalesce(item->>'kind', '') not in ('photo', 'video', 'voice')
         or item->>'kind' = 'voice' and (coalesce(item->>'path', '') !~ '\.(m4a|webm)$' or item->>'posterPath' is not null)
+        -- a recording goes in as a voice note, and only a recording does (when storage knows the file's type)
+        or exists (select 1 from storage.objects o
+                   where o.bucket_id = 'chat-media' and o.name = item->>'path' and o.metadata->>'mimetype' is not null
+                     and (item->>'kind' = 'voice') <> (o.metadata->>'mimetype' like 'audio/%'))
         or exists (
              select 1 from jsonb_array_elements_text(
                jsonb_build_array(item->'path') || case when item ? 'posterPath' and item->>'posterPath' is not null
@@ -154,6 +160,29 @@ begin
     ) listed
   ), '[]'::jsonb);
 end;
+$$;
+
+-- ---------------------------------------------------------------------------------------------
+-- Reports: a reported voice note comes with its recording, so a moderator can listen to it.
+
+create or replace function public.chat_reports()
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(x order by x->>'created_at' desc), '[]'::jsonb)
+  from (
+    select jsonb_build_object(
+      'id', r.id, 'reason', r.reason, 'created_at', r.created_at, 'reporter_id', r.reporter_id,
+      'message', jsonb_build_object('id', m.id, 'conversation_id', m.conversation_id, 'author_id', m.author_id,
+                                    'body', r.body, 'media_count', r.media_count, 'created_at', m.created_at,
+                                    'voice', (select jsonb_build_object('path', mm.path, 'duration_ms', mm.duration_ms)
+                                              from public.message_media mm where mm.message_id = m.id and mm.kind::text = 'voice')),
+      'chat', jsonb_build_object('id', c.id, 'kind', c.kind, 'chapter_id', c.chapter_id, 'ride_id', c.ride_id,
+                                 'committee', c.committee)
+    ) as x
+    from public.message_reports r
+    join public.messages m on m.id = r.message_id
+    join public.conversations c on c.id = m.conversation_id
+    where r.resolved_at is null and private.is_approved_member() and private.can_act_on_report(r.id)
+  ) reports;
 $$;
 
 -- ---------------------------------------------------------------------------------------------

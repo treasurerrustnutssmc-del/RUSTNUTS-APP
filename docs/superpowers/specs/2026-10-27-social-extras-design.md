@@ -339,10 +339,12 @@ microphone is refused, the error bar says to turn it on in the phone's settings.
 
 **Rules** (`src/domain/chat.ts`, mirrored by `send_message`, same words, same order, after the
 existing checks): 'A voice note goes on its own.' (a voice note with words or any other media);
-'That voice note didn’t record properly. Try again.' (no length, or not more than zero); 'Voice
+'That voice note didn’t record properly. Try again.' (no length, or under a millisecond); 'Voice
 notes can be up to 2 minutes.' (over 120,000 ms). The database also checks the file like a photo
 (in the chat's folder, uploaded by the sender, not used before, no still) and that it's an `.m4a`
-or `.webm` file.
+or `.webm` file, and that a file storage knows to be a recording goes in only as a voice note (and a
+voice note only as a recording). Reports carry a reported voice note's recording so a moderator can
+listen to it.
 
 **Recording.** `expo-audio` (SDK 58, `npx expo install expo-audio`), `RecordingPresets.HIGH_QUALITY`
 (AAC in `.m4a` on phones; WebM, or MP4 on Safari, on the web). The length comes from the recorder,

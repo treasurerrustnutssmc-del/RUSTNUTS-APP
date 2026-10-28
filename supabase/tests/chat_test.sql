@@ -601,6 +601,14 @@ begin
   assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice - 'durationMs'))) = 'That voice note didn’t record properly. Try again.', 'it has a length';
   assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || '{"durationMs": 0}'))) = 'That voice note didn’t record properly. Try again.', 'more than none';
   assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || '{"durationMs": "long"}'))) = 'That voice note didn’t record properly. Try again.', 'a number';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || '{"durationMs": 0.4}'))) = 'That voice note didn’t record properly. Try again.', 'not kept as 0';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || '{"durationMs": true}'))) = 'That voice note didn’t record properly. Try again.', 'not true';
+  update storage.objects set metadata = '{"mimetype": "image/jpeg"}' where name = club || '/v4.m4a';
+  update storage.objects set metadata = '{"mimetype": "audio/mp4"}' where name = club || '/v5.m4a';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || jsonb_build_object('path', club || '/v4.m4a'))))
+    = 'That photo didn’t upload properly. Try again.', 'a picture isn''t a voice note';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(jsonb_build_object('path', club || '/v5.m4a', 'kind', 'photo'))))
+    = 'That photo didn’t upload properly. Try again.', 'nor a recording a photo';
   assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || '{"durationMs": 120001}'))) = 'Voice notes can be up to 2 minutes.', 'two minutes at most';
   assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || jsonb_build_object('path', club || '/v3.ogg'))))
     = 'That photo didn’t upload properly. Try again.', 'an .m4a or .webm file';
@@ -615,6 +623,10 @@ begin
   assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice))) = 'That photo didn’t upload properly. Try again.', 'a recording goes in once';
   assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || jsonb_build_object('path', club || '/v2.webm', 'durationMs', 120000)))) is null, 'a WebM of two minutes exactly';
   assert pg_temp.value_as(wes, $q$select f->'last'->>'voice' from jsonb_array_elements(public.chat_list()) f where f->>'kind' = 'club'$q$) = 'true', 'the list says so';
+  perform pg_temp.value_as('00000000-0000-0000-0000-0000000000d3', format('select public.report_message(%L, %L)', m, 'rude'));
+  assert pg_temp.value_as('00000000-0000-0000-0000-0000000000d5',
+    format($q$select r->'message'->'voice'->>'duration_ms' from jsonb_array_elements(public.chat_reports()) r where r->'message'->>'id' = %L$q$, m)) = '8400',
+    'a reported voice note comes with its recording';
   perform pg_temp.value_as(wes, format(send, club, 'words again', '[]'));
   assert pg_temp.value_as(wes, $q$select f->'last'->>'voice' from jsonb_array_elements(public.chat_list()) f where f->>'kind' = 'club'$q$) = 'false', 'and not for words';
 

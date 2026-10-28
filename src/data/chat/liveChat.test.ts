@@ -84,7 +84,14 @@ test('a feed item and a report', () => {
     chat: { id: 'c1', kind: 'club', chapter_id: null, ride_id: null, committee: null },
   });
   assert.equal(r.message.body, 'rude');
+  assert.equal(r.message.voice, null, 'no voice note, or a database without them yet');
   assert.equal(r.conversation.kind, 'club');
+  const v = toReport({
+    id: 'rep', reason: null, created_at: '2026-10-24T03:00:00+00:00', reporter_id: 'a2',
+    message: { id: 'm1', conversation_id: 'c1', author_id: 'a1', body: null, media_count: 1, created_at: '2026-10-24T01:00:00+00:00', voice: { path: 'c1/a.m4a', duration_ms: 8400 } },
+    chat: { id: 'c1', kind: 'club', chapter_id: null, ride_id: null, committee: null },
+  });
+  assert.deepEqual(v.message.voice, { path: 'c1/a.m4a', durationMs: 8400 });
 });
 
 const message = (id: string, createdAt: string, body = id): Message => ({

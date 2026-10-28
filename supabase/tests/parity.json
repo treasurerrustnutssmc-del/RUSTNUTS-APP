@@ -3195,6 +3195,15 @@
       "allowed": false
     },
     {
+      "name": "A voice note under a millisecond",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 0.4,
+      "allowed": false
+    },
+    {
       "name": "A voice note over two minutes",
       "as": "spanner",
       "action": "chatSend",

@@ -17,6 +17,11 @@ const toNewMedia = (a: Attachment): Omit<MessageMedia, 'id' | 'messageId' | 'pos
       ? { kind: 'voice', path: a.uri, posterPath: null, width: 0, height: 0, durationMs: a.durationMs }
       : { kind: a.kind, path: a.uri, posterPath: null, width: a.width, height: a.height, durationMs: a.durationMs };
 
+const voiceOf = (m: { media: MessageMedia[] }) => {
+  const v = m.media.find((x) => x.kind === 'voice');
+  return v ? { path: v.path, durationMs: v.durationMs } : null;
+};
+
 export function DemoChatProvider({ children }: { children: React.ReactNode }) {
   const { data, me, today } = useClub();
   const club: ClubData = useMemo(() => ({ ...data, rides: [...DEMO_PAST_RIDES, ...data.rides] }), [data]);
@@ -79,6 +84,7 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
           message: {
             id: message.id, conversationId: message.conversationId, authorId: message.authorId, body: r.body,
             mediaCount: r.mediaCount, createdAt: message.createdAt,
+            voice: voiceOf(message),
           },
         }];
       }),

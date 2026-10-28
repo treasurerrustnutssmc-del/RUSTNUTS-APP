@@ -116,6 +116,7 @@ test('a voice note goes on its own, up to two minutes', () => {
   assert.equal(postProblem(westie, club, '  ', [voice(12_000)], data), null, 'blank words are no words');
   assert.equal(postProblem(westie, club, '', [voice(null)], data), 'That voice note didn’t record properly. Try again.');
   assert.equal(postProblem(westie, club, '', [voice(0)], data), 'That voice note didn’t record properly. Try again.');
+  assert.equal(postProblem(westie, club, '', [voice(0.4)], data), 'That voice note didn’t record properly. Try again.', 'it would be kept as 0');
   assert.equal(postProblem(westie, club, '', [voice(120_001)], data), 'Voice notes can be up to 2 minutes.');
   assert.equal(postProblem(westie, club, 'x'.repeat(4001), [voice(1_000)], data), 'Keep it under 4,000 characters.', 'the older checks come first');
   assert.equal(postProblem(northie, west, '', [voice(1_000)], data), 'That chat is for West chapter members.');

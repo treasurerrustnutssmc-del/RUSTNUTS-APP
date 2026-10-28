@@ -58,7 +58,7 @@ import {
   Stack,
   type IconName,
 } from '../ui/primitives';
-import { VoiceNote, VoiceRecorderBar } from '../ui/VoiceBits';
+import { useOnRideCall, VoiceNote, VoiceRecorderBar } from '../ui/VoiceBits';
 
 const KIND_ICON: Record<string, IconName> = {
   club: 'people',
@@ -207,6 +207,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const [attachments, setAttachments] = useState<Attachment[]>(route.params.shared?.media ?? []);
   const [gifs, setGifs] = useState(false);
   const [recording, setRecording] = useState(false);
+  // A ride call holds the microphone, so voice notes wait until it's over.
+  const onCall = useOnRideCall();
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [reporting, setReporting] = useState<string | null>(null);
@@ -509,11 +511,12 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               ) : (
                 <Pressable
                   onPress={startRecording}
-                  disabled={sending}
+                  disabled={sending || onCall}
                   accessibilityRole="button"
                   accessibilityLabel="Record a voice note"
-                  accessibilityHint="Starts recording straight away. Up to 2 minutes."
-                  style={({ pressed }) => [styles.send, pressed && { backgroundColor: colors.red }, sending && { opacity: 0.45 }]}
+                  accessibilityHint={onCall ? 'Off during a ride call.' : 'Starts recording straight away. Up to 2 minutes.'}
+                  accessibilityState={{ disabled: sending || onCall }}
+                  style={({ pressed }) => [styles.send, pressed && { backgroundColor: colors.red }, (sending || onCall) && { opacity: 0.45 }]}
                 >
                   <Ionicons name="mic" size={20} color={colors.bone} />
                 </Pressable>
@@ -613,7 +616,11 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
             </Row>
             <Stack gap={4}>
               <Small>{name(r.message.authorId)} wrote</Small>
-              <Body style={{ color: colors.bone }}>{r.message.body || (r.message.mediaCount ? `${r.message.mediaCount} photo(s)` : '(nothing)')}</Body>
+              {r.message.voice ? (
+                <VoiceNote media={r.message.voice} width={260} />
+              ) : (
+                <Body style={{ color: colors.bone }}>{r.message.body || (r.message.mediaCount ? `${r.message.mediaCount} photo(s)` : '(nothing)')}</Body>
+              )}
             </Stack>
             <Small>
               Reported by {name(r.reporterId)}

@@ -168,7 +168,7 @@ export function postProblem(
   const voice = typeof media === 'number' ? undefined : media.find((m) => m.kind === 'voice');
   if (voice) {
     if (words || mediaCount > 1) return VOICE_ALONE;
-    if (!voice.durationMs || voice.durationMs <= 0) return VOICE_BROKEN;
+    if (!voice.durationMs || voice.durationMs < 1) return VOICE_BROKEN;
     if (voice.durationMs > MAX_VOICE_MS) return VOICE_TOO_LONG;
   }
   return null;
