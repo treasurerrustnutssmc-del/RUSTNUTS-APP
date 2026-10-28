@@ -8,13 +8,15 @@ export interface OutboxMessage {
   body: string;
   data: Record<string, unknown>;
   tokens: string[];
+  /** The member wants the Harley rev. Missing (before rev-sound.sql is live) means yes. */
+  rev?: boolean;
 }
 
 export interface ExpoMessage {
   to: string;
   title: string;
   body: string;
-  sound: 'default';
+  sound: string;
   data: Record<string, unknown>;
   priority?: 'high';
   channelId?: string;
@@ -27,19 +29,35 @@ export interface ExpoTicket {
   details?: { error?: string };
 }
 
-/** One message per phone. Live ride alerts are urgent and use the phone's live ride alerts channel. */
+// The same channels and sound as soundFor in src/domain/notifications.ts, which the phone sets up
+// (this file can't import the app's code; a test checks they agree). Android plays the channel's sound,
+// iPhone the message's.
+// Android builds from before the rev don't have the club channels, and Android drops a push naming a
+// channel it doesn't have. That's safe only because no Android build can register for pushes until
+// the app has its Firebase project, and any build that adds it already has the channels.
+const REV_SOUND = 'v_twin_rev.wav';
+function soundFor(alert: boolean, rev: boolean): { channelId: string; sound: string } {
+  if (alert) return { channelId: 'ride-alerts', sound: 'default' };
+  return rev ? { channelId: 'club-rev', sound: REV_SOUND } : { channelId: 'club', sound: 'default' };
+}
+
+/** One message per phone. Live ride alerts are urgent and keep the urgent sound; the rest rev unless
+ *  the member switched it off. */
 export function toExpoMessages(rows: OutboxMessage[]): ExpoMessage[] {
-  return rows.flatMap((r) =>
-    r.tokens.map((to): ExpoMessage => ({
+  return rows.flatMap((r) => {
+    const alert = r.data.kind === 'live-alert';
+    const { channelId, sound } = soundFor(alert, r.rev ?? true);
+    return r.tokens.map((to): ExpoMessage => ({
       to,
       title: r.title,
       body: r.body,
-      sound: 'default',
+      sound,
+      channelId,
       data: r.data,
-      ...(r.data.kind === 'live-alert' ? { priority: 'high' as const, channelId: 'ride-alerts' } : {}),
+      ...(alert ? { priority: 'high' as const } : {}),
       outboxId: r.id,
-    })),
-  );
+    }));
+  });
 }
 
 export function chunk<T>(items: T[], size: number): T[][] {

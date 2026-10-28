@@ -546,6 +546,8 @@ export interface NotificationPrefs {
   newRides: boolean;
   /** Board only: someone in the chapter is waiting for approval. */
   approvals: boolean;
+  /** Notifications play the Harley rev (live ride alerts never do). */
+  revSound: boolean;
 }
 
 // Stage 5B: treasurer ---------------------------------------------------------------------------

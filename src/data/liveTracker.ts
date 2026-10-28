@@ -10,7 +10,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
-import { AndroidImportance } from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { AppState, Platform } from 'react-native';
 import { LIVE_MSG } from '../domain/liveRide';
@@ -18,6 +17,7 @@ import { melbourneTime } from '../domain/rides';
 import type { LiveState } from '../domain/types';
 import type { Fix } from './liveRideBackend';
 import { liveBackend } from './liveRideSource';
+import { ensureChannels } from './notificationChannels';
 import { alertNotice, createAlertQueue, unseenAlerts, type QueuedAlert, type Refused } from './liveQueue';
 
 export const LIVE_TASK = 'rustnuts-live-ride';
@@ -198,16 +198,6 @@ AppState.addEventListener('change', (s) => {
   if (s === 'active') checkSwitchOff().then(flushQueue).catch(() => {});
 });
 
-async function ensureChannel(): Promise<void> {
-  if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(CHANNEL, {
-    name: 'Live ride alerts',
-    importance: AndroidImportance.MAX,
-    sound: 'default',
-    vibrationPattern: [0, 400, 200, 400],
-  }).catch(() => {});
-}
-
 // distanceInterval 0: a fix every 30 seconds even standing still, so a parked phone still hears
 // alerts and still switches itself off on time.
 const OPTIONS = { accuracy: Location.Accuracy.Balanced, timeInterval: 30_000, distanceInterval: 0 };
@@ -230,7 +220,7 @@ export async function startTracking(rideId: string, stopsAt: string, meId: strin
   armOffTimer(stopsAt);
 
   if (NATIVE) {
-    await ensureChannel();
+    await ensureChannels();
     await Notifications.requestPermissionsAsync().catch(() => null);
     try {
       if (await TaskManager.isAvailableAsync()) {
