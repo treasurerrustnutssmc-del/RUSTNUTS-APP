@@ -168,6 +168,14 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_push -f "$ROOT/supabase/tests/push_test.sql"
 
+# Chat notifications, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_chat_push" >/dev/null
+"${PSQL[@]}" -d rustnuts_chat_push -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_chat_push -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_chat_push -f "$ROOT/supabase/tests/chat_push_test.sql"
+
 # Lane E: ride comms, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_voice" >/dev/null
 "${PSQL[@]}" -d rustnuts_voice -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null

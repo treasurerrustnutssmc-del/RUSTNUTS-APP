@@ -10,14 +10,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
-import { AndroidImportance } from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { AppState, Platform } from 'react-native';
 import { LIVE_MSG } from '../domain/liveRide';
+import { showWhileOpen } from '../domain/notifications';
 import { melbourneTime } from '../domain/rides';
 import type { LiveState } from '../domain/types';
 import type { Fix } from './liveRideBackend';
 import { liveBackend } from './liveRideSource';
+import { ensureChannels } from './notificationChannels';
+import { viewingChat } from './viewingChat';
 import { alertNotice, createAlertQueue, unseenAlerts, type QueuedAlert, type Refused } from './liveQueue';
 
 export const LIVE_TASK = 'rustnuts-live-ride';
@@ -100,7 +102,7 @@ export function noticeAlerts(state: LiveState, fix: Fix | null, meId: string): P
     for (const a of fresh) {
       const { title, body } = alertNotice(a, fix);
       await Notifications.scheduleNotificationAsync({
-        content: { title, body, sound: true, data: { rideId: state.rideId }, priority: Notifications.AndroidNotificationPriority.MAX },
+        content: { title, body, sound: true, data: { kind: 'live-alert', rideId: state.rideId }, priority: Notifications.AndroidNotificationPriority.MAX },
         trigger: Platform.OS === 'android' ? { channelId: CHANNEL } : null,
       }).catch(() => {});
     }
@@ -185,7 +187,11 @@ if (NATIVE) {
     await handleFix(toFix(data.locations[data.locations.length - 1]));
   });
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
+    // A message for the chat that's on screen is already showing there.
+    handleNotification: async (n) => {
+      const show = showWhileOpen(n.request.content.data, viewingChat());
+      return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: false };
+    },
   });
 }
 
@@ -197,16 +203,6 @@ setTimeout(() => {
 AppState.addEventListener('change', (s) => {
   if (s === 'active') checkSwitchOff().then(flushQueue).catch(() => {});
 });
-
-async function ensureChannel(): Promise<void> {
-  if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(CHANNEL, {
-    name: 'Live ride alerts',
-    importance: AndroidImportance.MAX,
-    sound: 'default',
-    vibrationPattern: [0, 400, 200, 400],
-  }).catch(() => {});
-}
 
 // distanceInterval 0: a fix every 30 seconds even standing still, so a parked phone still hears
 // alerts and still switches itself off on time.
@@ -230,7 +226,7 @@ export async function startTracking(rideId: string, stopsAt: string, meId: strin
   armOffTimer(stopsAt);
 
   if (NATIVE) {
-    await ensureChannel();
+    await ensureChannels();
     await Notifications.requestPermissionsAsync().catch(() => null);
     try {
       if (await TaskManager.isAvailableAsync()) {

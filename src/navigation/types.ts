@@ -88,6 +88,19 @@ export type RootParams = {
   Mechanic: { mechanicId: string };
   EditMechanic: { mechanicId?: string } | undefined;
   MySkills: undefined;
+  SwapSell: undefined;
+  Listing: { listingId: string };
+  EditListing: { listingId?: string } | undefined;
+  Builds: undefined;
+  BuildThread: { bikeId: string };
+  PostBuildUpdate: { bikeId: string };
+  History: undefined;
+  EditHistoryEntry: { entryId?: string } | undefined;
+  EditHonour: { honourId?: string } | undefined;
+  Bragging: undefined;
+  Award: { awardId: string };
+  Nominate: { awardId: string };
+  OpenAward: undefined;
   // Lane E: share in
   ShareIn: { text: string; media: PickedMedia[]; notes: string[] };
   // Stage 5B: treasurer. A fund is 'club' or a chapter id.

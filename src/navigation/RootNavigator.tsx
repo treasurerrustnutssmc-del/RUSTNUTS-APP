@@ -27,6 +27,7 @@ import { ReminderSync } from '../data/reminders';
 import { LocalAlertSync } from '../data/localAlerts'; // Ride planning extras
 // Lane E: share in
 import { IncomingShare } from '../data/shareIn';
+import { NotificationTaps } from '../data/notificationTaps';
 import { ShareInScreen } from '../screens/shareIn';
 import {
   DocumentApprovalScreen, DocumentScreen, DocumentSignoffsScreen, DocumentsScreen, NewDocumentScreen, PublishDocumentScreen,
@@ -43,6 +44,10 @@ import { FngReviewScreen } from '../screens/fng';
 // Stage 7: social extras
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
 import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } from '../screens/help';
+import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swap';
+import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../screens/builds';
+import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
+import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -91,6 +96,7 @@ function MainTabs() {
     <>
       {/* Lane E: share in */}
       <IncomingShare />
+      <NotificationTaps />
       <Tabs.Navigator
         // Lane E: ride comms. While a call is on, its bar sits just above the tabs.
         tabBar={(props) => (
@@ -183,7 +189,7 @@ export function RootNavigator() {
             <Stack.Screen name="MemberDetail" component={MemberDetailScreen} options={{ title: 'Member' }} />
             <Stack.Screen name="Chapters" component={ChaptersScreen} options={{ title: 'Chapters' }} />
             <Stack.Screen name="ChapterDetail" component={ChapterDetailScreen} options={{ title: 'Chapter' }} />
-            <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: 'Ride' }} />
+            <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: 'Ride' }} getId={({ params }) => params.rideId} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
@@ -218,7 +224,7 @@ export function RootNavigator() {
             <Stack.Screen name="BusBooking" component={BusBookingScreen} options={{ title: 'Booking' }} />
             <Stack.Screen name="BookBus" component={BookBusScreen} options={{ title: 'Book the Rusty Bus' }} />
             {/* Lane E: live ride */}
-            <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} />
+            <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} getId={({ params }) => params.rideId} />
             {/* Stage 4: members and money */}
             <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check in' }} />
             <Stack.Screen name="RunCheckin" component={RunCheckinScreen} options={{ title: 'Check-in' }} />
@@ -230,7 +236,9 @@ export function RootNavigator() {
             <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ title: 'Attendance' }} />
             <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
             {/* Stage 3 (lane B): chats and photos */}
-            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+            {/* One screen per chat (and per ride below), so opening another one from a notification never
+                reuses the one on screen with its half-typed message. */}
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} getId={({ params }) => params.chatId} />
             <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'New private chat' }} />
             <Stack.Screen name="ChatReports" component={ChatReportsScreen} options={{ title: 'Reports' }} />
             <Stack.Screen name="Photos" component={PhotosScreen} options={{ title: 'Photos' }} />
@@ -263,6 +271,31 @@ export function RootNavigator() {
               options={({ route }) => ({ title: route.params?.mechanicId ? 'Edit workshop' : 'Add a workshop' })}
             />
             <Stack.Screen name="MySkills" component={MySkillsScreen} options={{ title: 'I can help with' }} />
+            <Stack.Screen name="SwapSell" component={SwapSellScreen} options={{ title: 'Swap and sell' }} />
+            <Stack.Screen name="Listing" component={ListingScreen} options={{ title: 'Listing' }} />
+            <Stack.Screen
+              name="EditListing"
+              component={EditListingScreen}
+              options={({ route }) => ({ title: route.params?.listingId ? 'Change listing' : 'List something' })}
+            />
+            <Stack.Screen name="Builds" component={BuildsScreen} options={{ title: 'Garage builds' }} />
+            <Stack.Screen name="BuildThread" component={BuildThreadScreen} options={{ title: 'Build' }} />
+            <Stack.Screen name="PostBuildUpdate" component={PostBuildUpdateScreen} options={{ title: 'Post an update' }} />
+            <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
+            <Stack.Screen
+              name="EditHistoryEntry"
+              component={EditHistoryEntryScreen}
+              options={({ route }) => ({ title: route.params?.entryId ? 'Change the entry' : 'Add to the timeline' })}
+            />
+            <Stack.Screen
+              name="EditHonour"
+              component={EditHonourScreen}
+              options={({ route }) => ({ title: route.params?.honourId ? 'Change the honour' : 'Add an honour' })}
+            />
+            <Stack.Screen name="Bragging" component={BraggingScreen} options={{ title: 'Bragging rights' }} />
+            <Stack.Screen name="Award" component={AwardScreen} options={{ title: 'Award' }} />
+            <Stack.Screen name="Nominate" component={NominateScreen} options={{ title: 'Nominate' }} />
+            <Stack.Screen name="OpenAward" component={OpenAwardScreen} options={{ title: 'Open an award' }} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}

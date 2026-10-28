@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Message } from '../../domain/chat';
-import { goneMedia, mergeMessages, toFeedItem, toMessage, toReport, toRide, toSummaryParts, uploadName } from './liveChat';
+import { goneMedia, mergeMessages, toFeedItem, toMessage, toReport, toRide, toSummaryParts, uploadName, voiceUploadType } from './liveChat';
 
 const rideRow = {
   id: 'r1', title: 'Coffee run', starts_at: '2026-11-07T21:30:00+00:00', ends_at: null, all_day: false,
@@ -40,8 +40,28 @@ test('a chat-list entry gives its chat, ride, last message and unread count', ()
   });
   assert.deepEqual(parts.conversation, { id: 'c1', kind: 'ride', chapterId: null, rideId: 'r1', committee: null, pinnedMessageId: null, memberIds: [] });
   assert.equal(parts.ride?.startsAt, '2026-11-07T21:30:00.000Z');
-  assert.deepEqual(parts.last, { id: 'm9', authorId: 'a1', body: null, createdAt: '2026-10-24T01:00:00.000Z', removed: false, mediaCount: 2 });
+  assert.deepEqual(parts.last, { id: 'm9', authorId: 'a1', body: null, createdAt: '2026-10-24T01:00:00.000Z', removed: false, mediaCount: 2, voice: false });
   assert.equal(parts.unread, 3);
+});
+
+test('a chat-list entry says when its newest message is a voice note', () => {
+  const entry = (last: Record<string, unknown>) =>
+    toSummaryParts({
+      id: 'c1', kind: 'club', chapter_id: null, ride_id: null, committee: null, pinned_message_id: null, member_ids: [], ride: null, unread: 0,
+      last: { id: 'm9', author_id: 'a1', body: null, created_at: '2026-10-24T01:00:00+00:00', removed: false, media_count: 1, ...last },
+    } as Parameters<typeof toSummaryParts>[0]);
+  assert.equal(entry({ voice: true }).last?.voice, true);
+  assert.equal(entry({ voice: false }).last?.voice, false);
+  assert.equal(entry({}).last?.voice, false, 'a database without voice notes yet');
+});
+
+test('a voice note uploads as the type it was recorded in', () => {
+  assert.equal(voiceUploadType({ uri: 'file:///rec/abc.m4a', mimeType: null }), 'audio/mp4', 'a phone');
+  assert.equal(voiceUploadType({ uri: 'blob:https://x/1', mimeType: 'audio/webm;codecs=opus' }), 'audio/webm', 'Chrome');
+  assert.equal(voiceUploadType({ uri: 'blob:https://x/2', mimeType: 'audio/mp4' }), 'audio/mp4', 'Safari');
+  assert.equal(voiceUploadType({ uri: 'file:///rec/abc.3gp', mimeType: null }), null);
+  assert.match(uploadName('c1', 'audio/mp4'), /^c1\/[0-9a-f]{32}\.m4a$/);
+  assert.match(uploadName('c1', 'audio/webm'), /^c1\/[0-9a-f]{32}\.webm$/);
 });
 
 test('a ride from the database', () => {
@@ -64,7 +84,14 @@ test('a feed item and a report', () => {
     chat: { id: 'c1', kind: 'club', chapter_id: null, ride_id: null, committee: null },
   });
   assert.equal(r.message.body, 'rude');
+  assert.equal(r.message.voice, null, 'no voice note, or a database without them yet');
   assert.equal(r.conversation.kind, 'club');
+  const v = toReport({
+    id: 'rep', reason: null, created_at: '2026-10-24T03:00:00+00:00', reporter_id: 'a2',
+    message: { id: 'm1', conversation_id: 'c1', author_id: 'a1', body: null, media_count: 1, created_at: '2026-10-24T01:00:00+00:00', voice: { path: 'c1/a.m4a', duration_ms: 8400 } },
+    chat: { id: 'c1', kind: 'club', chapter_id: null, ride_id: null, committee: null },
+  });
+  assert.deepEqual(v.message.voice, { path: 'c1/a.m4a', durationMs: 8400 });
 });
 
 const message = (id: string, createdAt: string, body = id): Message => ({

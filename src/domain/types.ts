@@ -555,6 +555,10 @@ export interface NotificationPrefs {
   newRides: boolean;
   /** Board only: someone in the chapter is waiting for approval. */
   approvals: boolean;
+  /** Notifications play the Harley rev (live ride alerts never do). */
+  revSound: boolean;
+  /** New messages in the chats they're in. */
+  chatMessages: boolean;
 }
 
 // Stage 5B: treasurer ---------------------------------------------------------------------------

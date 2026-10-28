@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chunk, deadTokens, sendAll, toExpoMessages, type OutboxMessage } from '../../supabase/functions/_shared/sendPush';
+import { soundFor } from '../domain/notifications';
 
 const row = (over: Partial<OutboxMessage> = {}): OutboxMessage => ({
   id: 1, title: 'Ride cancelled', body: 'West run · Sat 07/11/2026', data: { kind: 'ride', rideId: 'r1' },
@@ -11,11 +12,26 @@ test('one message per phone; live ride alerts are urgent and use the alerts chan
   const msgs = toExpoMessages([row(), row({ id: 2, title: 'EMERGENCY: Rusty needs help', data: { kind: 'live-alert', rideId: 'r2' }, tokens: ['ExponentPushToken[c]'] })]);
   assert.equal(msgs.length, 3);
   assert.deepEqual(msgs[0], {
-    to: 'ExponentPushToken[a]', title: 'Ride cancelled', body: 'West run · Sat 07/11/2026', sound: 'default',
-    data: { kind: 'ride', rideId: 'r1' }, outboxId: 1,
+    to: 'ExponentPushToken[a]', title: 'Ride cancelled', body: 'West run · Sat 07/11/2026', sound: 'v_twin_rev.wav',
+    channelId: 'club-rev', data: { kind: 'ride', rideId: 'r1' }, outboxId: 1,
   });
   assert.equal(msgs[2].priority, 'high');
   assert.equal(msgs[2].channelId, 'ride-alerts');
+  assert.equal(msgs[2].sound, 'default');
+});
+
+test('the Harley rev follows the member’s setting, except on live ride alerts, and matches the phone’s channels', () => {
+  const [off] = toExpoMessages([row({ rev: false, tokens: ['t'] })]);
+  assert.deepEqual([off.channelId, off.sound], ['club', 'default']);
+  const [alertOn] = toExpoMessages([row({ rev: true, data: { kind: 'live-alert' }, tokens: ['t'] })]);
+  assert.deepEqual([alertOn.channelId, alertOn.sound], ['ride-alerts', 'default']);
+  for (const rev of [true, false, undefined]) {
+    for (const kind of ['ride', 'applicant', 'chat', 'live-alert']) {
+      const [m] = toExpoMessages([row({ rev, data: { kind }, tokens: ['t'] })]);
+      const as = kind === 'live-alert' || kind === 'chat' ? kind : 'club';
+      assert.deepEqual({ channelId: m.channelId, sound: m.sound }, soundFor(as, rev ?? true), `${kind} ${rev}`);
+    }
+  }
 });
 
 test('sent 100 at a time (Expo’s limit)', () => {

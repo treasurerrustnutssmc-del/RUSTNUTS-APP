@@ -75,4 +75,21 @@ begin
   assert pg_temp.try_as(null, 'select public.save_notification_prefs(true, true, false, true)') is not null, 'signed out can''t';
 end $$;
 
+\echo 'The Harley rev: on by default, switched with the other settings, left alone by older app builds'
+do $$
+declare
+  rita constant uuid := '00000000-0000-0000-0000-0000000000f1';
+  pete constant uuid := '00000000-0000-0000-0000-0000000000f3';
+begin
+  assert (select rev_sound from public.notification_prefs where member_id = rita), 'a row saved without it has the rev on';
+  assert pg_temp.try_as(rita, 'select public.save_notification_prefs(false, true, true, true, false)') is null, 'Rita switches it off';
+  assert (select not rev_sound and approvals from public.notification_prefs where member_id = rita), 'saved with the rest';
+  assert pg_temp.try_as(rita, 'select public.save_notification_prefs(true, true, true, true)') is null, 'an older app build saves';
+  assert (select not rev_sound and ride_reminders from public.notification_prefs where member_id = rita),
+    'an older build saves its four and leaves the rev as it was';
+  assert pg_temp.try_as(pete, 'select public.save_notification_prefs(true, true, false, true, true)')
+    = 'Only approved members can do that.', 'a pending member can''t save';
+  assert pg_temp.try_as(null, 'select public.save_notification_prefs(true, true, false, true, true)') is not null, 'signed out can''t';
+end $$;
+
 \echo 'NOTIFICATION SETTINGS CHECKS PASSED'

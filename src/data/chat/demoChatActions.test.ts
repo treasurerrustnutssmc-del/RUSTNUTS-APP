@@ -34,6 +34,15 @@ test('sending trims the words, keeps the GIFs in order and marks the chat read f
   assert.throws(() => sendMessage(ctx, 'chapter:north', 'hi', []), /That chat is for North chapter members\./);
 });
 
+test('a voice note goes on its own and keeps its length', () => {
+  const ctx = ctxAs('spanner');
+  const voice = { kind: 'voice' as const, path: 'blob:demo/1', posterPath: null, width: 0, height: 0, durationMs: 8_400 };
+  const { chat, id } = sendMessage(ctx, 'club', '', [voice]);
+  assert.deepEqual(chat.messages.find((m) => m.id === id)?.media.map((m) => [m.kind, m.durationMs]), [['voice', 8_400]]);
+  assert.throws(() => sendMessage(ctx, 'club', 'listen to this', [voice]), /A voice note goes on its own\./);
+  assert.throws(() => sendMessage(ctx, 'club', '', [{ ...voice, durationMs: 120_001 }]), /Voice notes can be up to 2 minutes\./);
+});
+
 test('a reply has to be to a message in the same chat', () => {
   const ctx = ctxAs('spanner');
   assert.equal(sendMessage(ctx, 'club', 'yep', [], 'club-hello').chat.messages.at(-1)?.replyToId, 'club-hello');

@@ -4,7 +4,70 @@
 import { melbourneDate, melbourneTime } from './rides';
 import type { NotificationPrefs, Ride, RideCall, Rsvp } from './types';
 
-export const DEFAULT_PREFS: NotificationPrefs = { rideReminders: true, rideChanges: true, newRides: false, approvals: true };
+export const DEFAULT_PREFS: NotificationPrefs = { rideReminders: true, rideChanges: true, newRides: false, approvals: true, revSound: true, chatMessages: true };
+
+/** Settings kept on the phone by an app from before a setting existed get that setting's default.
+ *  Null (never saved) and undefined (not known) pass through. */
+export function completePrefs<T extends NotificationPrefs | null | undefined>(prefs: T): T {
+  return (prefs ? { ...DEFAULT_PREFS, ...prefs } : prefs) as T;
+}
+
+/** The Harley rev, bundled with the phone build (app.json, expo-notifications "sounds"). */
+export const REV_SOUND = 'v_twin_rev.wav';
+
+/** What a notification is: a ride reminder, news from the club, a chat message, or a live ride alert (safety). */
+export type NotificationKind = 'reminder' | 'club' | 'chat' | 'live-alert';
+
+/**
+ * The Android channels the phone sets up. Android fixes a channel's sound once it exists, so the rev
+ * and the plain sound are separate channels. Live ride alerts always keep the urgent sound, so an
+ * emergency never sounds like a reminder.
+ */
+export const ANDROID_CHANNELS: { id: string; name: string; urgent: boolean; sound: string }[] = [
+  { id: 'ride-reminders-rev', name: 'Ride reminders (Harley rev)', urgent: false, sound: REV_SOUND },
+  { id: 'ride-reminders', name: 'Ride reminders', urgent: false, sound: 'default' },
+  { id: 'club-rev', name: 'Club news (Harley rev)', urgent: false, sound: REV_SOUND },
+  { id: 'club', name: 'Club news', urgent: false, sound: 'default' },
+  { id: 'chat-rev', name: 'Chat messages (Harley rev)', urgent: false, sound: REV_SOUND },
+  { id: 'chat', name: 'Chat messages', urgent: false, sound: 'default' },
+  { id: 'ride-alerts', name: 'Live ride alerts', urgent: true, sound: 'default' },
+];
+
+/** The Android channel and iPhone sound for a notification. Pushes use the same (supabase/functions/_shared/sendPush.ts). */
+export function soundFor(kind: NotificationKind, revSound: boolean): { channelId: string; sound: string } {
+  if (kind === 'live-alert') return { channelId: 'ride-alerts', sound: 'default' };
+  const base = kind === 'reminder' ? 'ride-reminders' : kind;
+  return revSound ? { channelId: `${base}-rev`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
+}
+
+/** Where tapping a notification goes, from what it carries (pushes and the phone's own reminders). */
+export type NotificationTarget =
+  | { screen: 'Chat'; params: { chatId: string } }
+  | { screen: 'RideDetail'; params: { rideId: string } }
+  | { screen: 'LiveRide'; params: { rideId: string } };
+
+export function notificationTarget(data: Record<string, unknown> | null | undefined): NotificationTarget | null {
+  const id = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null);
+  const chatId = id(data?.chatId);
+  const rideId = id(data?.rideId);
+  switch (data?.kind) {
+    case 'chat':
+      return chatId ? { screen: 'Chat', params: { chatId } } : null;
+    case 'ride':
+    case 'ride-reminder':
+      return rideId ? { screen: 'RideDetail', params: { rideId } } : null;
+    case 'live-alert':
+      return rideId ? { screen: 'LiveRide', params: { rideId } } : null;
+    default:
+      return null;
+  }
+}
+
+/** Whether a notification that arrives while the app is open is shown: not a message for the chat
+ *  that's on screen, which already shows it. */
+export function showWhileOpen(data: Record<string, unknown> | null | undefined, viewingChatId: string | null): boolean {
+  return !(data?.kind === 'chat' && viewingChatId !== null && data.chatId === viewingChatId);
+}
 
 /** A reminder the phone should have scheduled. */
 export interface Reminder {
@@ -14,6 +77,9 @@ export interface Reminder {
   at: string;
   title: string;
   body: string;
+  channelId: string;
+  /** REV_SOUND or 'default'. */
+  sound: string;
 }
 
 /** Phones hold 64 scheduled notifications on iPhone; leave room for everything else. */
@@ -45,6 +111,7 @@ export function reminderPlan(
   const called = new Set(calls.filter((c) => c.state !== 'on').map((c) => c.rideId));
   const goingTo = new Set(rsvps.filter((r) => r.memberId === meId && r.answer === 'going').map((r) => r.rideId));
   const nowMs = Date.parse(now);
+  const { channelId, sound } = soundFor('reminder', prefs.revSound);
   return rides
     .filter((r) => goingTo.has(r.id) && !r.cancelledAt && !called.has(r.id))
     .map((r): Reminder => {
@@ -56,6 +123,8 @@ export function reminderPlan(
         at: new Date(at).toISOString(),
         title: r.allDay ? 'Ride today' : 'Ride in 2 hours',
         body: [r.title, when, r.location?.trim()].filter(Boolean).join(' · '),
+        channelId,
+        sound,
       };
     })
     .filter((r) => Date.parse(r.at) > nowMs)
@@ -63,15 +132,16 @@ export function reminderPlan(
     .slice(0, MAX_REMINDERS);
 }
 
-/** What the phone should schedule and cancel to match the plan. A reminder whose time or text changed
- *  is both. (A scheduled one with no text recorded is compared on time alone.) */
+/** What the phone should schedule and cancel to match the plan. A reminder whose time, text or sound
+ *  changed is both. (A scheduled one with no text recorded is compared on time alone, and one with no
+ *  sound recorded was set before the rev, so it has the plain sound.) */
 export function reminderDiff(
   plan: Reminder[],
-  scheduled: { id: string; at: string; body?: string }[],
+  scheduled: { id: string; at: string; body?: string; sound?: string }[],
 ): { add: Reminder[]; cancel: string[] } {
   const wanted = new Map(plan.map((r) => [r.id, r]));
-  const same = (s: { at: string; body?: string }, r: Reminder | undefined) =>
-    !!r && r.at === s.at && (s.body === undefined || s.body === r.body);
+  const same = (s: { at: string; body?: string; sound?: string }, r: Reminder | undefined) =>
+    !!r && r.at === s.at && (s.body === undefined || s.body === r.body) && (s.sound ?? 'default') === r.sound;
   const cancel = scheduled.filter((s) => !same(s, wanted.get(s.id))).map((s) => s.id);
   const keep = new Set(scheduled.filter((s) => same(s, wanted.get(s.id))).map((s) => s.id));
   return { add: plan.filter((r) => !keep.has(r.id)), cancel };

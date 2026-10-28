@@ -79,3 +79,110 @@ test('vouching for a workshop and taking it back', () => {
   assert.deepEqual(off, [{ mechanicId: 'mech-4', memberId: 'm-spanner', vouched: false }]);
   assert.throws(() => vouchMechanic(ctx, 'nope', true), /No such workshop\./);
 });
+
+test('the demo has listings up, one sold, and one of the demo member’s', async () => {
+  const { listingsFor } = await import('../../domain/social/swap');
+  const social = demoSocialData('2026-10-27');
+  const spanner = demoData.members.find((m) => m.id === 'm-spanner') ?? null;
+  const seen = listingsFor(spanner, demoData.members, social.listings, [], demoData.positions, '2026-10-27');
+  assert.equal(seen.open.length, 5);
+  assert.deepEqual(seen.sold.map((l) => l.id), ['listing-6']);
+  assert.ok(seen.open.some((l) => l.sellerId === 'm-spanner'));
+});
+
+test('listing, changing, selling and taking down in the demo', async () => {
+  const { saveListing: save, markListingSold: sell, takeDownListing: down } = await import('./demoSocialActions');
+  const ctx = { ...ctxAs('m-spanner'), now: '2026-10-27T02:00:00Z' };
+  const { social, id } = save(ctx, { id: null, kind: 'sell', title: ' Tank bag ', priceDollars: 60, details: '', photos: [{ path: 'm-spanner/x.jpg', width: 10.4, height: 20 }] });
+  const added = social.listings.find((l) => l.id === id);
+  assert.equal(added?.title, 'Tank bag');
+  assert.equal(added?.sellerId, 'm-spanner');
+  assert.deepEqual(added?.photos, [{ path: 'm-spanner/x.jpg', width: 10, height: 20 }]);
+  const changed = save({ ...ctx, social }, { id, kind: 'free', title: 'Tank bag', priceDollars: 60, details: 'Free to a good home', photos: [] });
+  assert.equal(changed.social.listings.find((l) => l.id === id)?.priceDollars, null);
+  const sold = sell({ ...ctx, social: changed.social }, id, true);
+  assert.equal(sold.listings.find((l) => l.id === id)?.soldAt, '2026-10-27T02:00:00Z');
+  assert.equal(sell({ ...ctx, social: sold }, id, false).listings.find((l) => l.id === id)?.soldAt, null);
+  assert.throws(() => sell({ ...ctxAs('m-rusty'), social: sold }, id, false), /Only whoever listed it can change it\./);
+  const gone = down({ ...ctx, social: sold }, id);
+  assert.ok(gone.listings.find((l) => l.id === id)?.takenDownAt);
+  assert.throws(() => down({ ...ctx, social: gone }, id), /That listing has already been taken down\./);
+});
+
+test('build threads in the demo: posting on my project, taking an update down', async () => {
+  const { postBuildUpdate, takeDownBuildUpdate } = await import('./demoSocialActions');
+  const { buildsFor } = await import('../../domain/social/builds');
+  const spanner = demoData.members.find((m) => m.id === 'm-spanner') ?? null;
+  const ctx = { ...ctxAs('m-spanner'), now: '2026-10-27T03:00:00Z' };
+  assert.deepEqual(buildsFor(spanner, demoData.members, demoData.bikes, ctx.social.buildUpdates, []).map((b) => b.bike.id), ['b-20', 'b-7']);
+  const { social, id } = postBuildUpdate(ctx, { bikeId: 'b-7', body: ' Float bowls on. ', photos: [] });
+  const posted = social.buildUpdates.find((u) => u.id === id);
+  assert.equal(posted?.body, 'Float bowls on.');
+  assert.equal(posted?.postedAt, '2026-10-27T03:00:00Z');
+  assert.throws(() => postBuildUpdate(ctx, { bikeId: 'b-6', body: 'x', photos: [] }), /Build threads are for project bikes/);
+  assert.throws(() => postBuildUpdate(ctx, { bikeId: 'b-20', body: 'x', photos: [] }), /Only the bike’s owner can post on its build\./);
+  const down = takeDownBuildUpdate({ ...ctx, social }, id);
+  assert.ok(down.buildUpdates.find((u) => u.id === id)?.takenDownAt);
+});
+
+test('history in the demo: the board keeps entries and honours; a member reads them', async () => {
+  const { saveHistoryEntry, archiveHistoryEntry, saveHonour, archiveHonour } = await import('./demoSocialActions');
+  const { timeline, honoursFor, founders, pastOfficeHolders } = await import('../../domain/social/history');
+  const ctx = { ...ctxAs('m-rusty'), now: '2026-10-27T04:00:00Z' };
+  const years = timeline(ctx.social.history, demoData.positions);
+  assert.equal(years[0].year, 2019);
+  assert.equal(years[0].entries[0].title, 'The club is founded');
+  assert.ok(years.length >= 4, 'a few years of history');
+  assert.ok(honoursFor(ctx.social.honours).length >= 2, 'two honours');
+  assert.deepEqual(founders(demoData.members, demoData.positions).map((m) => m.id), ['m-rusty', 'm-torque']);
+  assert.deepEqual(pastOfficeHolders(demoData.members, demoData.positions).map((g) => g.role), ['president', 'treasurer']);
+
+  const { social, id } = saveHistoryEntry(ctx, { id: null, happenedOn: '2026-10-01', precision: 'month', title: ' Clubhouse lease ', story: '' });
+  const added = social.history.find((e) => e.id === id);
+  assert.deepEqual([added?.title, added?.story, added?.addedBy], ['Clubhouse lease', null, 'm-rusty']);
+  const changed = saveHistoryEntry({ ...ctx, social }, { id, happenedOn: '2026-10-01', precision: 'day', title: 'Clubhouse lease signed', story: 'At last.' });
+  assert.equal(changed.social.history.find((e) => e.id === id)?.story, 'At last.');
+  const off = archiveHistoryEntry({ ...ctx, social: changed.social }, id);
+  assert.equal(off.history.find((e) => e.id === id)?.archivedAt, '2026-10-27T04:00:00Z');
+  assert.throws(() => archiveHistoryEntry({ ...ctx, social: off }, id), /That entry has already been taken off\./);
+  assert.throws(
+    () => saveHistoryEntry(ctxAs('m-spanner'), { id: null, happenedOn: '2026-10-01', precision: 'day', title: 'x', story: '' }),
+    /Only the board can keep the club’s history\./,
+  );
+
+  const h = saveHonour(ctx, { id: null, memberId: null, name: ' Old Mate ', honour: 'Rider of the year', year: 2026, note: '' });
+  assert.deepEqual(h.social.honours.find((x) => x.id === h.id)?.name, 'Old Mate');
+  const hOff = archiveHonour({ ...ctx, social: h.social }, h.id);
+  assert.ok(hOff.honours.find((x) => x.id === h.id)?.archivedAt);
+  assert.throws(() => saveHonour(ctx, { id: null, memberId: 'm-ghost', name: '', honour: 'x', year: 2026, note: '' }), /No such member\./);
+});
+
+test('bragging rights in the demo: one award voting, one taking nominations, last year’s closed', async () => {
+  const { openAward, nominate, withdrawNomination, castBragVote, archiveAward, bragTallies } = await import('./demoSocialActions');
+  const { awardsFor, awardPhase, results } = await import('../../domain/social/brag');
+  const today = '2026-10-27';
+  const ctx = { ...ctxAs('m-spanner'), now: '2026-10-27T05:00:00Z' };
+  const { open, past } = awardsFor(ctx.social.awards, today);
+  assert.deepEqual(open.map((a) => awardPhase(a, today)).sort(), ['nominating', 'voting']);
+  assert.equal(past.length, 1);
+  const closed = results(ctx.social.nominations.filter((n) => n.awardId === past[0].id), bragTallies(ctx.social, today));
+  assert.equal(closed[0].winner, true);
+  assert.equal(bragTallies(ctx.social, today).some((t) => ctx.social.nominations.find((n) => n.id === t.nominationId)?.awardId !== past[0].id), false,
+    'no counts for open awards');
+
+  const voting = open.find((a) => awardPhase(a, today) === 'voting')!;
+  const theirs = ctx.social.nominations.find((n) => n.awardId === voting.id && n.nominatedBy !== 'm-spanner')!;
+  const voted = castBragVote(ctx, theirs.id);
+  assert.deepEqual(voted.bragVotes.filter((v) => v.memberId === 'm-spanner' && v.awardId === voting.id).map((v) => v.nominationId), [theirs.id]);
+
+  const stories = open.find((a) => a.kind === 'story')!;
+  const { social, id } = nominate(ctx, { awardId: stories.id, rideId: null, title: ' Fuel line ', photo: null, story: 'Split on the Hume.', reason: '' });
+  assert.equal(social.nominations.find((n) => n.id === id)?.title, 'Fuel line');
+  assert.ok(withdrawNomination({ ...ctx, social }, id).nominations.find((n) => n.id === id)?.withdrawnAt);
+  assert.throws(() => openAward(ctx, { kind: 'photo', title: 'Best photo', year: 2026, nominationsClose: '2026-11-01', votingClose: '2026-11-10' }),
+    /Only the board can run awards\./);
+  const board = { ...ctxAs('m-rusty'), now: ctx.now };
+  const opened = openAward(board, { kind: 'photo', title: ' Best photo ', year: 2026, nominationsClose: '2026-11-01', votingClose: '2026-11-10' });
+  assert.equal(opened.social.awards.find((a) => a.id === opened.id)?.title, 'Best photo');
+  assert.ok(archiveAward({ ...board, social: opened.social }, opened.id).awards.find((a) => a.id === opened.id)?.archivedAt);
+});

@@ -76,6 +76,7 @@ import { Platform } from 'react-native';
 import { SUPABASE_URL } from './config';
 import { authStorageKeys, createClubCache, isConnectionError, startupUser } from './offlineCache';
 // Lane E: notifications
+import { completePrefs } from '../domain/notifications'; // Lane E: notifications
 import { loadNotificationPrefs, saveNotificationPrefs } from './notificationsApi';
 import { forgetThisDevice } from './pushDevice';
 import {
@@ -118,8 +119,10 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const onSavedCopy = useRef(false);
   const knownPrefs = useRef<NotificationPrefs | null | undefined>(undefined); // Lane E: notifications
   const showSaved = useCallback((uid: string, saved: { data: ClubData; savedAt: string }) => {
-    knownPrefs.current = saved.data.notificationPrefs; // Lane E: notifications
-    setData(saved.data);
+    // Lane E: notifications. A copy saved by an older app lacks newer settings (the Harley rev).
+    const prefs = completePrefs(saved.data.notificationPrefs);
+    knownPrefs.current = prefs;
+    setData({ ...saved.data, notificationPrefs: prefs });
     setLoadedFor(uid);
     showing.current = uid;
     onSavedCopy.current = true;

@@ -19,6 +19,15 @@ export function parseAuDate(input: string): string | null {
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
+/** Whether a string is a real calendar date written YYYY-MM-DD (year 1 on). */
+export function isRealIsoDate(iso: string): boolean {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (y < 1 || mo < 1 || mo > 12 || d < 1) return false;
+  return d <= new Date(Date.UTC(y, mo, 0)).getUTCDate();
+}
+
 export function formatAuDate(iso: string | null | undefined): string {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
