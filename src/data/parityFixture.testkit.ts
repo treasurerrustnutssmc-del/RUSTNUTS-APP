@@ -14,6 +14,7 @@ import type {
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
 import { addDays } from '../domain/dates';
+import type { BragKind } from '../domain/social/brag';
 import { clubYearOf } from '../domain/clubYear';
 import { fyOf } from '../domain/fees';
 import { addMonths } from '../domain/profile';
@@ -24,6 +25,7 @@ import type { Conversation } from '../domain/chat';
 import { directId, runChatAction, type ChatAction, type ChatData } from './chat/demoChatActions';
 import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
 import { runSocialAction, type SocialAction, type SocialData } from './social/demoSocialActions'; // Stage 7: social extras
+import type { ListingKind } from '../domain/social/swap'; // Stage 7: social extras
 import { DOCUMENT_ACTIONS, runDocumentAction, type DocumentAction } from './documentActions'; // Stage 5C
 import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'; // Stage 5D
 import { sharesFor } from '../domain/national'; // Stage 5D
@@ -51,7 +53,7 @@ export interface ParityFixture {
     firstAidExpiry?: string | null;
   }[];
   positions: { key: string; member: string; chapter: string | null; role: PositionRole; startedOn: string; endedOn: string | null }[];
-  bikes: { key: string; member: string; make: string; model: string; year: number }[];
+  bikes: { key: string; member: string; make: string; model: string; year: number; project?: boolean }[];
   contacts: { key: string; member: string; name: string; relationship: string; phone: string }[];
   rides: { key: string; title: string; startsAt: string; category: RideCategory; cancelled: boolean }[];
   // Stage 5: meetings and votes
@@ -247,7 +249,7 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
         firstAidExpiry: m.firstAidExpiry ?? null, introducedBy: null, applicationNote: null,
       })),
     bikes: fixture.bikes.map((b) => ({
-      id: b.key, memberId: b.member, make: b.make, model: b.model, year: b.year, nickname: null, isProject: false,
+      id: b.key, memberId: b.member, make: b.make, model: b.model, year: b.year, nickname: null, isProject: b.project ?? false,
     })),
     registrations: [],
     emergencyContacts: fixture.contacts.map((c) => ({
@@ -476,7 +478,7 @@ export function demoAnswer(c: ParityCase): string | null {
     }
     // Stage 7: social extras
     if (String(c.action).startsWith('social')) {
-      runSocialAction({ social: fixtureSocial(), club: data, me, today }, c as unknown as SocialAction);
+      runSocialAction({ social: fixtureSocial(today), club: data, me, today }, resolveCase(c, today) as unknown as SocialAction);
       return null;
     }
     if (DOCUMENT_ACTIONS.has(String(c.action))) {
@@ -531,7 +533,7 @@ export function fixtureChat(): ChatData {
 }
 
 // Stage 7: social extras. The fixture's workshops, each with its fixture key as its id.
-export function fixtureSocial(): SocialData {
+export function fixtureSocial(today: string = parityToday()): SocialData {
   const f = fixture as ParityFixture & { mechanics?: { key: string; name: string; addedBy: string | null; archived: boolean }[] };
   return {
     birthdays: [],
@@ -542,5 +544,86 @@ export function fixtureSocial(): SocialData {
       addedBy: m.addedBy, addedAt: '2026-10-01T00:00:00.000Z', archivedAt: m.archived ? '2026-10-02T00:00:00.000Z' : null,
     })),
     vouches: [],
+    // The fixture's listings: photo names sit in the seller's own folder.
+    listings: ((f as { listings?: FixtureListing[] }).listings ?? []).map((l) => ({
+      id: l.key, sellerId: l.seller, kind: l.kind as ListingKind, title: l.title, priceDollars: l.price, details: null,
+      photos: l.photos.map((name) => ({ path: `${l.seller}/${name}`, width: 800, height: 600 })),
+      listedAt: '2026-10-01T00:00:00.000Z', soldAt: null, takenDownAt: l.takenDown ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    buildUpdates: ((f as { buildUpdates?: FixtureBuildUpdate[] }).buildUpdates ?? []).map((u) => ({
+      id: u.key, bikeId: u.bike, authorId: u.author, body: 'Fixture update',
+      photos: u.photos.map((name) => ({ path: `${u.author}/${name}`, width: 800, height: 600 })),
+      postedAt: '2026-10-01T00:00:00.000Z', takenDownAt: u.takenDown ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    history: ((f as { history?: FixtureHistory[] }).history ?? []).map((e) => ({
+      id: e.key, happenedOn: '2019-05-11', precision: 'day', title: e.title, story: null, addedBy: 'rusty',
+      archivedAt: e.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    honours: ((f as { honours?: FixtureHonour[] }).honours ?? []).map((h) => ({
+      id: h.key, memberId: h.member, name: h.who, honour: 'Life member', year: 2024, note: null, addedBy: 'rusty',
+      archivedAt: h.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    // Award dates are days from today, so each award is in the same phase whatever the day.
+    awards: ((f as { awards?: FixtureAward[] }).awards ?? []).map((a) => ({
+      id: a.key, kind: a.kind as BragKind, title: a.title, year: a.year, nominationsClose: addDays(today, a.nominationsDays),
+      votingClose: addDays(today, a.votingDays), openedBy: 'rusty', archivedAt: a.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    nominations: ((f as { nominations?: FixtureNomination[] }).nominations ?? []).map((n) => ({
+      id: n.key, awardId: n.award, nominatedBy: n.by, rideId: n.ride, title: n.ride ? null : 'Fixture', photo: null,
+      story: n.ride ? null : 'Fixture', reason: null, nominatedAt: '2026-10-01T00:00:00.000Z',
+      withdrawnAt: n.withdrawn ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    bragVotes: ((f as { bragVotes?: { award: string; member: string; nomination: string }[] }).bragVotes ?? []).map((v) => ({
+      awardId: v.award, memberId: v.member, nominationId: v.nomination,
+    })),
   };
+}
+
+interface FixtureAward {
+  key: string;
+  kind: string;
+  title: string;
+  year: number;
+  nominationsDays: number;
+  votingDays: number;
+  archived: boolean;
+}
+
+interface FixtureNomination {
+  key: string;
+  award: string;
+  by: string;
+  ride: string | null;
+  withdrawn: boolean;
+}
+
+interface FixtureHistory {
+  key: string;
+  title: string;
+  archived: boolean;
+}
+
+interface FixtureHonour {
+  key: string;
+  member: string | null;
+  who: string | null;
+  archived: boolean;
+}
+
+interface FixtureBuildUpdate {
+  key: string;
+  bike: string;
+  author: string;
+  photos: string[];
+  takenDown: boolean;
+}
+
+interface FixtureListing {
+  key: string;
+  seller: string;
+  kind: string;
+  title: string;
+  price: number | null;
+  photos: string[];
+  takenDown: boolean;
 }

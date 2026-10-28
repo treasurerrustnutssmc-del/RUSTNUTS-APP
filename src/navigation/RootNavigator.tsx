@@ -45,6 +45,10 @@ import { MerchItemScreen, MerchOrderScreen, MerchScreen, ProposeMerchScreen } fr
 import { ChapterProposalScreen, ContributionScreen, NationalScreen, ProposeChapterScreen, ProposeContributionScreen } from '../screens/national';
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
 import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } from '../screens/help';
+import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swap';
+import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../screens/builds';
+import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
+import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -272,6 +276,31 @@ export function RootNavigator() {
               options={({ route }) => ({ title: route.params?.mechanicId ? 'Edit workshop' : 'Add a workshop' })}
             />
             <Stack.Screen name="MySkills" component={MySkillsScreen} options={{ title: 'I can help with' }} />
+            <Stack.Screen name="SwapSell" component={SwapSellScreen} options={{ title: 'Swap and sell' }} />
+            <Stack.Screen name="Listing" component={ListingScreen} options={{ title: 'Listing' }} />
+            <Stack.Screen
+              name="EditListing"
+              component={EditListingScreen}
+              options={({ route }) => ({ title: route.params?.listingId ? 'Change listing' : 'List something' })}
+            />
+            <Stack.Screen name="Builds" component={BuildsScreen} options={{ title: 'Garage builds' }} />
+            <Stack.Screen name="BuildThread" component={BuildThreadScreen} options={{ title: 'Build' }} />
+            <Stack.Screen name="PostBuildUpdate" component={PostBuildUpdateScreen} options={{ title: 'Post an update' }} />
+            <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
+            <Stack.Screen
+              name="EditHistoryEntry"
+              component={EditHistoryEntryScreen}
+              options={({ route }) => ({ title: route.params?.entryId ? 'Change the entry' : 'Add to the timeline' })}
+            />
+            <Stack.Screen
+              name="EditHonour"
+              component={EditHonourScreen}
+              options={({ route }) => ({ title: route.params?.honourId ? 'Change the honour' : 'Add an honour' })}
+            />
+            <Stack.Screen name="Bragging" component={BraggingScreen} options={{ title: 'Bragging rights' }} />
+            <Stack.Screen name="Award" component={AwardScreen} options={{ title: 'Award' }} />
+            <Stack.Screen name="Nominate" component={NominateScreen} options={{ title: 'Nominate' }} />
+            <Stack.Screen name="OpenAward" component={OpenAwardScreen} options={{ title: 'Open an award' }} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}

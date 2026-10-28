@@ -4,6 +4,7 @@
 import React, { useCallback, useState } from 'react';
 import { approvalProblem } from '../../domain/chat';
 import { useChat } from '../chat/ChatProvider';
+import { DEMO_MEDIA } from '../chat/demoChatData';
 import { useClub } from '../clubContext';
 import * as act from './demoSocialActions';
 import { demoSocialData } from './demoSocialData';
@@ -23,6 +24,11 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     return social.pastPhotos.filter((p) => !blocked.has(p.authorId)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   }, [notApproved, social.pastPhotos, blocks]);
 
+  const listingPhotoUrl = useCallback(async (path: string) => {
+    const rest = path.slice(path.indexOf('/') + 1);
+    return DEMO_MEDIA[rest] ?? rest;
+  }, []);
+
   const value: SocialContextValue = {
     ready: true,
     birthdays: social.birthdays,
@@ -39,6 +45,64 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     },
     archiveMechanic: async (id) => setSocial(act.archiveMechanic(ctx(), id)),
     vouchMechanic: async (id, on) => setSocial(act.vouchMechanic(ctx(), id, on)),
+    listings: social.listings,
+    // New photos stay on the phone: the path is the seller's folder and then the picture's own address.
+    saveListing: async (input, added) => {
+      const folder = me?.id ?? 'nobody';
+      const photos = [...input.photos, ...added.map((p) => ({ path: `${folder}/${p.uri}`, width: p.width, height: p.height }))];
+      const result = act.saveListing(ctx(), { ...input, photos });
+      setSocial(result.social);
+      return result.id;
+    },
+    markListingSold: async (id, sold) => setSocial(act.markListingSold(ctx(), id, sold)),
+    takeDownListing: async (id) => setSocial(act.takeDownListing(ctx(), id)),
+    listingPhotoUrl,
+    buildUpdates: social.buildUpdates,
+    postBuildUpdate: async (post, added) => {
+      const folder = me?.id ?? 'nobody';
+      const photos = [...post.photos, ...added.map((p) => ({ path: `${folder}/${p.uri}`, width: p.width, height: p.height }))];
+      const result = act.postBuildUpdate(ctx(), { ...post, photos });
+      setSocial(result.social);
+      return result.id;
+    },
+    takeDownBuildUpdate: async (id) => setSocial(act.takeDownBuildUpdate(ctx(), id)),
+    buildPhotoUrl: listingPhotoUrl,
+    history: social.history,
+    honours: social.honours,
+    saveHistoryEntry: async (input) => {
+      const result = act.saveHistoryEntry(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    archiveHistoryEntry: async (id) => setSocial(act.archiveHistoryEntry(ctx(), id)),
+    saveHonour: async (input) => {
+      const result = act.saveHonour(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    archiveHonour: async (id) => setSocial(act.archiveHonour(ctx(), id)),
+    // Like the database: what's withdrawn or on an award taken off isn't shown.
+    awards: social.awards.filter((a) => !a.archivedAt),
+    nominations: social.nominations.filter((n) => !n.withdrawnAt && social.awards.some((a) => a.id === n.awardId && !a.archivedAt)),
+    myVotes: social.bragVotes.filter((v) => v.memberId === me?.id),
+    tallies: act.bragTallies(social, today),
+    bragRides: data.rides,
+    allRideRoutes: data.rideRoutes ?? [],
+    openAward: async (input) => {
+      const result = act.openAward(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    archiveAward: async (id) => setSocial(act.archiveAward(ctx(), id)),
+    nominate: async (input, added) => {
+      const photo = added ? { path: `${me?.id ?? 'nobody'}/${added.uri}`, width: added.width, height: added.height } : input.photo;
+      const result = act.nominate(ctx(), { ...input, photo });
+      setSocial(result.social);
+      return result.id;
+    },
+    withdrawNomination: async (id) => setSocial(act.withdrawNomination(ctx(), id)),
+    castBragVote: async (id) => setSocial(act.castBragVote(ctx(), id)),
+    bragPhotoUrl: listingPhotoUrl,
     refresh: async () => {},
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

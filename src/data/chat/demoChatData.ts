@@ -12,6 +12,8 @@ export const DEMO_MEDIA: Record<string, number> = {
   'demo/coast-road.jpg': require('../../../assets/demo/coast-road.jpg'),
   'demo/twisties.jpg': require('../../../assets/demo/twisties.jpg'),
   'demo/servo-night.jpg': require('../../../assets/demo/servo-night.jpg'),
+  // A made-up voice note, spoken by a computer voice, not a member's.
+  'demo/voice-late.m4a': require('../../../assets/demo/voice-late.m4a'),
 };
 
 /** The demo makes no web requests, so its one link has its card written out. */
@@ -43,12 +45,14 @@ export function demoChatData(now = new Date(), rides: Ride[] = []): ChatData {
     authorId: string,
     minutesAgo: number,
     body: string | null,
-    extra: { photos?: [string, number, number][]; reactions?: [string, string][]; replyTo?: string } = {},
+    extra: { photos?: [string, number, number][]; voice?: [string, number]; reactions?: [string, string][]; replyTo?: string } = {},
   ) => {
     const id = `dm-${++n}`;
-    const media: MessageMedia[] = (extra.photos ?? []).map(([path, width, height], position) => ({
-      id: `${id}-${position}`, messageId: id, kind: 'photo', path, posterPath: null, width, height, durationMs: null, position,
-    }));
+    const media: MessageMedia[] = extra.voice
+      ? [{ id: `${id}-0`, messageId: id, kind: 'voice', path: extra.voice[0], posterPath: null, width: 0, height: 0, durationMs: extra.voice[1], position: 0 }]
+      : (extra.photos ?? []).map(([path, width, height], position) => ({
+          id: `${id}-${position}`, messageId: id, kind: 'photo', path, posterPath: null, width, height, durationMs: null, position,
+        }));
     messages.push({
       id, conversationId: chat, authorId, body, createdAt: ago(minutesAgo), removedAt: null, replyToId: extra.replyTo ?? null,
       media, reactions: (extra.reactions ?? []).map(([memberId, emoji]) => ({ messageId: id, memberId, emoji })),
@@ -66,6 +70,7 @@ export function demoChatData(now = new Date(), rides: Ride[] = []): ChatData {
   });
   say('club', 'm-throttle', 5 * 60, 'Little Red’s got new pipes. Sorry in advance, neighbours.', { reactions: [['m-chook', '😂']] });
   say('club', 'm-rusty', 3 * 60, 'Rego reminder for the summer runs: check yours at https://www.vicroads.vic.gov.au before the Christmas ride.');
+  say('club', 'm-gravel', 55, null, { voice: ['demo/voice-late.m4a', 6300], reactions: [['m-diesel', '😂']] });
   say('club', 'm-ben', 40, 'G’day all, Ben here. Rode with North last month. Keen for the Christmas ride if there’s room.', {
     reactions: [['m-smokey', '👍'], ['m-jet', '👍']],
   });

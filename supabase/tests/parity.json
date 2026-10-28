@@ -272,6 +272,14 @@
       "make": "Harley-Davidson",
       "model": "Street Bob",
       "year": 2019
+    },
+    {
+      "key": "gravel-project",
+      "member": "gravel",
+      "make": "Honda",
+      "model": "CB750",
+      "year": 1978,
+      "project": true
     }
   ],
   "contacts": [
@@ -3141,6 +3149,88 @@
       "allowed": false
     },
     {
+      "name": "A voice note on its own",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 8400,
+      "allowed": true
+    },
+    {
+      "name": "A voice note of two minutes exactly",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "chapter:west",
+      "body": "",
+      "voice": 120000,
+      "allowed": true
+    },
+    {
+      "name": "A voice note with words",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "Listen to this",
+      "voice": 8400,
+      "allowed": false
+    },
+    {
+      "name": "A voice note with a GIF",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 8400,
+      "gifs": 1,
+      "allowed": false
+    },
+    {
+      "name": "A voice note with no length",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": null,
+      "allowed": false
+    },
+    {
+      "name": "A voice note under a millisecond",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 0.4,
+      "allowed": false
+    },
+    {
+      "name": "A voice note over two minutes",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 120001,
+      "allowed": false
+    },
+    {
+      "name": "An applicant sends a voice note",
+      "as": "dylan",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 8400,
+      "allowed": false
+    },
+    {
+      "name": "A voice note in a chapter chat that isn't yours",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "chapter:north",
+      "body": "",
+      "voice": 8400,
+      "allowed": false
+    },
+    {
       "name": "A member removes their own message",
       "as": "spanner",
       "action": "chatRemove",
@@ -5565,15 +5655,13 @@
     },
     {
       "name": "What changed of 501 characters",
-      "as": "torque",
-      "action": "publishDocumentVersion",
-      "document": "westlaws",
-      "expected": 2,
-      "label": "v3",
-      "body": "Three",
-      "whatChanged": "x",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "x",
+      "changes": "x",
       "fresh": true,
-      "changesRepeat": 501,
+      "seen": 2,
+      "repeat": 501,
       "allowed": false
     },
     {
@@ -6151,6 +6239,546 @@
       "allowed": false
     },
     {
+      "name": "Any approved member lists something for sale, with photos",
+      "as": "finn",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "a.jpg",
+        "b.jpg"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "A price on a wanted listing is ignored",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "wanted",
+      "title": "Left mirror",
+      "price": 40,
+      "details": "",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "A free listing needs no price",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "free",
+      "title": "Old helmet",
+      "price": null,
+      "details": "",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "A pending applicant can't list anything",
+      "as": "dylan",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Nobody signed in can't list anything",
+      "as": null,
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A listing has to be one of the kinds",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "raffle",
+      "title": "",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A listing needs a title",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "   ",
+      "price": null,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A title of 81 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A title of 80 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "A sale needs a price",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": null,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A sale can't be free",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 0,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Prices are whole dollars",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 12.5,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A price over $100,000 is refused",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 100001,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "$100,000 is the top price",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 100000,
+      "details": "",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "Details of 1,001 characters are too long",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "free",
+      "title": "Tank bag",
+      "price": null,
+      "details": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Up to 6 photos",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "0.jpg",
+        "1.jpg",
+        "2.jpg",
+        "3.jpg",
+        "4.jpg",
+        "5.jpg",
+        "6.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "Someone else's photo can't go on your listing",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "other:x.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "A photo on another listing can't go on a new one",
+      "as": "gravel",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "used.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "The same photo can't go on twice",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "a.jpg",
+        "a.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "The seller changes their listing, keeping its photo",
+      "as": "gravel",
+      "action": "socialSaveListing",
+      "listing": "gravels-panniers",
+      "kind": "sell",
+      "title": "Panniers, pair",
+      "price": 120,
+      "details": "",
+      "photos": [
+        "used.jpg"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "Nobody else changes a listing, not even the board",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": "gravels-panniers",
+      "kind": "sell",
+      "title": "",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A taken-down listing can't be changed",
+      "as": "gravel",
+      "action": "socialSaveListing",
+      "listing": "gravels-old-jacket",
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Changing a listing that doesn't exist",
+      "as": "gravel",
+      "action": "socialSaveListing",
+      "listing": "no-such-listing",
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "The seller marks their listing sold",
+      "as": "gravel",
+      "action": "socialMarkListingSold",
+      "listing": "gravels-panniers",
+      "sold": true,
+      "allowed": true
+    },
+    {
+      "name": "Only the seller marks it sold",
+      "as": "rusty",
+      "action": "socialMarkListingSold",
+      "listing": "gravels-panniers",
+      "sold": true,
+      "allowed": false
+    },
+    {
+      "name": "A taken-down listing can't be marked sold",
+      "as": "gravel",
+      "action": "socialMarkListingSold",
+      "listing": "gravels-old-jacket",
+      "sold": false,
+      "allowed": false
+    },
+    {
+      "name": "The seller takes their listing down",
+      "as": "gravel",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-panniers",
+      "allowed": true
+    },
+    {
+      "name": "A chapter president takes a listing down",
+      "as": "rusty",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-panniers",
+      "allowed": true
+    },
+    {
+      "name": "The NEC Chair takes a listing down",
+      "as": "chair",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-panniers",
+      "allowed": true
+    },
+    {
+      "name": "A tail gunner isn't the board, so can't take it down",
+      "as": "spanner",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-panniers",
+      "allowed": false
+    },
+    {
+      "name": "A listing can't be taken down twice",
+      "as": "gravel",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-old-jacket",
+      "allowed": false
+    },
+    {
+      "name": "Taking down a listing that doesn't exist",
+      "as": "rusty",
+      "action": "socialTakeDownListing",
+      "listing": "no-such-listing",
+      "allowed": false
+    },
+    {
+      "name": "The owner posts on their project's build",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "a.jpg"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "Photos alone are an update",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "  ",
+      "photos": [
+        "a.jpg"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "Nobody signed in can't post on a build",
+      "as": null,
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A pending applicant can't post on a build",
+      "as": "dylan",
+      "action": "socialPostBuildUpdate",
+      "bike": "dylan-street-bob",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Posting on a bike that doesn't exist",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "no-such-bike",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Only the owner posts on a bike's build, not even the board",
+      "as": "rusty",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A bike that isn't a project has no build thread",
+      "as": "spanner",
+      "action": "socialPostBuildUpdate",
+      "bike": "spanner-softail",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "An update needs words or a photo",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "   ",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "An update of 2,001 characters is too long",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "An update of 2,000 characters is fine",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "Up to 4 photos on an update",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "0.jpg",
+        "1.jpg",
+        "2.jpg",
+        "3.jpg",
+        "4.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "Someone else's photo can't go on your update",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "other:x.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "A photo on another update can't go on again",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "carbs.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "The same photo can't go on an update twice",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "a.jpg",
+        "a.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "The poster takes their update down",
+      "as": "gravel",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "gravel-carbs",
+      "allowed": true
+    },
+    {
+      "name": "A chapter president takes an update down",
+      "as": "rusty",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "gravel-carbs",
+      "allowed": true
+    },
+    {
+      "name": "A tail gunner can't take someone's update down",
+      "as": "spanner",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "gravel-carbs",
+      "allowed": false
+    },
+    {
+      "name": "An update can't be taken down twice",
+      "as": "gravel",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "gravel-old",
+      "allowed": false
+    },
+    {
+      "name": "Taking down an update that doesn't exist",
+      "as": "gravel",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "no-such-update",
+      "allowed": false
+    },
+    {
       "name": "The National Chairman makes a club ride a Big 4 for every chapter",
       "as": "chair",
       "action": "designateBig4",
@@ -6331,6 +6959,1114 @@
       "member": "finn",
       "reason": "Injury",
       "allowed": true
+    },
+    {
+      "name": "A president adds to the club's timeline",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": true
+    },
+    {
+      "name": "A secretary changes a timeline entry",
+      "as": "torque",
+      "action": "socialSaveHistoryEntry",
+      "entry": "first-ride",
+      "happenedOn": "2019-05-11",
+      "precision": "month",
+      "title": "First ride",
+      "story": "Out to Daylesford.",
+      "allowed": true
+    },
+    {
+      "name": "The NEC chair keeps the history too",
+      "as": "chair",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2021-01-01",
+      "precision": "year",
+      "title": "North chapter",
+      "story": "",
+      "allowed": true
+    },
+    {
+      "name": "A North president keeps the club's history",
+      "as": "smokey",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": true
+    },
+    {
+      "name": "A member who isn't on a board can't add to the timeline",
+      "as": "spanner",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A pending member can't add to the timeline",
+      "as": "dylan",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry that isn't there can't be changed",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": "no-such-entry",
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry that's been taken off can't be changed",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": "old-entry",
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline date has to be a real date",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-02-30",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry needs a date",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry can't be in the future",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2099-01-01",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline date is a day, a month or a year",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "week",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry needs a title",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "   ",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline title of 81 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline title of 80 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "story": "",
+      "allowed": true
+    },
+    {
+      "name": "A timeline story of 1,001 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "allowed": false
+    },
+    {
+      "name": "A timeline story of 1,000 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "allowed": true
+    },
+    {
+      "name": "The board takes a timeline entry off",
+      "as": "torque",
+      "action": "socialArchiveHistoryEntry",
+      "entry": "first-ride",
+      "allowed": true
+    },
+    {
+      "name": "A member can't take a timeline entry off",
+      "as": "gravel",
+      "action": "socialArchiveHistoryEntry",
+      "entry": "first-ride",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry can't be taken off twice",
+      "as": "rusty",
+      "action": "socialArchiveHistoryEntry",
+      "entry": "old-entry",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry that isn't there can't be taken off",
+      "as": "rusty",
+      "action": "socialArchiveHistoryEntry",
+      "entry": "no-such-entry",
+      "allowed": false
+    },
+    {
+      "name": "The board honours a member",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "The board honours someone who isn't in the app",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": null,
+      "who": "Old Mate",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "The board changes an honour",
+      "as": "torque",
+      "action": "socialSaveHonour",
+      "honour": "gravel-life",
+      "member": "gravel",
+      "who": "",
+      "title": "Rider of the year",
+      "year": 2025,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "A member can't hand out honours",
+      "as": "spanner",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A pending member can't hand out honours",
+      "as": "dylan",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour that isn't there can't be changed",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": "no-such-honour",
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour that's been taken off can't be changed",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": "old-honour",
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour names somebody",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": null,
+      "who": "  ",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour names a member or a typed name, not both",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "Also",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour for a member who isn't there",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "no-such-member",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A typed name of 81 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": null,
+      "who": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour needs its name",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": " ",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour of 61 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour from before 2019 can't be",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2018,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour can't be for a year still to come",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2099,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour needs a year",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour's note of 301 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "allowed": false
+    },
+    {
+      "name": "An honour's note of 300 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "allowed": true
+    },
+    {
+      "name": "The board takes an honour off",
+      "as": "smokey",
+      "action": "socialArchiveHonour",
+      "honour": "gravel-life",
+      "allowed": true
+    },
+    {
+      "name": "A member can't take an honour off",
+      "as": "gravel",
+      "action": "socialArchiveHonour",
+      "honour": "gravel-life",
+      "allowed": false
+    },
+    {
+      "name": "An honour can't be taken off twice",
+      "as": "rusty",
+      "action": "socialArchiveHonour",
+      "honour": "old-honour",
+      "allowed": false
+    },
+    {
+      "name": "An honour that isn't there can't be taken off",
+      "as": "rusty",
+      "action": "socialArchiveHonour",
+      "honour": "no-such-honour",
+      "allowed": false
+    },
+    {
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "precision": "day",
+      "story": "",
+      "name": "A timeline title of 80 emoji is fine",
+      "happenedOn": "2019-05-11",
+      "title": "🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍",
+      "allowed": true
+    },
+    {
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "precision": "day",
+      "story": "",
+      "name": "A timeline entry on a leap day",
+      "happenedOn": "2020-02-29",
+      "title": "Leap ride",
+      "allowed": true
+    },
+    {
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "precision": "day",
+      "story": "",
+      "name": "No 29 February in 2021",
+      "happenedOn": "2021-02-29",
+      "title": "x",
+      "allowed": false
+    },
+    {
+      "name": "A typed name of 80 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": null,
+      "who": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "The board opens an award",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "Ride of the year",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": true
+    },
+    {
+      "name": "The NEC chair opens an award",
+      "as": "chair",
+      "action": "socialOpenAward",
+      "kind": "photo",
+      "title": "Best photo",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": true
+    },
+    {
+      "name": "A member can't open an award",
+      "as": "spanner",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "Ride of the year",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "A pending member can't open an award",
+      "as": "dylan",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "Ride of the year",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "An award is for a ride, a photo or a story",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "song",
+      "title": "Ride of the year",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "An award needs a name",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "  ",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "An award name of 61 characters is too long",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "An award name of 60 emoji is fine",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": true
+    },
+    {
+      "name": "An award can't be for before 2019",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "Ride of the year",
+      "year": 2018,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "An award can't be for a year still to come",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "Ride of the year",
+      "year": 2099,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "An award needs a year",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "Ride of the year",
+      "year": null,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "Nominations can't close in the past",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "Ride of the year",
+      "year": 2020,
+      "nominationsCloseDays": -1,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "Voting closes after nominations",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "Ride of the year",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "The board takes an award off",
+      "as": "torque",
+      "action": "socialArchiveAward",
+      "award": "rides",
+      "allowed": true
+    },
+    {
+      "name": "A member can't take an award off",
+      "as": "gravel",
+      "action": "socialArchiveAward",
+      "award": "rides",
+      "allowed": false
+    },
+    {
+      "name": "An award can't be taken off twice",
+      "as": "rusty",
+      "action": "socialArchiveAward",
+      "award": "off",
+      "allowed": false
+    },
+    {
+      "name": "An award that isn't there can't be taken off",
+      "as": "rusty",
+      "action": "socialArchiveAward",
+      "award": "no-such-award",
+      "allowed": false
+    },
+    {
+      "name": "A member nominates a ride from the award's year",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "past-club",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "Best day out",
+      "allowed": true
+    },
+    {
+      "name": "A pending member can't nominate",
+      "as": "dylan",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "past-club",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "Nobody signed in can't nominate",
+      "as": null,
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "past-club",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A nomination for an award that isn't there",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "no-such-award",
+      "ride": "past-club",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A nomination for an award taken off",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "off",
+      "ride": null,
+      "title": "t",
+      "photo": null,
+      "story": "s",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "Nominations close on their day",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "voting",
+      "ride": null,
+      "title": "t",
+      "photo": null,
+      "story": "s",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A ride nomination needs a ride",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": null,
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A ride that hasn't been ridden yet",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "future-west",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A cancelled ride can't be nominated",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "cancelled-north",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A ride that isn't there can't be nominated",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "no-such-ride",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A ride can only be nominated once",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides",
+      "ride": "past-club",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A reason of 301 characters is too long",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "past-club",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+      "allowed": false
+    },
+    {
+      "name": "A member nominates a story",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": "Ballan",
+      "photo": null,
+      "story": "Chain snapped.",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "Three nominations each per award",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": "Ballan",
+      "photo": null,
+      "story": "Chain snapped.",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A story needs a title",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": " ",
+      "photo": null,
+      "story": "Chain snapped.",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A story title of 81 characters is too long",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": "ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
+      "photo": null,
+      "story": "Chain snapped.",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A story needs telling",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": "Ballan",
+      "photo": null,
+      "story": "  ",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A story of 1,001 characters is too long",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": "Ballan",
+      "photo": null,
+      "story": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A story of 1,000 characters is fine",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": "Ballan",
+      "photo": null,
+      "story": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "A member nominates a photo",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "photos",
+      "ride": null,
+      "title": "Sunset",
+      "photo": "sunset.jpg",
+      "story": "",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "A photo award needs a photo",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "photos",
+      "ride": null,
+      "title": "Sunset",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "Someone else's photo can't be nominated as yours",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "photos",
+      "ride": null,
+      "title": "Sunset",
+      "photo": "other:x.jpg",
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A member withdraws their own nomination",
+      "as": "gravel",
+      "action": "socialWithdrawNomination",
+      "nomination": "gravel-story",
+      "allowed": true
+    },
+    {
+      "name": "The board withdraws a nomination",
+      "as": "rusty",
+      "action": "socialWithdrawNomination",
+      "nomination": "gravel-story",
+      "allowed": true
+    },
+    {
+      "name": "A member can't withdraw someone else's nomination",
+      "as": "spanner",
+      "action": "socialWithdrawNomination",
+      "nomination": "gravel-story",
+      "allowed": false
+    },
+    {
+      "name": "A nomination can't be withdrawn twice",
+      "as": "gravel",
+      "action": "socialWithdrawNomination",
+      "nomination": "gravel-withdrawn",
+      "allowed": false
+    },
+    {
+      "name": "A nomination can't be withdrawn once voting starts",
+      "as": "gravel",
+      "action": "socialWithdrawNomination",
+      "nomination": "voting-gravel",
+      "allowed": false
+    },
+    {
+      "name": "A nomination that isn't there can't be withdrawn",
+      "as": "gravel",
+      "action": "socialWithdrawNomination",
+      "nomination": "no-such-nomination",
+      "allowed": false
+    },
+    {
+      "name": "A member votes while voting is open",
+      "as": "gravel",
+      "action": "socialCastBragVote",
+      "nomination": "voting-spanner",
+      "allowed": true
+    },
+    {
+      "name": "No voting for your own nomination",
+      "as": "gravel",
+      "action": "socialCastBragVote",
+      "nomination": "voting-gravel",
+      "allowed": false
+    },
+    {
+      "name": "No voting while nominations are open",
+      "as": "spanner",
+      "action": "socialCastBragVote",
+      "nomination": "gravel-story",
+      "allowed": false
+    },
+    {
+      "name": "No voting once an award has closed",
+      "as": "spanner",
+      "action": "socialCastBragVote",
+      "nomination": "closed-gravel",
+      "allowed": false
+    },
+    {
+      "name": "No voting for a withdrawn nomination",
+      "as": "spanner",
+      "action": "socialCastBragVote",
+      "nomination": "gravel-withdrawn",
+      "allowed": false
+    },
+    {
+      "name": "A pending member can't vote",
+      "as": "dylan",
+      "action": "socialCastBragVote",
+      "nomination": "voting-spanner",
+      "allowed": false
+    },
+    {
+      "name": "A ride from another year can't be nominated",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-2021",
+      "ride": "past-club",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A ride just after midnight in Melbourne counts for the new year",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-2021",
+      "ride": "new-years-eve",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "A ride just after midnight in Melbourne isn't the old year's",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "new-years-eve",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A story title of only non-breaking spaces",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": "  ",
+      "photo": null,
+      "story": "Chain snapped.",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A story title padded with non-breaking spaces is fine",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": " Ballan ",
+      "photo": null,
+      "story": "Chain snapped.",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "An award name of 61 emoji is too long",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "A member changes their vote",
+      "as": "rusty",
+      "action": "socialCastBragVote",
+      "nomination": "voting-spanner",
+      "allowed": true
+    },
+    {
+      "name": "A nomination on an award taken off can't be withdrawn",
+      "as": "gravel",
+      "action": "socialWithdrawNomination",
+      "nomination": "off-gravel",
+      "allowed": false
     },
     {
       "name": "5D: the board records a vest direction",
@@ -7584,6 +9320,13 @@
       "startsAt": "2030-01-01T00:00:00.000Z",
       "category": "club",
       "cancelled": false
+    },
+    {
+      "key": "new-years-eve",
+      "title": "New Year's Eve run",
+      "startsAt": "2020-12-31T13:30:00.000Z",
+      "category": "club",
+      "cancelled": false
     }
   ],
   "crew": [
@@ -8417,6 +10160,225 @@
       "name": "Closed down",
       "addedBy": "gravel",
       "archived": true
+    }
+  ],
+  "listings": [
+    {
+      "key": "gravels-panniers",
+      "seller": "gravel",
+      "kind": "sell",
+      "title": "Panniers",
+      "price": 150,
+      "photos": [
+        "used.jpg"
+      ],
+      "takenDown": false
+    },
+    {
+      "key": "gravels-old-jacket",
+      "seller": "gravel",
+      "kind": "swap",
+      "title": "Jacket",
+      "price": null,
+      "photos": [],
+      "takenDown": true
+    }
+  ],
+  "buildUpdates": [
+    {
+      "key": "gravel-carbs",
+      "bike": "gravel-project",
+      "author": "gravel",
+      "photos": [
+        "carbs.jpg"
+      ],
+      "takenDown": false
+    },
+    {
+      "key": "gravel-old",
+      "bike": "gravel-project",
+      "author": "gravel",
+      "photos": [],
+      "takenDown": true
+    }
+  ],
+  "history": [
+    {
+      "key": "first-ride",
+      "title": "First ride",
+      "archived": false
+    },
+    {
+      "key": "old-entry",
+      "title": "Old entry",
+      "archived": true
+    }
+  ],
+  "honours": [
+    {
+      "key": "gravel-life",
+      "member": "gravel",
+      "who": null,
+      "archived": false
+    },
+    {
+      "key": "old-honour",
+      "member": null,
+      "who": "Old Mate",
+      "archived": true
+    }
+  ],
+  "awards": [
+    {
+      "key": "rides",
+      "kind": "ride",
+      "title": "Rides",
+      "year": 2020,
+      "nominationsDays": 5,
+      "votingDays": 10,
+      "archived": false
+    },
+    {
+      "key": "rides-empty",
+      "kind": "ride",
+      "title": "Rides-Empty",
+      "year": 2020,
+      "nominationsDays": 5,
+      "votingDays": 10,
+      "archived": false
+    },
+    {
+      "key": "photos",
+      "kind": "photo",
+      "title": "Photos",
+      "year": 2020,
+      "nominationsDays": 5,
+      "votingDays": 10,
+      "archived": false
+    },
+    {
+      "key": "stories",
+      "kind": "story",
+      "title": "Stories",
+      "year": 2020,
+      "nominationsDays": 5,
+      "votingDays": 10,
+      "archived": false
+    },
+    {
+      "key": "voting",
+      "kind": "story",
+      "title": "Voting",
+      "year": 2020,
+      "nominationsDays": -1,
+      "votingDays": 5,
+      "archived": false
+    },
+    {
+      "key": "closed",
+      "kind": "story",
+      "title": "Closed",
+      "year": 2020,
+      "nominationsDays": -10,
+      "votingDays": -1,
+      "archived": false
+    },
+    {
+      "key": "off",
+      "kind": "story",
+      "title": "Off",
+      "year": 2020,
+      "nominationsDays": 5,
+      "votingDays": 10,
+      "archived": true
+    },
+    {
+      "key": "rides-2021",
+      "kind": "ride",
+      "title": "Rides-2021",
+      "year": 2021,
+      "nominationsDays": 5,
+      "votingDays": 10,
+      "archived": false
+    }
+  ],
+  "nominations": [
+    {
+      "key": "gravel-ride",
+      "award": "rides",
+      "by": "gravel",
+      "ride": "past-club",
+      "withdrawn": false
+    },
+    {
+      "key": "spanner-1",
+      "award": "stories",
+      "by": "spanner",
+      "ride": null,
+      "withdrawn": false
+    },
+    {
+      "key": "spanner-2",
+      "award": "stories",
+      "by": "spanner",
+      "ride": null,
+      "withdrawn": false
+    },
+    {
+      "key": "spanner-3",
+      "award": "stories",
+      "by": "spanner",
+      "ride": null,
+      "withdrawn": false
+    },
+    {
+      "key": "gravel-story",
+      "award": "stories",
+      "by": "gravel",
+      "ride": null,
+      "withdrawn": false
+    },
+    {
+      "key": "gravel-withdrawn",
+      "award": "stories",
+      "by": "gravel",
+      "ride": null,
+      "withdrawn": true
+    },
+    {
+      "key": "voting-gravel",
+      "award": "voting",
+      "by": "gravel",
+      "ride": null,
+      "withdrawn": false
+    },
+    {
+      "key": "voting-spanner",
+      "award": "voting",
+      "by": "spanner",
+      "ride": null,
+      "withdrawn": false
+    },
+    {
+      "key": "closed-gravel",
+      "award": "closed",
+      "by": "gravel",
+      "ride": null,
+      "withdrawn": false
+    },
+    {
+      "key": "off-gravel",
+      "award": "off",
+      "by": "gravel",
+      "ride": null,
+      "withdrawn": false
+    }
+  ],
+  "bragVotes": [
+    {
+      "award": "voting",
+      "member": "rusty",
+      "nomination": "voting-gravel"
     }
   ],
   "admin": {

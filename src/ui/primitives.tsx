@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
   toggle: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.xs },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   choice: {
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: space.md,
     borderRadius: radius.sm,
     borderWidth: 1,
