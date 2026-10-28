@@ -5669,6 +5669,368 @@
       "allowed": false
     },
     {
+      "name": "Any approved member lists something for sale, with photos",
+      "as": "finn",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "a.jpg",
+        "b.jpg"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "A price on a wanted listing is ignored",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "wanted",
+      "title": "Left mirror",
+      "price": 40,
+      "details": "",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "A free listing needs no price",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "free",
+      "title": "Old helmet",
+      "price": null,
+      "details": "",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "A pending applicant can't list anything",
+      "as": "dylan",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Nobody signed in can't list anything",
+      "as": null,
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A listing has to be one of the kinds",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "raffle",
+      "title": "",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A listing needs a title",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "   ",
+      "price": null,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A title of 81 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A title of 80 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "A sale needs a price",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": null,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A sale can't be free",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 0,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Prices are whole dollars",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 12.5,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A price over $100,000 is refused",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 100001,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "$100,000 is the top price",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 100000,
+      "details": "",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "Details of 1,001 characters are too long",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "free",
+      "title": "Tank bag",
+      "price": null,
+      "details": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Up to 6 photos",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "0.jpg",
+        "1.jpg",
+        "2.jpg",
+        "3.jpg",
+        "4.jpg",
+        "5.jpg",
+        "6.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "Someone else's photo can't go on your listing",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "other:x.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "A photo on another listing can't go on a new one",
+      "as": "gravel",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "used.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "The same photo can't go on twice",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [
+        "a.jpg",
+        "a.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "The seller changes their listing, keeping its photo",
+      "as": "gravel",
+      "action": "socialSaveListing",
+      "listing": "gravels-panniers",
+      "kind": "sell",
+      "title": "Panniers, pair",
+      "price": 120,
+      "details": "",
+      "photos": [
+        "used.jpg"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "Nobody else changes a listing, not even the board",
+      "as": "rusty",
+      "action": "socialSaveListing",
+      "listing": "gravels-panniers",
+      "kind": "sell",
+      "title": "",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A taken-down listing can't be changed",
+      "as": "gravel",
+      "action": "socialSaveListing",
+      "listing": "gravels-old-jacket",
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Changing a listing that doesn't exist",
+      "as": "gravel",
+      "action": "socialSaveListing",
+      "listing": "no-such-listing",
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "The seller marks their listing sold",
+      "as": "gravel",
+      "action": "socialMarkListingSold",
+      "listing": "gravels-panniers",
+      "sold": true,
+      "allowed": true
+    },
+    {
+      "name": "Only the seller marks it sold",
+      "as": "rusty",
+      "action": "socialMarkListingSold",
+      "listing": "gravels-panniers",
+      "sold": true,
+      "allowed": false
+    },
+    {
+      "name": "A taken-down listing can't be marked sold",
+      "as": "gravel",
+      "action": "socialMarkListingSold",
+      "listing": "gravels-old-jacket",
+      "sold": false,
+      "allowed": false
+    },
+    {
+      "name": "The seller takes their listing down",
+      "as": "gravel",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-panniers",
+      "allowed": true
+    },
+    {
+      "name": "A chapter president takes a listing down",
+      "as": "rusty",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-panniers",
+      "allowed": true
+    },
+    {
+      "name": "The NEC Chair takes a listing down",
+      "as": "chair",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-panniers",
+      "allowed": true
+    },
+    {
+      "name": "A tail gunner isn't the board, so can't take it down",
+      "as": "spanner",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-panniers",
+      "allowed": false
+    },
+    {
+      "name": "A listing can't be taken down twice",
+      "as": "gravel",
+      "action": "socialTakeDownListing",
+      "listing": "gravels-old-jacket",
+      "allowed": false
+    },
+    {
+      "name": "Taking down a listing that doesn't exist",
+      "as": "rusty",
+      "action": "socialTakeDownListing",
+      "listing": "no-such-listing",
+      "allowed": false
+    },
+    {
       "name": "The National Chairman makes a club ride a Big 4 for every chapter",
       "as": "chair",
       "action": "designateBig4",
@@ -6616,6 +6978,28 @@
       "name": "Closed down",
       "addedBy": "gravel",
       "archived": true
+    }
+  ],
+  "listings": [
+    {
+      "key": "gravels-panniers",
+      "seller": "gravel",
+      "kind": "sell",
+      "title": "Panniers",
+      "price": 150,
+      "photos": [
+        "used.jpg"
+      ],
+      "takenDown": false
+    },
+    {
+      "key": "gravels-old-jacket",
+      "seller": "gravel",
+      "kind": "swap",
+      "title": "Jacket",
+      "price": null,
+      "photos": [],
+      "takenDown": true
     }
   ]
 }

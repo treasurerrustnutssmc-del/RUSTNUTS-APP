@@ -22,6 +22,7 @@ import type { Conversation } from '../domain/chat';
 import { directId, runChatAction, type ChatAction, type ChatData } from './chat/demoChatActions';
 import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
 import { runSocialAction, type SocialAction, type SocialData } from './social/demoSocialActions'; // Stage 7: social extras
+import type { ListingKind } from '../domain/social/swap'; // Stage 7: social extras
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -436,5 +437,21 @@ export function fixtureSocial(): SocialData {
       addedBy: m.addedBy, addedAt: '2026-10-01T00:00:00.000Z', archivedAt: m.archived ? '2026-10-02T00:00:00.000Z' : null,
     })),
     vouches: [],
+    // The fixture's listings: photo names sit in the seller's own folder.
+    listings: ((f as { listings?: FixtureListing[] }).listings ?? []).map((l) => ({
+      id: l.key, sellerId: l.seller, kind: l.kind as ListingKind, title: l.title, priceDollars: l.price, details: null,
+      photos: l.photos.map((name) => ({ path: `${l.seller}/${name}`, width: 800, height: 600 })),
+      listedAt: '2026-10-01T00:00:00.000Z', soldAt: null, takenDownAt: l.takenDown ? '2026-10-02T00:00:00.000Z' : null,
+    })),
   };
+}
+
+interface FixtureListing {
+  key: string;
+  seller: string;
+  kind: string;
+  title: string;
+  price: number | null;
+  photos: string[];
+  takenDown: boolean;
 }

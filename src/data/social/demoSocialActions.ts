@@ -16,6 +16,16 @@ import {
   type MemberSkills,
 } from '../../domain/social/help';
 import { birthdayProblem, type Birthday } from '../../domain/social/shoutouts';
+import {
+  cleanListing,
+  listingProblem,
+  soldProblem,
+  takeDownProblem,
+  type Listing,
+  type ListingInput,
+  type ListingKind,
+  type ListingPhoto,
+} from '../../domain/social/swap';
 import type { ClubData, Member } from '../../domain/types';
 import type { FeedItem } from '../chat/chatContext';
 import { NotAllowedError } from '../clubContext';
@@ -30,6 +40,8 @@ export interface SocialData {
   /** Every workshop, archived ones included. */
   mechanics: Mechanic[];
   vouches: MechanicVouch[];
+  /** Every listing, taken-down ones included. */
+  listings: Listing[];
 }
 
 export interface SocialCtx {
@@ -95,6 +107,39 @@ export function vouchMechanic(ctx: SocialCtx, id: string, on: boolean): SocialDa
   return { ...ctx.social, vouches: [...others, { mechanicId: id, memberId: me.id, vouched: on }] };
 }
 
+/** Lists something (input.id null) or changes my listing; hands back its id. */
+export function saveListing(ctx: SocialCtx, input: ListingInput): { social: SocialData; id: string } {
+  refuse(listingProblem(ctx.me, input, ctx.social.listings));
+  const me = ctx.me as Member;
+  const clean = cleanListing(input);
+  const photos = clean.photos.map((p) => ({ path: p.path, width: Math.round(p.width), height: Math.round(p.height) }));
+  if (input.id === null) {
+    const id = `listing-${ctx.social.listings.length + 1}-${Date.now().toString(36)}`;
+    const at = ctx.now ?? new Date().toISOString();
+    const added: Listing = { id, sellerId: me.id, ...clean, photos, listedAt: at, soldAt: null, takenDownAt: null };
+    return { social: { ...ctx.social, listings: [...ctx.social.listings, added] }, id };
+  }
+  return {
+    social: { ...ctx.social, listings: ctx.social.listings.map((l) => (l.id === input.id ? { ...l, ...clean, photos } : l)) },
+    id: input.id,
+  };
+}
+
+export function markListingSold(ctx: SocialCtx, id: string, sold: boolean): SocialData {
+  refuse(soldProblem(ctx.me, id, ctx.social.listings));
+  const at = ctx.now ?? new Date().toISOString();
+  return {
+    ...ctx.social,
+    listings: ctx.social.listings.map((l) => (l.id === id ? { ...l, soldAt: sold ? l.soldAt ?? at : null } : l)),
+  };
+}
+
+export function takeDownListing(ctx: SocialCtx, id: string): SocialData {
+  refuse(takeDownProblem(ctx.me, id, ctx.social.listings, ctx.club.positions));
+  const at = ctx.now ?? new Date().toISOString();
+  return { ...ctx.social, listings: ctx.social.listings.map((l) => (l.id === id ? { ...l, takenDownAt: at } : l)) };
+}
+
 /** A parity.json case, as the social action it names. */
 export type SocialAction =
   | { action: 'socialSetBirthday'; month: number | null; day: number | null }
@@ -102,7 +147,20 @@ export type SocialAction =
   // The workshop's name is `workshop`: a case's `name` is the case's own.
   | ({ action: 'socialSaveMechanic'; mechanic: string | null; workshop: string } & Omit<MechanicInput, 'id' | 'name'>)
   | { action: 'socialArchiveMechanic'; mechanic: string }
-  | { action: 'socialVouchMechanic'; mechanic: string; on: boolean };
+  | { action: 'socialVouchMechanic'; mechanic: string; on: boolean }
+  // Photos are file names in the signed-in member's own folder, or `other:<name>` for someone else's.
+  | { action: 'socialSaveListing'; listing: string | null; kind: ListingKind; title: string; price: number | null; details: string; photos: string[] }
+  | { action: 'socialMarkListingSold'; listing: string; sold: boolean }
+  | { action: 'socialTakeDownListing'; listing: string };
+
+/** A parity case's photo names as the photos the action is sent. */
+export function parityPhotos(me: Member | null, names: string[], otherId: string): ListingPhoto[] {
+  return names.map((n) => ({
+    path: n.startsWith('other:') ? `${otherId}/${n.slice(6)}` : `${me?.id ?? 'nobody'}/${n}`,
+    width: 800,
+    height: 600,
+  }));
+}
 
 export function runSocialAction(ctx: SocialCtx, a: SocialAction): SocialData {
   switch (a.action) {
@@ -118,5 +176,14 @@ export function runSocialAction(ctx: SocialCtx, a: SocialAction): SocialData {
       return archiveMechanic(ctx, a.mechanic);
     case 'socialVouchMechanic':
       return vouchMechanic(ctx, a.mechanic, a.on);
+    case 'socialSaveListing':
+      return saveListing(ctx, {
+        id: a.listing, kind: a.kind, title: a.title, priceDollars: a.price, details: a.details,
+        photos: parityPhotos(ctx.me, a.photos, 'someone-else'),
+      }).social;
+    case 'socialMarkListingSold':
+      return markListingSold(ctx, a.listing, a.sold);
+    case 'socialTakeDownListing':
+      return takeDownListing(ctx, a.listing);
   }
 }

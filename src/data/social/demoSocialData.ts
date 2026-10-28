@@ -5,6 +5,7 @@ import { addDays } from '../../domain/dates';
 import type { Birthday } from '../../domain/social/shoutouts';
 import type { FeedItem } from '../chat/chatContext';
 import type { Mechanic } from '../../domain/social/help';
+import type { Listing } from '../../domain/social/swap';
 import type { SocialData } from './demoSocialActions';
 
 const monthDay = (iso: string) => ({ month: Number(iso.slice(5, 7)), day: Number(iso.slice(8, 10)) });
@@ -69,5 +70,30 @@ export function demoSocialData(today: string): SocialData {
       { mechanicId: 'mech-2', memberId: 'm-jet', vouched: true },
       { mechanicId: 'mech-3', memberId: 'm-diesel', vouched: true },
     ],
+    listings: demoListings(today),
   };
+}
+
+/** Swap and sell: a few things up, one sold last week, and one of Spanner's (the demo member) to try Edit on. */
+function demoListings(today: string): Listing[] {
+  const daysAgo = (n: number, hourUtc = 9) => `${addDays(today, -n)}T${String(hourUtc).padStart(2, '0')}:00:00.000Z`;
+  const item = (id: string, over: Partial<Listing> & Pick<Listing, 'sellerId' | 'kind' | 'title'>): Listing => ({
+    id, priceDollars: null, details: null, photos: [], listedAt: daysAgo(3), soldAt: null, takenDownAt: null, ...over,
+  });
+  // Photos are the demo's drawn scenes, kept in each seller's own folder like the real thing.
+  const pic = (sellerId: string, name: string) => ({ path: `${sellerId}/demo/${name}`, width: 1200, height: 900 });
+  return [
+    item('listing-1', { sellerId: 'm-diesel', kind: 'sell', title: 'Givi panniers, pair', priceDollars: 250, listedAt: daysAgo(1),
+      details: 'Off the Tenere. Keys for both, one scuff on the left lid. Pick up Sunshine or bring to the next run.',
+      photos: [pic('m-diesel', 'dusk-run.jpg')] }),
+    item('listing-2', { sellerId: 'm-chook', kind: 'swap', title: 'Heated grips for a tank bag', listedAt: daysAgo(2),
+      details: 'Oxford heated grips, barely used. After a magnetic tank bag.' }),
+    item('listing-3', { sellerId: 'm-spanner', kind: 'sell', title: 'Dainese jacket, size 52', priceDollars: 180, listedAt: daysAgo(4),
+      details: 'Armour in. Too small since the pies.', photos: [pic('m-spanner', 'servo-night.jpg')] }),
+    item('listing-4', { sellerId: 'm-rusty', kind: 'free', title: 'Box of old manuals', listedAt: daysAgo(6),
+      details: 'Haynes for a GS, CB and an XS. Come and get them.' }),
+    item('listing-5', { sellerId: 'm-sparks', kind: 'wanted', title: 'Left mirror for a Bonneville', listedAt: daysAgo(8) }),
+    item('listing-6', { sellerId: 'm-crank', kind: 'sell', title: 'Michelin Road 6, rear', priceDollars: 90, listedAt: daysAgo(12),
+      soldAt: daysAgo(5), photos: [pic('m-crank', 'coast-road.jpg')] }),
+  ];
 }

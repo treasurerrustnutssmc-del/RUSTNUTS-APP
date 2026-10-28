@@ -405,5 +405,120 @@ begin
   assert pg_temp.try_as(wendy, $q$update mechanic_vouches set vouched = true$q$) like 'permission denied%', 'no vouch updates';
 end $$;
 
+\echo 'Swap and sell: listings with photos, changed by the seller, taken down by the seller or the board'
+\o /dev/null
+create function pg_temp.listing_sql(id uuid, kind text, title text, price numeric, details text, photos jsonb)
+returns text language sql as $$
+  select format('select public.save_listing(%L, %L, %L, %L, %L, %L)', id, kind, title, price, details, photos);
+$$;
+create function pg_temp.upload_swap(who uuid, name text) returns void language sql as $$
+  insert into storage.objects (bucket_id, name, owner, owner_id) values ('swap-media', name, who, who::text);
+$$;
+
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  bea constant uuid := '00000000-0000-0000-0000-0000000005c1';
+  paul constant uuid := '00000000-0000-0000-0000-0000000005a3';
+  sid constant uuid := '00000000-0000-0000-0000-0000000005a4';
+  w text := '00000000-0000-0000-0000-0000000005b1/';
+  item uuid;
+  l listings%rowtype;
+  err text;
+begin
+  perform pg_temp.upload_swap(wendy, w || 'a.jpg');
+  perform pg_temp.upload_swap(wendy, w || 'b.jpg');
+  perform pg_temp.upload_swap(nell, '00000000-0000-0000-0000-0000000005b2/n.jpg');
+
+  item := pg_temp.value_as(wendy, pg_temp.listing_sql(null, 'sell', '  Panniers ', 150, '  ',
+    jsonb_build_array(jsonb_build_object('path', w || 'a.jpg', 'width', 800.4, 'height', 600, 'extra', 'x'))))::uuid;
+  select * into l from listings where id = item;
+  assert l.title = 'Panniers' and l.price_dollars = 150 and l.details is null and l.seller_id = wendy
+    and l.photos = jsonb_build_array(jsonb_build_object('path', w || 'a.jpg', 'width', 800, 'height', 600))
+    and l.sold_at is null and l.taken_down_at is null, format('trimmed, kept: %s', row_to_json(l));
+
+  -- Only sales carry a price.
+  err := pg_temp.value_as(wendy, pg_temp.listing_sql(null, 'wanted', 'Left mirror', 40, '', '[]'));
+  assert (select price_dollars is null from listings where id = err::uuid), 'a price on a wanted is ignored';
+
+  -- The refusals, in order.
+  assert pg_temp.try_signed_out(pg_temp.listing_sql(null, 'sell', 'X', 1, '', '[]')) = 'Sign in first.', 'signed out';
+  assert pg_temp.try_as(paul, pg_temp.listing_sql(item, 'x', '', null, '', '[]')) = 'Only approved members can do that.', 'pending first';
+  assert pg_temp.try_as(sid, pg_temp.listing_sql(null, 'sell', 'X', 1, '', '[]')) = 'Only approved members can do that.', 'suspended';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql('00000000-0000-0000-0000-000000000000', 'sell', 'X', 1, '', '[]')) = 'No such listing.', 'gone';
+  assert pg_temp.try_as(nell, pg_temp.listing_sql(item, 'x', '', null, '', '[]')) = 'Only whoever listed it can change it.', 'not hers';
+  assert pg_temp.try_as(bea, pg_temp.listing_sql(item, 'sell', 'X', 1, '', '[]')) = 'Only whoever listed it can change it.', 'not even the board';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'raffle', '', null, '', '[]')) = 'Pick what kind of listing it is.', 'kind';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, null, 'X', 1, '', '[]')) = 'Pick what kind of listing it is.', 'no kind';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'sell', ' ', null, '', '[]')) = 'Give it a title.', 'title';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'sell', repeat('x', 81), 1, '', '[]')) = 'Keep the title to 80 characters at most.', 'long title';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'sell', repeat('🏍', 80), 1, '', '[]')) is null, '80 emoji are 80 characters';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'sell', 'X', null, '', '[]')) = 'Put a price on it, in whole dollars.', 'no price';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'sell', 'X', 0, '', '[]')) = 'Put a price on it, in whole dollars.', 'zero';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'sell', 'X', 12.5, '', '[]')) = 'Put a price on it, in whole dollars.', 'cents';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'sell', 'X', 100001, '', '[]')) = 'Put a price on it, in whole dollars.', 'too dear';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'sell', 'X', 100000, '', '[]')) is null, 'the top price';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'free', 'X', null, repeat('d', 1001), '[]')) = 'Keep the details to 1,000 characters at most.', 'details';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'free', 'X', null, '',
+    (select jsonb_agg(jsonb_build_object('path', w || i || '.jpg')) from generate_series(1, 7) i))) = 'Up to 6 photos.', 'seven photos';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'free', 'X', null, '', '{}')) = 'That photo didn’t upload properly. Try again.', 'not a list';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'free', 'X', null, '',
+    jsonb_build_array(jsonb_build_object('path', w || 'never.jpg')))) = 'That photo didn’t upload properly. Try again.', 'not uploaded';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'free', 'X', null, '',
+    jsonb_build_array(jsonb_build_object('path', '00000000-0000-0000-0000-0000000005b2/n.jpg')))) = 'That photo didn’t upload properly. Try again.', 'someone else''s';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'free', 'X', null, '',
+    jsonb_build_array(jsonb_build_object('path', w || 'a.jpg')))) = 'That photo didn’t upload properly. Try again.', 'on another listing';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'free', 'X', null, '',
+    jsonb_build_array(jsonb_build_object('path', w || 'b.jpg'), jsonb_build_object('path', w || 'b.jpg')))) = 'That photo didn’t upload properly. Try again.', 'twice';
+
+  -- Changing it, keeping its own photo and adding one.
+  err := pg_temp.try_as(wendy, pg_temp.listing_sql(item, 'sell', 'Panniers, pair', 120, 'Fit a Bonneville',
+    jsonb_build_array(jsonb_build_object('path', w || 'a.jpg'), jsonb_build_object('path', w || 'b.jpg'))));
+  assert err is null, format('Wendy changes hers, not %s', err);
+  assert (select title = 'Panniers, pair' and price_dollars = 120 and jsonb_array_length(photos) = 2 from listings where id = item), 'changed';
+
+  -- Sold and back on.
+  assert pg_temp.try_as(nell, format('select public.mark_listing_sold(%L, true)', item)) = 'Only whoever listed it can change it.', 'not hers to sell';
+  assert pg_temp.try_as(wendy, format('select public.mark_listing_sold(%L, true)', item)) is null, 'sold';
+  assert (select sold_at is not null from listings where id = item), 'marked sold';
+  assert pg_temp.try_as(wendy, format('select public.mark_listing_sold(%L, false)', item)) is null, 'back on';
+  assert (select sold_at is null from listings where id = item), 'back on sale';
+
+  -- Reading: approved members see it and its photos; the pending don't; nobody writes directly.
+  assert pg_temp.count_as(nell, format('listings where id = %L', item)) = 1, 'Nell sees it';
+  assert pg_temp.count_as(nell, format($q$storage.objects where name = %L$q$, w || 'b.jpg')) = 1, 'and its photo';
+  assert pg_temp.count_as(paul, 'listings') = 0, 'pending sees none';
+  assert pg_temp.count_as(null, 'listings') = -1, 'anon sees nothing';
+  assert pg_temp.try_as(wendy, format($q$update listings set price_dollars = 1 where id = %L$q$, item)) like 'permission denied%', 'no updates';
+  assert pg_temp.try_as(wendy, $q$insert into listings (seller_id, kind, title) values (auth.uid(), 'free', 'x')$q$) like 'permission denied%', 'no inserts';
+  -- Uploads go only into your own folder.
+  assert pg_temp.try_as(wendy, format($q$insert into storage.objects (bucket_id, name, owner, owner_id) values ('swap-media', %L, auth.uid(), auth.uid()::text)$q$,
+    '00000000-0000-0000-0000-0000000005b2/sneaky.jpg')) is not null, 'not into Nell''s folder';
+  assert pg_temp.try_as(wendy, format($q$insert into storage.objects (bucket_id, name, owner, owner_id) values ('swap-media', %L, auth.uid(), auth.uid()::text)$q$,
+    w || 'c.jpg')) is null, 'into her own';
+  -- Someone else's unused upload stays private.
+  assert pg_temp.count_as(nell, format($q$storage.objects where name = %L$q$, w || 'c.jpg')) = 0, 'unused uploads are private';
+
+  -- Taking it down.
+  assert pg_temp.try_as(nell, format('select public.take_down_listing(%L)', item)) = 'Only whoever listed it or the board can take it down.', 'not Nell';
+  assert pg_temp.try_as(bea, format('select public.take_down_listing(%L)', item)) is null, 'the board takes it down';
+  assert (select taken_down_at is not null and taken_down_by = bea from listings where id = item), 'kept, with who';
+  assert pg_temp.try_as(wendy, format('select public.take_down_listing(%L)', item)) = 'That listing has already been taken down.', 'twice';
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(item, 'sell', 'X', 1, '', '[]')) = 'That listing has been taken down.', 'no edits after';
+  assert pg_temp.try_as(wendy, format('select public.mark_listing_sold(%L, true)', item)) = 'That listing has been taken down.', 'no selling after';
+  assert pg_temp.count_as(nell, format('listings where id = %L', item)) = 0, 'hidden once down';
+  assert pg_temp.count_as(nell, format($q$storage.objects where name = %L$q$, w || 'b.jpg')) = 0, 'and its photos';
+  -- Its photos still can't go on another listing.
+  assert pg_temp.try_as(wendy, pg_temp.listing_sql(null, 'free', 'X', null, '',
+    jsonb_build_array(jsonb_build_object('path', w || 'a.jpg')))) = 'That photo didn’t upload properly. Try again.', 'photos stay with it';
+
+  -- A suspended seller's listings are hidden.
+  update members set approval = 'approved' where id = sid;
+  item := pg_temp.value_as(sid, pg_temp.listing_sql(null, 'swap', 'Jacket', null, '', '[]'))::uuid;
+  update members set approval = 'suspended' where id = sid;
+  assert pg_temp.count_as(nell, format('listings where id = %L', item)) = 0, 'suspended seller hidden';
+end $$;
+
 \o
 \echo 'All social checks passed'

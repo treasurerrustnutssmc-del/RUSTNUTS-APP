@@ -28,6 +28,7 @@ import { IntroProgressCard } from './fng';
 // Stage 7: social extras
 import { HomeOnThisDayCard, HomeShoutoutsCard } from './social';
 import { WhoCanHelpRow } from './help';
+import { SwapRow } from './swap';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -271,6 +272,7 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
       </Card>
       {/* Stage 7: social extras */}
       <WhoCanHelpRow />
+      <SwapRow />
       <Field
         label="Search"
         value={query}

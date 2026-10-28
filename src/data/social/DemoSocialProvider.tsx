@@ -4,6 +4,7 @@
 import React, { useCallback, useState } from 'react';
 import { approvalProblem } from '../../domain/chat';
 import { useChat } from '../chat/ChatProvider';
+import { DEMO_MEDIA } from '../chat/demoChatData';
 import { useClub } from '../clubContext';
 import * as act from './demoSocialActions';
 import { demoSocialData } from './demoSocialData';
@@ -23,6 +24,11 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     return social.pastPhotos.filter((p) => !blocked.has(p.authorId)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   }, [notApproved, social.pastPhotos, blocks]);
 
+  const listingPhotoUrl = useCallback(async (path: string) => {
+    const rest = path.slice(path.indexOf('/') + 1);
+    return DEMO_MEDIA[rest] ?? rest;
+  }, []);
+
   const value: SocialContextValue = {
     ready: true,
     birthdays: social.birthdays,
@@ -39,6 +45,18 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     },
     archiveMechanic: async (id) => setSocial(act.archiveMechanic(ctx(), id)),
     vouchMechanic: async (id, on) => setSocial(act.vouchMechanic(ctx(), id, on)),
+    listings: social.listings,
+    // New photos stay on the phone: the path is the seller's folder and then the picture's own address.
+    saveListing: async (input, added) => {
+      const folder = me?.id ?? 'nobody';
+      const photos = [...input.photos, ...added.map((p) => ({ path: `${folder}/${p.uri}`, width: p.width, height: p.height }))];
+      const result = act.saveListing(ctx(), { ...input, photos });
+      setSocial(result.social);
+      return result.id;
+    },
+    markListingSold: async (id, sold) => setSocial(act.markListingSold(ctx(), id, sold)),
+    takeDownListing: async (id) => setSocial(act.takeDownListing(ctx(), id)),
+    listingPhotoUrl,
     refresh: async () => {},
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

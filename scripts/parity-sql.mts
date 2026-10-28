@@ -3,6 +3,7 @@
 // with the demo's own message. Used by scripts/test-db.sh (via tsx); prints SQL to stdout.
 
 // Stage 4
+import { createHash } from 'node:crypto';
 import { addDays } from '../src/domain/dates';
 import { clubYearOf } from '../src/domain/clubYear';
 import { fyOf } from '../src/domain/fees';
@@ -16,11 +17,25 @@ import {
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const id = (kind: string, key: string) => `md5(${q(`${kind}:${key}`)})::uuid`;
+// The same uuid as id(), worked out here, for text that has to hold it (a storage path).
+const uuidOf = (kind: string, key: string) =>
+  createHash('md5').update(`${kind}:${key}`).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+// A swap-and-sell photo's path: in the member's own folder, or `other:<name>` in someone else's.
+const listingPhotoPath = (member: string | null, name: string) =>
+  name.startsWith('other:') ? `${uuidOf('m', 'someone-else')}/${name.slice(6)}` : `${member ? uuidOf('m', member) : 'nobody'}/${name}`;
 const chapter = (slug: string | null) => (slug === null ? 'null' : `(select id from public.chapters where slug = ${q(slug)})`);
 const date = (d: string | null) => (d === null ? 'null' : `date ${q(d)}`);
 
 const out: string[] = [];
 const sql = (s: string) => out.push(s);
+// A file in the swap-media bucket, uploaded by a member (nobody signed in uploads nothing).
+const uploadSwap = (member: string | null, path: string) => {
+  if (!member) return;
+  sql(
+    `insert into storage.objects (bucket_id, name, owner, owner_id) select 'swap-media', ${q(path)}, ${id('m', member)}, ${id('m', member)}::text ` +
+      `where not exists (select 1 from storage.objects where bucket_id = 'swap-media' and name = ${q(path)});`,
+  );
+};
 
 sql('\\set ON_ERROR_STOP 1');
 sql('\\set QUIET 1');
@@ -496,6 +511,15 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.archive_mechanic(${id('mech', c.mechanic)})`;
     case 'socialVouchMechanic':
       return `public.vouch_mechanic(${id('mech', c.mechanic)}, ${c.on})`;
+    case 'socialSaveListing':
+      return (
+        `public.save_listing(${c.listing ? id('listing', c.listing) : 'null'}, ${q(c.kind)}, ${q(c.title)}, ` +
+        `${c.price ?? 'null'}, ${q(c.details)}, ${json((c.photos as string[]).map((n) => ({ path: listingPhotoPath(c.as, n), width: 800, height: 600 })))})`
+      );
+    case 'socialMarkListingSold':
+      return `public.mark_listing_sold(${id('listing', c.listing)}, ${c.sold})`;
+    case 'socialTakeDownListing':
+      return `public.take_down_listing(${id('listing', c.listing)})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
@@ -562,6 +586,17 @@ for (const m of (fx as typeof fx & { mechanics?: { key: string; name: string; ad
   );
 }
 
+// The fixture's listings, with their photos uploaded by their sellers.
+type FixtureListing = { key: string; seller: string; kind: string; title: string; price: number | null; photos: string[]; takenDown: boolean };
+for (const l of (fx as typeof fx & { listings?: FixtureListing[] }).listings ?? []) {
+  const photos = l.photos.map((n) => ({ path: listingPhotoPath(l.seller, n), width: 800, height: 600 }));
+  for (const p of photos) uploadSwap(l.seller, p.path);
+  sql(
+    `insert into public.listings (id, seller_id, kind, title, price_dollars, photos, taken_down_at) values (${id('listing', l.key)}, ` +
+      `${id('m', l.seller)}, ${q(l.kind)}, ${q(l.title)}, ${l.price ?? 'null'}, ${json(photos)}, ${l.takenDown ? 'now()' : 'null'});`,
+  );
+}
+
 sql('\\echo Parity: the demo and the database agree on who can do what');
 for (const c of fx.cases) {
   const name = q(c.name);
@@ -579,6 +614,10 @@ for (const c of fx.cases) {
   sql(`select set_config('parity.chat', coalesce(${c.chat ? chatId(String(c.chat)) : 'null'}::text, ''), true);`);
   // No one signed in (as: null): an empty claim, so auth.uid() is null.
   sql(`select set_config('request.jwt.claim.sub', ${c.as === null ? "''" : `${id('m', c.as)}::text`}, true);`);
+  // A listing's photos are uploaded first (by their owner), as the phone does.
+  if (c.action === 'socialSaveListing') {
+    for (const n of c.photos as string[]) uploadSwap(n.startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, n));
+  }
   sql('set local role authenticated;');
   sql('do $parity$ begin');
   sql('  begin');

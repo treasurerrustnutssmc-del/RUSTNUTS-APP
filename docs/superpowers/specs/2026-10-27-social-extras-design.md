@@ -156,7 +156,52 @@ notes)` (a null id adds one), `archive_mechanic(id)`, `vouch_mechanic(id, on)`.
 **Demo:** a handful of demo members with skills, and four made-up workshops (clearly fictional
 names and 04xx 555 numbers).
 
-## PRs 4 to 9
+## PR 4: Swap and sell
+
+**What members see.** A "Swap and sell" row on the Members tab, under Who can help. The screen
+lists open listings newest first as cards: first photo, title in stencil, the price ("$250",
+"Swap", "Free" or "Wanted") as a chip, the seller's name and chapter, and the date listed. Filter
+chips across the top: All, For sale, Swap, Free, Wanted. Below the open ones, "Recently sold" shows
+what went in the last 30 days, greyed with a "Sold" chip. A listing's screen shows its photos
+(swipe through), price, details, seller, and a "Message the seller" button that opens a private
+chat with them (the app never writes the message). The seller sees Edit, "Mark as sold" (or "Put
+back on") and "Take it down" (ConfirmButton); a board member sees "Take it down" on anyone's.
+"List something" (button at the top) opens the form: kind (For sale, Swap, Free, Wanted), title,
+price (for sale only), details, up to 6 photos from the library or camera.
+
+**Rules** (`src/domain/social/swap.ts`, mirrored in the database, same words, same order):
+- Sign in first; only approved members can do that; then:
+- 'Pick what kind of listing it is.' (kind not one of sell, swap, free, wanted)
+- 'Give it a title.' / 'Keep the title to 80 characters at most.'
+- 'Put a price on it, in whole dollars.' (sell needs a whole-dollar price from 1 to 100,000; the
+  others have no price, and a price sent with them is ignored)
+- 'Keep the details to 1,000 characters at most.'
+- 'Up to 6 photos.'
+- 'That photo didn’t upload properly. Try again.' (each photo in the seller's own folder of the
+  swap-media bucket, uploaded by them, not used by another listing, not twice)
+- Changing: 'No such listing.', then 'Only whoever listed it can change it.', then 'That listing
+  has been taken down.'. Taking down: whoever listed it or any board member; 'That listing has
+  already been taken down.'. Marking sold or back on: only whoever listed it.
+- Nothing is deleted: taking down sets taken_down_at and taken_down_by. Photos stay in storage.
+- Approved members read listings by approved sellers that aren't taken down; a seller who is
+  suspended disappears from the list. Blocked members' listings are hidden in the app (like chat).
+
+**Database** (`20270415000300_swap_and_sell.sql`): `listing_kind` enum; `listings` (seller_id,
+kind, title, price_dollars, details, listed_at, sold_at, taken_down_at, taken_down_by, with
+checks); `listing_photos` (listing_id, position, path unique, width, height); a private
+`swap-media` bucket (images only, 10 MB) with upload into your own `<member id>/` folder and read
+for approved members; functions `save_listing(uuid, text, text, int, text, jsonb)` returning the
+id (a null id adds), `mark_listing_sold(uuid, boolean)`, `take_down_listing(uuid)`. No drop, no
+delete.
+
+**Demo.** Six made-up listings across the kinds with photos from the demo's own assets, one
+recently sold, one by the demo member so Edit and Mark as sold can be tried.
+
+**Tests.** Domain rules (each refusal, the order, the price rule), demo actions, liveSocial row
+mapping, parity cases for every refusal and success, and SQL tests for RLS (suspended seller
+hidden, taken-down hidden), storage folder checks, and who can change what.
+
+## PRs 5 to 9
 
 Each gets its own short design section added to this file before it's built, following the same
 shape (what members see, rules, database, demo, tests). The table above fixes the order and scope.

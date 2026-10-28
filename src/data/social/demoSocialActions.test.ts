@@ -79,3 +79,32 @@ test('vouching for a workshop and taking it back', () => {
   assert.deepEqual(off, [{ mechanicId: 'mech-4', memberId: 'm-spanner', vouched: false }]);
   assert.throws(() => vouchMechanic(ctx, 'nope', true), /No such workshop\./);
 });
+
+test('the demo has listings up, one sold, and one of the demo member’s', async () => {
+  const { listingsFor } = await import('../../domain/social/swap');
+  const social = demoSocialData('2026-10-27');
+  const spanner = demoData.members.find((m) => m.id === 'm-spanner') ?? null;
+  const seen = listingsFor(spanner, demoData.members, social.listings, [], demoData.positions, '2026-10-27');
+  assert.equal(seen.open.length, 5);
+  assert.deepEqual(seen.sold.map((l) => l.id), ['listing-6']);
+  assert.ok(seen.open.some((l) => l.sellerId === 'm-spanner'));
+});
+
+test('listing, changing, selling and taking down in the demo', async () => {
+  const { saveListing: save, markListingSold: sell, takeDownListing: down } = await import('./demoSocialActions');
+  const ctx = { ...ctxAs('m-spanner'), now: '2026-10-27T02:00:00Z' };
+  const { social, id } = save(ctx, { id: null, kind: 'sell', title: ' Tank bag ', priceDollars: 60, details: '', photos: [{ path: 'm-spanner/x.jpg', width: 10.4, height: 20 }] });
+  const added = social.listings.find((l) => l.id === id);
+  assert.equal(added?.title, 'Tank bag');
+  assert.equal(added?.sellerId, 'm-spanner');
+  assert.deepEqual(added?.photos, [{ path: 'm-spanner/x.jpg', width: 10, height: 20 }]);
+  const changed = save({ ...ctx, social }, { id, kind: 'free', title: 'Tank bag', priceDollars: 60, details: 'Free to a good home', photos: [] });
+  assert.equal(changed.social.listings.find((l) => l.id === id)?.priceDollars, null);
+  const sold = sell({ ...ctx, social: changed.social }, id, true);
+  assert.equal(sold.listings.find((l) => l.id === id)?.soldAt, '2026-10-27T02:00:00Z');
+  assert.equal(sell({ ...ctx, social: sold }, id, false).listings.find((l) => l.id === id)?.soldAt, null);
+  assert.throws(() => sell({ ...ctxAs('m-rusty'), social: sold }, id, false), /Only whoever listed it can change it\./);
+  const gone = down({ ...ctx, social: sold }, id);
+  assert.ok(gone.listings.find((l) => l.id === id)?.takenDownAt);
+  assert.throws(() => down({ ...ctx, social: gone }, id), /That listing has already been taken down\./);
+});

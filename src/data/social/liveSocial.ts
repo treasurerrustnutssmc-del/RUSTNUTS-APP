@@ -2,6 +2,7 @@
 
 import type { HelpSkill, Mechanic, MechanicVouch, MemberSkills } from '../../domain/social/help';
 import type { Birthday } from '../../domain/social/shoutouts';
+import type { Listing, ListingInput, ListingKind, ListingPhoto } from '../../domain/social/swap';
 
 export interface BirthdayRow {
   member_id: string;
@@ -53,4 +54,29 @@ export const toVouches = (rows: VouchRow[]): MechanicVouch[] =>
 /** The save_mechanic call for what was typed: the database trims and checks it the same way. */
 export const saveMechanicArgs = (i: { id: string | null; name: string; suburb: string; phone: string; website: string; speciality: string; notes: string }) => ({
   p_id: i.id, p_name: i.name, p_suburb: i.suburb, p_phone: i.phone, p_website: i.website, p_speciality: i.speciality, p_notes: i.notes,
+});
+
+export interface ListingRow {
+  id: string;
+  seller_id: string;
+  kind: ListingKind;
+  title: string;
+  price_dollars: number | null;
+  details: string | null;
+  photos: { path: string; width: number | null; height: number | null }[] | null;
+  listed_at: string;
+  sold_at: string | null;
+  taken_down_at: string | null;
+}
+
+export const toListings = (rows: ListingRow[]): Listing[] =>
+  rows.map((r) => ({
+    id: r.id, sellerId: r.seller_id, kind: r.kind, title: r.title, priceDollars: r.price_dollars, details: r.details,
+    photos: (r.photos ?? []).map((p) => ({ path: p.path, width: p.width ?? 0, height: p.height ?? 0 })),
+    listedAt: r.listed_at, soldAt: r.sold_at, takenDownAt: r.taken_down_at,
+  }));
+
+/** The save_listing call: the database trims and checks it the same way. */
+export const saveListingArgs = (i: ListingInput, photos: ListingPhoto[]) => ({
+  p_id: i.id, p_kind: i.kind, p_title: i.title, p_price: i.priceDollars, p_details: i.details, p_photos: photos,
 });
