@@ -6,6 +6,7 @@ import type { Listing, ListingInput, ListingKind, ListingPhoto } from '../../dom
 import type { BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, HistoryInput, HistoryPrecision, Honour, HonourInput } from '../../domain/social/history';
 import type { Award, AwardInput, BragKind, Nomination, NominationInput, Tally, Vote } from '../../domain/social/brag';
+import type { Ride, RideCategory } from '../../domain/types';
 
 export interface BirthdayRow {
   member_id: string;
@@ -202,3 +203,30 @@ export const openAwardArgs = (i: AwardInput) => ({
 export const nominateArgs = (i: NominationInput) => ({
   p_award: i.awardId, p_ride: i.rideId, p_title: i.title, p_photo: i.photo, p_story: i.story, p_reason: i.reason,
 });
+
+export interface BragRideRow {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  location: string | null;
+  notes: string | null;
+  category: RideCategory;
+  cancelled_at: string | null;
+}
+
+const instant = (ts: string) => new Date(ts).toISOString();
+
+export const toBragRides = (rows: BragRideRow[]): Ride[] =>
+  rows.map((r) => ({
+    id: r.id, title: r.title, startsAt: instant(r.starts_at), endsAt: r.ends_at ? instant(r.ends_at) : null, allDay: r.all_day,
+    location: r.location, notes: r.notes, category: r.category, cancelledAt: r.cancelled_at ? instant(r.cancelled_at) : null,
+  }));
+
+/** The window of rides the ride awards need: their years, a day either side for Melbourne time. Null when there are none. */
+export function bragRideWindow(awards: Award[]): { from: string; to: string } | null {
+  const years = awards.filter((a) => a.kind === 'ride').map((a) => a.year);
+  if (years.length === 0) return null;
+  return { from: `${Math.min(...years) - 1}-12-31T00:00:00Z`, to: `${Math.max(...years) + 1}-01-02T00:00:00Z` };
+}

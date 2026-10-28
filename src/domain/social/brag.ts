@@ -226,6 +226,7 @@ export function withdrawProblem(
   const n = nominations.find((x) => x.id === id);
   const a = n && awards.find((x) => x.id === n.awardId);
   if (!n || !a) return NOMINATION_GONE;
+  if (a.archivedAt) return AWARD_OFF;
   if (!canWithdraw(me, n, positions)) return NOT_NOMINATOR;
   if (awardPhase(a, today) !== 'nominating') return NOMINATIONS_CLOSED;
   if (n.withdrawnAt) return ALREADY_WITHDRAWN;

@@ -259,7 +259,8 @@ begin
 end;
 $$;
 
--- Withdraws a nomination while nominations are open: whoever nominated it, or the board or NEC.
+-- Withdraws a nomination while nominations are open (on an award that's still up): whoever
+-- nominated it, or the board or NEC.
 create or replace function public.withdraw_nomination(p_id uuid)
 returns void language plpgsql security definer set search_path = '' as $$
 declare
@@ -272,6 +273,7 @@ begin
   select * into n from public.brag_nominations where id = p_id for update;
   if not found then raise exception 'No such nomination.'; end if;
   select * into a from public.brag_awards where id = n.award_id;
+  if a.archived_at is not null then raise exception 'That award has been taken off.'; end if;
   if n.nominated_by is distinct from me and not private.is_any_board() then
     raise exception 'Only whoever nominated it or the board can withdraw it.';
   end if;

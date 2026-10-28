@@ -105,3 +105,16 @@ test('bragging rights rows and calls', async () => {
     p_award: 'a', p_ride: 'r', p_title: 't', p_photo: null, p_story: 's', p_reason: '',
   });
 });
+
+test('the rides behind ride awards: their years, a day either side', async () => {
+  const { bragRideWindow, toBragRides } = await import('./liveSocial');
+  const a = (kind: 'ride' | 'story', year: number) =>
+    ({ id: 'x', kind, title: 't', year, nominationsClose: '', votingClose: '', openedBy: '', archivedAt: null });
+  assert.equal(bragRideWindow([a('story', 2026)]), null);
+  assert.deepEqual(bragRideWindow([a('ride', 2026), a('ride', 2024)]), { from: '2023-12-31T00:00:00Z', to: '2027-01-02T00:00:00Z' });
+  assert.deepEqual(
+    toBragRides([{ id: 'r', title: 'T', starts_at: '2026-05-01T00:00:00+00:00', ends_at: null, all_day: false, location: null, notes: null,
+      category: 'club', cancelled_at: null }])[0].startsAt,
+    '2026-05-01T00:00:00.000Z',
+  );
+});

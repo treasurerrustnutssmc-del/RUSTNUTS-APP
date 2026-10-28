@@ -504,7 +504,9 @@ export function fixtureSocial(today: string = parityToday()): SocialData {
       story: n.ride ? null : 'Fixture', reason: null, nominatedAt: '2026-10-01T00:00:00.000Z',
       withdrawnAt: n.withdrawn ? '2026-10-02T00:00:00.000Z' : null,
     })),
-    bragVotes: [],
+    bragVotes: ((f as { bragVotes?: { award: string; member: string; nomination: string }[] }).bragVotes ?? []).map((v) => ({
+      awardId: v.award, memberId: v.member, nominationId: v.nomination,
+    })),
   };
 }
 

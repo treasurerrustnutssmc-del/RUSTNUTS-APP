@@ -9,6 +9,7 @@ import type { BuildPost, BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, HistoryInput, Honour, HonourInput } from '../../domain/social/history';
 import type { Award, AwardInput, Nomination, NominationInput, Tally, Vote } from '../../domain/social/brag';
 import type { PickedMedia } from '../../domain/chat';
+import type { Ride } from '../../domain/types';
 import type { FeedItem, MediaSource } from '../chat/chatContext';
 
 export interface SocialContextValue {
@@ -66,6 +67,8 @@ export interface SocialContextValue {
   myVotes: Vote[];
   /** Vote counts for awards that have closed. */
   tallies: Tally[];
+  /** Club rides a ride award can show and take: past ones included, which the calendar leaves out. */
+  bragRides: Ride[];
   openAward: (input: AwardInput) => Promise<string>;
   archiveAward: (id: string) => Promise<void>;
   /** Nominates something; for a photo award, `added` is the phone's photo (input.photo is null). */

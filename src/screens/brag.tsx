@@ -2,7 +2,7 @@
 // ride, a photo or a story, then vote. Counts stay hidden until voting closes.
 
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { PickProblem, pickMedia } from '../data/chat/media';
 import { useClub } from '../data/ClubStore';
@@ -31,7 +31,7 @@ import {
   type BragKind,
   type Nomination,
 } from '../domain/social/brag';
-import type { ClubData } from '../domain/types';
+import type { ClubData, Ride } from '../domain/types';
 import type { RootParams, RootScreen } from '../navigation/types';
 import { colors, MAX_CONTENT_WIDTH, space, type } from '../theme';
 import {
@@ -70,8 +70,8 @@ function phaseLine(a: Award, today: string): string {
   return `Closed ${formatAuDate(a.votingClose)}`;
 }
 
-function nominationTitle(n: Nomination, data: ClubData): string {
-  if (n.rideId) return data.rides.find((r) => r.id === n.rideId)?.title ?? 'A ride';
+function nominationTitle(n: Nomination, rides: Ride[]): string {
+  if (n.rideId) return rides.find((r) => r.id === n.rideId)?.title ?? 'A ride';
   return n.title ?? '';
 }
 
@@ -103,15 +103,17 @@ export function BragRow({ last = false }: { last?: boolean }) {
 
 function AwardRowItem({ award, last }: { award: Award; last: boolean }) {
   const navigation = useNavigation<Nav>();
-  const { data, today } = useClub();
-  const { nominations, tallies } = useSocial();
+  const { today } = useClub();
+  const { nominations, tallies, bragRides } = useSocial();
   const phase = awardPhase(award, today);
   const winners = phase === 'closed' ? results(nominations.filter((n) => n.awardId === award.id), tallies).filter((r) => r.winner) : [];
   const subtitle =
     phase === 'closed'
       ? winners.length > 0
-        ? `Winner: ${winners.map((w) => nominationTitle(w.nomination, data)).join(' and ')}`
-        : 'No votes were cast'
+        ? `Winner: ${winners.map((w) => nominationTitle(w.nomination, bragRides)).join(' and ')}`
+        : nominations.some((n) => n.awardId === award.id)
+          ? 'No votes were cast'
+          : 'Nothing was nominated'
       : phaseLine(award, today);
   return (
     <ListRow
@@ -177,13 +179,13 @@ function NominationCard({
   onError: (message: string | null) => void;
 }) {
   const { me, data, today } = useClub();
-  const { myVotes, castBragVote, withdrawNomination } = useSocial();
+  const { myVotes, castBragVote, withdrawNomination, bragRides } = useSocial();
   const { width } = useWindowDimensions();
   const [busy, setBusy] = useState(false);
   const phase = awardPhase(award, today);
   const mine = nomination.nominatedBy === me?.id;
   const chosen = myVotes.some((v) => v.nominationId === nomination.id);
-  const ride = nomination.rideId ? data.rides.find((r) => r.id === nomination.rideId) : undefined;
+  const ride = nomination.rideId ? bragRides.find((r) => r.id === nomination.rideId) : undefined;
   // Inside the screen's and the card's padding, and the card's border.
   const photoWidth = Math.floor(Math.min(width, MAX_CONTENT_WIDTH) - space.lg * 4 - 2);
   const photo = nomination.photo;
@@ -195,7 +197,7 @@ function NominationCard({
       .catch((e) => onError((e as Error).message))
       .finally(() => setBusy(false));
   };
-  const title = nominationTitle(nomination, data);
+  const title = nominationTitle(nomination, bragRides);
   return (
     <Card style={chosen || winner ? { borderColor: colors.redBright } : undefined}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
@@ -238,7 +240,10 @@ function NominationCard({
           kind="quiet"
           icon="arrow-undo-outline"
           confirmNote="It comes off the list. Anyone can nominate it again while nominations are open."
-          onConfirm={() => withdrawNomination(nomination.id).catch((e) => onError((e as Error).message))}
+          onConfirm={() => {
+            onError(null);
+            return withdrawNomination(nomination.id).catch((e) => onError((e as Error).message));
+          }}
         />
       ) : null}
     </Card>
@@ -246,9 +251,15 @@ function NominationCard({
 }
 
 export function AwardScreen({ route, navigation }: RootScreen<'Award'>) {
-  const { me, data, today } = useClub();
-  const { ready, awards, nominations, tallies, myVotes, archiveAward } = useSocial();
+  const { me, data, today, isDemo } = useClub();
+  const { ready, awards, nominations, tallies, myVotes, archiveAward, refresh } = useSocial();
   const [error, setError] = useState<string | null>(null);
+  const shown = awards.find((a) => a.id === route.params.awardId && !a.archivedAt);
+  const shownPhase = shown ? awardPhase(shown, today) : null;
+  // Counts arrive once voting closes: fetch them when an award closes while it's open here.
+  useEffect(() => {
+    if (!isDemo && shownPhase === 'closed') refresh().catch(() => undefined);
+  }, [isDemo, shownPhase, refresh]);
   if (!ready) {
     return (
       <Screen>
@@ -256,7 +267,7 @@ export function AwardScreen({ route, navigation }: RootScreen<'Award'>) {
       </Screen>
     );
   }
-  const award = awards.find((a) => a.id === route.params.awardId && !a.archivedAt);
+  const award = shown;
   if (!award) {
     return (
       <Screen>
@@ -271,7 +282,7 @@ export function AwardScreen({ route, navigation }: RootScreen<'Award'>) {
   const voted = myVotes.some((v) => v.awardId === award.id);
 
   return (
-    <Screen>
+    <Screen onRefresh={isDemo ? undefined : refresh}>
       <Card>
         <H2>{award.title}</H2>
         <Text style={[type.name, { color: colors.redText }]}>{phaseLine(award, today)}</Text>
@@ -327,8 +338,8 @@ export function AwardScreen({ route, navigation }: RootScreen<'Award'>) {
 // ---------------------------------------------------------------------------
 
 export function NominateScreen({ route, navigation }: RootScreen<'Nominate'>) {
-  const { me, data, today } = useClub();
-  const { ready, awards, nominations, nominate } = useSocial();
+  const { me, today } = useClub();
+  const { ready, awards, nominations, nominate, bragRides } = useSocial();
   const { width } = useWindowDimensions();
   const [rideId, setRideId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -353,7 +364,7 @@ export function NominateScreen({ route, navigation }: RootScreen<'Nominate'>) {
     );
   }
   const taken = new Set(nominations.filter((n) => n.awardId === award.id && !n.withdrawnAt).map((n) => n.rideId));
-  const rides = data.rides
+  const rides = bragRides
     .filter((r) => rideFitsAward(r, award.year, today) && !taken.has(r.id))
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
   const photoWidth = Math.floor(Math.min(width, MAX_CONTENT_WIDTH) - space.lg * 4 - 2);
@@ -373,7 +384,7 @@ export function NominateScreen({ route, navigation }: RootScreen<'Nominate'>) {
     setError(null);
     const standIn = photo ? { path: `${me?.id ?? ''}/new-0`, width: photo.width, height: photo.height } : null;
     const input = { awardId: award.id, rideId, title, photo: null, story, reason };
-    const problem = nominationProblem(me, { ...input, photo: standIn }, awards, nominations, data.rides, today);
+    const problem = nominationProblem(me, { ...input, photo: standIn }, awards, nominations, bragRides, today);
     if (problem) return setError(problem);
     setBusy(true);
     nominate(input, award.kind === 'photo' ? photo : null)
@@ -420,7 +431,7 @@ export function NominateScreen({ route, navigation }: RootScreen<'Nominate'>) {
                       <Text style={type.name} numberOfLines={1}>
                         {r.title}
                       </Text>
-                      <Small>{formatAuDate(melbourneDate(r.startsAt))}</Small>
+                      <Text style={[type.name, { fontSize: 13, color: colors.boneMute }]}>{formatAuDate(melbourneDate(r.startsAt))}</Text>
                     </View>
                   </Pressable>
                 );

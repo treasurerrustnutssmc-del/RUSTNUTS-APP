@@ -7902,6 +7902,91 @@
       "action": "socialCastBragVote",
       "nomination": "voting-spanner",
       "allowed": false
+    },
+    {
+      "name": "A ride from another year can't be nominated",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-2021",
+      "ride": "past-club",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A ride just after midnight in Melbourne counts for the new year",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-2021",
+      "ride": "new-years-eve",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "A ride just after midnight in Melbourne isn't the old year's",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "new-years-eve",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A story title of only non-breaking spaces",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": "  ",
+      "photo": null,
+      "story": "Chain snapped.",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A story title padded with non-breaking spaces is fine",
+      "as": "gravel",
+      "action": "socialNominate",
+      "award": "stories",
+      "ride": null,
+      "title": " Ballan ",
+      "photo": null,
+      "story": "Chain snapped.",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "An award name of 61 emoji is too long",
+      "as": "rusty",
+      "action": "socialOpenAward",
+      "kind": "ride",
+      "title": "🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆🏆",
+      "year": 2020,
+      "nominationsCloseDays": 0,
+      "votingCloseDays": 7,
+      "allowed": false
+    },
+    {
+      "name": "A member changes their vote",
+      "as": "rusty",
+      "action": "socialCastBragVote",
+      "nomination": "voting-spanner",
+      "allowed": true
+    },
+    {
+      "name": "A nomination on an award taken off can't be withdrawn",
+      "as": "gravel",
+      "action": "socialWithdrawNomination",
+      "nomination": "off-gravel",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -7942,6 +8027,13 @@
       "key": "future-club",
       "title": "Club picnic ride",
       "startsAt": "2030-01-01T00:00:00.000Z",
+      "category": "club",
+      "cancelled": false
+    },
+    {
+      "key": "new-years-eve",
+      "title": "New Year's Eve run",
+      "startsAt": "2020-12-31T13:30:00.000Z",
       "category": "club",
       "cancelled": false
     }
@@ -8894,6 +8986,15 @@
       "nominationsDays": 5,
       "votingDays": 10,
       "archived": true
+    },
+    {
+      "key": "rides-2021",
+      "kind": "ride",
+      "title": "Rides-2021",
+      "year": 2021,
+      "nominationsDays": 5,
+      "votingDays": 10,
+      "archived": false
     }
   ],
   "nominations": [
@@ -8959,6 +9060,20 @@
       "by": "gravel",
       "ride": null,
       "withdrawn": false
+    },
+    {
+      "key": "off-gravel",
+      "award": "off",
+      "by": "gravel",
+      "ride": null,
+      "withdrawn": false
+    }
+  ],
+  "bragVotes": [
+    {
+      "award": "voting",
+      "member": "rusty",
+      "nomination": "voting-gravel"
     }
   ]
 }

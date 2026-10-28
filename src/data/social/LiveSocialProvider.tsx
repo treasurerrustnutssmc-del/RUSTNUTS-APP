@@ -37,14 +37,18 @@ import {
   type Vote,
 } from '../../domain/social/brag';
 import type { MediaSource } from '../chat/chatContext';
+import type { Ride } from '../../domain/types';
 import type { PickedMedia } from '../../domain/chat';
 import { prepareUpload } from '../chat/media';
 import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
 import { toFeedItem, uploadName, type FeedJson } from '../chat/liveChat';
 import {
+  bragRideWindow,
   nominateArgs,
   openAwardArgs,
+  toBragRides,
+  type BragRideRow,
   toAwards,
   toNominations,
   toTallies,
@@ -110,6 +114,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   const [nominations, setNominations] = useState<Nomination[]>([]);
   const [myVotes, setMyVotes] = useState<Vote[]>([]);
   const [tallies, setTallies] = useState<Tally[]>([]);
+  const [bragRides, setBragRides] = useState<Ride[]>([]);
   // Signed addresses, by bucket and path.
   const urls = useRef(new Map<string, { url: Promise<string>; until: number }>());
 
@@ -143,7 +148,22 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     if (!u.error) setBuildUpdates(toBuildUpdates((u.data ?? []) as BuildUpdateRow[]));
     if (!hy.error) setHistory(toHistory((hy.data ?? []) as HistoryRow[]));
     if (!ho.error) setHonours(toHonours((ho.data ?? []) as HonourRow[]));
-    if (!aw.error) setAwards(toAwards((aw.data ?? []) as AwardRow[]));
+    if (!aw.error) {
+      const list = toAwards((aw.data ?? []) as AwardRow[]);
+      setAwards(list);
+      // The calendar only has rides from today on; ride awards need the past ones of their years.
+      const window = bragRideWindow(list);
+      if (window) {
+        const rides = await db()
+          .from('rides')
+          .select('id, title, starts_at, ends_at, all_day, location, notes, category, cancelled_at')
+          .gte('starts_at', window.from)
+          .lt('starts_at', window.to);
+        if (!rides.error) setBragRides(toBragRides((rides.data ?? []) as BragRideRow[]));
+      } else {
+        setBragRides([]);
+      }
+    }
     if (!no.error) setNominations(toNominations((no.data ?? []) as NominationRow[]));
     if (!bv.error) setMyVotes(toVotes((bv.data ?? []) as BragVoteRow[]));
     if (!bt.error) setTallies(toTallies((bt.data ?? []) as { nomination_id: string; votes: number }[]));
@@ -312,6 +332,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     nominations,
     myVotes,
     tallies,
+    bragRides,
     openAward: async (input) => {
       refuse(openAwardProblem(me, input, club.positions, today));
       const id = (await call('open_award', openAwardArgs(input))) as string;
@@ -326,7 +347,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     nominate: async (input, added) => {
       // The same checks first, with a stand-in for a photo still to go up.
       const standIn = added ? { path: `${me?.id ?? ''}/new-0`, width: added.width, height: added.height } : input.photo;
-      refuse(nominationProblem(me, { ...input, photo: standIn }, awards, nominations, club.rides, today));
+      refuse(nominationProblem(me, { ...input, photo: standIn }, awards, nominations, bragRides, today));
       const uploaded: string[] = [];
       let id: string;
       try {

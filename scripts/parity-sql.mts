@@ -717,6 +717,13 @@ for (const n of (fx as typeof fx & { nominations?: FixtureNomination[] }).nomina
   );
 }
 
+for (const v of (fx as typeof fx & { bragVotes?: { award: string; member: string; nomination: string }[] }).bragVotes ?? []) {
+  sql(
+    `insert into public.brag_votes (award_id, member_id, nomination_id) values (${id('award', v.award)}, ${id('m', v.member)}, ` +
+      `${id('nom', v.nomination)});`,
+  );
+}
+
 // The fixture's listings, with their photos uploaded by their sellers.
 type FixtureListing = { key: string; seller: string; kind: string; title: string; price: number | null; photos: string[]; takenDown: boolean };
 for (const l of (fx as typeof fx & { listings?: FixtureListing[] }).listings ?? []) {

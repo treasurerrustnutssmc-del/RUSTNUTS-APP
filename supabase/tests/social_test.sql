@@ -851,6 +851,7 @@ begin
   assert pg_temp.try_as(bea, format('select public.archive_award(%L)', rides_award)) = 'That award has already been taken off.', 'twice';
   assert pg_temp.try_as(bea, format('select public.archive_award(%L)', gen_random_uuid())) = 'No such award.', 'gone';
   assert pg_temp.try_as(nell, pg_temp.nom_sql(rides_award, ridden, '', null, '', '')) = 'That award has been taken off.', 'no nominating';
+  assert pg_temp.try_as(wendy, format('select public.withdraw_nomination(%L)', n1)) = 'That award has been taken off.', 'no withdrawing';
   assert pg_temp.count_as(nell, format('brag_nominations where award_id = %L', rides_award)) = 0, 'its nominations hidden';
 end $$;
 

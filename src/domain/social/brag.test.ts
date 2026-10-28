@@ -159,7 +159,9 @@ test('withdrawing: whoever nominated it or the board, while nominations are open
     nom({ id: 'n1', rideId: 'r-may' }),
     nom({ id: 'n2', awardId: 'voting', rideId: 'r-may' }),
     nom({ id: 'n3', rideId: 'r-may', withdrawnAt: 'x' }),
+    nom({ id: 'n4', awardId: 'off', rideId: 'r-may' }),
   ];
+  assert.equal(withdrawProblem(plain, 'n4', noms, awards, positions, today), AWARD_OFF);
   assert.equal(withdrawProblem(plain, 'n1', noms, awards, positions, today), null);
   assert.equal(withdrawProblem(boss, 'n1', noms, awards, positions, today), null);
   assert.equal(withdrawProblem(other, 'n1', noms, awards, positions, today), NOT_NOMINATOR);
