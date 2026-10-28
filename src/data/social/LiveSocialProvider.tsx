@@ -37,7 +37,7 @@ import {
   type Vote,
 } from '../../domain/social/brag';
 import type { MediaSource } from '../chat/chatContext';
-import type { Ride } from '../../domain/types';
+import type { Ride, RideRoute } from '../../domain/types';
 import type { PickedMedia } from '../../domain/chat';
 import { prepareUpload } from '../chat/media';
 import { NotAllowedError, useClub } from '../clubContext';
@@ -45,6 +45,9 @@ import { friendlyError, supabase } from '../supabase';
 import { toFeedItem, uploadName, type FeedJson } from '../chat/liveChat';
 import {
   bragRideWindow,
+  mergeRideRoutes,
+  toRideRoutes,
+  type RideRouteRow,
   nominateArgs,
   openAwardArgs,
   toBragRides,
@@ -115,6 +118,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   const [myVotes, setMyVotes] = useState<Vote[]>([]);
   const [tallies, setTallies] = useState<Tally[]>([]);
   const [bragRides, setBragRides] = useState<Ride[]>([]);
+  const [pastRideRoutes, setPastRideRoutes] = useState<RideRoute[]>([]);
   // Signed addresses, by bucket and path.
   const urls = useRef(new Map<string, { url: Promise<string>; until: number }>());
 
@@ -126,7 +130,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     }
     // Each table on its own: one that isn't live yet (or a dropped connection) leaves that part
     // empty, not the rest broken.
-    const [b, s, m, v, l, u, hy, ho, aw, no, bv, bt] = await Promise.all([
+    const [b, s, m, v, l, u, hy, ho, aw, no, bv, bt, rr] = await Promise.all([
       db().from('member_birthdays').select('member_id, month, day'),
       db().from('member_skills').select('member_id, skills'),
       db().from('mechanics').select('id, name, suburb, phone, website, speciality, notes, added_by, added_at, archived_at'),
@@ -139,6 +143,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       db().from('brag_nominations').select('id, award_id, nominated_by, ride_id, title, photo, story, reason, nominated_at, withdrawn_at'),
       db().from('brag_votes').select('award_id, member_id, nomination_id'),
       db().rpc('brag_tallies'),
+      db().from('ride_routes').select('ride_id, route_id'),
     ]);
     if (!b.error) setBirthdays(toBirthdays((b.data ?? []) as BirthdayRow[]));
     if (!s.error) setSkillsList(toSkills((s.data ?? []) as SkillsRow[]));
@@ -166,6 +171,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     }
     if (!no.error) setNominations(toNominations((no.data ?? []) as NominationRow[]));
     if (!bv.error) setMyVotes(toVotes((bv.data ?? []) as BragVoteRow[]));
+    if (!rr.error) setPastRideRoutes(toRideRoutes((rr.data ?? []) as RideRouteRow[]));
     if (!bt.error) setTallies(toTallies((bt.data ?? []) as { nomination_id: string; votes: number }[]));
     setReady(true);
   }, [approved]);
@@ -333,6 +339,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     myVotes,
     tallies,
     bragRides,
+    allRideRoutes: mergeRideRoutes(pastRideRoutes, club.rideRoutes ?? []),
     openAward: async (input) => {
       refuse(openAwardProblem(me, input, club.positions, today));
       const id = (await call('open_award', openAwardArgs(input))) as string;

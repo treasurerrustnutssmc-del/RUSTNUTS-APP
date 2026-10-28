@@ -366,7 +366,31 @@ recording works in the demo too (the note stays on the phone).
 each refusal (with an uploaded file in the fixture), SQL tests for the file checks, the feeds and
 the chat list flag.
 
-## PR 9
+## PR 9: Badges
 
-Gets its own short design section added to this file before it's built, following the same shape
-(what members see, rules, database, demo, tests). The table above fixes the order and scope.
+**What members see.** A "Badges" card on the Me screen and on each member's page (approved
+viewers only, since they already see who came to what). Four tracks, each a row with a stencil
+count, the badge earned so far and a bar towards the next:
+- **Rides:** club rides checked in to. First ride, 10, 25, 50, 100.
+- **Big 4s:** Big 4 rides checked in to that counted for them (the whole club's, or their
+  chapter's). First Big 4, 4, 10.
+- **Kilometres:** the length of the route of each ride checked in to (rides with no route add
+  nothing). 1,000, 5,000, 10,000, 25,000 km.
+- **States ridden:** the states and territories those routes pass through, shown as chips. 2, 3, 5,
+  all 8.
+Nothing is posted anywhere; nobody is told when someone earns one.
+
+**Rules** (`src/domain/social/badges.ts`, pure). A ride counts once however many check-ins it had.
+Only check-ins count (an RSVP isn't riding). States come from the route's line and stops, read
+against simplified borders (straight lines and a few river points), so a ride hugging a border can
+be off by a few kilometres; that's fine for a badge.
+
+**Data.** No new tables and no paste. Check-ins, attendance, Big 4s and routes are already loaded.
+The one gap is which route a past ride used: the calendar only sends rides from today on, so the
+social provider also reads `ride_routes` (approved members already can).
+
+**Demo.** Spanner (the Member persona) gets a season of past rides, including a Murray run into
+NSW and a Coorong run into South Australia, so every track has something in it.
+
+**Tests.** The tiers and progress, each count (once per ride, check-ins only, Big 4s for their
+chapter only, routes' kilometres), and the state finder against towns in and near every border.

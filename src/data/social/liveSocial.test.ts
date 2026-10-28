@@ -118,3 +118,13 @@ test('the rides behind ride awards: their years, a day either side', async () =>
     '2026-05-01T00:00:00.000Z',
   );
 });
+
+test('badges: every ride’s route, past ones too, merged with the calendar’s', async () => {
+  const { toRideRoutes, mergeRideRoutes } = await import('./liveSocial');
+  assert.deepEqual(toRideRoutes([{ ride_id: 'r1', route_id: 'a' }, { ride_id: 'r2', route_id: null }]), [{ rideId: 'r1', routeId: 'a' }], 'a cleared route is none');
+  assert.deepEqual(
+    mergeRideRoutes([{ rideId: 'r1', routeId: 'a' }], [{ rideId: 'r1', routeId: 'b' }, { rideId: 'r2', routeId: 'c' }]),
+    [{ rideId: 'r1', routeId: 'b' }, { rideId: 'r2', routeId: 'c' }],
+    'the calendar’s is the fresher one',
+  );
+});

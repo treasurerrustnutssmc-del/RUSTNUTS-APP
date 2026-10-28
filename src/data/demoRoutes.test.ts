@@ -31,10 +31,10 @@ const add = (over: Partial<RouteInput> = {}): RouteInput => ({
 });
 const files = () => new Map(Object.entries(DEMO_ROUTE_GPX));
 
-test('the demo has three routes, filled in by the GPX reader from their files', () => {
+test('the demo has five routes (two of them weekenders out of Victoria, for badges), filled in by the GPX reader from their files', () => {
   const routes = DEMO_DATA.routes ?? [];
-  assert.equal(routes.length, 3);
-  assert.deepEqual(routes.map((r) => r.chapterId).sort(), ['ch-north', 'ch-west', null].sort());
+  assert.equal(routes.length, 5);
+  assert.deepEqual(routes.map((r) => r.chapterId).sort(), ['ch-north', 'ch-west', null, null, null].sort());
   for (const r of routes) {
     const text = DEMO_ROUTE_GPX[r.id];
     assert.ok(text, `${r.name} has a file`);
