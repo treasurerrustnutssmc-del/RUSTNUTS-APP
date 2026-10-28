@@ -58,6 +58,14 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   // Ride planning extras: its own queries (so ride_calendar() stays as it is), read alongside the rest.
   const planningLoad = loadPlanning(db);
   planningLoad.catch(() => undefined); // Awaited below; this only keeps an early failure elsewhere from leaving it unhandled.
+  // The club counts' roster places nobody has claimed yet: none rather than blocking the app.
+  const unclaimedLoad = db.rpc('unclaimed_roster_counts').then(
+    (r) => {
+      if (r.error) console.warn('unclaimed roster counts:', r.error.message);
+      return r.error ? [] : (r.data ?? []);
+    },
+    () => [],
+  );
   const [
     members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs, bus,
   ] = await Promise.all([
@@ -145,11 +153,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     return r?.error ? [] : (r?.data ?? []);
   };
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
-  // The club counts' roster places nobody has claimed yet: none rather than blocking the app.
-  const unclaimed = await db.rpc('unclaimed_roster_counts').then(
-    (r) => rowsOf(r, 'unclaimed roster counts'),
-    () => [],
-  );
+  const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({

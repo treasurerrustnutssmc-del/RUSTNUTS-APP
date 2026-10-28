@@ -22,7 +22,8 @@ from (values
   ('w2@example.com', 'west', 'full', null),
   ('w3@example.com', 'west', 'fng', null),
   ('n1@example.com', 'north', 'fng', null),
-  ('claimed@example.com', 'west', 'full', '00000000-0000-0000-0000-0000000000b3')
+  ('claimed@example.com', 'west', 'full', '00000000-0000-0000-0000-0000000000b3'),
+  ('JEFF@example.com', 'west', 'full', null)  -- already a member before the roster went in
 ) as v(email, chapter, status, claimed)
 join chapters c on c.slug = v.chapter;
 
@@ -40,7 +41,7 @@ end $$;
 do $$
 begin
   assert (select n from pg_temp.counts_as('00000000-0000-0000-0000-0000000000b1') where chapter = 'west' and status = 'full') = 2,
-    'two unclaimed West Full places; the claimed one is left out';
+    'two unclaimed West Full places; the claimed one and the existing member are left out';
   assert (select n from pg_temp.counts_as('00000000-0000-0000-0000-0000000000b1') where chapter = 'west' and status = 'fng') = 1;
   assert (select n from pg_temp.counts_as('00000000-0000-0000-0000-0000000000b1') where chapter = 'north' and status = 'fng') = 1;
   assert (select count(*) from pg_temp.counts_as('00000000-0000-0000-0000-0000000000b1')) = 3, 'one row per chapter and status';
