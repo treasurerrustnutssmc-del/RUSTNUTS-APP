@@ -1,14 +1,43 @@
 // The Notifications section on Me. Ride reminders work now (the phone sets them itself); the rest
 // are pushes from the club, which start when the app launches, so members can choose ahead of time.
 
-import React, { useRef, useState } from 'react';
+import * as Notifications from 'expo-notifications';
+import React, { useEffect, useRef, useState } from 'react';
+import { AppState, Linking, Platform } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { DEFAULT_PREFS } from '../domain/notifications';
+import { DEFAULT_PREFS, phoneNotificationState } from '../domain/notifications';
 import type { NotificationPrefs } from '../domain/types';
 import { space } from '../theme';
-import { Card, Notice, SectionTitle, Small, Stack, Toggle } from '../ui/primitives';
+import { Button, Card, Notice, SectionTitle, Small, Stack, Toggle } from '../ui/primitives';
+
+/** The phone's own notification permission, read again whenever the app comes back to the front. */
+function usePhonePermission() {
+  const [state, setState] = useState<ReturnType<typeof phoneNotificationState>>('unknown');
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let live = true;
+    const read = () =>
+      Notifications.getPermissionsAsync().then(
+        (p) => live && setState(phoneNotificationState(p)),
+        () => undefined,
+      );
+    read();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && read());
+    return () => {
+      live = false;
+      sub.remove();
+    };
+  }, []);
+  const ask = () =>
+    Notifications.requestPermissionsAsync().then(
+      (p) => setState(phoneNotificationState(p)),
+      () => undefined,
+    );
+  return { state, ask };
+}
 
 export function NotificationSettings() {
+  const phone = usePhonePermission();
   const { data, level, saveNotificationPrefs } = useClub();
   const saved = data.notificationPrefs ?? DEFAULT_PREFS;
   // Shows the change straight away, and goes back if it doesn't save.
@@ -38,6 +67,21 @@ export function NotificationSettings() {
     <Stack gap={space.sm}>
       <SectionTitle title="Notifications" />
       <Card>
+        {phone.state === 'blocked' ? (
+          <>
+            <Notice tone="warn" title="Notifications are off on this phone">
+              Nothing below will reach you, reminders included, until you turn them on for Rustnuts in the phone’s settings.
+            </Notice>
+            <Button label="Open phone settings" kind="secondary" icon="settings-outline" onPress={() => Linking.openSettings().catch(() => undefined)} />
+          </>
+        ) : phone.state === 'ask' ? (
+          <>
+            <Notice tone="warn" title="Notifications aren’t on yet">
+              Nothing below will reach you until you allow notifications.
+            </Notice>
+            <Button label="Allow notifications" kind="secondary" icon="notifications-outline" onPress={phone.ask} />
+          </>
+        ) : null}
         <Toggle
           label="Ride reminders"
           description="Before rides you’re going to: 2 hours before, or 7 am on all-day rides."

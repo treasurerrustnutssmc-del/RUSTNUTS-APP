@@ -265,7 +265,12 @@ export function AttachmentStrip({ items, onRemove }: { items: Attachment[]; onRe
       {items.map((a, i) => (
         <View key={i} style={styles.stripItem}>
           <Image source={{ uri: a.kind === 'gif' ? a.url : a.uri }} style={StyleSheet.absoluteFill} contentFit="cover" autoplay={false} />
-          {a.kind === 'video' ? <Ionicons name="videocam" size={16} color={colors.bone} style={styles.stripMark} /> : null}
+          {/* A centred play mark on a dark disc, so it shows on any thumbnail (or on none, before the phone makes one). */}
+          {a.kind === 'video' ? (
+            <View style={styles.stripPlay} pointerEvents="none">
+              <Ionicons name="play" size={16} color={colors.bone} accessibilityLabel="Video" />
+            </View>
+          ) : null}
           {a.kind === 'gif' ? <Text style={[styles.stripMark, styles.gifMark]}>GIF</Text> : null}
           <Pressable onPress={() => onRemove(i)} accessibilityRole="button" accessibilityLabel="Take it out" style={styles.stripRemove} hitSlop={8}>
             <Ionicons name="close" size={14} color={colors.bone} />
@@ -388,6 +393,10 @@ const styles = StyleSheet.create({
   strip: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm },
   stripItem: { width: 64, height: 64, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.steel },
   stripMark: { position: 'absolute', left: 4, bottom: 4 },
+  stripPlay: {
+    position: 'absolute', left: 18, top: 18, width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center', paddingLeft: 2, backgroundColor: 'rgba(17,16,16,0.72)',
+  },
   gifMark: { fontFamily: fonts.stencil, fontSize: 11, color: colors.bone, backgroundColor: 'rgba(17,16,16,0.72)', paddingHorizontal: 4, borderRadius: 2 },
   stripRemove: {
     position: 'absolute', top: 2, right: 2, width: 24, height: 24, borderRadius: 12,
