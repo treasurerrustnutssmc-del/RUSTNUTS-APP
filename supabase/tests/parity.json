@@ -3149,6 +3149,79 @@
       "allowed": false
     },
     {
+      "name": "A voice note on its own",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 8400,
+      "allowed": true
+    },
+    {
+      "name": "A voice note of two minutes exactly",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "chapter:west",
+      "body": "",
+      "voice": 120000,
+      "allowed": true
+    },
+    {
+      "name": "A voice note with words",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "Listen to this",
+      "voice": 8400,
+      "allowed": false
+    },
+    {
+      "name": "A voice note with a GIF",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 8400,
+      "gifs": 1,
+      "allowed": false
+    },
+    {
+      "name": "A voice note with no length",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": null,
+      "allowed": false
+    },
+    {
+      "name": "A voice note over two minutes",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 120001,
+      "allowed": false
+    },
+    {
+      "name": "An applicant sends a voice note",
+      "as": "dylan",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "",
+      "voice": 8400,
+      "allowed": false
+    },
+    {
+      "name": "A voice note in a chapter chat that isn't yours",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "chapter:north",
+      "body": "",
+      "voice": 8400,
+      "allowed": false
+    },
+    {
       "name": "A member removes their own message",
       "as": "spanner",
       "action": "chatRemove",

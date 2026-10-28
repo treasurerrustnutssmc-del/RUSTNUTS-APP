@@ -572,3 +572,60 @@ begin
   update private.link_previews set fetched_at = now() - interval '8 days';
   assert pg_temp.value_as(wes, $q$select public.link_preview('https://example.com/')->>'found'$q$) = 'false', 'a week on, fetched again';
 end $$;
+
+\echo 'Voice notes: on their own, up to two minutes, an .m4a or .webm file, never in the photo feeds'
+do $$
+declare
+  wes constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  club uuid := pg_temp.chat('club');
+  wall uuid := pg_temp.chat('00000000-0000-0000-0000-0000000000e2');
+  upload text := $q$insert into storage.objects (bucket_id, name, owner, owner_id) values ('chat-media', %L, %L, %L)$q$;
+  send text := 'select public.send_message(%L, %L, %L::jsonb, null)';
+  voice jsonb;
+  photos int;
+  walled int;
+  m uuid;
+begin
+  assert (select allowed_mime_types @> array['audio/mp4', 'audio/webm'] from storage.buckets where id = 'chat-media'), 'the bucket takes recordings';
+  assert (select cardinality(allowed_mime_types) from storage.buckets where id = 'chat-media') = 7, 'added once, the photo and video types kept';
+  perform pg_temp.try_as(wes, format(upload, club || '/' || f, wes, wes))
+  from unnest(array['v1.m4a', 'v2.webm', 'v3.ogg', 'v4.m4a', 'v5.m4a', 'p.jpg', 'still.jpg']) f;
+  perform pg_temp.try_as(wes, format(upload, wall || '/w.m4a', wes, wes));
+  photos := jsonb_array_length(pg_temp.value_as(wes, 'select public.club_photos(null, 200)')::jsonb);
+  walled := pg_temp.value_as(wes, $q$select jsonb_array_length(public.ride_wall('00000000-0000-0000-0000-0000000000e2')->'media')$q$)::int;
+
+  voice := jsonb_build_object('path', club || '/v1.m4a', 'kind', 'voice', 'durationMs', 8400.4);
+  assert pg_temp.try_as(wes, format(send, club, 'listen', jsonb_build_array(voice))) = 'A voice note goes on its own.', 'no words with it';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice, jsonb_build_object('path', club || '/p.jpg', 'kind', 'photo'))))
+    = 'A voice note goes on its own.', 'no photos with it';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice - 'durationMs'))) = 'That voice note didn’t record properly. Try again.', 'it has a length';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || '{"durationMs": 0}'))) = 'That voice note didn’t record properly. Try again.', 'more than none';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || '{"durationMs": "long"}'))) = 'That voice note didn’t record properly. Try again.', 'a number';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || '{"durationMs": 120001}'))) = 'Voice notes can be up to 2 minutes.', 'two minutes at most';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || jsonb_build_object('path', club || '/v3.ogg'))))
+    = 'That photo didn’t upload properly. Try again.', 'an .m4a or .webm file';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || jsonb_build_object('posterPath', club || '/still.jpg'))))
+    = 'That photo didn’t upload properly. Try again.', 'no still';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || jsonb_build_object('path', club || '/ghost.m4a'))))
+    = 'That photo didn’t upload properly. Try again.', 'a file that''s there';
+  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000d7', format(send, club, '', jsonb_build_array(voice))) = 'Only approved members can do that.', 'members only';
+
+  m := pg_temp.value_as(wes, format(send, club, '  ', jsonb_build_array(voice)))::uuid;
+  assert (select kind::text || ' ' || duration_ms from message_media where message_id = m) = 'voice 8400', 'sent, its length kept';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice))) = 'That photo didn’t upload properly. Try again.', 'a recording goes in once';
+  assert pg_temp.try_as(wes, format(send, club, '', jsonb_build_array(voice || jsonb_build_object('path', club || '/v2.webm', 'durationMs', 120000)))) is null, 'a WebM of two minutes exactly';
+  assert pg_temp.value_as(wes, $q$select f->'last'->>'voice' from jsonb_array_elements(public.chat_list()) f where f->>'kind' = 'club'$q$) = 'true', 'the list says so';
+  perform pg_temp.value_as(wes, format(send, club, 'words again', '[]'));
+  assert pg_temp.value_as(wes, $q$select f->'last'->>'voice' from jsonb_array_elements(public.chat_list()) f where f->>'kind' = 'club'$q$) = 'false', 'and not for words';
+
+  perform pg_temp.value_as(wes, format(send, wall, '', jsonb_build_array(jsonb_build_object('path', wall || '/w.m4a', 'kind', 'voice', 'durationMs', 3000))));
+  assert jsonb_array_length(pg_temp.value_as(wes, 'select public.club_photos(null, 200)')::jsonb) = photos, 'not in Photos';
+  assert pg_temp.value_as(wes, $q$select jsonb_array_length(public.ride_wall('00000000-0000-0000-0000-0000000000e2')->'media')$q$)::int = walled, 'not on the ride wall';
+  assert not exists (select 1 from jsonb_array_elements(pg_temp.value_as(wes, 'select public.ride_walls()')::jsonb) w
+                     where w->'cover'->>'kind' = 'voice'), 'never a cover';
+
+  -- One from a year ago today, as if it had been sent then.
+  update messages set created_at = now() - interval '1 year' where id = m;
+  assert not exists (select 1 from jsonb_array_elements(pg_temp.value_as(wes, 'select public.photos_on_this_day()')::jsonb) f where f->>'kind' = 'voice'),
+    'not in On this day';
+end $$;

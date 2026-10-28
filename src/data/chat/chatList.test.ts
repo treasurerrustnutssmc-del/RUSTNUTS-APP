@@ -47,6 +47,18 @@ test('the list shows the newest message and counts what others wrote since you l
   assert.equal(clubChat.title, 'Whole club');
 });
 
+test('the list says when the newest message is a voice note', () => {
+  const chat = chatWith({
+    messages: [
+      msg('v', 'chapter:west', 'rusty', '2026-10-24T09:00:00.000Z', { body: null, media: [photo('v', 0, 'voice')] }),
+      msg('p', 'club', 'rusty', '2026-10-24T09:00:00.000Z', { body: null, media: [photo('p')] }),
+    ],
+  });
+  const list = listFor(chat, club, as('spanner'), '2026-10-24');
+  assert.equal(list.find((s) => s.conversation.id === 'chapter:west')?.last?.voice, true);
+  assert.equal(list.find((s) => s.conversation.id === 'club')?.last?.voice, false);
+});
+
 test('writing in a chat counts as having read it', () => {
   const base = chatWith();
   const chat = { ...base, messages: [...base.messages, msg('club-me', 'club', 'spanner', '2026-10-24T00:09:00.000Z')] };
@@ -73,7 +85,7 @@ test('private chats come last, the busiest first', () => {
   assert.deepEqual(sorted.map((s) => s.conversation.id), ['club', 'd2', 'd1']);
 });
 
-test('the photo feed: newest first, whole messages, never private chats, GIFs, removed messages or blocked people', () => {
+test('the photo feed: newest first, whole messages, never private chats, GIFs, voice notes, removed messages or blocked people', () => {
   const chat = chatWith({
     messages: [
       msg('a', 'club', 'rusty', '2026-10-24T01:00:00.000Z', { media: [photo('a', 0), photo('a', 1)] }),
@@ -83,6 +95,7 @@ test('the photo feed: newest first, whole messages, never private chats, GIFs, r
       msg('e', 'club', 'crank', '2026-10-24T05:00:00.000Z', { media: [photo('e')], removedAt: '2026-10-24T06:00:00.000Z' }),
       msg('f', 'chapter:north', 'crank', '2026-10-24T07:00:00.000Z', { media: [photo('f')] }),
       msg('g', 'club', 'gravel', '2026-10-24T08:00:00.000Z', { media: [photo('g')] }),
+      msg('h', 'club', 'crank', '2026-10-24T09:00:00.000Z', { media: [photo('h', 0, 'voice')] }),
     ],
     blocks: [{ blockerId: 'torque', blockedId: 'gravel' }],
   });
@@ -100,6 +113,8 @@ test('ride walls: rides with photos, newest ride first, each with its newest pho
       msg('b', 'ride:soon', 'spanner', '2026-10-27T02:00:00.000Z', { media: [photo('b'), photo('b', 1)] }),
       msg('c', 'ride:past-club', 'rusty', '2020-01-01T02:00:00.000Z', { media: [photo('c')] }),
       msg('d', 'ride:future-west', 'rusty', '2026-10-27T03:00:00.000Z', { body: 'no photos' }),
+      msg('e', 'ride:soon', 'crank', '2026-10-27T04:00:00.000Z', { media: [photo('e', 0, 'voice')] }),
+      msg('f', 'ride:future-west', 'crank', '2026-10-27T04:00:00.000Z', { media: [photo('f', 0, 'voice')] }),
     ],
   });
   const walls = rideWallsFrom(chat, club, as('crank'));

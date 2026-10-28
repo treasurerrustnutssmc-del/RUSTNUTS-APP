@@ -13,7 +13,9 @@ import { DEMO_MEDIA, DEMO_PAST_RIDES, DEMO_PREVIEWS, demoChatData } from './demo
 const toNewMedia = (a: Attachment): Omit<MessageMedia, 'id' | 'messageId' | 'position'> =>
   a.kind === 'gif'
     ? { kind: 'gif', path: a.url, posterPath: null, width: a.width, height: a.height, durationMs: null }
-    : { kind: a.kind, path: a.uri, posterPath: null, width: a.width, height: a.height, durationMs: a.durationMs };
+    : a.kind === 'voice'
+      ? { kind: 'voice', path: a.uri, posterPath: null, width: 0, height: 0, durationMs: a.durationMs }
+      : { kind: a.kind, path: a.uri, posterPath: null, width: a.width, height: a.height, durationMs: a.durationMs };
 
 export function DemoChatProvider({ children }: { children: React.ReactNode }) {
   const { data, me, today } = useClub();

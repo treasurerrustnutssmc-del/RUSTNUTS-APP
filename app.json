@@ -44,7 +44,7 @@
         {
           "photosPermission": "Rustnuts uses your photos so you can share them in club chats.",
           "cameraPermission": "Rustnuts uses your camera so you can take photos and videos for club chats.",
-          "microphonePermission": "Rustnuts uses your microphone for ride comms, and to record sound with videos for club chats."
+          "microphonePermission": "Rustnuts uses your microphone for ride comms, and to record voice notes and the sound with videos for club chats."
         }
       ],
       [
@@ -111,6 +111,13 @@
           "android": {
             "extraProguardRules": "# LiveKit's WebRTC looks these classes up by name when it loads; its own rules keep the unprefixed package.\n-keep class livekit.org.jni_zero.** { *; }\n-keep class livekit.org.webrtc.** { *; }"
           }
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Rustnuts uses your microphone for ride comms, and to record voice notes and the sound with videos for club chats.",
+          "recordAudioAndroid": true
         }
       ]
     ],

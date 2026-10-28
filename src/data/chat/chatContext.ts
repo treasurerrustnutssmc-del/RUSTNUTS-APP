@@ -10,7 +10,11 @@ export interface ChatSummary {
   title: string;
   ride: Ride | null;
   /** The newest message (removed ones included, so the list can say so). */
-  last: { id: string; authorId: string; body: string | null; createdAt: string; removed: boolean; mediaCount: number } | null;
+  last: {
+    id: string; authorId: string; body: string | null; createdAt: string; removed: boolean; mediaCount: number;
+    /** It's a voice note (and still there). */
+    voice: boolean;
+  } | null;
   unread: number;
 }
 
@@ -36,7 +40,17 @@ export interface GifPick {
   height: number;
 }
 
-export type Attachment = PickedMedia | GifPick;
+/** A voice note just recorded on the phone (or in the browser), before it's uploaded. */
+export interface VoiceRecording {
+  kind: 'voice';
+  uri: string;
+  /** From the recorder, not the file: Chrome's recordings carry no length. */
+  durationMs: number;
+  /** The recording's own type on the web; phones record AAC in an .m4a file. */
+  mimeType: string | null;
+}
+
+export type Attachment = PickedMedia | GifPick | VoiceRecording;
 
 export interface ReportView {
   id: string;

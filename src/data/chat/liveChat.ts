@@ -56,7 +56,8 @@ export interface ChatJson {
 
 export interface ChatListJson extends ChatJson {
   ride: RideJson | null;
-  last: { id: string; author_id: string; body: string | null; created_at: string; removed: boolean; media_count: number } | null;
+  // voice: from the voice notes paste on; before it, there are none.
+  last: { id: string; author_id: string; body: string | null; created_at: string; removed: boolean; media_count: number; voice?: boolean } | null;
   unread: number;
 }
 
@@ -119,7 +120,7 @@ export function toSummaryParts(c: ChatListJson): Omit<ChatSummary, 'title'> {
     ride: c.ride ? toRide(c.ride) : null,
     last: c.last && {
       id: c.last.id, authorId: c.last.author_id, body: c.last.body, createdAt: instant(c.last.created_at),
-      removed: c.last.removed, mediaCount: c.last.media_count,
+      removed: c.last.removed, mediaCount: c.last.media_count, voice: c.last.voice === true,
     },
     unread: c.unread,
   };
@@ -161,7 +162,18 @@ export function goneMedia(have: Message[], incoming: Message[]): string[] {
 
 const ENDINGS: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov',
+  'audio/mp4': 'm4a', 'audio/webm': 'webm',
 };
+
+/** What a voice note goes up as: phones and Safari record AAC (.m4a), Chrome and Firefox WebM. Null for
+ *  anything else, which the club's storage won't take. */
+export function voiceUploadType(r: { uri: string; mimeType: string | null }): 'audio/mp4' | 'audio/webm' | null {
+  const type = r.mimeType?.split(';')[0].trim().toLowerCase();
+  if (type === 'audio/mp4' || type === 'audio/x-m4a' || type === 'audio/aac') return 'audio/mp4';
+  if (type === 'audio/webm') return 'audio/webm';
+  if (!type && /\.m4a$/i.test(r.uri)) return 'audio/mp4';
+  return null;
+}
 
 /** Where an upload goes in the chat-media bucket: the chat's folder, a fresh random name. */
 export function uploadName(chatId: string, contentType: string): string {

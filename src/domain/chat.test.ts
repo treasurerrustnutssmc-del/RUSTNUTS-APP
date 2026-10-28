@@ -12,6 +12,7 @@ import {
   findLinks,
   groupMessages,
   mediaProblem,
+  mediaSummary,
   postProblem,
   reactProblem,
   readProblem,
@@ -102,6 +103,30 @@ test('what a message needs', () => {
   assert.equal(postProblem(westie, club, 'pics', 10, data), null);
   assert.equal(postProblem(westie, club, 'pics', 11, data), 'Up to 10 photos or videos at a time.');
   assert.equal(postProblem(northie, west, 'hi', 0, data), 'That chat is for West chapter members.');
+});
+
+test('a voice note goes on its own, up to two minutes', () => {
+  const voice = (durationMs: number | null) => ({ kind: 'voice' as const, durationMs });
+  const pic = { kind: 'photo' as const, durationMs: null };
+  assert.equal(postProblem(westie, club, '', [voice(12_000)], data), null);
+  assert.equal(postProblem(westie, club, '', [voice(120_000)], data), null, 'two minutes exactly');
+  assert.equal(postProblem(westie, club, 'listen', [voice(12_000)], data), 'A voice note goes on its own.');
+  assert.equal(postProblem(westie, club, '', [voice(12_000), pic], data), 'A voice note goes on its own.');
+  assert.equal(postProblem(westie, club, '', [voice(12_000), voice(3_000)], data), 'A voice note goes on its own.');
+  assert.equal(postProblem(westie, club, '  ', [voice(12_000)], data), null, 'blank words are no words');
+  assert.equal(postProblem(westie, club, '', [voice(null)], data), 'That voice note didn’t record properly. Try again.');
+  assert.equal(postProblem(westie, club, '', [voice(0)], data), 'That voice note didn’t record properly. Try again.');
+  assert.equal(postProblem(westie, club, '', [voice(120_001)], data), 'Voice notes can be up to 2 minutes.');
+  assert.equal(postProblem(westie, club, 'x'.repeat(4001), [voice(1_000)], data), 'Keep it under 4,000 characters.', 'the older checks come first');
+  assert.equal(postProblem(northie, west, '', [voice(1_000)], data), 'That chat is for West chapter members.');
+  assert.equal(postProblem(westie, club, '', [pic, pic], data), null, 'photos as before');
+});
+
+test('what a message with no words is called', () => {
+  assert.equal(mediaSummary(1, false), 'Photo');
+  assert.equal(mediaSummary(3, false), '3 photos');
+  assert.equal(mediaSummary(1, true), 'Voice note');
+  assert.equal(mediaSummary(0, false), '');
 });
 
 test('who can remove a message', () => {
