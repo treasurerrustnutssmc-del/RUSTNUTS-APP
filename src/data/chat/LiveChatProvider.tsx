@@ -140,8 +140,10 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
       timer = setTimeout(() => {
         const open = [...openChats.current.keys()];
         for (const chatId of open) loadPage(chatId).catch(() => undefined);
-        // Open chats are marked read before the list is fetched, so their counts don't come back.
-        Promise.all(open.map(markRead)).then(() => loadList()).catch(() => undefined);
+        // Open chats are marked read before the list is fetched, so their counts don't come back. Not
+        // while the app is in the background: nobody's looking, and the club would hold back pushes.
+        const looking = AppState.currentState === 'active' ? open : [];
+        Promise.all(looking.map(markRead)).then(() => loadList()).catch(() => undefined);
       }, 300);
     };
     // Also catch up whenever the feed (re)connects and when the app comes back to the front, since

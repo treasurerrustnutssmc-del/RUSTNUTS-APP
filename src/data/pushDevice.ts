@@ -21,7 +21,8 @@ export async function registerThisDevice(): Promise<void> {
     let permission = await Notifications.getPermissionsAsync();
     // Ask once, so chat can reach every member, not just those going to a ride. After a no it's up to
     // the phone's settings.
-    if (!permission.granted && permission.canAskAgain && !(await AsyncStorage.getItem(ASKED))) {
+    // Only if never answered: after a no from the ride reminders' ask, asking again could make it final.
+    if (permission.status === 'undetermined' && !(await AsyncStorage.getItem(ASKED))) {
       await AsyncStorage.setItem(ASKED, '1');
       permission = await Notifications.requestPermissionsAsync();
     }

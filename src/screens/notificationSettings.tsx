@@ -66,7 +66,7 @@ export function NotificationSettings() {
         ) : null}
         <Toggle
           label="Chat messages"
-          description="New messages in your chats. You won’t be buzzed for a chat you’ve had open in the last minute."
+          description="New messages in your chats, unless you’ve just had that chat open."
           value={prefs.chatMessages}
           onChange={change('chatMessages')}
         />

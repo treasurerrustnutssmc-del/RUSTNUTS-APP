@@ -11,6 +11,18 @@ import type { RootParams } from '../navigation/types';
 
 // A tap is opened once, even if the screens are rebuilt (someone signs in again) and ask again.
 const opened = new Set<string>();
+// When each tap happened (as far as the app knows: from when it started). A tap made while signed
+// out is stale by the time someone signs in, so it's dropped after a few minutes.
+const tappedAt = new Map<string, number>();
+const FRESH_MS = 5 * 60_000;
+function noteTap(r: Notifications.NotificationResponse | null) {
+  const id = r?.notification.request.identifier;
+  if (id && !tappedAt.has(id)) tappedAt.set(id, Date.now());
+}
+if (Platform.OS !== 'web') {
+  noteTap(Notifications.getLastNotificationResponse());
+  Notifications.addNotificationResponseReceivedListener(noteTap);
+}
 
 function TapListener() {
   const navigation = useNavigation<NativeStackNavigationProp<RootParams>>();
@@ -21,6 +33,7 @@ function TapListener() {
     if (opened.has(id)) return;
     opened.add(id);
     Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    if (Date.now() - (tappedAt.get(id) ?? Date.now()) > FRESH_MS) return;
     const target = notificationTarget(response.notification.request.content.data);
     if (target) navigation.navigate(target.screen, target.params as never);
   }, [response, navigation]);

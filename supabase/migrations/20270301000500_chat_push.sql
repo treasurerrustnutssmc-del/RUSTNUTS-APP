@@ -122,11 +122,16 @@ begin
           select 1 from public.chat_reads r
           where r.conversation_id = c.id and r.member_id = d.member_id and r.read_at > now() - interval '1 minute')
     loop
-      if private.member_can_read_chat(who, c.id) then
-        insert into private.push_outbox (member_id, dedupe_key, title, body, data)
-        values (who, 'chat:' || new.id, t, b, jsonb_build_object('kind', 'chat', 'chatId', c.id))
-        on conflict (member_id, dedupe_key) do nothing;
-      end if;
+      begin
+        if private.member_can_read_chat(who, c.id) then
+          insert into private.push_outbox (member_id, dedupe_key, title, body, data)
+          values (who, 'chat:' || new.id, t, b, jsonb_build_object('kind', 'chat', 'chatId', c.id))
+          on conflict (member_id, dedupe_key) do nothing;
+        end if;
+      exception when others then
+        -- One member's problem doesn't cost everyone else the notification.
+        raise warning 'chat notification for message % to % not written: %', new.id, who, sqlerrm;
+      end;
     end loop;
   exception when others then
     raise warning 'chat notification for message % not written: %', new.id, sqlerrm;

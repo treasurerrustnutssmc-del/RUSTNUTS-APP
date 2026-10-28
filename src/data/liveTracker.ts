@@ -102,7 +102,7 @@ export function noticeAlerts(state: LiveState, fix: Fix | null, meId: string): P
     for (const a of fresh) {
       const { title, body } = alertNotice(a, fix);
       await Notifications.scheduleNotificationAsync({
-        content: { title, body, sound: true, data: { rideId: state.rideId }, priority: Notifications.AndroidNotificationPriority.MAX },
+        content: { title, body, sound: true, data: { kind: 'live-alert', rideId: state.rideId }, priority: Notifications.AndroidNotificationPriority.MAX },
         trigger: Platform.OS === 'android' ? { channelId: CHANNEL } : null,
       }).catch(() => {});
     }
