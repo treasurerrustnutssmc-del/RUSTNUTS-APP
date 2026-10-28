@@ -7338,6 +7338,51 @@
       "action": "socialArchiveHonour",
       "honour": "no-such-honour",
       "allowed": false
+    },
+    {
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "precision": "day",
+      "story": "",
+      "name": "A timeline title of 80 emoji is fine",
+      "happenedOn": "2019-05-11",
+      "title": "🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍",
+      "allowed": true
+    },
+    {
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "precision": "day",
+      "story": "",
+      "name": "A timeline entry on a leap day",
+      "happenedOn": "2020-02-29",
+      "title": "Leap ride",
+      "allowed": true
+    },
+    {
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "precision": "day",
+      "story": "",
+      "name": "No 29 February in 2021",
+      "happenedOn": "2021-02-29",
+      "title": "x",
+      "allowed": false
+    },
+    {
+      "name": "A typed name of 80 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": null,
+      "who": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": true
     }
   ],
   "chapters": [

@@ -81,7 +81,7 @@ function isRealDate(iso: string): boolean {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return false;
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  if (mo < 1 || mo > 12 || d < 1) return false;
+  if (y < 1 || mo < 1 || mo > 12 || d < 1) return false;
   return d <= new Date(Date.UTC(y, mo, 0)).getUTCDate();
 }
 
@@ -170,7 +170,9 @@ export function honourProblem(
   }
   const c = cleanHonour(input);
   if ((c.memberId === null) === (c.name === null)) return NO_HONOUR_WHO;
-  if (c.memberId !== null && !members.some((m) => m.id === c.memberId)) return NO_SUCH_MEMBER;
+  // Changing an honour keeps its member even when they're no longer on this member's list.
+  const kept = input.id !== null && honours.find((h) => h.id === input.id)?.memberId === c.memberId;
+  if (c.memberId !== null && !kept && !members.some((m) => m.id === c.memberId)) return NO_SUCH_MEMBER;
   if (c.name && chars(c.name) > MAX_HONOUR_NAME) return `Keep the name to ${MAX_HONOUR_NAME} characters at most.`;
   if (!c.honour) return HONOUR_NO_NAME;
   if (chars(c.honour) > MAX_HONOUR) return `Keep the honour to ${MAX_HONOUR} characters at most.`;

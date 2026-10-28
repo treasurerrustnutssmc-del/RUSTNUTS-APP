@@ -267,8 +267,18 @@ export function HistoryScreen() {
 // Add or change a timeline entry (the board)
 // ---------------------------------------------------------------------------
 
+function NotKeeper() {
+  return (
+    <Screen>
+      <Notice title="Board only">Only the board can keep the club’s history.</Notice>
+    </Screen>
+  );
+}
+
 export function EditHistoryEntryScreen({ route, navigation }: RootScreen<'EditHistoryEntry'>) {
+  const { me, data } = useClub();
   const { ready, history } = useSocial();
+  if (!canKeepHistory(me, data.positions)) return <NotKeeper />;
   const id = route.params?.entryId;
   // Wait for the list, so changing an entry never starts as adding a new one.
   if (!ready) return <Loading />;
@@ -360,7 +370,9 @@ function EntryForm({ existing, navigation }: { existing: HistoryEntry | undefine
 // ---------------------------------------------------------------------------
 
 export function EditHonourScreen({ route, navigation }: RootScreen<'EditHonour'>) {
+  const { me, data } = useClub();
   const { ready, honours } = useSocial();
+  if (!canKeepHistory(me, data.positions)) return <NotKeeper />;
   const id = route.params?.honourId;
   if (!ready) return <Loading />;
   const existing = id ? honours.find((h) => h.id === id && !h.archivedAt) : undefined;
@@ -430,7 +442,7 @@ function HonourForm({ existing, navigation }: { existing: Honour | undefined; na
         />
         {who === 'member' ? (
           <>
-            {picked ? (
+            {memberId ? (
               <View
                 style={{
                   flexDirection: 'row',
@@ -444,11 +456,11 @@ function HonourForm({ existing, navigation }: { existing: Honour | undefined; na
                 }}
               >
                 <Ionicons name="person" size={18} color={colors.bone} />
-                <Text style={[type.name, { flex: 1 }]}>{displayName(picked)}</Text>
+                <Text style={[type.name, { flex: 1 }]}>{picked ? displayName(picked) : 'A former member'}</Text>
               </View>
             ) : null}
             <Field
-              label={picked ? 'Pick someone else' : 'Find a member'}
+              label={memberId ? 'Pick someone else' : 'Find a member'}
               value={find}
               onChangeText={setFind}
               placeholder="Road name or name"

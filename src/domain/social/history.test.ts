@@ -188,3 +188,14 @@ test('honours shown: not taken off, newest year first', () => {
   const list = [honour({ id: 'a', year: 2022 }), honour({ id: 'b', year: 2025 }), honour({ id: 'c', archivedAt: 'x' })];
   assert.deepEqual(honoursFor(list).map((h) => h.id), ['b', 'a']);
 });
+
+test('edge cases: emoji count as one, leap days, year one, keeping a member who has left', () => {
+  assert.equal(historyProblem(boss, entryIn({ title: '🏍'.repeat(80) }), [], positions, today), null);
+  assert.equal(historyProblem(boss, entryIn({ happenedOn: '2020-02-29' }), [], positions, today), null);
+  assert.equal(historyProblem(boss, entryIn({ happenedOn: '2021-02-29' }), [], positions, today), BAD_HISTORY_DATE);
+  assert.equal(historyProblem(boss, entryIn({ happenedOn: '0000-06-01' }), [], positions, today), BAD_HISTORY_DATE);
+  assert.equal(honourProblem(boss, honourIn({ memberId: null, name: 'n'.repeat(80) }), [], [boss], positions, today), null);
+  const honours = [honour({ id: 'h1', memberId: 'gone' })];
+  assert.equal(honourProblem(boss, honourIn({ id: 'h1', memberId: 'gone' }), honours, [boss], positions, today), null);
+  assert.equal(honourProblem(boss, honourIn({ id: 'h1', memberId: 'ghost' }), honours, [boss], positions, today), NO_SUCH_MEMBER);
+});
