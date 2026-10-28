@@ -804,3 +804,16 @@ Object.assign(DEMO_DATA, {
   ],
   exemptions: [{ sessionId: 'cs-today', memberId: 'm-gravel', reason: 'Working away', grantedBy: 'm-torque', grantedAt: at(s4Today, '08:00:00') }],
 } satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
+// Bragging rights: a few made-up club rides earlier this year, for Ride of the year.
+// ---------------------------------------------------------------------------
+
+DEMO_DATA.rides.push(
+  { id: 'r-brag-1', title: 'Grampians loop', startsAt: at(ago(70), '21:30:00'), endsAt: null, allDay: false,
+    location: 'Halls Gap', notes: 'Up through the gaps and back for tea.', category: 'club', cancelledAt: null },
+  { id: 'r-brag-2', title: 'Cape Otway run', startsAt: at(ago(100), '21:30:00'), endsAt: null, allDay: false,
+    location: 'Apollo Bay', notes: null, category: 'west', cancelledAt: null },
+  { id: 'r-brag-3', title: 'High Country weekend', startsAt: at(ago(20), '21:00:00'), endsAt: null, allDay: false,
+    location: 'Mansfield', notes: 'Two nights. Bring layers.', category: 'club', cancelledAt: null },
+);

@@ -40,6 +40,23 @@ import {
   type Honour,
   type HonourInput,
 } from '../../domain/social/history';
+import {
+  archiveAwardProblem,
+  awardPhase,
+  cleanAward,
+  cleanNomination,
+  nominationProblem,
+  openAwardProblem,
+  voteProblem,
+  withdrawProblem,
+  type Award,
+  type AwardInput,
+  type BragKind,
+  type Nomination,
+  type NominationInput,
+  type Tally,
+  type Vote,
+} from '../../domain/social/brag';
 import type { ClubData, Member } from '../../domain/types';
 import type { FeedItem } from '../chat/chatContext';
 import { NotAllowedError } from '../clubContext';
@@ -61,6 +78,10 @@ export interface SocialData {
   /** The club's timeline and honours, ones taken off included. */
   history: HistoryEntry[];
   honours: Honour[];
+  /** Bragging rights: awards, nominations and every vote (the database shows each member only their own). */
+  awards: Award[];
+  nominations: Nomination[];
+  bragVotes: Vote[];
 }
 
 export interface SocialCtx {
@@ -223,6 +244,58 @@ export function archiveHonour(ctx: SocialCtx, id: string): SocialData {
   return { ...ctx.social, honours: ctx.social.honours.map((h) => (h.id === id ? { ...h, archivedAt: at } : h)) };
 }
 
+/** Opens an award; hands back its id. */
+export function openAward(ctx: SocialCtx, input: AwardInput): { social: SocialData; id: string } {
+  refuse(openAwardProblem(ctx.me, input, ctx.club.positions, ctx.today));
+  const me = ctx.me as Member;
+  const id = `award-${ctx.social.awards.length + 1}-${Date.now().toString(36)}`;
+  const added: Award = { id, ...cleanAward(input), openedBy: me.id, archivedAt: null };
+  return { social: { ...ctx.social, awards: [...ctx.social.awards, added] }, id };
+}
+
+export function archiveAward(ctx: SocialCtx, id: string): SocialData {
+  refuse(archiveAwardProblem(ctx.me, id, ctx.social.awards, ctx.club.positions));
+  const at = ctx.now ?? new Date().toISOString();
+  return { ...ctx.social, awards: ctx.social.awards.map((a) => (a.id === id ? { ...a, archivedAt: at } : a)) };
+}
+
+/** Nominates something for an award; hands back its id. */
+export function nominate(ctx: SocialCtx, input: NominationInput): { social: SocialData; id: string } {
+  refuse(nominationProblem(ctx.me, input, ctx.social.awards, ctx.social.nominations, ctx.club.rides, ctx.today));
+  const me = ctx.me as Member;
+  const kind = (ctx.social.awards.find((a) => a.id === input.awardId) as Award).kind;
+  const clean = cleanNomination(input, kind);
+  const photo = clean.photo ? { path: clean.photo.path, width: Math.round(clean.photo.width), height: Math.round(clean.photo.height) } : null;
+  const id = `nom-${ctx.social.nominations.length + 1}-${Date.now().toString(36)}`;
+  const added: Nomination = {
+    id, awardId: input.awardId, nominatedBy: me.id, ...clean, photo, nominatedAt: ctx.now ?? new Date().toISOString(), withdrawnAt: null,
+  };
+  return { social: { ...ctx.social, nominations: [...ctx.social.nominations, added] }, id };
+}
+
+export function withdrawNomination(ctx: SocialCtx, id: string): SocialData {
+  refuse(withdrawProblem(ctx.me, id, ctx.social.nominations, ctx.social.awards, ctx.club.positions, ctx.today));
+  const at = ctx.now ?? new Date().toISOString();
+  return { ...ctx.social, nominations: ctx.social.nominations.map((n) => (n.id === id ? { ...n, withdrawnAt: at } : n)) };
+}
+
+/** Casts (or changes) my vote in a nomination's award. */
+export function castBragVote(ctx: SocialCtx, nominationId: string): SocialData {
+  refuse(voteProblem(ctx.me, nominationId, ctx.social.nominations, ctx.social.awards, ctx.today));
+  const me = ctx.me as Member;
+  const awardId = (ctx.social.nominations.find((n) => n.id === nominationId) as Nomination).awardId;
+  const others = ctx.social.bragVotes.filter((v) => !(v.awardId === awardId && v.memberId === me.id));
+  return { ...ctx.social, bragVotes: [...others, { awardId, memberId: me.id, nominationId }] };
+}
+
+/** Like brag_tallies(): counts for awards that have closed, only. */
+export function bragTallies(social: SocialData, today: string): Tally[] {
+  const closed = new Set(social.awards.filter((a) => !a.archivedAt && awardPhase(a, today) === 'closed').map((a) => a.id));
+  return social.nominations
+    .filter((n) => closed.has(n.awardId) && !n.withdrawnAt)
+    .map((n) => ({ nominationId: n.id, votes: social.bragVotes.filter((v) => v.nominationId === n.id).length }));
+}
+
 /** A parity.json case, as the social action it names. */
 export type SocialAction =
   | { action: 'socialSetBirthday'; month: number | null; day: number | null }
@@ -241,7 +314,14 @@ export type SocialAction =
   | { action: 'socialArchiveHistoryEntry'; entry: string }
   // The honour's typed name is `who`: a case's `name` is the case's own.
   | { action: 'socialSaveHonour'; honour: string | null; member: string | null; who: string; title: string; year: number | null; note: string }
-  | { action: 'socialArchiveHonour'; honour: string };
+  | { action: 'socialArchiveHonour'; honour: string }
+  // Award dates are days from today; the award's name is `title`.
+  | { action: 'socialOpenAward'; kind: BragKind; title: string; year: number | null; nominationsClose: string; votingClose: string }
+  | { action: 'socialArchiveAward'; award: string }
+  // A photo is a file name in the nominator's own folder, or `other:<name>`.
+  | { action: 'socialNominate'; award: string; ride: string | null; title: string; photo: string | null; story: string; reason: string }
+  | { action: 'socialWithdrawNomination'; nomination: string }
+  | { action: 'socialCastBragVote'; nomination: string };
 
 /** A parity case's photo names as the photos the action is sent. */
 export function parityPhotos(me: Member | null, names: string[], otherId: string): ListingPhoto[] {
@@ -289,5 +369,20 @@ export function runSocialAction(ctx: SocialCtx, a: SocialAction): SocialData {
       }).social;
     case 'socialArchiveHonour':
       return archiveHonour(ctx, a.honour);
+    case 'socialOpenAward':
+      return openAward(ctx, {
+        kind: a.kind, title: a.title, year: a.year ?? Number.NaN, nominationsClose: a.nominationsClose, votingClose: a.votingClose,
+      }).social;
+    case 'socialArchiveAward':
+      return archiveAward(ctx, a.award);
+    case 'socialNominate':
+      return nominate(ctx, {
+        awardId: a.award, rideId: a.ride, title: a.title, story: a.story, reason: a.reason,
+        photo: a.photo === null ? null : parityPhotos(ctx.me, [a.photo], 'someone-else')[0],
+      }).social;
+    case 'socialWithdrawNomination':
+      return withdrawNomination(ctx, a.nomination);
+    case 'socialCastBragVote':
+      return castBragVote(ctx, a.nomination);
   }
 }

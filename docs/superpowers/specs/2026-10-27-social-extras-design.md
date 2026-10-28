@@ -279,7 +279,53 @@ founders and past office holders coming from its positions.
 **Tests.** Domain rules and the derived lists (founders, past office holders, year groups), demo
 actions, row mapping, parity cases for each refusal, SQL tests for RLS and the board check.
 
-## PRs 7 to 9
+## PR 7: Bragging rights
+
+**What members see.** A "Bragging rights" row in the Members tab's social card. The screen lists
+the awards that are open (taking nominations, or voting) and then past results, newest first.
+- An **award** has a name ("Ride of the year 2026"), a kind (a ride, a photo or a story), the year it
+  covers, the day nominations close and the day voting closes. Its phase comes from today:
+  *nominating* until nominations close (that day included), *voting* until voting closes, then
+  *closed*.
+- **Nominating:** any approved member nominates up to three things per award. A ride award takes a
+  club ride from that year that has already been ridden (each ride once); a photo award takes a
+  title and one photo; a story award takes a title and the story. All take an optional reason.
+  Whoever nominated something, or the board, can withdraw it while nominations are open.
+- **Voting:** one vote per member per award, changeable until voting closes, never for your own
+  nomination. Counts stay hidden while voting is open; you see only your own vote.
+- **Closed:** each nomination shows its votes, the most votes on top with a stencil "Winner" chip
+  (ties share it).
+
+**Who runs it.** Any board member or the NEC opens an award and can take one off (kept, archived).
+
+**Rules** (`src/domain/social/brag.ts`, mirrored by the database, same words, same order). Opening:
+sign in; approved; 'Only the board can run awards.'; 'Pick what the award is for.'; 'Give the award
+a name.' / 'Keep the name to 60 characters at most.'; 'Pick a year from 2019 on.' (to this year);
+'Nominations close first, then voting, both from today on.'. Nominating: 'No such award.'; 'That
+award has been taken off.'; 'Nominations are closed.'; 'Three nominations each per award.'; then by
+kind ('Pick a ride.', 'Pick a ride from that year that’s been ridden.', 'That ride is already
+nominated.' / 'Give it a title.', 'Keep the title to 80 characters at most.', 'Add a photo.', 'That
+photo didn’t upload properly. Try again.' / 'Tell the story.', 'Keep the story to 1,000 characters
+at most.'); 'Keep the reason to 300 characters at most.'. Withdrawing: 'No such nomination.'; 'Only
+whoever nominated it or the board can withdraw it.'; 'Nominations are closed.'; 'That nomination has
+already been withdrawn.'. Voting: 'No such nomination.'; 'Voting isn’t open.'; 'You can’t vote for
+your own nomination.'.
+
+**Database** (`20270415000600_bragging_rights.sql`): `brag_awards`, `brag_nominations` (ride, or
+title + photo jsonb, or title + story; reason; withdrawn_at/by), `brag_votes` (one row per award and
+member, primary key, changed in place); a `brag-media` bucket like build-media. RLS: approved members
+read awards that aren't archived and nominations that aren't withdrawn; each member reads only
+their own votes. `brag_tallies()` (definer) gives vote counts for closed awards only. Functions
+`open_award`, `archive_award`, `nominate`, `withdraw_nomination`, `cast_brag_vote`. No drop, no
+delete.
+
+**Demo.** Ride of the year (voting open, three rides), Best breakdown story (taking nominations)
+and last year's Best photo (closed, with a winner), dated from the demo's today.
+
+**Tests.** Domain rules and phases, demo actions, row mapping, parity cases for each refusal, SQL
+tests for RLS (votes private, tallies only once closed) and the photo bucket.
+
+## PRs 8 and 9
 
 Each gets its own short design section added to this file before it's built, following the same
 shape (what members see, rules, database, demo, tests). The table above fixes the order and scope.

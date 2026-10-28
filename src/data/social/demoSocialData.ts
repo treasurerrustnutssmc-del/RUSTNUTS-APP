@@ -8,6 +8,7 @@ import type { Mechanic } from '../../domain/social/help';
 import type { Listing } from '../../domain/social/swap';
 import type { BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, Honour } from '../../domain/social/history';
+import type { Award, Nomination, Vote } from '../../domain/social/brag';
 import type { SocialData } from './demoSocialActions';
 
 const monthDay = (iso: string) => ({ month: Number(iso.slice(5, 7)), day: Number(iso.slice(8, 10)) });
@@ -76,7 +77,50 @@ export function demoSocialData(today: string): SocialData {
     buildUpdates: demoBuildUpdates(today),
     history: DEMO_HISTORY,
     honours: DEMO_HONOURS,
+    ...demoBragging(today),
   };
+}
+
+/**
+ * Bragging rights: Ride of the year is being voted on, Best breakdown story is taking nominations,
+ * and last year's Best photo has its winner. The rides are the demo's made-up ones from earlier on.
+ */
+function demoBragging(today: string): { awards: Award[]; nominations: Nomination[]; bragVotes: Vote[] } {
+  const year = Number(today.slice(0, 4));
+  const awards: Award[] = [
+    { id: 'award-rides', kind: 'ride', title: `Ride of the year ${year}`, year, nominationsClose: addDays(today, -2),
+      votingClose: addDays(today, 12), openedBy: 'm-rusty', archivedAt: null },
+    { id: 'award-stories', kind: 'story', title: 'Best breakdown story', year, nominationsClose: addDays(today, 9),
+      votingClose: addDays(today, 23), openedBy: 'm-torque', archivedAt: null },
+    { id: 'award-photos', kind: 'photo', title: `Best photo ${year - 1}`, year: year - 1, nominationsClose: addDays(today, -60),
+      votingClose: addDays(today, -40), openedBy: 'm-rusty', archivedAt: null },
+  ];
+  const at = `${addDays(today, -20)}T00:00:00.000Z`;
+  const n = (id: string, awardId: string, by: string, over: Partial<Nomination>): Nomination => ({
+    id, awardId, nominatedBy: by, rideId: null, title: null, photo: null, story: null, reason: null, nominatedAt: at, withdrawnAt: null, ...over,
+  });
+  const pic = (who: string, name: string, width = 1200, height = 900) => ({ path: `${who}/demo/${name}`, width, height });
+  const nominations: Nomination[] = [
+    n('nom-1', 'award-rides', 'm-diesel', { rideId: 'r-brag-3', reason: 'Two days of the best roads in the state, and nobody fell off.' }),
+    n('nom-2', 'award-rides', 'm-chook', { rideId: 'r-brag-1', reason: 'Sunset over the Grampians. Enough said.' }),
+    n('nom-3', 'award-rides', 'm-smokey', { rideId: 'r-big4-past' }),
+    n('nom-4', 'award-stories', 'm-gravel', { title: 'The Ballan fuel line',
+      story: 'Diesel’s fuel line split 20 k out of Ballan. Fixed with a biro tube and electrical tape. Made it home.' }),
+    n('nom-5', 'award-photos', 'm-sparks', { title: 'Servo at midnight', photo: pic('m-sparks', 'servo-night.jpg') }),
+    n('nom-6', 'award-photos', 'm-diesel', { title: 'Coast road', photo: pic('m-diesel', 'coast-road.jpg') }),
+    n('nom-7', 'award-photos', 'm-rusty', { title: 'Twisties', photo: pic('m-rusty', 'twisties.jpg', 900, 1200) }),
+  ];
+  const v = (awardId: string, memberId: string, nominationId: string): Vote => ({ awardId, memberId, nominationId });
+  const bragVotes: Vote[] = [
+    v('award-rides', 'm-rusty', 'nom-1'),
+    v('award-rides', 'm-torque', 'nom-2'),
+    v('award-photos', 'm-torque', 'nom-6'),
+    v('award-photos', 'm-chook', 'nom-6'),
+    v('award-photos', 'm-gravel', 'nom-6'),
+    v('award-photos', 'm-spanner', 'nom-5'),
+    v('award-photos', 'm-jet', 'nom-7'),
+  ];
+  return { awards, nominations, bragVotes };
 }
 
 /** A made-up story of the club, from its first ride on. The founding comes from the founder positions. */

@@ -44,6 +44,7 @@ import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } 
 import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swap';
 import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../screens/builds';
 import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
+import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -279,6 +280,10 @@ export function RootNavigator() {
               component={EditHonourScreen}
               options={({ route }) => ({ title: route.params?.honourId ? 'Change the honour' : 'Add an honour' })}
             />
+            <Stack.Screen name="Bragging" component={BraggingScreen} options={{ title: 'Bragging rights' }} />
+            <Stack.Screen name="Award" component={AwardScreen} options={{ title: 'Award' }} />
+            <Stack.Screen name="Nominate" component={NominateScreen} options={{ title: 'Nominate' }} />
+            <Stack.Screen name="OpenAward" component={OpenAwardScreen} options={{ title: 'Open an award' }} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}

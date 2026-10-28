@@ -705,4 +705,155 @@ begin
 end $$;
 
 \o
+\echo 'Bragging rights: the board opens awards, members nominate and vote, counts only once closed'
+\o /dev/null
+create function pg_temp.open_sql(kind text, title text, yr int, noms text, votes text)
+returns text language sql as $$
+  select format('select public.open_award(%L, %L, %L, %L, %L)', kind, title, yr, noms, votes);
+$$;
+create function pg_temp.nom_sql(award uuid, ride uuid, title text, photo jsonb, story text, reason text)
+returns text language sql as $$
+  select format('select public.nominate(%L, %L, %L, %L, %L, %L)', award, ride, title, photo, story, reason);
+$$;
+create function pg_temp.upload_brag(who uuid, name text) returns void language sql as $$
+  insert into storage.objects (bucket_id, name, owner, owner_id) values ('brag-media', name, who, who::text);
+$$;
+
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  bea constant uuid := '00000000-0000-0000-0000-0000000005c1';
+  paul constant uuid := '00000000-0000-0000-0000-0000000005a3';
+  w constant text := '00000000-0000-0000-0000-0000000005b1/';
+  d date := private.club_date();
+  yr int := extract(year from private.club_date())::int;
+  ridden uuid := gen_random_uuid();
+  ahead uuid := gen_random_uuid();
+  last_year uuid := gen_random_uuid();
+  called_off uuid := gen_random_uuid();
+  rides_award uuid;
+  photos_award uuid;
+  stories_award uuid;
+  voting uuid;
+  closed uuid;
+  n1 uuid;
+  n2 uuid;
+  v1 uuid;
+  v2 uuid;
+  c1 uuid;
+begin
+  -- Noon Melbourne on each day, so the date is the same whatever the server's zone.
+  insert into rides (id, source, starts_at, title, category, cancelled_at) values
+    (ridden, 'app', ((d - 1)::timestamp + interval '12 hours') at time zone 'Australia/Melbourne', 'Yesterday''s run', 'club', null),
+    (ahead, 'app', ((d + 3)::timestamp + interval '12 hours') at time zone 'Australia/Melbourne', 'Coming up', 'club', null),
+    (last_year, 'app', ((make_date(yr - 1, 6, 1))::timestamp + interval '12 hours') at time zone 'Australia/Melbourne', 'Last year', 'club', null),
+    (called_off, 'app', ((d - 2)::timestamp + interval '12 hours') at time zone 'Australia/Melbourne', 'Rained out', 'club', now());
+
+  -- Opening.
+  rides_award := pg_temp.value_as(bea, pg_temp.open_sql('ride', '  Ride of the year ', yr, d::text, (d + 7)::text))::uuid;
+  assert (select title = 'Ride of the year' and opened_by = bea from brag_awards where id = rides_award), 'opened, trimmed';
+  photos_award := pg_temp.value_as(bea, pg_temp.open_sql('photo', 'Best photo', yr, (d + 1)::text, (d + 7)::text))::uuid;
+  stories_award := pg_temp.value_as(bea, pg_temp.open_sql('story', 'Best breakdown', yr, (d + 1)::text, (d + 7)::text))::uuid;
+  assert pg_temp.try_signed_out(pg_temp.open_sql('ride', 'x', yr, d::text, (d + 1)::text)) = 'Sign in first.', 'signed out';
+  assert pg_temp.try_as(paul, pg_temp.open_sql('ride', 'x', yr, d::text, (d + 1)::text)) = 'Only approved members can do that.', 'pending';
+  assert pg_temp.try_as(wendy, pg_temp.open_sql('ride', 'x', yr, d::text, (d + 1)::text)) = 'Only the board can run awards.', 'not the board';
+  assert pg_temp.try_as(bea, pg_temp.open_sql('song', 'x', yr, d::text, (d + 1)::text)) = 'Pick what the award is for.', 'kind';
+  assert pg_temp.try_as(bea, pg_temp.open_sql('ride', ' ', yr, d::text, (d + 1)::text)) = 'Give the award a name.', 'name';
+  assert pg_temp.try_as(bea, pg_temp.open_sql('ride', repeat('x', 61), yr, d::text, (d + 1)::text)) = 'Keep the name to 60 characters at most.', 'long name';
+  assert pg_temp.try_as(bea, pg_temp.open_sql('ride', repeat('🏆', 60), yr, d::text, (d + 1)::text)) is null, '60 emoji';
+  assert pg_temp.try_as(bea, pg_temp.open_sql('ride', 'x', 2018, d::text, (d + 1)::text)) = 'Pick a year from 2019 on.', 'too early';
+  assert pg_temp.try_as(bea, pg_temp.open_sql('ride', 'x', yr + 1, d::text, (d + 1)::text)) = 'Pick a year from 2019 on.', 'next year';
+  assert pg_temp.try_as(bea, pg_temp.open_sql('ride', 'x', yr, (d - 1)::text, (d + 1)::text)) = 'Nominations close first, then voting, both from today on.', 'past';
+  assert pg_temp.try_as(bea, pg_temp.open_sql('ride', 'x', yr, d::text, d::text)) = 'Nominations close first, then voting, both from today on.', 'same day';
+  assert pg_temp.try_as(bea, pg_temp.open_sql('ride', 'x', yr, '2026-02-30', '2099-01-01')) = 'Nominations close first, then voting, both from today on.', 'not real';
+
+  -- Nominating a ride.
+  n1 := pg_temp.value_as(wendy, pg_temp.nom_sql(rides_award, ridden, 'ignored', null, 'ignored', '  Best day out '))::uuid;
+  assert (select ride_id = ridden and title is null and story is null and reason = 'Best day out' and nominated_by = wendy
+          from brag_nominations where id = n1), 'a ride, only what a ride uses';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(rides_award, ridden, '', null, '', '')) = 'That ride is already nominated.', 'once';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(rides_award, null, '', null, '', '')) = 'Pick a ride.', 'no ride';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(rides_award, ahead, '', null, '', '')) = 'Pick a ride from that year that’s been ridden.', 'not yet ridden';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(rides_award, last_year, '', null, '', '')) = 'Pick a ride from that year that’s been ridden.', 'last year';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(rides_award, called_off, '', null, '', '')) = 'Pick a ride from that year that’s been ridden.', 'cancelled';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(rides_award, gen_random_uuid(), '', null, '', '')) = 'Pick a ride from that year that’s been ridden.', 'no such ride';
+  assert pg_temp.try_signed_out(pg_temp.nom_sql(rides_award, ridden, '', null, '', '')) = 'Sign in first.', 'signed out';
+  assert pg_temp.try_as(paul, pg_temp.nom_sql(rides_award, ridden, '', null, '', '')) = 'Only approved members can do that.', 'pending';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(gen_random_uuid(), ridden, '', null, '', '')) = 'No such award.', 'no award';
+
+  -- Stories, and the three-each limit.
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(stories_award, null, 'Ballan', null, '  ', '')) = 'Tell the story.', 'no story';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(stories_award, null, ' ', null, 'x', '')) = 'Give it a title.', 'no title';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(stories_award, null, repeat('t', 81), null, 'x', '')) = 'Keep the title to 80 characters at most.', 'long title';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(stories_award, null, 't', null, repeat('s', 1001), '')) = 'Keep the story to 1,000 characters at most.', 'long story';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(stories_award, null, 't', null, 's', repeat('r', 301))) = 'Keep the reason to 300 characters at most.', 'long reason';
+  n2 := pg_temp.value_as(nell, pg_temp.nom_sql(stories_award, null, 'One', null, 'Chain snapped.', ''))::uuid;
+  perform pg_temp.value_as(nell, pg_temp.nom_sql(stories_award, null, 'Two', null, 'x', ''));
+  perform pg_temp.value_as(nell, pg_temp.nom_sql(stories_award, null, 'Three', null, 'x', ''));
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(stories_award, null, 'Four', null, 'x', '')) = 'Three nominations each per award.', 'four';
+
+  -- Withdrawing.
+  assert pg_temp.try_as(wendy, format('select public.withdraw_nomination(%L)', n2)) = 'Only whoever nominated it or the board can withdraw it.', 'not Wendy';
+  assert pg_temp.try_as(bea, format('select public.withdraw_nomination(%L)', n2)) is null, 'the board';
+  assert (select withdrawn_by = bea from brag_nominations where id = n2), 'kept, with who';
+  assert pg_temp.try_as(nell, format('select public.withdraw_nomination(%L)', n2)) = 'That nomination has already been withdrawn.', 'twice';
+  assert pg_temp.try_as(nell, format('select public.withdraw_nomination(%L)', gen_random_uuid())) = 'No such nomination.', 'gone';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(stories_award, null, 'Four', null, 'x', '')) is null, 'room again once withdrawn';
+
+  -- Photos.
+  perform pg_temp.upload_brag(wendy, w || 'sunset.jpg');
+  assert pg_temp.try_as(wendy, pg_temp.nom_sql(photos_award, null, 'Sunset', null, '', '')) = 'Add a photo.', 'no photo';
+  assert pg_temp.try_as(wendy, pg_temp.nom_sql(photos_award, null, 'Sunset', jsonb_build_object('path', w || 'never.jpg'), '', '')) = 'That photo didn’t upload properly. Try again.', 'not uploaded';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(photos_award, null, 'Sunset', jsonb_build_object('path', w || 'sunset.jpg'), '', '')) = 'That photo didn’t upload properly. Try again.', 'Wendy''s photo';
+  assert pg_temp.try_as(wendy, pg_temp.nom_sql(photos_award, null, 'Sunset', jsonb_build_object('path', w || 'sunset.jpg', 'width', 800.4, 'height', 600), '', '')) is null, 'a photo';
+  assert (select photo = jsonb_build_object('path', w || 'sunset.jpg', 'width', 800, 'height', 600) from brag_nominations where award_id = photos_award), 'path and size';
+  assert pg_temp.try_as(wendy, pg_temp.nom_sql(photos_award, null, 'Again', jsonb_build_object('path', w || 'sunset.jpg'), '', '')) = 'That photo didn’t upload properly. Try again.', 'already used';
+  assert pg_temp.count_as(nell, format($q$storage.objects where bucket_id = 'brag-media' and name = %L$q$, w || 'sunset.jpg')) = 1, 'Nell sees the photo';
+  assert pg_temp.count_as(paul, format($q$storage.objects where bucket_id = 'brag-media' and name = %L$q$, w || 'sunset.jpg')) = 0, 'pending doesn''t';
+
+  -- Voting: an award that's past nominations, made directly.
+  insert into brag_awards (kind, title, year, nominations_close, voting_close, opened_by) values ('story', 'Voting now', yr, d - 1, d + 5, bea) returning id into voting;
+  insert into brag_nominations (award_id, nominated_by, title, story) values (voting, wendy, 'W', 'w') returning id into v1;
+  insert into brag_nominations (award_id, nominated_by, title, story) values (voting, nell, 'N', 'n') returning id into v2;
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(voting, null, 't', null, 's', '')) = 'Nominations are closed.', 'nominations closed';
+  assert pg_temp.try_as(wendy, format('select public.withdraw_nomination(%L)', v1)) = 'Nominations are closed.', 'no withdrawing now';
+  assert pg_temp.try_as(wendy, format('select public.cast_brag_vote(%L)', v1)) = 'You can’t vote for your own nomination.', 'own';
+  assert pg_temp.try_as(wendy, format('select public.cast_brag_vote(%L)', v2)) is null, 'a vote';
+  assert pg_temp.try_as(bea, format('select public.cast_brag_vote(%L)', v1)) is null, 'bea votes Wendy';
+  assert pg_temp.try_as(bea, format('select public.cast_brag_vote(%L)', v2)) is null, 'and changes her mind';
+  assert (select count(*) from brag_votes where award_id = voting) = 2, 'one vote each';
+  assert pg_temp.try_as(nell, format('select public.cast_brag_vote(%L)', n1)) = 'Voting isn’t open.', 'still nominating';
+  assert pg_temp.try_as(paul, format('select public.cast_brag_vote(%L)', v2)) = 'Only approved members can do that.', 'pending';
+  assert pg_temp.try_as(nell, format('select public.cast_brag_vote(%L)', gen_random_uuid())) = 'No such nomination.', 'gone';
+  assert pg_temp.count_as(nell, 'brag_votes') = 0, 'Nell hasn''t voted, so sees no votes';
+  assert pg_temp.count_as(wendy, 'brag_votes') = 1, 'Wendy sees only her own';
+  assert pg_temp.value_as(nell, 'select count(*) from public.brag_tallies()') = '0', 'no counts while voting';
+
+  -- Closed: counts for everyone approved.
+  insert into brag_awards (kind, title, year, nominations_close, voting_close, opened_by) values ('story', 'Done', yr, d - 5, d - 1, bea) returning id into closed;
+  insert into brag_nominations (award_id, nominated_by, title, story) values (closed, nell, 'C', 'c') returning id into c1;
+  insert into brag_votes (award_id, member_id, nomination_id) values (closed, wendy, c1), (closed, bea, c1);
+  assert pg_temp.try_as(wendy, format('select public.cast_brag_vote(%L)', c1)) = 'Voting isn’t open.', 'closed';
+  assert pg_temp.value_as(nell, format('select votes from public.brag_tallies() where nomination_id = %L', c1)) = '2', 'two votes';
+  assert pg_temp.value_as(paul, 'select count(*) from public.brag_tallies()') = '0', 'pending sees no counts';
+
+  -- Reading and writing.
+  assert pg_temp.count_as(nell, 'brag_awards') = 6, 'every award (with the 60-emoji one)';
+  assert pg_temp.count_as(paul, 'brag_nominations') = 0, 'pending reads none';
+  assert pg_temp.count_as(null, 'brag_awards') = -1, 'anon reads nothing';
+  assert pg_temp.try_as(bea, $q$update brag_awards set title = 'x'$q$) like 'permission denied%', 'no writing directly';
+  assert pg_temp.try_as(wendy, $q$insert into brag_votes (award_id, member_id, nomination_id) select award_id, auth.uid(), id from brag_nominations limit 1$q$) like 'permission denied%', 'no stuffing the box';
+
+  -- Taking an award off.
+  assert pg_temp.try_as(wendy, format('select public.archive_award(%L)', rides_award)) = 'Only the board can run awards.', 'not Wendy';
+  assert pg_temp.try_as(bea, format('select public.archive_award(%L)', rides_award)) is null, 'the board';
+  assert pg_temp.try_as(bea, format('select public.archive_award(%L)', rides_award)) = 'That award has already been taken off.', 'twice';
+  assert pg_temp.try_as(bea, format('select public.archive_award(%L)', gen_random_uuid())) = 'No such award.', 'gone';
+  assert pg_temp.try_as(nell, pg_temp.nom_sql(rides_award, ridden, '', null, '', '')) = 'That award has been taken off.', 'no nominating';
+  assert pg_temp.try_as(wendy, format('select public.withdraw_nomination(%L)', n1)) = 'That award has been taken off.', 'no withdrawing';
+  assert pg_temp.count_as(nell, format('brag_nominations where award_id = %L', rides_award)) = 0, 'its nominations hidden';
+end $$;
+
+\o
 \echo 'All social checks passed'

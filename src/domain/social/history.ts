@@ -4,7 +4,7 @@
 // same checks with the same words, in the same order.
 
 import { ROLE_ORDER } from '../labels';
-import { formatAuDate } from '../dates';
+import { formatAuDate, isRealIsoDate } from '../dates';
 import { signedInProblem } from '../routes';
 import type { Member, Position, PositionRole } from '../types';
 import { isAnyBoard } from './help';
@@ -77,14 +77,6 @@ export interface HonourInput {
 
 const chars = (s: string) => [...s].length;
 
-function isRealDate(iso: string): boolean {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return false;
-  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  if (y < 1 || mo < 1 || mo > 12 || d < 1) return false;
-  return d <= new Date(Date.UTC(y, mo, 0)).getUTCDate();
-}
-
 function keeperProblem(me: Member | null, positions: Position[]): string | null {
   const notIn = signedInProblem(me);
   if (notIn) return notIn;
@@ -120,7 +112,7 @@ export function historyProblem(
     if (was.archivedAt) return ENTRY_OFF;
   }
   const c = cleanEntry(input);
-  if (!isRealDate(c.happenedOn) || c.happenedOn > today || !HISTORY_PRECISIONS.includes(c.precision)) {
+  if (!isRealIsoDate(c.happenedOn) || c.happenedOn > today || !HISTORY_PRECISIONS.includes(c.precision)) {
     return BAD_HISTORY_DATE;
   }
   if (!c.title) return NO_TITLE;

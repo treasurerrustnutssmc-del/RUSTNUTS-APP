@@ -13,6 +13,7 @@ import type {
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
 import { addDays } from '../domain/dates';
+import type { BragKind } from '../domain/social/brag';
 import { clubYearOf } from '../domain/clubYear';
 import { fyOf } from '../domain/fees';
 import { addMonths } from '../domain/profile';
@@ -408,7 +409,7 @@ export function demoAnswer(c: ParityCase): string | null {
     }
     // Stage 7: social extras
     if (String(c.action).startsWith('social')) {
-      runSocialAction({ social: fixtureSocial(), club: data, me, today }, c as unknown as SocialAction);
+      runSocialAction({ social: fixtureSocial(today), club: data, me, today }, resolveCase(c, today) as unknown as SocialAction);
       return null;
     }
     if (DOCUMENT_ACTIONS.has(String(c.action))) {
@@ -463,7 +464,7 @@ export function fixtureChat(): ChatData {
 }
 
 // Stage 7: social extras. The fixture's workshops, each with its fixture key as its id.
-export function fixtureSocial(): SocialData {
+export function fixtureSocial(today: string = parityToday()): SocialData {
   const f = fixture as ParityFixture & { mechanics?: { key: string; name: string; addedBy: string | null; archived: boolean }[] };
   return {
     birthdays: [],
@@ -493,7 +494,38 @@ export function fixtureSocial(): SocialData {
       id: h.key, memberId: h.member, name: h.who, honour: 'Life member', year: 2024, note: null, addedBy: 'rusty',
       archivedAt: h.archived ? '2026-10-02T00:00:00.000Z' : null,
     })),
+    // Award dates are days from today, so each award is in the same phase whatever the day.
+    awards: ((f as { awards?: FixtureAward[] }).awards ?? []).map((a) => ({
+      id: a.key, kind: a.kind as BragKind, title: a.title, year: a.year, nominationsClose: addDays(today, a.nominationsDays),
+      votingClose: addDays(today, a.votingDays), openedBy: 'rusty', archivedAt: a.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    nominations: ((f as { nominations?: FixtureNomination[] }).nominations ?? []).map((n) => ({
+      id: n.key, awardId: n.award, nominatedBy: n.by, rideId: n.ride, title: n.ride ? null : 'Fixture', photo: null,
+      story: n.ride ? null : 'Fixture', reason: null, nominatedAt: '2026-10-01T00:00:00.000Z',
+      withdrawnAt: n.withdrawn ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    bragVotes: ((f as { bragVotes?: { award: string; member: string; nomination: string }[] }).bragVotes ?? []).map((v) => ({
+      awardId: v.award, memberId: v.member, nominationId: v.nomination,
+    })),
   };
+}
+
+interface FixtureAward {
+  key: string;
+  kind: string;
+  title: string;
+  year: number;
+  nominationsDays: number;
+  votingDays: number;
+  archived: boolean;
+}
+
+interface FixtureNomination {
+  key: string;
+  award: string;
+  by: string;
+  ride: string | null;
+  withdrawn: boolean;
 }
 
 interface FixtureHistory {

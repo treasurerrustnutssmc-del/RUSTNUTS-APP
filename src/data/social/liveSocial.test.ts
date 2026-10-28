@@ -83,3 +83,38 @@ test('history and honour rows, and their save calls', async () => {
     p_id: 'h', p_member: 'm', p_name: '', p_honour: 'x', p_year: 2024, p_note: '',
   });
 });
+
+test('bragging rights rows and calls', async () => {
+  const { toAwards, toNominations, toVotes, toTallies, openAwardArgs, nominateArgs } = await import('./liveSocial');
+  assert.deepEqual(
+    toAwards([{ id: 'a', kind: 'ride', title: 'T', year: 2026, nominations_close: '2026-11-01', voting_close: '2026-11-10', opened_by: null, archived_at: null }]),
+    [{ id: 'a', kind: 'ride', title: 'T', year: 2026, nominationsClose: '2026-11-01', votingClose: '2026-11-10', openedBy: '', archivedAt: null }],
+  );
+  assert.deepEqual(
+    toNominations([{ id: 'n', award_id: 'a', nominated_by: 'm', ride_id: null, title: 'T', photo: { path: 'm/x.jpg', width: null, height: 4 },
+      story: null, reason: null, nominated_at: 't', withdrawn_at: null }]),
+    [{ id: 'n', awardId: 'a', nominatedBy: 'm', rideId: null, title: 'T', photo: { path: 'm/x.jpg', width: 0, height: 4 }, story: null,
+      reason: null, nominatedAt: 't', withdrawnAt: null }],
+  );
+  assert.deepEqual(toVotes([{ award_id: 'a', member_id: 'm', nomination_id: 'n' }]), [{ awardId: 'a', memberId: 'm', nominationId: 'n' }]);
+  assert.deepEqual(toTallies([{ nomination_id: 'n', votes: 3 }]), [{ nominationId: 'n', votes: 3 }]);
+  assert.deepEqual(openAwardArgs({ kind: 'story', title: 't', year: 2026, nominationsClose: 'a', votingClose: 'b' }), {
+    p_kind: 'story', p_title: 't', p_year: 2026, p_nominations_close: 'a', p_voting_close: 'b',
+  });
+  assert.deepEqual(nominateArgs({ awardId: 'a', rideId: 'r', title: 't', photo: null, story: 's', reason: '' }), {
+    p_award: 'a', p_ride: 'r', p_title: 't', p_photo: null, p_story: 's', p_reason: '',
+  });
+});
+
+test('the rides behind ride awards: their years, a day either side', async () => {
+  const { bragRideWindow, toBragRides } = await import('./liveSocial');
+  const a = (kind: 'ride' | 'story', year: number) =>
+    ({ id: 'x', kind, title: 't', year, nominationsClose: '', votingClose: '', openedBy: '', archivedAt: null });
+  assert.equal(bragRideWindow([a('story', 2026)]), null);
+  assert.deepEqual(bragRideWindow([a('ride', 2026), a('ride', 2024)]), { from: '2023-12-31T00:00:00Z', to: '2027-01-02T00:00:00Z' });
+  assert.deepEqual(
+    toBragRides([{ id: 'r', title: 'T', starts_at: '2026-05-01T00:00:00+00:00', ends_at: null, all_day: false, location: null, notes: null,
+      category: 'club', cancelled_at: null }])[0].startsAt,
+    '2026-05-01T00:00:00.000Z',
+  );
+});
