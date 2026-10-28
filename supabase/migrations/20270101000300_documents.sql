@@ -110,9 +110,14 @@ begin
   if p_review_months is not null and (p_review_months < 1 or p_review_months > 60) then
     raise exception 'Pick a review cycle from 1 to 60 months, or none.';
   end if;
-  insert into public.documents (chapter_id, kind, title, asks_sign_off, review_months, created_by)
-  values (p_chapter, p_kind, title, coalesce(p_asks_sign_off, false), p_review_months, me)
-  returning id into new_id;
+  begin
+    insert into public.documents (chapter_id, kind, title, asks_sign_off, review_months, created_by)
+    values (p_chapter, p_kind, title, coalesce(p_asks_sign_off, false), p_review_months, me)
+    returning id into new_id;
+  exception when unique_violation then
+    -- Two people adding the Constitution (or Registered Rules) at once: the second gets the same refusal.
+    raise exception 'The library already has that document. Publish a new version of it instead.';
+  end;
   return new_id;
 end;
 $$;

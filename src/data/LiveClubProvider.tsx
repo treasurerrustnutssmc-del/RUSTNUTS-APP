@@ -144,6 +144,10 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       if (ticket !== latest.current) return;
       // Lane E: offline. Signed out during the load: don't show a signed-out load as theirs.
       if (uid && currentUser.current !== uid) return;
+      // Stage 5C: a text loaded while this refresh was in flight must not be dropped by it.
+      fresh.documentVersions = (fresh.documentVersions ?? []).map((v) =>
+        v.body === null && loadedBodies[v.id] !== undefined ? { ...v, body: loadedBodies[v.id] } : v,
+      );
       setData(fresh);
       setLoadedFor(uid ?? '');
       setLoadError(null);
@@ -898,7 +902,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const known = loadedBodies[versionId];
       if (known !== undefined) return known;
       const r = ok(await supabase().rpc('document_body', { p_version: versionId }));
-      const body = (r.data as string | null) ?? '';
+      const body = r.data as string | null;
+      // No text back means it can't be read yet: say so, and don't remember it as blank.
+      if (body === null) throw new Error('That version’s text couldn’t be loaded.');
       loadedBodies[versionId] = body;
       setData((d) => ({
         ...d,
