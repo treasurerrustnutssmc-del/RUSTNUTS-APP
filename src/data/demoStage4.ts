@@ -21,9 +21,10 @@ import {
 } from '../domain/fees';
 import { decideApplicationProblem, fngOutcomeStatus, fngReviewProblem, type FngOutcome } from '../domain/joining';
 import { melbourneDate } from '../domain/rides';
-import type { Charge, ClubData, MemberStatus, Payment, PaymentDetails, PaymentMethod, Votes } from '../domain/types';
+import type { Charge, ClubData, MeetingType, MemberStatus, Payment, PaymentDetails, PaymentMethod, Votes } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import { approve, decline, withPatchInFee, type DemoCtx } from './demoActions';
+import { designateBig4, setExemption, setMeetingType, undesignateBig4 } from './demoAttendance';
 
 let counter = 0;
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
@@ -68,6 +69,7 @@ export function openCheckin(ctx: DemoCtx, input: OpenCheckinInput): { data: Club
     openedBy: ctx.me!.id,
     closedAt: null,
     code: newCode(),
+    meetingType: input.kind === 'meeting' ? (input.meetingType ?? 'ordinary') : null,
   };
   return { data: { ...ctx.data, checkinSessions: [...(ctx.data.checkinSessions ?? []), session] }, id };
 }
@@ -302,12 +304,18 @@ export type Stage4Action =
   | { action: 'raiseCharge'; member: string; description: string; amountCents: number; dueOn: string }
   | { action: 'waiveCharge'; charge: string }
   | { action: 'claimPayment' | 'recordPayment'; charge: string; amountCents: number; paidOn: string; method: PaymentMethod; reference: string }
-  | { action: 'confirmPayment' | 'rejectPayment'; payment: string };
+  | { action: 'confirmPayment' | 'rejectPayment'; payment: string }
+  // Attendance rules and Big 4 rides
+  | { action: 'designateBig4'; ride: string; chapter: string | null }
+  | { action: 'undesignateBig4'; ride: string }
+  | { action: 'setMeetingType'; session: string; type: MeetingType }
+  | { action: 'setExemption'; session: string; member: string; reason: string | null };
 
 export const STAGE4_ACTIONS = new Set<string>([
   'openCheckin', 'checkIn', 'markAttendance', 'closeCheckin', 'decideApplication', 'fngReview', 'setFeeRate',
   'setContinuationFee', 'setPaymentDetails', 'raiseFees', 'recordAgm', 'raiseCharge', 'waiveCharge', 'claimPayment',
   'recordPayment', 'confirmPayment', 'rejectPayment',
+  'designateBig4', 'undesignateBig4', 'setMeetingType', 'setExemption',
 ]);
 
 export function runStage4Action(ctx: DemoCtx, a: Stage4Action): ClubData {
@@ -338,6 +346,14 @@ export function runStage4Action(ctx: DemoCtx, a: Stage4Action): ClubData {
       return raiseCharge(ctx, a.member, a.description, a.amountCents, a.dueOn);
     case 'waiveCharge':
       return waiveCharge(ctx, a.charge);
+    case 'designateBig4':
+      return designateBig4(ctx, a.ride, a.chapter);
+    case 'undesignateBig4':
+      return undesignateBig4(ctx, a.ride);
+    case 'setMeetingType':
+      return setMeetingType(ctx, a.session, a.type);
+    case 'setExemption':
+      return setExemption(ctx, a.session, a.member, a.reason);
     case 'claimPayment':
       return claimPayment(ctx, a.charge, a.amountCents, a.paidOn, a.method, a.reference);
     case 'recordPayment':

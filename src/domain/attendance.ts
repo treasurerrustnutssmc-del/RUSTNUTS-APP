@@ -4,7 +4,7 @@
 
 import { activePositions, isBoardOf, isNational } from './access';
 import { BOARD_ROLES } from './labels';
-import type { Chapter, CheckinKind, CheckinSession, ClubData, Member, Position, Ride } from './types';
+import type { Chapter, CheckinKind, CheckinSession, ClubData, MeetingType, Member, Position, Ride } from './types';
 
 /** No 0/O, 1/I/L: easy to read off a phone held up at a servo. */
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -54,7 +54,12 @@ export interface OpenCheckinInput {
   chapterId: string | null;
   title: string;
   heldOn: string;
+  /** A meeting's category; left out means ordinary. */
+  meetingType?: MeetingType;
 }
+
+/** Ordinary monthly meetings, special or annual meetings, and other events (4.6, 5.2). */
+export const MEETING_TYPES: MeetingType[] = ['ordinary', 'special', 'event'];
 
 const RUN_ONLY = 'Only that chapter’s board can run this check-in.';
 
@@ -72,6 +77,7 @@ export function openCheckinProblem(me: Member | null, input: OpenCheckinInput, d
     if (!chapterId) return 'Pick a chapter.';
     if (!input.title.trim()) return 'Add a title.';
     if (input.heldOn < today) return 'Pick today or a later date.';
+    if (input.meetingType !== undefined && !MEETING_TYPES.includes(input.meetingType)) return 'Pick what kind of meeting it is.';
   }
   if (!canRunCheckin(me, chapterId, data.positions)) return 'Only that chapter’s board can open a check-in.';
   return null;
@@ -131,4 +137,47 @@ export function attendeesOf(sessionId: string, data: ClubData): Member[] {
     .filter((a) => a.sessionId === sessionId)
     .sort((a, b) => a.checkedInAt.localeCompare(b.checkedInAt))
     .flatMap((a) => data.members.filter((m) => m.id === a.memberId));
+}
+
+/** What a check-in counts towards: a meeting's category (ordinary when it has none), or null for a ride. */
+export function meetingTypeOf(session: CheckinSession): MeetingType | null {
+  return session.kind === 'ride' ? null : (session.meetingType ?? 'ordinary');
+}
+
+export function isExcused(sessionId: string, memberId: string, data: ClubData): boolean {
+  return (data.exemptions ?? []).some((e) => e.sessionId === sessionId && e.memberId === memberId);
+}
+
+/** Excused and didn't come after all: it drops out of their count. Turning up always counts. */
+export function excusedAway(sessionId: string, memberId: string, data: ClubData): boolean {
+  return isExcused(sessionId, memberId, data) && !attended(sessionId, memberId, data);
+}
+
+export function attended(sessionId: string, memberId: string, data: ClubData): boolean {
+  return (data.attendance ?? []).some((a) => a.sessionId === sessionId && a.memberId === memberId);
+}
+
+/**
+ * Why `me` can't excuse (a reason) or un-excuse (no reason) a member from a check-in, or null.
+ * Their chapter's board does it (4.12, 5.3, 5.11), never for themselves.
+ */
+export function exemptionProblem(me: Member | null, sessionId: string, memberId: string, reason: string | null, data: ClubData): string | null {
+  if (!(data.checkinSessions ?? []).some((s) => s.id === sessionId)) return 'That check-in no longer exists.';
+  const target = data.members.find((m) => m.id === memberId);
+  if (!target) return 'That member no longer exists.';
+  if (!isBoardOf(me, target.chapterId, data.positions)) return 'Only their chapter’s board can excuse them.';
+  if (me!.id === target.id) return 'Someone else on the board has to excuse you.';
+  if (reason?.trim() && attended(sessionId, memberId, data)) return 'They checked in, so there’s nothing to excuse.';
+  return null;
+}
+
+/** Why `me` can't change a meeting check-in's category, or null. Only before the day it's held (4.6: in advance). */
+export function meetingTypeProblem(me: Member | null, sessionId: string, type: MeetingType, data: ClubData, today: string): string | null {
+  const session = (data.checkinSessions ?? []).find((s) => s.id === sessionId);
+  if (!session) return 'That check-in no longer exists.';
+  if (!canRunCheckin(me, session.chapterId, data.positions)) return RUN_ONLY;
+  if (session.kind !== 'meeting') return 'Only a meeting check-in has a kind.';
+  if (!MEETING_TYPES.includes(type)) return 'Pick what kind of meeting it is.';
+  if (session.heldOn <= today) return 'A meeting’s kind is set before the day it’s held (4.6).';
+  return null;
 }

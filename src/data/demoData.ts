@@ -687,3 +687,34 @@ Object.assign(DEMO_DATA, {
   ],
   treasurerReports: [{ month: lastMonth, presentedAt: at(thisMonth), presentedBy: 'm-sparks' }],
 } satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
+// Attendance rules and Big 4 rides: Phillip Island is a Big 4 for everyone, and so was a run six
+// weeks ago (with its check-in). Meetings are classified; Gravel was excused from today's (work).
+// ---------------------------------------------------------------------------
+
+const big4Past = { id: 'r-big4-past', title: 'Big 4: Great Ocean Road', startsAt: at(ago(42), '22:00:00'), endsAt: null, allDay: false,
+  location: 'Torquay', notes: 'Down the coast and back.', category: 'club' as const, cancelledAt: null };
+Object.assign(DEMO_DATA, {
+  rides: [...DEMO_DATA.rides, big4Past],
+  big4Rides: [
+    { rideId: 'r-7', chapterId: null, designatedBy: 'm-rusty', designatedAt: at(`${s4Year}-08-02`) },
+    { rideId: big4Past.id, chapterId: null, designatedBy: 'm-rusty', designatedAt: at(`${s4Year}-08-02`) },
+  ],
+  checkinSessions: [
+    ...(DEMO_DATA.checkinSessions ?? []).map((s) => ({ ...s, meetingType: s.id === 'cs-week' ? ('special' as const) : ('ordinary' as const) })),
+    { id: 'cs-2month', kind: 'meeting' as const, chapterId: 'ch-west', rideId: null, title: 'West monthly meeting', heldOn: ago(56),
+      openedBy: 'm-torque', closedAt: at(ago(56), '11:00:00'), code: 'MN2Y6T', meetingType: 'ordinary' as const },
+    { id: 'cs-bbq', kind: 'meeting' as const, chapterId: 'ch-west', rideId: null, title: 'West family barbie', heldOn: ago(14),
+      openedBy: 'm-torque', closedAt: at(ago(14), '15:00:00'), code: 'BBQ7KH', meetingType: 'event' as const },
+    { id: 'cs-big4', kind: 'ride' as const, chapterId: null, rideId: big4Past.id, title: big4Past.title, heldOn: addDays(ago(42), 1),
+      openedBy: 'm-rusty', closedAt: at(addDays(ago(42), 1), '08:00:00'), code: 'GOR4BG', meetingType: null },
+  ],
+  attendance: [
+    ...(DEMO_DATA.attendance ?? []),
+    ...went('cs-2month', ['m-rusty', 'm-torque', 'm-diesel', 'm-spanner', 'm-chook', 'm-throttle'], ago(56)),
+    ...went('cs-bbq', ['m-torque', 'm-spanner', 'm-kerry', 'm-patches'], ago(14)),
+    ...went('cs-big4', ['m-rusty', 'm-torque', 'm-spanner', 'm-sparks', 'm-throttle', 'm-jet', 'm-ratchet'], addDays(ago(42), 1)),
+  ],
+  exemptions: [{ sessionId: 'cs-today', memberId: 'm-gravel', reason: 'Working away', grantedBy: 'm-torque', grantedAt: at(s4Today, '08:00:00') }],
+} satisfies Partial<ClubData>);

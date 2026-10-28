@@ -145,6 +145,12 @@ export interface ClubContextValue {
   checkIn: (code: string) => Promise<string>;
   markAttendance: (sessionId: string, memberId: string, present: boolean) => Promise<void>;
   closeCheckin: (sessionId: string) => Promise<void>;
+  // Attendance rules and Big 4 rides
+  /** Makes a ride a Big 4 (chapterId null = every chapter), or changes its chapter. */
+  designateBig4: (rideId: string, chapterId: string | null) => Promise<void>;
+  undesignateBig4: (rideId: string) => Promise<void>;
+  /** Excuses a member from a check-in with a reason; null or blank clears it. */
+  setExemption: (sessionId: string, memberId: string, reason: string | null) => Promise<void>;
   /** Approves an applicant as `status`, or declines them (null), recording the board's tally. */
   decideApplication: (memberId: string, status: MemberStatus | null, votes: Votes, note: string) => Promise<void>;
   recordFngReview: (memberId: string, atMonths: number, outcome: FngOutcome, votes: Votes, note: string) => Promise<void>;

@@ -15,6 +15,8 @@ import { colors, fonts, space, type } from '../theme';
 // Stage 4
 import { fngDue } from '../domain/joining';
 import { BoardCheckins } from './checkin';
+import { BoardAttendance } from './attendance';
+import { termEndsOn, termState } from '../domain/terms';
 import { BoardFees } from './fees';
 import { TreasuryRow } from './treasury';
 import { seesAnyLedger } from '../domain/ledger';
@@ -259,6 +261,8 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
       </Card>
 
       {/* Stage 4: check-ins and fees */}
+      {/* Attendance rules and terms */}
+      <BoardAttendance chapterId={national ? null : me.chapterId} />
       <BoardCheckins chapterId={national ? null : me.chapterId} />
       <BoardFees />
     </Screen>
@@ -403,6 +407,13 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         {positions.map((p) => (
           <View key={p.id} style={{ gap: space.sm }}>
             <KeyValue label={ROLE_LABEL[p.role]} value={`Since ${formatLongDate(p.startedOn)}`} />
+            {termEndsOn(p) ? (
+              <KeyValue
+                label="Term"
+                value={`${termState(p, today) === 'ended' ? 'Ended' : 'Ends'} ${formatAuDate(termEndsOn(p))}`}
+                tone={termState(p, today) === 'running' ? undefined : 'warn'}
+              />
+            ) : null}
             {endTermProblem(me, p, data) === null ? (
               <ConfirmButton
                 label="End term"

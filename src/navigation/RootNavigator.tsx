@@ -32,6 +32,8 @@ import { OnAirBar } from '../screens/rideComms';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { CheckInScreen, OpenMeetingScreen, RunCheckinScreen } from '../screens/checkin';
 import { ChapterFeesScreen, MemberFeesScreen } from '../screens/fees';
+import { AttendanceScreen } from '../screens/attendance';
+import { MembershipCardScreen } from '../screens/card';
 import { FngReviewScreen } from '../screens/fng';
 // Stage 7: social extras
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
@@ -210,6 +212,9 @@ export function RootNavigator() {
             <Stack.Screen name="FngReview" component={FngReviewScreen} options={{ title: 'FNG review' }} />
             <Stack.Screen name="MemberFees" component={MemberFeesScreen} options={{ title: 'Fees' }} />
             <Stack.Screen name="ChapterFees" component={ChapterFeesScreen} options={{ title: 'Chapter fees' }} />
+            {/* Attendance rules, Big 4 rides and the membership card */}
+            <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ title: 'Attendance' }} />
+            <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
             {/* Stage 3 (lane B): chats and photos */}
             <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
             <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'New private chat' }} />
