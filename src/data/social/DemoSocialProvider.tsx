@@ -28,6 +28,17 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     birthdays: social.birthdays,
     setBirthday: async (month, day) => setSocial(act.setBirthday(ctx(), month, day)),
     photosOnThisDay,
+    skills: social.skills,
+    setSkills: async (skills) => setSocial(act.setSkills(ctx(), skills)),
+    mechanics: social.mechanics,
+    vouches: social.vouches,
+    saveMechanic: async (input) => {
+      const result = act.saveMechanic(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    archiveMechanic: async (id) => setSocial(act.archiveMechanic(ctx(), id)),
+    vouchMechanic: async (id, on) => setSocial(act.vouchMechanic(ctx(), id, on)),
     refresh: async () => {},
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

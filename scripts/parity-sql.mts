@@ -513,6 +513,17 @@ const call = (c: ParityCase & Record<string, any>): string => {
     // Stage 7: social extras
     case 'socialSetBirthday':
       return `public.set_birthday(${c.month ?? 'null'}, ${c.day ?? 'null'})`;
+    case 'socialSetSkills':
+      return `public.set_skills(array[${(c.skills as string[]).map(q).join(', ')}]::text[])`;
+    case 'socialSaveMechanic':
+      return (
+        `public.save_mechanic(${c.mechanic ? id('mech', c.mechanic) : 'null'}, ${text(c.workshop, c.repeat)}, ${q(c.suburb)}, ` +
+        `${q(c.phone)}, ${q(c.website)}, ${q(c.speciality)}, ${q(c.notes)})`
+      );
+    case 'socialArchiveMechanic':
+      return `public.archive_mechanic(${id('mech', c.mechanic)})`;
+    case 'socialVouchMechanic':
+      return `public.vouch_mechanic(${id('mech', c.mechanic)}, ${c.on})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
@@ -588,6 +599,14 @@ if (fx.reportMonth) {
   }
   sql('end $report$;');
   sql(`\\echo '  The ${fx.reportMonth.slice(0, 7)} Treasurer''s Report adds up the same in the demo and the database'`);
+}
+
+// Stage 7: social extras. The fixture's workshops, inserted as the owner.
+for (const m of (fx as typeof fx & { mechanics?: { key: string; name: string; addedBy: string | null; archived: boolean }[] }).mechanics ?? []) {
+  sql(
+    `insert into public.mechanics (id, name, added_by, archived_at) values (${id('mech', m.key)}, ${q(m.name)}, ` +
+      `${m.addedBy ? id('m', m.addedBy) : 'null'}, ${m.archived ? 'now()' : 'null'});`,
+  );
 }
 
 sql('\\echo Parity: the demo and the database agree on who can do what');
