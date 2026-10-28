@@ -4,6 +4,7 @@
 import { addDays } from '../../domain/dates';
 import type { Birthday } from '../../domain/social/shoutouts';
 import type { FeedItem } from '../chat/chatContext';
+import type { Mechanic } from '../../domain/social/help';
 import type { SocialData } from './demoSocialActions';
 
 const monthDay = (iso: string) => ({ month: Number(iso.slice(5, 7)), day: Number(iso.slice(8, 10)) });
@@ -35,5 +36,38 @@ export function demoSocialData(today: string): SocialData {
     photo('otd-2', 'demo/servo-night.jpg', 'm-sparks', back(1, 1)),
     photo('otd-3', 'demo/twisties.jpg', 'm-rusty', back(3, 2), 900, 1200),
   ];
-  return { birthdays, pastPhotos };
+  // Made-up workshops: the names are invented and the numbers are the 555 range kept for drama.
+  const added = '2026-09-01T00:00:00.000Z';
+  const shop = (id: string, over: Partial<Mechanic> & Pick<Mechanic, 'name' | 'addedBy'>): Mechanic => ({
+    id, suburb: null, phone: null, website: null, speciality: null, notes: null, addedAt: added, archivedAt: null, ...over,
+  });
+  const mechanics: Mechanic[] = [
+    shop('mech-1', { name: 'Westside Moto Works', suburb: 'Sunshine', phone: '03 5550 1234', speciality: 'Old Japanese and British',
+      notes: 'Ask for Col. Fair on price and won’t rush you.', addedBy: 'm-spanner' }),
+    shop('mech-2', { name: 'Hume Highway Harley', suburb: 'Craigieburn', phone: '03 5550 9876', website: 'https://example.com',
+      speciality: 'Harley servicing', addedBy: 'm-smokey' }),
+    shop('mech-3', { name: 'Two Stroke Terry', suburb: 'Melton', phone: '0400 555 321', speciality: 'Carbs and two-strokes',
+      notes: 'Works out of his shed. Cash only.', addedBy: 'm-rusty' }),
+    shop('mech-4', { name: 'Tyre Barn', suburb: 'Laverton North', speciality: 'Tyres while you wait', addedBy: 'm-diesel' }),
+  ];
+  return {
+    birthdays,
+    pastPhotos,
+    skills: [
+      { memberId: 'm-diesel', skills: ['servicing', 'diagnostics', 'trailer'] },
+      { memberId: 'm-sparks', skills: ['electrics', 'diagnostics'] },
+      { memberId: 'm-rusty', skills: ['carbs', 'welding', 'tools'] },
+      { memberId: 'm-chook', skills: ['tyres', 'wheels'] },
+      { memberId: 'm-crank', skills: ['servicing', 'suspension'] },
+      { memberId: 'm-ratchet', skills: ['paint'] },
+    ],
+    mechanics,
+    vouches: [
+      { mechanicId: 'mech-1', memberId: 'm-rusty', vouched: true },
+      { mechanicId: 'mech-1', memberId: 'm-gravel', vouched: true },
+      { mechanicId: 'mech-1', memberId: 'm-chook', vouched: true },
+      { mechanicId: 'mech-2', memberId: 'm-jet', vouched: true },
+      { mechanicId: 'mech-3', memberId: 'm-diesel', vouched: true },
+    ],
+  };
 }

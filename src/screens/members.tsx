@@ -27,6 +27,7 @@ import { HomeFeesCard } from './fees';
 import { IntroProgressCard } from './fng';
 // Stage 7: social extras
 import { HomeOnThisDayCard, HomeShoutoutsCard } from './social';
+import { WhoCanHelpRow } from './help';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -268,6 +269,8 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
           last
         />
       </Card>
+      {/* Stage 7: social extras */}
+      <WhoCanHelpRow />
       <Field
         label="Search"
         value={query}

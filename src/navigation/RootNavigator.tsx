@@ -37,6 +37,7 @@ import { MembershipCardScreen } from '../screens/card';
 import { FngReviewScreen } from '../screens/fng';
 // Stage 7: social extras
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
+import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } from '../screens/help';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -233,6 +234,14 @@ export function RootNavigator() {
             {/* Stage 7: social extras */}
             <Stack.Screen name="Birthday" component={BirthdayScreen} options={{ title: 'Birthday shout-out' }} />
             <Stack.Screen name="OnThisDay" component={OnThisDayScreen} options={{ title: 'On this day' }} />
+            <Stack.Screen name="WhoCanHelp" component={WhoCanHelpScreen} options={{ title: 'Who can help?' }} />
+            <Stack.Screen name="Mechanic" component={MechanicScreen} options={{ title: 'Workshop' }} />
+            <Stack.Screen
+              name="EditMechanic"
+              component={EditMechanicScreen}
+              options={({ route }) => ({ title: route.params?.mechanicId ? 'Edit workshop' : 'Add a workshop' })}
+            />
+            <Stack.Screen name="MySkills" component={MySkillsScreen} options={{ title: 'I can help with' }} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}
