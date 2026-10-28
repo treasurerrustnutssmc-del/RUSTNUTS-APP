@@ -32,6 +32,7 @@ import { SwapRow } from './swap';
 import { BuildsRow } from './builds';
 import { HistoryRow } from './history';
 import { BragRow } from './brag';
+import { BadgesCard } from './badges';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -398,6 +399,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
       {/* Stage 4: the way in, turn-up and fees */}
       {member.approval === 'pending' && member.status === 'introduced' && canManage ? <IntroProgressCard member={member} /> : null}
       {member.approval === 'approved' ? <AttendanceSummary member={member} /> : null}
+      {member.approval === 'approved' && me?.approval === 'approved' ? <BadgesCard member={member} /> : null}
       {member.approval === 'approved' && (member.id === me?.id || isBoardOf(me, member.chapterId, data.positions)) ? <StandingCard member={member} /> : null}
       {!isSelf && member.approval === 'approved' && canSeeFees(me, member.chapterId, data.positions) ? (
         <Button label="Fees" kind="secondary" icon="cash-outline" onPress={() => navigation.navigate('MemberFees', { memberId: member.id })} />

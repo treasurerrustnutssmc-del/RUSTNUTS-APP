@@ -8,7 +8,7 @@ import { clubYearOf } from '../domain/clubYear';
 import { fyOf, receiptNo } from '../domain/fees';
 import { readGpx } from '../domain/gpx';
 import { addMonths } from '../domain/profile';
-import type { ClubData, LedgerCode, LedgerEntry, Member, MemberPrivate, MemberStatus, Ride, Route } from '../domain/types';
+import type { Attendance, CheckinSession, ClubData, LedgerCode, LedgerEntry, Member, MemberPrivate, MemberStatus, Ride, RideRoute, Route } from '../domain/types';
 import { isCredit } from '../domain/ledger';
 import { V4_CONSTITUTION } from './demoConstitution';
 
@@ -130,6 +130,33 @@ const DEMO_ROUTES: { route: Omit<Route, 'distanceM' | 'climbM' | 'line' | 'stops
       { name: 'Regroup, Sunbury', lat: -37.577, lng: 144.727 },
       { name: 'Lunch, Lancefield', lat: -37.278, lng: 144.733 },
       { name: 'Finish, Craigieburn', lat: -37.6, lng: 144.943 },
+    ],
+  },
+  {
+    route: { id: 'rt-murray', name: 'Murray run', chapterId: null, updatedAt: '2026-04-02T09:00:00.000Z',
+      notes: 'A weekender: up the Hume to Albury, along the river to Echuca for the night, home through Bendigo.' },
+    towns: [
+      [-37.835, 144.795, 15], [-37.03, 145.14, 300], [-36.55, 145.98, 180], [-36.12, 146.89, 160], [-36.08, 146.92, 160],
+      [-36.0, 146.4, 150], [-36.02, 145.6, 110], [-36.11, 144.76, 95], [-36.14, 144.75, 95], [-36.76, 144.28, 220],
+      [-37.4, 144.55, 480], [-37.835, 144.795, 15],
+    ],
+    stops: [
+      { name: 'Fuel, Seymour', lat: -37.03, lng: 145.14 },
+      { name: 'Lunch, Albury', lat: -36.08, lng: 146.92 },
+      { name: 'Overnight, Echuca', lat: -36.14, lng: 144.75 },
+    ],
+  },
+  {
+    route: { id: 'rt-coorong', name: 'Coorong and back', chapterId: null, updatedAt: '2026-02-20T09:00:00.000Z',
+      notes: 'Three days: the Great Ocean Road to Mount Gambier, up the Coorong to Meningie, home through Horsham.' },
+    towns: [
+      [-37.835, 144.795, 15], [-38.34, 143.59, 120], [-38.38, 142.48, 20], [-37.83, 140.78, 60], [-36.83, 139.85, 10],
+      [-35.69, 139.34, 10], [-36.32, 140.97, 90], [-36.71, 142.2, 140], [-37.28, 143.85, 450], [-37.835, 144.795, 15],
+    ],
+    stops: [
+      { name: 'Overnight, Mount Gambier', lat: -37.83, lng: 140.78 },
+      { name: 'Overnight, Meningie', lat: -35.69, lng: 139.34 },
+      { name: 'Fuel, Horsham', lat: -36.71, lng: 142.2 },
     ],
   },
 ];
@@ -817,3 +844,46 @@ DEMO_DATA.rides.push(
   { id: 'r-brag-3', title: 'High Country weekend', startsAt: at(ago(20), '21:00:00'), endsAt: null, allDay: false,
     location: 'Mansfield', notes: 'Two nights. Bring layers.', category: 'club', cancelledAt: null },
 );
+
+// ---------------------------------------------------------------------------
+// Badges: a season of rides Spanner (the Member persona) and a few others checked in to, with
+// their routes, so every badge track has something in it.
+// ---------------------------------------------------------------------------
+
+{
+  const routeFor = ['rt-west-loop', 'rt-north-hills', 'rt-club-run', null] as const;
+  const pastRides: Ride[] = [];
+  const pastRoutes: RideRoute[] = [];
+  const pastSessions: CheckinSession[] = [];
+  const pastAttendance: Attendance[] = [];
+  // Fixed dates in 2025, a fortnight apart: before Throttle's and Lefty's FNG year and outside this
+  // club year, so FNG and Big 4 standings stay as they were.
+  const titles = ['Sunday run', 'Bacchus Marsh breakfast', 'Lal Lal loop', 'Ballan bakery run', 'You Yangs sunset', 'Sunday run', 'Werribee Gorge run'];
+  for (let i = 0; i < 22; i++) {
+    const day = addDays('2025-01-12', i * 14);
+    const id = `r-season-${i + 1}`;
+    const big = i === 3 || i === 9;
+    const trip = i === 5 ? 'rt-murray' : i === 12 ? 'rt-coorong' : null;
+    pastRides.push({
+      id, title: big ? (i === 3 ? 'Big 4: Summer send-off' : 'Big 4: Winter warmer') : trip === 'rt-murray' ? 'Murray run' : trip === 'rt-coorong' ? 'Coorong and back' : titles[i % titles.length],
+      startsAt: at(day, '22:00:00'), endsAt: null, allDay: false, location: 'Laverton North', notes: null,
+      category: i % 3 === 0 ? 'club' : 'west', cancelledAt: null,
+    });
+    const chapterId = i % 3 === 0 ? null : 'ch-west';
+    const route = trip ?? routeFor[i % routeFor.length];
+    if (route) pastRoutes.push({ rideId: id, routeId: route });
+    pastSessions.push({ id: `cs-season-${i + 1}`, kind: 'ride', chapterId, rideId: id, title: pastRides[i].title, heldOn: addDays(day, 1),
+      openedBy: 'm-gravel', closedAt: at(addDays(day, 1), '08:00:00'), code: null, meetingType: null });
+    pastAttendance.push(...went(`cs-season-${i + 1}`, i % 4 === 1 ? ['m-spanner', 'm-gravel'] : ['m-spanner', 'm-gravel', 'm-chook'], addDays(day, 1)));
+  }
+  Object.assign(DEMO_DATA, {
+    rides: [...DEMO_DATA.rides, ...pastRides],
+    rideRoutes: [...(DEMO_DATA.rideRoutes ?? []), ...pastRoutes],
+    big4Rides: [
+      ...(DEMO_DATA.big4Rides ?? []),
+      ...[3, 9].map((i) => ({ rideId: `r-season-${i + 1}`, chapterId: null, designatedBy: 'm-rusty', designatedAt: at(addDays('2025-01-12', i * 14 - 30)) })),
+    ],
+    checkinSessions: [...(DEMO_DATA.checkinSessions ?? []), ...pastSessions],
+    attendance: [...(DEMO_DATA.attendance ?? []), ...pastAttendance],
+  } satisfies Partial<ClubData>);
+}

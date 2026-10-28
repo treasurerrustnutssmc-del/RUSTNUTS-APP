@@ -6,7 +6,7 @@ import type { Listing, ListingInput, ListingKind, ListingPhoto } from '../../dom
 import type { BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, HistoryInput, HistoryPrecision, Honour, HonourInput } from '../../domain/social/history';
 import type { Award, AwardInput, BragKind, Nomination, NominationInput, Tally, Vote } from '../../domain/social/brag';
-import type { Ride, RideCategory } from '../../domain/types';
+import type { Ride, RideCategory, RideRoute } from '../../domain/types';
 
 export interface BirthdayRow {
   member_id: string;
@@ -229,4 +229,34 @@ export function bragRideWindow(awards: Award[]): { from: string; to: string } | 
   const years = awards.filter((a) => a.kind === 'ride').map((a) => a.year);
   if (years.length === 0) return null;
   return { from: `${Math.min(...years) - 1}-12-31T00:00:00Z`, to: `${Math.max(...years) + 1}-01-02T00:00:00Z` };
+}
+
+// Badges
+export interface RideRouteRow {
+  ride_id: string;
+  route_id: string | null;
+}
+
+/** Which route each ride used (past rides too). A cleared route is a row with no route. */
+export const toRideRoutes = (rows: RideRouteRow[]): RideRoute[] =>
+  rows.filter((r) => r.route_id != null).map((r) => ({ rideId: r.ride_id, routeId: r.route_id as string }));
+
+/** Every ride's route: the table's, with the calendar's (fresher, loaded more often) winning. */
+export function mergeRideRoutes(all: RideRoute[], calendar: RideRoute[]): RideRoute[] {
+  const fresh = new Set(calendar.map((r) => r.rideId));
+  return [...all.filter((r) => !fresh.has(r.rideId)), ...calendar];
+}
+
+/** PostgREST hands back at most 1,000 rows a request: read the lot, a page at a time. */
+export async function allPages<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  size = 1000,
+): Promise<{ data: T[] | null; error: unknown }> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += size) {
+    const { data, error } = await page(from, from + size - 1);
+    if (error) return { data: null, error };
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < size) return { data: rows, error: null };
+  }
 }

@@ -118,3 +118,29 @@ test('the rides behind ride awards: their years, a day either side', async () =>
     '2026-05-01T00:00:00.000Z',
   );
 });
+
+test('badges: every ride’s route, past ones too, merged with the calendar’s', async () => {
+  const { toRideRoutes, mergeRideRoutes } = await import('./liveSocial');
+  assert.deepEqual(toRideRoutes([{ ride_id: 'r1', route_id: 'a' }, { ride_id: 'r2', route_id: null }]), [{ rideId: 'r1', routeId: 'a' }], 'a cleared route is none');
+  assert.deepEqual(
+    mergeRideRoutes([{ rideId: 'r1', routeId: 'a' }], [{ rideId: 'r1', routeId: 'b' }, { rideId: 'r2', routeId: 'c' }]),
+    [{ rideId: 'r1', routeId: 'b' }, { rideId: 'r2', routeId: 'c' }],
+    'the calendar’s is the fresher one',
+  );
+});
+
+test('a table bigger than one page is read page by page', async () => {
+  const { allPages } = await import('./liveSocial');
+  const rows = Array.from({ length: 2500 }, (_, i) => i);
+  const asked: [number, number][] = [];
+  const got = await allPages(async (from, to) => {
+    asked.push([from, to]);
+    return { data: rows.slice(from, to + 1), error: null };
+  });
+  assert.equal(got.data?.length, 2500);
+  assert.deepEqual(asked, [[0, 999], [1000, 1999], [2000, 2999]]);
+  const failed = await allPages(async (from) => (from ? { data: null, error: new Error('x') } : { data: rows.slice(0, 1000), error: null }));
+  assert.ok(failed.error, 'a page that fails fails the lot');
+  const empty = await allPages(async () => ({ data: [], error: null }));
+  assert.deepEqual(empty, { data: [], error: null });
+});

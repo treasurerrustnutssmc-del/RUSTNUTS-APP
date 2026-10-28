@@ -87,6 +87,7 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     myVotes: social.bragVotes.filter((v) => v.memberId === me?.id),
     tallies: act.bragTallies(social, today),
     bragRides: data.rides,
+    allRideRoutes: data.rideRoutes ?? [],
     openAward: async (input) => {
       const result = act.openAward(ctx(), input);
       setSocial(result.social);
