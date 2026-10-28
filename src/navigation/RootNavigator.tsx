@@ -26,6 +26,9 @@ import { ReminderSync } from '../data/reminders';
 // Lane E: share in
 import { IncomingShare } from '../data/shareIn';
 import { ShareInScreen } from '../screens/shareIn';
+import {
+  DocumentApprovalScreen, DocumentScreen, DocumentSignoffsScreen, DocumentsScreen, NewDocumentScreen, PublishDocumentScreen,
+} from '../screens/documents'; // Stage 5C
 import { BudgetScreen, ClubFinancesScreen, LedgerEntryScreen, LedgerScreen, MonthReportScreen, NewEntryScreen, TreasuryScreen } from '../screens/treasury';
 // Lane E: ride comms
 import { OnAirBar } from '../screens/rideComms';
@@ -168,6 +171,9 @@ export function RootNavigator() {
           <>
             <Stack.Screen name="Pending" component={PendingScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check in' }} />
+            {/* Stage 5C: applicants read the Registered Rules and the Constitution (15.7) */}
+            <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
+            <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
           </>
         ) : (
           <>
@@ -235,6 +241,13 @@ export function RootNavigator() {
             {/* Stage 7: social extras */}
             <Stack.Screen name="Birthday" component={BirthdayScreen} options={{ title: 'Birthday shout-out' }} />
             <Stack.Screen name="OnThisDay" component={OnThisDayScreen} options={{ title: 'On this day' }} />
+            {/* Stage 5C: document library */}
+            <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
+            <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
+            <Stack.Screen name="NewDocument" component={NewDocumentScreen} options={{ title: 'Add a document' }} />
+            <Stack.Screen name="PublishDocument" component={PublishDocumentScreen} options={{ title: 'Publish a version' }} />
+            <Stack.Screen name="DocumentApproval" component={DocumentApprovalScreen} options={{ title: 'Record approval' }} />
+            <Stack.Screen name="DocumentSignoffs" component={DocumentSignoffsScreen} options={{ title: 'Who’s signed' }} />
             <Stack.Screen name="WhoCanHelp" component={WhoCanHelpScreen} options={{ title: 'Who can help?' }} />
             <Stack.Screen name="Mechanic" component={MechanicScreen} options={{ title: 'Workshop' }} />
             <Stack.Screen

@@ -428,6 +428,11 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
         </Row>
       </Card>
 
+      {/* Stage 5C: the Registered Rules and the Constitution are free to applicants (15.7) */}
+      {!declined ? (
+        <Button label="Read the Constitution" kind="secondary" icon="library-outline" onPress={() => navigation.navigate('Documents')} />
+      ) : null}
+
       {!declined && !isDemo ? (
         <Button
           label="Check again"

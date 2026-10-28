@@ -8,6 +8,7 @@ import type {
   BallotChoice, BusPurpose, BusStatus, ChargeKind, CheckinKind, ClubData, CrewRole, Electorate, MeetingKind, Member, MemberStatus, PaymentState, PositionRole,
   RideCategory, Route, RsvpAnswer, Threshold,
   EntryState, LedgerCode, VoteResult, // Stage 5B
+  ApprovingBody, DocumentKind, // Stage 5C
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -23,6 +24,7 @@ import { directId, runChatAction, type ChatAction, type ChatData } from './chat/
 import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
 import { runSocialAction, type SocialAction, type SocialData } from './social/demoSocialActions'; // Stage 7: social extras
 import type { ListingKind } from '../domain/social/swap'; // Stage 7: social extras
+import { DOCUMENT_ACTIONS, runDocumentAction, type DocumentAction } from './documentActions'; // Stage 5C
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -110,6 +112,14 @@ export interface ParityFixture {
   treasurerReports?: { monthOffset: number }[];
   /** A month whose report the demo and the database must work out the same. */
   reportMonth?: string;
+  // Stage 5C: the document library, all created and published at DOCS_AT.
+  documents?: { key: string; chapter: string | null; kind: DocumentKind; title: string; asksSignOff: boolean; reviewMonths: number | null }[];
+  /** Versions, their approval dates counted from today (none: awaiting approval). */
+  documentVersions?: {
+    key: string; document: string; number: number; label: string; body: string; fresh: boolean;
+    approvingBody?: ApprovingBody; approvedDays?: number; commencesDays?: number;
+  }[];
+  documentSignoffs?: { version: string; member: string }[];
 }
 
 /** When the fixture's ledger entries were recorded and its budgets approved. */
@@ -124,6 +134,9 @@ export function monthFrom(today: string, offset: number): string {
   const total = y * 12 + (m - 1) + offset;
   return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}-01`;
 }
+
+/** When the fixture's documents were created, published and signed. */
+export const DOCS_AT = '2026-10-01T00:00:00.000Z';
 
 /** When the fixture's briefings were written and read. */
 export const BRIEFED_AT = '2026-10-01T00:00:00.000Z';
@@ -264,7 +277,27 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  return withLedger(withStage4(base, today), today);
+  return withDocuments(withLedger(withStage4(base, today), today), today);
+}
+
+// Stage 5C: the document library.
+function withDocuments(data: ClubData, today: string): ClubData {
+  const day = (n: number | undefined) => (n === undefined ? null : addDays(today, n));
+  return {
+    ...data,
+    documents: (fixture.documents ?? []).map((d) => ({
+      id: d.key, chapterId: d.chapter, kind: d.kind, title: d.title, asksSignOff: d.asksSignOff, reviewMonths: d.reviewMonths,
+      reviewedOn: null, createdBy: null, createdAt: DOCS_AT,
+    })),
+    documentVersions: (fixture.documentVersions ?? []).map((v) => ({
+      id: v.key, documentId: v.document, number: v.number, label: v.label, body: v.body, whatChanged: '', freshSignOff: v.fresh,
+      approvingBody: v.approvingBody ?? null, approvedOn: day(v.approvedDays), commencesOn: day(v.commencesDays),
+      publishedBy: null, publishedAt: DOCS_AT,
+    })),
+    documentSignoffs: (fixture.documentSignoffs ?? []).map((s) => ({
+      versionId: s.version, documentId: fixture.documentVersions!.find((v) => v.key === s.version)!.document, memberId: s.member, signedAt: DOCS_AT,
+    })),
+  };
 }
 
 // Stage 5B: the treasurer's books.
@@ -376,6 +409,10 @@ export function demoAnswer(c: ParityCase): string | null {
     // Stage 7: social extras
     if (String(c.action).startsWith('social')) {
       runSocialAction({ social: fixtureSocial(), club: data, me, today }, c as unknown as SocialAction);
+      return null;
+    }
+    if (DOCUMENT_ACTIONS.has(String(c.action))) {
+      runDocumentAction({ data, me, today }, resolveCase(c, today) as unknown as DocumentAction);
       return null;
     }
     if (String(c.action).startsWith('chat')) {
