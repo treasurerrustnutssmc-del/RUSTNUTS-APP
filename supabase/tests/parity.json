@@ -5779,6 +5779,188 @@
       "action": "signDocument",
       "version": "nope",
       "allowed": false
+    },
+    {
+      "name": "The National Chairman makes a club ride a Big 4 for every chapter",
+      "as": "chair",
+      "action": "designateBig4",
+      "ride": "future-club",
+      "chapter": null,
+      "allowed": true
+    },
+    {
+      "name": "North's President makes a West ride a Big 4 for West",
+      "as": "smokey",
+      "action": "designateBig4",
+      "ride": "future-west",
+      "chapter": "west",
+      "allowed": true
+    },
+    {
+      "name": "The National Secretary makes a club ride a Big 4",
+      "as": "lou",
+      "action": "designateBig4",
+      "ride": "future-club",
+      "chapter": null,
+      "allowed": true
+    },
+    {
+      "name": "The National Auditor makes a ride a Big 4",
+      "as": "kim",
+      "action": "designateBig4",
+      "ride": "future-club",
+      "chapter": null,
+      "allowed": false
+    },
+    {
+      "name": "A chapter Secretary makes a ride a Big 4",
+      "as": "torque",
+      "action": "designateBig4",
+      "ride": "future-club",
+      "chapter": null,
+      "allowed": false
+    },
+    {
+      "name": "The Chairman makes a past ride a Big 4",
+      "as": "chair",
+      "action": "designateBig4",
+      "ride": "past-club",
+      "chapter": null,
+      "allowed": false
+    },
+    {
+      "name": "The Chairman makes a cancelled ride a Big 4",
+      "as": "chair",
+      "action": "designateBig4",
+      "ride": "cancelled-north",
+      "chapter": null,
+      "allowed": false
+    },
+    {
+      "name": "The Chairman un-makes a ride that isn't a Big 4",
+      "as": "chair",
+      "action": "undesignateBig4",
+      "ride": "future-club",
+      "allowed": false
+    },
+    {
+      "name": "A chapter Secretary un-makes a Big 4",
+      "as": "torque",
+      "action": "undesignateBig4",
+      "ride": "future-club",
+      "allowed": false
+    },
+    {
+      "name": "West's Secretary marks a coming meeting as an event",
+      "as": "torque",
+      "action": "setMeetingType",
+      "session": "later-west",
+      "type": "event",
+      "allowed": true
+    },
+    {
+      "name": "West's Secretary changes today's meeting kind",
+      "as": "torque",
+      "action": "setMeetingType",
+      "session": "today-west",
+      "type": "special",
+      "allowed": false
+    },
+    {
+      "name": "West's Secretary changes yesterday's meeting kind",
+      "as": "torque",
+      "action": "setMeetingType",
+      "session": "yesterday-west",
+      "type": "event",
+      "allowed": false
+    },
+    {
+      "name": "North's Road Captain changes a West meeting kind",
+      "as": "crank",
+      "action": "setMeetingType",
+      "session": "later-west",
+      "type": "event",
+      "allowed": false
+    },
+    {
+      "name": "A ride check-in gets a meeting kind",
+      "as": "torque",
+      "action": "setMeetingType",
+      "session": "club-ride",
+      "type": "event",
+      "allowed": false
+    },
+    {
+      "name": "West's Secretary excuses an FNG from a meeting",
+      "as": "torque",
+      "action": "setExemption",
+      "session": "yesterday-west",
+      "member": "finn",
+      "reason": "Work",
+      "allowed": true
+    },
+    {
+      "name": "West's President excuses the Secretary",
+      "as": "rusty",
+      "action": "setExemption",
+      "session": "yesterday-west",
+      "member": "torque",
+      "reason": "Family",
+      "allowed": true
+    },
+    {
+      "name": "West's Secretary excuses herself",
+      "as": "torque",
+      "action": "setExemption",
+      "session": "yesterday-west",
+      "member": "torque",
+      "reason": "Family",
+      "allowed": false
+    },
+    {
+      "name": "West's Secretary excuses someone who checked in",
+      "as": "torque",
+      "action": "setExemption",
+      "session": "today-west",
+      "member": "gravel",
+      "reason": "Work",
+      "allowed": false
+    },
+    {
+      "name": "West's Secretary clears an excuse for someone who checked in",
+      "as": "torque",
+      "action": "setExemption",
+      "session": "today-west",
+      "member": "gravel",
+      "reason": null,
+      "allowed": true
+    },
+    {
+      "name": "A Tail Gunner excuses an FNG",
+      "as": "spanner",
+      "action": "setExemption",
+      "session": "yesterday-west",
+      "member": "finn",
+      "reason": "Work",
+      "allowed": false
+    },
+    {
+      "name": "North's Road Captain excuses a West FNG",
+      "as": "crank",
+      "action": "setExemption",
+      "session": "yesterday-west",
+      "member": "finn",
+      "reason": "Work",
+      "allowed": false
+    },
+    {
+      "name": "The National Chairman excuses a West FNG",
+      "as": "chair",
+      "action": "setExemption",
+      "session": "yesterday-west",
+      "member": "finn",
+      "reason": "Injury",
+      "allowed": true
     }
   ],
   "chapters": [

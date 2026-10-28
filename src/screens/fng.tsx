@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { attendanceCount } from '../domain/attendance';
+import { standingOf } from '../domain/standing';
+import { StandingLines } from './attendance';
 import { formatAuDate, monthsBetween } from '../domain/dates';
 import { clubYearOf } from '../domain/clubYear';
 import { continuationFeeFor, formatCents } from '../domain/fees';
@@ -157,6 +159,7 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
   const paidContinuation = (data.charges ?? []).some((c) => c.memberId === member.id && c.kind === 'continuation');
   const patchBlock = due ? fngReviewProblem(me, member, due.atMonths, 'patch', votes, data, today) : null;
   const since = member.fngStartedOn ? attendanceCount(member.id, data, member.fngStartedOn) : null;
+  const standing = standingOf(member, data, today); // half of each category (4.6)
   const tooEarly = due ? fngReviewProblem(me, member, due.atMonths, 'continue', { for: null, against: null, abstained: null }, data, today) === 'That review isn’t due yet.' : false;
 
   const save = async () => {
@@ -209,6 +212,7 @@ export function FngReviewScreen({ route, navigation }: RootScreen<'FngReview'>) 
           </Row>
           <KeyValue label="Due" value={formatAuDate(due.date)} tone={due.overdue ? 'warn' : undefined} />
           {since ? <KeyValue label="Since starting" value={`${plural(since.meetings, 'meeting', 'meetings')} · ${plural(since.rides, 'ride', 'rides')}`} /> : null}
+          {standing ? <StandingLines standing={standing} /> : null}
           <Small>Reviews fall at 6, 9 and 12 months, then every 3 months.</Small>
           {tooEarly ? <Notice tone="info">{`This one can be recorded from ${REVIEW_EARLY_DAYS} days before it’s due.`}</Notice> : null}
           <Choices<FngOutcome>

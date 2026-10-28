@@ -197,6 +197,14 @@ const stage4Call = (c: ParityCase & Record<string, any>): string | null => {
       return `public.confirm_payment(${id('pay', c.payment)})`;
     case 'rejectPayment':
       return `public.reject_payment(${id('pay', c.payment)})`;
+    case 'designateBig4':
+      return `public.designate_big4(${id('r', c.ride)}, ${chapter(c.chapter)})`;
+    case 'undesignateBig4':
+      return `public.undesignate_big4(${id('r', c.ride)})`;
+    case 'setMeetingType':
+      return `public.set_meeting_type(${id('s', c.session)}, ${q(c.type)})`;
+    case 'setExemption':
+      return `public.set_exemption(${id('s', c.session)}, ${id('m', c.member)}, ${textOrNull(c.reason)})`;
     default:
       return null;
   }

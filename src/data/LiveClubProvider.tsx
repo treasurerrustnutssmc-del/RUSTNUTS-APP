@@ -43,7 +43,8 @@ import {
   signRoadRulesArgs,
 } from './liveData';
 // Stage 4
-import { canCheckIn, closeProblem, markProblem, openCheckinProblem } from '../domain/attendance';
+import { canCheckIn, closeProblem, exemptionProblem, markProblem, openCheckinProblem } from '../domain/attendance';
+import { designateBig4Problem, undesignateBig4Problem } from '../domain/big4';
 import {
   claimProblem,
   continuationFeeProblem,
@@ -520,6 +521,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
           p_chapter: input.chapterId,
           p_title: input.title.trim() || null,
           p_held_on: input.kind === 'meeting' ? input.heldOn : null,
+          // Anything but an ordinary meeting goes to the six-argument version, which opens and
+          // classifies it in one go (4.6). Ordinary keeps the original call.
+          ...(input.kind === 'meeting' && input.meetingType && input.meetingType !== 'ordinary' ? { p_meeting_type: input.meetingType } : {}),
         }),
       );
       await after();
@@ -543,6 +547,22 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const session = (data.checkinSessions ?? []).find((s) => s.id === sessionId);
       if (session) deny(closeProblem(visibleMe, session, data));
       ok(await supabase().rpc('close_checkin', { p_session: sessionId }));
+      await after();
+    },
+    // Attendance rules and Big 4 rides
+    designateBig4: async (rideId, chapterId) => {
+      deny(designateBig4Problem(visibleMe, rideId, chapterId, data, today));
+      ok(await supabase().rpc('designate_big4', { p_ride: rideId, p_chapter: chapterId }));
+      await after();
+    },
+    undesignateBig4: async (rideId) => {
+      deny(undesignateBig4Problem(visibleMe, rideId, data, today));
+      ok(await supabase().rpc('undesignate_big4', { p_ride: rideId }));
+      await after();
+    },
+    setExemption: async (sessionId, memberId, reason) => {
+      deny(exemptionProblem(visibleMe, sessionId, memberId, reason, data));
+      ok(await supabase().rpc('set_exemption', { p_session: sessionId, p_member: memberId, p_reason: reason?.trim() || null }));
       await after();
     },
     decideApplication: async (memberId, status, votes, note) => {

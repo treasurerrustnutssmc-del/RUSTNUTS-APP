@@ -290,6 +290,11 @@ export interface ClubData extends LedgerData {
   documents?: ClubDocument[];
   documentVersions?: DocumentVersion[];
   documentSignoffs?: DocumentSignoff[];
+  // Attendance rules and Big 4 rides (constitution v4 4.6, 5.2–5.11)
+  /** Rides the NEC has designated Big 4. Missing means none. */
+  big4Rides?: Big4Ride[];
+  /** Members excused from a meeting or ride. Missing means none. */
+  exemptions?: AttendanceExemption[];
 }
 
 // ---------------------------------------------------------------------------
@@ -309,6 +314,8 @@ export interface CheckinSession {
   openedBy: string | null;
   closedAt: string | null;
   code?: string | null;
+  /** A meeting's category, set when it's opened. Null or missing on a meeting means ordinary; rides have none. */
+  meetingType?: MeetingType | null;
 }
 
 export interface Attendance {
@@ -686,4 +693,28 @@ export interface DocumentSignoff {
   documentId: string;
   memberId: string;
   signedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Attendance rules, Big 4 rides and terms (constitution v4 4.6, 5.2–5.11, 9.2)
+// ---------------------------------------------------------------------------
+
+/** A ride the NEC designated, ahead of time, as a Big 4 (5.11). chapterId null = every chapter. */
+export interface Big4Ride {
+  rideId: string;
+  chapterId: string | null;
+  designatedBy: string | null;
+  designatedAt: string;
+}
+
+/** What a meeting check-in counts towards: ordinary monthly meetings, special or annual meetings, or other events. */
+export type MeetingType = 'ordinary' | 'special' | 'event';
+
+/** A member the board excused from one check-in (4.12, 5.3, 5.11): it drops out of their count. */
+export interface AttendanceExemption {
+  sessionId: string;
+  memberId: string;
+  reason: string;
+  grantedBy: string | null;
+  grantedAt: string;
 }

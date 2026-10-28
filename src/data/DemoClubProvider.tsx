@@ -11,6 +11,7 @@ import * as act from './demoActions';
 import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
 import * as s4 from './demoStage4';
+import * as attendanceRules from './demoAttendance';
 import * as ledger from './ledgerActions';
 import * as docs from './documentActions';
 
@@ -112,6 +113,9 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     markAttendance: async (sessionId, memberId, present) => setData(s4.markAttendance(ctx, sessionId, memberId, present)),
     closeCheckin: async (sessionId) => setData(s4.closeCheckin(ctx, sessionId)),
+    designateBig4: async (rideId, chapterId) => setData(attendanceRules.designateBig4(ctx, rideId, chapterId)),
+    undesignateBig4: async (rideId) => setData(attendanceRules.undesignateBig4(ctx, rideId)),
+    setExemption: async (sessionId, memberId, reason) => setData(attendanceRules.setExemption(ctx, sessionId, memberId, reason)),
     decideApplication: async (memberId, status, votes, note) => setData(s4.decideApplication(ctx, memberId, status, votes, note)),
     recordFngReview: async (memberId, atMonths, outcome, votes, note) =>
       setData(s4.recordFngReview(ctx, memberId, atMonths, outcome, votes, note)),
