@@ -7,7 +7,7 @@ import { cleanRoadRules, type RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
 import type { ClubData, MeetingType, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
-import { toLedger } from './ledgerLive'; // Stage 5B
+import { toLedger, toMeetingReports } from './ledgerLive'; // Stage 5B
 import { loadPlanning } from './planningLive'; // Ride planning extras
 import { toAdmin } from './adminLive'; // Stage 5D
 import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
@@ -113,6 +113,17 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     await db.rpc('club_ledger').then(
       (r) => {
         if (r.error) console.warn('club_ledger:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+  );
+
+  // The Treasurer's Report for a meeting, the same way.
+  const meetingReports = toMeetingReports(
+    await db.rpc('meeting_reports').then(
+      (r) => {
+        if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('meeting_reports:', r.error.message);
         return r.error ? null : r.data;
       },
       () => null,
@@ -320,6 +331,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     // Stage 5: meetings and votes
     ...business,
     ...ledger,
+    ...meetingReports,
     ...admin,
     ...documents,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),

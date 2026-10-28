@@ -5,7 +5,7 @@ import type {
   AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
 } from '../domain/types'; // HubStaying, PlanStop, RideCallState, SwapState: ride planning extras
 import type { BusinessJson } from './businessLive';
-import type { LedgerJson } from './ledgerLive'; // Stage 5B
+import type { LedgerJson, MeetingReportJson } from './ledgerLive'; // Stage 5B
 import type { AdminJson } from './adminLive'; // Stage 5D
 import type { DocumentsJson } from './documentsLive'; // Stage 5C
 
@@ -559,6 +559,7 @@ export type Database = {
       close_vote: { Args: { p_vote: string; p_casting: 'yes' | 'no' | 'decline' | null }; Returns: undefined };
       // Stage 5B: treasurer
       club_ledger: { Args: never; Returns: LedgerJson };
+      meeting_reports: { Args: never; Returns: MeetingReportJson[] };
       // Stage 5D: board and admin
       club_admin: { Args: never; Returns: AdminJson };
       record_conduct: {
@@ -620,6 +621,9 @@ export type Database = {
       approve_budget: { Args: { p_chapter: string | null; p_fy: number; p_vote: string }; Returns: undefined };
       reopen_budget: { Args: { p_chapter: string | null; p_fy: number }; Returns: undefined };
       present_report: { Args: { p_month: string }; Returns: undefined };
+      save_meeting_report: { Args: { p_id: string | null; p_from: string; p_to: string; p_notes: string }; Returns: string };
+      present_meeting_report: { Args: { p_id: string }; Returns: undefined };
+      delete_meeting_report: { Args: { p_id: string }; Returns: undefined };
       // Stage 5C: document library
       club_documents: { Args: never; Returns: DocumentsJson };
       document_body: { Args: { p_version: string }; Returns: string | null };

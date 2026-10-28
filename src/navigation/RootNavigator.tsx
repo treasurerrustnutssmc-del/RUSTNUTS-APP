@@ -34,6 +34,7 @@ import {
   DocumentApprovalScreen, DocumentScreen, DocumentSignoffsScreen, DocumentsScreen, NewDocumentScreen, PublishDocumentScreen,
 } from '../screens/documents'; // Stage 5C
 import { BudgetScreen, ClubFinancesScreen, LedgerEntryScreen, LedgerScreen, MonthReportScreen, NewEntryScreen, TreasuryScreen } from '../screens/treasury';
+import { MeetingReportScreen } from '../screens/meetingReport';
 // Lane E: ride comms
 import { OnAirBar } from '../screens/rideComms';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
@@ -271,6 +272,7 @@ export function RootNavigator() {
             <Stack.Screen name="LedgerEntry" component={LedgerEntryScreen} options={{ title: 'Entry' }} />
             <Stack.Screen name="NewEntry" component={NewEntryScreen} options={{ title: 'New entry' }} />
             <Stack.Screen name="MonthReport" component={MonthReportScreen} options={{ title: 'Treasurer’s Report' }} />
+            <Stack.Screen name="MeetingReport" component={MeetingReportScreen} options={{ title: 'Report for a meeting' }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ title: 'Budget' }} />
             <Stack.Screen name="ClubFinances" component={ClubFinancesScreen} options={{ title: 'Club finances' }} />
             {/* Stage 5D: conduct records, merch, national contributions and new chapters */}

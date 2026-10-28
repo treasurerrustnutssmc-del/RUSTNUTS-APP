@@ -10,6 +10,7 @@ import type { HubInput, RegisterInput } from '../domain/hubs'; // Ride planning 
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { Casting, VoteInput } from '../domain/votes';
 import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
+import type { MeetingReportInput } from '../domain/meetingReport';
 import type { ApprovalInput, DocumentInput, VersionInput } from '../domain/documents'; // Stage 5C
 import type {
   BallotChoice,
@@ -256,6 +257,11 @@ export interface ClubContextValue {
   reopenBudget: (chapterId: string | null, fy: number) => Promise<void>;
   /** Presents a month's Treasurer's Report to members (13.8). `month` is its first day. */
   presentReport: (month: string) => Promise<void>;
+  /** Saves a new Treasurer's Report for a meeting (id null) or changes a draft. Resolves to its id. */
+  saveMeetingReport: (id: string | null, input: MeetingReportInput) => Promise<string>;
+  /** Presents a meeting report to members (13.8). It's locked from then on. */
+  presentMeetingReport: (id: string) => Promise<void>;
+  deleteMeetingReport: (id: string) => Promise<void>;
   // Stage 5D: board and admin
   /** Writes up a conduct matter on a member's record (6.5, 6.6, 6.9). Resolves to the record's id. */
   recordConduct: (input: ConductInput) => Promise<string>;

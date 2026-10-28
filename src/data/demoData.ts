@@ -754,6 +754,12 @@ Object.assign(DEMO_DATA, {
       approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: at(ago(60)) },
   ],
   treasurerReports: [{ month: lastMonth, presentedAt: at(thisMonth), presentedBy: 'm-sparks' }],
+  // Last month's meeting report, presented with Sparks's notes. A new one runs on from it.
+  meetingReports: [{
+    id: 'mr-1', fromOn: lastMonth, toOn: addDays(thisMonth, -1),
+    notes: 'The hoodie money came in ahead of the printer’s bill, so the Club fund looks flush. It isn’t: the second run is still to pay.\n\nGravel’s double payment is approved for a refund and goes out this month.',
+    savedBy: 'm-sparks', savedAt: at(thisMonth), presentedBy: 'm-sparks', presentedAt: at(thisMonth),
+  }],
 } satisfies Partial<ClubData>);
 
 // ---------------------------------------------------------------------------
