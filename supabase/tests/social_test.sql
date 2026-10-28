@@ -56,6 +56,18 @@ begin
   return null;
 end $$;
 
+-- Runs a query as a signed-in user and returns its one value as text. Errors go on up.
+create function pg_temp.value_as(who uuid, stmt text) returns text language plpgsql as $$
+declare out text;
+begin
+  perform set_config('request.jwt.claim.sub', who::text, true);
+  set local role authenticated;
+  execute stmt into out;
+  reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
+  return out;
+end $$;
+
 create function pg_temp.count_as(who uuid, tbl text) returns bigint language plpgsql as $$
 declare n bigint;
 begin
@@ -186,6 +198,211 @@ begin
   end;
   delete from members where id = fergus;
   assert not exists (select 1 from member_birthdays where member_id = fergus), 'gone with Fergus';
+end $$;
+
+\o
+\echo 'On this day: photos from today''s date in earlier years, by club_photos'' rules'
+\o /dev/null
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-0000-0000-0000000005b1', 'wendy@example.com', now()), -- West Full
+  ('00000000-0000-0000-0000-0000000005b2', 'nell@example.com', now()),  -- North Full
+  ('00000000-0000-0000-0000-0000000005b3', 'bo@example.com', now());    -- West Full, blocked by Wendy
+insert into members (id, chapter_id, full_name, status, approval)
+select v.id::uuid, c.id, v.name, 'full', 'approved'
+from (values
+  ('00000000-0000-0000-0000-0000000005b1', 'west', 'Wendy West'),
+  ('00000000-0000-0000-0000-0000000005b2', 'north', 'Nell North'),
+  ('00000000-0000-0000-0000-0000000005b3', 'west', 'Bo Blocked')
+) as v(id, slug, name)
+join chapters c on c.slug = v.slug;
+insert into member_blocks (blocker_id, blocked_id) values
+  ('00000000-0000-0000-0000-0000000005b1', '00000000-0000-0000-0000-0000000005b3');
+
+-- A message with one picture (or GIF), posted at noon Melbourne time on a date.
+create function pg_temp.posted(chat uuid, author uuid, on_day date, kind text, path text, removed boolean default false)
+returns void language sql as $$
+  with m as (
+    insert into messages (conversation_id, author_id, body, created_at, removed_at)
+    values (chat, author, null, (on_day + time '12:00') at time zone 'Australia/Melbourne', case when removed then now() end)
+    returning id
+  )
+  insert into message_media (message_id, conversation_id, kind, path, width, height)
+  select m.id, chat, kind::chat_media_kind, path, 100, 100 from m;
+$$;
+
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  bo constant uuid := '00000000-0000-0000-0000-0000000005b3';
+  t constant date := private.club_date();
+  -- 4 and 8 years back, so a leap day today still has a leap day to look back on.
+  four constant date := (t - interval '4 years')::date;
+  eight constant date := (t - interval '8 years')::date;
+  club uuid := (select id from conversations where kind = 'club');
+  west uuid := (select id from conversations where kind = 'chapter' and chapter_id = (select id from chapters where slug = 'west'));
+  direct uuid;
+begin
+  insert into conversations (kind, direct_key) values ('direct', 'pair') returning id into direct;
+  insert into conversation_members values (direct, wendy), (direct, nell);
+  perform pg_temp.posted(club, nell, four, 'photo', 'club-four.jpg');
+  perform pg_temp.posted(club, nell, four, 'gif', 'https://media.giphy.com/media/x/giphy.gif');
+  perform pg_temp.posted(west, wendy, eight, 'video', 'west-eight.mp4');
+  perform pg_temp.posted(club, nell, t, 'photo', 'club-today.jpg');
+  perform pg_temp.posted(club, nell, four - 1, 'photo', 'club-day-before.jpg');
+  perform pg_temp.posted(club, nell, four, 'photo', 'club-removed.jpg', true);
+  perform pg_temp.posted(direct, nell, four, 'photo', 'direct.jpg');
+  perform pg_temp.posted(club, bo, four, 'photo', 'club-bo.jpg');
+end $$;
+
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  paul constant uuid := '00000000-0000-0000-0000-0000000005a3';
+  feed jsonb;
+  paths text[];
+begin
+  feed := pg_temp.value_as(wendy, 'select public.photos_on_this_day()')::jsonb;
+  select array_agg(x->>'path' order by ord) into paths from jsonb_array_elements(feed) with ordinality as e(x, ord);
+  assert paths = array['club-four.jpg', 'west-eight.mp4'],
+    format('Wendy sees the club photo and her chapter''s video, newest first, nothing else: %s', paths);
+  assert feed->0 ? 'author_id' and feed->0 ? 'conversation_id' and feed->0 ? 'created_at' and feed->0 ? 'kind',
+    'each item has club_photos'' shape';
+
+  feed := pg_temp.value_as(nell, 'select public.photos_on_this_day()')::jsonb;
+  select array_agg(x->>'path' order by ord) into paths from jsonb_array_elements(feed) with ordinality as e(x, ord);
+  assert paths = array['club-four.jpg', 'club-bo.jpg'] or paths = array['club-bo.jpg', 'club-four.jpg'],
+    format('Nell (North) doesn''t see West''s chat, and hasn''t blocked Bo: %s', paths);
+
+  assert pg_temp.value_as(paul, 'select public.photos_on_this_day()') = '[]', 'a pending applicant gets nothing';
+
+  -- The day rule on fixed dates, leap years included (the same cases as onThisDay.test.ts).
+  assert private.is_on_this_day('2025-10-28', '2026-10-28'), 'same day a year back';
+  assert not private.is_on_this_day('2026-10-28', '2026-10-28'), 'not this year';
+  assert not private.is_on_this_day('2027-10-28', '2026-10-28'), 'never a later year';
+  assert not private.is_on_this_day('2025-10-27', '2026-10-28'), 'not the day before';
+  assert private.is_on_this_day('2024-02-29', '2027-02-28'), '29 Feb on 28 Feb in a plain year';
+  assert private.is_on_this_day('2023-02-28', '2027-02-28'), '28 Feb on 28 Feb';
+  assert private.is_on_this_day('2024-02-29', '2028-02-29'), '29 Feb on 29 Feb in a leap year';
+  assert not private.is_on_this_day('2024-02-29', '2028-02-28'), 'but not on 28 Feb in a leap year';
+  assert private.is_on_this_day('2023-02-28', '2028-02-28'), '28 Feb on 28 Feb in a leap year';
+  assert pg_temp.try_as(null, 'select public.photos_on_this_day()') like 'permission denied%', 'anon can''t call it';
+end $$;
+
+\o
+\echo 'Who can help: members set their own skills; approved members read approved members'' skills'
+\o /dev/null
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  paul constant uuid := '00000000-0000-0000-0000-0000000005a3';
+  sid constant uuid := '00000000-0000-0000-0000-0000000005a4';
+  err text;
+begin
+  err := pg_temp.try_as(wendy, $q$select public.set_skills(array['tyres', 'electrics', 'tyres'])$q$);
+  assert err is null, format('Wendy sets hers, not %s', err);
+  assert (select skills from member_skills where member_id = wendy) = array['tyres', 'electrics']::help_skill[],
+    'kept once each, in the order given';
+  err := pg_temp.try_as(wendy, $q$select public.set_skills(array['welding'])$q$);
+  assert err is null and (select skills from member_skills where member_id = wendy) = array['welding']::help_skill[], 'replaced';
+  err := pg_temp.try_as(wendy, $q$select public.set_skills(array[]::text[])$q$);
+  assert err is null and (select cardinality(skills) from member_skills where member_id = wendy) = 0, 'cleared, row kept';
+  err := pg_temp.try_as(nell, $q$select public.set_skills(array['trailer'])$q$);
+  assert err is null, format('Nell sets hers, not %s', err);
+
+  assert pg_temp.try_signed_out($q$select public.set_skills(array['tyres'])$q$) = 'Sign in first.', 'signed out';
+  assert pg_temp.try_as(paul, $q$select public.set_skills(array['nope'])$q$) = 'Only approved members can do that.', 'pending, before the skill check';
+  assert pg_temp.try_as(wendy, $q$select public.set_skills(array['tyres', 'nope'])$q$) = 'That isn’t one of the skills.', 'unknown skill';
+  assert pg_temp.try_as(wendy, $q$select public.set_skills(null)$q$) = 'That isn’t one of the skills.', 'null list';
+  assert pg_temp.try_as(null, $q$select public.set_skills(array['tyres'])$q$) like 'permission denied%', 'anon';
+
+  assert pg_temp.count_as(wendy, 'member_skills') = 2, 'Wendy reads both';
+  assert pg_temp.count_as(paul, 'member_skills') = 0, 'pending reads none';
+  -- A suspended member's skills are hidden.
+  insert into member_skills (member_id, skills) values (sid, array['paint']::help_skill[]);
+  assert pg_temp.count_as(wendy, 'member_skills') = 2, 'Sid''s are hidden';
+  assert pg_temp.try_as(wendy, format($q$insert into member_skills values (%L, '{}')$q$, paul)) like 'permission denied%', 'no inserts';
+  assert pg_temp.try_as(wendy, $q$update member_skills set skills = '{}'$q$) like 'permission denied%', 'no updates';
+end $$;
+
+\o
+\echo 'Who can help: trusted mechanics, added by anyone approved, changed by whoever added it or the board'
+\o /dev/null
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-0000-0000-0000000005c1', 'bea@example.com', now()); -- North Secretary: a board seat
+insert into members (id, chapter_id, full_name, status, approval)
+select '00000000-0000-0000-0000-0000000005c1', id, 'Bea Board', 'full', 'approved' from chapters where slug = 'north';
+insert into positions (member_id, chapter_id, role)
+select '00000000-0000-0000-0000-0000000005c1', id, 'secretary' from chapters where slug = 'north';
+
+create function pg_temp.save_sql(id uuid, name text, suburb text, phone text, website text, speciality text, notes text)
+returns text language sql as $$
+  select format('select public.save_mechanic(%L, %L, %L, %L, %L, %L, %L)', id, name, suburb, phone, website, speciality, notes);
+$$;
+
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  bea constant uuid := '00000000-0000-0000-0000-0000000005c1';
+  paul constant uuid := '00000000-0000-0000-0000-0000000005a3';
+  shop uuid;
+  m mechanics%rowtype;
+  err text;
+begin
+  shop := pg_temp.value_as(wendy, pg_temp.save_sql(null, '  Bob’s Bikes ', ' Sunshine ', '', ' https://bobs.example ', ' ', ' Fair '))::uuid;
+  select * into m from mechanics where id = shop;
+  assert m.name = 'Bob’s Bikes' and m.suburb = 'Sunshine' and m.phone is null and m.website = 'https://bobs.example'
+    and m.speciality is null and m.notes = 'Fair' and m.added_by = wendy and m.archived_at is null, 'trimmed, blanks as none';
+
+  -- The refusals, in order.
+  assert pg_temp.try_signed_out(pg_temp.save_sql(null, 'X', '', '', '', '', '')) = 'Sign in first.', 'signed out';
+  assert pg_temp.try_as(paul, pg_temp.save_sql(shop, '', '', '', '', '', '')) = 'Only approved members can do that.', 'pending first';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql('00000000-0000-0000-0000-000000000000', 'X', '', '', '', '', '')) = 'No such workshop.', 'gone';
+  assert pg_temp.try_as(nell, pg_temp.save_sql(shop, '', '', '', '', '', '')) = 'Only whoever added it or the board can change it.', 'not hers';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, ' ', '', '', '', '', '')) = 'Give the workshop a name.', 'no name';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, repeat('x', 81), '', '', '', '', '')) = 'Keep the name to 80 characters at most.', 'long name';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, repeat('🔧', 80), '', '', '', '', '')) is null, '80 emoji are 80 characters';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, 'X', repeat('x', 61), '', '', '', '')) = 'Keep the suburb to 60 characters at most.', 'suburb';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, 'X', '', repeat('1', 31), '', '', '')) = 'Keep the phone number to 30 characters at most.', 'phone';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, 'X', '', '', 'bobs.example', '', '')) = 'Websites start with http:// or https://.', 'website scheme';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, 'X', '', '', 'HTTP://bobs.example', '', '')) is null, 'any case';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, 'X', '', '', 'https://' || repeat('x', 193), '', '')) = 'Keep the website to 200 characters at most.', 'website length';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, 'X', '', '', '', repeat('x', 81), '')) = 'Keep what they’re good at to 80 characters at most.', 'speciality';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(null, 'X', '', '', '', '', repeat('x', 501))) = 'Keep the notes to 500 characters at most.', 'notes';
+
+  -- The board changes anyone's.
+  err := pg_temp.try_as(bea, pg_temp.save_sql(shop, 'Bob’s Bikes and Bits', '', '', '', 'Old Japanese', ''));
+  assert err is null, format('the board edits, not %s', err);
+  assert (select name = 'Bob’s Bikes and Bits' and speciality = 'Old Japanese' and added_by = wendy from mechanics where id = shop), 'changed, still Wendy''s';
+
+  -- "I've used them".
+  assert pg_temp.try_as(nell, format('select public.vouch_mechanic(%L, true)', shop)) is null, 'Nell vouches';
+  assert pg_temp.try_as(nell, format('select public.vouch_mechanic(%L, true)', shop)) is null, 'twice is fine';
+  assert (select count(*) from mechanic_vouches where mechanic_id = shop and vouched) = 1, 'one vouch';
+  assert pg_temp.try_as(nell, format('select public.vouch_mechanic(%L, false)', shop)) is null, 'takes it back';
+  assert (select count(*) from mechanic_vouches where mechanic_id = shop and vouched) = 0, 'none now';
+  assert pg_temp.try_as(nell, format('select public.vouch_mechanic(%L, true)', shop)) is null, 'vouches again';
+  assert pg_temp.try_as(paul, format('select public.vouch_mechanic(%L, true)', shop)) = 'Only approved members can do that.', 'pending';
+  assert pg_temp.try_as(nell, format('select public.vouch_mechanic(%L, true)', '00000000-0000-0000-0000-000000000000')) = 'No such workshop.', 'gone';
+
+  -- Taking it off the list.
+  assert pg_temp.try_as(nell, format('select public.archive_mechanic(%L)', shop)) = 'Only whoever added it or the board can change it.', 'not hers';
+  assert pg_temp.try_as(wendy, format('select public.archive_mechanic(%L)', shop)) is null, 'Wendy takes it off';
+  assert (select archived_at is not null from mechanics where id = shop), 'archived';
+  assert pg_temp.try_as(bea, format('select public.archive_mechanic(%L)', shop)) = 'That workshop is already off the list.', 'twice';
+  assert pg_temp.try_as(wendy, pg_temp.save_sql(shop, 'X', '', '', '', '', '')) = 'That workshop is off the list.', 'no edits after';
+  assert pg_temp.try_as(nell, format('select public.vouch_mechanic(%L, true)', shop)) = 'That workshop is off the list.', 'no vouches after';
+
+  -- Reading and writing directly.
+  assert pg_temp.count_as(nell, 'mechanics') >= 1 and pg_temp.count_as(nell, 'mechanic_vouches') = 1, 'approved members read';
+  assert pg_temp.count_as(paul, 'mechanics') = 0 and pg_temp.count_as(paul, 'mechanic_vouches') = 0, 'pending reads none';
+  assert pg_temp.count_as(null, 'mechanics') = -1, 'anon reads nothing';
+  assert pg_temp.try_as(wendy, $q$insert into mechanics (name) values ('Sneaky')$q$) like 'permission denied%', 'no inserts';
+  assert pg_temp.try_as(wendy, $q$update mechanics set name = 'x'$q$) like 'permission denied%', 'no updates';
+  assert pg_temp.try_as(wendy, $q$update mechanic_vouches set vouched = true$q$) like 'permission denied%', 'no vouch updates';
 end $$;
 
 \o

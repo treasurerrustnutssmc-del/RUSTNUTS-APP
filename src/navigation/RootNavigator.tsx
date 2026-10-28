@@ -26,19 +26,25 @@ import { ReminderSync } from '../data/reminders';
 // Lane E: share in
 import { IncomingShare } from '../data/shareIn';
 import { ShareInScreen } from '../screens/shareIn';
+import {
+  DocumentApprovalScreen, DocumentScreen, DocumentSignoffsScreen, DocumentsScreen, NewDocumentScreen, PublishDocumentScreen,
+} from '../screens/documents'; // Stage 5C
 import { BudgetScreen, ClubFinancesScreen, LedgerEntryScreen, LedgerScreen, MonthReportScreen, NewEntryScreen, TreasuryScreen } from '../screens/treasury';
 // Lane E: ride comms
 import { OnAirBar } from '../screens/rideComms';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
 import { CheckInScreen, OpenMeetingScreen, RunCheckinScreen } from '../screens/checkin';
 import { ChapterFeesScreen, MemberFeesScreen } from '../screens/fees';
+import { AttendanceScreen } from '../screens/attendance';
+import { MembershipCardScreen } from '../screens/card';
 import { FngReviewScreen } from '../screens/fng';
 // Stage 7: social extras
-import { BirthdayScreen } from '../screens/social';
 // Stage 5D: conduct records, merch, national contributions and new chapters
 import { ConductRecordScreen, ConductScreen, RecordConductScreen } from '../screens/conduct';
 import { MerchItemScreen, MerchOrderScreen, MerchScreen, ProposeMerchScreen } from '../screens/merch';
 import { ChapterProposalScreen, ContributionScreen, NationalScreen, ProposeChapterScreen, ProposeContributionScreen } from '../screens/national';
+import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
+import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } from '../screens/help';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -168,6 +174,9 @@ export function RootNavigator() {
           <>
             <Stack.Screen name="Pending" component={PendingScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check in' }} />
+            {/* Stage 5C: applicants read the Registered Rules and the Constitution (15.7) */}
+            <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
+            <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
           </>
         ) : (
           <>
@@ -213,6 +222,9 @@ export function RootNavigator() {
             <Stack.Screen name="FngReview" component={FngReviewScreen} options={{ title: 'FNG review' }} />
             <Stack.Screen name="MemberFees" component={MemberFeesScreen} options={{ title: 'Fees' }} />
             <Stack.Screen name="ChapterFees" component={ChapterFeesScreen} options={{ title: 'Chapter fees' }} />
+            {/* Attendance rules, Big 4 rides and the membership card */}
+            <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ title: 'Attendance' }} />
+            <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
             {/* Stage 3 (lane B): chats and photos */}
             <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
             <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'New private chat' }} />
@@ -244,6 +256,22 @@ export function RootNavigator() {
             <Stack.Screen name="ProposeChapter" component={ProposeChapterScreen} options={{ title: 'New chapter' }} />
             {/* Stage 7: social extras */}
             <Stack.Screen name="Birthday" component={BirthdayScreen} options={{ title: 'Birthday shout-out' }} />
+            <Stack.Screen name="OnThisDay" component={OnThisDayScreen} options={{ title: 'On this day' }} />
+            {/* Stage 5C: document library */}
+            <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
+            <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
+            <Stack.Screen name="NewDocument" component={NewDocumentScreen} options={{ title: 'Add a document' }} />
+            <Stack.Screen name="PublishDocument" component={PublishDocumentScreen} options={{ title: 'Publish a version' }} />
+            <Stack.Screen name="DocumentApproval" component={DocumentApprovalScreen} options={{ title: 'Record approval' }} />
+            <Stack.Screen name="DocumentSignoffs" component={DocumentSignoffsScreen} options={{ title: 'Who’s signed' }} />
+            <Stack.Screen name="WhoCanHelp" component={WhoCanHelpScreen} options={{ title: 'Who can help?' }} />
+            <Stack.Screen name="Mechanic" component={MechanicScreen} options={{ title: 'Workshop' }} />
+            <Stack.Screen
+              name="EditMechanic"
+              component={EditMechanicScreen}
+              options={({ route }) => ({ title: route.params?.mechanicId ? 'Edit workshop' : 'Add a workshop' })}
+            />
+            <Stack.Screen name="MySkills" component={MySkillsScreen} options={{ title: 'I can help with' }} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}

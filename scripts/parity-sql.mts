@@ -12,8 +12,9 @@ import {
   LEDGER_AT, BUDGET_AT, monthFrom, fixtureData, // Stage 5B
   BRIEFED_AT, BUS_AT, BUS_DECLINE_REASON, caseAction, fixtureSignedAt, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
   resolveCase, type ParityCase,
-  ADMIN_AT, ADMIN_PLAN, // Stage 5D
 } from '../src/data/parityFixture.testkit';
+import { DOCS_AT } from '../src/data/parityFixture.testkit'; // Stage 5C
+import { ADMIN_AT, ADMIN_PLAN } from '../src/data/parityFixture.testkit'; // Stage 5D
 import { CASE_PLAN } from '../src/data/adminActions'; // Stage 5D
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
@@ -198,6 +199,14 @@ const stage4Call = (c: ParityCase & Record<string, any>): string | null => {
       return `public.confirm_payment(${id('pay', c.payment)})`;
     case 'rejectPayment':
       return `public.reject_payment(${id('pay', c.payment)})`;
+    case 'designateBig4':
+      return `public.designate_big4(${id('r', c.ride)}, ${chapter(c.chapter)})`;
+    case 'undesignateBig4':
+      return `public.undesignate_big4(${id('r', c.ride)})`;
+    case 'setMeetingType':
+      return `public.set_meeting_type(${id('s', c.session)}, ${q(c.type)})`;
+    case 'setExemption':
+      return `public.set_exemption(${id('s', c.session)}, ${id('m', c.member)}, ${textOrNull(c.reason)})`;
     default:
       return null;
   }
@@ -325,6 +334,26 @@ const busCall = (raw: ParityCase & Record<string, any>): string => {
       return `public.decide_bus(${id('bus', c.booking)}, ${c.yes}, ${text(c.reason, c.repeat)})`;
     default:
       return `public.cancel_bus(${id('bus', c.booking)})`;
+  }
+};
+
+/** A document library call, its dates resolved and its texts as typed (the database trims them). */
+const documentCall = (c: ParityCase & Record<string, any>): string => {
+  const approval = `${textOrNull(c.approvingBody)}, ${date(c.approved ?? null)}, ${date(c.commences ?? null)}`;
+  switch (c.action) {
+    case 'createDocument':
+      return `public.create_document(${chapter(c.chapter)}, ${q(c.kind)}, ${text(c.title, c.titleRepeat)}, ${c.asksSignOff}, ${c.reviewMonths ?? 'null'})`;
+    case 'publishDocumentVersion':
+      return (
+        `public.publish_document_version(${id('doc', c.document)}, ${c.expected}, ${text(c.label, c.labelRepeat)}, ` +
+        `${text(c.body, c.bodyRepeat)}, ${text(c.whatChanged, c.changesRepeat)}, ${c.fresh}, ${approval})`
+      );
+    case 'recordDocumentApproval':
+      return `public.record_document_approval(${id('dv', c.version)}, ${approval})`;
+    case 'markDocumentReviewed':
+      return `public.mark_document_reviewed(${id('doc', c.document)})`;
+    default:
+      return `public.sign_document(${id('dv', c.version)})`;
   }
 };
 
@@ -532,6 +561,13 @@ const call = (c: ParityCase & Record<string, any>): string => {
     case 'reopenBudget':
     case 'presentReport':
       return ledgerCall(resolveCase(c, today) as ParityCase & Record<string, any>);
+    // Stage 5C: the document library. Dates come as …Days from today.
+    case 'createDocument':
+    case 'publishDocumentVersion':
+    case 'recordDocumentApproval':
+    case 'markDocumentReviewed':
+    case 'signDocument':
+      return documentCall(resolveCase(c, today) as ParityCase & Record<string, any>);
     case 'chatSend':
       return `public.send_message(${caseChat}, ${text(c.body, c.repeat)}, ${gifs(c.gifs)}, ${c.replyTo ? id('msg', c.replyTo) : 'null'})`;
     case 'chatRemove':
@@ -549,10 +585,40 @@ const call = (c: ParityCase & Record<string, any>): string => {
     // Stage 7: social extras
     case 'socialSetBirthday':
       return `public.set_birthday(${c.month ?? 'null'}, ${c.day ?? 'null'})`;
+    case 'socialSetSkills':
+      return `public.set_skills(array[${(c.skills as string[]).map(q).join(', ')}]::text[])`;
+    case 'socialSaveMechanic':
+      return (
+        `public.save_mechanic(${c.mechanic ? id('mech', c.mechanic) : 'null'}, ${text(c.workshop, c.repeat)}, ${q(c.suburb)}, ` +
+        `${q(c.phone)}, ${q(c.website)}, ${q(c.speciality)}, ${q(c.notes)})`
+      );
+    case 'socialArchiveMechanic':
+      return `public.archive_mechanic(${id('mech', c.mechanic)})`;
+    case 'socialVouchMechanic':
+      return `public.vouch_mechanic(${id('mech', c.mechanic)}, ${c.on})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
 };
+
+// Stage 5C: the document library, inserted as the owner.
+for (const d of fx.documents ?? []) {
+  sql(
+    `insert into public.documents (id, chapter_id, kind, title, asks_sign_off, review_months, created_at) values (` +
+      `${id('doc', d.key)}, ${chapter(d.chapter)}, ${q(d.kind)}, ${q(d.title)}, ${d.asksSignOff}, ${d.reviewMonths ?? 'null'}, ${q(DOCS_AT)}::timestamptz);`,
+  );
+}
+const dayOrNull = (n: number | undefined) => (n === undefined ? 'null' : date(addDays(today, n)));
+for (const v of fx.documentVersions ?? []) {
+  sql(
+    `insert into public.document_versions (id, document_id, number, label, body, fresh_sign_off, approving_body, approved_on, ` +
+      `commences_on, published_at) values (${id('dv', v.key)}, ${id('doc', v.document)}, ${v.number}, ${q(v.label)}, ${q(v.body)}, ` +
+      `${v.fresh}, ${textOrNull(v.approvingBody)}, ${dayOrNull(v.approvedDays)}, ${dayOrNull(v.commencesDays)}, ${q(DOCS_AT)}::timestamptz);`,
+  );
+}
+for (const s of fx.documentSignoffs ?? []) {
+  sql(`insert into public.document_signoffs (version_id, member_id, signed_at) values (${id('dv', s.version)}, ${id('m', s.member)}, ${q(DOCS_AT)}::timestamptz);`);
+}
 
 // Stage 5B: the treasurer's books, inserted as the owner.
 for (const e of fx.ledger ?? []) {
@@ -605,6 +671,14 @@ if (fx.reportMonth) {
   }
   sql('end $report$;');
   sql(`\\echo '  The ${fx.reportMonth.slice(0, 7)} Treasurer''s Report adds up the same in the demo and the database'`);
+}
+
+// Stage 7: social extras. The fixture's workshops, inserted as the owner.
+for (const m of (fx as typeof fx & { mechanics?: { key: string; name: string; addedBy: string | null; archived: boolean }[] }).mechanics ?? []) {
+  sql(
+    `insert into public.mechanics (id, name, added_by, archived_at) values (${id('mech', m.key)}, ${q(m.name)}, ` +
+      `${m.addedBy ? id('m', m.addedBy) : 'null'}, ${m.archived ? 'now()' : 'null'});`,
+  );
 }
 
 // Stage 5D: conduct records, merch, contributions and chapter proposals, inserted as the owner.

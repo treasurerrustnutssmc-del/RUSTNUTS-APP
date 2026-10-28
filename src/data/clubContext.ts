@@ -9,6 +9,7 @@ import type { BusInput } from '../domain/bus';
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { Casting, VoteInput } from '../domain/votes';
 import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
+import type { ApprovalInput, DocumentInput, VersionInput } from '../domain/documents'; // Stage 5C
 import type {
   BallotChoice,
   Bike,
@@ -150,6 +151,12 @@ export interface ClubContextValue {
   checkIn: (code: string) => Promise<string>;
   markAttendance: (sessionId: string, memberId: string, present: boolean) => Promise<void>;
   closeCheckin: (sessionId: string) => Promise<void>;
+  // Attendance rules and Big 4 rides
+  /** Makes a ride a Big 4 (chapterId null = every chapter), or changes its chapter. */
+  designateBig4: (rideId: string, chapterId: string | null) => Promise<void>;
+  undesignateBig4: (rideId: string) => Promise<void>;
+  /** Excuses a member from a check-in with a reason; null or blank clears it. */
+  setExemption: (sessionId: string, memberId: string, reason: string | null) => Promise<void>;
   /** Approves an applicant as `status`, or declines them (null), recording the board's tally. */
   decideApplication: (memberId: string, status: MemberStatus | null, votes: Votes, note: string) => Promise<void>;
   recordFngReview: (memberId: string, atMonths: number, outcome: FngOutcome, votes: Votes, note: string) => Promise<void>;
@@ -258,6 +265,16 @@ export interface ClubContextValue {
   /** Puts the NEC's vote against the proposal. Resolves to the new chapter's id when it carried. */
   settleChapter: (proposalId: string, voteId: string) => Promise<string | null>;
   withdrawChapter: (proposalId: string) => Promise<void>;
+  // Stage 5C: document library
+  /** Adds a document to the library. Resolves to its id. */
+  createDocument: (input: DocumentInput) => Promise<string>;
+  /** Publishes the next version. `expected` is the version number the editor opened on (0 for none). Resolves to its id. */
+  publishDocumentVersion: (documentId: string, expected: number, input: VersionInput) => Promise<string>;
+  recordDocumentApproval: (versionId: string, approval: ApprovalInput) => Promise<void>;
+  markDocumentReviewed: (documentId: string) => Promise<void>;
+  signDocument: (versionId: string) => Promise<void>;
+  /** A version's text. Live loads it on first open and keeps it for the session. */
+  loadDocumentBody: (versionId: string) => Promise<string>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);

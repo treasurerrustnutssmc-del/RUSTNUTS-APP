@@ -104,3 +104,15 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 
 - **Why:** the small reasons to open the app on a day with no ride. Design in `docs/superpowers/specs/2026-10-27-social-extras-design.md`, built one piece at a time.
 - **Shout-outs:** birthdays and patch anniversaries this week, on Home. Birthdays are opt-in from Me and keep the day and month only, never the year. Anniversaries are for members who are Full or Nomad now, from one year patched. "Say g'day" opens a private chat; the app never posts for anyone.
+- **On this day:** photos and videos posted on today's date in earlier years, on Home, by the photo feed's rules (group chats you can read, never private chats, nothing removed, nobody you've blocked).
+- **Who can help?:** on the Members tab. Members say what they can lend a hand with (servicing, tyres, electrics and so on) from Me; pick a skill to see who can help, your own chapter first. Below that, the club's trusted mechanics: anyone approved can add a workshop, whoever added it or the board can change it or take it off the list, and members tap "I've used them" so the list shows who's been there. Nothing is ever deleted.
+
+## Attendance rules, Big 4 rides, terms and the card (28 Oct 2026)
+
+- **Big 4 rides:** the NEC (the Chair, a Chapter President, or the National Secretary) marks a club, North or West ride as a Big 4 ahead of time, for the whole club or one chapter (5.11). It can't be added or taken off once the ride's day has come.
+- **Meeting kinds:** a meeting check-in is opened as a monthly meeting, a special or annual meeting, or another event, so the right ones count (4.6, 5.2).
+- **Where you stand:** Full Members see their monthly meetings against 80% and their Big 4 rides against two; Nomads two in three and one Big 4; FNGs half of each of rides, monthly meetings and other events since their trial began. Only activities that had a check-in count. The member and their board see it; the board's Attendance screen lists the chapter, Behind first. It never changes anyone's status: that's still the board's decision after the 14-day notice (5.5).
+- **Excused:** the member's chapter board can excuse them from one check-in with a reason (work, family, health, injury, distance). It drops out of their count. Only the member and their board see the reason.
+- **Before a Big 4:** members see whether they've made two of the last three meetings (5.4); Supporters see they can't join (5.8). It's shown, not enforced, for now.
+- **Terms:** each position shows when its term ends (two years; the National Auditor twelve months; terms recorded before 1 August 2026 run from then, 17.6). The Board screen lists terms that have ended or end within 60 days. Re-elected means end the term and appoint again.
+- **Membership card:** on Me, with the real logo, name, status, chapter, member since, patched (Full and Nomad, with the disc), the club year and whether this year's dues are paid.

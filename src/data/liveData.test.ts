@@ -193,7 +193,7 @@ test('signed in: check-ins, decisions and fees load in one piece and become app 
     true,
   );
   assert.deepEqual(data.checkinSessions, [{ id: 's1', kind: 'meeting', chapterId: 'c1', rideId: null, title: 'Club meeting',
-    heldOn: '2026-10-24', openedBy: 'm1', closedAt: null }]);
+    heldOn: '2026-10-24', openedBy: 'm1', closedAt: null, meetingType: null }]);
   assert.deepEqual(data.attendance, [{ sessionId: 's1', memberId: 'm1', checkedInAt: '2026-10-24T09:00:00.000Z', markedBy: null }]);
   assert.deepEqual(data.decisions, [{ id: 'd1', memberId: 'm2', kind: 'fng_review', atMonths: 6, outcome: 'continue', status: null,
     votesFor: 5, votesAgainst: 0, votesAbstained: null, note: null, decidedOn: '2026-10-24', recordedBy: 'm1' }]);
@@ -588,4 +588,28 @@ test('a yes or no on a booking sends the reason trimmed, and none on a yes', () 
 
 test('cancelling a booking sends its id', () => {
   assert.deepEqual(cancelBusArgs('bus1'), { p_booking: 'bus1' });
+});
+
+// Attendance rules and Big 4 rides
+test('signed in: Big 4 rides, exemptions and meeting kinds load', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      members_money: { sessions: [{ id: 's1', kind: 'meeting', chapter_id: 'c1', ride_id: null, title: 'BBQ', held_on: '2026-10-24',
+        opened_by: 'm1', opened_at: '', closed_at: null }] },
+      checkin_sessions: [{ id: 's1', meeting_type: 'event' }],
+      big4_rides: [{ ride_id: 'r1', chapter_id: null, designated_by: 'm1', designated_at: '2026-08-02T00:00:00+00:00' }],
+      attendance_exemptions: [{ session_id: 's1', member_id: 'm2', reason: 'Work', granted_by: 'm1', granted_at: '2026-10-24T00:00:00+00:00' }],
+    } as never),
+    true,
+  );
+  assert.equal(data.checkinSessions?.[0].meetingType, 'event');
+  assert.deepEqual(data.big4Rides, [{ rideId: 'r1', chapterId: null, designatedBy: 'm1', designatedAt: '2026-08-02T00:00:00.000Z' }]);
+  assert.deepEqual(data.exemptions, [{ sessionId: 's1', memberId: 'm2', reason: 'Work', grantedBy: 'm1', grantedAt: '2026-10-24T00:00:00.000Z' }]);
+});
+
+test('signed in: before the live database has the attendance tables, the club still loads without them', async () => {
+  const data = await loadClub(tableFails('big4_rides', 'Could not find the table', 'PGRST205'), true);
+  assert.deepEqual(data.big4Rides, []);
+  assert.deepEqual(data.exemptions, []);
 });

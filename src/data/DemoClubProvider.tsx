@@ -11,8 +11,10 @@ import * as act from './demoActions';
 import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
 import * as s4 from './demoStage4';
+import * as attendanceRules from './demoAttendance';
 import * as ledger from './ledgerActions';
 import * as admin from './adminActions'; // Stage 5D
+import * as docs from './documentActions';
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
@@ -112,6 +114,9 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     markAttendance: async (sessionId, memberId, present) => setData(s4.markAttendance(ctx, sessionId, memberId, present)),
     closeCheckin: async (sessionId) => setData(s4.closeCheckin(ctx, sessionId)),
+    designateBig4: async (rideId, chapterId) => setData(attendanceRules.designateBig4(ctx, rideId, chapterId)),
+    undesignateBig4: async (rideId) => setData(attendanceRules.undesignateBig4(ctx, rideId)),
+    setExemption: async (sessionId, memberId, reason) => setData(attendanceRules.setExemption(ctx, sessionId, memberId, reason)),
     decideApplication: async (memberId, status, votes, note) => setData(s4.decideApplication(ctx, memberId, status, votes, note)),
     recordFngReview: async (memberId, atMonths, outcome, votes, note) =>
       setData(s4.recordFngReview(ctx, memberId, atMonths, outcome, votes, note)),
@@ -227,6 +232,21 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       return result.chapterId;
     },
     withdrawChapter: async (id) => setData(admin.withdrawChapter(ctx, id)),
+    // Stage 5C: document library
+    createDocument: async (input) => {
+      const result = docs.createDocument(ctx, input);
+      setData(result.data);
+      return result.id;
+    },
+    publishDocumentVersion: async (documentId, expected, input) => {
+      const result = docs.publishDocumentVersion(ctx, documentId, expected, input);
+      setData(result.data);
+      return result.id;
+    },
+    recordDocumentApproval: async (versionId, approval) => setData(docs.recordDocumentApproval(ctx, versionId, approval)),
+    markDocumentReviewed: async (documentId) => setData(docs.markDocumentReviewed(ctx, documentId)),
+    signDocument: async (versionId) => setData(docs.signDocument(ctx, versionId)),
+    loadDocumentBody: async (versionId) => (ctx.data.documentVersions ?? []).find((v) => v.id === versionId)?.body ?? '',
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;
