@@ -150,11 +150,25 @@ returns boolean language sql stable security definer set search_path = '' as $$
     or exists (select 1 from public.conduct_appeals a where a.record_id = r.id and a.outcome is null and a.withdrawn_on is null);
 $$;
 
+-- The member's chapter now, so a record follows them when they move (12.4).
+create or replace function private.conduct_chapter(r public.conduct_records)
+returns uuid language sql stable security definer set search_path = '' as $$
+  select coalesce((select m.chapter_id from public.members m where m.id = r.member_id), r.chapter_id);
+$$;
+
+-- A vote already standing for another decision here, or for a budget, can't stand for a second one.
+create or replace function private.vote_used(p_vote uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.contribution_decisions where vote_id = p_vote)
+      or exists (select 1 from public.chapter_proposals where vote_id = p_vote)
+      or exists (select 1 from public.budgets where approved_vote_id = p_vote);
+$$;
+
 -- The member, their chapter's board, the NEC, and the panel hearing it.
 create or replace function private.sees_conduct(r public.conduct_records)
 returns boolean language sql stable security definer set search_path = '' as $$
   select private.is_approved_member() and (
-    r.member_id = auth.uid() or private.is_board_of(r.chapter_id)
+    r.member_id = auth.uid() or private.is_board_of(private.conduct_chapter(r))
     or exists (select 1 from public.conduct_appeals a where a.record_id = r.id and auth.uid() = any (a.panel)));
 $$;
 
@@ -180,7 +194,7 @@ create or replace function private.conduct_board_record(p_id uuid)
 returns public.conduct_records language plpgsql stable security definer set search_path = '' as $$
 declare r public.conduct_records := private.conduct_record(p_id);
 begin
-  if not private.is_board_of(r.chapter_id) then raise exception 'Only that member’s chapter board or the NEC can do that.'; end if;
+  if not private.is_board_of(private.conduct_chapter(r)) then raise exception 'Only that member’s chapter board or the NEC can do that.'; end if;
   if r.member_id = auth.uid() then raise exception 'You can’t record one about yourself.'; end if;
   return r;
 end;
@@ -280,7 +294,7 @@ revoke all on function private.conduct_delete_on(date, date, date), private.cond
   private.conduct_record(uuid), private.conduct_board_record(uuid), private.conduct_open_appeal(uuid),
   private.holds_board_seat(uuid), private.sees_merch_item(public.merch_items), private.sees_merch_order(public.merch_orders),
   private.slug_of(text), private.chapter_name_taken(text, uuid), private.founders_problem(uuid[], uuid, uuid),
-  private.contribution_shares(int)
+  private.contribution_shares(int), private.conduct_chapter(public.conduct_records), private.vote_used(uuid)
   from public, anon, authenticated;
 
 -- Conduct actions ------------------------------------------------------------------------------
@@ -369,7 +383,7 @@ declare
 begin
   perform private.purge_conduct();
   r := private.conduct_record(p_record);
-  if me <> r.member_id and not private.is_board_of(r.chapter_id) then
+  if me <> r.member_id and not private.is_board_of(private.conduct_chapter(r)) then
     raise exception 'Only the member or their board can lodge this.';
   end if;
   if exists (select 1 from public.conduct_appeals where record_id = r.id) then
@@ -390,7 +404,7 @@ begin
   perform private.purge_conduct();
   a := private.conduct_open_appeal(p_record);
   select * into r from public.conduct_records where id = a.record_id;
-  if not private.is_board_of(r.chapter_id) or me = r.member_id or me = r.recorded_by then
+  if not private.is_board_of(private.conduct_chapter(r)) or me = r.member_id or me = r.recorded_by then
     raise exception 'Only the board or NEC, apart from whoever recorded it, can set up the hearing.';
   end if;
   if coalesce(cardinality(p_panel), 0) <> 3 or (select count(distinct x) from unnest(p_panel) x) <> 3 then
@@ -665,7 +679,7 @@ begin
     raise exception 'That chapter has already decided.';
   end if;
   select * into v from public.votes where id = p_vote and chapter_id = p_chapter and electorate = 'chapter_board'
-    and closed_at is not null and closed_at > k.proposed_at;
+    and closed_at is not null and opened_at > k.proposed_at and not private.vote_used(id);
   if not found then raise exception 'Pick that chapter board’s closed vote on it (13.6).'; end if;
   insert into public.contribution_decisions (contribution_id, chapter_id, yes, vote_id, recorded_by)
   values (k.id, p_chapter, v.result = 'carried', v.id, me);
@@ -756,7 +770,7 @@ declare me uuid := private.require_member(); p public.chapter_proposals := priva
 begin
   if not private.is_national() then raise exception 'Only the NEC can approve a new chapter (12.1).'; end if;
   select * into v from public.votes where id = p_vote and chapter_id is null and electorate = 'nec'
-    and closed_at is not null and closed_at > p.proposed_at;
+    and closed_at is not null and opened_at > p.proposed_at and not private.vote_used(id);
   if not found then raise exception 'Pick the NEC’s closed vote on it (12.1).'; end if;
   if v.result is distinct from 'carried' then
     update public.chapter_proposals set status = 'not_approved', vote_id = v.id, decided_by = me, decided_at = now() where id = p.id;

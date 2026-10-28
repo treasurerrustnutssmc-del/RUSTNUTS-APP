@@ -85,10 +85,14 @@ export function outcomeLabel(kind: ConductKind, outcome: AppealOutcome): string 
   return outcome === 'confirmed' ? 'Confirmed' : outcome === 'varied' ? 'Varied' : 'Set aside';
 }
 
+/** The member's chapter now, so a record follows them when they move (12.4). */
+export const conductChapter = (r: Pick<ConductRecord, 'memberId' | 'chapterId'>, data: ClubData): string =>
+  data.members.find((m) => m.id === r.memberId)?.chapterId ?? r.chapterId;
+
 /** The member, their chapter's board, the NEC, and the panel hearing it. */
 export function seesConduct(me: Member | null, r: ConductRecord, data: ClubData): boolean {
   if (!me || me.approval !== 'approved') return false;
-  return me.id === r.memberId || isBoardOf(me, r.chapterId, data.positions) || (r.appeal?.panelIds ?? []).includes(me.id);
+  return me.id === r.memberId || isBoardOf(me, conductChapter(r, data), data.positions) || (r.appeal?.panelIds ?? []).includes(me.id);
 }
 
 /** Every record this viewer may see that's still kept, newest decision first. */
@@ -152,7 +156,7 @@ function boardOnRecord(me: Member | null, id: string, data: ClubData, today: str
   if (signedIn) return signedIn;
   const r = findRecord(me, id, data, today);
   if (!r) return NO_RECORD;
-  if (!isBoardOf(me, r.chapterId, data.positions)) return NOT_CONDUCT_BOARD;
+  if (!isBoardOf(me, conductChapter(r, data), data.positions)) return NOT_CONDUCT_BOARD;
   if (r.memberId === me!.id) return ABOUT_YOURSELF;
   return null;
 }
@@ -178,7 +182,7 @@ export function lodgeProblem(me: Member | null, id: string, grounds: string, dat
   if (signedIn) return signedIn;
   const r = findRecord(me, id, data, today);
   if (!r) return NO_RECORD;
-  if (me!.id !== r.memberId && !isBoardOf(me, r.chapterId, data.positions)) return 'Only the member or their board can lodge this.';
+  if (me!.id !== r.memberId && !isBoardOf(me, conductChapter(r, data), data.positions)) return 'Only the member or their board can lodge this.';
   if (r.appeal) return 'A review or appeal has already been lodged.';
   const why = grounds.trim();
   if (!why) return 'Say why.';
@@ -204,7 +208,7 @@ export function hearingProblem(
   const found = openAppeal(me, id, data, today);
   if ('problem' in found) return found.problem;
   const r = found.record;
-  if (!isBoardOf(me, r.chapterId, data.positions) || me!.id === r.memberId || me!.id === r.recordedBy) {
+  if (!isBoardOf(me, conductChapter(r, data), data.positions) || me!.id === r.memberId || me!.id === r.recordedBy) {
     return 'Only the board or NEC, apart from whoever recorded it, can set up the hearing.';
   }
   if (panelIds.length !== 3 || new Set(panelIds).size !== 3) return 'Pick three different people.';

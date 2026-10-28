@@ -129,7 +129,7 @@ export interface AdminFixture {
 }
 
 /** When the fixture's Stage 5D items, orders, contributions and proposals were made: before its votes closed. */
-export const ADMIN_AT = '2025-12-15T00:00:00.000Z';
+export const ADMIN_AT = '2025-11-15T00:00:00.000Z';
 
 /** The plan on every fixture chapter proposal. */
 export const ADMIN_PLAN = { location: 'Geelong.', membership: 'Five.', leadership: 'Named.', budget: '$500.', operations: 'Monthly.' };

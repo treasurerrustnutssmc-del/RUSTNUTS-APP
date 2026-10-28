@@ -6236,8 +6236,17 @@
       "action": "decideContribution",
       "contribution": "k-open",
       "chapter": "west",
-      "vote": "west-board-carried",
+      "vote": "west-board-5d",
       "allowed": true
+    },
+    {
+      "name": "5D: a vote that already stands for another decision",
+      "as": "torque",
+      "action": "decideContribution",
+      "contribution": "k-open",
+      "chapter": "west",
+      "vote": "west-board-carried",
+      "allowed": false
     },
     {
       "name": "5D: the NEC records a chapter's decision",
@@ -7018,6 +7027,20 @@
       "electors": [
         "rusty",
         "smokey"
+      ],
+      "ballots": [],
+      "result": "carried"
+    },
+    {
+      "key": "west-board-5d",
+      "chapter": "west",
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 1,
+      "closesAt": "2026-01-01T00:00:00Z",
+      "electors": [
+        "rusty",
+        "torque"
       ],
       "ballots": [],
       "result": "carried"

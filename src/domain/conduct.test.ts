@@ -89,6 +89,14 @@ test('the member, their board, the NEC and the panel see a record; other members
   assert.equal(visibleConduct(null, plain, TODAY).length, 0);
 });
 
+test('a record follows the member to their new chapter (12.4)', () => {
+  const moved = data();
+  moved.members = moved.members.map((m) => (m.id === 'rider' ? { ...m, chapterId: 'north' } : m));
+  assert.equal(visibleConduct(who(moved, 'northsec'), moved, TODAY).length, 1, 'the new board sees it');
+  assert.equal(visibleConduct(who(moved, 'sec'), moved, TODAY).length, 0, 'the old board no longer does');
+  assert.equal(holdProblem(who(moved, 'sec'), 'c1', '2027-12-01', 'Grievance', moved, TODAY), 'No such record.');
+});
+
 test('conductFor lists a member’s records, newest first', () => {
   const d = data([record({ id: 'a', decidedOn: '2026-09-01' }), record({ id: 'b', decidedOn: '2026-10-01' }), record({ id: 'c', memberId: 'fng' })]);
   assert.deepEqual(conductFor('rider', who(d, 'sec'), d, TODAY).map((r) => r.id), ['b', 'a']);

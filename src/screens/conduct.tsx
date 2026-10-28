@@ -6,14 +6,15 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { isBoardOf } from '../domain/access';
 import {
-  appealBy, appealOpen, appealWord, CONDUCT_KINDS, conductFor, decisionDueOn, deleteOn, hearingDueOn, isFormal, KIND_LABEL,
+  appealBy, appealOpen, conductChapter, appealWord, CONDUCT_KINDS, conductFor, decisionDueOn, deleteOn, hearingDueOn, isFormal, KIND_LABEL,
   outcomeLabel, recordsConductFor, visibleConduct,
 } from '../domain/conduct';
 import { formatAuDate } from '../domain/dates';
 import { displayName } from '../domain/profile';
+import { melbourneDate } from '../domain/rides';
 import type { AppealOutcome, ConductKind, ConductRecord, Member } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
-import { colors, space, type } from '../theme';
+import { space, type } from '../theme';
 import {
   Body, Button, Card, Chip, Choices, ConfirmButton, Field, H1, IconBadge, ListRow, Notice, Screen, SectionTitle, Small, Stack,
 } from '../ui/primitives';
@@ -112,8 +113,8 @@ export function ConductRecordScreen({ route, navigation }: RootScreen<'ConductRe
     );
   }
   const word = appealWord(r.kind);
-  const chapter = data.chapters.find((c) => c.id === r.chapterId);
-  const board = isBoardOf(me, r.chapterId, data.positions) && me.id !== r.memberId;
+  const chapter = data.chapters.find((c) => c.id === conductChapter(r, data));
+  const board = isBoardOf(me, conductChapter(r, data), data.positions) && me.id !== r.memberId;
   const itsMine = me.id === r.memberId;
 
   return (
@@ -135,7 +136,7 @@ export function ConductRecordScreen({ route, navigation }: RootScreen<'ConductRe
           {r.rule ? <Fact icon="book-outline" text={`Rule: ${r.rule}`} /> : null}
         </Stack>
         <Body selectable>{r.summary}</Body>
-        <Small>{`Recorded by ${nameOf(r.recordedBy, data.members)} on ${formatAuDate(r.recordedAt.slice(0, 10))}`}</Small>
+        <Small>{`Recorded by ${nameOf(r.recordedBy, data.members)} on ${formatAuDate(melbourneDate(r.recordedAt))}`}</Small>
       </Card>
 
       <Card>
@@ -158,7 +159,7 @@ function AppealSection({ r, onGone }: { r: ConductRecord; onGone: () => void }) 
   const word = appealWord(r.kind);
   const a = r.appeal;
   const by = appealBy(r);
-  const canLodge = !!me && (me.id === r.memberId || (isBoardOf(me, r.chapterId, data.positions) && me.id !== r.recordedBy));
+  const canLodge = !!me && (me.id === r.memberId || isBoardOf(me, conductChapter(r, data), data.positions));
 
   if (!a) {
     if (!canLodge) return null;
@@ -249,7 +250,7 @@ function HearingForm({ r }: { r: ConductRecord }) {
   const [panel, setPanel] = useState<string[]>(a.panelIds);
   const date = useDate(a.hearingOn ?? (hearingDueOn(a.lodgedOn) < today ? today : hearingDueOn(a.lodgedOn)));
   const { busy, msg, run } = useRun();
-  if (!me || !isBoardOf(me, r.chapterId, data.positions) || me.id === r.memberId || me.id === r.recordedBy) return null;
+  if (!me || !isBoardOf(me, conductChapter(r, data), data.positions) || me.id === r.memberId || me.id === r.recordedBy) return null;
   const choices = data.members.filter(
     (m) => m.approval === 'approved' && m.status !== 'legacy' && m.id !== r.memberId && m.id !== r.recordedBy,
   );
@@ -345,18 +346,19 @@ function BoardTools({ r, onGone }: { r: ConductRecord; onGone: () => void }) {
           onPress={() => run('hold', () => holdConduct(r.id, until.iso, reason), 'Hold saved.')}
         />
         {r.holdUntil ? (
-          <Button
+          <ConfirmButton
             label="Let it go on its day"
+            confirmLabel="Yes, let it go"
             kind="quiet"
-            busy={busy === 'release'}
-            onPress={() => run('release', () => holdConduct(r.id, null, ''), `It now goes on its usual day.`)}
-            style={{ alignSelf: 'flex-start' }}
+            confirmNote={
+              today >= deleteOn({ ...r, holdUntil: null }) && !appealOpen(r)
+                ? 'It’s past its 12 months, so it’s deleted now.'
+                : `It goes on ${formatAuDate(deleteOn({ ...r, holdUntil: null }))}.`
+            }
+            onConfirm={() => run('release', () => holdConduct(r.id, null, ''), 'It now goes on its usual day.')}
           />
         ) : null}
         {msg?.tone === 'ok' ? <Notice tone="ok">{msg.text}</Notice> : null}
-        {today >= deleteOn({ ...r, holdUntil: null }) && !appealOpen(r) && r.holdUntil ? (
-          <Small style={{ color: colors.warn }}>Past its 12 months: letting go deletes it today.</Small>
-        ) : null}
       </Card>
       <ConfirmButton
         label="Remove record"
@@ -380,7 +382,7 @@ export function RecordConductScreen({ route, navigation }: RootScreen<'RecordCon
   const [summary, setSummary] = useState('');
   const [rule, setRule] = useState('');
   const decided = useDate(today);
-  const notice = useDate(today);
+  const notice = useDate(null);
   const suspended = useDate(null);
   const { busy, msg, run } = useRun();
   if (!me || !recordsConductFor(me, data)) {
@@ -404,7 +406,7 @@ export function RecordConductScreen({ route, navigation }: RootScreen<'RecordCon
         summary,
         rule,
         decidedOn: decided.iso,
-        noticeOn: kind && isFormal(kind) ? decided.iso : notice.iso,
+        noticeOn: kind && isFormal(kind) ? decided.iso : notice.text.trim() ? notice.iso : decided.iso,
         suspendedUntil: kind === 'suspension' ? suspended.iso || null : null,
       });
       navigation.replace('ConductRecord', { recordId: id });
@@ -432,7 +434,7 @@ export function RecordConductScreen({ route, navigation }: RootScreen<'RecordCon
       <Field label="What happened" value={summary} onChangeText={setSummary} multiline maxLength={1000} autoCapitalize="sentences" />
       <Field label="Rule" value={rule} onChangeText={setRule} maxLength={200} placeholder="6.9 vest direction" hint="Optional. The clause or Road Rule it falls under." />
       <DateField label={kind && isFormal(kind) ? 'Date of the vote' : 'Date of the decision'} date={decided} />
-      {kind && !isFormal(kind) ? <DateField label="Written notice given" date={notice} hint="The review window runs 14 days from here." /> : null}
+      {kind && !isFormal(kind) ? <DateField label="Written notice given" date={notice} hint="Blank means the day of the decision. The review window runs 14 days from here." /> : null}
       {kind === 'suspension' ? <DateField label="Suspended until" date={suspended} /> : null}
 
       <ActionWithReason label="Save record" icon="checkmark" big busy={busy === 'save'} reason={msg?.tone === 'danger' ? msg.text : null} onPress={save} />

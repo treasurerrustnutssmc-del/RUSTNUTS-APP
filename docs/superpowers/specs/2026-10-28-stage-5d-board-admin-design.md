@@ -36,7 +36,8 @@ delete themselves after 12 months, and the member can ask for a review or appeal
 - The app is a working record. The Association Secretary keeps the legal register (15.6).
 
 ### Who
-- **Sees a record:** the member it's about, their chapter's board, the NEC, and its hearing panel.
+- **Sees a record:** the member it's about, their chapter's board, the NEC, and its hearing panel. "Their
+  chapter" is the one they're in now, so a record follows them when they move (12.4).
 - **Records, holds and removes one:** the member's chapter board or the NEC, never about themselves.
   Removing is for mistakes (`ConfirmButton`).
 - **Lodges a review or appeal:** the member, or their board on their behalf. One per record.
@@ -55,9 +56,9 @@ Every action starts with `Sign in first.` and `Only approved members can do that
   `Only that member’s chapter board or the NEC can do that.` · `Pick what kind of record it is.` ·
   `Say what happened.` · `Keep what happened to 1000 characters at most.` ·
   `Keep the rule to 200 characters at most.` · `Pick the date of the decision.` ·
-  `The decision can’t be in the future.` · `That decision is more than 12 months old, so it isn’t kept.` ·
-  `Written notice can’t come before the decision.` · `Written notice can’t be in the future.` ·
-  (suspension) `Pick when the suspension ends.`
+  `The decision can’t be in the future.` · (suspension) `Pick when the suspension ends.` ·
+  `That decision is more than 12 months old, so it isn’t kept.` · (internal) `Pick when written notice was given.` ·
+  `Written notice can’t come before the decision.` · `Written notice can’t be in the future.`
 - **Hold:** `No such record.` · board rule · self rule · (setting) `Say which matter needs it kept.` ·
   `Keep the reason to 300 characters at most.` · `Pick a date after today.` · `Hold it at most 7 years.`
 - **Remove:** `No such record.` · board rule · self rule.
@@ -69,7 +70,8 @@ Every action starts with `Sign in first.` and `Only approved members can do that
   `Pick three different people.` · `Pick approved members for the panel.` ·
   `The panel can’t include the member or whoever recorded it.` · `Pick the hearing date.`
 - **Outcome:** `No review or appeal is lodged.` · `That one is settled.` ·
-  `Only the hearing panel can record the outcome.` · `Wait until the hearing.` ·
+  `Only the hearing panel can record the outcome.` · `Wait until the hearing.` · (database only, for a value the
+  app can't send) `Pick an outcome.` ·
   `A formal appeal is upheld or revoked (14.6).` · `Say how it was varied.` ·
   `Keep it to 1000 characters at most.`
 - **Withdraw:** `No review or appeal is lodged.` · `That one is settled.` ·
@@ -116,8 +118,10 @@ ledger's own `Only that fund’s treasurer, or the National Chairman or Secretar
 - The NEC proposes a national event or project budget: a title (≤80), what it's for (≤1000) and a total.
 - Each chapter's share is worked out **when proposed**, in proportion to its Voting Members (approved
   Full and Nomad members), to the cent, remainders to the largest fractions (ties by chapter slug).
-- Each chapter's board records its decision by naming its own closed board vote on it, closed after
-  the proposal (13.6: "each decision minuted"): carried means yes, anything else no.
+- Each chapter's board records its decision by naming its own closed board vote on it, opened after
+  the proposal (13.6: "each decision minuted"): carried means yes, anything else no. A vote that already
+  stands for another contribution decision, a new chapter or a budget can't be used again, and the
+  screen shows the vote's question in a confirm step before it's recorded.
 - A majority of the chapters at proposal saying yes approves it; once a majority can't be reached it's
   not approved. The NEC can withdraw it while it's open.
 - Paying shares between funds is left for later (the ledger has no transfer code yet).
@@ -136,7 +140,8 @@ Refusals: `Only the NEC can propose a national contribution (13.6).` · `Give it
   founders who are approved Full or Nomad members, and a founding President and Sergeant-at-Arms from
   among them (Full only: Nomads hold no board seat, 9.1).
 - Put forward by the NEC or one of the founders.
-- **Approved** by an NEC member naming a carried NEC vote that closed after the proposal (12.1 "majority
+- **Approved** by an NEC member naming a carried NEC vote opened after the proposal and not used for
+  anything else, through a confirm step that shows its question (12.1 "majority
   NEC approval"). Approval, in one go: the chapter is created (its chats make themselves), the founders
   move to it (12.4 transfer), and the President and SAA take their seats from today. A vote that didn't
   carry marks it **Not approved**. The NEC or whoever proposed it can withdraw it while open.
@@ -146,7 +151,7 @@ Refusals: `Only the NEC can propose a national contribution (13.6).` · `Give it
 
 Refusals: `Only the NEC or one of the founders can put it forward.` · `Name the chapter.` ·
 `Keep the name to 40 characters at most.` · `There’s already a chapter called that.` · `Say where it’s based.` ·
-`Keep the area to 80 characters at most.` · `Cover the <part> in the proposal (12.1).` ·
+`Keep the area to 80 characters at most.` · `Pick a state.` · `Cover the <part> in the proposal (12.1).` ·
 `Keep each part to 2000 characters at most.` · `A new chapter needs at least five founders (12.1).` ·
 `Founders must be approved Full or Nomad members (12.1).` ·
 `Pick a founding President and Sergeant-at-Arms from the founders (12.1).` ·
@@ -165,8 +170,21 @@ point of the feature; the paste file says so.
 ## App
 - Rules in `src/domain/conduct.ts`, `merch.ts`, `national.ts`, each with tests; demo actions in
   `src/data/adminActions.ts`; live read in `src/data/adminLive.ts`; parity cases appended to `parity.json`.
-- **Board screen:** rows for Conduct records, Merch and National (contributions and new chapters).
-- **Me screen:** Merch for everyone; "Your records" when someone has one, so they can review or appeal.
-- Screens: Conduct, ConductRecord, RecordConduct, Merch, MerchItem, ProposeMerch, National, Contribution,
-  ProposeContribution, ChapterProposal, ProposeChapter. No Alert dialogs. Stencil for titles, names,
+- **Board screen:** a card of its own under the first one (the tab bar and that card belong to other lanes),
+  with Conduct records, Merch and National, each showing what's waiting.
+- **Me screen:** a "Club gear" section with Merch for everyone, plus "Your records" when someone has one, so
+  they can ask for a review or appeal.
+- **Chapters screen:** a "New chapters" row, so a founder who isn't on a board can put one forward.
+- Screens: Conduct (also "Your records"), ConductRecord, RecordConduct, Merch, MerchItem, MerchOrder,
+  ProposeMerch, National, Contribution, ProposeContribution, ChapterProposal, ProposeChapter. No Alert dialogs. Stencil for titles, names,
   buttons, chips, numbers and dates. Checked at 390×844.
+
+## Known limits (from the review, left for later)
+- A vote isn't formally tied to its subject; the rules only stop an old or already-used vote, and the
+  confirm step names the vote so the wrong one is easy to spot.
+- If whoever recorded a record leaves the database, the "apart from whoever recorded it" panel rule
+  can't apply to them.
+- A member can be a founder in two open proposals; approving both moves them twice.
+- For club-wide merch, any chapter treasurer can see and mark paid the orders (the books' existing
+  rule: the club fund is kept by the NEC money officers and treasurers).
+- Order refusals check Legacy before "That item isn't on sale."

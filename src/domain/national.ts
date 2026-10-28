@@ -109,9 +109,20 @@ export function settledStatus(k: Pick<Contribution, 'shares' | 'decisions'>): Co
   return null;
 }
 
-/** A chapter board's vote that can stand for its decision: closed, and after the proposal. */
-export const boardVoteFits = (vote: Vote | undefined, chapterId: string, after: string): boolean =>
-  !!vote && vote.chapterId === chapterId && vote.electorate === 'chapter_board' && vote.closedAt !== null && vote.closedAt > after;
+/** A vote already standing for a contribution decision, a new chapter or a budget can't stand for another. */
+export const voteUsed = (voteId: string, data: ClubData): boolean =>
+  (data.contributions ?? []).some((k) => k.decisions.some((d) => d.voteId === voteId)) ||
+  (data.chapterProposals ?? []).some((p) => p.voteId === voteId) ||
+  (data.budgets ?? []).some((b) => b.approvedVoteId === voteId);
+
+/** A chapter board's vote that can stand for its decision: opened after the proposal, closed, and not used for anything else. */
+export const boardVoteFits = (vote: Vote | undefined, chapterId: string, after: string, data: ClubData): boolean =>
+  !!vote && vote.chapterId === chapterId && vote.electorate === 'chapter_board' && vote.closedAt !== null && vote.openedAt > after &&
+  !voteUsed(vote.id, data);
+
+/** The NEC's vote on a new chapter: opened after the proposal, closed, and not used for anything else. */
+export const necVoteFits = (vote: Vote | undefined, after: string, data: ClubData): boolean =>
+  !!vote && vote.chapterId === null && vote.electorate === 'nec' && vote.closedAt !== null && vote.openedAt > after && !voteUsed(vote.id, data);
 
 function contributionFor(me: Member | null, id: string, data: ClubData): { problem: string } | { k: Contribution } {
   const signedIn = signedInProblem(me);
@@ -130,7 +141,7 @@ export function decideContributionProblem(me: Member | null, id: string, chapter
   }
   if (found.k.decisions.some((d) => d.chapterId === chapterId)) return 'That chapter has already decided.';
   const vote = (data.votes ?? []).find((v) => v.id === voteId);
-  if (!boardVoteFits(vote, chapterId, found.k.proposedAt)) return 'Pick that chapter board’s closed vote on it (13.6).';
+  if (!boardVoteFits(vote, chapterId, found.k.proposedAt, data)) return 'Pick that chapter board’s closed vote on it (13.6).';
   return null;
 }
 
@@ -225,7 +236,7 @@ export function settleChapterProblem(me: Member | null, id: string, voteId: stri
   const p = found.p;
   if (!isNational(me!.id, data.positions)) return 'Only the NEC can approve a new chapter (12.1).';
   const vote = (data.votes ?? []).find((v) => v.id === voteId);
-  if (!vote || vote.chapterId !== null || vote.electorate !== 'nec' || vote.closedAt === null || vote.closedAt <= p.proposedAt) {
+  if (!vote || !necVoteFits(vote, p.proposedAt, data)) {
     return 'Pick the NEC’s closed vote on it (12.1).';
   }
   if (vote.result !== 'carried') return null;

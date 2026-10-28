@@ -10,7 +10,7 @@ import { formatAuDate } from '../domain/dates';
 import { formatCents, parseDollars } from '../domain/fees';
 import { RESULT_LABEL } from '../domain/labels';
 import {
-  boardVoteFits, CHAPTER_PARTS, CONTRIBUTION_STATUS_LABEL, contributionsToDecide, PART_LABEL, PROPOSAL_STATUS_LABEL, sharesFor, STATES,
+  boardVoteFits, CHAPTER_PARTS, necVoteFits, CONTRIBUTION_STATUS_LABEL, contributionsToDecide, PART_LABEL, PROPOSAL_STATUS_LABEL, sharesFor, STATES,
 } from '../domain/national';
 import { displayName } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
@@ -142,7 +142,7 @@ export function NationalScreen({ navigation }: RootScreen<'National'>) {
 function DecideForChapter({ contributionId, chapterId, proposedAt }: { contributionId: string; chapterId: string; proposedAt: string }) {
   const { data, decideContribution } = useClub();
   const navigation = useNav();
-  const votes = (data.votes ?? []).filter((v) => boardVoteFits(v, chapterId, proposedAt)).sort((a, b) => b.closedAt!.localeCompare(a.closedAt!));
+  const votes = (data.votes ?? []).filter((v) => boardVoteFits(v, chapterId, proposedAt, data)).sort((a, b) => b.closedAt!.localeCompare(a.closedAt!));
   const [voteId, setVoteId] = useState<string | null>(votes.length === 1 ? votes[0].id : null);
   const { busy, msg, run } = useRun();
   const chapter = data.chapters.find((c) => c.id === chapterId)?.name ?? 'Chapter';
@@ -158,13 +158,19 @@ function DecideForChapter({ contributionId, chapterId, proposedAt }: { contribut
       ) : (
         <>
           <Choices<string> options={votes.map(voteOption)} value={voteId} onChange={setVoteId} />
-          <ActionWithReason
+          <ConfirmButton
             label="Record the decision"
+            confirmLabel="Yes, record it"
+            kind="primary"
             icon="checkmark"
-            busy={busy === 'decide'}
-            reason={msg?.tone === 'danger' ? msg.text : null}
-            onPress={() => run('decide', () => (voteId ? decideContribution(contributionId, chapterId, voteId) : Promise.reject(new Error('Pick that chapter board’s closed vote on it (13.6).'))))}
+            disabled={!voteId || busy === 'decide'}
+            confirmNote={(() => {
+              const v = votes.find((x) => x.id === voteId);
+              return v ? `${chapter} says ${v.result === 'carried' ? 'yes' : 'no'}, by “${v.question}”.` : undefined;
+            })()}
+            onConfirm={() => run('decide', () => decideContribution(contributionId, chapterId, voteId!))}
           />
+          <View accessibilityLiveRegion="polite" role="alert">{msg?.tone === 'danger' ? <Notice tone="danger">{msg.text}</Notice> : null}</View>
         </>
       )}
     </Card>
@@ -318,7 +324,7 @@ export function ChapterProposalScreen({ route, navigation }: RootScreen<'Chapter
   const nec = !!me && isNational(me.id, data.positions);
   const votes = p
     ? (data.votes ?? [])
-        .filter((v) => v.chapterId === null && v.electorate === 'nec' && v.closedAt !== null && v.closedAt > p.proposedAt)
+        .filter((v) => necVoteFits(v, p.proposedAt, data))
         .sort((a, b) => b.closedAt!.localeCompare(a.closedAt!))
     : [];
   const [voteId, setVoteId] = useState<string | null>(votes.length === 1 ? votes[0].id : null);
@@ -387,19 +393,27 @@ export function ChapterProposalScreen({ route, navigation }: RootScreen<'Chapter
             ) : (
               <>
                 <Choices<string> options={votes.map(voteOption)} value={voteId} onChange={setVoteId} />
-                <ActionWithReason
+                <ConfirmButton
                   label={chosen && chosen.result !== 'carried' ? 'Mark it not approved' : `Make the ${p.name} chapter`}
+                  confirmLabel={chosen && chosen.result !== 'carried' ? 'Yes, not approved' : 'Yes, make it'}
+                  kind="primary"
                   icon="checkmark"
-                  busy={busy === 'settle'}
-                  reason={fail}
-                  onPress={() =>
+                  disabled={!chosen || busy === 'settle'}
+                  confirmNote={
+                    chosen
+                      ? chosen.result === 'carried'
+                        ? `“${chosen.question}” carried. This makes the chapter, moves ${p.founderIds.length} founders and seats the President and SAA today. It can’t be undone here.`
+                        : `“${chosen.question}” didn’t carry, so the proposal closes as not approved.`
+                      : undefined
+                  }
+                  onConfirm={() =>
                     run('settle', async () => {
-                      if (!voteId) throw new Error('Pick the NEC’s closed vote on it (12.1).');
-                      const chapterId = await settleChapter(p.id, voteId);
+                      const chapterId = await settleChapter(p.id, voteId!);
                       if (chapterId) navigation.replace('ChapterDetail', { chapterId });
                     })
                   }
                 />
+                <View accessibilityLiveRegion="polite" role="alert">{fail ? <Notice tone="danger">{fail}</Notice> : null}</View>
               </>
             )}
           </Card>

@@ -99,6 +99,11 @@ begin
   -- Readers: the member and their board see it; another chapter's member doesn't.
   assert jsonb_array_length(pg_temp.value_as(rider, 'select public.club_admin()->''conduct''')::jsonb) = 1, 'the member sees it';
   assert jsonb_array_length(pg_temp.value_as(other, 'select public.club_admin()->''conduct''')::jsonb) = 0, 'others don''t';
+  -- It follows the member when they move chapter (12.4).
+  update members set chapter_id = (select id from chapters where slug = 'north') where id = rider;
+  assert jsonb_array_length(pg_temp.value_as('00000000-0000-0000-0000-0000000005db', 'select public.club_admin()->''conduct''')::jsonb) = 1, 'the new board sees it';
+  assert jsonb_array_length(pg_temp.value_as(sec, 'select public.club_admin()->''conduct''')::jsonb) = 0, 'the old board doesn''t';
+  update members set chapter_id = (select id from chapters where slug = 'west') where id = rider;
   -- No table access through the API.
   err := pg_temp.try_as(rider, 'select count(*) from public.conduct_records');
   assert err like 'permission denied%', 'no direct reads: ' || coalesce(err, 'allowed');
@@ -214,12 +219,12 @@ begin
     jsonb_build_object('chapter_id', north, 'voting_members', 6, 'cents', 5455),
     jsonb_build_object('chapter_id', west, 'voting_members', 5, 'cents', 4546)), 'by slug, remainders to the largest fractions: ' || sh::text;
   insert into votes (id, chapter_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result)
-  values (gen_random_uuid(), west, 'Fund it?', 'chapter_board', 'majority', 1, now(), now(), now() + interval '1 second', 'carried')
+  values (gen_random_uuid(), west, 'Fund it?', 'chapter_board', 'majority', 1, now() + interval '1 second', now() + interval '2 seconds', now() + interval '2 seconds', 'carried')
   returning id into v;
   assert pg_temp.try_as(sec, format('select public.decide_contribution(%L, %L, %L)', k, west, v)) is null, 'West says yes';
   assert (select status from national_contributions where id = k) = 'proposed', 'one of two isn''t a majority';
   insert into votes (id, chapter_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result)
-  values (gen_random_uuid(), north, 'Fund it?', 'chapter_board', 'majority', 1, now(), now(), now() + interval '1 second', 'lost')
+  values (gen_random_uuid(), north, 'Fund it?', 'chapter_board', 'majority', 1, now() + interval '1 second', now() + interval '2 seconds', now() + interval '2 seconds', 'lost')
   returning id into v;
   assert pg_temp.try_as(nsec, format('select public.decide_contribution(%L, %L, %L)', k, north, v)) is null, 'North says no';
   assert (select status from national_contributions where id = k) = 'not_approved', 'one each can''t make a majority of two';
@@ -241,7 +246,7 @@ begin
     f, f[1], f[2]))::uuid;
   assert (select plan from chapter_proposals where id = p) = '{"location":"a","membership":"b","leadership":"c","budget":"d","operations":"e"}'::jsonb, 'the plan';
   insert into votes (id, chapter_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result)
-  values (gen_random_uuid(), null, 'Surf Coast?', 'nec', 'majority', 1, now(), now(), now() + interval '1 second', 'carried')
+  values (gen_random_uuid(), null, 'Surf Coast?', 'nec', 'majority', 1, now() + interval '1 second', now() + interval '2 seconds', now() + interval '2 seconds', 'carried')
   returning id into v;
   ch := pg_temp.value_as(chair, format('select public.settle_chapter_proposal(%L, %L)', p, v))::uuid;
   assert (select slug from chapters where id = ch) = 'surf-coast', 'the chapter is made';
@@ -250,6 +255,11 @@ begin
   assert exists (select 1 from positions where chapter_id = ch and member_id = f[2] and role = 'sergeant_at_arms'), 'SAA seated';
   assert exists (select 1 from conversations where kind = 'chapter' and chapter_id = ch), 'its chats made themselves';
   assert (select status from chapter_proposals where id = p) = 'approved' and (select chapter_id from chapter_proposals where id = p) = ch, 'marked approved';
+  -- One vote stands for one decision.
+  p := pg_temp.value_as(f[1], format('select public.propose_chapter(''Torquay'', ''Torquay'', ''VIC'', ''a'', ''b'', ''c'', ''d'', ''e'', %L, %L, %L)',
+    f, f[1], f[2]))::uuid;
+  assert pg_temp.try_as(chair, format('select public.settle_chapter_proposal(%L, %L)', p, v)) = 'Pick the NEC’s closed vote on it (12.1).',
+    'a vote already used can''t settle another proposal';
 end $$;
 \o
 \echo '  New chapters: an NEC vote makes the chapter, moves the founders and seats the President and SAA'

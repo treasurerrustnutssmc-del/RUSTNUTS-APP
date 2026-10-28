@@ -43,7 +43,8 @@ function data(over: Partial<ClubData> = {}): ClubData {
       member('ninth', { chapterId: 'north' }),
     ],
     votes: [
-      vote('west-yes'), vote('west-no', { result: 'lost' }), vote('west-early', { closedAt: '2026-10-19T00:00:00.000Z' }),
+      vote('west-yes'), vote('west-no', { result: 'lost' }), vote('west-early', { openedAt: '2026-10-18T00:00:00.000Z', closedAt: '2026-10-19T00:00:00.000Z' }),
+      vote('west-straddle', { openedAt: '2026-10-19T00:00:00.000Z' }),
       vote('west-open', { closedAt: null, result: null }), vote('north-yes', { chapterId: 'north' }),
       vote('nec-yes', { chapterId: null, electorate: 'nec' }), vote('nec-no', { chapterId: null, electorate: 'nec', result: 'lost' }),
     ],
@@ -109,6 +110,9 @@ test('each chapter board records its decision by its closed board vote', () => {
   assert.equal(decideContributionProblem(who(d, 'sec'), 'k1', 'west', 'west-open', d), 'Pick that chapter board’s closed vote on it (13.6).');
   assert.equal(decideContributionProblem(who(d, 'sec'), 'k1', 'west', 'north-yes', d), 'Pick that chapter board’s closed vote on it (13.6).');
   assert.equal(decideContributionProblem(who(d, 'sec'), 'k1', 'west', 'nec-yes', d), 'Pick that chapter board’s closed vote on it (13.6).');
+  assert.equal(decideContributionProblem(who(d, 'sec'), 'k1', 'west', 'west-straddle', d), 'Pick that chapter board’s closed vote on it (13.6).', 'opened before it was asked');
+  const reused = data({ chapterProposals: [], budgets: [{ chapterId: 'west', fy: 2026, lines: {}, approvedVoteId: 'west-yes', approvedAt: null, approvedBy: null, updatedAt: '' }] });
+  assert.equal(decideContributionProblem(who(reused, 'sec'), 'k1', 'west', 'west-yes', reused), 'Pick that chapter board’s closed vote on it (13.6).', 'a vote that approved a budget');
   const decided = data({ contributions: [contribution({ decisions: [{ chapterId: 'west', yes: true, voteId: 'west-yes', recordedBy: 'sec', recordedAt: '2026-10-26T00:00:00.000Z' }] })] });
   assert.equal(decideContributionProblem(who(decided, 'tre'), 'k1', 'west', 'west-no', decided), 'That chapter has already decided.');
   const settled = data({ contributions: [contribution({ status: 'approved' })] });
