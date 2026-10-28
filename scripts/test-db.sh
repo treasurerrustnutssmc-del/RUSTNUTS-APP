@@ -200,6 +200,14 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_treasurer -f "$ROOT/supabase/tests/treasurer_test.sql"
 
+# Stage 5D: conduct records, merch, national contributions and new chapters, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_board_admin" >/dev/null
+"${PSQL[@]}" -d rustnuts_board_admin -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_board_admin -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_board_admin -f "$ROOT/supabase/tests/board_admin_test.sql"
+
 # Stage 7: the social extras, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_social" >/dev/null
 "${PSQL[@]}" -d rustnuts_social -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null

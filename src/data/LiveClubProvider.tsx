@@ -88,6 +88,10 @@ import {
   signDocumentProblem,
 } from '../domain/documents'; // Stage 5C
 import { loadedBodies } from './documentsLive'; // Stage 5C
+// Stage 5D: board and admin
+import * as conduct from '../domain/conduct';
+import * as merch from '../domain/merch';
+import * as national from '../domain/national';
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -1001,6 +1005,141 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       return body;
     },
 
+    // Stage 5D: board and admin. Each checks the same rule first, then asks the database.
+    recordConduct: async (input) => {
+      deny(conduct.recordConductProblem(visibleMe, input, data, today));
+      const r = ok(
+        await supabase().rpc('record_conduct', {
+          p_member: input.memberId, p_kind: input.kind, p_summary: input.summary.trim(), p_rule: input.rule.trim(),
+          p_decided: input.decidedOn || null, p_notice: input.noticeOn || null, p_suspended: input.suspendedUntil || null,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    holdConduct: async (id, until, reason) => {
+      deny(conduct.holdProblem(visibleMe, id, until, reason, data, today));
+      ok(await supabase().rpc('hold_conduct', { p_record: id, p_until: until, p_reason: reason.trim() }));
+      await after();
+    },
+    removeConduct: async (id) => {
+      deny(conduct.removeConductProblem(visibleMe, id, data, today));
+      ok(await supabase().rpc('remove_conduct', { p_record: id }));
+      await after();
+    },
+    lodgeAppeal: async (id, grounds) => {
+      deny(conduct.lodgeProblem(visibleMe, id, grounds, data, today));
+      ok(await supabase().rpc('lodge_conduct_appeal', { p_record: id, p_grounds: grounds.trim() }));
+      await after();
+    },
+    setHearing: async (id, panelIds, hearingOn) => {
+      deny(conduct.hearingProblem(visibleMe, id, panelIds, hearingOn, data, today));
+      ok(await supabase().rpc('set_conduct_hearing', { p_record: id, p_panel: panelIds, p_hearing: hearingOn || null }));
+      await after();
+    },
+    decideAppeal: async (id, outcome, note) => {
+      deny(conduct.outcomeProblem(visibleMe, id, outcome, note, data, today));
+      ok(await supabase().rpc('decide_conduct_appeal', { p_record: id, p_outcome: outcome, p_note: note.trim() }));
+      await after();
+    },
+    withdrawAppeal: async (id) => {
+      deny(conduct.withdrawProblem(visibleMe, id, data, today));
+      ok(await supabase().rpc('withdraw_conduct_appeal', { p_record: id }));
+      await after();
+    },
+    proposeMerch: async (input) => {
+      deny(merch.proposeMerchProblem(visibleMe, input, data));
+      const r = ok(
+        await supabase().rpc('propose_merch', {
+          p_chapter: input.chapterId, p_name: input.name.trim(), p_details: input.details.trim(), p_sizes: merch.cleanSizes(input.sizes),
+          p_price_cents: input.priceCents, p_patched_only: input.patchedOnly,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    decideMerch: async (id, yes, reason) => {
+      deny(merch.decideMerchProblem(visibleMe, id, yes, reason, data));
+      ok(await supabase().rpc('decide_merch', { p_item: id, p_yes: yes, p_reason: reason.trim() }));
+      await after();
+    },
+    closeMerch: async (id) => {
+      deny(merch.closeMerchProblem(visibleMe, id, data));
+      ok(await supabase().rpc('close_merch', { p_item: id }));
+      await after();
+    },
+    orderMerch: async (input) => {
+      deny(merch.orderProblem(visibleMe, input, data));
+      const r = ok(
+        await supabase().rpc('order_merch', { p_item: input.itemId, p_size: input.size, p_qty: input.qty, p_note: input.note.trim() }),
+      );
+      await after();
+      return r.data as string;
+    },
+    decideOrder: async (id, yes, reason) => {
+      deny(merch.decideOrderProblem(visibleMe, id, yes, reason, data));
+      ok(await supabase().rpc('decide_merch_order', { p_order: id, p_yes: yes, p_reason: reason.trim() }));
+      await after();
+    },
+    payOrder: async (id, paidOn) => {
+      deny(merch.payOrderProblem(visibleMe, id, paidOn, data, today));
+      const r = ok(await supabase().rpc('pay_merch_order', { p_order: id, p_paid_on: paidOn }));
+      await after();
+      return r.data as string;
+    },
+    handOver: async (id) => {
+      deny(merch.handOverProblem(visibleMe, id, data));
+      ok(await supabase().rpc('hand_over_merch_order', { p_order: id }));
+      await after();
+    },
+    cancelOrder: async (id) => {
+      deny(merch.cancelOrderProblem(visibleMe, id, data));
+      ok(await supabase().rpc('cancel_merch_order', { p_order: id }));
+      await after();
+    },
+    proposeContribution: async (input) => {
+      deny(national.proposeContributionProblem(visibleMe, input, data));
+      const r = ok(
+        await supabase().rpc('propose_contribution', {
+          p_title: input.title.trim(), p_purpose: input.purpose.trim(), p_total_cents: input.totalCents,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    decideContribution: async (id, chapterId, voteId) => {
+      deny(national.decideContributionProblem(visibleMe, id, chapterId, voteId, data));
+      ok(await supabase().rpc('decide_contribution', { p_id: id, p_chapter: chapterId, p_vote: voteId }));
+      await after();
+    },
+    withdrawContribution: async (id) => {
+      deny(national.withdrawContributionProblem(visibleMe, id, data));
+      ok(await supabase().rpc('withdraw_contribution', { p_id: id }));
+      await after();
+    },
+    proposeChapter: async (input) => {
+      deny(national.proposeChapterProblem(visibleMe, input, data));
+      const r = ok(
+        await supabase().rpc('propose_chapter', {
+          p_name: input.name.trim(), p_area: input.area.trim(), p_state: input.state, p_location: input.plan.location.trim(),
+          p_membership: input.plan.membership.trim(), p_leadership: input.plan.leadership.trim(), p_budget: input.plan.budget.trim(),
+          p_operations: input.plan.operations.trim(), p_founders: input.founderIds, p_president: input.presidentId, p_saa: input.saaId,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    settleChapter: async (id, voteId) => {
+      deny(national.settleChapterProblem(visibleMe, id, voteId, data));
+      const r = ok(await supabase().rpc('settle_chapter_proposal', { p_id: id, p_vote: voteId }));
+      await after();
+      return (r.data as string | null) ?? null;
+    },
+    withdrawChapter: async (id) => {
+      deny(national.withdrawChapterProblem(visibleMe, id, data));
+      ok(await supabase().rpc('withdraw_chapter_proposal', { p_id: id }));
+      await after();
+    },
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => {
       const uid = requireUser();

@@ -5655,15 +5655,13 @@
     },
     {
       "name": "What changed of 501 characters",
-      "as": "torque",
-      "action": "publishDocumentVersion",
-      "document": "westlaws",
-      "expected": 2,
-      "label": "v3",
-      "body": "Three",
-      "whatChanged": "x",
+      "as": "chair",
+      "action": "publishRoadRules",
+      "body": "x",
+      "changes": "x",
       "fresh": true,
-      "changesRepeat": 501,
+      "seen": 2,
+      "repeat": 501,
       "allowed": false
     },
     {
@@ -8748,6 +8746,1217 @@
       "action": "socialWithdrawNomination",
       "nomination": "off-gravel",
       "allowed": false
+    },
+    {
+      "name": "5D: the board records a vest direction",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "  Helmet cover at the Big 4.  ",
+      "rule": "6.1",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": true
+    },
+    {
+      "name": "5D: the NEC records about any chapter's member",
+      "as": "chair",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "ride_safety",
+      "summary": "Passed in a no-pass zone.",
+      "decidedDays": 0,
+      "noticeDays": 0,
+      "allowed": true
+    },
+    {
+      "name": "5D: a formal reprimand needs no notice date",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "reprimand",
+      "summary": "Reprimand under RR 22.",
+      "decidedDays": -1,
+      "allowed": true
+    },
+    {
+      "name": "5D: a member who isn't on the board records one",
+      "as": "gravel",
+      "action": "recordConduct",
+      "member": "spanner",
+      "kind": "vest",
+      "summary": "x",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: another chapter's board records one",
+      "as": "crank",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "x",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a record about yourself",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "torque",
+      "kind": "vest",
+      "summary": "x",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a record about an applicant",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "dylan",
+      "kind": "vest",
+      "summary": "x",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a record with no kind",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": null,
+      "summary": "x",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a record that says nothing",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "   ",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a record over 1000 characters",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a rule over 200 characters",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "x",
+      "rule": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a decision with no date",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "x",
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a decision in the future",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "x",
+      "decidedDays": 1,
+      "noticeDays": 1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a decision too old to keep",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "x",
+      "decidedDays": -370,
+      "noticeDays": -370,
+      "allowed": false
+    },
+    {
+      "name": "5D: notice before the decision",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "x",
+      "decidedDays": -2,
+      "noticeDays": -3,
+      "allowed": false
+    },
+    {
+      "name": "5D: notice in the future",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "x",
+      "decidedDays": -2,
+      "noticeDays": 1,
+      "allowed": false
+    },
+    {
+      "name": "5D: an internal record with no notice date",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "attendance",
+      "summary": "x",
+      "decidedDays": -2,
+      "allowed": false
+    },
+    {
+      "name": "5D: a suspension with no end",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "suspension",
+      "summary": "x",
+      "decidedDays": -2,
+      "allowed": false
+    },
+    {
+      "name": "5D: a suspension with an end",
+      "as": "torque",
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "suspension",
+      "summary": "Suspended.",
+      "decidedDays": -2,
+      "suspendedDays": 60,
+      "allowed": true
+    },
+    {
+      "name": "5D: recording when signed out",
+      "as": null,
+      "action": "recordConduct",
+      "member": "gravel",
+      "kind": "vest",
+      "summary": "x",
+      "decidedDays": -1,
+      "noticeDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "5D: the board holds a record for a grievance",
+      "as": "torque",
+      "action": "holdConduct",
+      "record": "vest-gravel",
+      "untilDays": 30,
+      "reason": "Grievance under 14.9",
+      "allowed": true
+    },
+    {
+      "name": "5D: the board lets go of a hold",
+      "as": "torque",
+      "action": "holdConduct",
+      "record": "vest-gravel",
+      "until": null,
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "5D: holding a record past its day",
+      "as": "torque",
+      "action": "holdConduct",
+      "record": "old-gravel",
+      "untilDays": 30,
+      "reason": "Grievance",
+      "allowed": false
+    },
+    {
+      "name": "5D: the member holds their own record",
+      "as": "gravel",
+      "action": "holdConduct",
+      "record": "vest-gravel",
+      "untilDays": 30,
+      "reason": "Grievance",
+      "allowed": false
+    },
+    {
+      "name": "5D: a hold with no reason",
+      "as": "torque",
+      "action": "holdConduct",
+      "record": "vest-gravel",
+      "untilDays": 30,
+      "reason": "  ",
+      "allowed": false
+    },
+    {
+      "name": "5D: a hold ending today",
+      "as": "torque",
+      "action": "holdConduct",
+      "record": "vest-gravel",
+      "untilDays": 0,
+      "reason": "Grievance",
+      "allowed": false
+    },
+    {
+      "name": "5D: a hold over 7 years",
+      "as": "torque",
+      "action": "holdConduct",
+      "record": "vest-gravel",
+      "untilDays": 2600,
+      "reason": "Grievance",
+      "allowed": false
+    },
+    {
+      "name": "5D: the board removes a mistake",
+      "as": "torque",
+      "action": "removeConduct",
+      "record": "vest-gravel",
+      "allowed": true
+    },
+    {
+      "name": "5D: someone who can't see it removes a record",
+      "as": "spanner",
+      "action": "removeConduct",
+      "record": "vest-gravel",
+      "allowed": false
+    },
+    {
+      "name": "5D: the member asks for a review",
+      "as": "gravel",
+      "action": "lodgeAppeal",
+      "record": "vest-gravel",
+      "grounds": "It was a rain cover.",
+      "allowed": true
+    },
+    {
+      "name": "5D: the board lodges for the member",
+      "as": "torque",
+      "action": "lodgeAppeal",
+      "record": "vest-gravel",
+      "grounds": "Received in writing.",
+      "allowed": true
+    },
+    {
+      "name": "5D: a second review",
+      "as": "gravel",
+      "action": "lodgeAppeal",
+      "record": "appeal-gravel",
+      "grounds": "Again.",
+      "allowed": false
+    },
+    {
+      "name": "5D: an appeal after the 7 days",
+      "as": "gravel",
+      "action": "lodgeAppeal",
+      "record": "late-gravel",
+      "grounds": "Too late.",
+      "allowed": false
+    },
+    {
+      "name": "5D: a review with no reasons",
+      "as": "gravel",
+      "action": "lodgeAppeal",
+      "record": "vest-gravel",
+      "grounds": " ",
+      "allowed": false
+    },
+    {
+      "name": "5D: a panellist lodges",
+      "as": "crank",
+      "action": "lodgeAppeal",
+      "record": "appeal-gravel",
+      "grounds": "x",
+      "allowed": false
+    },
+    {
+      "name": "5D: a stranger lodges",
+      "as": "spanner",
+      "action": "lodgeAppeal",
+      "record": "vest-gravel",
+      "grounds": "x",
+      "allowed": false
+    },
+    {
+      "name": "5D: the NEC sets up the hearing",
+      "as": "chair",
+      "action": "setHearing",
+      "record": "unheard-gravel",
+      "panel": [
+        "crank",
+        "jet",
+        "ash"
+      ],
+      "hearingDays": 5,
+      "allowed": true
+    },
+    {
+      "name": "5D: whoever recorded it sets up the hearing",
+      "as": "torque",
+      "action": "setHearing",
+      "record": "unheard-gravel",
+      "panel": [
+        "crank",
+        "jet",
+        "ash"
+      ],
+      "hearingDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "5D: the member sets up the hearing",
+      "as": "gravel",
+      "action": "setHearing",
+      "record": "unheard-gravel",
+      "panel": [
+        "crank",
+        "jet",
+        "ash"
+      ],
+      "hearingDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "5D: a panel of two",
+      "as": "chair",
+      "action": "setHearing",
+      "record": "unheard-gravel",
+      "panel": [
+        "crank",
+        "jet"
+      ],
+      "hearingDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "5D: a panel with an applicant",
+      "as": "chair",
+      "action": "setHearing",
+      "record": "unheard-gravel",
+      "panel": [
+        "crank",
+        "jet",
+        "dylan"
+      ],
+      "hearingDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "5D: a panel with the member",
+      "as": "chair",
+      "action": "setHearing",
+      "record": "unheard-gravel",
+      "panel": [
+        "crank",
+        "jet",
+        "gravel"
+      ],
+      "hearingDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "5D: a panel with whoever recorded it",
+      "as": "chair",
+      "action": "setHearing",
+      "record": "unheard-gravel",
+      "panel": [
+        "crank",
+        "jet",
+        "torque"
+      ],
+      "hearingDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "5D: a hearing before it was lodged",
+      "as": "chair",
+      "action": "setHearing",
+      "record": "unheard-gravel",
+      "panel": [
+        "crank",
+        "jet",
+        "ash"
+      ],
+      "hearingDays": -6,
+      "allowed": false
+    },
+    {
+      "name": "5D: a hearing with nothing lodged",
+      "as": "chair",
+      "action": "setHearing",
+      "record": "vest-gravel",
+      "panel": [
+        "crank",
+        "jet",
+        "ash"
+      ],
+      "hearingDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "5D: a panellist confirms it",
+      "as": "crank",
+      "action": "decideAppeal",
+      "record": "appeal-gravel",
+      "outcome": "confirmed",
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "5D: a panellist varies it",
+      "as": "jet",
+      "action": "decideAppeal",
+      "record": "appeal-gravel",
+      "outcome": "varied",
+      "note": "A warning instead.",
+      "allowed": true
+    },
+    {
+      "name": "5D: a panellist sets it aside",
+      "as": "ash",
+      "action": "decideAppeal",
+      "record": "appeal-gravel",
+      "outcome": "set_aside",
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "5D: varied with no note",
+      "as": "crank",
+      "action": "decideAppeal",
+      "record": "appeal-gravel",
+      "outcome": "varied",
+      "note": "  ",
+      "allowed": false
+    },
+    {
+      "name": "5D: someone off the panel decides",
+      "as": "chair",
+      "action": "decideAppeal",
+      "record": "appeal-gravel",
+      "outcome": "confirmed",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "5D: a decision before any panel",
+      "as": "chair",
+      "action": "decideAppeal",
+      "record": "unheard-gravel",
+      "outcome": "confirmed",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "5D: the member withdraws",
+      "as": "gravel",
+      "action": "withdrawAppeal",
+      "record": "appeal-gravel",
+      "allowed": true
+    },
+    {
+      "name": "5D: the board withdraws for them",
+      "as": "torque",
+      "action": "withdrawAppeal",
+      "record": "appeal-gravel",
+      "allowed": false
+    },
+    {
+      "name": "5D: the board puts an item up",
+      "as": "torque",
+      "action": "proposeMerch",
+      "chapter": "west",
+      "itemName": " Hoodie ",
+      "sizes": [
+        " M",
+        "L "
+      ],
+      "priceCents": 6500,
+      "patchedOnly": true,
+      "allowed": true
+    },
+    {
+      "name": "5D: the NEC puts a club item up",
+      "as": "lou",
+      "action": "proposeMerch",
+      "chapter": null,
+      "itemName": "Club stubby cooler",
+      "sizes": [],
+      "priceCents": 1000,
+      "allowed": true
+    },
+    {
+      "name": "5D: a member puts an item up",
+      "as": "gravel",
+      "action": "proposeMerch",
+      "chapter": "west",
+      "itemName": "Hoodie",
+      "sizes": [],
+      "priceCents": 6500,
+      "allowed": false
+    },
+    {
+      "name": "5D: a chapter board puts a club item up",
+      "as": "torque",
+      "action": "proposeMerch",
+      "chapter": null,
+      "itemName": "Hoodie",
+      "sizes": [],
+      "priceCents": 6500,
+      "allowed": false
+    },
+    {
+      "name": "5D: an item with no name",
+      "as": "torque",
+      "action": "proposeMerch",
+      "chapter": "west",
+      "itemName": "  ",
+      "sizes": [],
+      "priceCents": 6500,
+      "allowed": false
+    },
+    {
+      "name": "5D: repeated sizes",
+      "as": "torque",
+      "action": "proposeMerch",
+      "chapter": "west",
+      "itemName": "Hoodie",
+      "sizes": [
+        "M",
+        " M"
+      ],
+      "priceCents": 6500,
+      "allowed": false
+    },
+    {
+      "name": "5D: a free item",
+      "as": "torque",
+      "action": "proposeMerch",
+      "chapter": "west",
+      "itemName": "Hoodie",
+      "sizes": [],
+      "priceCents": 0,
+      "allowed": false
+    },
+    {
+      "name": "5D: someone else approves the design",
+      "as": "penny",
+      "action": "decideMerch",
+      "item": "new-cap",
+      "yes": true,
+      "allowed": true
+    },
+    {
+      "name": "5D: whoever put it up approves it",
+      "as": "torque",
+      "action": "decideMerch",
+      "item": "new-cap",
+      "yes": true,
+      "allowed": false
+    },
+    {
+      "name": "5D: whoever put it up takes it back",
+      "as": "torque",
+      "action": "decideMerch",
+      "item": "new-cap",
+      "yes": false,
+      "reason": "Wrong colour.",
+      "allowed": true
+    },
+    {
+      "name": "5D: the NEC approves a club item",
+      "as": "lou",
+      "action": "decideMerch",
+      "item": "club-mug",
+      "yes": true,
+      "allowed": true
+    },
+    {
+      "name": "5D: a member approves a design",
+      "as": "gravel",
+      "action": "decideMerch",
+      "item": "new-cap",
+      "yes": true,
+      "allowed": false
+    },
+    {
+      "name": "5D: deciding an item on sale",
+      "as": "penny",
+      "action": "decideMerch",
+      "item": "tee",
+      "yes": true,
+      "allowed": false
+    },
+    {
+      "name": "5D: the board closes an item",
+      "as": "torque",
+      "action": "closeMerch",
+      "item": "tee",
+      "allowed": true
+    },
+    {
+      "name": "5D: closing an item not on sale",
+      "as": "torque",
+      "action": "closeMerch",
+      "item": "new-cap",
+      "allowed": false
+    },
+    {
+      "name": "5D: a member closes an item",
+      "as": "gravel",
+      "action": "closeMerch",
+      "item": "tee",
+      "allowed": false
+    },
+    {
+      "name": "5D: a member orders a tee",
+      "as": "gravel",
+      "action": "orderMerch",
+      "item": "tee",
+      "size": "M",
+      "qty": 1,
+      "allowed": true
+    },
+    {
+      "name": "5D: another chapter's member orders",
+      "as": "ash",
+      "action": "orderMerch",
+      "item": "tee",
+      "size": "S",
+      "qty": 3,
+      "note": "For the run.",
+      "allowed": true
+    },
+    {
+      "name": "5D: a one-size item",
+      "as": "gravel",
+      "action": "orderMerch",
+      "item": "patch-hoodie",
+      "size": null,
+      "qty": 1,
+      "allowed": true
+    },
+    {
+      "name": "5D: an FNG orders a patched-only item",
+      "as": "finn",
+      "action": "orderMerch",
+      "item": "patch-hoodie",
+      "size": null,
+      "qty": 1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a Legacy member orders",
+      "as": "hacker",
+      "action": "orderMerch",
+      "item": "tee",
+      "size": "M",
+      "qty": 1,
+      "allowed": false
+    },
+    {
+      "name": "5D: a size it doesn't come in",
+      "as": "gravel",
+      "action": "orderMerch",
+      "item": "tee",
+      "size": "XL",
+      "qty": 1,
+      "allowed": false
+    },
+    {
+      "name": "5D: no size",
+      "as": "gravel",
+      "action": "orderMerch",
+      "item": "tee",
+      "size": null,
+      "qty": 1,
+      "allowed": false
+    },
+    {
+      "name": "5D: eleven of them",
+      "as": "gravel",
+      "action": "orderMerch",
+      "item": "tee",
+      "size": "M",
+      "qty": 11,
+      "allowed": false
+    },
+    {
+      "name": "5D: an item not on sale yet",
+      "as": "gravel",
+      "action": "orderMerch",
+      "item": "new-cap",
+      "size": null,
+      "qty": 1,
+      "allowed": false
+    },
+    {
+      "name": "5D: the board approves an order",
+      "as": "torque",
+      "action": "decideOrder",
+      "order": "o-waiting",
+      "yes": true,
+      "allowed": true
+    },
+    {
+      "name": "5D: the board declines an order",
+      "as": "rusty",
+      "action": "decideOrder",
+      "order": "o-waiting",
+      "yes": false,
+      "reason": "Out of L.",
+      "allowed": true
+    },
+    {
+      "name": "5D: the member approves their order",
+      "as": "gravel",
+      "action": "decideOrder",
+      "order": "o-waiting",
+      "yes": true,
+      "allowed": false
+    },
+    {
+      "name": "5D: a stranger sees no order",
+      "as": "spanner",
+      "action": "decideOrder",
+      "order": "o-waiting",
+      "yes": true,
+      "allowed": false
+    },
+    {
+      "name": "5D: deciding an approved order",
+      "as": "torque",
+      "action": "decideOrder",
+      "order": "o-approved",
+      "yes": true,
+      "allowed": false
+    },
+    {
+      "name": "5D: the treasurer records the payment",
+      "as": "penny",
+      "action": "payOrder",
+      "order": "o-approved",
+      "paidDays": 0,
+      "allowed": true
+    },
+    {
+      "name": "5D: the NEC Secretary records a treasurer's own order",
+      "as": "lou",
+      "action": "payOrder",
+      "order": "o-penny",
+      "paidDays": 0,
+      "allowed": true
+    },
+    {
+      "name": "5D: the treasurer records their own payment",
+      "as": "penny",
+      "action": "payOrder",
+      "order": "o-penny",
+      "paidDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "5D: a board member who doesn't keep the books records it",
+      "as": "torque",
+      "action": "payOrder",
+      "order": "o-approved",
+      "paidDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "5D: paying before approval",
+      "as": "penny",
+      "action": "payOrder",
+      "order": "o-waiting",
+      "paidDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "5D: paying twice",
+      "as": "penny",
+      "action": "payOrder",
+      "order": "o-paid",
+      "paidDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "5D: paid tomorrow",
+      "as": "penny",
+      "action": "payOrder",
+      "order": "o-approved",
+      "paidDays": 1,
+      "allowed": false
+    },
+    {
+      "name": "5D: the board hands it over",
+      "as": "torque",
+      "action": "handOver",
+      "order": "o-paid",
+      "allowed": true
+    },
+    {
+      "name": "5D: handing over before it's paid",
+      "as": "torque",
+      "action": "handOver",
+      "order": "o-approved",
+      "allowed": false
+    },
+    {
+      "name": "5D: the member cancels",
+      "as": "gravel",
+      "action": "cancelOrder",
+      "order": "o-waiting",
+      "allowed": true
+    },
+    {
+      "name": "5D: the board cancels an approved order",
+      "as": "torque",
+      "action": "cancelOrder",
+      "order": "o-approved",
+      "allowed": true
+    },
+    {
+      "name": "5D: cancelling a paid order",
+      "as": "gravel",
+      "action": "cancelOrder",
+      "order": "o-paid",
+      "allowed": false
+    },
+    {
+      "name": "5D: the NEC proposes a contribution",
+      "as": "chair",
+      "action": "proposeContribution",
+      "title": " National run ",
+      "purpose": "Patches and a BBQ.",
+      "totalCents": 150000,
+      "allowed": true
+    },
+    {
+      "name": "5D: a chapter board proposes one",
+      "as": "torque",
+      "action": "proposeContribution",
+      "title": "National run",
+      "purpose": "x",
+      "totalCents": 150000,
+      "allowed": false
+    },
+    {
+      "name": "5D: a contribution with no title",
+      "as": "chair",
+      "action": "proposeContribution",
+      "title": " ",
+      "purpose": "x",
+      "totalCents": 150000,
+      "allowed": false
+    },
+    {
+      "name": "5D: a contribution under $1",
+      "as": "chair",
+      "action": "proposeContribution",
+      "title": "Run",
+      "purpose": "x",
+      "totalCents": 99,
+      "allowed": false
+    },
+    {
+      "name": "5D: West's board records its vote",
+      "as": "torque",
+      "action": "decideContribution",
+      "contribution": "k-open",
+      "chapter": "west",
+      "vote": "west-board-5d",
+      "allowed": true
+    },
+    {
+      "name": "5D: a vote that already stands for another decision",
+      "as": "torque",
+      "action": "decideContribution",
+      "contribution": "k-open",
+      "chapter": "west",
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "5D: the NEC records a chapter's decision",
+      "as": "chair",
+      "action": "decideContribution",
+      "contribution": "k-open",
+      "chapter": "west",
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "5D: West's board records North's decision",
+      "as": "torque",
+      "action": "decideContribution",
+      "contribution": "k-open",
+      "chapter": "north",
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "5D: a vote still open",
+      "as": "torque",
+      "action": "decideContribution",
+      "contribution": "k-open",
+      "chapter": "west",
+      "vote": "west-board-open",
+      "allowed": false
+    },
+    {
+      "name": "5D: the NEC's vote for a chapter's",
+      "as": "torque",
+      "action": "decideContribution",
+      "contribution": "k-open",
+      "chapter": "west",
+      "vote": "nec-carried",
+      "allowed": false
+    },
+    {
+      "name": "5D: a chapter deciding twice",
+      "as": "rusty",
+      "action": "decideContribution",
+      "contribution": "k-west-decided",
+      "chapter": "west",
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "5D: the NEC withdraws it",
+      "as": "chair",
+      "action": "withdrawContribution",
+      "contribution": "k-open",
+      "allowed": true
+    },
+    {
+      "name": "5D: a chapter board withdraws it",
+      "as": "torque",
+      "action": "withdrawContribution",
+      "contribution": "k-open",
+      "allowed": false
+    },
+    {
+      "name": "5D: a founder puts a chapter forward",
+      "as": "gravel",
+      "action": "proposeChapter",
+      "chapterName": "Mornington",
+      "area": "Mornington Peninsula",
+      "founders": [
+        "gravel",
+        "jet",
+        "ash",
+        "lou",
+        "kim"
+      ],
+      "president": "gravel",
+      "saa": "jet",
+      "allowed": true
+    },
+    {
+      "name": "5D: someone who isn't a founder or NEC",
+      "as": "spanner",
+      "action": "proposeChapter",
+      "chapterName": "Mornington",
+      "area": "Peninsula",
+      "founders": [
+        "gravel",
+        "jet",
+        "ash",
+        "lou",
+        "kim"
+      ],
+      "president": "gravel",
+      "saa": "jet",
+      "allowed": false
+    },
+    {
+      "name": "5D: a chapter's name already used",
+      "as": "chair",
+      "action": "proposeChapter",
+      "chapterName": " west ",
+      "area": "Peninsula",
+      "founders": [
+        "gravel",
+        "jet",
+        "ash",
+        "lou",
+        "kim"
+      ],
+      "president": "gravel",
+      "saa": "jet",
+      "allowed": false
+    },
+    {
+      "name": "5D: a name an open proposal uses",
+      "as": "chair",
+      "action": "proposeChapter",
+      "chapterName": "SURF COAST",
+      "area": "Peninsula",
+      "founders": [
+        "gravel",
+        "jet",
+        "ash",
+        "lou",
+        "kim"
+      ],
+      "president": "gravel",
+      "saa": "jet",
+      "allowed": false
+    },
+    {
+      "name": "5D: a proposal missing its budget",
+      "as": "chair",
+      "action": "proposeChapter",
+      "chapterName": "Mornington",
+      "area": "Peninsula",
+      "plan": {
+        "budget": "  "
+      },
+      "founders": [
+        "gravel",
+        "jet",
+        "ash",
+        "lou",
+        "kim"
+      ],
+      "president": "gravel",
+      "saa": "jet",
+      "allowed": false
+    },
+    {
+      "name": "5D: four founders",
+      "as": "chair",
+      "action": "proposeChapter",
+      "chapterName": "Mornington",
+      "area": "Peninsula",
+      "founders": [
+        "gravel",
+        "jet",
+        "ash",
+        "lou"
+      ],
+      "president": "gravel",
+      "saa": "jet",
+      "allowed": false
+    },
+    {
+      "name": "5D: an FNG founder",
+      "as": "chair",
+      "action": "proposeChapter",
+      "chapterName": "Mornington",
+      "area": "Peninsula",
+      "founders": [
+        "gravel",
+        "jet",
+        "ash",
+        "lou",
+        "finn"
+      ],
+      "president": "gravel",
+      "saa": "jet",
+      "allowed": false
+    },
+    {
+      "name": "5D: the President as SAA too",
+      "as": "chair",
+      "action": "proposeChapter",
+      "chapterName": "Mornington",
+      "area": "Peninsula",
+      "founders": [
+        "gravel",
+        "jet",
+        "ash",
+        "lou",
+        "kim"
+      ],
+      "president": "gravel",
+      "saa": "gravel",
+      "allowed": false
+    },
+    {
+      "name": "5D: a state that isn't one",
+      "as": "chair",
+      "action": "proposeChapter",
+      "chapterName": "Mornington",
+      "area": "Peninsula",
+      "state": "XX",
+      "founders": [
+        "gravel",
+        "jet",
+        "ash",
+        "lou",
+        "kim"
+      ],
+      "president": "gravel",
+      "saa": "jet",
+      "allowed": false
+    },
+    {
+      "name": "5D: the NEC approves the chapter by its vote",
+      "as": "chair",
+      "action": "settleChapter",
+      "proposal": "cp-open",
+      "vote": "nec-carried",
+      "allowed": true
+    },
+    {
+      "name": "5D: a chapter board approves a chapter",
+      "as": "torque",
+      "action": "settleChapter",
+      "proposal": "cp-open",
+      "vote": "nec-carried",
+      "allowed": false
+    },
+    {
+      "name": "5D: a board vote for the NEC's",
+      "as": "chair",
+      "action": "settleChapter",
+      "proposal": "cp-open",
+      "vote": "west-board-carried",
+      "allowed": false
+    },
+    {
+      "name": "5D: a founder still on another board",
+      "as": "chair",
+      "action": "settleChapter",
+      "proposal": "cp-held",
+      "vote": "nec-carried",
+      "allowed": false
+    },
+    {
+      "name": "5D: whoever proposed it withdraws it",
+      "as": "gravel",
+      "action": "withdrawChapter",
+      "proposal": "cp-open",
+      "allowed": true
+    },
+    {
+      "name": "5D: another founder withdraws it",
+      "as": "jet",
+      "action": "withdrawChapter",
+      "proposal": "cp-open",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -9274,6 +10483,20 @@
       "electors": [
         "rusty",
         "smokey"
+      ],
+      "ballots": [],
+      "result": "carried"
+    },
+    {
+      "key": "west-board-5d",
+      "chapter": "west",
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 1,
+      "closesAt": "2026-01-01T00:00:00Z",
+      "electors": [
+        "rusty",
+        "torque"
       ],
       "ballots": [],
       "result": "carried"
@@ -9914,5 +11137,193 @@
       "member": "rusty",
       "nomination": "voting-gravel"
     }
-  ]
+  ],
+  "admin": {
+    "conduct": [
+      {
+        "key": "vest-gravel",
+        "member": "gravel",
+        "kind": "vest",
+        "decidedDays": -3,
+        "noticeDays": -3,
+        "recordedBy": "torque"
+      },
+      {
+        "key": "old-gravel",
+        "member": "gravel",
+        "kind": "other",
+        "decidedDays": -400,
+        "noticeDays": -400,
+        "recordedBy": "torque"
+      },
+      {
+        "key": "late-gravel",
+        "member": "gravel",
+        "kind": "reprimand",
+        "decidedDays": -8,
+        "noticeDays": -8,
+        "recordedBy": "torque"
+      },
+      {
+        "key": "appeal-gravel",
+        "member": "gravel",
+        "kind": "ride_safety",
+        "decidedDays": -10,
+        "noticeDays": -10,
+        "recordedBy": "torque",
+        "appeal": {
+          "lodgedDays": -5,
+          "lodgedBy": "gravel",
+          "panel": [
+            "crank",
+            "jet",
+            "ash"
+          ],
+          "hearingDays": -1
+        }
+      },
+      {
+        "key": "unheard-gravel",
+        "member": "gravel",
+        "kind": "attendance",
+        "decidedDays": -6,
+        "noticeDays": -6,
+        "recordedBy": "torque",
+        "appeal": {
+          "lodgedDays": -5,
+          "lodgedBy": "gravel",
+          "panel": [],
+          "hearingDays": null
+        }
+      }
+    ],
+    "merchItems": [
+      {
+        "key": "tee",
+        "chapter": "west",
+        "name": "Rust Till Dust tee",
+        "sizes": [
+          "S",
+          "M",
+          "L"
+        ],
+        "priceCents": 3500,
+        "patchedOnly": false,
+        "status": "on_sale",
+        "proposedBy": "torque"
+      },
+      {
+        "key": "patch-hoodie",
+        "chapter": "west",
+        "name": "Patch hoodie",
+        "sizes": [],
+        "priceCents": 6500,
+        "patchedOnly": true,
+        "status": "on_sale",
+        "proposedBy": "torque"
+      },
+      {
+        "key": "new-cap",
+        "chapter": "west",
+        "name": "Cap",
+        "sizes": [],
+        "priceCents": 2500,
+        "patchedOnly": false,
+        "status": "proposed",
+        "proposedBy": "torque"
+      },
+      {
+        "key": "club-mug",
+        "chapter": null,
+        "name": "Club mug",
+        "sizes": [],
+        "priceCents": 1500,
+        "patchedOnly": false,
+        "status": "proposed",
+        "proposedBy": "chair"
+      }
+    ],
+    "merchOrders": [
+      {
+        "key": "o-waiting",
+        "item": "tee",
+        "member": "gravel",
+        "size": "L",
+        "qty": 1,
+        "status": "waiting"
+      },
+      {
+        "key": "o-approved",
+        "item": "tee",
+        "member": "gravel",
+        "size": "M",
+        "qty": 2,
+        "status": "approved"
+      },
+      {
+        "key": "o-paid",
+        "item": "tee",
+        "member": "gravel",
+        "size": "S",
+        "qty": 1,
+        "status": "paid"
+      },
+      {
+        "key": "o-penny",
+        "item": "tee",
+        "member": "penny",
+        "size": "L",
+        "qty": 1,
+        "status": "approved"
+      }
+    ],
+    "contributions": [
+      {
+        "key": "k-open",
+        "totalCents": 100001,
+        "decided": []
+      },
+      {
+        "key": "k-west-decided",
+        "totalCents": 50000,
+        "decided": [
+          {
+            "chapter": "west",
+            "yes": true,
+            "vote": "west-board-carried"
+          }
+        ]
+      }
+    ],
+    "chapterProposals": [
+      {
+        "key": "cp-open",
+        "name": "Surf Coast",
+        "founders": [
+          "gravel",
+          "jet",
+          "ash",
+          "lou",
+          "kim"
+        ],
+        "president": "gravel",
+        "saa": "jet",
+        "proposedBy": "gravel"
+      },
+      {
+        "key": "cp-held",
+        "name": "Bellarine",
+        "founders": [
+          "gravel",
+          "jet",
+          "ash",
+          "lou",
+          "torque"
+        ],
+        "president": "gravel",
+        "saa": "jet",
+        "proposedBy": "chair"
+      }
+    ]
+  }
 }

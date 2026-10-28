@@ -26,6 +26,7 @@ import { termEndsOn, termState } from '../domain/terms';
 import { HomeFeesCard } from './fees';
 import { IntroProgressCard } from './fng';
 // Stage 7: social extras
+import { ChaptersNationalRow } from './adminRows'; // Stage 5D
 import { HomeOnThisDayCard, HomeShoutoutsCard } from './social';
 import { WhoCanHelpRow } from './help';
 import { SwapRow } from './swap';
@@ -559,6 +560,8 @@ export function ChaptersScreen({ navigation }: RootScreen<'Chapters'>) {
             );
           })}
       </Card>
+      {/* Stage 5D: new chapters and national contributions */}
+      <ChaptersNationalRow />
     </Screen>
   );
 }

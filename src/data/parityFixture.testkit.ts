@@ -10,6 +10,7 @@ import type {
   HubStaying, PlanStop, RideCallState, SwapState, // Ride planning extras
   EntryState, LedgerCode, VoteResult, // Stage 5B
   ApprovingBody, DocumentKind, // Stage 5C
+  ConductKind, MerchStatus, OrderStatus, // Stage 5D
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -27,6 +28,8 @@ import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActi
 import { runSocialAction, type SocialAction, type SocialData } from './social/demoSocialActions'; // Stage 7: social extras
 import type { ListingKind } from '../domain/social/swap'; // Stage 7: social extras
 import { DOCUMENT_ACTIONS, runDocumentAction, type DocumentAction } from './documentActions'; // Stage 5C
+import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'; // Stage 5D
+import { sharesFor } from '../domain/national'; // Stage 5D
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -130,7 +133,27 @@ export interface ParityFixture {
     approvingBody?: ApprovingBody; approvedDays?: number; commencesDays?: number;
   }[];
   documentSignoffs?: { version: string; member: string }[];
+  /** Stage 5D: dates are days from today; everything else was made at ADMIN_AT. */
+  admin?: AdminFixture;
 }
+
+export interface AdminFixture {
+  conduct: {
+    key: string; member: string; kind: ConductKind; decidedDays: number; noticeDays: number; recordedBy: string;
+    appeal?: { lodgedDays: number; lodgedBy: string; panel: string[]; hearingDays: number | null };
+  }[];
+  merchItems: { key: string; chapter: string | null; name: string; sizes: string[]; priceCents: number; patchedOnly: boolean; status: MerchStatus; proposedBy: string }[];
+  merchOrders: { key: string; item: string; member: string; size: string | null; qty: number; status: OrderStatus }[];
+  /** Shares are worked out from the fixture's members, as when proposed. */
+  contributions: { key: string; totalCents: number; decided: { chapter: string; yes: boolean; vote: string }[] }[];
+  chapterProposals: { key: string; name: string; founders: string[]; president: string; saa: string; proposedBy: string }[];
+}
+
+/** When the fixture's Stage 5D items, orders, contributions and proposals were made: before its votes closed. */
+export const ADMIN_AT = '2025-11-15T00:00:00.000Z';
+
+/** The plan on every fixture chapter proposal. */
+export const ADMIN_PLAN = { location: 'Geelong.', membership: 'Five.', leadership: 'Named.', budget: '$500.', operations: 'Monthly.' };
 
 /** When the fixture's ledger entries were recorded and its budgets approved. */
 export const LEDGER_AT = '2026-10-01T00:00:00.000Z';
@@ -290,7 +313,7 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  return withPlanning(withDocuments(withLedger(withStage4(base, today), today), today));
+  return withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today));
 }
 
 // Ride planning extras.
@@ -311,6 +334,48 @@ function withPlanning(data: ClubData): ClubData {
     crewSwaps: (fixture.crewSwaps ?? []).map((s) => ({
       id: s.key, rideId: s.ride, askedBy: s.askedBy, role: s.role, askedTo: s.askedTo, theirRole: s.theirRole, note: '', state: s.state,
       askedAt: PLANNED_AT, answeredAt: s.state === 'asked' ? null : PLANNED_AT,
+    })),
+  };
+}
+
+// Stage 5D: conduct records, merch, contributions and chapter proposals.
+function withAdmin(data: ClubData, today: string): ClubData {
+  const a = fixture.admin;
+  if (!a) return data;
+  return {
+    ...data,
+    conduct: a.conduct.map((r) => ({
+      id: r.key, memberId: r.member, chapterId: data.members.find((m) => m.id === r.member)!.chapterId, kind: r.kind, summary: r.key,
+      rule: '', decidedOn: addDays(today, r.decidedDays), noticeOn: addDays(today, r.noticeDays), suspendedUntil: null,
+      recordedBy: r.recordedBy, recordedAt: ADMIN_AT, holdUntil: null, holdReason: '',
+      appeal: r.appeal
+        ? {
+            lodgedOn: addDays(today, r.appeal.lodgedDays), lodgedBy: r.appeal.lodgedBy, grounds: 'Fixture', panelIds: r.appeal.panel,
+            hearingOn: r.appeal.hearingDays === null ? null : addDays(today, r.appeal.hearingDays), outcome: null, outcomeNote: '',
+            decidedOn: null, decidedBy: null, withdrawnOn: null,
+          }
+        : null,
+    })),
+    merchItems: a.merchItems.map((i) => ({
+      id: i.key, chapterId: i.chapter, name: i.name, details: '', sizes: i.sizes, priceCents: i.priceCents, patchedOnly: i.patchedOnly,
+      status: i.status, proposedBy: i.proposedBy, proposedAt: ADMIN_AT, decidedBy: null, decidedAt: i.status === 'proposed' ? null : ADMIN_AT,
+      declineReason: '',
+    })),
+    merchOrders: a.merchOrders.map((o) => ({
+      id: o.key, itemId: o.item, memberId: o.member, size: o.size, qty: o.qty,
+      unitCents: a.merchItems.find((i) => i.key === o.item)!.priceCents, note: '', status: o.status, orderedAt: ADMIN_AT,
+      decidedBy: null, decidedAt: o.status === 'waiting' ? null : ADMIN_AT, declineReason: '',
+      paidOn: o.status === 'paid' ? melbourneDate(ADMIN_AT) : null, ledgerEntryId: null, handedOverOn: null,
+    })),
+    contributions: a.contributions.map((k) => ({
+      id: k.key, title: k.key, purpose: 'Fixture', totalCents: k.totalCents, status: 'proposed', proposedBy: null, proposedAt: ADMIN_AT,
+      settledAt: null, shares: sharesFor(k.totalCents, data),
+      decisions: k.decided.map((d) => ({ chapterId: d.chapter, yes: d.yes, voteId: d.vote, recordedBy: null, recordedAt: ADMIN_AT })),
+    })),
+    chapterProposals: a.chapterProposals.map((p) => ({
+      id: p.key, name: p.name, area: 'Fixture', state: 'VIC', plan: ADMIN_PLAN, founderIds: p.founders, presidentId: p.president,
+      saaId: p.saa, status: 'proposed', proposedBy: p.proposedBy, proposedAt: ADMIN_AT, voteId: null, decidedBy: null, decidedAt: null,
+      chapterId: null,
     })),
   };
 }
@@ -435,6 +500,10 @@ export function demoAnswer(c: ParityCase): string | null {
   try {
     if (STAGE4_ACTIONS.has(String(c.action))) {
       runStage4Action({ data, me, today }, resolveCase(c, today) as unknown as Stage4Action);
+      return null;
+    }
+    if (ADMIN_ACTIONS.has(String(c.action))) {
+      runAdminAction({ data, me, today }, resolveCase(c, today) as unknown as AdminAction);
       return null;
     }
     if (LEDGER_ACTIONS.has(String(c.action))) {
