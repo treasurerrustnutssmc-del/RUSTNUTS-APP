@@ -185,6 +185,15 @@ begin
     (select body from private.push_outbox where dedupe_key = 'chat:' || msg limit 1);
   msg := pg_temp.send(pg_temp.chat('club'), 'Look', '[{"kind": "gif", "path": "https://media.giphy.com/media/abc/giphy.gif"}]');
   assert (select body from private.push_outbox where dedupe_key = 'chat:' || msg limit 1) = 'Wes: Look', 'words win over the GIF';
+  -- A voice note (sent on its own; written directly here, as the recording's storage checks aren't the point).
+  insert into public.messages (id, conversation_id, author_id, body)
+  values ('00000000-0000-0000-0000-0000000000f9', pg_temp.chat('club'), '00000000-0000-0000-0000-0000000000d1', null);
+  insert into public.message_media (message_id, conversation_id, kind, path, duration_ms)
+  values ('00000000-0000-0000-0000-0000000000f9', pg_temp.chat('club'), 'voice', pg_temp.chat('club') || '/note.m4a', 4000);
+  set constraints all immediate;
+  set constraints all deferred;
+  assert (select body from private.push_outbox where dedupe_key = 'chat:00000000-0000-0000-0000-0000000000f9' limit 1) = 'Wes sent a voice note',
+    (select body from private.push_outbox where dedupe_key = 'chat:00000000-0000-0000-0000-0000000000f9' limit 1);
 end $$;
 
 \o

@@ -69,22 +69,27 @@ declare
   photos int;
   videos int;
   gifs int;
+  voice int;
   sent text;
   out text;
 begin
   if words <> '' then
     out := case when c.kind = 'direct' then words else who || ': ' || words end;
   else
-    select count(*) filter (where kind = 'photo'), count(*) filter (where kind = 'video'), count(*) filter (where kind = 'gif')
-    into photos, videos, gifs
+    -- As text: voice notes (20270415000700_voice_notes.sql) add their kind after this file.
+    select count(*) filter (where kind::text = 'photo'), count(*) filter (where kind::text = 'video'),
+           count(*) filter (where kind::text = 'gif'), count(*) filter (where kind::text = 'voice')
+    into photos, videos, gifs, voice
     from public.message_media where message_id = m.id;
     sent := case
+      when voice > 0 then 'a voice note'
       when photos + videos = 0 and gifs > 0 then 'a GIF'
       when photos = 1 and videos = 0 then 'a photo'
       when videos = 1 and photos = 0 then 'a video'
       when videos = 0 then photos || ' photos'
       when photos = 0 then videos || ' videos'
-      else (photos + videos) || ' photos and videos'
+      when photos + videos > 0 then (photos + videos) || ' photos and videos'
+      else 'a message'
     end;
     out := case when c.kind = 'direct' then 'Sent ' || sent else who || ' sent ' || sent end;
   end if;
