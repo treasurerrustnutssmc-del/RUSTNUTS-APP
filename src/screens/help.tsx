@@ -76,18 +76,16 @@ function SkillGrid({ children }: { children: React.ReactNode }) {
 // ---------------------------------------------------------------------------
 
 /** Members tab: a row into Who can help. */
-export function WhoCanHelpRow() {
+export function WhoCanHelpRow({ last = false }: { last?: boolean }) {
   const navigation = useNavigation<Nav>();
   return (
-    <Card style={{ padding: 0, gap: 0 }}>
-      <ListRow
-        left={<IconBadge icon="construct" tone="red" />}
-        title="Who can help?"
-        subtitle="Members who can lend a hand, and trusted mechanics"
-        onPress={() => navigation.navigate('WhoCanHelp')}
-        last
-      />
-    </Card>
+    <ListRow
+      left={<IconBadge icon="construct" tone="red" />}
+      title="Who can help?"
+      subtitle="Members who can lend a hand, and trusted mechanics"
+      onPress={() => navigation.navigate('WhoCanHelp')}
+      last={last}
+    />
   );
 }
 

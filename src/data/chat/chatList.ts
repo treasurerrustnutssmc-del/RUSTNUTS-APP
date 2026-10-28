@@ -53,6 +53,7 @@ export function listFor(chat: ChatData, club: ClubData, me: Member | null, today
         last: newest && {
           id: newest.id, authorId: newest.authorId, body: newest.body, createdAt: newest.createdAt,
           removed: !!newest.removedAt, mediaCount: newest.media.length,
+          voice: !newest.removedAt && newest.media.some((x) => x.kind === 'voice'),
         },
         unread: here.filter((m) => m.authorId !== me.id && !m.removedAt && m.createdAt > readAt).length,
       }];
@@ -64,7 +65,7 @@ const newestFirst = (a: Message, b: Message) => b.createdAt.localeCompare(a.crea
 
 function itemsOf(m: Message): FeedItem[] {
   return [...m.media]
-    .filter((x) => x.kind !== 'gif')
+    .filter((x) => x.kind === 'photo' || x.kind === 'video')
     .sort((a, b) => a.position - b.position)
     .map((x) => ({ ...x, conversationId: m.conversationId, authorId: m.authorId, createdAt: m.createdAt }));
 }

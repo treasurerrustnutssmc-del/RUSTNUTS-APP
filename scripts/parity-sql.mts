@@ -3,6 +3,7 @@
 // with the demo's own message. Used by scripts/test-db.sh (via tsx); prints SQL to stdout.
 
 // Stage 4
+import { createHash } from 'node:crypto';
 import { addDays } from '../src/domain/dates';
 import { clubYearOf } from '../src/domain/clubYear';
 import { fyOf } from '../src/domain/fees';
@@ -17,11 +18,26 @@ import { DOCS_AT } from '../src/data/parityFixture.testkit'; // Stage 5C
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const id = (kind: string, key: string) => `md5(${q(`${kind}:${key}`)})::uuid`;
+// The same uuid as id(), worked out here, for text that has to hold it (a storage path).
+const uuidOf = (kind: string, key: string) =>
+  createHash('md5').update(`${kind}:${key}`).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+// A swap-and-sell photo's path: in the member's own folder, or `other:<name>` in someone else's.
+const listingPhotoPath = (member: string | null, name: string) =>
+  name.startsWith('other:') ? `${uuidOf('m', 'someone-else')}/${name.slice(6)}` : `${member ? uuidOf('m', member) : 'nobody'}/${name}`;
 const chapter = (slug: string | null) => (slug === null ? 'null' : `(select id from public.chapters where slug = ${q(slug)})`);
 const date = (d: string | null) => (d === null ? 'null' : `date ${q(d)}`);
 
 const out: string[] = [];
 const sql = (s: string) => out.push(s);
+// A file in a storage bucket, uploaded by a member (nobody signed in uploads nothing).
+const upload = (bucket: string, member: string | null, path: string) => {
+  if (!member) return;
+  sql(
+    `insert into storage.objects (bucket_id, name, owner, owner_id) select ${q(bucket)}, ${q(path)}, ${id('m', member)}, ${id('m', member)}::text ` +
+      `where not exists (select 1 from storage.objects where bucket_id = ${q(bucket)} and name = ${q(path)});`,
+  );
+};
+const uploadSwap = (member: string | null, path: string) => upload('swap-media', member, path);
 
 sql('\\set ON_ERROR_STOP 1');
 sql('\\set QUIET 1');
@@ -55,8 +71,8 @@ for (const p of fx.positions) {
 }
 for (const b of fx.bikes) {
   sql(
-    `insert into public.bikes (id, member_id, make, model, year) values (` +
-      `${id('b', b.key)}, ${id('m', b.member)}, ${q(b.make)}, ${q(b.model)}, ${b.year});`,
+    `insert into public.bikes (id, member_id, make, model, year, is_project) values (` +
+      `${id('b', b.key)}, ${id('m', b.member)}, ${q(b.make)}, ${q(b.model)}, ${b.year}, ${(b as { project?: boolean }).project ?? false});`,
   );
 }
 for (const c of fx.contacts) {
@@ -260,6 +276,10 @@ const gifs = (n = 0) =>
   `${q(JSON.stringify(Array.from({ length: n }, (_, i) => ({ kind: 'gif', path: `https://media1.giphy.com/media/parity${i}/giphy.gif`, width: 220, height: 160 }))))}::jsonb`;
 
 const json = (v: unknown) => `${q(JSON.stringify(v))}::jsonb`;
+// A case's voice note (uploaded into the case's chat folder before the call), or nothing.
+const voicePath = `${caseChat}::text || '/parity-voice.m4a'`;
+const voiceNote = (durationMs: number | null | undefined) =>
+  durationMs === undefined ? `'[]'::jsonb` : `jsonb_build_array(jsonb_build_object('kind', 'voice', 'path', ${voicePath}, 'durationMs', ${durationMs ?? 'null'}))`;
 const routeFile = fixtureGpx(fx.routes?.length ? 'valid' : null);
 const routeSummary = routeFile === null ? null : readGpx(routeFile);
 if (typeof routeSummary === 'string') throw new Error(`parity.json's valid GPX file: ${routeSummary}`);
@@ -497,7 +517,7 @@ const call = (c: ParityCase & Record<string, any>): string => {
     case 'signDocument':
       return documentCall(resolveCase(c, today) as ParityCase & Record<string, any>);
     case 'chatSend':
-      return `public.send_message(${caseChat}, ${text(c.body, c.repeat)}, ${gifs(c.gifs)}, ${c.replyTo ? id('msg', c.replyTo) : 'null'})`;
+      return `public.send_message(${caseChat}, ${text(c.body, c.repeat)}, ${voiceNote(c.voice)} || ${gifs(c.gifs)}, ${c.replyTo ? id('msg', c.replyTo) : 'null'})`;
     case 'chatRemove':
       return `public.remove_message(${id('msg', c.message)})`;
     case 'chatReact':
@@ -524,6 +544,52 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.archive_mechanic(${id('mech', c.mechanic)})`;
     case 'socialVouchMechanic':
       return `public.vouch_mechanic(${id('mech', c.mechanic)}, ${c.on})`;
+    case 'socialSaveListing':
+      return (
+        `public.save_listing(${c.listing ? id('listing', c.listing) : 'null'}, ${q(c.kind)}, ${q(c.title)}, ` +
+        `${c.price ?? 'null'}, ${q(c.details)}, ${json((c.photos as string[]).map((n) => ({ path: listingPhotoPath(c.as, n), width: 800, height: 600 })))})`
+      );
+    case 'socialMarkListingSold':
+      return `public.mark_listing_sold(${id('listing', c.listing)}, ${c.sold})`;
+    case 'socialTakeDownListing':
+      return `public.take_down_listing(${id('listing', c.listing)})`;
+    case 'socialPostBuildUpdate':
+      return (
+        `public.post_build_update(${id('b', c.bike)}, ${q(c.body)}, ` +
+        `${json((c.photos as string[]).map((n) => ({ path: listingPhotoPath(c.as, n), width: 800, height: 600 })))})`
+      );
+    case 'socialTakeDownBuildUpdate':
+      return `public.take_down_build_update(${id('build', c.update)})`;
+    case 'socialSaveHistoryEntry':
+      return (
+        `public.save_history_entry(${c.entry ? id('history', c.entry) : 'null'}, ${q(c.happenedOn)}, ${q(c.precision)}, ` +
+        `${q(c.title)}, ${q(c.story)})`
+      );
+    case 'socialArchiveHistoryEntry':
+      return `public.archive_history_entry(${id('history', c.entry)})`;
+    case 'socialSaveHonour':
+      return (
+        `public.save_honour(${c.honour ? id('honour', c.honour) : 'null'}, ${c.member ? id('m', c.member) : 'null'}, ` +
+        `${q(c.who)}, ${q(c.title)}, ${c.year ?? 'null'}, ${q(c.note)})`
+      );
+    case 'socialArchiveHonour':
+      return `public.archive_honour(${id('honour', c.honour)})`;
+    case 'socialOpenAward':
+      return (
+        `public.open_award(${q(c.kind)}, ${q(c.title)}, ${c.year ?? 'null'}, ${q(addDays(today, c.nominationsCloseDays))}, ` +
+        `${q(addDays(today, c.votingCloseDays))})`
+      );
+    case 'socialArchiveAward':
+      return `public.archive_award(${id('award', c.award)})`;
+    case 'socialNominate':
+      return (
+        `public.nominate(${id('award', c.award)}, ${c.ride ? id('r', c.ride) : 'null'}, ${q(c.title)}, ` +
+        `${c.photo ? `${json({ path: listingPhotoPath(c.as, c.photo), width: 800, height: 600 })}` : 'null'}, ${q(c.story)}, ${q(c.reason)})`
+      );
+    case 'socialWithdrawNomination':
+      return `public.withdraw_nomination(${id('nom', c.nomination)})`;
+    case 'socialCastBragVote':
+      return `public.cast_brag_vote(${id('nom', c.nomination)})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
@@ -609,6 +675,70 @@ for (const m of (fx as typeof fx & { mechanics?: { key: string; name: string; ad
   );
 }
 
+// The fixture's build updates, with their photos uploaded by their posters.
+type FixtureBuildUpdate = { key: string; bike: string; author: string; photos: string[]; takenDown: boolean };
+for (const u of (fx as typeof fx & { buildUpdates?: FixtureBuildUpdate[] }).buildUpdates ?? []) {
+  const photos = u.photos.map((n) => ({ path: listingPhotoPath(u.author, n), width: 800, height: 600 }));
+  for (const p of photos) upload('build-media', u.author, p.path);
+  sql(
+    `insert into public.build_updates (id, bike_id, author_id, body, photos, taken_down_at) values (${id('build', u.key)}, ` +
+      `${id('b', u.bike)}, ${id('m', u.author)}, 'Fixture update', ${json(photos)}, ${u.takenDown ? 'now()' : 'null'});`,
+  );
+}
+
+// The fixture's timeline entries and honours, kept by Rusty.
+type FixtureHistory = { key: string; title: string; archived: boolean };
+for (const e of (fx as typeof fx & { history?: FixtureHistory[] }).history ?? []) {
+  sql(
+    `insert into public.club_history (id, happened_on, precision, title, added_by, archived_at) values (${id('history', e.key)}, ` +
+      `'2019-05-11', 'day', ${q(e.title)}, ${id('m', 'rusty')}, ${e.archived ? 'now()' : 'null'});`,
+  );
+}
+type FixtureHonour = { key: string; member: string | null; who: string | null; archived: boolean };
+for (const h of (fx as typeof fx & { honours?: FixtureHonour[] }).honours ?? []) {
+  sql(
+    `insert into public.club_honours (id, member_id, name, honour, year, added_by, archived_at) values (${id('honour', h.key)}, ` +
+      `${h.member ? id('m', h.member) : 'null'}, ${h.who === null ? 'null' : q(h.who)}, 'Life member', 2024, ${id('m', 'rusty')}, ` +
+      `${h.archived ? 'now()' : 'null'});`,
+  );
+}
+
+// The fixture's awards, their dates counted from today, and their nominations.
+type FixtureAward = { key: string; kind: string; title: string; year: number; nominationsDays: number; votingDays: number; archived: boolean };
+for (const a of (fx as typeof fx & { awards?: FixtureAward[] }).awards ?? []) {
+  sql(
+    `insert into public.brag_awards (id, kind, title, year, nominations_close, voting_close, opened_by, archived_at) values (` +
+      `${id('award', a.key)}, ${q(a.kind)}, ${q(a.title)}, ${a.year}, ${date(addDays(today, a.nominationsDays))}, ` +
+      `${date(addDays(today, a.votingDays))}, ${id('m', 'rusty')}, ${a.archived ? 'now()' : 'null'});`,
+  );
+}
+type FixtureNomination = { key: string; award: string; by: string; ride: string | null; withdrawn: boolean };
+for (const n of (fx as typeof fx & { nominations?: FixtureNomination[] }).nominations ?? []) {
+  sql(
+    `insert into public.brag_nominations (id, award_id, nominated_by, ride_id, title, story, withdrawn_at) values (${id('nom', n.key)}, ` +
+      `${id('award', n.award)}, ${id('m', n.by)}, ${n.ride ? id('r', n.ride) : 'null'}, ${n.ride ? 'null' : "'Fixture'"}, ` +
+      `${n.ride ? 'null' : "'Fixture'"}, ${n.withdrawn ? 'now()' : 'null'});`,
+  );
+}
+
+for (const v of (fx as typeof fx & { bragVotes?: { award: string; member: string; nomination: string }[] }).bragVotes ?? []) {
+  sql(
+    `insert into public.brag_votes (award_id, member_id, nomination_id) values (${id('award', v.award)}, ${id('m', v.member)}, ` +
+      `${id('nom', v.nomination)});`,
+  );
+}
+
+// The fixture's listings, with their photos uploaded by their sellers.
+type FixtureListing = { key: string; seller: string; kind: string; title: string; price: number | null; photos: string[]; takenDown: boolean };
+for (const l of (fx as typeof fx & { listings?: FixtureListing[] }).listings ?? []) {
+  const photos = l.photos.map((n) => ({ path: listingPhotoPath(l.seller, n), width: 800, height: 600 }));
+  for (const p of photos) uploadSwap(l.seller, p.path);
+  sql(
+    `insert into public.listings (id, seller_id, kind, title, price_dollars, photos, taken_down_at) values (${id('listing', l.key)}, ` +
+      `${id('m', l.seller)}, ${q(l.kind)}, ${q(l.title)}, ${l.price ?? 'null'}, ${json(photos)}, ${l.takenDown ? 'now()' : 'null'});`,
+  );
+}
+
 sql('\\echo Parity: the demo and the database agree on who can do what');
 for (const c of fx.cases) {
   const name = q(c.name);
@@ -626,6 +756,21 @@ for (const c of fx.cases) {
   sql(`select set_config('parity.chat', coalesce(${c.chat ? chatId(String(c.chat)) : 'null'}::text, ''), true);`);
   // No one signed in (as: null): an empty claim, so auth.uid() is null.
   sql(`select set_config('request.jwt.claim.sub', ${c.as === null ? "''" : `${id('m', c.as)}::text`}, true);`);
+  // A listing's photos are uploaded first (by their owner), as the phone does.
+  if (c.action === 'socialSaveListing') {
+    for (const n of c.photos as string[]) uploadSwap(n.startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, n));
+  }
+  if (c.action === 'socialNominate' && c.photo) {
+    upload('brag-media', String(c.photo).startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, String(c.photo)));
+  }
+  if (c.action === 'chatSend' && c.voice !== undefined && c.as) {
+    sql(
+      `insert into storage.objects (bucket_id, name, owner, owner_id) select 'chat-media', ${voicePath}, ${id('m', c.as)}, ${id('m', c.as)}::text;`,
+    );
+  }
+  if (c.action === 'socialPostBuildUpdate') {
+    for (const n of c.photos as string[]) upload('build-media', n.startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, n));
+  }
   sql('set local role authenticated;');
   sql('do $parity$ begin');
   sql('  begin');

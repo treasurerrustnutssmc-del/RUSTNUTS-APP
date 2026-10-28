@@ -7,7 +7,7 @@ import { FlatList, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, u
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
-import type { Attachment, ChatSummary, ReportView } from '../data/chat/chatContext';
+import type { Attachment, ChatSummary, ReportView, VoiceRecording } from '../data/chat/chatContext';
 import { pickMedia } from '../data/chat/media';
 import { watchChat } from '../data/viewingChat';
 import {
@@ -17,6 +17,7 @@ import {
   findLinks,
   groupMessages,
   MAX_MEDIA,
+  mediaSummary,
   removeProblem,
   type Message,
 } from '../domain/chat';
@@ -58,6 +59,7 @@ import {
   Stack,
   type IconName,
 } from '../ui/primitives';
+import { useOnRideCall, VoiceNote, VoiceRecorderBar } from '../ui/VoiceBits';
 
 const KIND_ICON: Record<string, IconName> = {
   club: 'people',
@@ -82,7 +84,7 @@ function preview(s: ChatSummary, me: Member | null, members: Member[]): string {
   const last = s.last;
   if (!last) return s.conversation.kind === 'direct' ? 'Say g’day.' : 'Nothing yet.';
   const who = last.authorId === me?.id ? 'You' : displayName(members.find((m) => m.id === last.authorId) ?? { roadName: null, fullName: 'Someone' });
-  const what = last.removed ? 'Message removed' : last.body ?? (last.mediaCount > 1 ? `${last.mediaCount} photos` : 'Photo');
+  const what = last.removed ? 'Message removed' : last.body ?? (mediaSummary(last.mediaCount, last.voice) || 'Photo');
   return s.conversation.kind === 'direct' && who !== 'You' ? what : `${who}: ${what}`;
 }
 
@@ -205,6 +207,9 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const [draft, setDraft] = useState(route.params.shared?.text ?? '');
   const [attachments, setAttachments] = useState<Attachment[]>(route.params.shared?.media ?? []);
   const [gifs, setGifs] = useState(false);
+  const [recording, setRecording] = useState(false);
+  // A ride call holds the microphone, so voice notes wait until it's over.
+  const onCall = useOnRideCall();
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [reporting, setReporting] = useState<string | null>(null);
@@ -260,19 +265,32 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
       setAttachments((a) => [...a, ...picked].slice(0, MAX_MEDIA));
     });
 
-  const send = async () => {
+  const send = async (voice?: VoiceRecording) => {
     if (sendingNow.current) return;
     sendingNow.current = true;
     setSending(true);
     await run(async () => {
-      await chat.send(chatId, draft, attachments, replyTo?.id ?? null);
-      setDraft('');
-      setAttachments([]);
+      // A voice note goes on its own; whatever was typed stays in the box.
+      if (voice) {
+        await chat.send(chatId, '', [voice], replyTo?.id ?? null);
+        setRecording(false);
+      } else {
+        await chat.send(chatId, draft, attachments, replyTo?.id ?? null);
+        setDraft('');
+        setAttachments([]);
+      }
       setReplyTo(null);
       setGifs(false);
     });
     sendingNow.current = false;
     setSending(false);
+  };
+
+  const startRecording = () => {
+    setError(null);
+    setGifs(false);
+    Keyboard.dismiss();
+    setRecording(true);
   };
 
   if (!conv || !me) {
@@ -283,7 +301,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     );
   }
 
-  const canSend = (draft.trim().length > 0 || attachments.length > 0) && !sending;
+  const hasContent = draft.trim().length > 0 || attachments.length > 0;
+  const canSend = hasContent && !sending;
   const bubbleWidth = Math.min(width - space.lg * 2 - 40, 420);
 
   const renderMessage = (m: Message, first: boolean, last: boolean) => {
@@ -320,7 +339,9 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           >
             {showAuthor ? <AuthorLine member={author} data={data} /> : null}
             {m.replyToId ? <ReplyQuote message={replied} author={replied ? nameOf(replied.authorId) : ''} /> : null}
-            {m.media.length ? (
+            {m.media[0]?.kind === 'voice' ? (
+              <VoiceNote media={m.media[0]} width={Math.min(bubbleWidth - space.md * 2, 260)} />
+            ) : m.media.length ? (
               <MediaGrid
                 media={m.media}
                 width={bubbleWidth - space.md * 2}
@@ -398,7 +419,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           <View style={styles.pinned}>
             <Ionicons name="pin" size={16} color={colors.boneDim} />
             <Small numberOfLines={2} style={{ flex: 1, color: colors.boneDim }}>
-              {nameOf(pinned.authorId)}: {pinned.body || 'Photo'}
+              {nameOf(pinned.authorId)}: {pinned.body || mediaSummary(pinned.media.length, pinned.media.some((x) => x.kind === 'voice')) || 'Photo'}
             </Small>
           </View>
         ) : null}
@@ -446,46 +467,74 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               <IconButton icon="close" label="Don’t reply" onPress={() => setReplyTo(null)} />
             </View>
           ) : null}
-          <AttachmentStrip items={attachments} onRemove={(i) => setAttachments((a) => a.filter((_, j) => j !== i))} />
-          <View style={styles.composer}>
-            <IconButton icon="images-outline" label="Add photos or videos" onPress={() => pick('library')} disabled={attachments.length >= MAX_MEDIA} />
-            {Platform.OS !== 'web' ? (
-              <IconButton icon="camera-outline" label="Take a photo or video" onPress={() => pick('camera')} disabled={attachments.length >= MAX_MEDIA} />
-            ) : null}
-            <Pressable
-              onPress={() => { setGifs((g) => !g); Keyboard.dismiss(); }}
-              accessibilityRole="button"
-              accessibilityLabel="GIFs"
-              accessibilityState={{ selected: gifs }}
-              style={({ pressed }) => [styles.gifBtn, gifs && { backgroundColor: colors.steelHi, borderColor: colors.bone }, pressed && { backgroundColor: colors.steel }]}
-            >
-              <Text style={styles.gifBtnText}>GIF</Text>
-            </Pressable>
-            <TextInput
-              ref={input}
-              value={draft}
-              onChangeText={setDraft}
-              onFocus={() => setGifs(false)}
-              placeholder="Message"
-              placeholderTextColor={colors.boneMute}
-              multiline
-              numberOfLines={Platform.OS === 'web' ? 1 : undefined}
-              maxLength={4000}
-              style={styles.input}
-              accessibilityLabel="Message"
+          {recording ? (
+            <VoiceRecorderBar
+              onSend={(r) => send(r)}
+              onCancel={() => setRecording(false)}
+              onError={(message) => {
+                setRecording(false);
+                setError(message);
+              }}
+              sending={sending}
             />
-            <Pressable
-              onPress={send}
-              disabled={!canSend}
-              accessibilityRole="button"
-              accessibilityLabel="Send"
-              accessibilityState={{ disabled: !canSend, busy: sending }}
-              style={({ pressed }) => [styles.send, pressed && { backgroundColor: colors.red }, !canSend && { opacity: 0.45 }]}
-            >
-              <Ionicons name="send" size={18} color={colors.bone} />
-            </Pressable>
-          </View>
-          {gifs ? (
+          ) : (
+            <>
+            <AttachmentStrip items={attachments} onRemove={(i) => setAttachments((a) => a.filter((_, j) => j !== i))} />
+            <View style={styles.composer}>
+              <IconButton icon="images-outline" label="Add photos or videos" onPress={() => pick('library')} disabled={attachments.length >= MAX_MEDIA} />
+              {Platform.OS !== 'web' ? (
+                <IconButton icon="camera-outline" label="Take a photo or video" onPress={() => pick('camera')} disabled={attachments.length >= MAX_MEDIA} />
+              ) : null}
+              <Pressable
+                onPress={() => { setGifs((g) => !g); Keyboard.dismiss(); }}
+                accessibilityRole="button"
+                accessibilityLabel="GIFs"
+                accessibilityState={{ selected: gifs }}
+                style={({ pressed }) => [styles.gifBtn, gifs && { backgroundColor: colors.steelHi, borderColor: colors.bone }, pressed && { backgroundColor: colors.steel }]}
+              >
+                <Text style={styles.gifBtnText}>GIF</Text>
+              </Pressable>
+              <TextInput
+                ref={input}
+                value={draft}
+                onChangeText={setDraft}
+                onFocus={() => setGifs(false)}
+                placeholder="Message"
+                placeholderTextColor={colors.boneMute}
+                multiline
+                numberOfLines={Platform.OS === 'web' ? 1 : undefined}
+                maxLength={4000}
+                style={styles.input}
+                accessibilityLabel="Message"
+              />
+              {hasContent ? (
+                <Pressable
+                  onPress={() => send()}
+                  disabled={!canSend}
+                  accessibilityRole="button"
+                  accessibilityLabel="Send"
+                  accessibilityState={{ disabled: !canSend, busy: sending }}
+                  style={({ pressed }) => [styles.send, pressed && { backgroundColor: colors.red }, !canSend && { opacity: 0.45 }]}
+                >
+                  <Ionicons name="send" size={18} color={colors.bone} />
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={startRecording}
+                  disabled={sending || onCall}
+                  accessibilityRole="button"
+                  accessibilityLabel="Record a voice note"
+                  accessibilityHint={onCall ? 'Off during a ride call.' : 'Starts recording straight away. Up to 2 minutes.'}
+                  accessibilityState={{ disabled: sending || onCall }}
+                  style={({ pressed }) => [styles.send, pressed && { backgroundColor: colors.red }, (sending || onCall) && { opacity: 0.45 }]}
+                >
+                  <Ionicons name="mic" size={20} color={colors.bone} />
+                </Pressable>
+              )}
+            </View>
+            </>
+          )}
+          {gifs && !recording ? (
             <GifPicker
               onPick={(g) => {
                 setAttachments((a) => [...a, g].slice(0, MAX_MEDIA));
@@ -577,7 +626,11 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
             </Row>
             <Stack gap={4}>
               <Small>{name(r.message.authorId)} wrote</Small>
-              <Body style={{ color: colors.bone }}>{r.message.body || (r.message.mediaCount ? `${r.message.mediaCount} photo(s)` : '(nothing)')}</Body>
+              {r.message.voice ? (
+                <VoiceNote media={r.message.voice} width={260} />
+              ) : (
+                <Body style={{ color: colors.bone }}>{r.message.body || (r.message.mediaCount ? `${r.message.mediaCount} photo(s)` : '(nothing)')}</Body>
+              )}
             </Stack>
             <Small>
               Reported by {name(r.reporterId)}

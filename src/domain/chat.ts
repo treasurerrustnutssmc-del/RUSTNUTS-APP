@@ -10,8 +10,9 @@ import type { ClubData, Member, Ride, RsvpAnswer } from './types';
 
 export type ChatKind = 'club' | 'chapter' | 'board' | 'nec' | 'committee' | 'ride' | 'direct';
 export type ChatCommittee = 'ride' | 'charity';
-/** A GIF is GIPHY's own https address, not a file in the club's storage. */
-export type MediaKind = 'photo' | 'video' | 'gif';
+/** A GIF is GIPHY's own https address, not a file in the club's storage. A voice note is a
+ *  recording that goes in a message on its own. */
+export type MediaKind = 'photo' | 'video' | 'gif' | 'voice';
 
 export interface Conversation {
   id: string;
@@ -76,6 +77,10 @@ export const REACTIONS = ['👍', '❤️', '😂', '🔥', '🍺', '😮'] as c
 export const MAX_BODY = 4000;
 export const MAX_MEDIA = 10;
 export const MAX_VIDEO_MS = 60_000;
+export const MAX_VOICE_MS = 120_000;
+export const VOICE_ALONE = 'A voice note goes on its own.';
+export const VOICE_BROKEN = 'That voice note didn’t record properly. Try again.';
+export const VOICE_TOO_LONG = 'Voice notes can be up to 2 minutes.';
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 export const MAX_REASON = 500;
 
@@ -137,12 +142,13 @@ export function isCharityCommittee(memberId: string, data: Pick<ClubData, 'posit
 const blockedBetween = (a: string, b: string, blocks: Block[]) =>
   blocks.some((x) => (x.blockerId === a && x.blockedId === b) || (x.blockerId === b && x.blockedId === a));
 
-/** Why `me` can't send this message here, or null. Mirrors public.send_message. */
+/** Why `me` can't send this message here, or null. Mirrors public.send_message. `media` is what goes
+ *  with it, or just how many photos. */
 export function postProblem(
   me: Member | null,
   conv: Conversation | undefined,
   body: string,
-  mediaCount: number,
+  media: number | Pick<MessageMedia, 'kind' | 'durationMs'>[],
   data: ClubData,
   blocks: Block[] = [],
   replyTo: Pick<Message, 'conversationId'> | null = null,
@@ -155,9 +161,16 @@ export function postProblem(
   }
   if (replyTo && replyTo.conversationId !== conv.id) return 'No such message.';
   const words = trimWords(body);
+  const mediaCount = typeof media === 'number' ? media : media.length;
   if (!words && mediaCount === 0) return 'Write something or add a photo.';
   if (charCount(words) > MAX_BODY) return 'Keep it under 4,000 characters.';
   if (mediaCount > MAX_MEDIA) return 'Up to 10 photos or videos at a time.';
+  const voice = typeof media === 'number' ? undefined : media.find((m) => m.kind === 'voice');
+  if (voice) {
+    if (words || mediaCount > 1) return VOICE_ALONE;
+    if (!voice.durationMs || voice.durationMs < 1) return VOICE_BROKEN;
+    if (voice.durationMs > MAX_VOICE_MS) return VOICE_TOO_LONG;
+  }
   return null;
 }
 
@@ -347,6 +360,13 @@ export function mediaProblem(p: PickedMedia): string | null {
     if (p.fileSize !== null && p.fileSize > MAX_FILE_BYTES) return 'That file is over 50 MB.';
   }
   return null;
+}
+
+/** What a message with no words is called in the chat list, the pinned bar and reply quotes. */
+export function mediaSummary(count: number, voice: boolean): string {
+  if (voice) return 'Voice note';
+  if (count === 0) return '';
+  return count > 1 ? `${count} photos` : 'Photo';
 }
 
 /** What a chat is called in the list and its header. */

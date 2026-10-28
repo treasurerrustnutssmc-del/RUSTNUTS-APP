@@ -17,6 +17,7 @@ import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import { seesReports } from '../domain/ledger'; // Stage 5B
 import { asksToSign, currentRoadRules, myRoadRulesLine, needsSigning, roadRulesStatus } from '../domain/roadRules'; // Road Rules
 import { DocumentsMeRow } from './documents'; // Stage 5C
+import { BadgesCard } from './badges'; // Stage 7: badges
 import {
   Avatar,
   Button,
@@ -117,6 +118,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         </Card>
       ) : null}
       <StandingCard member={me} />
+      {me.approval === 'approved' ? <BadgesCard member={me} /> : null}
 
       <SectionTitle title="Emergency contacts" action={<LockNote text="You + board" />} />
       <Card style={{ padding: 0, gap: 0 }}>
