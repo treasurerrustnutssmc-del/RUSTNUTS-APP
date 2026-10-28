@@ -42,3 +42,16 @@ test('socials cover both chapters on Facebook, the club Instagram and the Linktr
   assert.ok(urls.includes('https://www.instagram.com/rustnuts_social2019/'));
   assert.ok(urls.includes('https://linktr.ee/rustnutssmc'));
 });
+
+test('every link has its own id, and Support is the one the welcome screen leaves out', () => {
+  assert.equal(new Set(all.map((l) => l.id)).size, all.length);
+  assert.equal(all.find((l) => l.id === 'support')?.url, SUPPORT_URL);
+});
+
+test('every icon is a real Ionicons name', async () => {
+  const { readFileSync } = await import('node:fs');
+  const glyphs = JSON.parse(
+    readFileSync('node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json', 'utf8'),
+  ) as Record<string, number>;
+  for (const l of all) assert.ok(l.icon in glyphs, `${l.label}: ${l.icon}`);
+});

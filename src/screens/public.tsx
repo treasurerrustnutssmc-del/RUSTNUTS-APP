@@ -32,7 +32,6 @@ import {
   Stack,
 } from '../ui/primitives';
 
-
 export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
   const { data, isDemo } = useClub();
   return (
@@ -85,7 +84,7 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
           label="Support and resources"
           kind="secondary"
           icon="open-outline"
-          onPress={() => Linking.openURL(SUPPORT_URL)}
+          onPress={() => Linking.openURL(SUPPORT_URL).catch(() => {})}
         />
       </Card>
 

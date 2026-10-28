@@ -1,6 +1,6 @@
 import React from 'react';
 import { Linking } from 'react-native';
-import { CLUB_LINK_GROUPS, SUPPORT_URL } from '../domain/clubLinks';
+import { CLUB_LINK_GROUPS } from '../domain/clubLinks';
 import { Card, IconBadge, ListRow, SectionTitle, type IconName } from '../ui/primitives';
 
 /**
@@ -10,7 +10,7 @@ import { Card, IconBadge, ListRow, SectionTitle, type IconName } from '../ui/pri
 export function ClubLinksSection({ withoutSupport = false }: { withoutSupport?: boolean }) {
   const groups = CLUB_LINK_GROUPS.map((g) => ({
     ...g,
-    links: withoutSupport ? g.links.filter((l) => l.url !== SUPPORT_URL) : g.links,
+    links: withoutSupport ? g.links.filter((l) => l.id !== 'support') : g.links,
   }));
   return (
     <>
@@ -25,7 +25,7 @@ export function ClubLinksSection({ withoutSupport = false }: { withoutSupport?: 
                 left={<IconBadge icon={link.icon as IconName} />}
                 title={link.label}
                 subtitle={link.detail}
-                onPress={() => Linking.openURL(link.url)}
+                onPress={() => Linking.openURL(link.url).catch(() => {})}
               />
             ))}
           </Card>
