@@ -19,6 +19,7 @@ import { BoardAttendance } from './attendance';
 import { termEndsOn, termState } from '../domain/terms';
 import { BoardFees } from './fees';
 import { TreasuryRow } from './treasury';
+import { BoardAdminCard } from './adminRows'; // Stage 5D
 import { DocumentsBoardRow } from './documents'; // Stage 5C
 import { seesAnyLedger } from '../domain/ledger';
 import { IntroProgressCard, VotesFields } from './fng';
@@ -193,6 +194,9 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
         {/* Stage 5C: document library */}
         <DocumentsBoardRow last />
       </Card>
+
+      {/* Stage 5D: conduct records, merch, national */}
+      <BoardAdminCard />
 
       <SectionTitle title="Waiting for approval" action={<Small>{pending.length}</Small>} />
       {pending.length === 0 ? (

@@ -8,6 +8,7 @@ import type { BusInput } from '../domain/bus';
 import type { ClubData, MeetingType, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
 import { toLedger } from './ledgerLive'; // Stage 5B
+import { toAdmin } from './adminLive'; // Stage 5D
 import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
@@ -100,6 +101,17 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     await db.rpc('club_ledger').then(
       (r) => {
         if (r.error) console.warn('club_ledger:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+  );
+
+  // Stage 5D: conduct records, merch, contributions and new chapters, the same way.
+  const admin = toAdmin(
+    await db.rpc('club_admin').then(
+      (r) => {
+        if (r.error) console.warn('club_admin:', r.error.message);
         return r.error ? null : r.data;
       },
       () => null,
@@ -291,6 +303,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     // Stage 5: meetings and votes
     ...business,
     ...ledger,
+    ...admin,
     ...documents,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
     ...withMeetingTypes(stage4(money.error ? null : (money.data as MembersMoneyRows | null)), typeOf),

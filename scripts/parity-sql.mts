@@ -15,6 +15,8 @@ import {
   resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
 import { DOCS_AT } from '../src/data/parityFixture.testkit'; // Stage 5C
+import { ADMIN_AT, ADMIN_PLAN } from '../src/data/parityFixture.testkit'; // Stage 5D
+import { CASE_PLAN } from '../src/data/adminActions'; // Stage 5D
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const id = (kind: string, key: string) => `md5(${q(`${kind}:${key}`)})::uuid`;
@@ -419,7 +421,77 @@ const ledgerCall = (c: ParityCase & Record<string, any>): string => {
   }
 };
 
+// Stage 5D: conduct records, merch, contributions and new chapters. Dates come as …Days from today.
+const ADMIN_CASE_ACTIONS = new Set([
+  'recordConduct', 'holdConduct', 'removeConduct', 'lodgeAppeal', 'setHearing', 'decideAppeal', 'withdrawAppeal',
+  'proposeMerch', 'decideMerch', 'closeMerch', 'orderMerch', 'decideOrder', 'payOrder', 'handOver', 'cancelOrder',
+  'proposeContribution', 'decideContribution', 'withdrawContribution', 'proposeChapter', 'settleChapter', 'withdrawChapter',
+]);
+const uuids = (keys: string[], kind = 'm') => (keys.length ? `array[${keys.map((k) => id(kind, k)).join(', ')}]::uuid[]` : `'{}'::uuid[]`);
+const texts = (xs: string[]) => (xs.length ? `array[${xs.map(q).join(', ')}]::text[]` : `'{}'::text[]`);
+const maybeDate = (d: string | null | undefined) => date(d ?? null);
+const adminCall = (c: ParityCase & Record<string, any>): string => {
+  switch (c.action) {
+    case 'recordConduct':
+      return (
+        `public.record_conduct(${id('m', c.member)}, ${c.kind ? q(c.kind) : 'null'}, ${q(c.summary)}, ${q(c.rule ?? '')}, ` +
+        `${maybeDate(c.decided)}, ${maybeDate(c.notice)}, ${maybeDate(c.suspended)})`
+      );
+    case 'holdConduct':
+      return `public.hold_conduct(${id('cr', c.record)}, ${maybeDate(c.until)}, ${q(c.reason)})`;
+    case 'removeConduct':
+      return `public.remove_conduct(${id('cr', c.record)})`;
+    case 'lodgeAppeal':
+      return `public.lodge_conduct_appeal(${id('cr', c.record)}, ${q(c.grounds)})`;
+    case 'setHearing':
+      return `public.set_conduct_hearing(${id('cr', c.record)}, ${uuids(c.panel)}, ${maybeDate(c.hearing)})`;
+    case 'decideAppeal':
+      return `public.decide_conduct_appeal(${id('cr', c.record)}, ${q(c.outcome)}, ${q(c.note)})`;
+    case 'withdrawAppeal':
+      return `public.withdraw_conduct_appeal(${id('cr', c.record)})`;
+    case 'proposeMerch':
+      return (
+        `public.propose_merch(${chapter(c.chapter)}, ${q(c.itemName)}, ${q(c.details ?? '')}, ${texts(c.sizes)}, ` +
+        `${c.priceCents}, ${c.patchedOnly ? 'true' : 'false'})`
+      );
+    case 'decideMerch':
+      return `public.decide_merch(${id('mi', c.item)}, ${c.yes}, ${q(c.reason ?? '')})`;
+    case 'closeMerch':
+      return `public.close_merch(${id('mi', c.item)})`;
+    case 'orderMerch':
+      return `public.order_merch(${id('mi', c.item)}, ${c.size === null ? 'null' : q(c.size)}, ${c.qty}, ${q(c.note ?? '')})`;
+    case 'decideOrder':
+      return `public.decide_merch_order(${id('mo', c.order)}, ${c.yes}, ${q(c.reason ?? '')})`;
+    case 'payOrder':
+      return `public.pay_merch_order(${id('mo', c.order)}, ${maybeDate(c.paid)})`;
+    case 'handOver':
+      return `public.hand_over_merch_order(${id('mo', c.order)})`;
+    case 'cancelOrder':
+      return `public.cancel_merch_order(${id('mo', c.order)})`;
+    case 'proposeContribution':
+      return `public.propose_contribution(${q(c.title)}, ${q(c.purpose)}, ${c.totalCents})`;
+    case 'decideContribution':
+      return `public.decide_contribution(${id('nc', c.contribution)}, ${chapter(c.chapter)}, ${id('v', c.vote)})`;
+    case 'withdrawContribution':
+      return `public.withdraw_contribution(${id('nc', c.contribution)})`;
+    case 'proposeChapter': {
+      const plan = { ...CASE_PLAN, ...(c.plan ?? {}) };
+      return (
+        `public.propose_chapter(${q(c.chapterName)}, ${q(c.area)}, ${q(c.state ?? 'VIC')}, ${q(plan.location)}, ${q(plan.membership)}, ` +
+        `${q(plan.leadership)}, ${q(plan.budget)}, ${q(plan.operations)}, ${uuids(c.founders)}, ${id('m', c.president)}, ${id('m', c.saa)})`
+      );
+    }
+    case 'settleChapter':
+      return `public.settle_chapter_proposal(${id('cp', c.proposal)}, ${id('v', c.vote)})`;
+    case 'withdrawChapter':
+      return `public.withdraw_chapter_proposal(${id('cp', c.proposal)})`;
+    default:
+      throw new Error(`Unknown action ${c.action} in "${c.name}"`);
+  }
+};
+
 const call = (c: ParityCase & Record<string, any>): string => {
+  if (ADMIN_CASE_ACTIONS.has(String(c.action))) return adminCall(resolveCase(c, today) as ParityCase & Record<string, any>);
   const stage4 = stage4Call(resolveCase(c, today) as ParityCase & Record<string, any>);
   if (stage4) return stage4;
   switch (c.action) {
@@ -737,6 +809,69 @@ for (const l of (fx as typeof fx & { listings?: FixtureListing[] }).listings ?? 
     `insert into public.listings (id, seller_id, kind, title, price_dollars, photos, taken_down_at) values (${id('listing', l.key)}, ` +
       `${id('m', l.seller)}, ${q(l.kind)}, ${q(l.title)}, ${l.price ?? 'null'}, ${json(photos)}, ${l.takenDown ? 'now()' : 'null'});`,
   );
+}
+
+// Stage 5D: conduct records, merch, contributions and chapter proposals, inserted as the owner.
+const ad = fx.admin;
+if (ad) {
+  for (const r of ad.conduct) {
+    sql(
+      `insert into public.conduct_records (id, member_id, chapter_id, kind, summary, decided_on, notice_on, recorded_by, recorded_at) ` +
+        `select ${id('cr', r.key)}, id, chapter_id, ${q(r.kind)}, ${q(r.key)}, ${date(addDays(today, r.decidedDays))}, ` +
+        `${date(addDays(today, r.noticeDays))}, ${id('m', r.recordedBy)}, ${q(ADMIN_AT)}::timestamptz from public.members where id = ${id('m', r.member)};`,
+    );
+    if (r.appeal) {
+      sql(
+        `insert into public.conduct_appeals (record_id, lodged_on, lodged_by, grounds, panel, hearing_on) values (${id('cr', r.key)}, ` +
+          `${date(addDays(today, r.appeal.lodgedDays))}, ${id('m', r.appeal.lodgedBy)}, 'Fixture', ${uuids(r.appeal.panel)}, ` +
+          `${r.appeal.hearingDays === null ? 'null' : date(addDays(today, r.appeal.hearingDays))});`,
+      );
+    }
+  }
+  for (const i of ad.merchItems) {
+    sql(
+      `insert into public.merch_items (id, chapter_id, name, sizes, price_cents, patched_only, status, proposed_by, proposed_at, decided_at) values (` +
+        `${id('mi', i.key)}, ${chapter(i.chapter)}, ${q(i.name)}, ${texts(i.sizes)}, ${i.priceCents}, ${i.patchedOnly}, ${q(i.status)}, ` +
+        `${id('m', i.proposedBy)}, ${q(ADMIN_AT)}::timestamptz, ${i.status === 'proposed' ? 'null' : `${q(ADMIN_AT)}::timestamptz`});`,
+    );
+  }
+  for (const o of ad.merchOrders) {
+    sql(
+      `insert into public.merch_orders (id, item_id, member_id, size, qty, unit_cents, status, ordered_at, decided_at, paid_on) values (` +
+        `${id('mo', o.key)}, ${id('mi', o.item)}, ${id('m', o.member)}, ${o.size === null ? 'null' : q(o.size)}, ${o.qty}, ` +
+        `${ad.merchItems.find((i) => i.key === o.item)!.priceCents}, ${q(o.status)}, ${q(ADMIN_AT)}::timestamptz, ` +
+        `${o.status === 'waiting' ? 'null' : `${q(ADMIN_AT)}::timestamptz`}, ${o.status === 'paid' ? `private.club_date(${q(ADMIN_AT)}::timestamptz)` : 'null'});`,
+    );
+  }
+  const demo = fixtureData([], today);
+  for (const k of ad.contributions) {
+    sql(
+      `insert into public.national_contributions (id, title, purpose, total_cents, proposed_at, shares) values (` +
+        `${id('nc', k.key)}, ${q(k.key)}, 'Fixture', ${k.totalCents}, ${q(ADMIN_AT)}::timestamptz, private.contribution_shares(${k.totalCents}));`,
+    );
+    for (const x of k.decided) {
+      sql(
+        `insert into public.contribution_decisions (contribution_id, chapter_id, yes, vote_id, recorded_at) values (` +
+          `${id('nc', k.key)}, ${chapter(x.chapter)}, ${x.yes}, ${id('v', x.vote)}, ${q(ADMIN_AT)}::timestamptz);`,
+      );
+    }
+    // The database shares it out the same as the demo, to the cent.
+    const want = demo.contributions!.find((c) => c.id === k.key)!.shares;
+    for (const s of want) {
+      sql(
+        `do $shares$ begin if (select (e->>'cents')::int from public.national_contributions k, jsonb_array_elements(k.shares) e ` +
+          `where k.id = ${id('nc', k.key)} and e->>'chapter_id' = ${chapter(s.chapterId)}::text) is distinct from ${s.cents} then ` +
+          `raise exception 'PARITY: ${k.key}''s ${s.chapterId} share differs from the demo''s ${s.cents} cents'; end if; end $shares$;`,
+      );
+    }
+  }
+  for (const p of ad.chapterProposals) {
+    sql(
+      `insert into public.chapter_proposals (id, name, area, state, plan, founder_ids, president_id, saa_id, proposed_by, proposed_at) values (` +
+        `${id('cp', p.key)}, ${q(p.name)}, 'Fixture', 'VIC', ${json(ADMIN_PLAN)}, ${uuids(p.founders)}, ${id('m', p.president)}, ` +
+        `${id('m', p.saa)}, ${id('m', p.proposedBy)}, ${q(ADMIN_AT)}::timestamptz);`,
+    );
+  }
 }
 
 sql('\\echo Parity: the demo and the database agree on who can do what');

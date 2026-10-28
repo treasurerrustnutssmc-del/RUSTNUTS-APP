@@ -725,6 +725,76 @@ Object.assign(DEMO_DATA, {
 } satisfies Partial<ClubData>);
 
 // ---------------------------------------------------------------------------
+// Stage 5D: a vest direction on Chook with its review waiting for a hearing, a club tee on sale
+// with orders at each step, a hoodie waiting for a second yes, an open national contribution,
+// and a proposed Geelong chapter.
+// ---------------------------------------------------------------------------
+
+Object.assign(DEMO_DATA, {
+  conduct: [
+    {
+      id: 'cr-1', memberId: 'm-chook', chapterId: 'ch-west', kind: 'vest',
+      summary: 'Wore the vest into the pub after the Kinglake ride, against the SAA’s direction. Told to hand it to the SAA until the next meeting.',
+      rule: '6.9 vest direction', decidedOn: ago(9), noticeOn: ago(8), suspendedUntil: null, recordedBy: 'm-gravel',
+      recordedAt: at(ago(8)), holdUntil: null, holdReason: '',
+      appeal: {
+        lodgedOn: ago(5), lodgedBy: 'm-chook', grounds: 'I had the permission from Rusty that night. Happy to talk it through.',
+        panelIds: [], hearingOn: null, outcome: null, outcomeNote: '', decidedOn: null, decidedBy: null, withdrawnOn: null,
+      },
+    },
+    {
+      id: 'cr-2', memberId: 'm-ace', chapterId: 'ch-north', kind: 'ride_safety', summary: 'Passed the Road Captain on the Black Spur.',
+      rule: '7.9', decidedOn: ago(120), noticeOn: ago(120), suspendedUntil: null, recordedBy: 'm-smokey', recordedAt: at(ago(119)),
+      holdUntil: null, holdReason: '', appeal: null,
+    },
+  ],
+  merchItems: [
+    {
+      id: 'mi-tee', chapterId: null, name: 'Club tee', details: 'Black tee with the EST 2019 logo on the back.', sizes: ['S', 'M', 'L', 'XL', '2XL'],
+      priceCents: 3500, patchedOnly: false, status: 'on_sale', proposedBy: 'm-rusty', proposedAt: at(ago(40)), decidedBy: 'm-smokey',
+      decidedAt: at(ago(38)), declineReason: '',
+    },
+    {
+      id: 'mi-hoodie', chapterId: 'ch-west', name: 'West hoodie', details: 'Heavy black hoodie with the patch on the back. Patched members only.',
+      sizes: ['M', 'L', 'XL', '2XL', '3XL'], priceCents: 8500, patchedOnly: true, status: 'proposed', proposedBy: 'm-torque',
+      proposedAt: at(ago(3)), decidedBy: null, decidedAt: null, declineReason: '',
+    },
+  ],
+  merchOrders: [
+    {
+      id: 'mo-1', itemId: 'mi-tee', memberId: 'm-spanner', size: 'XL', qty: 2, unitCents: 3500, note: 'One for the missus.',
+      status: 'waiting', orderedAt: at(ago(1)), decidedBy: null, decidedAt: null, declineReason: '', paidOn: null, ledgerEntryId: null, handedOverOn: null,
+    },
+    {
+      id: 'mo-2', itemId: 'mi-tee', memberId: 'm-throttle', size: 'M', qty: 1, unitCents: 3500, note: '',
+      status: 'approved', orderedAt: at(ago(6)), decidedBy: 'm-rusty', decidedAt: at(ago(5)), declineReason: '', paidOn: null, ledgerEntryId: null, handedOverOn: null,
+    },
+  ],
+  contributions: [
+    {
+      id: 'nc-1', title: 'National run 2027', purpose: 'Deposit on the campground at Bright for the first national run, and the patches for it.',
+      totalCents: 120000, status: 'proposed', proposedBy: 'm-rusty', proposedAt: at(ago(4)), settledAt: null,
+      shares: [{ chapterId: 'ch-north', votingMembers: 5, cents: 50000 }, { chapterId: 'ch-west', votingMembers: 7, cents: 70000 }],
+      decisions: [],
+    },
+  ],
+  chapterProposals: [
+    {
+      id: 'cp-1', name: 'Geelong', area: 'Geelong and the Bellarine', state: 'VIC',
+      plan: {
+        location: 'Geelong, meeting at the Corio pub on the first Tuesday.',
+        membership: 'Five patched members moving across from West, with three riders introduced and waiting.',
+        leadership: 'Diesel as President and Gravel as Sergeant-at-Arms to start, with an election at the first AGM.',
+        budget: '$300 start-up from the founders for patches and a flag. Fees as West until the board sets its own.',
+        operations: 'Monthly ride on the third Sunday, out along the Great Ocean Road, joining West for club runs.',
+      },
+      founderIds: ['m-diesel', 'm-gravel', 'm-spanner', 'm-chook', 'm-sparks'], presidentId: 'm-diesel', saaId: 'm-gravel',
+      status: 'proposed', proposedBy: 'm-diesel', proposedAt: at(ago(2)), voteId: null, decidedBy: null, decidedAt: null, chapterId: null,
+    },
+  ],
+} satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
 // Stage 5C: the document library. Constitution v4 is the real text, waiting for its adoption to
 // be recorded (its own control table says the publication date isn't the commencement date). The
 // rest are made-up samples, dated from today: West's bylaws are in force at v2 (no fresh sign-off,

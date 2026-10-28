@@ -4,6 +4,7 @@
 import type { AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, MeetingKind, MeetingType, Threshold } from '../domain/types';
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson } from './ledgerLive'; // Stage 5B
+import type { AdminJson } from './adminLive'; // Stage 5D
 import type { DocumentsJson } from './documentsLive'; // Stage 5C
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
@@ -490,6 +491,46 @@ export type Database = {
       close_vote: { Args: { p_vote: string; p_casting: 'yes' | 'no' | 'decline' | null }; Returns: undefined };
       // Stage 5B: treasurer
       club_ledger: { Args: never; Returns: LedgerJson };
+      // Stage 5D: board and admin
+      club_admin: { Args: never; Returns: AdminJson };
+      record_conduct: {
+        Args: {
+          p_member: string; p_kind: string | null; p_summary: string; p_rule: string; p_decided: string | null;
+          p_notice: string | null; p_suspended: string | null;
+        };
+        Returns: string;
+      };
+      hold_conduct: { Args: { p_record: string; p_until: string | null; p_reason: string }; Returns: undefined };
+      remove_conduct: { Args: { p_record: string }; Returns: undefined };
+      lodge_conduct_appeal: { Args: { p_record: string; p_grounds: string }; Returns: undefined };
+      set_conduct_hearing: { Args: { p_record: string; p_panel: string[]; p_hearing: string | null }; Returns: undefined };
+      decide_conduct_appeal: { Args: { p_record: string; p_outcome: string; p_note: string }; Returns: undefined };
+      withdraw_conduct_appeal: { Args: { p_record: string }; Returns: undefined };
+      propose_merch: {
+        Args: {
+          p_chapter: string | null; p_name: string; p_details: string; p_sizes: string[]; p_price_cents: number; p_patched_only: boolean;
+        };
+        Returns: string;
+      };
+      decide_merch: { Args: { p_item: string; p_yes: boolean; p_reason: string }; Returns: undefined };
+      close_merch: { Args: { p_item: string }; Returns: undefined };
+      order_merch: { Args: { p_item: string; p_size: string | null; p_qty: number; p_note: string }; Returns: string };
+      decide_merch_order: { Args: { p_order: string; p_yes: boolean; p_reason: string }; Returns: undefined };
+      pay_merch_order: { Args: { p_order: string; p_paid_on: string }; Returns: string };
+      hand_over_merch_order: { Args: { p_order: string }; Returns: undefined };
+      cancel_merch_order: { Args: { p_order: string }; Returns: undefined };
+      propose_contribution: { Args: { p_title: string; p_purpose: string; p_total_cents: number }; Returns: string };
+      decide_contribution: { Args: { p_id: string; p_chapter: string; p_vote: string }; Returns: undefined };
+      withdraw_contribution: { Args: { p_id: string }; Returns: undefined };
+      propose_chapter: {
+        Args: {
+          p_name: string; p_area: string; p_state: string; p_location: string; p_membership: string; p_leadership: string;
+          p_budget: string; p_operations: string; p_founders: string[]; p_president: string; p_saa: string;
+        };
+        Returns: string;
+      };
+      settle_chapter_proposal: { Args: { p_id: string; p_vote: string }; Returns: string | null };
+      withdraw_chapter_proposal: { Args: { p_id: string }; Returns: undefined };
       record_credit: {
         Args: { p_chapter: string | null; p_code: string; p_description: string; p_amount_cents: number; p_received_on: string | null; p_entry_on: string };
         Returns: string;

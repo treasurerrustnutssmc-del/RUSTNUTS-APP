@@ -18,6 +18,7 @@ import type {
   CrewRole,
   EmergencyContact,
   LedgerCode, // Stage 5B
+  AppealOutcome, // Stage 5D
   LicenceClass,
   Member,
   MemberPrivate,
@@ -32,6 +33,10 @@ import type {
 // Stage 4
 import type { OpenCheckinInput } from '../domain/attendance';
 import type { FngOutcome } from '../domain/joining';
+// Stage 5D: board and admin
+import type { ConductInput } from '../domain/conduct';
+import type { MerchInput, OrderInput } from '../domain/merch';
+import type { ChapterInput, ContributionInput } from '../domain/national';
 
 export class NotAllowedError extends Error {}
 
@@ -229,6 +234,37 @@ export interface ClubContextValue {
   reopenBudget: (chapterId: string | null, fy: number) => Promise<void>;
   /** Presents a month's Treasurer's Report to members (13.8). `month` is its first day. */
   presentReport: (month: string) => Promise<void>;
+  // Stage 5D: board and admin
+  /** Writes up a conduct matter on a member's record (6.5, 6.6, 6.9). Resolves to the record's id. */
+  recordConduct: (input: ConductInput) => Promise<string>;
+  /** Keeps a record past its 12 months for a stated reason, or lets it go again (until null). */
+  holdConduct: (recordId: string, until: string | null, reason: string) => Promise<void>;
+  removeConduct: (recordId: string) => Promise<void>;
+  /** The member's own appeal, inside 7 days (formal) or 14 days of written notice (internal). */
+  lodgeAppeal: (recordId: string, grounds: string) => Promise<void>;
+  setHearing: (recordId: string, panelIds: string[], hearingOn: string) => Promise<void>;
+  decideAppeal: (recordId: string, outcome: AppealOutcome, note: string) => Promise<void>;
+  withdrawAppeal: (recordId: string) => Promise<void>;
+  /** Proposes an item for the board's yes (CR-005). Resolves to the item's id. */
+  proposeMerch: (input: MerchInput) => Promise<string>;
+  decideMerch: (itemId: string, yes: boolean, reason: string) => Promise<void>;
+  closeMerch: (itemId: string) => Promise<void>;
+  orderMerch: (input: OrderInput) => Promise<string>;
+  decideOrder: (orderId: string, yes: boolean, reason: string) => Promise<void>;
+  /** The treasurer marks an approved order paid; it goes in the ledger as CR-005. Resolves to the entry's id. */
+  payOrder: (orderId: string, paidOn: string) => Promise<string>;
+  handOver: (orderId: string) => Promise<void>;
+  cancelOrder: (orderId: string) => Promise<void>;
+  /** The NEC asks the chapters for a national contribution, split by voting members. Resolves to its id. */
+  proposeContribution: (input: ContributionInput) => Promise<string>;
+  /** Puts a chapter board's carried or lost vote against the contribution. */
+  decideContribution: (contributionId: string, chapterId: string, voteId: string) => Promise<void>;
+  withdrawContribution: (contributionId: string) => Promise<void>;
+  /** Proposes a new chapter with its plan and founders (11.4). Resolves to the proposal's id. */
+  proposeChapter: (input: ChapterInput) => Promise<string>;
+  /** Puts the NEC's vote against the proposal. Resolves to the new chapter's id when it carried. */
+  settleChapter: (proposalId: string, voteId: string) => Promise<string | null>;
+  withdrawChapter: (proposalId: string) => Promise<void>;
   // Stage 5C: document library
   /** Adds a document to the library. Resolves to its id. */
   createDocument: (input: DocumentInput) => Promise<string>;
