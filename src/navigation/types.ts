@@ -89,6 +89,9 @@ export type RootParams = {
   Builds: undefined;
   BuildThread: { bikeId: string };
   PostBuildUpdate: { bikeId: string };
+  History: undefined;
+  EditHistoryEntry: { entryId?: string } | undefined;
+  EditHonour: { honourId?: string } | undefined;
   // Lane E: share in
   ShareIn: { text: string; media: PickedMedia[]; notes: string[] };
   // Stage 5B: treasurer. A fund is 'club' or a chapter id.

@@ -4,6 +4,7 @@ import type { HelpSkill, Mechanic, MechanicVouch, MemberSkills } from '../../dom
 import type { Birthday } from '../../domain/social/shoutouts';
 import type { Listing, ListingInput, ListingKind, ListingPhoto } from '../../domain/social/swap';
 import type { BuildUpdate } from '../../domain/social/builds';
+import type { HistoryEntry, HistoryInput, HistoryPrecision, Honour, HonourInput } from '../../domain/social/history';
 
 export interface BirthdayRow {
   member_id: string;
@@ -99,3 +100,46 @@ export const toBuildUpdates = (rows: BuildUpdateRow[]): BuildUpdate[] =>
     photos: (r.photos ?? []).map((p) => ({ path: p.path, width: p.width ?? 0, height: p.height ?? 0 })),
     postedAt: r.posted_at, takenDownAt: r.taken_down_at,
   }));
+
+export interface HistoryRow {
+  id: string;
+  happened_on: string;
+  precision: HistoryPrecision;
+  title: string;
+  story: string | null;
+  /** None once whoever added it has left. */
+  added_by: string | null;
+  archived_at: string | null;
+}
+
+export const toHistory = (rows: HistoryRow[]): HistoryEntry[] =>
+  rows.map((r) => ({
+    id: r.id, happenedOn: r.happened_on, precision: r.precision, title: r.title, story: r.story,
+    addedBy: r.added_by ?? '', archivedAt: r.archived_at,
+  }));
+
+export interface HonourRow {
+  id: string;
+  member_id: string | null;
+  name: string | null;
+  honour: string;
+  year: number;
+  note: string | null;
+  added_by: string | null;
+  archived_at: string | null;
+}
+
+export const toHonours = (rows: HonourRow[]): Honour[] =>
+  rows.map((r) => ({
+    id: r.id, memberId: r.member_id, name: r.name, honour: r.honour, year: r.year, note: r.note,
+    addedBy: r.added_by ?? '', archivedAt: r.archived_at,
+  }));
+
+/** The save_history_entry call: the database trims and checks it the same way. */
+export const saveHistoryArgs = (i: HistoryInput) => ({
+  p_id: i.id, p_happened_on: i.happenedOn, p_precision: i.precision, p_title: i.title, p_story: i.story,
+});
+
+export const saveHonourArgs = (i: HonourInput) => ({
+  p_id: i.id, p_member: i.memberId, p_name: i.name, p_honour: i.honour, p_year: i.year, p_note: i.note,
+});

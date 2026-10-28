@@ -7,6 +7,7 @@ import type { FeedItem } from '../chat/chatContext';
 import type { Mechanic } from '../../domain/social/help';
 import type { Listing } from '../../domain/social/swap';
 import type { BuildUpdate } from '../../domain/social/builds';
+import type { HistoryEntry, Honour } from '../../domain/social/history';
 import type { SocialData } from './demoSocialActions';
 
 const monthDay = (iso: string) => ({ month: Number(iso.slice(5, 7)), day: Number(iso.slice(8, 10)) });
@@ -73,8 +74,35 @@ export function demoSocialData(today: string): SocialData {
     ],
     listings: demoListings(today),
     buildUpdates: demoBuildUpdates(today),
+    history: DEMO_HISTORY,
+    honours: DEMO_HONOURS,
   };
 }
+
+/** A made-up story of the club, from its first ride on. The founding comes from the founder positions. */
+const DEMO_HISTORY: HistoryEntry[] = [
+  { id: 'history-1', happenedOn: '2019-04-13', precision: 'day', title: 'The first club ride',
+    story: 'Six bikes out to Daylesford and back. It rained the whole way home.', addedBy: 'm-torque', archivedAt: null },
+  { id: 'history-2', happenedOn: '2019-11-01', precision: 'month', title: 'Patches arrive',
+    story: 'The first run of RUSTNUTS patches, sewn on at the pub that night.', addedBy: 'm-torque', archivedAt: null },
+  { id: 'history-3', happenedOn: '2020-01-01', precision: 'year', title: 'A year of riding alone',
+    story: 'Lockdowns kept us apart, so the group chat did the riding.', addedBy: 'm-rusty', archivedAt: null },
+  { id: 'history-4', happenedOn: '2021-08-21', precision: 'day', title: 'North chapter starts',
+    story: 'Smokey and the Hume Highway crew become the North chapter.', addedBy: 'm-rusty', archivedAt: null },
+  { id: 'history-5', happenedOn: '2022-12-01', precision: 'month', title: 'The Rusty Bus joins the club',
+    story: 'An old Coaster bought for charity rides and getting broken bikes home.', addedBy: 'm-rusty', archivedAt: null },
+  { id: 'history-6', happenedOn: '2024-03-16', precision: 'day', title: 'First toy run',
+    story: 'Forty bikes and a bus full of toys for the hospital.', addedBy: 'm-diesel', archivedAt: null },
+];
+
+const DEMO_HONOURS: Honour[] = [
+  { id: 'honour-1', memberId: 'm-torque', name: null, honour: 'Life member', year: 2024,
+    note: 'There from the first ride.', addedBy: 'm-rusty', archivedAt: null },
+  { id: 'honour-2', memberId: 'm-diesel', name: null, honour: 'Rider of the year', year: 2025,
+    note: 'Most kays on club rides.', addedBy: 'm-rusty', archivedAt: null },
+  { id: 'honour-3', memberId: null, name: 'Big Kev', honour: 'Honorary member', year: 2023,
+    note: 'Fixed half the club’s bikes for a carton.', addedBy: 'm-rusty', archivedAt: null },
+];
 
 /** Build threads: Diesel's BSA coming back to life, and Spanner's CB750 (the demo member's, to post on). */
 function demoBuildUpdates(today: string): BuildUpdate[] {

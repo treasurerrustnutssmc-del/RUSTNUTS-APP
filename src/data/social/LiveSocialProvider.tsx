@@ -17,6 +17,14 @@ import {
 import { birthdayProblem, type Birthday } from '../../domain/social/shoutouts';
 import { listingProblem, soldProblem, takeDownProblem, type Listing, type ListingPhoto } from '../../domain/social/swap';
 import { buildPostProblem, buildTakeDownProblem, type BuildPhoto, type BuildUpdate } from '../../domain/social/builds';
+import {
+  archiveEntryProblem,
+  archiveHonourProblem,
+  historyProblem,
+  honourProblem,
+  type HistoryEntry,
+  type Honour,
+} from '../../domain/social/history';
 import type { MediaSource } from '../chat/chatContext';
 import type { PickedMedia } from '../../domain/chat';
 import { prepareUpload } from '../chat/media';
@@ -24,9 +32,13 @@ import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
 import { toFeedItem, uploadName, type FeedJson } from '../chat/liveChat';
 import {
+  saveHistoryArgs,
+  saveHonourArgs,
   saveListingArgs,
   saveMechanicArgs,
   toBuildUpdates,
+  toHistory,
+  toHonours,
   toListings,
   toBirthdays,
   toMechanics,
@@ -34,6 +46,8 @@ import {
   toVouches,
   type BirthdayRow,
   type BuildUpdateRow,
+  type HistoryRow,
+  type HonourRow,
   type ListingRow,
   type MechanicRow,
   type SkillsRow,
@@ -61,7 +75,7 @@ async function call(fn: string, args: Record<string, unknown>): Promise<unknown>
 }
 
 export function LiveSocialProvider({ children }: { children: React.ReactNode }) {
-  const { me, data: club } = useClub();
+  const { me, data: club, today } = useClub();
   const [ready, setReady] = useState(false);
   const [birthdays, setBirthdays] = useState<Birthday[]>([]);
   const [skills, setSkillsList] = useState<MemberSkills[]>([]);
@@ -69,6 +83,8 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   const [vouches, setVouches] = useState<MechanicVouch[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [buildUpdates, setBuildUpdates] = useState<BuildUpdate[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [honours, setHonours] = useState<Honour[]>([]);
   // Signed addresses, by bucket and path.
   const urls = useRef(new Map<string, { url: Promise<string>; until: number }>());
 
@@ -80,13 +96,15 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     }
     // Each table on its own: one that isn't live yet (or a dropped connection) leaves that part
     // empty, not the rest broken.
-    const [b, s, m, v, l, u] = await Promise.all([
+    const [b, s, m, v, l, u, hy, ho] = await Promise.all([
       db().from('member_birthdays').select('member_id, month, day'),
       db().from('member_skills').select('member_id, skills'),
       db().from('mechanics').select('id, name, suburb, phone, website, speciality, notes, added_by, added_at, archived_at'),
       db().from('mechanic_vouches').select('mechanic_id, member_id, vouched'),
       db().from('listings').select('id, seller_id, kind, title, price_dollars, details, photos, listed_at, sold_at, taken_down_at'),
       db().from('build_updates').select('id, bike_id, author_id, body, photos, posted_at, taken_down_at'),
+      db().from('club_history').select('id, happened_on, precision, title, story, added_by, archived_at'),
+      db().from('club_honours').select('id, member_id, name, honour, year, note, added_by, archived_at'),
     ]);
     if (!b.error) setBirthdays(toBirthdays((b.data ?? []) as BirthdayRow[]));
     if (!s.error) setSkillsList(toSkills((s.data ?? []) as SkillsRow[]));
@@ -94,6 +112,8 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     if (!v.error) setVouches(toVouches((v.data ?? []) as VouchRow[]));
     if (!l.error) setListings(toListings((l.data ?? []) as ListingRow[]));
     if (!u.error) setBuildUpdates(toBuildUpdates((u.data ?? []) as BuildUpdateRow[]));
+    if (!hy.error) setHistory(toHistory((hy.data ?? []) as HistoryRow[]));
+    if (!ho.error) setHonours(toHonours((ho.data ?? []) as HonourRow[]));
     setReady(true);
   }, [approved]);
 
@@ -230,6 +250,30 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       await load();
     },
     buildPhotoUrl,
+    history,
+    honours,
+    saveHistoryEntry: async (input) => {
+      refuse(historyProblem(me, input, history, club.positions, today));
+      const id = (await call('save_history_entry', saveHistoryArgs(input))) as string;
+      await load().catch(() => undefined);
+      return id;
+    },
+    archiveHistoryEntry: async (id) => {
+      refuse(archiveEntryProblem(me, id, history, club.positions));
+      await call('archive_history_entry', { p_id: id });
+      await load().catch(() => undefined);
+    },
+    saveHonour: async (input) => {
+      refuse(honourProblem(me, input, honours, club.members, club.positions, today));
+      const id = (await call('save_honour', saveHonourArgs(input))) as string;
+      await load().catch(() => undefined);
+      return id;
+    },
+    archiveHonour: async (id) => {
+      refuse(archiveHonourProblem(me, id, honours, club.positions));
+      await call('archive_honour', { p_id: id });
+      await load().catch(() => undefined);
+    },
     refresh: load,
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

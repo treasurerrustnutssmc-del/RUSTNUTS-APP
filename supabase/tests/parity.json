@@ -6879,6 +6879,510 @@
       "member": "finn",
       "reason": "Injury",
       "allowed": true
+    },
+    {
+      "name": "A president adds to the club's timeline",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": true
+    },
+    {
+      "name": "A secretary changes a timeline entry",
+      "as": "torque",
+      "action": "socialSaveHistoryEntry",
+      "entry": "first-ride",
+      "happenedOn": "2019-05-11",
+      "precision": "month",
+      "title": "First ride",
+      "story": "Out to Daylesford.",
+      "allowed": true
+    },
+    {
+      "name": "The NEC chair keeps the history too",
+      "as": "chair",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2021-01-01",
+      "precision": "year",
+      "title": "North chapter",
+      "story": "",
+      "allowed": true
+    },
+    {
+      "name": "A North president keeps the club's history",
+      "as": "smokey",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": true
+    },
+    {
+      "name": "A member who isn't on a board can't add to the timeline",
+      "as": "spanner",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A pending member can't add to the timeline",
+      "as": "dylan",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry that isn't there can't be changed",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": "no-such-entry",
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry that's been taken off can't be changed",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": "old-entry",
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline date has to be a real date",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-02-30",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry needs a date",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry can't be in the future",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2099-01-01",
+      "precision": "day",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline date is a day, a month or a year",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "week",
+      "title": "First ride",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry needs a title",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "   ",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline title of 81 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "story": "",
+      "allowed": false
+    },
+    {
+      "name": "A timeline title of 80 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "story": "",
+      "allowed": true
+    },
+    {
+      "name": "A timeline story of 1,001 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "allowed": false
+    },
+    {
+      "name": "A timeline story of 1,000 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "happenedOn": "2019-05-11",
+      "precision": "day",
+      "title": "First ride",
+      "story": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "allowed": true
+    },
+    {
+      "name": "The board takes a timeline entry off",
+      "as": "torque",
+      "action": "socialArchiveHistoryEntry",
+      "entry": "first-ride",
+      "allowed": true
+    },
+    {
+      "name": "A member can't take a timeline entry off",
+      "as": "gravel",
+      "action": "socialArchiveHistoryEntry",
+      "entry": "first-ride",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry can't be taken off twice",
+      "as": "rusty",
+      "action": "socialArchiveHistoryEntry",
+      "entry": "old-entry",
+      "allowed": false
+    },
+    {
+      "name": "A timeline entry that isn't there can't be taken off",
+      "as": "rusty",
+      "action": "socialArchiveHistoryEntry",
+      "entry": "no-such-entry",
+      "allowed": false
+    },
+    {
+      "name": "The board honours a member",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "The board honours someone who isn't in the app",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": null,
+      "who": "Old Mate",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "The board changes an honour",
+      "as": "torque",
+      "action": "socialSaveHonour",
+      "honour": "gravel-life",
+      "member": "gravel",
+      "who": "",
+      "title": "Rider of the year",
+      "year": 2025,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "A member can't hand out honours",
+      "as": "spanner",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A pending member can't hand out honours",
+      "as": "dylan",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour that isn't there can't be changed",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": "no-such-honour",
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour that's been taken off can't be changed",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": "old-honour",
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour names somebody",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": null,
+      "who": "  ",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour names a member or a typed name, not both",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "Also",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour for a member who isn't there",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "no-such-member",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A typed name of 81 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": null,
+      "who": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour needs its name",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": " ",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour of 61 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",
+      "year": 2024,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour from before 2019 can't be",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2018,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour can't be for a year still to come",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2099,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour needs a year",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An honour's note of 301 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "allowed": false
+    },
+    {
+      "name": "An honour's note of 300 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": "gravel",
+      "who": "",
+      "title": "Life member",
+      "year": 2024,
+      "note": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "allowed": true
+    },
+    {
+      "name": "The board takes an honour off",
+      "as": "smokey",
+      "action": "socialArchiveHonour",
+      "honour": "gravel-life",
+      "allowed": true
+    },
+    {
+      "name": "A member can't take an honour off",
+      "as": "gravel",
+      "action": "socialArchiveHonour",
+      "honour": "gravel-life",
+      "allowed": false
+    },
+    {
+      "name": "An honour can't be taken off twice",
+      "as": "rusty",
+      "action": "socialArchiveHonour",
+      "honour": "old-honour",
+      "allowed": false
+    },
+    {
+      "name": "An honour that isn't there can't be taken off",
+      "as": "rusty",
+      "action": "socialArchiveHonour",
+      "honour": "no-such-honour",
+      "allowed": false
+    },
+    {
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "precision": "day",
+      "story": "",
+      "name": "A timeline title of 80 emoji is fine",
+      "happenedOn": "2019-05-11",
+      "title": "🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍🏍",
+      "allowed": true
+    },
+    {
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "precision": "day",
+      "story": "",
+      "name": "A timeline entry on a leap day",
+      "happenedOn": "2020-02-29",
+      "title": "Leap ride",
+      "allowed": true
+    },
+    {
+      "as": "rusty",
+      "action": "socialSaveHistoryEntry",
+      "entry": null,
+      "precision": "day",
+      "story": "",
+      "name": "No 29 February in 2021",
+      "happenedOn": "2021-02-29",
+      "title": "x",
+      "allowed": false
+    },
+    {
+      "name": "A typed name of 80 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveHonour",
+      "honour": null,
+      "member": null,
+      "who": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+      "title": "Life member",
+      "year": 2024,
+      "note": "",
+      "allowed": true
     }
   ],
   "chapters": [
@@ -7780,6 +8284,32 @@
       "author": "gravel",
       "photos": [],
       "takenDown": true
+    }
+  ],
+  "history": [
+    {
+      "key": "first-ride",
+      "title": "First ride",
+      "archived": false
+    },
+    {
+      "key": "old-entry",
+      "title": "Old entry",
+      "archived": true
+    }
+  ],
+  "honours": [
+    {
+      "key": "gravel-life",
+      "member": "gravel",
+      "who": null,
+      "archived": false
+    },
+    {
+      "key": "old-honour",
+      "member": null,
+      "who": "Old Mate",
+      "archived": true
     }
   ]
 }

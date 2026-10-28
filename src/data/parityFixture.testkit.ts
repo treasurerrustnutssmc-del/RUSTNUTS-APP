@@ -485,7 +485,28 @@ export function fixtureSocial(): SocialData {
       photos: u.photos.map((name) => ({ path: `${u.author}/${name}`, width: 800, height: 600 })),
       postedAt: '2026-10-01T00:00:00.000Z', takenDownAt: u.takenDown ? '2026-10-02T00:00:00.000Z' : null,
     })),
+    history: ((f as { history?: FixtureHistory[] }).history ?? []).map((e) => ({
+      id: e.key, happenedOn: '2019-05-11', precision: 'day', title: e.title, story: null, addedBy: 'rusty',
+      archivedAt: e.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    honours: ((f as { honours?: FixtureHonour[] }).honours ?? []).map((h) => ({
+      id: h.key, memberId: h.member, name: h.who, honour: 'Life member', year: 2024, note: null, addedBy: 'rusty',
+      archivedAt: h.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
   };
+}
+
+interface FixtureHistory {
+  key: string;
+  title: string;
+  archived: boolean;
+}
+
+interface FixtureHonour {
+  key: string;
+  member: string | null;
+  who: string | null;
+  archived: boolean;
 }
 
 interface FixtureBuildUpdate {

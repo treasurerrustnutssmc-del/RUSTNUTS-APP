@@ -30,6 +30,7 @@ import { HomeOnThisDayCard, HomeShoutoutsCard } from './social';
 import { WhoCanHelpRow } from './help';
 import { SwapRow } from './swap';
 import { BuildsRow } from './builds';
+import { HistoryRow } from './history';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -268,8 +269,8 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
           title="Chapters"
           subtitle="Boards and the National committee"
           onPress={() => navigation.navigate('Chapters')}
-          last
         />
+        <HistoryRow last />
       </Card>
       {/* Stage 7: social extras */}
       <Card style={{ padding: 0, gap: 0 }}>

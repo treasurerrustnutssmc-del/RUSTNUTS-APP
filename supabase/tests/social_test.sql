@@ -610,4 +610,99 @@ begin
 end $$;
 
 \o
+\echo 'History: the board keeps the timeline and honours; approved members read them'
+\o /dev/null
+create function pg_temp.entry_sql(id uuid, happened text, prec text, title text, story text)
+returns text language sql as $$
+  select format('select public.save_history_entry(%L, %L, %L, %L, %L)', id, happened, prec, title, story);
+$$;
+create function pg_temp.honour_sql(id uuid, member uuid, name text, honour text, yr int, note text)
+returns text language sql as $$
+  select format('select public.save_honour(%L, %L, %L, %L, %L, %L)', id, member, name, honour, yr, note);
+$$;
+
+do $$
+declare
+  wendy constant uuid := '00000000-0000-0000-0000-0000000005b1';
+  nell constant uuid := '00000000-0000-0000-0000-0000000005b2';
+  bea constant uuid := '00000000-0000-0000-0000-0000000005c1';
+  paul constant uuid := '00000000-0000-0000-0000-0000000005a3';
+  this_year int := extract(year from private.club_date())::int;
+  tomorrow text := to_char(private.club_date() + 1, 'YYYY-MM-DD');
+  e uuid;
+  h uuid;
+  r club_history%rowtype;
+  o club_honours%rowtype;
+begin
+  e := pg_temp.value_as(bea, pg_temp.entry_sql(null, '2019-05-11', 'day', '  First ride ', '  ' ))::uuid;
+  select * into r from club_history where id = e;
+  assert r.happened_on = '2019-05-11' and r.precision = 'day' and r.title = 'First ride' and r.story is null
+    and r.added_by = bea, format('saved: %s', row_to_json(r));
+  assert pg_temp.value_as(bea, pg_temp.entry_sql(e, '2019-05-01', 'month', 'First ride', 'Out to Daylesford.')) = e::text, 'changed';
+  select * into r from club_history where id = e;
+  assert r.precision = 'month' and r.story = 'Out to Daylesford.', 'with the change';
+
+  -- Timeline refusals, in order.
+  assert pg_temp.try_signed_out(pg_temp.entry_sql(null, '2019-05-11', 'day', 'x', '')) = 'Sign in first.', 'signed out';
+  assert pg_temp.try_as(paul, pg_temp.entry_sql(null, '2019-05-11', 'day', 'x', '')) = 'Only approved members can do that.', 'pending';
+  assert pg_temp.try_as(wendy, pg_temp.entry_sql(null, '2019-05-11', 'day', 'x', '')) = 'Only the board can keep the club’s history.', 'not the board';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql('00000000-0000-0000-0000-000000000000', '2019-05-11', 'day', 'x', '')) = 'No such entry.', 'gone';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(null, '2019-02-30', 'day', 'x', '')) = 'Pick a date.', 'not a real date';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(null, '', 'day', 'x', '')) = 'Pick a date.', 'no date';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(null, tomorrow, 'day', 'x', '')) = 'Pick a date.', 'tomorrow';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(null, '2019-05-11', 'week', 'x', '')) = 'Pick a date.', 'precision';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(null, 'x', 'day', '', '')) = 'Pick a date.', 'the date before the title';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(null, '2019-05-11', 'day', '  ', '')) = 'Give it a title.', 'no title';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(null, '2019-05-11', 'day', repeat('x', 81), '')) = 'Keep the title to 80 characters at most.', 'long title';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(null, '2019-05-11', 'day', repeat('🏍', 80), '')) is null, '80 emoji are 80 characters';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(null, '2019-05-11', 'day', 'x', repeat('s', 1001))) = 'Keep the story to 1,000 characters at most.', 'long story';
+
+  -- Reading.
+  assert pg_temp.count_as(nell, 'club_history') = 2, 'approved members read it';
+  assert pg_temp.count_as(paul, 'club_history') = 0, 'pending reads none';
+  assert pg_temp.count_as(null, 'club_history') = -1, 'anon reads nothing';
+  assert pg_temp.try_as(bea, $q$update club_history set title = 'x'$q$) like 'permission denied%', 'no writing directly';
+  assert pg_temp.try_as(bea, $q$insert into club_honours (honour, year, name) values ('x', 2020, 'y')$q$) like 'permission denied%', 'no inserting directly';
+
+  -- Taking an entry off.
+  assert pg_temp.try_as(wendy, format('select public.archive_history_entry(%L)', e)) = 'Only the board can keep the club’s history.', 'not Wendy';
+  assert pg_temp.try_as(bea, format('select public.archive_history_entry(%L)', e)) is null, 'the board';
+  assert (select archived_by = bea from club_history where id = e), 'kept, with who';
+  assert pg_temp.try_as(bea, format('select public.archive_history_entry(%L)', e)) = 'That entry has already been taken off.', 'twice';
+  assert pg_temp.try_as(bea, pg_temp.entry_sql(e, '2019-05-11', 'day', 'x', '')) = 'That entry has been taken off.', 'no changing it';
+  assert pg_temp.try_as(bea, format('select public.archive_history_entry(%L)', '00000000-0000-0000-0000-000000000000')) = 'No such entry.', 'gone';
+  assert pg_temp.count_as(nell, 'club_history') = 1, 'hidden once off';
+
+  -- Honours.
+  h := pg_temp.value_as(bea, pg_temp.honour_sql(null, nell, '', ' Life member ', 2024, ' '))::uuid;
+  select * into o from club_honours where id = h;
+  assert o.member_id = nell and o.name is null and o.honour = 'Life member' and o.year = 2024 and o.note is null
+    and o.added_by = bea, format('honour: %s', row_to_json(o));
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, null, ' Old Mate ', 'Rider of the year', this_year, 'Most kays')) is null, 'a typed name, this year';
+  assert pg_temp.try_signed_out(pg_temp.honour_sql(null, nell, '', 'x', 2024, '')) = 'Sign in first.', 'signed out';
+  assert pg_temp.try_as(paul, pg_temp.honour_sql(null, nell, '', 'x', 2024, '')) = 'Only approved members can do that.', 'pending';
+  assert pg_temp.try_as(wendy, pg_temp.honour_sql(null, nell, '', 'x', 2024, '')) = 'Only the board can keep the club’s history.', 'not the board';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql('00000000-0000-0000-0000-000000000000', nell, '', 'x', 2024, '')) = 'No such honour.', 'gone';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, null, '  ', 'x', 2024, '')) = 'Pick a member or type a name.', 'nobody';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, nell, 'Also', 'x', 2024, '')) = 'Pick a member or type a name.', 'both';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, '00000000-0000-0000-0000-000000000000', '', 'x', 2024, '')) = 'No such member.', 'no such member';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, null, repeat('n', 81), 'x', 2024, '')) = 'Keep the name to 80 characters at most.', 'long name';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, nell, '', ' ', 2024, '')) = 'Name the honour.', 'no honour';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, nell, '', repeat('h', 61), 2024, '')) = 'Keep the honour to 60 characters at most.', 'long honour';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, nell, '', 'x', 2018, '')) = 'Pick a year from 2019 on.', 'too early';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, nell, '', 'x', this_year + 1, '')) = 'Pick a year from 2019 on.', 'next year';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, nell, '', 'x', null, '')) = 'Pick a year from 2019 on.', 'no year';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(null, nell, '', 'x', 2024, repeat('n', 301))) = 'Keep the note to 300 characters at most.', 'long note';
+  assert pg_temp.count_as(nell, 'club_honours') = 2, 'approved members read honours';
+  assert pg_temp.count_as(paul, 'club_honours') = 0, 'pending reads none';
+
+  assert pg_temp.try_as(wendy, format('select public.archive_honour(%L)', h)) = 'Only the board can keep the club’s history.', 'not Wendy';
+  assert pg_temp.try_as(bea, format('select public.archive_honour(%L)', h)) is null, 'the board takes it off';
+  assert (select archived_by = bea from club_honours where id = h), 'kept, with who';
+  assert pg_temp.try_as(bea, format('select public.archive_honour(%L)', h)) = 'That honour has already been taken off.', 'twice';
+  assert pg_temp.try_as(bea, pg_temp.honour_sql(h, nell, '', 'x', 2024, '')) = 'That honour has been taken off.', 'no changing it';
+  assert pg_temp.count_as(nell, 'club_honours') = 1, 'hidden once off';
+end $$;
+
+\o
 \echo 'All social checks passed'
