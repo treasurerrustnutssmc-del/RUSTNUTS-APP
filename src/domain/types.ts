@@ -241,9 +241,18 @@ export interface BusBooking {
   cancelledAt: string | null;
 }
 
+/** How many roster places of one status in one chapter nobody has claimed yet. */
+export interface RosterTally {
+  chapterId: string;
+  status: MemberStatus;
+  count: number;
+}
+
 export interface ClubData extends LedgerData, AdminData {
   chapters: Chapter[];
   members: Member[];
+  /** Roster places not yet claimed (live mode only). Missing means none. */
+  unclaimedRoster?: RosterTally[];
   privates: MemberPrivate[];
   bikes: Bike[];
   registrations: BikeRegistration[];

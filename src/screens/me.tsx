@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { activePositions } from '../domain/access';
 import { formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
+import { positionTitles } from '../domain/home';
 import { LICENCE_LABEL, ROLE_LABEL } from '../domain/labels';
 import { displayName, hasEarnedDisc, initials } from '../domain/profile';
 import { StandingCard } from './attendance';
@@ -81,8 +82,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
             </Small>
             <Row style={{ gap: 6 }}>
               <StatusChip status={me.status} />
-              {positions.map((p) => (
-                <Chip key={p.id} label={ROLE_LABEL[p.role]} tone="bone" />
+              {positionTitles(positions, data.chapters, me.chapterId, ROLE_LABEL).map((t) => (
+                <Chip key={t.key} label={t.text} tone="bone" />
               ))}
             </Row>
           </View>

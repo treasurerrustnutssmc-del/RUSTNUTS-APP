@@ -3,6 +3,7 @@ import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
+import { Text, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
@@ -96,6 +97,10 @@ function MainTabs() {
   const waiting = isBoard ? pendingFor(me, data).length : 0;
   const { unreadTotal } = useChat();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  // Each tab's label gets the tab's width less the bar's own 5pt padding each side; "Members", the
+  // widest label, is a little over 5 times the font size wide in the club stencil.
+  const labelSize = Math.min(11.5, Math.floor(((width / (isBoard ? 6 : 5) - 10) / 5.2) * 2) / 2);
   return (
     <>
       {/* Lane E: share in */}
@@ -127,19 +132,30 @@ function MainTabs() {
           tabBarHideOnKeyboard: true, // otherwise Android lifts the tab bar on top of the keyboard
           tabBarActiveTintColor: colors.redText,
           tabBarInactiveTintColor: colors.boneMute,
-          tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: 11.5, lineHeight: 16, letterSpacing: 0.3 },
+          // Six tabs on a narrow phone can't fit "Members" at full size, so the labels shrink together
+          // to fit the tab width (the web ignores adjustsFontSizeToFit; on phones it also covers large text).
+          tabBarLabel: ({ color, children }) => (
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              style={{ color, fontFamily: fonts.stencil, fontSize: labelSize, lineHeight: 16, letterSpacing: 0.3, textAlign: 'center' }}
+            >
+              {children}
+            </Text>
+          ),
+          tabBarItemStyle: { paddingHorizontal: 0 },
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size} color={color} />
           ),
         })}
       >
-        <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} />, tabBarLabel: 'Home' }} />
+        <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} /> }} />
         <Tabs.Screen
           name="Chats"
           component={ChatListScreen}
           options={{
             title: 'Chat',
-            tabBarLabel: 'Chat',
             tabBarBadge: unreadTotal > 0 ? (unreadTotal > 99 ? '99+' : unreadTotal) : undefined,
             tabBarBadgeStyle: { backgroundColor: colors.redBright, fontFamily: fonts.stencil },
           }}

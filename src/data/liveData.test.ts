@@ -32,7 +32,12 @@ function stubClient(tables: Record<string, unknown[]>, phones: unknown[] = []) {
   };
   const rpc = (name: string) =>
     Promise.resolve({
-      data: name === 'shared_phones' ? phones : name === 'ride_calendar' || name === 'members_money' ? tables[name] ?? null : null,
+      data:
+        name === 'shared_phones'
+          ? phones
+          : name === 'ride_calendar' || name === 'members_money' || name === 'unclaimed_roster_counts'
+            ? tables[name] ?? null
+            : null,
       error: null,
     });
   return { from: query, rpc } as never;
@@ -44,6 +49,14 @@ test('signed out: chapters only', async () => {
   const data = await loadClub(stubClient({ chapters: [west] }), false);
   assert.equal(data.chapters.length, 1);
   assert.equal(data.members.length, 0);
+});
+
+test('signed in: unclaimed roster places come through for the club counts', async () => {
+  const data = await loadClub(
+    stubClient({ chapters: [west], unclaimed_roster_counts: [{ chapter_id: 'c1', status: 'fng', n: 6 }] }),
+    true,
+  );
+  assert.deepEqual(data.unclaimedRoster, [{ chapterId: 'c1', status: 'fng', count: 6 }]);
 });
 
 test('signed in: rows become app records, shared phones merge in', async () => {

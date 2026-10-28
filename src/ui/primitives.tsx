@@ -220,8 +220,9 @@ export function Small({ children, style, numberOfLines, selectable }: TextProps)
 export function SectionTitle({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <View style={styles.sectionTitle}>
-      <H2>{title}</H2>
-      {action}
+      {/* A long title gives way so the action beside it (often a lock note) is never cut off. */}
+      <H2 style={{ flexShrink: 1 }}>{title}</H2>
+      {action ? <View style={{ flexShrink: 0 }}>{action}</View> : null}
     </View>
   );
 }
