@@ -17,6 +17,8 @@ import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import { seesReports } from '../domain/ledger'; // Stage 5B
 import { MeAdminSection } from './adminRows'; // Stage 5D
 import { asksToSign, currentRoadRules, myRoadRulesLine, needsSigning, roadRulesStatus } from '../domain/roadRules'; // Road Rules
+import { MAX_RANGE, MIN_RANGE, RANGE_LIMITS } from '../domain/fuel'; // Ride planning extras
+import { readRange } from './ridePlanning'; // Ride planning extras
 import { DocumentsMeRow } from './documents'; // Stage 5C
 import { BadgesCard } from './badges'; // Stage 7: badges
 import {
@@ -336,7 +338,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
 // ---------------------------------------------------------------------------
 
 export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
-  const { data, saveBike, removeBike } = useClub();
+  const { data, saveBike, removeBike, setBikeRange } = useClub();
   const bike = route.params.bikeId ? data.bikes.find((b) => b.id === route.params.bikeId) : undefined;
   const reg = bike ? data.registrations.find((r) => r.bikeId === bike.id) : undefined;
   const [make, setMake] = useState(bike?.make ?? '');
@@ -346,14 +348,18 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
   const [isProject, setIsProject] = useState(bike?.isProject ?? false);
   const [rego, setRego] = useState(reg?.rego ?? '');
   const expiry = useDateField(reg?.regoExpiry ?? null);
+  const [range, setRange] = useState(bike?.rangeKm != null ? String(bike.rangeKm) : '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const yearError = year.trim() && !/^\d{4}$/.test(year.trim()) ? 'Use a four-digit year.' : null;
+  // Ride planning extras: the range, on a bike that's already in the garage.
+  const rangeKm = readRange(range);
+  const rangeError = rangeKm !== null && (Number.isNaN(rangeKm) || rangeKm < MIN_RANGE || rangeKm > MAX_RANGE) ? RANGE_LIMITS : null;
 
   const save = async () => {
     setError(null);
-    if (yearError || expiry.error) {
+    if (yearError || expiry.error || rangeError) {
       setError('Fix the fields marked in red.');
       return;
     }
@@ -363,6 +369,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
         { id: bike?.id ?? null, make, model, year: year.trim() ? Number(year) : null, nickname: nickname.trim() || null, isProject },
         { rego: isProject ? null : rego, regoExpiry: isProject ? null : expiry.iso },
       );
+      if (bike && rangeKm !== (bike.rangeKm ?? null)) await setBikeRange(bike.id, rangeKm);
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -384,6 +391,20 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
         <Field label="Year" value={year} onChangeText={setYear} keyboardType="number-pad" inputMode="numeric" maxLength={4} error={yearError} />
         <Field label="Nickname" value={nickname} onChangeText={setNickname} placeholder="Old Faithful" hint="Optional. Shows in the garage instead of the model." />
         <Toggle label="Project bike" description="Off the road for now. No rego needed." value={isProject} onChange={setIsProject} />
+        {bike && !isProject ? (
+          <Field
+            label="Range to the fuel light (km)"
+            value={range}
+            onChangeText={setRange}
+            keyboardType="number-pad"
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="220"
+            error={rangeError}
+            hint="Optional. Ride planners keep fuel stops inside the smallest tank in the pack."
+          />
+        ) : null}
+        {!bike && !isProject ? <Small>Add the bike first, then come back to set its range for fuel stops.</Small> : null}
       </Card>
       {!isProject ? (
         <Card>

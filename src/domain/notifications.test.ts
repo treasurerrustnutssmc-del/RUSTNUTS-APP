@@ -68,6 +68,13 @@ test('what to schedule and cancel', () => {
   assert.deepEqual([renamed.add.map((x) => x.id), renamed.cancel], [['ride-a'], ['ride-a']], 'a renamed ride gets the new text');
 });
 
+test('a ride called off or postponed gets no reminder; one back on does', () => {
+  const call = (state: 'off' | 'postponed' | 'on') => [{ rideId: 'r-1', state, reason: '', newDay: null, calledBy: 'm-rc', calledAt: NOW }];
+  assert.deepEqual(reminderPlan([ride()], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW, call('off')), []);
+  assert.deepEqual(reminderPlan([ride()], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW, call('postponed')), []);
+  assert.equal(reminderPlan([ride()], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW, call('on')).length, 1);
+});
+
 test('the Harley rev is on unless a member switches it off', () => {
   assert.equal(DEFAULT_PREFS.revSound, true);
   assert.equal(REV_SOUND, 'v_twin_rev.wav');

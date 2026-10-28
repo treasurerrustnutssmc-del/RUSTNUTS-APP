@@ -46,6 +46,7 @@ import {
   Stack,
   Toggle,
 } from '../ui/primitives';
+import { RouteRatings } from './ridePlanning'; // Ride planning extras
 import { ChapterChip, chapterColours, OpenInMapsButton, RouteFacts, RouteRow, StopList } from '../ui/RouteBits';
 import { RouteShape } from '../ui/RouteShape';
 
@@ -213,6 +214,9 @@ export function RouteScreen({ route: nav, navigation }: RootScreen<'Route'>) {
           <StopList stops={route.stops} />
         </Stack>
       ) : null}
+
+      {/* Ride planning extras: members' stars */}
+      <RouteRatings route={route} me={me} data={data} />
 
       <Stack gap={space.sm}>
         <SectionTitle title="Rides using it" action={<Text style={styles.count}>{rides.length}</Text>} />

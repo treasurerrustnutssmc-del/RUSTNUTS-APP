@@ -18,6 +18,9 @@ import type {
   BusBooking,
   BusPurpose,
   ClubData,
+  HubStaying, // Ride planning extras
+  PlanStop, // Ride planning extras
+  RideCallState, // Ride planning extras
   CrewRole,
   Electorate,
   MeetingKind,
@@ -29,6 +32,7 @@ import type {
   Threshold,
 } from '../domain/types';
 import * as business from './businessActions';
+import * as planning from './planningActions'; // Ride planning extras
 import {
   NotAllowedError,
   validateApplicationBike,
@@ -227,6 +231,8 @@ export function saveBike(ctx: DemoCtx, bike: BikeInput, reg: RegoInput): { data:
     ...bike,
     id,
     memberId: self.id,
+    // Like save_bike, saving leaves the range alone (set_bike_range sets it).
+    rangeKm: ctx.data.bikes.find((b) => b.id === bike.id)?.rangeKm ?? null,
     make: bike.make.trim(),
     model: bike.model.trim(),
     nickname: bike.nickname?.trim() || null,
@@ -597,7 +603,19 @@ export type DemoAction =
       driver: string | null; notes: string; repeat?: number;
     }
   | { action: 'decideBus'; booking: string; yes: boolean; reason: string; repeat?: number }
-  | { action: 'cancelBus'; booking: string };
+  | { action: 'cancelBus'; booking: string }
+  // Ride planning extras. `repeat` writes the comment, reason or note out that many times, and
+  // `repeatStops` repeats the first stop that many times, for the limits.
+  | { action: 'setBikeRange'; bike: string; rangeKm: number | null }
+  | { action: 'saveRidePlan'; ride: string; stops: PlanStop[]; repeatStops?: number; seen: string | null }
+  | { action: 'rateRoute'; route: string; stars: number; comment: string; repeat?: number }
+  | { action: 'callRide'; ride: string; state: RideCallState; reason: string; newDay: string | null; repeat?: number }
+  | { action: 'saveHub'; ride: string; membersOnly: boolean; closesOn: string | null; beds: number | null; accommodation: string; notes: string }
+  | { action: 'registerHub'; ride: string; staying: HubStaying; pillion: boolean; shareWith: string; notes: string }
+  | { action: 'withdrawHub'; ride: string }
+  | { action: 'askSwap'; ride: string; to: string; note: string; repeat?: number }
+  | { action: 'answerSwap'; swap: string; yes: boolean }
+  | { action: 'withdrawSwap'; swap: string };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -654,6 +672,27 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return decideBus(ctx, a.booking, a.yes, a.reason.repeat(a.repeat ?? 1));
     case 'cancelBus':
       return cancelBus(ctx, a.booking);
+    // Ride planning extras
+    case 'setBikeRange':
+      return planning.setBikeRange(ctx, a.bike, a.rangeKm);
+    case 'saveRidePlan':
+      return planning.saveRidePlan(ctx, a.ride, a.repeatStops ? Array.from({ length: a.repeatStops }, () => a.stops[0]) : a.stops, a.seen);
+    case 'rateRoute':
+      return planning.rateRoute(ctx, a.route, a.stars, a.comment.repeat(a.repeat ?? 1));
+    case 'callRide':
+      return planning.callRide(ctx, a.ride, a.state, a.reason.repeat(a.repeat ?? 1), a.newDay);
+    case 'saveHub':
+      return planning.saveHub(ctx, a.ride, { membersOnly: a.membersOnly, closesOn: a.closesOn, beds: a.beds, accommodation: a.accommodation, notes: a.notes });
+    case 'registerHub':
+      return planning.registerHub(ctx, a.ride, { staying: a.staying, pillion: a.pillion, shareWith: a.shareWith, notes: a.notes });
+    case 'withdrawHub':
+      return planning.withdrawHub(ctx, a.ride);
+    case 'askSwap':
+      return planning.askSwap(ctx, a.ride, a.to, a.note.repeat(a.repeat ?? 1)).data;
+    case 'answerSwap':
+      return planning.answerSwap(ctx, a.swap, a.yes);
+    case 'withdrawSwap':
+      return planning.withdrawSwap(ctx, a.swap);
     case 'removeContact':
       return removeContact(ctx, a.contact);
     case 'saveBike':

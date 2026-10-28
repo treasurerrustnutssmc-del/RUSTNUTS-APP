@@ -6,6 +6,7 @@ import type { AccessLevel } from '../domain/access';
 import type { BriefingInput } from '../domain/briefings';
 import type { RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
+import type { HubInput, RegisterInput } from '../domain/hubs'; // Ride planning extras
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { Casting, VoteInput } from '../domain/votes';
 import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
@@ -26,6 +27,8 @@ import type {
   PaymentDetails,
   PaymentMethod,
   NotificationPrefs, // Lane E: notifications
+  PlanStop, // Ride planning extras
+  RideCallState, // Ride planning extras
   PositionRole,
   RsvpAnswer,
   Votes,
@@ -216,6 +219,25 @@ export interface ClubContextValue {
   decideBus: (bookingId: string, yes: boolean, reason: string) => Promise<void>;
   /** Calls off a Waiting or Booked booking (whoever booked it, its driver or the board). */
   cancelBus: (bookingId: string) => Promise<void>;
+  // Ride planning extras
+  /** Sets (or with null clears) the range of one of your own bikes, in km. */
+  setBikeRange: (bikeId: string, rangeKm: number | null) => Promise<void>;
+  /** Writes or replaces a ride's stops. `seen` is the plan's `updatedAt` the editor opened on (null: none). */
+  saveRidePlan: (rideId: string, stops: PlanStop[], seen: string | null) => Promise<void>;
+  /** Rates a route 1 to 5 stars, or changes your rating. */
+  rateRoute: (routeId: string, stars: number, comment: string) => Promise<void>;
+  /** Calls a ride Off, Postponed (with an optional new day) or Back on, and posts it in the ride's chat. */
+  callRide: (rideId: string, state: RideCallState, reason: string, newDay: string | null) => Promise<void>;
+  /** Opens or changes a ride's hub (its crew managers). */
+  saveHub: (rideId: string, input: HubInput) => Promise<void>;
+  /** Registers you for a ride's hub, or changes your registration. */
+  registerHub: (rideId: string, input: RegisterInput) => Promise<void>;
+  withdrawHub: (rideId: string) => Promise<void>;
+  /** Asks someone to take your crew spot (or trade); resolves to the ask's id. */
+  askSwap: (rideId: string, toId: string, note: string) => Promise<string>;
+  /** The person asked says yes or no. */
+  answerSwap: (swapId: string, yes: boolean) => Promise<void>;
+  withdrawSwap: (swapId: string) => Promise<void>;
   // Stage 5B: treasurer
   /** Money in, banked. Resolves to the entry's id. */
   recordCredit: (input: CreditInput) => Promise<string>;

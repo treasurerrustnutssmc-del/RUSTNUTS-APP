@@ -49,6 +49,11 @@ export type RootParams = {
   // ride briefings
   Briefing: { rideId: string };
   EditBriefing: { rideId: string };
+  PlanRide: { rideId: string };
+  CallRide: { rideId: string };
+  Hub: { rideId: string };
+  EditHub: { rideId: string };
+  AskSwap: { rideId: string };
   // Road Rules sign-off. An older version number opens that version read-only.
   RoadRules: { version?: number } | undefined;
   EditRoadRules: undefined;
