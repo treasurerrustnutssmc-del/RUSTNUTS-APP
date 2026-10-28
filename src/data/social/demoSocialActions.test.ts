@@ -156,3 +156,33 @@ test('history in the demo: the board keeps entries and honours; a member reads t
   assert.ok(hOff.honours.find((x) => x.id === h.id)?.archivedAt);
   assert.throws(() => saveHonour(ctx, { id: null, memberId: 'm-ghost', name: '', honour: 'x', year: 2026, note: '' }), /No such member\./);
 });
+
+test('bragging rights in the demo: one award voting, one taking nominations, last year’s closed', async () => {
+  const { openAward, nominate, withdrawNomination, castBragVote, archiveAward, bragTallies } = await import('./demoSocialActions');
+  const { awardsFor, awardPhase, results } = await import('../../domain/social/brag');
+  const today = '2026-10-27';
+  const ctx = { ...ctxAs('m-spanner'), now: '2026-10-27T05:00:00Z' };
+  const { open, past } = awardsFor(ctx.social.awards, today);
+  assert.deepEqual(open.map((a) => awardPhase(a, today)).sort(), ['nominating', 'voting']);
+  assert.equal(past.length, 1);
+  const closed = results(ctx.social.nominations.filter((n) => n.awardId === past[0].id), bragTallies(ctx.social, today));
+  assert.equal(closed[0].winner, true);
+  assert.equal(bragTallies(ctx.social, today).some((t) => ctx.social.nominations.find((n) => n.id === t.nominationId)?.awardId !== past[0].id), false,
+    'no counts for open awards');
+
+  const voting = open.find((a) => awardPhase(a, today) === 'voting')!;
+  const theirs = ctx.social.nominations.find((n) => n.awardId === voting.id && n.nominatedBy !== 'm-spanner')!;
+  const voted = castBragVote(ctx, theirs.id);
+  assert.deepEqual(voted.bragVotes.filter((v) => v.memberId === 'm-spanner' && v.awardId === voting.id).map((v) => v.nominationId), [theirs.id]);
+
+  const stories = open.find((a) => a.kind === 'story')!;
+  const { social, id } = nominate(ctx, { awardId: stories.id, rideId: null, title: ' Fuel line ', photo: null, story: 'Split on the Hume.', reason: '' });
+  assert.equal(social.nominations.find((n) => n.id === id)?.title, 'Fuel line');
+  assert.ok(withdrawNomination({ ...ctx, social }, id).nominations.find((n) => n.id === id)?.withdrawnAt);
+  assert.throws(() => openAward(ctx, { kind: 'photo', title: 'Best photo', year: 2026, nominationsClose: '2026-11-01', votingClose: '2026-11-10' }),
+    /Only the board can run awards\./);
+  const board = { ...ctxAs('m-rusty'), now: ctx.now };
+  const opened = openAward(board, { kind: 'photo', title: ' Best photo ', year: 2026, nominationsClose: '2026-11-01', votingClose: '2026-11-10' });
+  assert.equal(opened.social.awards.find((a) => a.id === opened.id)?.title, 'Best photo');
+  assert.ok(archiveAward({ ...board, social: opened.social }, opened.id).awards.find((a) => a.id === opened.id)?.archivedAt);
+});

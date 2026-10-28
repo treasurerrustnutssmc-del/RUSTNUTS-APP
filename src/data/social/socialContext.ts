@@ -7,6 +7,7 @@ import type { Birthday } from '../../domain/social/shoutouts';
 import type { Listing, ListingInput } from '../../domain/social/swap';
 import type { BuildPost, BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, HistoryInput, Honour, HonourInput } from '../../domain/social/history';
+import type { Award, AwardInput, Nomination, NominationInput, Tally, Vote } from '../../domain/social/brag';
 import type { PickedMedia } from '../../domain/chat';
 import type { FeedItem, MediaSource } from '../chat/chatContext';
 
@@ -57,6 +58,21 @@ export interface SocialContextValue {
   archiveHistoryEntry: (id: string) => Promise<void>;
   saveHonour: (input: HonourInput) => Promise<string>;
   archiveHonour: (id: string) => Promise<void>;
+  // Bragging rights
+  /** Awards that are up, and the nominations that stand. */
+  awards: Award[];
+  nominations: Nomination[];
+  /** My own votes only: nobody sees anyone else's. */
+  myVotes: Vote[];
+  /** Vote counts for awards that have closed. */
+  tallies: Tally[];
+  openAward: (input: AwardInput) => Promise<string>;
+  archiveAward: (id: string) => Promise<void>;
+  /** Nominates something; for a photo award, `added` is the phone's photo (input.photo is null). */
+  nominate: (input: NominationInput, added: PickedMedia | null) => Promise<string>;
+  withdrawNomination: (id: string) => Promise<void>;
+  castBragVote: (nominationId: string) => Promise<void>;
+  bragPhotoUrl: (path: string) => Promise<MediaSource>;
   refresh: () => Promise<void>;
 }
 

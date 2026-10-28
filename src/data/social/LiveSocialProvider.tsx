@@ -25,6 +25,17 @@ import {
   type HistoryEntry,
   type Honour,
 } from '../../domain/social/history';
+import {
+  archiveAwardProblem,
+  nominationProblem,
+  openAwardProblem,
+  voteProblem,
+  withdrawProblem,
+  type Award,
+  type Nomination,
+  type Tally,
+  type Vote,
+} from '../../domain/social/brag';
 import type { MediaSource } from '../chat/chatContext';
 import type { PickedMedia } from '../../domain/chat';
 import { prepareUpload } from '../chat/media';
@@ -32,6 +43,15 @@ import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
 import { toFeedItem, uploadName, type FeedJson } from '../chat/liveChat';
 import {
+  nominateArgs,
+  openAwardArgs,
+  toAwards,
+  toNominations,
+  toTallies,
+  toVotes,
+  type AwardRow,
+  type BragVoteRow,
+  type NominationRow,
   saveHistoryArgs,
   saveHonourArgs,
   saveListingArgs,
@@ -64,6 +84,7 @@ const refuse = (problem: string | null) => {
 
 const BUCKET = 'swap-media';
 const BUILD_BUCKET = 'build-media';
+const BRAG_BUCKET = 'brag-media';
 // Signed addresses last five minutes; each is reused for four.
 const URL_LIFE_S = 300;
 const URL_KEEP_MS = 4 * 60_000;
@@ -85,6 +106,10 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   const [buildUpdates, setBuildUpdates] = useState<BuildUpdate[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [honours, setHonours] = useState<Honour[]>([]);
+  const [awards, setAwards] = useState<Award[]>([]);
+  const [nominations, setNominations] = useState<Nomination[]>([]);
+  const [myVotes, setMyVotes] = useState<Vote[]>([]);
+  const [tallies, setTallies] = useState<Tally[]>([]);
   // Signed addresses, by bucket and path.
   const urls = useRef(new Map<string, { url: Promise<string>; until: number }>());
 
@@ -96,7 +121,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     }
     // Each table on its own: one that isn't live yet (or a dropped connection) leaves that part
     // empty, not the rest broken.
-    const [b, s, m, v, l, u, hy, ho] = await Promise.all([
+    const [b, s, m, v, l, u, hy, ho, aw, no, bv, bt] = await Promise.all([
       db().from('member_birthdays').select('member_id, month, day'),
       db().from('member_skills').select('member_id, skills'),
       db().from('mechanics').select('id, name, suburb, phone, website, speciality, notes, added_by, added_at, archived_at'),
@@ -105,6 +130,10 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       db().from('build_updates').select('id, bike_id, author_id, body, photos, posted_at, taken_down_at'),
       db().from('club_history').select('id, happened_on, precision, title, story, added_by, archived_at'),
       db().from('club_honours').select('id, member_id, name, honour, year, note, added_by, archived_at'),
+      db().from('brag_awards').select('id, kind, title, year, nominations_close, voting_close, opened_by, archived_at'),
+      db().from('brag_nominations').select('id, award_id, nominated_by, ride_id, title, photo, story, reason, nominated_at, withdrawn_at'),
+      db().from('brag_votes').select('award_id, member_id, nomination_id'),
+      db().rpc('brag_tallies'),
     ]);
     if (!b.error) setBirthdays(toBirthdays((b.data ?? []) as BirthdayRow[]));
     if (!s.error) setSkillsList(toSkills((s.data ?? []) as SkillsRow[]));
@@ -114,6 +143,10 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     if (!u.error) setBuildUpdates(toBuildUpdates((u.data ?? []) as BuildUpdateRow[]));
     if (!hy.error) setHistory(toHistory((hy.data ?? []) as HistoryRow[]));
     if (!ho.error) setHonours(toHonours((ho.data ?? []) as HonourRow[]));
+    if (!aw.error) setAwards(toAwards((aw.data ?? []) as AwardRow[]));
+    if (!no.error) setNominations(toNominations((no.data ?? []) as NominationRow[]));
+    if (!bv.error) setMyVotes(toVotes((bv.data ?? []) as BragVoteRow[]));
+    if (!bt.error) setTallies(toTallies((bt.data ?? []) as { nomination_id: string; votes: number }[]));
     setReady(true);
   }, [approved]);
 
@@ -143,6 +176,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   }, []);
   const listingPhotoUrl = useCallback((path: string) => signed(BUCKET, path), [signed]);
   const buildPhotoUrl = useCallback((path: string) => signed(BUILD_BUCKET, path), [signed]);
+  const bragPhotoUrl = useCallback((path: string) => signed(BRAG_BUCKET, path), [signed]);
 
   // Shrinks and uploads the phone's photos into my folder of a bucket. The paths that went up are
   // added to `uploaded` as they go, so a failure later can take them down again.
@@ -274,6 +308,48 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       await call('archive_honour', { p_id: id });
       await load().catch(() => undefined);
     },
+    awards,
+    nominations,
+    myVotes,
+    tallies,
+    openAward: async (input) => {
+      refuse(openAwardProblem(me, input, club.positions, today));
+      const id = (await call('open_award', openAwardArgs(input))) as string;
+      await load().catch(() => undefined);
+      return id;
+    },
+    archiveAward: async (id) => {
+      refuse(archiveAwardProblem(me, id, awards, club.positions));
+      await call('archive_award', { p_id: id });
+      await load().catch(() => undefined);
+    },
+    nominate: async (input, added) => {
+      // The same checks first, with a stand-in for a photo still to go up.
+      const standIn = added ? { path: `${me?.id ?? ''}/new-0`, width: added.width, height: added.height } : input.photo;
+      refuse(nominationProblem(me, { ...input, photo: standIn }, awards, nominations, club.rides, today));
+      const uploaded: string[] = [];
+      let id: string;
+      try {
+        const photo = added ? (await uploadPhotos(BRAG_BUCKET, [added], uploaded))[0] : input.photo;
+        id = (await call('nominate', nominateArgs({ ...input, photo }))) as string;
+      } catch (e) {
+        if (uploaded.length) db().storage.from(BRAG_BUCKET).remove(uploaded).then(() => undefined, () => undefined);
+        throw e;
+      }
+      await load().catch(() => undefined);
+      return id;
+    },
+    withdrawNomination: async (id) => {
+      refuse(withdrawProblem(me, id, nominations, awards, club.positions, today));
+      await call('withdraw_nomination', { p_id: id });
+      await load().catch(() => undefined);
+    },
+    castBragVote: async (id) => {
+      refuse(voteProblem(me, id, nominations, awards, today));
+      await call('cast_brag_vote', { p_nomination: id });
+      await load().catch(() => undefined);
+    },
+    bragPhotoUrl,
     refresh: load,
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

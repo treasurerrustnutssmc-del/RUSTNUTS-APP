@@ -92,6 +92,10 @@ export type RootParams = {
   History: undefined;
   EditHistoryEntry: { entryId?: string } | undefined;
   EditHonour: { honourId?: string } | undefined;
+  Bragging: undefined;
+  Award: { awardId: string };
+  Nominate: { awardId: string };
+  OpenAward: undefined;
   // Lane E: share in
   ShareIn: { text: string; media: PickedMedia[]; notes: string[] };
   // Stage 5B: treasurer. A fund is 'club' or a chapter id.

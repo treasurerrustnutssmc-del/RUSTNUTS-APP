@@ -5,6 +5,7 @@ import type { Birthday } from '../../domain/social/shoutouts';
 import type { Listing, ListingInput, ListingKind, ListingPhoto } from '../../domain/social/swap';
 import type { BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, HistoryInput, HistoryPrecision, Honour, HonourInput } from '../../domain/social/history';
+import type { Award, AwardInput, BragKind, Nomination, NominationInput, Tally, Vote } from '../../domain/social/brag';
 
 export interface BirthdayRow {
   member_id: string;
@@ -142,4 +143,62 @@ export const saveHistoryArgs = (i: HistoryInput) => ({
 
 export const saveHonourArgs = (i: HonourInput) => ({
   p_id: i.id, p_member: i.memberId, p_name: i.name, p_honour: i.honour, p_year: i.year, p_note: i.note,
+});
+
+export interface AwardRow {
+  id: string;
+  kind: BragKind;
+  title: string;
+  year: number;
+  nominations_close: string;
+  voting_close: string;
+  opened_by: string | null;
+  archived_at: string | null;
+}
+
+export const toAwards = (rows: AwardRow[]): Award[] =>
+  rows.map((r) => ({
+    id: r.id, kind: r.kind, title: r.title, year: r.year, nominationsClose: r.nominations_close, votingClose: r.voting_close,
+    openedBy: r.opened_by ?? '', archivedAt: r.archived_at,
+  }));
+
+export interface NominationRow {
+  id: string;
+  award_id: string;
+  /** None once whoever nominated it has left. */
+  nominated_by: string | null;
+  ride_id: string | null;
+  title: string | null;
+  photo: { path: string; width: number | null; height: number | null } | null;
+  story: string | null;
+  reason: string | null;
+  nominated_at: string;
+  withdrawn_at: string | null;
+}
+
+export const toNominations = (rows: NominationRow[]): Nomination[] =>
+  rows.map((r) => ({
+    id: r.id, awardId: r.award_id, nominatedBy: r.nominated_by ?? '', rideId: r.ride_id, title: r.title,
+    photo: r.photo ? { path: r.photo.path, width: r.photo.width ?? 0, height: r.photo.height ?? 0 } : null,
+    story: r.story, reason: r.reason, nominatedAt: r.nominated_at, withdrawnAt: r.withdrawn_at,
+  }));
+
+export interface BragVoteRow {
+  award_id: string;
+  member_id: string;
+  nomination_id: string;
+}
+
+export const toVotes = (rows: BragVoteRow[]): Vote[] =>
+  rows.map((r) => ({ awardId: r.award_id, memberId: r.member_id, nominationId: r.nomination_id }));
+
+export const toTallies = (rows: { nomination_id: string; votes: number }[]): Tally[] =>
+  rows.map((r) => ({ nominationId: r.nomination_id, votes: r.votes }));
+
+export const openAwardArgs = (i: AwardInput) => ({
+  p_kind: i.kind, p_title: i.title, p_year: i.year, p_nominations_close: i.nominationsClose, p_voting_close: i.votingClose,
+});
+
+export const nominateArgs = (i: NominationInput) => ({
+  p_award: i.awardId, p_ride: i.rideId, p_title: i.title, p_photo: i.photo, p_story: i.story, p_reason: i.reason,
 });

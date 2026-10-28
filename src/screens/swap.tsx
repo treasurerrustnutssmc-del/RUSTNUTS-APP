@@ -53,8 +53,8 @@ type Nav = NavigationProp<RootParams>;
 
 /** A photo's address once it's ready (live photos are signed a moment later), or 'failed'. */
 function usePhotoSource(path: string | null, bucket: PhotoBucket): MediaSource | 'failed' | null {
-  const { listingPhotoUrl, buildPhotoUrl } = useSocial();
-  const photoUrl = bucket === 'build' ? buildPhotoUrl : listingPhotoUrl;
+  const { listingPhotoUrl, buildPhotoUrl, bragPhotoUrl } = useSocial();
+  const photoUrl = bucket === 'build' ? buildPhotoUrl : bucket === 'brag' ? bragPhotoUrl : listingPhotoUrl;
   const [source, setSource] = useState<{ path: string; value: MediaSource | 'failed' } | null>(null);
   useEffect(() => {
     if (!path) return;
@@ -71,7 +71,7 @@ function usePhotoSource(path: string | null, bucket: PhotoBucket): MediaSource |
 }
 
 /** Which bucket a photo lives in: swap and sell, or garage builds. */
-export type PhotoBucket = 'swap' | 'build';
+export type PhotoBucket = 'swap' | 'build' | 'brag';
 
 /** One photo filling its box; a steel square with an icon when there's none. Also used by the build threads. */
 export function ListingPhotoBox({

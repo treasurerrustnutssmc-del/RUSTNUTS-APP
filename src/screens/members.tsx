@@ -31,6 +31,7 @@ import { WhoCanHelpRow } from './help';
 import { SwapRow } from './swap';
 import { BuildsRow } from './builds';
 import { HistoryRow } from './history';
+import { BragRow } from './brag';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -276,7 +277,8 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
       <Card style={{ padding: 0, gap: 0 }}>
         <WhoCanHelpRow />
         <SwapRow />
-        <BuildsRow last />
+        <BuildsRow />
+        <BragRow last />
       </Card>
       <Field
         label="Search"

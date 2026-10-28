@@ -83,3 +83,25 @@ test('history and honour rows, and their save calls', async () => {
     p_id: 'h', p_member: 'm', p_name: '', p_honour: 'x', p_year: 2024, p_note: '',
   });
 });
+
+test('bragging rights rows and calls', async () => {
+  const { toAwards, toNominations, toVotes, toTallies, openAwardArgs, nominateArgs } = await import('./liveSocial');
+  assert.deepEqual(
+    toAwards([{ id: 'a', kind: 'ride', title: 'T', year: 2026, nominations_close: '2026-11-01', voting_close: '2026-11-10', opened_by: null, archived_at: null }]),
+    [{ id: 'a', kind: 'ride', title: 'T', year: 2026, nominationsClose: '2026-11-01', votingClose: '2026-11-10', openedBy: '', archivedAt: null }],
+  );
+  assert.deepEqual(
+    toNominations([{ id: 'n', award_id: 'a', nominated_by: 'm', ride_id: null, title: 'T', photo: { path: 'm/x.jpg', width: null, height: 4 },
+      story: null, reason: null, nominated_at: 't', withdrawn_at: null }]),
+    [{ id: 'n', awardId: 'a', nominatedBy: 'm', rideId: null, title: 'T', photo: { path: 'm/x.jpg', width: 0, height: 4 }, story: null,
+      reason: null, nominatedAt: 't', withdrawnAt: null }],
+  );
+  assert.deepEqual(toVotes([{ award_id: 'a', member_id: 'm', nomination_id: 'n' }]), [{ awardId: 'a', memberId: 'm', nominationId: 'n' }]);
+  assert.deepEqual(toTallies([{ nomination_id: 'n', votes: 3 }]), [{ nominationId: 'n', votes: 3 }]);
+  assert.deepEqual(openAwardArgs({ kind: 'story', title: 't', year: 2026, nominationsClose: 'a', votingClose: 'b' }), {
+    p_kind: 'story', p_title: 't', p_year: 2026, p_nominations_close: 'a', p_voting_close: 'b',
+  });
+  assert.deepEqual(nominateArgs({ awardId: 'a', rideId: 'r', title: 't', photo: null, story: 's', reason: '' }), {
+    p_award: 'a', p_ride: 'r', p_title: 't', p_photo: null, p_story: 's', p_reason: '',
+  });
+});

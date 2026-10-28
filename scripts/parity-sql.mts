@@ -570,6 +570,22 @@ const call = (c: ParityCase & Record<string, any>): string => {
       );
     case 'socialArchiveHonour':
       return `public.archive_honour(${id('honour', c.honour)})`;
+    case 'socialOpenAward':
+      return (
+        `public.open_award(${q(c.kind)}, ${q(c.title)}, ${c.year ?? 'null'}, ${q(addDays(today, c.nominationsCloseDays))}, ` +
+        `${q(addDays(today, c.votingCloseDays))})`
+      );
+    case 'socialArchiveAward':
+      return `public.archive_award(${id('award', c.award)})`;
+    case 'socialNominate':
+      return (
+        `public.nominate(${id('award', c.award)}, ${c.ride ? id('r', c.ride) : 'null'}, ${q(c.title)}, ` +
+        `${c.photo ? `${json({ path: listingPhotoPath(c.as, c.photo), width: 800, height: 600 })}` : 'null'}, ${q(c.story)}, ${q(c.reason)})`
+      );
+    case 'socialWithdrawNomination':
+      return `public.withdraw_nomination(${id('nom', c.nomination)})`;
+    case 'socialCastBragVote':
+      return `public.cast_brag_vote(${id('nom', c.nomination)})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
@@ -683,6 +699,24 @@ for (const h of (fx as typeof fx & { honours?: FixtureHonour[] }).honours ?? [])
   );
 }
 
+// The fixture's awards, their dates counted from today, and their nominations.
+type FixtureAward = { key: string; kind: string; title: string; year: number; nominationsDays: number; votingDays: number; archived: boolean };
+for (const a of (fx as typeof fx & { awards?: FixtureAward[] }).awards ?? []) {
+  sql(
+    `insert into public.brag_awards (id, kind, title, year, nominations_close, voting_close, opened_by, archived_at) values (` +
+      `${id('award', a.key)}, ${q(a.kind)}, ${q(a.title)}, ${a.year}, ${date(addDays(today, a.nominationsDays))}, ` +
+      `${date(addDays(today, a.votingDays))}, ${id('m', 'rusty')}, ${a.archived ? 'now()' : 'null'});`,
+  );
+}
+type FixtureNomination = { key: string; award: string; by: string; ride: string | null; withdrawn: boolean };
+for (const n of (fx as typeof fx & { nominations?: FixtureNomination[] }).nominations ?? []) {
+  sql(
+    `insert into public.brag_nominations (id, award_id, nominated_by, ride_id, title, story, withdrawn_at) values (${id('nom', n.key)}, ` +
+      `${id('award', n.award)}, ${id('m', n.by)}, ${n.ride ? id('r', n.ride) : 'null'}, ${n.ride ? 'null' : "'Fixture'"}, ` +
+      `${n.ride ? 'null' : "'Fixture'"}, ${n.withdrawn ? 'now()' : 'null'});`,
+  );
+}
+
 // The fixture's listings, with their photos uploaded by their sellers.
 type FixtureListing = { key: string; seller: string; kind: string; title: string; price: number | null; photos: string[]; takenDown: boolean };
 for (const l of (fx as typeof fx & { listings?: FixtureListing[] }).listings ?? []) {
@@ -714,6 +748,9 @@ for (const c of fx.cases) {
   // A listing's photos are uploaded first (by their owner), as the phone does.
   if (c.action === 'socialSaveListing') {
     for (const n of c.photos as string[]) uploadSwap(n.startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, n));
+  }
+  if (c.action === 'socialNominate' && c.photo) {
+    upload('brag-media', String(c.photo).startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, String(c.photo)));
   }
   if (c.action === 'socialPostBuildUpdate') {
     for (const n of c.photos as string[]) upload('build-media', n.startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, n));

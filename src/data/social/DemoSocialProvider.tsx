@@ -81,6 +81,26 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
       return result.id;
     },
     archiveHonour: async (id) => setSocial(act.archiveHonour(ctx(), id)),
+    // Like the database: what's withdrawn or on an award taken off isn't shown.
+    awards: social.awards.filter((a) => !a.archivedAt),
+    nominations: social.nominations.filter((n) => !n.withdrawnAt && social.awards.some((a) => a.id === n.awardId && !a.archivedAt)),
+    myVotes: social.bragVotes.filter((v) => v.memberId === me?.id),
+    tallies: act.bragTallies(social, today),
+    openAward: async (input) => {
+      const result = act.openAward(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    archiveAward: async (id) => setSocial(act.archiveAward(ctx(), id)),
+    nominate: async (input, added) => {
+      const photo = added ? { path: `${me?.id ?? 'nobody'}/${added.uri}`, width: added.width, height: added.height } : input.photo;
+      const result = act.nominate(ctx(), { ...input, photo });
+      setSocial(result.social);
+      return result.id;
+    },
+    withdrawNomination: async (id) => setSocial(act.withdrawNomination(ctx(), id)),
+    castBragVote: async (id) => setSocial(act.castBragVote(ctx(), id)),
+    bragPhotoUrl: listingPhotoUrl,
     refresh: async () => {},
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;
