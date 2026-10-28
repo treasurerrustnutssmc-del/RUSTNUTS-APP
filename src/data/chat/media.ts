@@ -14,9 +14,9 @@ const LONGEST_SIDE = 2048;
 export class PickProblem extends Error {}
 
 /** Opens the photo library (several at once) or the camera. Nothing picked gives an empty list. */
-export async function pickMedia(source: 'library' | 'camera', room = MAX_MEDIA): Promise<PickedMedia[]> {
+export async function pickMedia(source: 'library' | 'camera', room = MAX_MEDIA, photosOnly = false): Promise<PickedMedia[]> {
   const options: ImagePicker.ImagePickerOptions = {
-    mediaTypes: ['images', 'videos'],
+    mediaTypes: photosOnly ? ['images'] : ['images', 'videos'],
     quality: 1,
     videoMaxDuration: MAX_VIDEO_MS / 1000,
   };

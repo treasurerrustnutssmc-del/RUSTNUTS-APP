@@ -41,6 +41,7 @@ import { FngReviewScreen } from '../screens/fng';
 // Stage 7: social extras
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
 import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } from '../screens/help';
+import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swap';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -255,6 +256,13 @@ export function RootNavigator() {
               options={({ route }) => ({ title: route.params?.mechanicId ? 'Edit workshop' : 'Add a workshop' })}
             />
             <Stack.Screen name="MySkills" component={MySkillsScreen} options={{ title: 'I can help with' }} />
+            <Stack.Screen name="SwapSell" component={SwapSellScreen} options={{ title: 'Swap and sell' }} />
+            <Stack.Screen name="Listing" component={ListingScreen} options={{ title: 'Listing' }} />
+            <Stack.Screen
+              name="EditListing"
+              component={EditListingScreen}
+              options={({ route }) => ({ title: route.params?.listingId ? 'Change listing' : 'List something' })}
+            />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}

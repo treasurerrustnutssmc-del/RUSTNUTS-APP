@@ -4,7 +4,9 @@
 import { createContext, useContext } from 'react';
 import type { HelpSkill, Mechanic, MechanicInput, MechanicVouch, MemberSkills } from '../../domain/social/help';
 import type { Birthday } from '../../domain/social/shoutouts';
-import type { FeedItem } from '../chat/chatContext';
+import type { Listing, ListingInput } from '../../domain/social/swap';
+import type { PickedMedia } from '../../domain/chat';
+import type { FeedItem, MediaSource } from '../chat/chatContext';
 
 export interface SocialContextValue {
   /** False until the first load arrives. */
@@ -25,6 +27,18 @@ export interface SocialContextValue {
   saveMechanic: (input: MechanicInput) => Promise<string>;
   archiveMechanic: (id: string) => Promise<void>;
   vouchMechanic: (id: string, on: boolean) => Promise<void>;
+  // Swap and sell
+  /** Listings this member can read (screens pick what to show with listingsFor). */
+  listings: Listing[];
+  /**
+   * Lists something (id null) or changes a listing; resolves to its id. `input.photos` are the
+   * photos it keeps; `added` are new ones from the phone, uploaded and put after them.
+   */
+  saveListing: (input: ListingInput, added: PickedMedia[]) => Promise<string>;
+  markListingSold: (id: string, sold: boolean) => Promise<void>;
+  takeDownListing: (id: string) => Promise<void>;
+  /** Something an Image can show for a listing photo's path. */
+  listingPhotoUrl: (path: string) => Promise<MediaSource>;
   refresh: () => Promise<void>;
 }
 
