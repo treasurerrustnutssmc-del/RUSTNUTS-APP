@@ -972,7 +972,10 @@ export function ClubFinancesScreen({ navigation }: RootScreen<'ClubFinances'>) {
                 left={<IconBadge icon="megaphone-outline" />}
                 title={`${monthName(r.toOn)} ${r.toOn.slice(0, 4)}`}
                 subtitle={`${formatAuDate(r.fromOn)} to ${formatAuDate(r.toOn)}`}
-                right={<Text style={[type.name, num, { color: colors.boneDim }]}>{formatCents(bankCents(figuresFor(r, data), 'closing'))}</Text>}
+                right={(() => {
+                  const f = figuresFor(r, data);
+                  return f ? <Text style={[type.name, num, { color: colors.boneDim }]}>{formatCents(bankCents(f, 'closing'))}</Text> : undefined;
+                })()}
                 onPress={() => navigation.navigate('MeetingReport', { id: r.id })}
               />
             ))}

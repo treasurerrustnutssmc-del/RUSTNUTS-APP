@@ -53,7 +53,7 @@ function CodeCard({ title, codes, total, lines }: {
       {used.length === 0 ? <Small>Nothing in this period.</Small> : null}
       {used.map((c) => (
         <View key={c.code} style={{ gap: 2 }}>
-          <Line label={CODE_LABEL[c.code]}>
+          <Line label={CODE_LABEL[c.code] ?? c.code}>
             <Amount cents={c.cents} />
           </Line>
           {(lines?.[c.code] ?? []).map((e) => (
@@ -322,7 +322,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
           <Button label="Save draft" kind="secondary" icon="save-outline" busy={busy === 'save'} disabled={!!problem || !dirty} onPress={save} />
         ) : null}
         {figures ? (
-          <Button label="Share as PDF" kind="secondary" icon="share-outline" busy={busy === 'pdf'} disabled={!!busy} onPress={pdf} />
+          <Button label="Share as PDF" kind="secondary" icon="share-outline" busy={busy === 'pdf'} disabled={!!busy || (editable && !local && dirty)} onPress={pdf} />
         ) : null}
         {editable && report ? (
           dirty ? (

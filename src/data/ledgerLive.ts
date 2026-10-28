@@ -105,17 +105,18 @@ export interface MeetingReportJson {
 const codes = (xs: { code: LedgerCode; cents: number }[] | undefined) => list(xs).map((c) => ({ code: c.code, cents: num(c.cents) }));
 
 export function toMeetingReports(raw: MeetingReportJson[] | null | undefined): Required<Pick<LedgerData, 'meetingReports' | 'meetingTotals'>> {
-  const rows = list(raw ?? undefined).filter((r) => r && typeof r === 'object' && typeof r.id === 'string');
+  const isDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const rows = list(raw ?? undefined).filter((r) => r && typeof r === 'object' && typeof r.id === 'string' && isDate(r.from_on) && isDate(r.to_on));
   return {
     meetingReports: rows.map((r) => ({
       id: r.id, fromOn: r.from_on, toOn: r.to_on, notes: r.notes ?? '', savedBy: r.saved_by, savedAt: instant(r.saved_at),
       presentedBy: r.presented_by, presentedAt: maybeInstant(r.presented_at),
     })),
-    meetingTotals: rows.filter((r) => r.figures).map(({ id, figures: f }) => ({
+    meetingTotals: rows.filter((r) => r.figures && typeof r.figures === 'object').map(({ id, figures: f }) => ({
       id,
       from: f.from,
       to: f.to,
-      funds: Object.fromEntries(Object.entries(f.funds ?? {}).map(([k, m]) => [k, {
+      funds: Object.fromEntries(Object.entries(f.funds ?? {}).filter(([, m]) => m && typeof m === 'object').map(([k, m]) => [k, {
         openingCents: num(m.opening_cents), receiptsCents: num(m.receipts_cents), paymentsCents: num(m.payments_cents), closingCents: num(m.closing_cents),
       }])),
       credits: codes(f.credits),

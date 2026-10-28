@@ -139,7 +139,7 @@ begin
   assert pg_temp.try_as(pg_temp.u(2), $q$select public.save_meeting_report(null, date '2026-06-30', date '2026-10-21', '')$q$)
     = 'Keep the report inside one financial year (1 July to 30 June).', 'across 1 July';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.save_meeting_report(null, date '2026-08-01', date '2026-10-21', %L)$q$, repeat('x', 4001)))
-    = 'Keep the notes under 4,000 characters.', 'long notes';
+    = 'Keep the notes to 4,000 characters or fewer.', 'long notes';
   assert pg_temp.try_as(pg_temp.u(2), $q$select public.save_meeting_report('00000000-0000-0000-0000-000000000000', date '2026-08-01', date '2026-10-21', '')$q$)
     = 'No such report.', 'unknown';
 

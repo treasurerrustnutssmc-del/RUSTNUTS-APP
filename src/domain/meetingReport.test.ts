@@ -129,6 +129,7 @@ test('the rules for saving a report', () => {
   assert.equal(meetingProblem(me('m-sparks'), null, { ...ok, toOn: '2026-10-29' }, data, TODAY), MR_FUTURE);
   assert.equal(meetingProblem(me('m-sparks'), null, { ...ok, fromOn: '2026-06-30' }, data, TODAY), MR_ONE_YEAR);
   assert.equal(meetingProblem(me('m-sparks'), null, { ...ok, notes: 'x'.repeat(4001) }, data, TODAY), MR_NOTES);
+  assert.equal(meetingProblem(me('m-sparks'), null, { ...ok, notes: '🏍'.repeat(4000) }, data, TODAY), null, 'characters, not UTF-16 units');
   assert.equal(meetingProblem(me('m-sparks'), null, { ...ok, fromOn: '2026-10-21' }, data, TODAY), null, 'one day is fine');
 });
 
@@ -164,8 +165,9 @@ test('who builds one on screen, and whose figures they see', () => {
   assert.ok(readsEveryFund(me('m-rusty'), data), 'the National Chairman reads every fund');
   assert.ok(!readsEveryFund(me('m-sparks'), data), 'a West treasurer doesn’t read North’s lines');
   const live = { ...withReports, meetingTotals: [{ id: 'mr-1', ...meetingFigures('2026-08-01', '2026-08-31', data) }] };
-  assert.equal(figuresFor(draft, live).to, '2026-08-31', 'the database’s figures when there are some');
-  assert.equal(figuresFor(draft, withReports).to, '2026-10-21', 'else worked out here');
+  assert.equal(figuresFor(draft, live)?.to, '2026-08-31', 'the database’s figures when there are some');
+  assert.equal(figuresFor(draft, withReports)?.to, '2026-10-21', 'else worked out here (the demo)');
+  assert.equal(figuresFor(draft, { ...withReports, meetingTotals: [] }), null, 'live with none sent: nothing, not partial figures');
 });
 
 test('who prepared it', () => {

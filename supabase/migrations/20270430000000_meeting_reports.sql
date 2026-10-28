@@ -103,7 +103,7 @@ begin
   if private.fy_of(p_from) <> private.fy_of(p_to) then
     raise exception 'Keep the report inside one financial year (1 July to 30 June).';
   end if;
-  if char_length(coalesce(p_notes, '')) > 4000 then raise exception 'Keep the notes under 4,000 characters.'; end if;
+  if char_length(coalesce(p_notes, '')) > 4000 then raise exception 'Keep the notes to 4,000 characters or fewer.'; end if;
   if p_id is null then
     insert into public.treasurer_meeting_reports (from_on, to_on, notes, saved_by)
     values (p_from, p_to, coalesce(p_notes, ''), me) returning id into new_id;

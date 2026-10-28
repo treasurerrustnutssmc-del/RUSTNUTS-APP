@@ -42,7 +42,7 @@ const table = (head: string[], rows: string[]) =>
 function codeTable(title: string, codes: { code: LedgerCode; cents: number }[], total: number, lines: MeetingReportPrint['lines']): string {
   const used = codes.filter((c) => c.cents > 0).sort((a, b) => b.cents - a.cents || a.code.localeCompare(b.code));
   const rows = used.flatMap((c) => [
-    row([`${esc(CODE_LABEL[c.code])} <span class="code">${c.code}</span>`, money(c.cents)]),
+    row([`${esc(CODE_LABEL[c.code] ?? c.code)} <span class="code">${c.code}</span>`, money(c.cents)]),
     ...(lines?.[c.code] ?? []).map((e) => row([`${formatAuDate(e.entryOn)} · ${esc(e.description)}`, money(e.amountCents)], 'line')),
   ]);
   if (used.length === 0) rows.push(row(['Nothing in this period', money(0)], 'line'));

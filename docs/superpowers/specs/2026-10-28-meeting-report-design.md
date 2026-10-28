@@ -70,8 +70,8 @@ when read (`private.meeting_report(from, to)`, mirroring the TypeScript), so a l
 shows, with the "changed since it was presented" notice the month report already has.
 
 Actions: `save_meeting_report(id, from, to, notes) → id`, `present_meeting_report(id)`,
-`delete_meeting_report(id)` (drafts only), and `meeting_reports()` to read. Readers of the Club
-fund's books get drafts and presented reports; every approved member who hasn't left gets the
+`delete_meeting_report(id)` (drafts only), and `meeting_reports()` to read. Whoever keeps the Club
+fund's books gets drafts and presented reports; every approved member who hasn't left gets the
 presented ones with their figures and notes, but never the lines (as 5B).
 
 ## Screens

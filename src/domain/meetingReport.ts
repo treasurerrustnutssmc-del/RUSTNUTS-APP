@@ -17,7 +17,7 @@ export const MR_RANGE = 'Pick the first and last day of the report.';
 export const MR_ORDER = 'The report has to start before it ends.';
 export const MR_FUTURE = 'The report can’t run past today.';
 export const MR_ONE_YEAR = 'Keep the report inside one financial year (1 July to 30 June).';
-export const MR_NOTES = 'Keep the notes under 4,000 characters.';
+export const MR_NOTES = 'Keep the notes to 4,000 characters or fewer.';
 export const MR_LOCKED = 'That report is presented and can’t be changed.';
 export const MR_NOTES_MAX = 4000;
 
@@ -67,7 +67,7 @@ export function meetingFigures(from: string, to: string, data: ClubData): Meetin
     const inMonth = (l: LedgerEntry[]) => sum(l.filter((e) => e.entryOn! >= a && e.entryOn! <= b));
     months.push({ month: m, from: a, to: b, receiptsCents: inMonth(credits), paymentsCents: inMonth(debits) });
   }
-  const byCode = (codes: LedgerCode[]) => codes.map((code) => ({ code, cents: sum(lines.filter((e) => e.code === code)) }));
+  const byCode = (codes: LedgerCode[]) => [...codes].sort().map((code) => ({ code, cents: sum(lines.filter((e) => e.code === code)) }));
   const changes = (data.ledger ?? []).filter((e) => e.entryOn !== null && e.entryOn >= from && e.entryOn <= to).map((e) => e.updatedAt).sort();
   return {
     from,
@@ -184,7 +184,7 @@ export function meetingProblem(me: Member | null, id: string | null, input: Meet
   if (input.fromOn > input.toOn) return MR_ORDER;
   if (input.toOn > today) return MR_FUTURE;
   if (fyOf(input.fromOn) !== fyOf(input.toOn)) return MR_ONE_YEAR;
-  if (input.notes.length > MR_NOTES_MAX) return MR_NOTES;
+  if ([...input.notes].length > MR_NOTES_MAX) return MR_NOTES; // characters, as the database counts them
   return null;
 }
 
@@ -211,9 +211,13 @@ export function readsEveryFund(me: Member | null, data: ClubData): boolean {
   return funds(data).every((f) => seesLedger(me, f, data.positions));
 }
 
-/** A report's figures: the database's in live mode, else worked out here. */
-export function figuresFor(report: Pick<MeetingReport, 'id' | 'fromOn' | 'toOn'>, data: ClubData): MeetingFigures {
-  return (data.meetingTotals ?? []).find((t) => t.id === report.id) ?? meetingFigures(report.fromOn, report.toOn, data);
+/**
+ * A report's figures: the database's in live mode, else worked out here (the demo). Null when the
+ * live database sent none for it, rather than figures from whatever lines this person can read.
+ */
+export function figuresFor(report: Pick<MeetingReport, 'id' | 'fromOn' | 'toOn'>, data: ClubData): MeetingFigures | null {
+  if (data.meetingTotals) return data.meetingTotals.find((t) => t.id === report.id) ?? null;
+  return meetingFigures(report.fromOn, report.toOn, data);
 }
 
 /** A new report runs on from the last presented one, inside this financial year, to today. */
