@@ -91,7 +91,7 @@ export function sendMessage(
   const conv = findChat(ctx.chat, chatId);
   // A reply to a message that isn't there is refused like one from another chat.
   const replyTo = replyToId ? findMessage(ctx.chat, replyToId) ?? { conversationId: '' } : null;
-  refuse(postProblem(ctx.me, conv, body, media.length, ctx.club, ctx.chat.blocks, replyTo));
+  refuse(postProblem(ctx.me, conv, body, media, ctx.club, ctx.chat.blocks, replyTo));
   const me = ctx.me!;
   const id = newId('msg');
   const words = trimWords(body);
@@ -235,7 +235,11 @@ export function markRead(ctx: ChatCtx, chatId: string): ChatData {
 
 /** The chat actions in the shared case list (supabase/tests/parity.json). */
 export type ChatAction =
-  | { action: 'chatSend'; chat: string; body: string; repeat?: number; gifs?: number; replyTo?: string }
+  | {
+      action: 'chatSend'; chat: string; body: string; repeat?: number; gifs?: number; replyTo?: string;
+      /** A voice note first, this long (null: no length). */
+      voice?: number | null;
+    }
   | { action: 'chatRemove'; message: string }
   | { action: 'chatReact'; message: string; emoji: string }
   | { action: 'chatDirect'; member: string }
@@ -252,10 +256,14 @@ export const caseGifs = (n = 0): NewMedia[] =>
     kind: 'gif' as const, path: `https://media1.giphy.com/media/parity${i}/giphy.gif`, posterPath: null, width: 220, height: 160, durationMs: null,
   }));
 
+/** A case's voice note, in the chat's own folder like the phone's upload. */
+export const caseVoice = (chatId: string, durationMs: number | null | undefined): NewMedia[] =>
+  durationMs === undefined ? [] : [{ kind: 'voice', path: `${chatId}/parity-voice.m4a`, posterPath: null, width: 0, height: 0, durationMs }];
+
 export function runChatAction(ctx: ChatCtx, a: ChatAction): ChatData {
   switch (a.action) {
     case 'chatSend':
-      return sendMessage(ctx, a.chat, caseText(a.body, a.repeat), caseGifs(a.gifs), a.replyTo ?? null).chat;
+      return sendMessage(ctx, a.chat, caseText(a.body, a.repeat), [...caseVoice(a.chat, a.voice), ...caseGifs(a.gifs)], a.replyTo ?? null).chat;
     case 'chatRemove':
       return removeMessage(ctx, a.message);
     case 'chatReact':

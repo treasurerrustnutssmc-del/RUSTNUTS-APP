@@ -7,7 +7,9 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { createVideoPlayer } from 'expo-video';
 import { Platform } from 'react-native';
-import { MAX_MEDIA, MAX_VIDEO_MS, mediaProblem, type PickedMedia } from '../../domain/chat';
+import { MAX_MEDIA, MAX_VIDEO_MS, mediaProblem, VOICE_BROKEN, type PickedMedia } from '../../domain/chat';
+import type { VoiceRecording } from './chatContext';
+import { voiceUploadType } from './liveChat';
 
 const LONGEST_SIDE = 2048;
 
@@ -82,4 +84,11 @@ export async function prepareUpload(p: PickedMedia): Promise<{ file: Upload; pos
   } finally {
     player.release();
   }
+}
+
+/** A voice note as it goes up: the recording itself, as AAC or WebM. */
+export async function prepareVoiceUpload(r: VoiceRecording): Promise<Upload> {
+  const contentType = voiceUploadType(r);
+  if (!contentType) throw new PickProblem(VOICE_BROKEN);
+  return { bytes: await bytesOf(r.uri), contentType, width: 0, height: 0 };
 }

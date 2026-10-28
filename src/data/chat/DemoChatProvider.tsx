@@ -13,7 +13,14 @@ import { DEMO_MEDIA, DEMO_PAST_RIDES, DEMO_PREVIEWS, demoChatData } from './demo
 const toNewMedia = (a: Attachment): Omit<MessageMedia, 'id' | 'messageId' | 'position'> =>
   a.kind === 'gif'
     ? { kind: 'gif', path: a.url, posterPath: null, width: a.width, height: a.height, durationMs: null }
-    : { kind: a.kind, path: a.uri, posterPath: null, width: a.width, height: a.height, durationMs: a.durationMs };
+    : a.kind === 'voice'
+      ? { kind: 'voice', path: a.uri, posterPath: null, width: 0, height: 0, durationMs: a.durationMs }
+      : { kind: a.kind, path: a.uri, posterPath: null, width: a.width, height: a.height, durationMs: a.durationMs };
+
+const voiceOf = (m: { media: MessageMedia[] }) => {
+  const v = m.media.find((x) => x.kind === 'voice');
+  return v ? { path: v.path, durationMs: v.durationMs } : null;
+};
 
 export function DemoChatProvider({ children }: { children: React.ReactNode }) {
   const { data, me, today } = useClub();
@@ -77,6 +84,7 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
           message: {
             id: message.id, conversationId: message.conversationId, authorId: message.authorId, body: r.body,
             mediaCount: r.mediaCount, createdAt: message.createdAt,
+            voice: voiceOf(message),
           },
         }];
       }),

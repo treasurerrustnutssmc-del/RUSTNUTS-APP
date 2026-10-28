@@ -10,7 +10,7 @@ import type { Attachment, FeedItem, GifPick, LinkPreview, MediaSource } from '..
 import { useChat } from '../data/chat/chatContext';
 import { searchGifs, type GifResult } from '../data/chat/gifSearch';
 import { activePositions } from '../domain/access';
-import { findLinks, REACTIONS, type Message, type MessageMedia } from '../domain/chat';
+import { findLinks, mediaSummary, REACTIONS, type Message, type MessageMedia } from '../domain/chat';
 import { ROLE_ORDER } from '../domain/labels';
 import { displayName } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
@@ -194,7 +194,11 @@ export function ReactionPills({ message, meId, onToggle }: { message: Message; m
 
 /** The quoted message a reply answers. */
 export function ReplyQuote({ message, author }: { message: Message | undefined; author: string }) {
-  const words = !message ? 'An earlier message' : message.removedAt ? 'Message removed' : message.body || (message.media.length ? 'Photo' : '');
+  const words = !message
+    ? 'An earlier message'
+    : message.removedAt
+      ? 'Message removed'
+      : message.body || mediaSummary(message.media.length, message.media.some((m) => m.kind === 'voice'));
   return (
     <View style={styles.quote}>
       <Text style={styles.quoteName} numberOfLines={1}>{author}</Text>
@@ -337,7 +341,7 @@ export function GifPicker({ onPick }: { onPick: (gif: GifPick) => void }) {
 /** Media for the viewer screen, from a message. */
 export function feedItemsOf(message: Message): FeedItem[] {
   return message.media
-    .filter((m) => m.kind !== 'gif')
+    .filter((m) => m.kind === 'photo' || m.kind === 'video')
     .map((m) => ({ ...m, conversationId: message.conversationId, authorId: message.authorId, createdAt: message.createdAt }));
 }
 

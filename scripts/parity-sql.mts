@@ -276,6 +276,10 @@ const gifs = (n = 0) =>
   `${q(JSON.stringify(Array.from({ length: n }, (_, i) => ({ kind: 'gif', path: `https://media1.giphy.com/media/parity${i}/giphy.gif`, width: 220, height: 160 }))))}::jsonb`;
 
 const json = (v: unknown) => `${q(JSON.stringify(v))}::jsonb`;
+// A case's voice note (uploaded into the case's chat folder before the call), or nothing.
+const voicePath = `${caseChat}::text || '/parity-voice.m4a'`;
+const voiceNote = (durationMs: number | null | undefined) =>
+  durationMs === undefined ? `'[]'::jsonb` : `jsonb_build_array(jsonb_build_object('kind', 'voice', 'path', ${voicePath}, 'durationMs', ${durationMs ?? 'null'}))`;
 const routeFile = fixtureGpx(fx.routes?.length ? 'valid' : null);
 const routeSummary = routeFile === null ? null : readGpx(routeFile);
 if (typeof routeSummary === 'string') throw new Error(`parity.json's valid GPX file: ${routeSummary}`);
@@ -513,7 +517,7 @@ const call = (c: ParityCase & Record<string, any>): string => {
     case 'signDocument':
       return documentCall(resolveCase(c, today) as ParityCase & Record<string, any>);
     case 'chatSend':
-      return `public.send_message(${caseChat}, ${text(c.body, c.repeat)}, ${gifs(c.gifs)}, ${c.replyTo ? id('msg', c.replyTo) : 'null'})`;
+      return `public.send_message(${caseChat}, ${text(c.body, c.repeat)}, ${voiceNote(c.voice)} || ${gifs(c.gifs)}, ${c.replyTo ? id('msg', c.replyTo) : 'null'})`;
     case 'chatRemove':
       return `public.remove_message(${id('msg', c.message)})`;
     case 'chatReact':
@@ -758,6 +762,11 @@ for (const c of fx.cases) {
   }
   if (c.action === 'socialNominate' && c.photo) {
     upload('brag-media', String(c.photo).startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, String(c.photo)));
+  }
+  if (c.action === 'chatSend' && c.voice !== undefined && c.as) {
+    sql(
+      `insert into storage.objects (bucket_id, name, owner, owner_id) select 'chat-media', ${voicePath}, ${id('m', c.as)}, ${id('m', c.as)}::text;`,
+    );
   }
   if (c.action === 'socialPostBuildUpdate') {
     for (const n of c.photos as string[]) upload('build-media', n.startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, n));

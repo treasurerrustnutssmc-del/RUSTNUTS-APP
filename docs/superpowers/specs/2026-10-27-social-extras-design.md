@@ -325,7 +325,48 @@ and last year's Best photo (closed, with a winner), dated from the demo's today.
 **Tests.** Domain rules and phases, demo actions, row mapping, parity cases for each refusal, SQL
 tests for RLS (votes private, tallies only once closed) and the photo bucket.
 
-## PRs 8 and 9
+## PR 8: Voice notes
 
-Each gets its own short design section added to this file before it's built, following the same
-shape (what members see, rules, database, demo, tests). The table above fixes the order and scope.
+**What members see.** In any chat, when the message box is empty and nothing is attached, the send
+button becomes a microphone. One tap starts recording (no holding down, which is hard with gloves
+and impossible for some): the composer turns into a recording bar with a red dot, the time so far
+and the limit ("0:07 / 2:00", stencil), a bin button to throw it away and a send button. Recording
+stops by itself at two minutes and waits to be sent or thrown away. A voice note goes on its own,
+like a GIF in most chat apps: no words or photos with it. In the chat it shows as a bubble with a
+44pt play/pause button, a progress bar and its length. The chat list, the pinned bar and reply
+quotes say "Voice note". Voice notes never show in Photos, ride walls or On this day. If the
+microphone is refused, the error bar says to turn it on in the phone's settings.
+
+**Rules** (`src/domain/chat.ts`, mirrored by `send_message`, same words, same order, after the
+existing checks): 'A voice note goes on its own.' (a voice note with words or any other media);
+'That voice note didn’t record properly. Try again.' (no length, or under a millisecond); 'Voice
+notes can be up to 2 minutes.' (over 120,000 ms). The database also checks the file like a photo
+(in the chat's folder, uploaded by the sender, not used before, no still) and that it's an `.m4a`
+or `.webm` file, and that a file storage knows to be a recording goes in only as a voice note (and a
+voice note only as a recording). Reports carry a reported voice note's recording so a moderator can
+listen to it.
+
+**Recording.** `expo-audio` (SDK 58, `npx expo install expo-audio`), `RecordingPresets.HIGH_QUALITY`
+(AAC in `.m4a` on phones; WebM, or MP4 on Safari, on the web). The length comes from the recorder,
+not the file, because Chrome's WebM files carry no length. Phones upload as `audio/mp4`, the web as
+the recording's own type. Adds a native module, so voice notes need a new development or store
+build; the `fingerprint` runtime policy keeps over-the-air updates off older builds.
+
+**Database** (`20270415000700_voice_notes.sql`, additive): `alter type chat_media_kind add value
+'voice'`; the chat-media bucket also takes `audio/mp4` and `audio/webm`; `send_message` is replaced
+with the voice rules; `club_photos`, `ride_walls`, `ride_wall` and `photos_on_this_day` are replaced
+so they take only photos and videos (they took everything but GIFs); `chat_list`'s newest message
+also says whether it's a voice note. No new value is used outside function bodies, so the paste
+runs in one go.
+
+**Demo.** One voice note in the whole-club chat (a short spoken clip bundled with the app), and
+recording works in the demo too (the note stays on the phone).
+
+**Tests.** Domain rules, demo send, feeds leaving voice notes out, row mapping, parity cases for
+each refusal (with an uploaded file in the fixture), SQL tests for the file checks, the feeds and
+the chat list flag.
+
+## PR 9
+
+Gets its own short design section added to this file before it's built, following the same shape
+(what members see, rules, database, demo, tests). The table above fixes the order and scope.
