@@ -72,7 +72,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     declineMember: async (memberId) => setData(act.decline(ctx, memberId)),
     setMemberStatus: async (memberId, status) => setData(act.setStatus(ctx, memberId, status)),
     saveProfile: async (profile, priv) => setData(act.saveProfile(ctx, profile, priv)),
-    saveBike: async (bike, reg) => setData(act.saveBike(ctx, bike, reg).data),
+    saveBike: async (bike, reg) => keep(act.saveBike(fresh(), bike, reg).data),
     removeBike: async (bikeId) => setData(act.removeBike(ctx, bikeId)),
     saveContact: async (contact) => setData(act.saveContact(ctx, contact)),
     removeContact: async (contactId) => setData(act.removeContact(ctx, contactId)),

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BEDS_LIMITS, GROUP_FULL, HUB_LOCKED, HUB_TEXT_TOO_LONG, hubCounts, hubListText, MEMBERS_ONLY, NO_HUB, NOT_HUB_MANAGER, NOT_REGISTERED,
-  REGISTER_TOO_LONG, REGISTRATIONS_CLOSED, registerProblem, saveHubProblem, withdrawHubProblem, type HubInput, type RegisterInput,
+  BAD_CLOSING_DAY, REGISTER_TOO_LONG, REGISTRATIONS_CLOSED, registerProblem, saveHubProblem, withdrawHubProblem, type HubInput, type RegisterInput,
 } from './hubs';
 import { AFTER_DAY, BEFORE, planningClub, who } from './planning.testkit';
 import type { HubRegistration, RideHub } from './types';
@@ -30,6 +30,13 @@ test('running a hub: in the database’s order', () => {
   assert.equal(saveHubProblem(sec, club, { ...hubInput, beds: 2.5 }, data, BEFORE), BEDS_LIMITS);
   assert.equal(saveHubProblem(sec, club, { ...hubInput, accommodation: 'x'.repeat(1001) }, data, BEFORE), HUB_TEXT_TOO_LONG);
   assert.equal(saveHubProblem(sec, club, { ...hubInput, notes: 'x'.repeat(1001) }, data, BEFORE), HUB_TEXT_TOO_LONG);
+  assert.equal(saveHubProblem(sec, club, { ...hubInput, closesOn: '2026-10-31' }, data, BEFORE), BAD_CLOSING_DAY);
+  assert.equal(saveHubProblem(sec, club, { ...hubInput, closesOn: '2026-11-09' }, data, BEFORE), BAD_CLOSING_DAY);
+  assert.equal(saveHubProblem(sec, club, { ...hubInput, closesOn: '2026-11-01' }, data, BEFORE), null);
+  assert.equal(saveHubProblem(sec, club, { ...hubInput, closesOn: '2026-11-08' }, data, BEFORE), null);
+  // A closing day that has already passed can stay as it is while the rest changes.
+  const closed = planningClub({ rideHubs: [hub({ closesOn: '2026-10-20' })] });
+  assert.equal(saveHubProblem(sec, club, { ...hubInput, closesOn: '2026-10-20', notes: 'Bring a swag' }, closed, BEFORE), null);
   assert.equal(saveHubProblem(sec, club, { ...hubInput, beds: 40 }, data, BEFORE), null);
 });
 

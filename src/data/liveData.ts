@@ -53,6 +53,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     () => undefined,
   );
 
+  // Ride planning extras: its own queries (so ride_calendar() stays as it is), read alongside the rest.
+  const planningLoad = loadPlanning(db);
+  planningLoad.catch(() => undefined); // Awaited below; this only keeps an early failure elsewhere from leaving it unhandled.
   const [
     members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs, bus,
   ] = await Promise.all([
@@ -118,8 +121,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     return r?.error ? [] : (r?.data ?? []);
   };
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
-  // Ride planning extras: its own queries, so ride_calendar() stays as it is.
-  const planning = await loadPlanning(db);
+  const planning = await planningLoad;
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,

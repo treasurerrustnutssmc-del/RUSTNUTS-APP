@@ -71,11 +71,12 @@ One rating per member per route; rating again replaces it. *Inferred:* any appro
 2. `That ride was cancelled.` (off the club calendar)
 3. After the ride day: `It’s too late to call this ride.`
 4. Not a writer: `Only the board, ride committee or this ride’s Road Captain can call the ride.`
-5. Reason over 200 characters: `Keep the reason to 200 characters at most.`
-6. A new day on anything but Postponed: `Only a postponed ride takes a new day.`
-7. A new day not after the ride's day, or more than 12 months on: `Pick a new day after the ride, within 12 months.`
+5. Off when it's already off: `The ride’s already off.` Back on when it isn't off or postponed: `The ride isn’t off or postponed.` (A postponed ride can be postponed again, to a new day.)
+6. Reason over 200 characters: `Keep the reason to 200 characters at most.`
+7. A new day on anything but Postponed: `Only a postponed ride takes a new day.`
+8. A new day not after the ride's day, or more than 12 months on: `Pick a new day after the ride, within 12 months.`
 
-Back on clears the reason and new day. Each call also posts a line in the ride's chat as the caller ("Ride’s off: Rain and 90 km/h winds."), when the ride has a chat. Answers stay open, so Going and Can't make it still work if it's back on. *Inferred:* the app doesn't move the ride in the club's Google calendar; a postponed ride says "Move it in the club calendar too" to the writer. Ride reminders skip a ride that's Off or Postponed.
+Back on clears the reason and new day. Each call also posts a line in the ride's chat as the caller ("Ride’s off: Rain and 90 km/h winds."), making the ride's chat first if it has none yet (rides from before the chat). Answers stay open, so Going and Can't make it still work if it's back on. *Inferred:* the app doesn't move the ride in the club's Google calendar; a postponed ride says "Move it in the club calendar too" to the writer. Ride reminders skip a ride that's Off or Postponed.
 
 Quick reasons on the screen (tap to fill): **Weather**, **Not enough riders**, **Road closures**.
 
@@ -85,6 +86,7 @@ Saving a hub (opening it, or changing it):
 4. Not a crew manager (`managesRide`): `Only the board, ride committee or NEC can run the hub.`
 5. Group beds outside 1 to 500: `Group beds: 1 to 500, or leave it blank.`
 6. Accommodation or notes over 1000: `That’s too long (1000 characters at most).`
+7. A new closing day before today (Melbourne) or after the ride's day: `Pick a closing day from today up to the ride day.` A closing day already saved can stay as it is.
 
 Registering (or changing your registration):
 1. `No such ride.` 2. `That ride was cancelled.` 3. No hub: `This ride doesn’t take registrations.`

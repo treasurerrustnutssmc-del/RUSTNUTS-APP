@@ -5806,12 +5806,42 @@
       "newDay": null
     },
     {
-      "name": "A manager puts a ride back on",
+      "name": "A manager puts a called-off ride back on",
       "as": "torque",
       "action": "callRide",
       "allowed": true,
+      "ride": "future-club",
+      "state": "on",
+      "reason": "",
+      "newDay": null
+    },
+    {
+      "name": "A ride that isn't called off or postponed can't be put back on",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": false,
       "ride": "future-west",
       "state": "on",
+      "reason": "",
+      "newDay": null
+    },
+    {
+      "name": "A ride that's already off can't be called off again",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": false,
+      "ride": "future-club",
+      "state": "off",
+      "reason": "Still raining",
+      "newDay": null
+    },
+    {
+      "name": "A ride that's off can be postponed instead",
+      "as": "torque",
+      "action": "callRide",
+      "allowed": true,
+      "ride": "future-club",
+      "state": "postponed",
       "reason": "",
       "newDay": null
     },
@@ -5825,6 +5855,30 @@
       "closesOn": null,
       "beds": 20,
       "accommodation": " Bright Motel ",
+      "notes": ""
+    },
+    {
+      "name": "A hub can't take a closing day that has passed",
+      "as": "torque",
+      "action": "saveHub",
+      "allowed": false,
+      "ride": "future-west",
+      "membersOnly": true,
+      "closesOn": "2020-01-01",
+      "beds": null,
+      "accommodation": "",
+      "notes": ""
+    },
+    {
+      "name": "A hub can't close after its ride",
+      "as": "torque",
+      "action": "saveHub",
+      "allowed": false,
+      "ride": "future-west",
+      "membersOnly": true,
+      "closesOn": "2099-01-01",
+      "beds": null,
+      "accommodation": "",
       "notes": ""
     },
     {
@@ -6884,6 +6938,9 @@
       "member": "torque",
       "stars": 4
     }
+  ],
+  "rideCalls": [
+    { "ride": "future-club", "state": "off", "reason": "Weather" }
   ],
   "rideHubs": [
     {

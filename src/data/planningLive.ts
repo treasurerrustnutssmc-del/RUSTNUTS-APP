@@ -15,14 +15,30 @@ const MISSING_TABLE = ['PGRST205', '42P01'];
 
 type Planning = Pick<ClubData, 'ridePlans' | 'routeRatings' | 'rideCalls' | 'rideHubs' | 'hubRegistrations' | 'crewSwaps'>;
 
+/** PostgREST hands back at most this many rows a request, so longer tables are read a page at a time. */
+const PAGE = 1000;
+
+type Page<T> = { data: T[] | null; error: { message: string; code?: string } | null };
+
+/** Every row, a page at a time in a fixed order, so nothing is cut off as the tables grow. */
+export async function allRows<T>(page: (from: number, to: number) => PromiseLike<Page<T>>): Promise<Page<T>> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const r = await page(from, from + PAGE - 1);
+    if (r.error) return { data: null, error: r.error };
+    rows.push(...(r.data ?? []));
+    if ((r.data ?? []).length < PAGE) return { data: rows, error: null };
+  }
+}
+
 export async function loadPlanning(db: SupabaseClient<Database>): Promise<Planning> {
   const [plans, ratings, calls, hubs, regs, swaps] = await Promise.all([
-    db.from('ride_plans').select('*'),
-    db.from('route_ratings').select('*'),
-    db.from('ride_calls').select('*'),
-    db.from('ride_hubs').select('*'),
-    db.from('hub_registrations').select('*'),
-    db.from('crew_swaps').select('*'),
+    allRows((a, b) => db.from('ride_plans').select('*').order('ride_id').range(a, b)),
+    allRows((a, b) => db.from('route_ratings').select('*').order('route_id').order('member_id').range(a, b)),
+    allRows((a, b) => db.from('ride_calls').select('*').order('ride_id').range(a, b)),
+    allRows((a, b) => db.from('ride_hubs').select('*').order('ride_id').range(a, b)),
+    allRows((a, b) => db.from('hub_registrations').select('*').order('ride_id').order('member_id').range(a, b)),
+    allRows((a, b) => db.from('crew_swaps').select('*').order('id').range(a, b)),
   ]);
   for (const r of [plans, ratings, calls, hubs, regs, swaps]) {
     if (r.error && !MISSING_TABLE.includes(r.error.code ?? '')) throw new Error(r.error.message ?? 'Couldn’t load the club data.');
@@ -61,7 +77,7 @@ export const saveRidePlanArgs = (rideId: string, stops: PlanStop[], seen: string
 export const rateRouteArgs = (routeId: string, stars: number, comment: string) => ({ p_route: routeId, p_stars: stars, p_comment: textOrNull(comment) });
 
 export const callRideArgs = (rideId: string, state: RideCallState, reason: string, newDay: string | null) => ({
-  p_ride: rideId, p_state: state, p_reason: state === 'on' ? null : textOrNull(reason), p_new_day: state === 'postponed' ? newDay : null,
+  p_ride: rideId, p_state: state, p_reason: state === 'on' ? null : textOrNull(reason), p_new_day: newDay,
 });
 
 export const saveHubArgs = (rideId: string, input: HubInput) => ({

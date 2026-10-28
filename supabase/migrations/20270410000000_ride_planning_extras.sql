@@ -183,6 +183,7 @@ declare
   clean_reason text;
   line text;
   chat uuid;
+  current_state public.ride_call_state;
 begin
   if me is null then raise exception 'Sign in first.'; end if;
   if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
@@ -194,6 +195,11 @@ begin
     raise exception 'Only the board, ride committee or this ride’s Road Captain can call the ride.';
   end if;
   if p_state is null then p_state := 'off'; end if;
+  -- A call has to change something (a postponed ride can be postponed again, to a new day).
+  select state into current_state from public.ride_calls where ride_id = p_ride;
+  current_state := coalesce(current_state, 'on');
+  if p_state = 'off' and current_state = 'off' then raise exception 'The ride’s already off.'; end if;
+  if p_state = 'on' and current_state = 'on' then raise exception 'The ride isn’t off or postponed.'; end if;
   clean_reason := case when p_state = 'on' then null else nullif(private.trim_like_app(p_reason), '') end;
   if char_length(clean_reason) > 200 then raise exception 'Keep the reason to 200 characters at most.'; end if;
   if p_new_day is not null and p_state <> 'postponed' then raise exception 'Only a postponed ride takes a new day.'; end if;
@@ -214,10 +220,10 @@ begin
     when 'postponed' then 'Ride’s postponed' || coalesce(' to ' || to_char(p_new_day, 'DD/MM/YYYY'), '')
     else 'Ride’s back on'
   end || coalesce(': ' || clean_reason, '.');
+  -- Rides from before the chat have no chat yet: make it, as ride_chat() does.
+  insert into public.conversations (kind, ride_id) values ('ride', p_ride) on conflict do nothing;
   select id into chat from public.conversations where kind = 'ride' and ride_id = p_ride;
-  if chat is not null then
-    insert into public.messages (conversation_id, author_id, body) values (chat, me, line);
-  end if;
+  insert into public.messages (conversation_id, author_id, body) values (chat, me, line);
 end;
 $$;
 
@@ -279,6 +285,13 @@ begin
   clean_notes := nullif(private.trim_like_app(p_notes), '');
   if char_length(clean_accommodation) > 1000 or char_length(clean_notes) > 1000 then
     raise exception 'That’s too long (1000 characters at most).';
+  end if;
+  -- A closing day already set can stay; a new one runs from today to the ride day.
+  if p_closes_on is not null
+     and p_closes_on is distinct from (select h.closes_on from public.ride_hubs h where h.ride_id = p_ride)
+     and (p_closes_on < private.club_date()
+          or p_closes_on > (ride.starts_at at time zone 'Australia/Melbourne')::date) then
+    raise exception 'Pick a closing day from today up to the ride day.';
   end if;
   insert into public.ride_hubs (ride_id, members_only, closes_on, beds, accommodation, notes, updated_by, updated_at)
   values (p_ride, coalesce(p_members_only, true), p_closes_on, p_beds, clean_accommodation, clean_notes, me, now())

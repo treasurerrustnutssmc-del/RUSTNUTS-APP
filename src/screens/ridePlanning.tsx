@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
+import { isBig4 } from '../domain/big4';
 import { writesBriefing } from '../domain/briefings';
 import { pickGroups, spotOf } from '../domain/crew';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
@@ -17,7 +18,7 @@ import { ROLE_LABEL } from '../domain/labels';
 import { displayName, initials, memberName } from '../domain/profile';
 import { MAX_COMMENT, rateProblem, ratingsFor, routeScore, starsLine } from '../domain/ratings';
 import { activeCall, callProblem, callTitle, MAX_REASON, QUICK_REASONS } from '../domain/rideCalls';
-import { editPlanProblem, MAX_STOPS, savePlanProblem, STOP_KINDS, STOP_LABEL } from '../domain/ridePlan';
+import { editPlanProblem, MAX_STOP_NAME, MAX_STOPS, readTime, typeTime, savePlanProblem, STOP_KINDS, STOP_LABEL } from '../domain/ridePlan';
 import { endOfFirstDay, lastDay, melbourneDate, melbourneTime } from '../domain/rides';
 import { routeOf } from '../domain/routes';
 import { askSwapProblem, myOpenAsk, openAsksFor } from '../domain/swaps';
@@ -192,8 +193,8 @@ export function HubSection({ ride, me, data, today, onOpen, onEdit }: {
   const hub = hubFor(ride.id, data);
   const canRun = saveHubProblem(me, ride, { membersOnly: true, closesOn: null, beds: null, accommodation: '', notes: '' }, data, nowIso()) === null;
   if (!hub) {
-    // Offered on club rides and anything over more than one day (the Big 4 and the like), not every breakfast run.
-    const bigRide = ride.category === 'club' || lastDay(ride) !== melbourneDate(ride.startsAt);
+    // Offered on Big 4s, club rides and anything over more than one day, not every breakfast run.
+    const bigRide = isBig4(ride.id, data) || ride.category === 'club' || lastDay(ride) !== melbourneDate(ride.startsAt);
     if (!canRun || !bigRide) return null;
     return (
       <Stack gap={space.sm}>
@@ -240,10 +241,16 @@ function AskForMe({ swap, data }: { swap: CrewSwap; data: ClubData }) {
       <Text style={type.name}>Swap asked</Text>
       <Body>{lead}</Body>
       {swap.note ? <Body style={{ color: colors.bone }}>{`“${swap.note}”`}</Body> : null}
-      <Row style={{ gap: space.sm }}>
-        <Button label="Take it" icon="checkmark" busy={busy} onPress={() => run(() => answerSwap(swap.id, true))} style={{ flex: 1 }} />
-        <Button label="No thanks" kind="secondary" disabled={busy} onPress={() => run(() => answerSwap(swap.id, false))} />
-      </Row>
+      <Button label="Take it" icon="checkmark" busy={busy} onPress={() => run(() => answerSwap(swap.id, true))} />
+      {busy ? null : (
+        <ConfirmButton
+          label="No thanks"
+          confirmLabel="Yes, say no"
+          kind="secondary"
+          confirmNote={`${asker} would have to ask again.`}
+          onConfirm={() => run(() => answerSwap(swap.id, false))}
+        />
+      )}
       <ErrorLine error={error} />
     </Card>
   );
@@ -298,7 +305,7 @@ function readKm(text: string): number | null {
   return /^\d+(\.\d+)?$/.test(t) ? Number(t) : Number.NaN;
 }
 
-const fromDraft = (d: StopDraft): PlanStop => ({ kind: d.kind, name: d.name, km: readKm(d.km), time: d.time.trim() || null });
+const fromDraft = (d: StopDraft): PlanStop => ({ kind: d.kind, name: d.name, km: readKm(d.km), time: readTime(d.time) });
 
 export function PlanRideScreen({ route: nav, navigation }: RootScreen<'PlanRide'>) {
   const { me, data, saveRidePlan } = useClub();
@@ -364,20 +371,20 @@ export function PlanRideScreen({ route: nav, navigation }: RootScreen<'PlanRide'
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Remove stop ${i + 1}`}
-              hitSlop={12}
               onPress={() => setDrafts(drafts.filter((_, j) => j !== i))}
+              style={styles.removeHit}
             >
               <Text style={styles.removeText}>Remove</Text>
             </Pressable>
           </Row>
           <Choices<StopKind> options={STOP_KINDS.map((k) => ({ value: k, label: STOP_LABEL[k] }))} value={d.kind} onChange={(kind) => change(i, { kind })} />
-          <Field label="Name" value={d.name} onChangeText={(name) => change(i, { name })} placeholder="Kinglake servo" maxLength={80} />
+          <Field label="Name" value={d.name} onChangeText={(name) => change(i, { name })} placeholder="Kinglake servo" maxLength={MAX_STOP_NAME} />
           <Row style={{ gap: space.sm, alignItems: 'flex-start' }}>
             <View style={{ flex: 1 }}>
               <Field label="Km along" value={d.km} onChangeText={(t) => change(i, { km: t })} inputMode="decimal" keyboardType="decimal-pad" placeholder="40" maxLength={7} />
             </View>
             <View style={{ flex: 1 }}>
-              <Field label="Time" value={d.time} onChangeText={(t) => change(i, { time: t })} inputMode="numeric" placeholder="10:30" maxLength={5} />
+              <Field label="Time" value={d.time} onChangeText={(t) => change(i, { time: typeTime(t) })} inputMode="numeric" keyboardType="number-pad" placeholder="10:30" maxLength={5} />
             </View>
           </Row>
         </Card>
@@ -920,6 +927,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stopMeta: { fontFamily: fonts.stencil, fontSize: 13, letterSpacing: 0.4, color: colors.boneMute, marginTop: 2 },
+  removeHit: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'flex-end', marginVertical: -space.sm },
   removeText: { fontFamily: fonts.stencil, fontSize: 14, letterSpacing: 0.4, color: colors.redText },
   quick: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   quickChip: {

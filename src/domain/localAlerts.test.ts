@@ -47,3 +47,15 @@ test('with ride changes turned off, or signed out, there are no alerts', () => {
   assert.deepEqual(localAlerts(data, 'rider', { ...DEFAULT_PREFS, rideChanges: false }, BEFORE), []);
   assert.deepEqual(localAlerts(data, null, DEFAULT_PREFS, BEFORE), []);
 });
+
+test('an ask more than a day old doesn’t pop up (a fresh install or sign-in)', () => {
+  const data = club({ crewSwaps: [swap()] });
+  const later = new Date(Date.parse(BEFORE) + 25 * 3600_000).toISOString();
+  assert.deepEqual(localAlerts(data, 'rider', DEFAULT_PREFS, later), []);
+});
+
+test('a done trade tells the asker their new spot', () => {
+  const data = club({ crewSwaps: [swap({ askedBy: 'rider', askedTo: 'tg', role: 'officer', theirRole: 'tail_gunner', state: 'accepted', answeredAt: BEFORE })] });
+  const [alert] = localAlerts(data, 'rider', DEFAULT_PREFS, BEFORE);
+  assert.match(alert.body, /traded spots on .*: you’re now Tail Gunner\./);
+});

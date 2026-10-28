@@ -27,6 +27,7 @@ export function localAlerts(data: ClubData, meId: string | null, prefs: Notifica
   const out: (LocalAlert & { at: string })[] = [];
 
   for (const s of openAsksFor(meId, data, now)) {
+    if (!recent(s.askedAt)) continue;
     const asker = memberName(s.askedBy, data.members);
     out.push({
       id: `swap-ask-${s.id}`,
@@ -48,7 +49,9 @@ export function localAlerts(data: ClubData, meId: string | null, prefs: Notifica
       at: s.answeredAt!,
       title: s.state === 'accepted' ? 'Swap done' : 'Swap declined',
       body: s.state === 'accepted'
-        ? `${who} took your ${ROLE_LABEL[s.role]} spot on ${title(s.rideId)}.`
+        ? s.theirRole
+          ? `${who} traded spots on ${title(s.rideId)}: you’re now ${ROLE_LABEL[s.theirRole]}.`
+          : `${who} took your ${ROLE_LABEL[s.role]} spot on ${title(s.rideId)}.`
         : `${who} can’t take your ${ROLE_LABEL[s.role]} spot on ${title(s.rideId)}. You’re still on the crew.`,
     });
   }

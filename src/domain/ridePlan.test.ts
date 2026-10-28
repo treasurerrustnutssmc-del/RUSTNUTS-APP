@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BAD_KM, BAD_TIME, cleanStops, NOT_PLANNER, PLAN_CONFLICT, PLAN_LOCKED, savePlanProblem, STOP_NAME, TOO_MANY_STOPS, briefingStops,
+  BAD_KM, BAD_TIME, cleanStops, NOT_PLANNER, PLAN_CONFLICT, PLAN_LOCKED, savePlanProblem, STOP_NAME, TOO_MANY_STOPS, briefingStops, readTime, typeTime,
 } from './ridePlan';
 import { AFTER_DAY, BEFORE, planningClub, who } from './planning.testkit';
 import type { PlanStop, RidePlan } from './types';
@@ -69,4 +69,16 @@ test('the briefing shows the plan’s stops when there are any, and the route’
   const planned = planningClub({ ridePlans: [{ rideId: 'r-west', stops: [stop('Pie shop', 10, { kind: 'lunch', time: '12:30' })], updatedAt: '', updatedBy: null }] });
   assert.deepEqual(briefingStops('r-west', planned), [{ name: 'Pie shop', kind: 'lunch', km: 10, time: '12:30' }]);
   assert.deepEqual(briefingStops('r-club', planned), []);
+});
+
+test('typing a time on the number pad puts the colon in, and a one-digit hour gets its zero on save', () => {
+  assert.equal(typeTime('1'), '1');
+  assert.equal(typeTime('10'), '10');
+  assert.equal(typeTime('103'), '1:03');
+  assert.equal(typeTime('1030'), '10:30');
+  assert.equal(typeTime('10:30'), '10:30');
+  assert.equal(typeTime('10305'), '10:30');
+  assert.equal(readTime('9:30'), '09:30');
+  assert.equal(readTime('10:30'), '10:30');
+  assert.equal(readTime(' '), null);
 });

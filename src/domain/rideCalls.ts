@@ -14,6 +14,8 @@ export const QUICK_REASONS = ['Weather', 'Not enough riders', 'Road closures'];
 
 export const CALL_TOO_LATE = 'It’s too late to call this ride.';
 export const NOT_CALLER = 'Only the board, ride committee or this ride’s Road Captain can call the ride.';
+export const ALREADY_OFF = 'The ride’s already off.';
+export const NOT_CALLED = 'The ride isn’t off or postponed.';
 export const REASON_TOO_LONG = 'Keep the reason to 200 characters at most.';
 export const NEW_DAY_NEEDS_POSTPONED = 'Only a postponed ride takes a new day.';
 export const BAD_NEW_DAY = 'Pick a new day after the ride, within 12 months.';
@@ -41,6 +43,10 @@ export function callProblem(
   if (ride.cancelledAt) return 'That ride was cancelled.';
   if (Date.parse(now) >= endOfFirstDay(ride)) return CALL_TOO_LATE;
   if (!writesBriefing(me, ride, data)) return NOT_CALLER;
+  // A call has to change something (a postponed ride can be postponed again, to a new day).
+  const current = activeCall(ride.id, data)?.state ?? 'on';
+  if (state === 'off' && current === 'off') return ALREADY_OFF;
+  if (state === 'on' && current === 'on') return NOT_CALLED;
   if (state !== 'on' && [...reason.trim()].length > MAX_REASON) return REASON_TOO_LONG;
   if (newDay !== null && state !== 'postponed') return NEW_DAY_NEEDS_POSTPONED;
   const rideDay = melbourneDate(ride.startsAt);

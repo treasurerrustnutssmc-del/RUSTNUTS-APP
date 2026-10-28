@@ -15,12 +15,19 @@ import {
   signRoadRulesArgs,
 } from './liveData';
 
+/** A query result that can be awaited at any step: after select, order or range (paged reads). */
+type Chain<R> = { order: () => Chain<R>; range: () => Promise<R>; then: (f: (v: R) => unknown) => Promise<unknown> };
+function chainOf<R>(r: R): Chain<R> {
+  const chain: Chain<R> = { order: () => chain, range: () => Promise.resolve(r), then: (f) => Promise.resolve(r).then(f) };
+  return chain;
+}
+
 // A stand-in for the Supabase client: hands back fixed rows per table.
 function stubClient(tables: Record<string, unknown[]>, phones: unknown[] = []) {
   const result = (name: string) => ({ data: tables[name] ?? [], error: null });
   const query = (name: string) => {
     const r = result(name);
-    const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+    const chain = chainOf(r);
     return { select: () => chain };
   };
   const rpc = (name: string) =>
@@ -93,7 +100,7 @@ test('signed in: a roster place is claimed before the club is read, so a new mem
     from: (name: string) => {
       calls.push(`from:${name}`);
       const r = { data: name === 'chapters' ? [west] : [], error: null };
-      const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+      const chain = chainOf(r);
       return { select: () => chain };
     },
     rpc: (name: string) => {
@@ -110,7 +117,7 @@ test('signed in: a failed roster claim never stops the club loading', async () =
   const client = {
     from: () => {
       const r = { data: [], error: null };
-      const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+      const chain = chainOf(r);
       return { select: () => chain };
     },
     rpc: (name: string) =>
@@ -125,7 +132,7 @@ test('signed out: no roster claim is tried', async () => {
   const client = {
     from: () => {
       const r = { data: [west], error: null };
-      const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+      const chain = chainOf(r);
       return { select: () => chain };
     },
     rpc: (name: string) => {
@@ -264,7 +271,7 @@ test('signed in: the library is read with named columns, never the GPX files, an
       select: (cols = '*') => {
         selects[name] = cols;
         const r = { data: name === 'chapters' ? [west] : name === 'routes' ? [routeRow, { ...routeRow, id: 'rt2', notes: 'Twisty', climb_m: 2400, chapter_id: null, archived_at: null, bounds: null }] : [], error: null };
-        const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+        const chain = chainOf(r);
         return chain;
       },
     }),
@@ -446,7 +453,7 @@ test('signed out: no Road Rules are read', async () => {
 function tableFails(table: string, message: string, code?: string) {
   const base = stubClient({ chapters: [west] }) as unknown as { from: (n: string) => unknown; rpc: unknown };
   const r = { data: null, error: { message, code } };
-  const chain = { order: () => Promise.resolve(r), then: (f: (v: typeof r) => unknown) => Promise.resolve(r).then(f) };
+  const chain = chainOf(r);
   return { from: (name: string) => (name === table ? { select: () => chain } : base.from(name)), rpc: base.rpc } as never;
 }
 

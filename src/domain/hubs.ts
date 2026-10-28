@@ -22,6 +22,7 @@ export const STAYING_LABEL: Record<HubStaying, string> = {
 
 export const HUB_LOCKED = 'The hub can’t change after the ride day.';
 export const NOT_HUB_MANAGER = 'Only the board, ride committee or NEC can run the hub.';
+export const BAD_CLOSING_DAY = 'Pick a closing day from today up to the ride day.';
 export const BEDS_LIMITS = 'Group beds: 1 to 500, or leave it blank.';
 export const HUB_TEXT_TOO_LONG = 'That’s too long (1000 characters at most).';
 export const NO_HUB = 'This ride doesn’t take registrations.';
@@ -71,6 +72,11 @@ export function saveHubProblem(me: Member | null, ride: Ride | undefined, input:
   if (!managesRide(me, ride, data)) return NOT_HUB_MANAGER;
   if (input.beds !== null && (!Number.isInteger(input.beds) || input.beds < 1 || input.beds > 500)) return BEDS_LIMITS;
   if (length(input.accommodation) > MAX_HUB_TEXT || length(input.notes) > MAX_HUB_TEXT) return HUB_TEXT_TOO_LONG;
+  // A closing day already set can stay; a new one runs from today to the ride day.
+  const kept = input.closesOn !== null && hubFor(ride.id, data)?.closesOn === input.closesOn;
+  if (input.closesOn !== null && !kept && (input.closesOn < melbourneDate(now) || input.closesOn > melbourneDate(ride.startsAt))) {
+    return BAD_CLOSING_DAY;
+  }
   return null;
 }
 

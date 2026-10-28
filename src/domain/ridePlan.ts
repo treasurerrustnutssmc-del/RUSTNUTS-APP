@@ -89,3 +89,16 @@ export function briefingStops(rideId: string, data: ClubData): { name: string; k
   const route = (data.routes ?? []).find((r) => r.id === routeId);
   return (route?.stops ?? []).map((s) => ({ name: s.name }));
 }
+
+/** A time as it's typed on the number pad: digits only, with the colon put in before the minutes ("1030" → "10:30"). */
+export function typeTime(text: string): string {
+  const digits = text.replace(/\D/g, '').slice(0, 4);
+  return digits.length <= 2 ? digits : `${digits.slice(0, -2)}:${digits.slice(-2)}`;
+}
+
+/** A typed time for saving: blank is none, and a one-digit hour gets its zero ("9:30" → "09:30"). */
+export function readTime(text: string): string | null {
+  const t = text.trim();
+  if (t === '') return null;
+  return /^\d:\d\d$/.test(t) ? `0${t}` : t;
+}

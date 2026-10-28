@@ -249,12 +249,17 @@ begin
   perform pg_temp.expect(cara, format('select public.call_ride(%L, %L, null, null)', '00000000-0000-0000-0000-00000000dd03', 'off'), 'It’s too late to call this ride.');
   perform pg_temp.expect(gus, format('select public.call_ride(%L, %L, null, null)', ride, 'off'),
     'Only the board, ride committee or this ride’s Road Captain can call the ride.');
+  -- A call has to change something.
+  perform pg_temp.expect(fran, format('select public.call_ride(%L, %L, null, null)', ride, 'on'), 'The ride isn’t off or postponed.');
   perform pg_temp.expect(fran, format('select public.call_ride(%L, %L, %L, null)', ride, 'off', repeat('x', 201)), 'Keep the reason to 200 characters at most.');
   perform pg_temp.expect(fran, format('select public.call_ride(%L, %L, null, %L)', ride, 'off', ride_day + 7), 'Only a postponed ride takes a new day.');
   perform pg_temp.expect(fran, format('select public.call_ride(%L, %L, null, %L)', ride, 'postponed', ride_day), 'Pick a new day after the ride, within 12 months.');
   perform pg_temp.expect(fran, format('select public.call_ride(%L, %L, null, %L)', ride, 'postponed', ride_day + 366), 'Pick a new day after the ride, within 12 months.');
 
+  -- A ride from before the chat has none yet: the call makes it.
+  delete from conversations where kind = 'ride' and ride_id = ride::uuid;
   perform pg_temp.expect(fran, format('select public.call_ride(%L, %L, %L, null)', ride, 'off', '  Rain and 90 km/h winds. '), null);
+  perform pg_temp.expect(cara, format('select public.call_ride(%L, %L, null, null)', ride, 'off'), 'The ride’s already off.');
   select * into c from ride_calls where ride_id = ride::uuid;
   assert c.state = 'off' and c.reason = 'Rain and 90 km/h winds.' and c.called_by = fran and c.new_day is null, 'called off';
   select id into chat from conversations where kind = 'ride' and ride_id = ride::uuid;
@@ -333,6 +338,12 @@ begin
   assert (select withdrawn_at from hub_registrations where ride_id = ndyr::uuid and member_id = gus) is null, 'back';
 
   -- Closed yesterday: no registering, but withdrawing still works.
+  -- A new closing day runs from today to the ride day; one already set can stay.
+  perform pg_temp.expect(cara, format('select public.save_hub(%L, false, %L, null, null, null)', ndyr, private.club_date() - 1),
+    'Pick a closing day from today up to the ride day.');
+  perform pg_temp.expect(cara, format('select public.save_hub(%L, false, %L, null, null, null)', ndyr,
+    (select date(starts_at at time zone 'Australia/Melbourne') + 1 from rides where id = ndyr::uuid)), 'Pick a closing day from today up to the ride day.');
+  update ride_hubs set closes_on = private.club_date() - 1 where ride_id = ndyr::uuid;
   perform pg_temp.expect(cara, format('select public.save_hub(%L, false, %L, null, null, null)', ndyr, private.club_date() - 1), null);
   perform pg_temp.expect(sue, format('select public.register_hub(%L, %L, false, null, null)', ndyr, 'day'), 'Registrations have closed.');
   perform pg_temp.expect(gus, format('select public.withdraw_hub(%L)', ndyr), null);

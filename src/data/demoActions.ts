@@ -231,6 +231,8 @@ export function saveBike(ctx: DemoCtx, bike: BikeInput, reg: RegoInput): { data:
     ...bike,
     id,
     memberId: self.id,
+    // Like save_bike, saving leaves the range alone (set_bike_range sets it).
+    rangeKm: ctx.data.bikes.find((b) => b.id === bike.id)?.rangeKm ?? null,
     make: bike.make.trim(),
     model: bike.model.trim(),
     nickname: bike.nickname?.trim() || null,
