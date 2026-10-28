@@ -201,7 +201,43 @@ recently sold, one by the demo member so Edit and Mark as sold can be tried.
 mapping, parity cases for every refusal and success, and SQL tests for RLS (suspended seller
 hidden, taken-down hidden), storage folder checks, and who can change what.
 
-## PRs 5 to 9
+## PR 5: Garage build threads
+
+**What members see.** A "Garage builds" row on the Members tab, under Swap and sell. The screen
+lists project bikes (bikes marked "project" in someone's garage) that have at least one update,
+the one updated most recently first. Each card shows the latest photo, the bike (nickname in
+stencil, or make and model), the owner, how many updates, and the date of the last one. A bike's
+build screen shows its updates newest first: date in stencil, words, and up to 4 photos each.
+The owner sees "Post an update" (words and/or photos) and can take down their own update
+(ConfirmButton); the board can take down anyone's. Members can't comment here; "Message the
+owner" opens a private chat. Your own project bikes sit at the top under "Your projects", so a
+build can be started before its first update (the garage screens on Me stay as they are).
+
+**Rules** (`src/domain/social/builds.ts`, mirrored by the database, same words, same order):
+- Sign in first; only approved members can do that; then:
+- 'No such bike.'; 'Only the bike’s owner can post on its build.'; 'Build threads are for
+  project bikes. Mark it as a project in your garage first.'
+- 'Write something or add a photo.'; 'Keep it to 2,000 characters at most.'; 'Up to 4 photos.';
+  'That photo didn’t upload properly. Try again.' (in your own folder of the build-media bucket,
+  uploaded by you, on no other update, not twice).
+- Taking down: 'No such update.'; 'Only whoever posted it or the board can take it down.';
+  'That update has already been taken down.'.
+- Nothing is deleted: an update taken down keeps its row with who took it down.
+- Approved members read updates on approved owners' bikes that aren't taken down. A bike that
+  stops being a project keeps its thread, read-only (no new posts).
+
+**Database** (`20270415000400_build_threads.sql`): `build_updates` (bike_id, author_id, body,
+photos jsonb, posted_at, taken_down_at, taken_down_by); a private `build-media` bucket like
+swap-media; functions `post_build_update(uuid, text, jsonb)` returning the id and
+`take_down_build_update(uuid)`. No drop, no delete.
+
+**Demo.** Two project bikes with a few updates each over the last months, one of them the demo
+member's.
+
+**Tests.** Domain rules, demo actions, row mapping, parity cases for each refusal, SQL tests for
+RLS and the storage folder checks.
+
+## PRs 6 to 9
 
 Each gets its own short design section added to this file before it's built, following the same
 shape (what members see, rules, database, demo, tests). The table above fixes the order and scope.

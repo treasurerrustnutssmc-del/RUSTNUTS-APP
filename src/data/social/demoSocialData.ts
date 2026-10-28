@@ -6,6 +6,7 @@ import type { Birthday } from '../../domain/social/shoutouts';
 import type { FeedItem } from '../chat/chatContext';
 import type { Mechanic } from '../../domain/social/help';
 import type { Listing } from '../../domain/social/swap';
+import type { BuildUpdate } from '../../domain/social/builds';
 import type { SocialData } from './demoSocialActions';
 
 const monthDay = (iso: string) => ({ month: Number(iso.slice(5, 7)), day: Number(iso.slice(8, 10)) });
@@ -71,7 +72,23 @@ export function demoSocialData(today: string): SocialData {
       { mechanicId: 'mech-3', memberId: 'm-diesel', vouched: true },
     ],
     listings: demoListings(today),
+    buildUpdates: demoBuildUpdates(today),
   };
+}
+
+/** Build threads: Diesel's BSA coming back to life, and Spanner's CB750 (the demo member's, to post on). */
+function demoBuildUpdates(today: string): BuildUpdate[] {
+  const daysAgo = (n: number) => `${addDays(today, -n)}T08:30:00.000Z`;
+  const pic = (memberId: string, name: string) => ({ path: `${memberId}/demo/${name}`, width: 1200, height: 900 });
+  const u = (id: string, bikeId: string, authorId: string, n: number, body: string | null, photos: BuildUpdate['photos'] = []): BuildUpdate => ({
+    id, bikeId, authorId, body, photos, postedAt: daysAgo(n), takenDownAt: null,
+  });
+  return [
+    u('build-1', 'b-20', 'm-diesel', 90, 'Dragged her out of a shed in Ballan. Seized, but all there. Matching numbers.', [pic('m-diesel', 'servo-night.jpg')]),
+    u('build-2', 'b-20', 'm-diesel', 41, 'Engine’s out and on the bench. Bores are better than I hoped.'),
+    u('build-3', 'b-20', 'm-diesel', 2, 'First kick in 30 years and she fired. Took it round the block.', [pic('m-diesel', 'dusk-run.jpg'), pic('m-diesel', 'coast-road.jpg')]),
+    u('build-4', 'b-7', 'm-spanner', 20, 'Carbs stripped and soaking. Anyone got a spare float bowl gasket?'),
+  ];
 }
 
 /** Swap and sell: a few things up, one sold last week, and one of Spanner's (the demo member) to try Edit on. */

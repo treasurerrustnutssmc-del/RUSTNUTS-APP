@@ -29,14 +29,15 @@ const date = (d: string | null) => (d === null ? 'null' : `date ${q(d)}`);
 
 const out: string[] = [];
 const sql = (s: string) => out.push(s);
-// A file in the swap-media bucket, uploaded by a member (nobody signed in uploads nothing).
-const uploadSwap = (member: string | null, path: string) => {
+// A file in a storage bucket, uploaded by a member (nobody signed in uploads nothing).
+const upload = (bucket: string, member: string | null, path: string) => {
   if (!member) return;
   sql(
-    `insert into storage.objects (bucket_id, name, owner, owner_id) select 'swap-media', ${q(path)}, ${id('m', member)}, ${id('m', member)}::text ` +
-      `where not exists (select 1 from storage.objects where bucket_id = 'swap-media' and name = ${q(path)});`,
+    `insert into storage.objects (bucket_id, name, owner, owner_id) select ${q(bucket)}, ${q(path)}, ${id('m', member)}, ${id('m', member)}::text ` +
+      `where not exists (select 1 from storage.objects where bucket_id = ${q(bucket)} and name = ${q(path)});`,
   );
 };
+const uploadSwap = (member: string | null, path: string) => upload('swap-media', member, path);
 
 sql('\\set ON_ERROR_STOP 1');
 sql('\\set QUIET 1');
@@ -70,8 +71,8 @@ for (const p of fx.positions) {
 }
 for (const b of fx.bikes) {
   sql(
-    `insert into public.bikes (id, member_id, make, model, year) values (` +
-      `${id('b', b.key)}, ${id('m', b.member)}, ${q(b.make)}, ${q(b.model)}, ${b.year});`,
+    `insert into public.bikes (id, member_id, make, model, year, is_project) values (` +
+      `${id('b', b.key)}, ${id('m', b.member)}, ${q(b.make)}, ${q(b.model)}, ${b.year}, ${(b as { project?: boolean }).project ?? false});`,
   );
 }
 for (const c of fx.contacts) {
@@ -548,6 +549,13 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.mark_listing_sold(${id('listing', c.listing)}, ${c.sold})`;
     case 'socialTakeDownListing':
       return `public.take_down_listing(${id('listing', c.listing)})`;
+    case 'socialPostBuildUpdate':
+      return (
+        `public.post_build_update(${id('b', c.bike)}, ${q(c.body)}, ` +
+        `${json((c.photos as string[]).map((n) => ({ path: listingPhotoPath(c.as, n), width: 800, height: 600 })))})`
+      );
+    case 'socialTakeDownBuildUpdate':
+      return `public.take_down_build_update(${id('build', c.update)})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
@@ -633,6 +641,17 @@ for (const m of (fx as typeof fx & { mechanics?: { key: string; name: string; ad
   );
 }
 
+// The fixture's build updates, with their photos uploaded by their posters.
+type FixtureBuildUpdate = { key: string; bike: string; author: string; photos: string[]; takenDown: boolean };
+for (const u of (fx as typeof fx & { buildUpdates?: FixtureBuildUpdate[] }).buildUpdates ?? []) {
+  const photos = u.photos.map((n) => ({ path: listingPhotoPath(u.author, n), width: 800, height: 600 }));
+  for (const p of photos) upload('build-media', u.author, p.path);
+  sql(
+    `insert into public.build_updates (id, bike_id, author_id, body, photos, taken_down_at) values (${id('build', u.key)}, ` +
+      `${id('b', u.bike)}, ${id('m', u.author)}, 'Fixture update', ${json(photos)}, ${u.takenDown ? 'now()' : 'null'});`,
+  );
+}
+
 // The fixture's listings, with their photos uploaded by their sellers.
 type FixtureListing = { key: string; seller: string; kind: string; title: string; price: number | null; photos: string[]; takenDown: boolean };
 for (const l of (fx as typeof fx & { listings?: FixtureListing[] }).listings ?? []) {
@@ -664,6 +683,9 @@ for (const c of fx.cases) {
   // A listing's photos are uploaded first (by their owner), as the phone does.
   if (c.action === 'socialSaveListing') {
     for (const n of c.photos as string[]) uploadSwap(n.startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, n));
+  }
+  if (c.action === 'socialPostBuildUpdate') {
+    for (const n of c.photos as string[]) upload('build-media', n.startsWith('other:') ? 'someone-else' : c.as, listingPhotoPath(c.as, n));
   }
   sql('set local role authenticated;');
   sql('do $parity$ begin');

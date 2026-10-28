@@ -42,6 +42,7 @@ import { FngReviewScreen } from '../screens/fng';
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
 import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } from '../screens/help';
 import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swap';
+import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../screens/builds';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -263,6 +264,9 @@ export function RootNavigator() {
               component={EditListingScreen}
               options={({ route }) => ({ title: route.params?.listingId ? 'Change listing' : 'List something' })}
             />
+            <Stack.Screen name="Builds" component={BuildsScreen} options={{ title: 'Garage builds' }} />
+            <Stack.Screen name="BuildThread" component={BuildThreadScreen} options={{ title: 'Build' }} />
+            <Stack.Screen name="PostBuildUpdate" component={PostBuildUpdateScreen} options={{ title: 'Post an update' }} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}

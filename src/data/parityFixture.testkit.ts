@@ -49,7 +49,7 @@ export interface ParityFixture {
     firstAidExpiry?: string | null;
   }[];
   positions: { key: string; member: string; chapter: string | null; role: PositionRole; startedOn: string; endedOn: string | null }[];
-  bikes: { key: string; member: string; make: string; model: string; year: number }[];
+  bikes: { key: string; member: string; make: string; model: string; year: number; project?: boolean }[];
   contacts: { key: string; member: string; name: string; relationship: string; phone: string }[];
   rides: { key: string; title: string; startsAt: string; category: RideCategory; cancelled: boolean }[];
   // Stage 5: meetings and votes
@@ -225,7 +225,7 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
         firstAidExpiry: m.firstAidExpiry ?? null, introducedBy: null, applicationNote: null,
       })),
     bikes: fixture.bikes.map((b) => ({
-      id: b.key, memberId: b.member, make: b.make, model: b.model, year: b.year, nickname: null, isProject: false,
+      id: b.key, memberId: b.member, make: b.make, model: b.model, year: b.year, nickname: null, isProject: b.project ?? false,
     })),
     registrations: [],
     emergencyContacts: fixture.contacts.map((c) => ({
@@ -480,7 +480,20 @@ export function fixtureSocial(): SocialData {
       photos: l.photos.map((name) => ({ path: `${l.seller}/${name}`, width: 800, height: 600 })),
       listedAt: '2026-10-01T00:00:00.000Z', soldAt: null, takenDownAt: l.takenDown ? '2026-10-02T00:00:00.000Z' : null,
     })),
+    buildUpdates: ((f as { buildUpdates?: FixtureBuildUpdate[] }).buildUpdates ?? []).map((u) => ({
+      id: u.key, bikeId: u.bike, authorId: u.author, body: 'Fixture update',
+      photos: u.photos.map((name) => ({ path: `${u.author}/${name}`, width: 800, height: 600 })),
+      postedAt: '2026-10-01T00:00:00.000Z', takenDownAt: u.takenDown ? '2026-10-02T00:00:00.000Z' : null,
+    })),
   };
+}
+
+interface FixtureBuildUpdate {
+  key: string;
+  bike: string;
+  author: string;
+  photos: string[];
+  takenDown: boolean;
 }
 
 interface FixtureListing {

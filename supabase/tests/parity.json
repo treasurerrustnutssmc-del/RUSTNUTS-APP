@@ -272,6 +272,14 @@
       "make": "Harley-Davidson",
       "model": "Street Bob",
       "year": 2019
+    },
+    {
+      "key": "gravel-project",
+      "member": "gravel",
+      "make": "Honda",
+      "model": "CB750",
+      "year": 1978,
+      "project": true
     }
   ],
   "contacts": [
@@ -6513,6 +6521,184 @@
       "allowed": false
     },
     {
+      "name": "The owner posts on their project's build",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "a.jpg"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "Photos alone are an update",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "  ",
+      "photos": [
+        "a.jpg"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "Nobody signed in can't post on a build",
+      "as": null,
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A pending applicant can't post on a build",
+      "as": "dylan",
+      "action": "socialPostBuildUpdate",
+      "bike": "dylan-street-bob",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Posting on a bike that doesn't exist",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "no-such-bike",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "Only the owner posts on a bike's build, not even the board",
+      "as": "rusty",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "A bike that isn't a project has no build thread",
+      "as": "spanner",
+      "action": "socialPostBuildUpdate",
+      "bike": "spanner-softail",
+      "body": "Carbs off.",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "An update needs words or a photo",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "   ",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "An update of 2,001 characters is too long",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "photos": [],
+      "allowed": false
+    },
+    {
+      "name": "An update of 2,000 characters is fine",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "photos": [],
+      "allowed": true
+    },
+    {
+      "name": "Up to 4 photos on an update",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "0.jpg",
+        "1.jpg",
+        "2.jpg",
+        "3.jpg",
+        "4.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "Someone else's photo can't go on your update",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "other:x.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "A photo on another update can't go on again",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "carbs.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "The same photo can't go on an update twice",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [
+        "a.jpg",
+        "a.jpg"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "The poster takes their update down",
+      "as": "gravel",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "gravel-carbs",
+      "allowed": true
+    },
+    {
+      "name": "A chapter president takes an update down",
+      "as": "rusty",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "gravel-carbs",
+      "allowed": true
+    },
+    {
+      "name": "A tail gunner can't take someone's update down",
+      "as": "spanner",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "gravel-carbs",
+      "allowed": false
+    },
+    {
+      "name": "An update can't be taken down twice",
+      "as": "gravel",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "gravel-old",
+      "allowed": false
+    },
+    {
+      "name": "Taking down an update that doesn't exist",
+      "as": "gravel",
+      "action": "socialTakeDownBuildUpdate",
+      "update": "no-such-update",
+      "allowed": false
+    },
+    {
       "name": "The National Chairman makes a club ride a Big 4 for every chapter",
       "as": "chair",
       "action": "designateBig4",
@@ -7574,6 +7760,24 @@
       "kind": "swap",
       "title": "Jacket",
       "price": null,
+      "photos": [],
+      "takenDown": true
+    }
+  ],
+  "buildUpdates": [
+    {
+      "key": "gravel-carbs",
+      "bike": "gravel-project",
+      "author": "gravel",
+      "photos": [
+        "carbs.jpg"
+      ],
+      "takenDown": false
+    },
+    {
+      "key": "gravel-old",
+      "bike": "gravel-project",
+      "author": "gravel",
       "photos": [],
       "takenDown": true
     }

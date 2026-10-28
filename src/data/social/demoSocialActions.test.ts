@@ -108,3 +108,19 @@ test('listing, changing, selling and taking down in the demo', async () => {
   assert.ok(gone.listings.find((l) => l.id === id)?.takenDownAt);
   assert.throws(() => down({ ...ctx, social: gone }, id), /That listing has already been taken down\./);
 });
+
+test('build threads in the demo: posting on my project, taking an update down', async () => {
+  const { postBuildUpdate, takeDownBuildUpdate } = await import('./demoSocialActions');
+  const { buildsFor } = await import('../../domain/social/builds');
+  const spanner = demoData.members.find((m) => m.id === 'm-spanner') ?? null;
+  const ctx = { ...ctxAs('m-spanner'), now: '2026-10-27T03:00:00Z' };
+  assert.deepEqual(buildsFor(spanner, demoData.members, demoData.bikes, ctx.social.buildUpdates, []).map((b) => b.bike.id), ['b-20', 'b-7']);
+  const { social, id } = postBuildUpdate(ctx, { bikeId: 'b-7', body: ' Float bowls on. ', photos: [] });
+  const posted = social.buildUpdates.find((u) => u.id === id);
+  assert.equal(posted?.body, 'Float bowls on.');
+  assert.equal(posted?.postedAt, '2026-10-27T03:00:00Z');
+  assert.throws(() => postBuildUpdate(ctx, { bikeId: 'b-6', body: 'x', photos: [] }), /Build threads are for project bikes/);
+  assert.throws(() => postBuildUpdate(ctx, { bikeId: 'b-20', body: 'x', photos: [] }), /Only the bike’s owner can post on its build\./);
+  const down = takeDownBuildUpdate({ ...ctx, social }, id);
+  assert.ok(down.buildUpdates.find((u) => u.id === id)?.takenDownAt);
+});

@@ -86,6 +86,9 @@ export type RootParams = {
   SwapSell: undefined;
   Listing: { listingId: string };
   EditListing: { listingId?: string } | undefined;
+  Builds: undefined;
+  BuildThread: { bikeId: string };
+  PostBuildUpdate: { bikeId: string };
   // Lane E: share in
   ShareIn: { text: string; media: PickedMedia[]; notes: string[] };
   // Stage 5B: treasurer. A fund is 'club' or a chapter id.
