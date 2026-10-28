@@ -246,3 +246,17 @@ export function mergeRideRoutes(all: RideRoute[], calendar: RideRoute[]): RideRo
   const fresh = new Set(calendar.map((r) => r.rideId));
   return [...all.filter((r) => !fresh.has(r.rideId)), ...calendar];
 }
+
+/** PostgREST hands back at most 1,000 rows a request: read the lot, a page at a time. */
+export async function allPages<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  size = 1000,
+): Promise<{ data: T[] | null; error: unknown }> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += size) {
+    const { data, error } = await page(from, from + size - 1);
+    if (error) return { data: null, error };
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < size) return { data: rows, error: null };
+  }
+}

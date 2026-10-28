@@ -1,7 +1,7 @@
 // Stage 7: badges. What a member has ridden, from their check-ins: rides, Big 4s, kilometres and
 // the states their rides went through. Shown on Me and on a member's page; nothing is posted.
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useSocial } from '../data/social/SocialProvider';
@@ -21,7 +21,7 @@ const TRACK: Record<BadgeTrack, { icon: IconName; what: string }> = {
 export function BadgesCard({ member }: { member: Member }) {
   const { data } = useClub();
   const { allRideRoutes } = useSocial();
-  const badges = badgesFor(member, data, allRideRoutes);
+  const badges = useMemo(() => badgesFor(member, data, allRideRoutes), [member, data, allRideRoutes]);
   return (
     <>
       <SectionTitle title="Badges" />

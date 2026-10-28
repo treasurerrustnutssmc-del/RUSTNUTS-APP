@@ -3,7 +3,7 @@
 // without a round trip.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { approvalProblem } from '../../domain/chat';
 import {
   archiveProblem,
@@ -45,6 +45,7 @@ import { friendlyError, supabase } from '../supabase';
 import { toFeedItem, uploadName, type FeedJson } from '../chat/liveChat';
 import {
   bragRideWindow,
+  allPages,
   mergeRideRoutes,
   toRideRoutes,
   type RideRouteRow,
@@ -119,6 +120,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   const [tallies, setTallies] = useState<Tally[]>([]);
   const [bragRides, setBragRides] = useState<Ride[]>([]);
   const [pastRideRoutes, setPastRideRoutes] = useState<RideRoute[]>([]);
+  const allRideRoutes = useMemo(() => mergeRideRoutes(pastRideRoutes, club.rideRoutes ?? []), [pastRideRoutes, club.rideRoutes]);
   // Signed addresses, by bucket and path.
   const urls = useRef(new Map<string, { url: Promise<string>; until: number }>());
 
@@ -143,7 +145,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       db().from('brag_nominations').select('id, award_id, nominated_by, ride_id, title, photo, story, reason, nominated_at, withdrawn_at'),
       db().from('brag_votes').select('award_id, member_id, nomination_id'),
       db().rpc('brag_tallies'),
-      db().from('ride_routes').select('ride_id, route_id'),
+      allPages<RideRouteRow>((from, to) => db().from('ride_routes').select('ride_id, route_id').order('ride_id').range(from, to)),
     ]);
     if (!b.error) setBirthdays(toBirthdays((b.data ?? []) as BirthdayRow[]));
     if (!s.error) setSkillsList(toSkills((s.data ?? []) as SkillsRow[]));
@@ -171,7 +173,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     }
     if (!no.error) setNominations(toNominations((no.data ?? []) as NominationRow[]));
     if (!bv.error) setMyVotes(toVotes((bv.data ?? []) as BragVoteRow[]));
-    if (!rr.error) setPastRideRoutes(toRideRoutes((rr.data ?? []) as RideRouteRow[]));
+    if (!rr.error) setPastRideRoutes(toRideRoutes(rr.data ?? []));
     if (!bt.error) setTallies(toTallies((bt.data ?? []) as { nomination_id: string; votes: number }[]));
     setReady(true);
   }, [approved]);
@@ -339,7 +341,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     myVotes,
     tallies,
     bragRides,
-    allRideRoutes: mergeRideRoutes(pastRideRoutes, club.rideRoutes ?? []),
+    allRideRoutes,
     openAward: async (input) => {
       refuse(openAwardProblem(me, input, club.positions, today));
       const id = (await call('open_award', openAwardArgs(input))) as string;

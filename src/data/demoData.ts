@@ -856,19 +856,23 @@ DEMO_DATA.rides.push(
   const pastRoutes: RideRoute[] = [];
   const pastSessions: CheckinSession[] = [];
   const pastAttendance: Attendance[] = [];
+  // Fixed dates in 2025, a fortnight apart: before Throttle's and Lefty's FNG year and outside this
+  // club year, so FNG and Big 4 standings stay as they were.
+  const titles = ['Sunday run', 'Bacchus Marsh breakfast', 'Lal Lal loop', 'Ballan bakery run', 'You Yangs sunset', 'Sunday run', 'Werribee Gorge run'];
   for (let i = 0; i < 22; i++) {
-    const day = ago(60 + i * 14);
+    const day = addDays('2025-01-12', i * 14);
     const id = `r-season-${i + 1}`;
     const big = i === 3 || i === 9;
     const trip = i === 5 ? 'rt-murray' : i === 12 ? 'rt-coorong' : null;
     pastRides.push({
-      id, title: big ? 'Big 4: Winter warmer' : trip === 'rt-murray' ? 'Murray run' : trip === 'rt-coorong' ? 'Coorong and back' : 'Sunday run',
+      id, title: big ? (i === 3 ? 'Big 4: Summer send-off' : 'Big 4: Winter warmer') : trip === 'rt-murray' ? 'Murray run' : trip === 'rt-coorong' ? 'Coorong and back' : titles[i % titles.length],
       startsAt: at(day, '22:00:00'), endsAt: null, allDay: false, location: 'Laverton North', notes: null,
       category: i % 3 === 0 ? 'club' : 'west', cancelledAt: null,
     });
+    const chapterId = i % 3 === 0 ? null : 'ch-west';
     const route = trip ?? routeFor[i % routeFor.length];
     if (route) pastRoutes.push({ rideId: id, routeId: route });
-    pastSessions.push({ id: `cs-season-${i + 1}`, kind: 'ride', chapterId: null, rideId: id, title: pastRides[i].title, heldOn: addDays(day, 1),
+    pastSessions.push({ id: `cs-season-${i + 1}`, kind: 'ride', chapterId, rideId: id, title: pastRides[i].title, heldOn: addDays(day, 1),
       openedBy: 'm-gravel', closedAt: at(addDays(day, 1), '08:00:00'), code: null, meetingType: null });
     pastAttendance.push(...went(`cs-season-${i + 1}`, i % 4 === 1 ? ['m-spanner', 'm-gravel'] : ['m-spanner', 'm-gravel', 'm-chook'], addDays(day, 1)));
   }
@@ -877,7 +881,7 @@ DEMO_DATA.rides.push(
     rideRoutes: [...(DEMO_DATA.rideRoutes ?? []), ...pastRoutes],
     big4Rides: [
       ...(DEMO_DATA.big4Rides ?? []),
-      ...[3, 9].map((i) => ({ rideId: `r-season-${i + 1}`, chapterId: null, designatedBy: 'm-rusty', designatedAt: at(ago(60 + i * 14 + 30)) })),
+      ...[3, 9].map((i) => ({ rideId: `r-season-${i + 1}`, chapterId: null, designatedBy: 'm-rusty', designatedAt: at(addDays('2025-01-12', i * 14 - 30)) })),
     ],
     checkinSessions: [...(DEMO_DATA.checkinSessions ?? []), ...pastSessions],
     attendance: [...(DEMO_DATA.attendance ?? []), ...pastAttendance],
