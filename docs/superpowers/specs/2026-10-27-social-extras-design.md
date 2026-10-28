@@ -117,7 +117,46 @@ JSON shape as `club_photos`, newest first, from at most 60 messages. Read-only, 
 
 **Demo:** a handful of demo photos dated on today's date one and three years back.
 
-## PRs 3 to 9
+## PR 3: Who can help
+
+**What members see.** A "Who can help?" row on the Members tab opens a screen with two parts.
+
+- **Members who can help:** chips for each skill; pick one and see the members who ticked it,
+  your own chapter first, then by name. Tap one to open their profile (which has Message).
+  Members tick their own skills from Me ("I can help with"). The skills, in the club's words:
+  Servicing, Tyres, Electrics, Carbs and fuel, Diagnostics, Welding and fab, Paint and bodywork,
+  Wheels and spokes, Suspension, Trailer or ute (recovery), Tools to lend.
+- **Trusted mechanics:** workshops members recommend: name, suburb, phone, website, what
+  they're good at, and a note. Each shows "Used by 4 members" and an "I've used them" toggle.
+  Tap the phone to call, the website to open it. Any approved member adds one; whoever added it
+  or any board member or the NEC edits it or takes it off the list (it's archived, never deleted).
+
+**Rules** (`src/domain/social/help.ts`), refusals in these words and this order, the same in the
+database:
+- Everything: 'Sign in first.', then 'Only approved members can do that.'
+- Skills: 'That isn’t one of the skills.' for anything not on the list (duplicates are ignored).
+- Mechanic: name trimmed, 1 to 80 characters ('Give the workshop a name.', 'Keep the name to 80
+  characters at most.'); suburb up to 60, phone up to 30, website up to 200 and must start
+  with http:// or https:// ('Websites start with http:// or https://.'), speciality up to 80,
+  notes up to 500 ('Keep the <field> to N characters at most.'). Blanks are stored as none.
+- Editing or archiving: 'No such workshop.', then 'Only whoever added it or the board can change
+  it.'; archiving twice: 'That workshop is already off the list.' An archived workshop can't be
+  edited or vouched for: 'That workshop is off the list.'
+- Vouching: any approved member, on a listed workshop; toggling twice takes it back.
+
+**Database** (`20270415000200_who_can_help.sql`): a `help_skill` enum; `member_skills (member_id
+pk, skills help_skill[])`, one row per member holding their list; `mechanics`; and
+`mechanic_vouches (mechanic_id, member_id, vouched boolean)`. Changing your skills or taking back
+a vouch is an update, so nothing is ever deleted and the paste file needs no `delete from`. RLS:
+approved members read all three (skills of approved members only); nobody writes directly.
+Actions: `set_skills(skills[])`, `save_mechanic(id, name, suburb, phone, website, speciality,
+notes)` (a null id adds one), `archive_mechanic(id)`, `vouch_mechanic(id, on)`.
+`private.is_any_board()` (lane B's) is the board-or-NEC rule, and the app mirrors it.
+
+**Demo:** a handful of demo members with skills, and four made-up workshops (clearly fictional
+names and 04xx 555 numbers).
+
+## PRs 4 to 9
 
 Each gets its own short design section added to this file before it's built, following the same
 shape (what members see, rules, database, demo, tests). The table above fixes the order and scope.

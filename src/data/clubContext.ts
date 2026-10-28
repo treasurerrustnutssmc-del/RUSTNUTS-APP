@@ -10,6 +10,7 @@ import type { HubInput, RegisterInput } from '../domain/hubs'; // Ride planning 
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { Casting, VoteInput } from '../domain/votes';
 import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
+import type { ApprovalInput, DocumentInput, VersionInput } from '../domain/documents'; // Stage 5C
 import type {
   BallotChoice,
   Bike,
@@ -250,6 +251,16 @@ export interface ClubContextValue {
   reopenBudget: (chapterId: string | null, fy: number) => Promise<void>;
   /** Presents a month's Treasurer's Report to members (13.8). `month` is its first day. */
   presentReport: (month: string) => Promise<void>;
+  // Stage 5C: document library
+  /** Adds a document to the library. Resolves to its id. */
+  createDocument: (input: DocumentInput) => Promise<string>;
+  /** Publishes the next version. `expected` is the version number the editor opened on (0 for none). Resolves to its id. */
+  publishDocumentVersion: (documentId: string, expected: number, input: VersionInput) => Promise<string>;
+  recordDocumentApproval: (versionId: string, approval: ApprovalInput) => Promise<void>;
+  markDocumentReviewed: (documentId: string) => Promise<void>;
+  signDocument: (versionId: string) => Promise<void>;
+  /** A version's text. Live loads it on first open and keeps it for the session. */
+  loadDocumentBody: (versionId: string) => Promise<string>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);

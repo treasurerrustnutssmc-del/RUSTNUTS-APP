@@ -5299,6 +5299,858 @@
       "allowed": false
     },
     {
+      "name": "The NEC adds a club-wide policy",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": true
+    },
+    {
+      "name": "A chapter Secretary adds a club-wide policy",
+      "as": "torque",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": false
+    },
+    {
+      "name": "A chapter Secretary adds a procedure for their chapter",
+      "as": "torque",
+      "action": "createDocument",
+      "chapter": "west",
+      "kind": "procedure",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": true
+    },
+    {
+      "name": "Another chapter's Road Captain adds a West policy",
+      "as": "crank",
+      "action": "createDocument",
+      "chapter": "west",
+      "kind": "policy",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": false
+    },
+    {
+      "name": "An applicant adds a document",
+      "as": "dylan",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": false
+    },
+    {
+      "name": "Someone not signed in adds a document",
+      "as": null,
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": false
+    },
+    {
+      "name": "A chapter Constitution",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": "west",
+      "kind": "constitution",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": false
+    },
+    {
+      "name": "A second Constitution",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "constitution",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": false
+    },
+    {
+      "name": "The Registered Rules, the first time",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "registered_rules",
+      "title": "Registered Rules",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": true
+    },
+    {
+      "name": "A document with no title",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "   ",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "allowed": false
+    },
+    {
+      "name": "A title of 121 characters",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "x",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "titleRepeat": 121,
+      "allowed": false
+    },
+    {
+      "name": "A title of 120 characters",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "x",
+      "asksSignOff": false,
+      "reviewMonths": null,
+      "titleRepeat": 120,
+      "allowed": true
+    },
+    {
+      "name": "A review cycle of 61 months",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": 61,
+      "allowed": false
+    },
+    {
+      "name": "A review cycle of 0 months",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": 0,
+      "allowed": false
+    },
+    {
+      "name": "A review cycle of 60 months",
+      "as": "rusty",
+      "action": "createDocument",
+      "chapter": null,
+      "kind": "policy",
+      "title": "Ride policy",
+      "asksSignOff": false,
+      "reviewMonths": 60,
+      "allowed": true
+    },
+    {
+      "name": "West's board publishes a new version of its bylaws",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "allowed": true
+    },
+    {
+      "name": "A publish made on an old version number",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 1,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "allowed": false
+    },
+    {
+      "name": "A North member publishes West's bylaws",
+      "as": "jet",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "allowed": false
+    },
+    {
+      "name": "Publishing to a document that isn't there",
+      "as": "rusty",
+      "action": "publishDocumentVersion",
+      "document": "nope",
+      "expected": 0,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "allowed": false
+    },
+    {
+      "name": "A version with no label",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "  ",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "allowed": false
+    },
+    {
+      "name": "A label of 21 characters",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "x",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "labelRepeat": 21,
+      "allowed": false
+    },
+    {
+      "name": "A version with no text",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "v3",
+      "body": "\n ",
+      "whatChanged": "",
+      "fresh": true,
+      "allowed": false
+    },
+    {
+      "name": "A text of 200001 characters",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "v3",
+      "body": "x",
+      "whatChanged": "",
+      "fresh": true,
+      "bodyRepeat": 200001,
+      "allowed": false
+    },
+    {
+      "name": "What changed of 501 characters",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "x",
+      "fresh": true,
+      "changesRepeat": 501,
+      "allowed": false
+    },
+    {
+      "name": "Only part of the approval given",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "approvingBody": "chapter_board",
+      "allowed": false
+    },
+    {
+      "name": "An approving body that isn't on the list",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "approvingBody": "the_pub",
+      "approvedDays": -1,
+      "commencesDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "An approval dated tomorrow",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "approvingBody": "chapter_board",
+      "approvedDays": 1,
+      "commencesDays": 2,
+      "allowed": false
+    },
+    {
+      "name": "Commencing before it was approved",
+      "as": "torque",
+      "action": "publishDocumentVersion",
+      "document": "westlaws",
+      "expected": 2,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "approvingBody": "chapter_board",
+      "approvedDays": -1,
+      "commencesDays": -2,
+      "allowed": false
+    },
+    {
+      "name": "The NEC publishes the fee schedule, approved yesterday, in force today",
+      "as": "rusty",
+      "action": "publishDocumentVersion",
+      "document": "fees",
+      "expected": 1,
+      "label": "v3",
+      "body": "Three",
+      "whatChanged": "",
+      "fresh": true,
+      "approvingBody": "nec",
+      "approvedDays": -1,
+      "commencesDays": 0,
+      "allowed": true
+    },
+    {
+      "name": "The NEC records v4's adoption",
+      "as": "rusty",
+      "action": "recordDocumentApproval",
+      "version": "const-1",
+      "approvingBody": "association_general_meeting",
+      "approvedDays": -1,
+      "commencesDays": 5,
+      "allowed": true
+    },
+    {
+      "name": "A chapter Secretary records v4's adoption",
+      "as": "torque",
+      "action": "recordDocumentApproval",
+      "version": "const-1",
+      "approvingBody": "association_general_meeting",
+      "approvedDays": -1,
+      "commencesDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "Recording approval twice",
+      "as": "rusty",
+      "action": "recordDocumentApproval",
+      "version": "fees-1",
+      "approvingBody": "association_general_meeting",
+      "approvedDays": -1,
+      "commencesDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "Recording approval with nothing given",
+      "as": "rusty",
+      "action": "recordDocumentApproval",
+      "version": "const-1",
+      "allowed": false
+    },
+    {
+      "name": "Recording approval for a version that isn't there",
+      "as": "rusty",
+      "action": "recordDocumentApproval",
+      "version": "nope",
+      "approvingBody": "association_general_meeting",
+      "approvedDays": -1,
+      "commencesDays": 5,
+      "allowed": false
+    },
+    {
+      "name": "The NEC marks the fee schedule reviewed",
+      "as": "rusty",
+      "action": "markDocumentReviewed",
+      "document": "fees",
+      "allowed": true
+    },
+    {
+      "name": "A chapter Secretary marks the fee schedule reviewed",
+      "as": "torque",
+      "action": "markDocumentReviewed",
+      "document": "fees",
+      "allowed": false
+    },
+    {
+      "name": "Marking reviewed with no review cycle",
+      "as": "torque",
+      "action": "markDocumentReviewed",
+      "document": "westlaws",
+      "allowed": false
+    },
+    {
+      "name": "Marking v4 reviewed before it's in force",
+      "as": "rusty",
+      "action": "markDocumentReviewed",
+      "document": "const",
+      "allowed": false
+    },
+    {
+      "name": "A West member signs the bylaws in force",
+      "as": "gravel",
+      "action": "signDocument",
+      "version": "westlaws-2",
+      "allowed": true
+    },
+    {
+      "name": "A West member signs again",
+      "as": "spanner",
+      "action": "signDocument",
+      "version": "westlaws-2",
+      "allowed": true
+    },
+    {
+      "name": "A North member signs West's bylaws",
+      "as": "jet",
+      "action": "signDocument",
+      "version": "westlaws-2",
+      "allowed": false
+    },
+    {
+      "name": "A Legacy member signs",
+      "as": "hacker",
+      "action": "signDocument",
+      "version": "westlaws-2",
+      "allowed": false
+    },
+    {
+      "name": "Signing a superseded version",
+      "as": "gravel",
+      "action": "signDocument",
+      "version": "westlaws-1",
+      "allowed": false
+    },
+    {
+      "name": "Signing a document that doesn't ask",
+      "as": "gravel",
+      "action": "signDocument",
+      "version": "form-1",
+      "allowed": false
+    },
+    {
+      "name": "An applicant signs",
+      "as": "dylan",
+      "action": "signDocument",
+      "version": "westlaws-2",
+      "allowed": false
+    },
+    {
+      "name": "Signing a version that isn't there",
+      "as": "gravel",
+      "action": "signDocument",
+      "version": "nope",
+      "allowed": false
+    },
+    {
+      "name": "A Full member sets their skills",
+      "as": "rusty",
+      "action": "socialSetSkills",
+      "skills": [
+        "tyres",
+        "electrics",
+        "tyres"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "An FNG clears their skills",
+      "as": "finn",
+      "action": "socialSetSkills",
+      "skills": [],
+      "allowed": true
+    },
+    {
+      "name": "A pending applicant can't set skills",
+      "as": "dylan",
+      "action": "socialSetSkills",
+      "skills": [
+        "nope"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "A skill that isn't on the list",
+      "as": "rusty",
+      "action": "socialSetSkills",
+      "skills": [
+        "tyres",
+        "juggling"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "Any approved member adds a workshop",
+      "as": "finn",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": " Sunshine ",
+      "phone": "",
+      "website": "https://bobs.example",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A pending applicant can't add a workshop",
+      "as": "dylan",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A workshop needs a name",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "   ",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A workshop name of 81 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A website needs http or https",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "bobs.example",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Notes of 501 characters are too long",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "allowed": false
+    },
+    {
+      "name": "Whoever added a workshop changes it",
+      "as": "gravel",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "Gravel’s favourite",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A West Secretary changes someone else's workshop",
+      "as": "torque",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "The NEC Chairman changes someone else's workshop",
+      "as": "chair",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A Tail Gunner can't change someone else's workshop",
+      "as": "spanner",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Nobody edits a workshop that's off the list",
+      "as": "gravel",
+      "action": "socialSaveMechanic",
+      "mechanic": "closed-shop",
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A pending applicant is refused before the workshop is looked at",
+      "as": "dylan",
+      "action": "socialSaveMechanic",
+      "mechanic": "gravels-shop",
+      "workshop": "",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Nobody signed in can't add a workshop",
+      "as": null,
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Changing a workshop that doesn't exist",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": "no-such-shop",
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A suburb of 61 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A suburb of 60 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A phone number of 31 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "1111111111111111111111111111111",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A website of 201 characters is too long",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "speciality": "",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A website of 200 characters is fine",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "speciality": "",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "What they're good at, 81 characters, is too long",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Blank extras are stored as nothing",
+      "as": "rusty",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "   ",
+      "phone": " ",
+      "website": "  ",
+      "speciality": "  ",
+      "notes": "  ",
+      "allowed": true
+    },
+    {
+      "name": "Whoever added it takes a workshop off the list",
+      "as": "gravel",
+      "action": "socialArchiveMechanic",
+      "mechanic": "gravels-shop",
+      "allowed": true
+    },
+    {
+      "name": "A North President takes a workshop off the list",
+      "as": "smokey",
+      "action": "socialArchiveMechanic",
+      "mechanic": "gravels-shop",
+      "allowed": true
+    },
+    {
+      "name": "A member can't take someone else's workshop off",
+      "as": "spanner",
+      "action": "socialArchiveMechanic",
+      "mechanic": "gravels-shop",
+      "allowed": false
+    },
+    {
+      "name": "A workshop can't come off the list twice",
+      "as": "gravel",
+      "action": "socialArchiveMechanic",
+      "mechanic": "closed-shop",
+      "allowed": false
+    },
+    {
+      "name": "Any approved member says they've used a workshop",
+      "as": "spanner",
+      "action": "socialVouchMechanic",
+      "mechanic": "gravels-shop",
+      "on": true,
+      "allowed": true
+    },
+    {
+      "name": "A member takes back their vouch",
+      "as": "spanner",
+      "action": "socialVouchMechanic",
+      "mechanic": "gravels-shop",
+      "on": false,
+      "allowed": true
+    },
+    {
+      "name": "Nobody vouches for a workshop that's off the list",
+      "as": "spanner",
+      "action": "socialVouchMechanic",
+      "mechanic": "closed-shop",
+      "on": true,
+      "allowed": false
+    },
+    {
+      "name": "A pending applicant can't vouch",
+      "as": "dylan",
+      "action": "socialVouchMechanic",
+      "mechanic": "gravels-shop",
+      "on": true,
+      "allowed": false
+    },
+    {
       "name": "The National Chairman makes a club ride a Big 4 for every chapter",
       "as": "chair",
       "action": "designateBig4",
@@ -6989,6 +7841,114 @@
       "askedTo": "torque",
       "theirRole": null,
       "state": "asked"
+    }
+  ],
+  "documents": [
+    {
+      "key": "const",
+      "chapter": null,
+      "kind": "constitution",
+      "title": "Constitution",
+      "asksSignOff": false,
+      "reviewMonths": 12
+    },
+    {
+      "key": "fees",
+      "chapter": null,
+      "kind": "policy",
+      "title": "Fee schedule",
+      "asksSignOff": false,
+      "reviewMonths": 12
+    },
+    {
+      "key": "westlaws",
+      "chapter": "west",
+      "kind": "policy",
+      "title": "West bylaws",
+      "asksSignOff": true,
+      "reviewMonths": null
+    },
+    {
+      "key": "form",
+      "chapter": null,
+      "kind": "procedure",
+      "title": "Incident report",
+      "asksSignOff": false,
+      "reviewMonths": null
+    }
+  ],
+  "documentVersions": [
+    {
+      "key": "const-1",
+      "document": "const",
+      "number": 1,
+      "label": "v4",
+      "body": "Constitution text",
+      "fresh": true
+    },
+    {
+      "key": "fees-1",
+      "document": "fees",
+      "number": 1,
+      "label": "2025",
+      "body": "Fees",
+      "fresh": true,
+      "approvingBody": "nec",
+      "approvedDays": -400,
+      "commencesDays": -380
+    },
+    {
+      "key": "westlaws-1",
+      "document": "westlaws",
+      "number": 1,
+      "label": "v1",
+      "body": "One",
+      "fresh": true,
+      "approvingBody": "chapter_board",
+      "approvedDays": -40,
+      "commencesDays": -40
+    },
+    {
+      "key": "westlaws-2",
+      "document": "westlaws",
+      "number": 2,
+      "label": "v2",
+      "body": "Two",
+      "fresh": false,
+      "approvingBody": "chapter_board",
+      "approvedDays": -10,
+      "commencesDays": -5
+    },
+    {
+      "key": "form-1",
+      "document": "form",
+      "number": 1,
+      "label": "v1",
+      "body": "Form",
+      "fresh": true,
+      "approvingBody": "nec",
+      "approvedDays": -30,
+      "commencesDays": -30
+    }
+  ],
+  "documentSignoffs": [
+    {
+      "version": "westlaws-1",
+      "member": "spanner"
+    }
+  ],
+  "mechanics": [
+    {
+      "key": "gravels-shop",
+      "name": "Gravel’s pick",
+      "addedBy": "gravel",
+      "archived": false
+    },
+    {
+      "key": "closed-shop",
+      "name": "Closed down",
+      "addedBy": "gravel",
+      "archived": true
     }
   ]
 }

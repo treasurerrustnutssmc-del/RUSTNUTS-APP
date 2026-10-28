@@ -84,6 +84,10 @@ export type RootParams = {
   // Stage 7: social extras
   Birthday: undefined;
   OnThisDay: undefined;
+  WhoCanHelp: undefined;
+  Mechanic: { mechanicId: string };
+  EditMechanic: { mechanicId?: string } | undefined;
+  MySkills: undefined;
   // Lane E: share in
   ShareIn: { text: string; media: PickedMedia[]; notes: string[] };
   // Stage 5B: treasurer. A fund is 'club' or a chapter id.
@@ -94,6 +98,13 @@ export type RootParams = {
   MonthReport: { month: string };
   Budget: { fund: string; fy?: number };
   ClubFinances: undefined;
+  // Stage 5C: document library. `version` opens that version instead of the one in force.
+  Documents: undefined;
+  Document: { id: string; version?: string };
+  NewDocument: undefined;
+  PublishDocument: { id: string };
+  DocumentApproval: { versionId: string };
+  DocumentSignoffs: { id: string };
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

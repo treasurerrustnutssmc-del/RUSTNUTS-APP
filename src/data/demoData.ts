@@ -10,6 +10,7 @@ import { readGpx } from '../domain/gpx';
 import { addMonths } from '../domain/profile';
 import type { ClubData, LedgerCode, LedgerEntry, Member, MemberPrivate, MemberStatus, Ride, Route } from '../domain/types';
 import { isCredit } from '../domain/ledger';
+import { V4_CONSTITUTION } from './demoConstitution';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
   roadName: null,
@@ -719,6 +720,83 @@ Object.assign(DEMO_DATA, {
   ],
   treasurerReports: [{ month: lastMonth, presentedAt: at(thisMonth), presentedBy: 'm-sparks' }],
 } satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
+// Stage 5C: the document library. Constitution v4 is the real text, waiting for its adoption to
+// be recorded (its own control table says the publication date isn't the commencement date). The
+// rest are made-up samples, dated from today: West's bylaws are in force at v2 (no fresh sign-off,
+// so Diesel's and Spanner's v1 sign-offs still count, and Torque hasn't signed), and the NEC's fee
+// schedule is overdue for review.
+// ---------------------------------------------------------------------------
+
+const docDay = (months: number) => addMonths(s4Today, months);
+const docAt = (months: number) => `${docDay(months)}T09:30:00.000Z`;
+const noApproval = { approvingBody: null, approvedOn: null, commencesOn: null };
+
+DEMO_DATA.documents = [
+  { id: 'doc-v4', chapterId: null, kind: 'constitution', title: 'Constitution', asksSignOff: false, reviewMonths: 12, reviewedOn: null, createdBy: null, createdAt: '2026-10-25T03:00:00.000Z' },
+  { id: 'doc-fees', chapterId: null, kind: 'policy', title: 'Fee schedule', asksSignOff: false, reviewMonths: 12, reviewedOn: null, createdBy: 'm-rusty', createdAt: docAt(-15) },
+  { id: 'doc-west', chapterId: 'ch-west', kind: 'policy', title: 'West Chapter bylaws', asksSignOff: true, reviewMonths: 24, reviewedOn: null, createdBy: 'm-torque', createdAt: docAt(-14) },
+  { id: 'doc-incident', chapterId: null, kind: 'procedure', title: 'Incident report', asksSignOff: false, reviewMonths: null, reviewedOn: null, createdBy: 'm-rusty', createdAt: docAt(-6) },
+];
+
+DEMO_DATA.documentVersions = [
+  {
+    id: 'dv-v4', documentId: 'doc-v4', number: 1, label: 'v4', body: V4_CONSTITUTION, whatChanged: '', freshSignOff: true,
+    ...noApproval, publishedBy: null, publishedAt: '2026-10-25T03:00:00.000Z',
+  },
+  {
+    id: 'dv-fees-1', documentId: 'doc-fees', number: 1, label: '2025–26', whatChanged: '', freshSignOff: true,
+    body: `# Sample fee schedule (demo only)
+
+A made-up sample to show how an NEC schedule looks in the app. The NEC publishes the real one.
+
+# Annual fees
+- Full Member: $360 a club year, AGM to AGM. Patching mid-year is pro rata.
+- FNG: a one-off $180 after twelve months.
+- Everyone else: free.`,
+    approvingBody: 'nec', approvedOn: docDay(-14), commencesOn: docDay(-14), publishedBy: 'm-rusty', publishedAt: docAt(-14),
+  },
+  {
+    id: 'dv-west-1', documentId: 'doc-west', number: 1, label: 'v1', whatChanged: '', freshSignOff: true,
+    body: `# Sample West Chapter bylaws (demo only)
+
+A made-up sample. West's board publishes the real bylaws.
+
+# Meetings
+West meets on the last Thursday of the month at the clubrooms.`,
+    approvingBody: 'chapter_board', approvedOn: docDay(-13), commencesOn: docDay(-13), publishedBy: 'm-torque', publishedAt: docAt(-13),
+  },
+  {
+    id: 'dv-west-2', documentId: 'doc-west', number: 2, label: 'v2', whatChanged: 'Meetings move to the last Wednesday.', freshSignOff: false,
+    body: `# Sample West Chapter bylaws (demo only)
+
+A made-up sample. West's board publishes the real bylaws.
+
+# Meetings
+West meets on the last Wednesday of the month at the clubrooms. A pre-meeting ride leaves at 6 pm.
+
+# Guests
+- Members may bring a guest to an ordinary meeting.
+- Tell the Secretary beforehand.`,
+    approvingBody: 'chapter_board', approvedOn: docDay(-2), commencesOn: docDay(-1), publishedBy: 'm-torque', publishedAt: docAt(-2),
+  },
+  {
+    id: 'dv-incident-1', documentId: 'doc-incident', number: 1, label: 'v1', whatChanged: '', freshSignOff: true,
+    body: `# Sample incident report (demo only)
+
+After any crash, injury or near miss on a club ride, the Road Captain writes down what happened within 48 hours.
+- Where and when it happened.
+- Who was involved and who helped.
+- What first aid was given and who was called.`,
+    approvingBody: 'nec', approvedOn: docDay(-6), commencesOn: docDay(-6), publishedBy: 'm-rusty', publishedAt: docAt(-6),
+  },
+];
+
+DEMO_DATA.documentSignoffs = [
+  { versionId: 'dv-west-1', documentId: 'doc-west', memberId: 'm-diesel', signedAt: docAt(-12) },
+  { versionId: 'dv-west-1', documentId: 'doc-west', memberId: 'm-spanner', signedAt: docAt(-12) },
+];
 
 // ---------------------------------------------------------------------------
 // Attendance rules and Big 4 rides: Phillip Island is a Big 4 for everyone, and so was a run six
