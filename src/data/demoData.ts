@@ -272,6 +272,12 @@ export const DEMO_DATA: ClubData = {
     { id: 'p-10', memberId: 'm-jet', chapterId: 'ch-north', role: 'vice_president', startedOn: '2025-08-16', endedOn: null },
     { id: 'p-11', memberId: 'm-crank', chapterId: 'ch-north', role: 'road_captain', startedOn: '2025-08-16', endedOn: null },
     { id: 'p-12', memberId: 'm-ace', chapterId: 'ch-north', role: 'officer', startedOn: '2025-08-16', endedOn: null },
+    // The club's history: made-up founders and past office holders for the hall of fame.
+    { id: 'p-13', memberId: 'm-rusty', chapterId: null, role: 'founder', startedOn: '2019-03-09', endedOn: null },
+    { id: 'p-14', memberId: 'm-torque', chapterId: null, role: 'founder', startedOn: '2019-03-09', endedOn: null },
+    { id: 'p-15', memberId: 'm-torque', chapterId: 'ch-west', role: 'president', startedOn: '2019-03-09', endedOn: '2023-08-19' },
+    { id: 'p-16', memberId: 'm-diesel', chapterId: 'ch-west', role: 'president', startedOn: '2023-08-19', endedOn: '2025-08-16' },
+    { id: 'p-17', memberId: 'm-gravel', chapterId: 'ch-west', role: 'treasurer', startedOn: '2019-03-09', endedOn: '2021-08-21' },
   ],
   // Made-up rides, spread over the website's five colours. Times are Melbourne local, as instants.
   rides: [

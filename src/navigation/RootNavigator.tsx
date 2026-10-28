@@ -43,6 +43,7 @@ import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
 import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } from '../screens/help';
 import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swap';
 import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../screens/builds';
+import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -267,6 +268,17 @@ export function RootNavigator() {
             <Stack.Screen name="Builds" component={BuildsScreen} options={{ title: 'Garage builds' }} />
             <Stack.Screen name="BuildThread" component={BuildThreadScreen} options={{ title: 'Build' }} />
             <Stack.Screen name="PostBuildUpdate" component={PostBuildUpdateScreen} options={{ title: 'Post an update' }} />
+            <Stack.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
+            <Stack.Screen
+              name="EditHistoryEntry"
+              component={EditHistoryEntryScreen}
+              options={({ route }) => ({ title: route.params?.entryId ? 'Change the entry' : 'Add to the timeline' })}
+            />
+            <Stack.Screen
+              name="EditHonour"
+              component={EditHonourScreen}
+              options={({ route }) => ({ title: route.params?.honourId ? 'Change the honour' : 'Add an honour' })}
+            />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}

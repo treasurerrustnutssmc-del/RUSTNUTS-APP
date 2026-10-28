@@ -67,6 +67,20 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     },
     takeDownBuildUpdate: async (id) => setSocial(act.takeDownBuildUpdate(ctx(), id)),
     buildPhotoUrl: listingPhotoUrl,
+    history: social.history,
+    honours: social.honours,
+    saveHistoryEntry: async (input) => {
+      const result = act.saveHistoryEntry(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    archiveHistoryEntry: async (id) => setSocial(act.archiveHistoryEntry(ctx(), id)),
+    saveHonour: async (input) => {
+      const result = act.saveHonour(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    archiveHonour: async (id) => setSocial(act.archiveHonour(ctx(), id)),
     refresh: async () => {},
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

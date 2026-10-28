@@ -27,6 +27,19 @@ import {
   type ListingPhoto,
 } from '../../domain/social/swap';
 import { buildPostProblem, buildTakeDownProblem, cleanBuildPost, type BuildPost, type BuildUpdate } from '../../domain/social/builds';
+import {
+  archiveEntryProblem,
+  archiveHonourProblem,
+  cleanEntry,
+  cleanHonour,
+  historyProblem,
+  honourProblem,
+  type HistoryEntry,
+  type HistoryInput,
+  type HistoryPrecision,
+  type Honour,
+  type HonourInput,
+} from '../../domain/social/history';
 import type { ClubData, Member } from '../../domain/types';
 import type { FeedItem } from '../chat/chatContext';
 import { NotAllowedError } from '../clubContext';
@@ -45,6 +58,9 @@ export interface SocialData {
   listings: Listing[];
   /** Every build update, taken-down ones included. */
   buildUpdates: BuildUpdate[];
+  /** The club's timeline and honours, ones taken off included. */
+  history: HistoryEntry[];
+  honours: Honour[];
 }
 
 export interface SocialCtx {
@@ -163,6 +179,50 @@ export function takeDownBuildUpdate(ctx: SocialCtx, id: string): SocialData {
   return { ...ctx.social, buildUpdates: ctx.social.buildUpdates.map((u) => (u.id === id ? { ...u, takenDownAt: at } : u)) };
 }
 
+/** Adds (input.id null) or changes a timeline entry; hands back its id. */
+export function saveHistoryEntry(ctx: SocialCtx, input: HistoryInput): { social: SocialData; id: string } {
+  refuse(historyProblem(ctx.me, input, ctx.social.history, ctx.club.positions, ctx.today));
+  const me = ctx.me as Member;
+  const clean = cleanEntry(input);
+  if (input.id === null) {
+    const id = `history-${ctx.social.history.length + 1}-${Date.now().toString(36)}`;
+    const added: HistoryEntry = { id, ...clean, addedBy: me.id, archivedAt: null };
+    return { social: { ...ctx.social, history: [...ctx.social.history, added] }, id };
+  }
+  return {
+    social: { ...ctx.social, history: ctx.social.history.map((e) => (e.id === input.id ? { ...e, ...clean } : e)) },
+    id: input.id,
+  };
+}
+
+export function archiveHistoryEntry(ctx: SocialCtx, id: string): SocialData {
+  refuse(archiveEntryProblem(ctx.me, id, ctx.social.history, ctx.club.positions));
+  const at = ctx.now ?? new Date().toISOString();
+  return { ...ctx.social, history: ctx.social.history.map((e) => (e.id === id ? { ...e, archivedAt: at } : e)) };
+}
+
+/** Adds (input.id null) or changes an honour; hands back its id. */
+export function saveHonour(ctx: SocialCtx, input: HonourInput): { social: SocialData; id: string } {
+  refuse(honourProblem(ctx.me, input, ctx.social.honours, ctx.club.members, ctx.club.positions, ctx.today));
+  const me = ctx.me as Member;
+  const clean = cleanHonour(input);
+  if (input.id === null) {
+    const id = `honour-${ctx.social.honours.length + 1}-${Date.now().toString(36)}`;
+    const added: Honour = { id, ...clean, addedBy: me.id, archivedAt: null };
+    return { social: { ...ctx.social, honours: [...ctx.social.honours, added] }, id };
+  }
+  return {
+    social: { ...ctx.social, honours: ctx.social.honours.map((h) => (h.id === input.id ? { ...h, ...clean } : h)) },
+    id: input.id,
+  };
+}
+
+export function archiveHonour(ctx: SocialCtx, id: string): SocialData {
+  refuse(archiveHonourProblem(ctx.me, id, ctx.social.honours, ctx.club.positions));
+  const at = ctx.now ?? new Date().toISOString();
+  return { ...ctx.social, honours: ctx.social.honours.map((h) => (h.id === id ? { ...h, archivedAt: at } : h)) };
+}
+
 /** A parity.json case, as the social action it names. */
 export type SocialAction =
   | { action: 'socialSetBirthday'; month: number | null; day: number | null }
@@ -176,7 +236,12 @@ export type SocialAction =
   | { action: 'socialMarkListingSold'; listing: string; sold: boolean }
   | { action: 'socialTakeDownListing'; listing: string }
   | { action: 'socialPostBuildUpdate'; bike: string; body: string; photos: string[] }
-  | { action: 'socialTakeDownBuildUpdate'; update: string };
+  | { action: 'socialTakeDownBuildUpdate'; update: string }
+  | { action: 'socialSaveHistoryEntry'; entry: string | null; happenedOn: string; precision: HistoryPrecision; title: string; story: string }
+  | { action: 'socialArchiveHistoryEntry'; entry: string }
+  // The honour's typed name is `who`: a case's `name` is the case's own.
+  | { action: 'socialSaveHonour'; honour: string | null; member: string | null; who: string; title: string; year: number | null; note: string }
+  | { action: 'socialArchiveHonour'; honour: string };
 
 /** A parity case's photo names as the photos the action is sent. */
 export function parityPhotos(me: Member | null, names: string[], otherId: string): ListingPhoto[] {
@@ -214,5 +279,15 @@ export function runSocialAction(ctx: SocialCtx, a: SocialAction): SocialData {
       return postBuildUpdate(ctx, { bikeId: a.bike, body: a.body, photos: parityPhotos(ctx.me, a.photos, 'someone-else') }).social;
     case 'socialTakeDownBuildUpdate':
       return takeDownBuildUpdate(ctx, a.update);
+    case 'socialSaveHistoryEntry':
+      return saveHistoryEntry(ctx, { id: a.entry, happenedOn: a.happenedOn, precision: a.precision, title: a.title, story: a.story }).social;
+    case 'socialArchiveHistoryEntry':
+      return archiveHistoryEntry(ctx, a.entry);
+    case 'socialSaveHonour':
+      return saveHonour(ctx, {
+        id: a.honour, memberId: a.member, name: a.who, honour: a.title, year: a.year ?? Number.NaN, note: a.note,
+      }).social;
+    case 'socialArchiveHonour':
+      return archiveHonour(ctx, a.honour);
   }
 }

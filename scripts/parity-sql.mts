@@ -556,6 +556,20 @@ const call = (c: ParityCase & Record<string, any>): string => {
       );
     case 'socialTakeDownBuildUpdate':
       return `public.take_down_build_update(${id('build', c.update)})`;
+    case 'socialSaveHistoryEntry':
+      return (
+        `public.save_history_entry(${c.entry ? id('history', c.entry) : 'null'}, ${q(c.happenedOn)}, ${q(c.precision)}, ` +
+        `${q(c.title)}, ${q(c.story)})`
+      );
+    case 'socialArchiveHistoryEntry':
+      return `public.archive_history_entry(${id('history', c.entry)})`;
+    case 'socialSaveHonour':
+      return (
+        `public.save_honour(${c.honour ? id('honour', c.honour) : 'null'}, ${c.member ? id('m', c.member) : 'null'}, ` +
+        `${q(c.who)}, ${q(c.title)}, ${c.year ?? 'null'}, ${q(c.note)})`
+      );
+    case 'socialArchiveHonour':
+      return `public.archive_honour(${id('honour', c.honour)})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
@@ -649,6 +663,23 @@ for (const u of (fx as typeof fx & { buildUpdates?: FixtureBuildUpdate[] }).buil
   sql(
     `insert into public.build_updates (id, bike_id, author_id, body, photos, taken_down_at) values (${id('build', u.key)}, ` +
       `${id('b', u.bike)}, ${id('m', u.author)}, 'Fixture update', ${json(photos)}, ${u.takenDown ? 'now()' : 'null'});`,
+  );
+}
+
+// The fixture's timeline entries and honours, kept by Rusty.
+type FixtureHistory = { key: string; title: string; archived: boolean };
+for (const e of (fx as typeof fx & { history?: FixtureHistory[] }).history ?? []) {
+  sql(
+    `insert into public.club_history (id, happened_on, precision, title, added_by, archived_at) values (${id('history', e.key)}, ` +
+      `'2019-05-11', 'day', ${q(e.title)}, ${id('m', 'rusty')}, ${e.archived ? 'now()' : 'null'});`,
+  );
+}
+type FixtureHonour = { key: string; member: string | null; who: string | null; archived: boolean };
+for (const h of (fx as typeof fx & { honours?: FixtureHonour[] }).honours ?? []) {
+  sql(
+    `insert into public.club_honours (id, member_id, name, honour, year, added_by, archived_at) values (${id('honour', h.key)}, ` +
+      `${h.member ? id('m', h.member) : 'null'}, ${h.who === null ? 'null' : q(h.who)}, 'Life member', 2024, ${id('m', 'rusty')}, ` +
+      `${h.archived ? 'now()' : 'null'});`,
   );
 }
 

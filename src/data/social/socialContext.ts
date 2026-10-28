@@ -6,6 +6,7 @@ import type { HelpSkill, Mechanic, MechanicInput, MechanicVouch, MemberSkills } 
 import type { Birthday } from '../../domain/social/shoutouts';
 import type { Listing, ListingInput } from '../../domain/social/swap';
 import type { BuildPost, BuildUpdate } from '../../domain/social/builds';
+import type { HistoryEntry, HistoryInput, Honour, HonourInput } from '../../domain/social/history';
 import type { PickedMedia } from '../../domain/chat';
 import type { FeedItem, MediaSource } from '../chat/chatContext';
 
@@ -47,6 +48,15 @@ export interface SocialContextValue {
   postBuildUpdate: (post: BuildPost, added: PickedMedia[]) => Promise<string>;
   takeDownBuildUpdate: (id: string) => Promise<void>;
   buildPhotoUrl: (path: string) => Promise<MediaSource>;
+  // History and hall of fame
+  /** Timeline entries this member can read (screens show them with timeline). */
+  history: HistoryEntry[];
+  honours: Honour[];
+  /** Adds (id null) or changes a timeline entry; resolves to its id. The board only. */
+  saveHistoryEntry: (input: HistoryInput) => Promise<string>;
+  archiveHistoryEntry: (id: string) => Promise<void>;
+  saveHonour: (input: HonourInput) => Promise<string>;
+  archiveHonour: (id: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 

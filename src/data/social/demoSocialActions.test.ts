@@ -124,3 +124,35 @@ test('build threads in the demo: posting on my project, taking an update down', 
   const down = takeDownBuildUpdate({ ...ctx, social }, id);
   assert.ok(down.buildUpdates.find((u) => u.id === id)?.takenDownAt);
 });
+
+test('history in the demo: the board keeps entries and honours; a member reads them', async () => {
+  const { saveHistoryEntry, archiveHistoryEntry, saveHonour, archiveHonour } = await import('./demoSocialActions');
+  const { timeline, honoursFor, founders, pastOfficeHolders } = await import('../../domain/social/history');
+  const ctx = { ...ctxAs('m-rusty'), now: '2026-10-27T04:00:00Z' };
+  const years = timeline(ctx.social.history, demoData.positions);
+  assert.equal(years[0].year, 2019);
+  assert.equal(years[0].entries[0].title, 'The club is founded');
+  assert.ok(years.length >= 4, 'a few years of history');
+  assert.ok(honoursFor(ctx.social.honours).length >= 2, 'two honours');
+  assert.deepEqual(founders(demoData.members, demoData.positions).map((m) => m.id), ['m-rusty', 'm-torque']);
+  assert.deepEqual(pastOfficeHolders(demoData.members, demoData.positions).map((g) => g.role), ['president', 'treasurer']);
+
+  const { social, id } = saveHistoryEntry(ctx, { id: null, happenedOn: '2026-10-01', precision: 'month', title: ' Clubhouse lease ', story: '' });
+  const added = social.history.find((e) => e.id === id);
+  assert.deepEqual([added?.title, added?.story, added?.addedBy], ['Clubhouse lease', null, 'm-rusty']);
+  const changed = saveHistoryEntry({ ...ctx, social }, { id, happenedOn: '2026-10-01', precision: 'day', title: 'Clubhouse lease signed', story: 'At last.' });
+  assert.equal(changed.social.history.find((e) => e.id === id)?.story, 'At last.');
+  const off = archiveHistoryEntry({ ...ctx, social: changed.social }, id);
+  assert.equal(off.history.find((e) => e.id === id)?.archivedAt, '2026-10-27T04:00:00Z');
+  assert.throws(() => archiveHistoryEntry({ ...ctx, social: off }, id), /That entry has already been taken off\./);
+  assert.throws(
+    () => saveHistoryEntry(ctxAs('m-spanner'), { id: null, happenedOn: '2026-10-01', precision: 'day', title: 'x', story: '' }),
+    /Only the board can keep the club’s history\./,
+  );
+
+  const h = saveHonour(ctx, { id: null, memberId: null, name: ' Old Mate ', honour: 'Rider of the year', year: 2026, note: '' });
+  assert.deepEqual(h.social.honours.find((x) => x.id === h.id)?.name, 'Old Mate');
+  const hOff = archiveHonour({ ...ctx, social: h.social }, h.id);
+  assert.ok(hOff.honours.find((x) => x.id === h.id)?.archivedAt);
+  assert.throws(() => saveHonour(ctx, { id: null, memberId: 'm-ghost', name: '', honour: 'x', year: 2026, note: '' }), /No such member\./);
+});

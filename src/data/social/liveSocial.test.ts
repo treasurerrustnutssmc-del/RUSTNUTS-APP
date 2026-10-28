@@ -65,3 +65,21 @@ test('build update rows', async () => {
     [{ id: 'u', bikeId: 'b', authorId: 'a', body: null, photos: [{ path: 'a/x.jpg', width: 0, height: 5 }], postedAt: 't', takenDownAt: null }],
   );
 });
+
+test('history and honour rows, and their save calls', async () => {
+  const { toHistory, toHonours, saveHistoryArgs, saveHonourArgs } = await import('./liveSocial');
+  assert.deepEqual(
+    toHistory([{ id: 'e', happened_on: '2019-03-09', precision: 'month', title: 'T', story: null, added_by: null, archived_at: null }]),
+    [{ id: 'e', happenedOn: '2019-03-09', precision: 'month', title: 'T', story: null, addedBy: '', archivedAt: null }],
+  );
+  assert.deepEqual(
+    toHonours([{ id: 'h', member_id: null, name: 'Kev', honour: 'Life member', year: 2024, note: 'n', added_by: 'a', archived_at: null }]),
+    [{ id: 'h', memberId: null, name: 'Kev', honour: 'Life member', year: 2024, note: 'n', addedBy: 'a', archivedAt: null }],
+  );
+  assert.deepEqual(saveHistoryArgs({ id: null, happenedOn: '2019-03-09', precision: 'day', title: 't', story: 's' }), {
+    p_id: null, p_happened_on: '2019-03-09', p_precision: 'day', p_title: 't', p_story: 's',
+  });
+  assert.deepEqual(saveHonourArgs({ id: 'h', memberId: 'm', name: '', honour: 'x', year: 2024, note: '' }), {
+    p_id: 'h', p_member: 'm', p_name: '', p_honour: 'x', p_year: 2024, p_note: '',
+  });
+});

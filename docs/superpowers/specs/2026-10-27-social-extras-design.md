@@ -237,7 +237,49 @@ member's.
 **Tests.** Domain rules, demo actions, row mapping, parity cases for each refusal, SQL tests for
 RLS and the storage folder checks.
 
-## PRs 6 to 9
+## PR 6: History and hall of fame
+
+**What members see.** A "History and hall of fame" row in the Members tab's club card. The screen
+has two parts, switched with stencil chips: **Timeline** and **Hall of fame**.
+
+- **Timeline:** the club's story, oldest first, grouped under stencil year headings: each entry has
+  its date (a full date, "March 2019", or just the year), a title in stencil and a few lines. The
+  founding of the club (from the earliest founder position) heads it automatically.
+- **Hall of fame:**
+  - *Founders*, from the founder positions (nobody types these).
+  - *Honours* kept by the board: life members, awards, anything the club wants remembered. Each
+    names a member in the app or someone who isn't (a name typed in), the honour, the year, and
+    an optional line.
+  - *Past office holders*, from positions that have ended: role, name and years ("2019 to 2023"),
+    grouped by role in the club's role order. Chapter roles show their chapter.
+
+**Who keeps it.** Any board member (a chapter board seat or the NEC) adds and changes timeline
+entries and honours, and can take one off (kept, archived). Everyone approved reads it.
+
+**Rules** (`src/domain/social/history.ts`, mirrored by the database, same words, same order):
+- Sign in first; only approved members can do that; 'Only the board can keep the club’s history.'
+- Entries: 'No such entry.'; 'That entry has been taken off.'; 'Pick a date.' (a real ISO date,
+  not in the future); 'Give it a title.'; 'Keep the title to 80 characters at most.'; 'Keep the
+  story to 1,000 characters at most.'. A precision of day, month or year says how to show it.
+- Honours: 'No such honour.'; 'That honour has been taken off.'; 'Pick a member or type a name.'
+  (exactly one); 'No such member.'; 'Keep the name to 80 characters at most.'; 'Name the honour.';
+  'Keep the honour to 60 characters at most.'; 'Pick a year from 2019 on.' (2019 to this year);
+  'Keep the note to 300 characters at most.'.
+- Taking off: 'That entry has already been taken off.' / 'That honour has already been taken off.'.
+
+**Database** (`20270415000500_history.sql`): `club_history` (happened_on date, precision enum,
+title, story, added_by, archived_at, archived_by), `club_honours` (member_id or name, honour, year,
+note, added_by, archived_at, archived_by); RLS read for approved members (archived hidden);
+functions `save_history_entry(uuid, text, text, text, text)` (date and precision as text, so a date that isn't real gets the app's words), `archive_history_entry(uuid)`,
+`save_honour(uuid, uuid, text, text, int, text)`, `archive_honour(uuid)`. No drop, no delete.
+
+**Demo.** A handful of made-up timeline entries from 2019 on and two honours, with the demo's
+founders and past office holders coming from its positions.
+
+**Tests.** Domain rules and the derived lists (founders, past office holders, year groups), demo
+actions, row mapping, parity cases for each refusal, SQL tests for RLS and the board check.
+
+## PRs 7 to 9
 
 Each gets its own short design section added to this file before it's built, following the same
 shape (what members see, rules, database, demo, tests). The table above fixes the order and scope.
