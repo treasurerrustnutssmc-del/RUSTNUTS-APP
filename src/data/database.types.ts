@@ -120,6 +120,8 @@ export type Database = {
           approvals: boolean;
           /** Missing until rev-sound.sql is live. */
           rev_sound?: boolean;
+          /** Missing until chat-push.sql is live. */
+          chat_messages?: boolean;
           updated_at: string;
         };
         Insert: { member_id: string };
@@ -607,6 +609,14 @@ export type Database = {
       forget_push_device: { Args: { p_token: string }; Returns: undefined };
       save_notification_prefs: {
         Args:
+          | {
+              p_ride_reminders: boolean;
+              p_ride_changes: boolean;
+              p_new_rides: boolean;
+              p_approvals: boolean;
+              p_rev_sound: boolean;
+              p_chat_messages: boolean;
+            }
           | { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean; p_rev_sound: boolean }
           | { p_ride_reminders: boolean; p_ride_changes: boolean; p_new_rides: boolean; p_approvals: boolean };
         Returns: undefined;

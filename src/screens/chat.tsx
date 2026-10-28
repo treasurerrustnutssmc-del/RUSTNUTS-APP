@@ -9,6 +9,7 @@ import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import type { Attachment, ChatSummary, ReportView } from '../data/chat/chatContext';
 import { pickMedia } from '../data/chat/media';
+import { watchChat } from '../data/viewingChat';
 import {
   canModerate,
   chatTitle,
@@ -213,7 +214,16 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const sendingNow = useRef(false); // two quick taps land before the state catches up
 
   // Only the chat on screen is marked read; one under the photo viewer or a member's page isn't.
-  useFocusEffect(useCallback(() => chat.open(chatId), [chatId])); // eslint-disable-line react-hooks/exhaustive-deps
+  useFocusEffect(
+    useCallback(() => {
+      const close = chat.open(chatId);
+      const unwatch = watchChat(chatId); // no banner for this chat while it's on screen
+      return () => {
+        close();
+        unwatch();
+      };
+    }, [chatId]), // eslint-disable-line react-hooks/exhaustive-deps
+  );
   useLayoutEffect(() => {
     // A chat opened from a ride, photo or report may not be in the list, so its name is worked out here.
     const title = summary?.title ?? (conv && me ? chatTitle(conv, me, data, data.rides.find((r) => r.id === conv.rideId) ?? null) : 'Chat');

@@ -25,6 +25,7 @@ import { LiveRideScreen } from '../screens/liveRide';
 import { ReminderSync } from '../data/reminders';
 // Lane E: share in
 import { IncomingShare } from '../data/shareIn';
+import { NotificationTaps } from '../data/notificationTaps';
 import { ShareInScreen } from '../screens/shareIn';
 import {
   DocumentApprovalScreen, DocumentScreen, DocumentSignoffsScreen, DocumentsScreen, NewDocumentScreen, PublishDocumentScreen,
@@ -89,6 +90,7 @@ function MainTabs() {
     <>
       {/* Lane E: share in */}
       <IncomingShare />
+      <NotificationTaps />
       <Tabs.Navigator
         // Lane E: ride comms. While a call is on, its bar sits just above the tabs.
         tabBar={(props) => (

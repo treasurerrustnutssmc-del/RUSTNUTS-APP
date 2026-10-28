@@ -32,13 +32,15 @@ export interface ExpoTicket {
 // The same channels and sound as soundFor in src/domain/notifications.ts, which the phone sets up
 // (this file can't import the app's code; a test checks they agree). Android plays the channel's sound,
 // iPhone the message's.
-// Android builds from before the rev don't have the club channels, and Android drops a push naming a
+// Android builds from before the rev don't have the club and chat channels, and Android drops a push naming a
 // channel it doesn't have. That's safe only because no Android build can register for pushes until
 // the app has its Firebase project, and any build that adds it already has the channels.
 const REV_SOUND = 'v_twin_rev.wav';
-function soundFor(alert: boolean, rev: boolean): { channelId: string; sound: string } {
-  if (alert) return { channelId: 'ride-alerts', sound: 'default' };
-  return rev ? { channelId: 'club-rev', sound: REV_SOUND } : { channelId: 'club', sound: 'default' };
+function soundFor(kind: unknown, rev: boolean): { channelId: string; sound: string } {
+  if (kind === 'live-alert') return { channelId: 'ride-alerts', sound: 'default' };
+  // Chat has its own channels, so members can quiet chat on the phone and keep ride news.
+  const base = kind === 'chat' ? 'chat' : 'club';
+  return rev ? { channelId: `${base}-rev`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
 }
 
 /** One message per phone. Live ride alerts are urgent and keep the urgent sound; the rest rev unless
@@ -46,7 +48,7 @@ function soundFor(alert: boolean, rev: boolean): { channelId: string; sound: str
 export function toExpoMessages(rows: OutboxMessage[]): ExpoMessage[] {
   return rows.flatMap((r) => {
     const alert = r.data.kind === 'live-alert';
-    const { channelId, sound } = soundFor(alert, r.rev ?? true);
+    const { channelId, sound } = soundFor(r.data.kind, r.rev ?? true);
     return r.tokens.map((to): ExpoMessage => ({
       to,
       title: r.title,

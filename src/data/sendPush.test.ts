@@ -26,9 +26,10 @@ test('the Harley rev follows the member’s setting, except on live ride alerts,
   const [alertOn] = toExpoMessages([row({ rev: true, data: { kind: 'live-alert' }, tokens: ['t'] })]);
   assert.deepEqual([alertOn.channelId, alertOn.sound], ['ride-alerts', 'default']);
   for (const rev of [true, false, undefined]) {
-    for (const kind of ['ride', 'applicant', 'live-alert']) {
+    for (const kind of ['ride', 'applicant', 'chat', 'live-alert']) {
       const [m] = toExpoMessages([row({ rev, data: { kind }, tokens: ['t'] })]);
-      assert.deepEqual({ channelId: m.channelId, sound: m.sound }, soundFor(kind === 'live-alert' ? 'live-alert' : 'club', rev ?? true), `${kind} ${rev}`);
+      const as = kind === 'live-alert' || kind === 'chat' ? kind : 'club';
+      assert.deepEqual({ channelId: m.channelId, sound: m.sound }, soundFor(as, rev ?? true), `${kind} ${rev}`);
     }
   }
 });

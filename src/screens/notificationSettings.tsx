@@ -65,6 +65,12 @@ export function NotificationSettings() {
           />
         ) : null}
         <Toggle
+          label="Chat messages"
+          description="New messages in your chats. You won’t be buzzed for a chat you’ve had open in the last minute."
+          value={prefs.chatMessages}
+          onChange={change('chatMessages')}
+        />
+        <Toggle
           label="Harley rev"
           description="Notifications sound like a V-twin revving. Live ride alerts keep the urgent alarm."
           value={prefs.revSound}
