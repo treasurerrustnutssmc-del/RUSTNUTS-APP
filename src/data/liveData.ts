@@ -145,6 +145,11 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     return r?.error ? [] : (r?.data ?? []);
   };
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
+  // The club counts' roster places nobody has claimed yet: none rather than blocking the app.
+  const unclaimed = await db.rpc('unclaimed_roster_counts').then(
+    (r) => rowsOf(r, 'unclaimed roster counts'),
+    () => [],
+  );
   const planning = await planningLoad;
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
@@ -175,6 +180,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
 
   return {
     chapters: base.chapters,
+    unclaimedRoster: unclaimed.map((t) => ({ chapterId: t.chapter_id, status: t.status, count: t.n })),
     members: (members.data ?? []).map((m) => ({
       id: m.id,
       chapterId: m.chapter_id,

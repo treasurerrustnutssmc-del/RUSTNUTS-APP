@@ -12,7 +12,8 @@ import {
 } from '../domain/access';
 import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
-import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
+import { clubCounts, positionTitles } from '../domain/home';
+import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, ROLE_SHORT, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -54,7 +55,6 @@ import {
   LockNote,
   MemberDisc,
   Notice,
-  RoleChip,
   Row,
   Screen,
   SectionTitle,
@@ -99,7 +99,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       )
     : [];
   const boardAlerts = isBoard ? expiryAlerts(boardScope, data, today) : [];
-  const approved = data.members.filter((m) => m.approval === 'approved');
+  const counts = clubCounts(data.chapters, data.members, data.unclaimedRoster ?? []);
   const business = businessFor(me, data, nowInstant());
 
   return (
@@ -111,7 +111,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
             <H1>G’day, {displayName(me)}</H1>
             <Small style={{ color: colors.boneDim }}>
               {chapter?.name} chapter
-              {positions.length ? ` · ${positions.map((p) => ROLE_LABEL[p.role]).join(', ')}` : ''}
+              {positions.length ? ` · ${positionTitles(positions, data.chapters, me.chapterId, ROLE_LABEL).map((t) => t.text).join(', ')}` : ''}
             </Small>
           </View>
           {hasEarnedDisc(me) ? <MemberDisc size={52} /> : null}
@@ -203,37 +203,26 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       <Card>
         <H2>The club</H2>
         <Row style={{ gap: space.xl }}>
-          {data.chapters.map((c) => {
-            const n = approved.filter((m) => m.chapterId === c.id).length;
-            return (
-              <View key={c.id} style={{ gap: 2 }}>
-                <H1 style={{ fontVariant: ['tabular-nums'] }}>{n}</H1>
-                <Label>{c.name}</Label>
-              </View>
-            );
-          })}
+          {counts.chapters.map((c) => (
+            <View key={c.id} style={{ gap: 2 }}>
+              <H1 style={{ fontVariant: ['tabular-nums'] }}>{c.count}</H1>
+              <Label>{c.name}</Label>
+            </View>
+          ))}
           <View style={{ gap: 2 }}>
-            <H1>{approved.filter((m) => m.status === 'full' || m.status === 'nomad').length}</H1>
+            <H1 style={{ fontVariant: ['tabular-nums'] }}>{counts.patched}</H1>
             <Label>Patched</Label>
           </View>
           <View style={{ gap: 2 }}>
-            <H1>{approved.filter((m) => m.status === 'fng').length}</H1>
+            <H1 style={{ fontVariant: ['tabular-nums'] }}>{counts.fngs}</H1>
             <Label>FNGs</Label>
           </View>
         </Row>
-      </Card>
-
-      <Card>
-        <Label>On the way</Label>
-        {[
-          ['map', 'Locked routes, ride roles and briefings', 'Stage 2'],
-        ].map(([icon, text, stage]) => (
-          <Row key={text} style={{ gap: space.md, flexWrap: 'nowrap' }}>
-            <Ionicons name={icon as 'calendar'} size={18} color={colors.boneMute} />
-            <Body style={{ flex: 1 }}>{text}</Body>
-            <Small>{stage}</Small>
-          </Row>
-        ))}
+        {counts.onApp < counts.total ? (
+          <Small>
+            {counts.onApp} of {counts.total} signed in to the app so far.
+          </Small>
+        ) : null}
       </Card>
     </Screen>
   );
@@ -357,8 +346,8 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
             <Row style={{ gap: 6 }}>
               <StatusChip status={member.status} />
               {member.onHiatus ? <Chip label="On hiatus" icon="pause" /> : null}
-              {positions.map((p) => (
-                <RoleChip key={p.id} role={p.role} />
+              {positionTitles(positions, data.chapters, member.chapterId, ROLE_SHORT).map((t) => (
+                <Chip key={t.key} label={t.text} tone="bone" />
               ))}
             </Row>
           </View>
@@ -369,7 +358,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
           {positions.map((p) => (
             <KeyValue
               key={p.id}
-              label={ROLE_LABEL[p.role]}
+              label={positionTitles([p], data.chapters, member.chapterId, ROLE_LABEL)[0].text}
               value={`Since ${formatLongDate(p.startedOn)}${termEndsOn(p) ? ` · term ${termState(p, today) === 'ended' ? 'ended' : 'ends'} ${formatAuDate(termEndsOn(p))}` : ''}`}
               tone={termState(p, today) === 'ended' ? 'warn' : undefined}
             />

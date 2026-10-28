@@ -474,6 +474,7 @@ export type Database = {
       };
       shared_phones: { Args: never; Returns: { member_id: string; phone: string }[] };
       claim_roster: { Args: never; Returns: boolean };
+      unclaimed_roster_counts: { Args: never; Returns: { chapter_id: string; status: MemberStatus; n: number }[] };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
       end_position: { Args: { p_position: string }; Returns: undefined };
       apply_to_join: {
