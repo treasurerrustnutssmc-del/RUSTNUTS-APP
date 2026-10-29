@@ -654,17 +654,17 @@ const DISC_ART: Record<Compass, ImageSourcePropType> = {
 };
 
 const DISC_LABEL: Record<Compass, string> = {
-  west: 'Full member disc, West compass',
-  north: 'Full member disc, North compass',
-  national: 'Full member disc, National compass',
-  plain: 'Full member disc',
+  west: 'Member disc, West compass',
+  north: 'Member disc, North compass',
+  national: 'Member disc, National compass',
+  plain: 'Member disc',
 };
 
 /**
  * The embroidered MEMBER disc in its Chapter Compass Ring (see compassFor). Only shown once
  * someone is a full member (see hasEarnedDisc).
  */
-export function MemberDisc({ size = 64, compass = 'plain' }: { size?: number; compass?: Compass }) {
+export function MemberDisc({ size = 64, compass }: { size?: number; compass: Compass }) {
   return (
     <Image
       source={DISC_ART[compass]}

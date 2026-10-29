@@ -13,6 +13,7 @@ test('a member wears the compass of their chapter', () => {
 });
 
 test('a sitting President still wears their own chapter, not national', () => {
+  assert.ok(d.positions.some((p) => p.memberId === 'm-smokey' && p.role === 'president' && p.endedOn === null), 'Smokey is North President');
   assert.equal(compassFor(m('m-smokey'), d), 'north');
 });
 
