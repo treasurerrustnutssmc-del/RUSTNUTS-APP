@@ -1597,42 +1597,6 @@
       "allowed": false
     },
     {
-      "name": "Treasurer types in a continuation fee (it’s half the Full fee now)",
-      "as": "penny",
-      "action": "setContinuationFee",
-      "chapter": "west",
-      "fyOffset": 0,
-      "amountCents": 5000,
-      "allowed": false
-    },
-    {
-      "name": "Treasurer sets a $0 continuation fee",
-      "as": "penny",
-      "action": "setContinuationFee",
-      "chapter": "west",
-      "fyOffset": 0,
-      "amountCents": 0,
-      "allowed": false
-    },
-    {
-      "name": "Chapter Secretary types in a continuation fee",
-      "as": "torque",
-      "action": "setContinuationFee",
-      "chapter": "west",
-      "fyOffset": 0,
-      "amountCents": 6000,
-      "allowed": false
-    },
-    {
-      "name": "Member sets the continuation fee",
-      "as": "gravel",
-      "action": "setContinuationFee",
-      "chapter": "west",
-      "fyOffset": 0,
-      "amountCents": 6000,
-      "allowed": false
-    },
-    {
       "name": "Treasurer sets the PayID",
       "as": "penny",
       "action": "setPaymentDetails",

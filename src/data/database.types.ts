@@ -830,7 +830,6 @@ export type Database = {
         Args: { p_chapter: string; p_fy: number; p_status: MemberStatus; p_amount_cents: number; p_due_on: string };
         Returns: undefined;
       };
-      set_continuation_fee: { Args: { p_chapter: string; p_fy: number; p_amount_cents: number }; Returns: undefined };
       set_payment_details: {
         Args: { p_chapter: string; p_payid: string | null; p_payid_name: string | null; p_bsb: string | null; p_account_no: string | null };
         Returns: undefined;

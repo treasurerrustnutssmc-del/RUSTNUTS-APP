@@ -58,7 +58,6 @@ export function club(over: Partial<ClubData> = {}): ClubData {
     attendance: [],
     decisions: [],
     feeRates: [],
-    continuationFees: [],
     charges: [],
     payments: [],
     paymentDetails: [],

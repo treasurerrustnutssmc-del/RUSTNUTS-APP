@@ -178,7 +178,6 @@ export interface ClubContextValue {
   decideApplication: (memberId: string, status: MemberStatus | null, votes: Votes, note: string) => Promise<void>;
   recordFngReview: (memberId: string, atMonths: number, outcome: FngOutcome, votes: Votes, note: string) => Promise<void>;
   setFeeRate: (chapterId: string, fy: number, status: MemberStatus, amountCents: number, dueOn: string) => Promise<void>;
-  setContinuationFee: (chapterId: string, fy: number, amountCents: number) => Promise<void>;
   setPaymentDetails: (details: PaymentDetails) => Promise<void>;
   /** Resolves to how many charges were added. */
   raiseFees: (chapterId: string, fy: number) => Promise<number>;
@@ -376,7 +375,6 @@ export const EMPTY_DATA: ClubData = {
   attendance: [],
   decisions: [],
   feeRates: [],
-  continuationFees: [],
   charges: [],
   payments: [],
   paymentDetails: [],

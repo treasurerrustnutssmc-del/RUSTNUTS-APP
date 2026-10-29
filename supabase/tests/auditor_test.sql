@@ -34,7 +34,7 @@ select v.id::uuid, c.id, v.role::position_role, v.started::date
 from (values
   ('00000000-0000-0000-0000-0000000008a1', null, 'nec_chair', '2025-08-16'),
   ('00000000-0000-0000-0000-0000000008a2', 'west', 'secretary', '2025-08-16'),
-  ('00000000-0000-0000-0000-0000000008a3', null, 'nec_auditor', (current_date - 330)::text),
+  ('00000000-0000-0000-0000-0000000008a3', null, 'nec_auditor', (private.club_date() - 330)::text),
   ('00000000-0000-0000-0000-0000000008a5', 'north', 'president', '2025-08-16'),
   ('00000000-0000-0000-0000-0000000008a7', 'north', 'secretary', '2025-08-16')
 ) as v(id, slug, role, started)
@@ -104,12 +104,12 @@ declare
   s uuid;
   ch uuid;
 begin
-  insert into checkin_sessions (kind, chapter_id, title, held_on, code) values ('meeting', north, 'North meeting', current_date - 7, 'AUD001') returning id into s;
+  insert into checkin_sessions (kind, chapter_id, title, held_on, code) values ('meeting', north, 'North meeting', private.club_date() - 7, 'AUD001') returning id into s;
   insert into attendance (session_id, member_id) values (s, app);
   insert into attendance_exemptions (session_id, member_id, reason) values (s, '00000000-0000-0000-0000-0000000008a7', 'Working');
-  insert into member_decisions (member_id, kind, outcome, status, decided_on) values (app, 'application', 'approved', 'introduced', current_date);
-  insert into charges (member_id, chapter_id, fy, kind, amount_cents, due_on) values ('00000000-0000-0000-0000-0000000008a7', north, 2026, 'annual', 36000, current_date) returning id into ch;
-  insert into payments (charge_id, amount_cents, paid_on, method, state) values (ch, 36000, current_date, 'bank', 'claimed');
+  insert into member_decisions (member_id, kind, outcome, status, decided_on) values (app, 'application', 'approved', 'introduced', private.club_date());
+  insert into charges (member_id, chapter_id, fy, kind, amount_cents, due_on) values ('00000000-0000-0000-0000-0000000008a7', north, 2026, 'annual', 36000, private.club_date()) returning id into ch;
+  insert into payments (charge_id, amount_cents, paid_on, method, state) values (ch, 36000, private.club_date(), 'bank', 'claimed');
 
   assert pg_temp.value_as(aud, format('select count(*) from members where id = %L', app)) = '1', 'a pending applicant in another chapter';
   assert pg_temp.value_as(rider, format('select count(*) from members where id = %L', app)) = '0', 'members don''t';
@@ -139,7 +139,7 @@ begin
   values (west, 'Board vote', 'chapter_board', 'majority', 1, now() + interval '3 days');
   insert into merch_items (chapter_id, name, price_cents) values (west, 'Proposed tee', 3000);
   insert into conduct_records (member_id, chapter_id, kind, summary, decided_on, notice_on)
-  values (rider, west, 'other', 'Late to the ride', current_date, current_date);
+  values (rider, west, 'other', 'Late to the ride', private.club_date(), private.club_date());
 
   j := pg_temp.value_as(aud, 'select public.club_business()')::jsonb;
   assert jsonb_array_length(j->'meetings') = 2, 'board and NEC meetings';
@@ -206,8 +206,8 @@ begin
   assert pg_temp.try_as(sec, format(raise_it, west, 'information', 'Statement', null)) = 'Only the National Auditor can do that (11.8).', 'only the Auditor';
   assert pg_temp.try_as(aud, format(raise_it, west, 'advice', 'Statement', null)) = 'Pick information or correction.', 'a kind';
   assert pg_temp.try_as(aud, format(raise_it, west, 'information', '  ', null)) = 'Give it a title.', 'a title';
-  assert pg_temp.try_as(aud, format(raise_it, west, 'information', 'Statement', current_date - 1)) = 'Pick a due date from today on, or none.', 'not due yesterday';
-  r := pg_temp.value_as(aud, format(raise_it, west, 'information', 'Statement', current_date + 14))::uuid;
+  assert pg_temp.try_as(aud, format(raise_it, west, 'information', 'Statement', private.club_date() - 1)) = 'Pick a due date from today on, or none.', 'not due yesterday';
+  r := pg_temp.value_as(aud, format(raise_it, west, 'information', 'Statement', private.club_date() + 14))::uuid;
   n := pg_temp.value_as(aud, format(raise_it, null, 'correction', 'Club fund', null))::uuid;
 
   assert pg_temp.try_as(nsec, format('select public.answer_audit_request(%L, %L)', r, 'Here'))
@@ -248,19 +248,19 @@ declare
   gone uuid;
   j jsonb;
 begin
-  assert pg_temp.try_as(chair, format(save_it, null, current_date - 30, current_date, 'In order.')) = 'Only the National Auditor can do that (11.8).', 'only the Auditor';
-  assert pg_temp.try_as(aud, format(save_it, null, current_date, current_date - 1, 'In order.')) = 'The period has to start before it ends.', 'a period';
-  assert pg_temp.try_as(aud, format(save_it, null, current_date - 30, current_date + 1, 'In order.')) = 'The period can’t run past today.', 'not the future';
-  assert pg_temp.try_as(aud, format(save_it, null, current_date - 30, current_date, ' ')) = 'Write the findings first.', 'findings';
-  r := pg_temp.value_as(aud, format(save_it, null, current_date - 30, current_date, 'In order.'))::uuid;
-  gone := pg_temp.value_as(aud, format(save_it, null, current_date - 30, current_date, 'Scrap this.'))::uuid;
+  assert pg_temp.try_as(chair, format(save_it, null, private.club_date() - 30, private.club_date(), 'In order.')) = 'Only the National Auditor can do that (11.8).', 'only the Auditor';
+  assert pg_temp.try_as(aud, format(save_it, null, private.club_date(), private.club_date() - 1, 'In order.')) = 'The period has to start before it ends.', 'a period';
+  assert pg_temp.try_as(aud, format(save_it, null, private.club_date() - 30, private.club_date() + 1, 'In order.')) = 'The period can’t run past today.', 'not the future';
+  assert pg_temp.try_as(aud, format(save_it, null, private.club_date() - 30, private.club_date(), ' ')) = 'Write the findings first.', 'findings';
+  r := pg_temp.value_as(aud, format(save_it, null, private.club_date() - 30, private.club_date(), 'In order.'))::uuid;
+  gone := pg_temp.value_as(aud, format(save_it, null, private.club_date() - 30, private.club_date(), 'Scrap this.'))::uuid;
   assert pg_temp.try_as(aud, format('select public.delete_audit_report(%L)', gone)) is null, 'a draft can go';
-  assert pg_temp.try_as(aud, format(save_it, r, current_date - 60, current_date, 'In order, mostly.')) is null, 'a draft can change';
+  assert pg_temp.try_as(aud, format(save_it, r, private.club_date() - 60, private.club_date(), 'In order, mostly.')) is null, 'a draft can change';
 
   j := pg_temp.value_as(chair, 'select public.club_audit()')::jsonb;
   assert jsonb_array_length(j->'reports') = 0, 'drafts stay with the Auditor';
   assert pg_temp.try_as(aud, format('select public.issue_audit_report(%L)', r)) is null, 'issued';
-  assert pg_temp.try_as(aud, format(save_it, r, current_date - 60, current_date, 'Changed.')) = 'That report has been issued, so it can’t change.', 'issued is final';
+  assert pg_temp.try_as(aud, format(save_it, r, private.club_date() - 60, private.club_date(), 'Changed.')) = 'That report has been issued, so it can’t change.', 'issued is final';
   assert pg_temp.try_as(aud, format('select public.delete_audit_report(%L)', r)) = 'That report has been issued, so it can’t change.', 'and stays';
   j := pg_temp.value_as(chair, 'select public.club_audit()')::jsonb;
   assert jsonb_array_length(j->'reports') = 1 and j->'reports'->0->>'findings' = 'In order, mostly.', 'the NEC reads it';
@@ -294,11 +294,11 @@ begin
     assert private.hold_problem(rider, 'nec_auditor') = not_nec, 'the Secretary isn''t made Auditor';
     delete from positions where member_id = rider and role = 'nec_secretary';
     assert private.has_carried_auditor_vote(rider), 'a fresh vote';
-    insert into positions (member_id, chapter_id, role, started_on, ended_on) values (rider, null, 'nec_auditor', current_date - 2, current_date - 1);
+    insert into positions (member_id, chapter_id, role, started_on, ended_on) values (rider, null, 'nec_auditor', private.club_date() - 2, private.club_date() - 1);
     assert not private.has_carried_auditor_vote(rider), 'a vote from before their last term doesn''t seat them again';
 
-    update positions set ended_on = current_date where role = 'nec_auditor' and ended_on is null;
-    insert into positions (member_id, chapter_id, role, started_on) values (chair, null, 'nec_auditor', current_date - 330);
+    update positions set ended_on = private.club_date() where role = 'nec_auditor' and ended_on is null;
+    insert into positions (member_id, chapter_id, role, started_on) values (chair, null, 'nec_auditor', private.club_date() - 330);
     insert into votes (chapter_id, subject_member_id, question, electorate, threshold, quorum, closes_at, closed_at, result)
     values (null, chair, 'Renew?', 'nec', 'two_thirds', 1, now() - interval '1 day', now() - interval '1 day', 'carried');
     assert pg_temp.try_as(chair, 'select public.renew_auditor()') = 'You can’t renew yourself.', 'nobody renews themselves';

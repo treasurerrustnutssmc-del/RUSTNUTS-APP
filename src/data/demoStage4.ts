@@ -8,7 +8,6 @@ import { addDays } from '../domain/dates';
 import {
   claimProblem,
   continuationFeeFor,
-  continuationFeeProblem,
   decidePaymentProblem,
   feeRateProblem,
   paymentDetailsProblem,
@@ -186,12 +185,6 @@ export function setFeeRate(ctx: DemoCtx, chapterId: string, fy: number, status: 
   return { ...ctx.data, feeRates: [...others, { chapterId, fy, status, amountCents, dueOn }] };
 }
 
-export function setContinuationFee(ctx: DemoCtx, chapterId: string, fy: number, amountCents: number): ClubData {
-  deny(continuationFeeProblem(ctx.me, chapterId, amountCents, ctx.data));
-  const others = (ctx.data.continuationFees ?? []).filter((f) => !(f.chapterId === chapterId && f.fy === fy));
-  return { ...ctx.data, continuationFees: [...others, { chapterId, fy, amountCents }] };
-}
-
 export function setPaymentDetails(ctx: DemoCtx, details: PaymentDetails): ClubData {
   deny(paymentDetailsProblem(ctx.me, details.chapterId, ctx.data));
   const clean = (v: string | null) => v?.trim() || null;
@@ -297,7 +290,6 @@ export type Stage4Action =
   | { action: 'decideApplication'; member: string; status: MemberStatus | null; votes: Votes; note: string }
   | { action: 'fngReview'; member: string; atMonths: number; outcome: FngOutcome; votes: Votes; note: string }
   | { action: 'setFeeRate'; chapter: string; fy: number; status: MemberStatus; amountCents: number; dueOn: string }
-  | { action: 'setContinuationFee'; chapter: string; fy: number; amountCents: number }
   | { action: 'setPaymentDetails'; chapter: string; payid: string | null }
   | { action: 'raiseFees'; chapter: string; fy: number }
   | { action: 'recordAgm'; heldOn: string }
@@ -318,7 +310,7 @@ export type Stage4Action =
 
 export const STAGE4_ACTIONS = new Set<string>([
   'openCheckin', 'checkIn', 'markAttendance', 'closeCheckin', 'decideApplication', 'fngReview', 'setFeeRate',
-  'setContinuationFee', 'setPaymentDetails', 'raiseFees', 'recordAgm', 'raiseCharge', 'waiveCharge', 'claimPayment',
+  'setPaymentDetails', 'raiseFees', 'recordAgm', 'raiseCharge', 'waiveCharge', 'claimPayment',
   'recordPayment', 'confirmPayment', 'rejectPayment',
   'designateBig4', 'undesignateBig4', 'setMeetingType', 'setExemption',
   'setBig4Waiver', 'giveNotice', 'respondNotice', 'closeNotice',
@@ -340,8 +332,6 @@ export function runStage4Action(ctx: DemoCtx, a: Stage4Action): ClubData {
       return recordFngReview(ctx, a.member, a.atMonths, a.outcome, a.votes, a.note);
     case 'setFeeRate':
       return setFeeRate(ctx, a.chapter, a.fy, a.status, a.amountCents, a.dueOn);
-    case 'setContinuationFee':
-      return setContinuationFee(ctx, a.chapter, a.fy, a.amountCents);
     case 'setPaymentDetails':
       return setPaymentDetails(ctx, { chapterId: a.chapter, payid: a.payid, payidName: null, bsb: null, accountNo: null });
     case 'raiseFees':

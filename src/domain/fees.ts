@@ -120,12 +120,6 @@ export function continuationFeeFor(chapterId: string, fy: number, data: ClubData
   return rate ? Math.floor(rate.amountCents / 2) : null;
 }
 
-/** The continuation fee isn't set by hand any more (4.11). Kept so old screens get a clear answer. */
-export function continuationFeeProblem(me: Member | null, chapterId: string, _amountCents: number, data: ClubData): string | null {
-  if (!canSetFees(me, chapterId, data.positions)) return SET_FEES_ONLY;
-  return 'The continuation fee is half the Full fee (4.11), so the app works it out.';
-}
-
 export function paymentDetailsProblem(me: Member | null, chapterId: string, data: ClubData): string | null {
   return canManageFees(me, chapterId, data.positions) ? null : MONEY_ONLY;
 }

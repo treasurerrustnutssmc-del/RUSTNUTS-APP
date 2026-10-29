@@ -63,7 +63,6 @@ import { big4CrewProblem, big4GoingProblem, big4WaiverProblem, seesBig4Records, 
 import { closeNoticeProblem, giveNoticeProblem, respondProblem } from '../domain/notices';
 import {
   claimProblem,
-  continuationFeeProblem,
   decidePaymentProblem,
   feeRateProblem,
   paymentDetailsProblem,
@@ -647,11 +646,6 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     setFeeRate: async (chapterId, fy, status, amountCents, dueOn) => {
       deny(feeRateProblem(visibleMe, chapterId, status, amountCents, data));
       ok(await supabase().rpc('set_fee_rate', { p_chapter: chapterId, p_fy: fy, p_status: status, p_amount_cents: amountCents, p_due_on: dueOn }));
-      await after();
-    },
-    setContinuationFee: async (chapterId, fy, amountCents) => {
-      deny(continuationFeeProblem(visibleMe, chapterId, amountCents, data));
-      ok(await supabase().rpc('set_continuation_fee', { p_chapter: chapterId, p_fy: fy, p_amount_cents: amountCents }));
       await after();
     },
     setPaymentDetails: async (d) => {
