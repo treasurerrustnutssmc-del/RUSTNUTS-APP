@@ -8,6 +8,7 @@ import type { RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
 import type { HubInput, RegisterInput } from '../domain/hubs'; // Ride planning extras
 import type { CharityInput, SignupInput } from '../domain/charity'; // Charity ride sign-ups
+import type { CostInput, KmInput } from '../domain/busLog'; // Rusty Bus extras
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { Casting, VoteInput } from '../domain/votes';
 import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
@@ -232,6 +233,18 @@ export interface ClubContextValue {
   decideBus: (bookingId: string, yes: boolean, reason: string) => Promise<void>;
   /** Calls off a Waiting or Booked booking (whoever booked it, its driver or the board). */
   cancelBus: (bookingId: string) => Promise<void>;
+  // Rusty Bus extras
+  /** Changes a booking's days and details (whoever booked it, or the board). Its status stays. */
+  changeBus: (bookingId: string, input: BusInput) => Promise<void>;
+  /** Logs the bus keys passing to someone. */
+  handBusKeys: (toId: string, note: string) => Promise<void>;
+  /** Logs an odometer reading. */
+  logBusKm: (input: KmInput) => Promise<void>;
+  /** Logs a running cost; litres are rounded to two decimals. */
+  logBusCost: (input: CostInput) => Promise<void>;
+  /** Strikes out a reading or a cost logged by mistake. */
+  strikeBusKm: (id: string) => Promise<void>;
+  strikeBusCost: (id: string) => Promise<void>;
   // Ride planning extras
   /** Sets (or with null clears) the range of one of your own bikes, in km. */
   setBikeRange: (bikeId: string, rangeKm: number | null) => Promise<void>;

@@ -12,7 +12,7 @@ import { monthReport } from '../src/domain/ledger'; // Stage 5B
 import { meetingFigures } from '../src/domain/meetingReport';
 import {
   LEDGER_AT, BUDGET_AT, monthFrom, fixtureData, // Stage 5B
-  BRIEFED_AT, BUS_AT, PLANNED_AT, BUS_DECLINE_REASON, caseAction, fixtureSignedAt, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
+  BRIEFED_AT, BUS_AT, busKeyAt, PLANNED_AT, BUS_DECLINE_REASON, caseAction, fixtureSignedAt, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
   resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
 import { DOCS_AT } from '../src/data/parityFixture.testkit'; // Stage 5C
@@ -369,6 +369,54 @@ for (const b of fx.busBookings ?? []) {
   );
 }
 
+// Rusty Bus extras: handovers a minute apart, readings and costs on days counted from today.
+(fx.busKeys ?? []).forEach((k, i) => {
+  sql(`insert into public.bus_key_handovers (id, to_id, logged_at) values (${id('buskeys', k.key)}, ${id('m', k.to)}, ${q(busKeyAt(i))}::timestamptz);`);
+});
+for (const r of fx.busKm ?? []) {
+  sql(
+    `insert into public.bus_km (id, km, read_on, logged_by, logged_at, struck_at) values (${id('buskm', r.key)}, ${r.km}, ` +
+      `${date(addDays(today, r.onDays))}, ${id('m', r.loggedBy)}, ${q(BUS_AT)}::timestamptz, ${r.struck ? `${q(BUS_AT)}::timestamptz` : 'null'});`,
+  );
+}
+for (const c of fx.busCosts ?? []) {
+  sql(
+    `insert into public.bus_costs (id, spent_on, kind, amount_cents, litres, logged_by, logged_at, struck_at) values (` +
+      `${id('buscost', c.key)}, ${date(addDays(today, c.onDays))}, ${q(c.kind)}, ${c.cents}, ${c.litres ?? 'null'}, ` +
+      `${id('m', c.loggedBy)}, ${q(BUS_AT)}::timestamptz, ${c.struck ? `${q(BUS_AT)}::timestamptz` : 'null'});`,
+  );
+}
+
+/** A Rusty Bus extras call, its days counted from today and its texts as typed (the database trims them). */
+const busExtrasCall = (raw: ParityCase & Record<string, any>): string | null => {
+  const c = resolveCase(raw, today) as ParityCase & Record<string, any>;
+  const member = (key: string | null) => (key ? id('m', key) : 'null::uuid');
+  const booking = (key: string | null) => (key ? id('bus', key) : 'null::uuid');
+  switch (c.action) {
+    case 'changeBus':
+      return (
+        `public.change_bus(${id('bus', c.booking)}, ${date(c.first ?? null)}, ${date(c.last ?? null)}, ` +
+        `${c.purpose ? `${q(c.purpose)}::public.bus_purpose` : 'null::public.bus_purpose'}, ` +
+        `${c.ride ? id('r', c.ride) : 'null::uuid'}, ${member(c.driver)}, ${text(c.notes, c.repeat)})`
+      );
+    case 'handBusKeys':
+      return `public.hand_bus_keys(${member(c.to)}, ${text(c.note, c.repeat)})`;
+    case 'logBusKm':
+      return `public.log_bus_km(${c.km}, ${date(c.on ?? null)}, ${booking(c.booking)}, ${text(c.note)})`;
+    case 'logBusCost':
+      return (
+        `public.log_bus_cost(${date(c.on ?? null)}, ${c.kind ? `${q(c.kind)}::public.bus_cost_kind` : 'null::public.bus_cost_kind'}, ` +
+        `${c.cents}, ${c.litres ?? 'null'}::numeric, ${booking(c.booking)}, ${text(c.note)})`
+      );
+    case 'strikeBusKm':
+      return `public.strike_bus_km(${id('buskm', c.entry)})`;
+    case 'strikeBusCost':
+      return `public.strike_bus_cost(${id('buscost', c.entry)})`;
+    default:
+      return null;
+  }
+};
+
 /** A Rusty Bus call, its days counted from today and its texts as typed (the database trims them). */
 const busCall = (raw: ParityCase & Record<string, any>): string => {
   const c = resolveCase(raw, today) as ParityCase & Record<string, any>;
@@ -543,6 +591,8 @@ const call = (c: ParityCase & Record<string, any>): string => {
   if (stage4) return stage4;
   const planning = planningCall(c);
   if (planning) return planning;
+  const busExtras = busExtrasCall(c);
+  if (busExtras) return busExtras;
   switch (c.action) {
     case 'appoint':
       return `public.appoint_position(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)})`;

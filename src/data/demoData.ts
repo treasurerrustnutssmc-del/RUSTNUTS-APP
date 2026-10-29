@@ -8,7 +8,7 @@ import { clubYearOf } from '../domain/clubYear';
 import { fyOf, receiptNo } from '../domain/fees';
 import { readGpx } from '../domain/gpx';
 import { addMonths } from '../domain/profile';
-import type { Attendance, CheckinSession, ClubData, LedgerCode, LedgerEntry, Member, MemberPrivate, MemberStatus, Ride, RideRoute, Route } from '../domain/types';
+import type { Attendance, BusCost, BusCostKind, BusKm, CheckinSession, ClubData, LedgerCode, LedgerEntry, Member, MemberPrivate, MemberStatus, Ride, RideRoute, Route } from '../domain/types';
 import { isCredit } from '../domain/ledger';
 import { V4_CONSTITUTION } from './demoConstitution';
 
@@ -720,6 +720,48 @@ Object.assign(DEMO_DATA, {
       notes: 'The West stall at the Werribee swap meet: the gazebo and the merch tubs.',
       status: 'requested', bookedBy: 'm-spanner', bookedAt: at(ago(24)), ...noBusDecision,
     },
+  ],
+} satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
+// Rusty Bus extras: Diesel has the keys for today's recovery; readings back over 15 months (one
+// typo struck out); rego, insurance, a service, tyres, tolls and fuel this year and last.
+// ---------------------------------------------------------------------------
+
+const busEntry = { bookingId: null, note: '', struckBy: null, struckAt: null };
+const kmOn = (id: string, km: number, daysAgo: number, loggedBy: string, over: Partial<BusKm> = {}): BusKm => ({
+  ...busEntry, id, km, readOn: ago(daysAgo), loggedBy, loggedAt: at(ago(daysAgo), '07:00:00'), ...over,
+});
+const spent = (id: string, kind: BusCostKind, amountCents: number, daysAgo: number, loggedBy: string, over: Partial<BusCost> = {}): BusCost => ({
+  ...busEntry, id, spentOn: ago(daysAgo), kind, amountCents, litres: null, loggedBy, loggedAt: at(ago(daysAgo), '08:00:00'), ...over,
+});
+
+Object.assign(DEMO_DATA, {
+  busKeys: [
+    { id: 'keys-1', toId: 'm-rusty', note: 'Back on the hook at the clubhouse.', loggedBy: 'm-torque', loggedAt: at(ago(60), '06:00:00') },
+    { id: 'keys-2', toId: 'm-gravel', note: '', loggedBy: 'm-rusty', loggedAt: at(ago(12), '05:00:00') },
+    { id: 'keys-3', toId: 'm-diesel', note: 'Off to Bacchus Marsh for Chook’s bike.', loggedBy: 'm-chook', loggedAt: recoveryBookedAt },
+  ],
+  busKm: [
+    kmOn('km-1', 118_240, 420, 'm-rusty'),
+    kmOn('km-2', 119_910, 300, 'm-rusty'),
+    kmOn('km-3', 121_385, 190, 'm-torque'),
+    kmOn('km-4', 123_050, 90, 'm-rusty', { note: 'At the rego check.' }),
+    kmOn('km-5', 123_612, 60, 'm-rusty'),
+    kmOn('km-6', 142_180, 30, 'm-gravel', { note: 'Typo', struckBy: 'm-gravel', struckAt: at(ago(30), '07:05:00') }),
+    kmOn('km-7', 124_180, 30, 'm-gravel'),
+    kmOn('km-8', 124_402, 0, 'm-diesel', { bookingId: 'bus-2', note: 'Leaving for Bacchus Marsh.', loggedAt: recoveryBookedAt }),
+  ],
+  busCosts: [
+    spent('cost-1', 'fuel', 8_420, 300, 'm-rusty', { litres: 46.2 }),
+    spent('cost-2', 'tyres', 112_000, 260, 'm-torque', { note: 'Two new rears at Laverton Tyres.' }),
+    spent('cost-3', 'rego', 92_450, 100, 'm-torque', { note: 'Twelve months.' }),
+    spent('cost-4', 'insurance', 118_000, 95, 'm-torque', { note: 'Comprehensive, club policy.' }),
+    spent('cost-5', 'service', 48_900, 70, 'm-rusty', { note: 'Logbook service, Laverton Auto.' }),
+    spent('cost-6', 'fuel', 9_850, 60, 'm-rusty', { litres: 52.4 }),
+    spent('cost-7', 'fuel', 11_200, 30, 'm-gravel', { litres: 61 }),
+    spent('cost-8', 'fuel', 11_200, 30, 'm-gravel', { litres: 61, note: 'Logged twice', struckBy: 'm-gravel', struckAt: at(ago(30), '08:05:00') }),
+    spent('cost-9', 'tolls', 1_875, 30, 'm-gravel', { note: 'CityLink both ways.' }),
   ],
 } satisfies Partial<ClubData>);
 

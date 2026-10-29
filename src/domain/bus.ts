@@ -41,6 +41,9 @@ export const BUS_DAYS_PASSED = 'That booking’s days have passed.';
 export const BUS_REASON_TOO_LONG = 'Keep the reason to 300 characters at most.';
 export const NOT_BUS_CANCELLER = 'Only whoever booked it, its driver or the board can cancel it.';
 export const ALREADY_OFF = 'That booking is already off.';
+// Rusty Bus extras: changing a booking.
+export const NOT_BUS_CHANGER = 'Only whoever booked it or the board can change it.';
+export const BUS_ADD_DAYS = 'Only the board or NEC can add days to a Booked booking.';
 
 /** A Waiting booking whose days went by with no yes or no (shown only; it's still stored as Waiting). */
 export const NOT_ANSWERED = 'Not answered';
@@ -121,7 +124,7 @@ export function bookedStraightAway(me: Member | null, input: BusInput, today: st
 }
 
 /** Whether `iso` is a real calendar date written YYYY-MM-DD: the shape, then a round trip through a UTC date. */
-function isIsoDate(iso: string): boolean {
+export function isIsoDate(iso: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
   const [y, m, d] = iso.split('-').map(Number);
   const back = new Date(Date.UTC(y, m - 1, d));
@@ -380,4 +383,51 @@ export function busRide(booking: BusBooking, data: ClubData): Ride | undefined {
  */
 export function rideCalledOff(booking: BusBooking, data: ClubData, today: string): boolean {
   return isLive(booking) && booking.lastDay >= today && !!busRide(booking, data)?.cancelledAt;
+}
+
+/**
+ * Why `me` can't change this booking to `input`, or null when they can. Mirrors public.change_bus.
+ * The status never changes: a Waiting booking may move anywhere (the board still says yes), and a
+ * Booked one keeps its yes, so a member who isn't on the board may shrink it or change the rest but
+ * not add days, unless the change would be booked straight away anyway (a recovery from today or
+ * tomorrow). A booking under way keeps its own first day even though it's past.
+ */
+export function changeProblem(
+  me: Member | null,
+  booking: BusBooking | undefined,
+  input: BusInput,
+  data: ClubData,
+  today: string,
+): string | null {
+  const opening = signedInProblem(me);
+  if (opening) return opening;
+  if (!booking) return NO_BOOKING;
+  if (booking.bookedBy !== me!.id && !managesBus(me, data)) return NOT_BUS_CHANGER;
+  if (isOff(booking)) return ALREADY_OFF;
+  if (booking.lastDay < today) return BUS_DAYS_PASSED;
+  const { firstDay: first, lastDay: last } = input;
+  if (!isIsoDate(first) || !isIsoDate(last)) return BUS_DAYS_MISSING;
+  if (last < first) return BUS_LAST_BEFORE_FIRST;
+  if (first < today && first !== booking.firstDay) return BUS_PAST_START;
+  if (daysBetween(first, last) + 1 > MAX_BUS_DAYS) return BUS_TOO_LONG;
+  if (first > yearAhead(today)) return BUS_TOO_FAR;
+  if (!input.purpose) return BUS_NO_PURPOSE;
+  if (input.rideId !== null) {
+    const ride = data.rides.find((r) => r.id === input.rideId);
+    if (!ride || ride.cancelledAt) return BUS_NO_RIDE;
+  }
+  const driver = input.driverId === null ? undefined : data.members.find((m) => m.id === input.driverId);
+  if (!driver || driver.approval !== 'approved') return BUS_BAD_DRIVER;
+  if (charCount(input.notes.trim()) > MAX_BUS_NOTES) return BUS_NOTES_TOO_LONG;
+  if (booking.status === 'approved') {
+    const addsDays = first < booking.firstDay || last > booking.lastDay;
+    if (addsDays && !bookedStraightAway(me, input, today, data)) return BUS_ADD_DAYS;
+    if (clashesWith({ first, last }, data, booking.id).length > 0) return BUS_CLASH;
+  }
+  return null;
+}
+
+/** Whoever booked it, or a bus manager: who sees Change booking. */
+export function canChangeBus(me: Member | null, booking: BusBooking, data: ClubData): boolean {
+  return !!me && me.approval === 'approved' && (booking.bookedBy === me.id || managesBus(me, data));
 }
