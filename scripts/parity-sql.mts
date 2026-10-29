@@ -696,6 +696,30 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.withdraw_nomination(${id('nom', c.nomination)})`;
     case 'socialCastBragVote':
       return `public.cast_brag_vote(${id('nom', c.nomination)})`;
+    // Invites to and from other clubs
+    case 'socialSaveOtherClub':
+      return (
+        `public.save_other_club(${c.otherClub ? id('oc', c.otherClub) : 'null'}, ${q(c.club)}, ${q(c.town)}, ${q(c.contact)}, ` +
+        `${q(c.note)})`
+      );
+    case 'socialArchiveOtherClub':
+      return `public.archive_other_club(${id('oc', c.otherClub)})`;
+    case 'socialSaveInviteIn': {
+      const r = resolveCase(c, today) as ParityCase & Record<string, any>; // eventOnDays: days from today
+      return (
+        `public.save_invite_in(${r.invite ? id('inv', r.invite) : 'null'}, ${id('oc', r.otherClub)}, ${chapter(r.chapter)}, ` +
+        `${q(r.title)}, ${q(r.eventOn)}, ${q(r.place)}, ${q(r.details)}, ${r.ride ? id('r', r.ride) : 'null'})`
+      );
+    }
+    case 'socialInviteClub':
+      return `public.invite_club(${id('r', c.ride)}, ${id('oc', c.otherClub)}, ${q(c.note)})`;
+    case 'socialAnswerInvite':
+      return (
+        `public.answer_invite(${id('inv', c.invite)}, ${q(c.answer)}, ${c.label === null ? 'null' : q(c.label)}, ` +
+        `${c.bikes ?? 'null'}, ${q(c.note)})`
+      );
+    case 'socialArchiveInvite':
+      return `public.archive_invite(${id('inv', c.invite)})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
@@ -876,6 +900,29 @@ for (const u of (fx as typeof fx & { buildUpdates?: FixtureBuildUpdate[] }).buil
   sql(
     `insert into public.build_updates (id, bike_id, author_id, body, photos, taken_down_at) values (${id('build', u.key)}, ` +
       `${id('b', u.bike)}, ${id('m', u.author)}, 'Fixture update', ${json(photos)}, ${u.takenDown ? 'now()' : 'null'});`,
+  );
+}
+
+// Invites to and from other clubs: every incoming invite is for 01/01/2030.
+type FixtureOtherClub = { key: string; name: string; addedBy: string | null; archived: boolean };
+for (const c of (fx as typeof fx & { otherClubs?: FixtureOtherClub[] }).otherClubs ?? []) {
+  sql(
+    `insert into public.other_clubs (id, name, added_by, archived_at) values (${id('oc', c.key)}, ${q(c.name)}, ` +
+      `${c.addedBy ? id('m', c.addedBy) : 'null'}, ${c.archived ? 'now()' : 'null'});`,
+  );
+}
+type FixtureInvite = {
+  key: string; direction: string; club: string; chapter: string | null; ride: string | null; answer: string; label: string | null;
+  addedBy: string | null; archived: boolean;
+};
+for (const i of (fx as typeof fx & { invites?: FixtureInvite[] }).invites ?? []) {
+  const incoming = i.direction === 'in';
+  sql(
+    `insert into public.club_invites (id, direction, club_id, chapter_id, ride_id, title, event_on, answer, calendar_label, ` +
+      `added_by, answered_by, answered_at, archived_at) values (${id('inv', i.key)}, ${q(i.direction)}, ${id('oc', i.club)}, ` +
+      `${chapter(i.chapter)}, ${i.ride ? id('r', i.ride) : 'null'}, ${incoming ? "'Fixture event'" : 'null'}, ` +
+      `${incoming ? "date '2030-01-01'" : 'null'}, ${q(i.answer)}, ${i.label ? q(i.label) : 'null'}, ${i.addedBy ? id('m', i.addedBy) : 'null'}, ` +
+      `${i.answer === 'waiting' ? 'null, null' : `${id('m', 'rusty')}, now()`}, ${i.archived ? 'now()' : 'null'});`,
   );
 }
 

@@ -57,7 +57,25 @@ import {
   type Tally,
   type Vote,
 } from '../../domain/social/brag';
-import type { ClubData, Member } from '../../domain/types';
+import {
+  answerProblem,
+  archiveClubProblem,
+  archiveInviteProblem,
+  cleanAnswer,
+  cleanClub,
+  cleanInviteIn,
+  clubProblem,
+  inviteInProblem,
+  inviteOutProblem,
+  type AnswerInput,
+  type ClubInvite,
+  type InviteInInput,
+  type InviteOutInput,
+  type OtherClub,
+  type OtherClubInput,
+} from '../../domain/invites'; // Invites to and from other clubs
+import { rideChapterId } from '../../domain/attendance';
+import type { ClubData, Member, Ride } from '../../domain/types';
 import type { FeedItem } from '../chat/chatContext';
 import { NotAllowedError } from '../clubContext';
 
@@ -82,6 +100,9 @@ export interface SocialData {
   awards: Award[];
   nominations: Nomination[];
   bragVotes: Vote[];
+  /** Invites to and from other clubs: the clubs and every invite, ones taken off included. */
+  otherClubs: OtherClub[];
+  invites: ClubInvite[];
 }
 
 export interface SocialCtx {
@@ -296,6 +317,83 @@ export function bragTallies(social: SocialData, today: string): Tally[] {
     .map((n) => ({ nominationId: n.id, votes: social.bragVotes.filter((v) => v.nominationId === n.id).length }));
 }
 
+// Invites to and from other clubs ------------------------------------------------------------
+
+const stamp = (ctx: SocialCtx) => ctx.now ?? new Date().toISOString();
+
+/** Adds (input.id null) or changes a club on the list; hands back its id. */
+export function saveOtherClub(ctx: SocialCtx, input: OtherClubInput): { social: SocialData; id: string } {
+  refuse(clubProblem(ctx.me, input, ctx.social.otherClubs, ctx.club));
+  const clean = cleanClub(input);
+  if (input.id === null) {
+    const id = `club-${ctx.social.otherClubs.length + 1}-${Date.now().toString(36)}`;
+    const added: OtherClub = { id, ...clean, addedBy: (ctx.me as Member).id, addedAt: stamp(ctx), archivedAt: null };
+    return { social: { ...ctx.social, otherClubs: [...ctx.social.otherClubs, added] }, id };
+  }
+  return {
+    social: { ...ctx.social, otherClubs: ctx.social.otherClubs.map((c) => (c.id === input.id ? { ...c, ...clean } : c)) },
+    id: input.id,
+  };
+}
+
+export function archiveOtherClub(ctx: SocialCtx, id: string): SocialData {
+  refuse(archiveClubProblem(ctx.me, id, ctx.social.otherClubs, ctx.club));
+  const at = stamp(ctx);
+  return { ...ctx.social, otherClubs: ctx.social.otherClubs.map((c) => (c.id === id ? { ...c, archivedAt: at } : c)) };
+}
+
+/** Passes on (input.id null) or changes an incoming invite; hands back its id. */
+export function saveInviteIn(ctx: SocialCtx, input: InviteInInput): { social: SocialData; id: string } {
+  refuse(inviteInProblem(ctx.me, input, ctx.social.otherClubs, ctx.social.invites, ctx.club, ctx.today));
+  const clean = cleanInviteIn(input);
+  if (input.id === null) {
+    const id = `invite-${ctx.social.invites.length + 1}-${Date.now().toString(36)}`;
+    const added: ClubInvite = {
+      id, direction: 'in', ...clean, answer: 'waiting', calendarLabel: null, bikes: null, note: null,
+      addedBy: (ctx.me as Member).id, addedAt: stamp(ctx), answeredBy: null, answeredAt: null, archivedAt: null,
+    };
+    return { social: { ...ctx.social, invites: [...ctx.social.invites, added] }, id };
+  }
+  return {
+    social: { ...ctx.social, invites: ctx.social.invites.map((i) => (i.id === input.id ? { ...i, ...clean } : i)) },
+    id: input.id,
+  };
+}
+
+/** Records an invitation to one of the club's rides; hands back its id. */
+export function inviteClub(ctx: SocialCtx, input: InviteOutInput): { social: SocialData; id: string } {
+  refuse(inviteOutProblem(ctx.me, input, ctx.social.otherClubs, ctx.social.invites, ctx.club, ctx.today));
+  const ride = ctx.club.rides.find((r) => r.id === input.rideId) as Ride;
+  const chapterId = rideChapterId(ride, ctx.club.chapters);
+  const id = `invite-${ctx.social.invites.length + 1}-${Date.now().toString(36)}`;
+  const added: ClubInvite = {
+    id, direction: 'out', clubId: input.clubId, chapterId, rideId: input.rideId, title: null, eventOn: null, place: null,
+    details: null, answer: 'waiting', calendarLabel: null, bikes: null, note: input.note.trim() === '' ? null : input.note.trim(),
+    addedBy: (ctx.me as Member).id, addedAt: stamp(ctx), answeredBy: null, answeredAt: null, archivedAt: null,
+  };
+  return { social: { ...ctx.social, invites: [...ctx.social.invites, added] }, id };
+}
+
+export function answerInvite(ctx: SocialCtx, input: AnswerInput): SocialData {
+  refuse(answerProblem(ctx.me, input, ctx.social.invites, ctx.club));
+  const at = stamp(ctx);
+  return {
+    ...ctx.social,
+    invites: ctx.social.invites.map((i) => {
+      if (i.id !== input.id) return i;
+      const clean = cleanAnswer(i, input);
+      const waiting = clean.answer === 'waiting';
+      return { ...i, ...clean, answeredBy: waiting ? null : (ctx.me as Member).id, answeredAt: waiting ? null : at };
+    }),
+  };
+}
+
+export function archiveInvite(ctx: SocialCtx, id: string): SocialData {
+  refuse(archiveInviteProblem(ctx.me, id, ctx.social.invites, ctx.club));
+  const at = stamp(ctx);
+  return { ...ctx.social, invites: ctx.social.invites.map((i) => (i.id === id ? { ...i, archivedAt: at } : i)) };
+}
+
 /** A parity.json case, as the social action it names. */
 export type SocialAction =
   | { action: 'socialSetBirthday'; month: number | null; day: number | null }
@@ -321,7 +419,17 @@ export type SocialAction =
   // A photo is a file name in the nominator's own folder, or `other:<name>`.
   | { action: 'socialNominate'; award: string; ride: string | null; title: string; photo: string | null; story: string; reason: string }
   | { action: 'socialWithdrawNomination'; nomination: string }
-  | { action: 'socialCastBragVote'; nomination: string };
+  | { action: 'socialCastBragVote'; nomination: string }
+  // Invites to and from other clubs. A club's typed name is `club`: a case's `name` is the case's own.
+  | { action: 'socialSaveOtherClub'; otherClub: string | null; club: string; town: string; contact: string; note: string }
+  | { action: 'socialArchiveOtherClub'; otherClub: string }
+  | {
+      action: 'socialSaveInviteIn'; invite: string | null; otherClub: string; chapter: string | null; title: string;
+      eventOn: string; place: string; details: string; ride: string | null;
+    }
+  | { action: 'socialInviteClub'; ride: string; otherClub: string; note: string }
+  | { action: 'socialAnswerInvite'; invite: string; answer: string; label: string | null; bikes: number | null; note: string }
+  | { action: 'socialArchiveInvite'; invite: string };
 
 /** A parity case's photo names as the photos the action is sent. */
 export function parityPhotos(me: Member | null, names: string[], otherId: string): ListingPhoto[] {
@@ -384,5 +492,20 @@ export function runSocialAction(ctx: SocialCtx, a: SocialAction): SocialData {
       return withdrawNomination(ctx, a.nomination);
     case 'socialCastBragVote':
       return castBragVote(ctx, a.nomination);
+    case 'socialSaveOtherClub':
+      return saveOtherClub(ctx, { id: a.otherClub, name: a.club, town: a.town, contact: a.contact, note: a.note }).social;
+    case 'socialArchiveOtherClub':
+      return archiveOtherClub(ctx, a.otherClub);
+    case 'socialSaveInviteIn':
+      return saveInviteIn(ctx, {
+        id: a.invite, clubId: a.otherClub, chapterId: a.chapter, title: a.title, eventOn: a.eventOn, place: a.place,
+        details: a.details, rideId: a.ride,
+      }).social;
+    case 'socialInviteClub':
+      return inviteClub(ctx, { rideId: a.ride, clubId: a.otherClub, note: a.note }).social;
+    case 'socialAnswerInvite':
+      return answerInvite(ctx, { id: a.invite, answer: a.answer, label: a.label, bikes: a.bikes, note: a.note });
+    case 'socialArchiveInvite':
+      return archiveInvite(ctx, a.invite);
   }
 }

@@ -10277,6 +10277,671 @@
       "outcome": "withdrawn",
       "note": "",
       "allowed": false
+    },
+    {
+      "name": "Invites: a tail gunner adds a club",
+      "as": "spanner",
+      "action": "socialSaveOtherClub",
+      "otherClub": null,
+      "club": "Hume Hwy Cruisers",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Invites: nobody signed in adds a club",
+      "as": null,
+      "action": "socialSaveOtherClub",
+      "otherClub": null,
+      "club": "Hume Hwy Cruisers",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: an applicant adds a club",
+      "as": "dylan",
+      "action": "socialSaveOtherClub",
+      "otherClub": null,
+      "club": "Hume Hwy Cruisers",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a club with no name",
+      "as": "spanner",
+      "action": "socialSaveOtherClub",
+      "otherClub": null,
+      "club": "   ",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a club already on the list",
+      "as": "finn",
+      "action": "socialSaveOtherClub",
+      "otherClub": null,
+      "club": " dodgy brothers mc",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a club taken off the list can come back",
+      "as": "finn",
+      "action": "socialSaveOtherClub",
+      "otherClub": null,
+      "club": "Old Gold Riders",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Invites: whoever added a club changes it",
+      "as": "spanner",
+      "action": "socialSaveOtherClub",
+      "otherClub": "dodgy",
+      "club": "Dodgy Brothers MC",
+      "town": "",
+      "contact": "",
+      "note": "Good blokes",
+      "allowed": true
+    },
+    {
+      "name": "Invites: a road captain changes a club",
+      "as": "crank",
+      "action": "socialSaveOtherClub",
+      "otherClub": "dodgy",
+      "club": "DODGY BROTHERS MC",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Invites: a member who didn't add a club changes it",
+      "as": "finn",
+      "action": "socialSaveOtherClub",
+      "otherClub": "dodgy",
+      "club": "Dodgy Brothers MC",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: changing a club taken off the list",
+      "as": "rusty",
+      "action": "socialSaveOtherClub",
+      "otherClub": "old-gold",
+      "club": "Old Gold Riders",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a club's town too long",
+      "as": "spanner",
+      "action": "socialSaveOtherClub",
+      "otherClub": null,
+      "club": "Hume Hwy Cruisers",
+      "town": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "contact": "",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a road captain takes a club off",
+      "as": "crank",
+      "action": "socialArchiveOtherClub",
+      "otherClub": "dodgy",
+      "allowed": true
+    },
+    {
+      "name": "Invites: a member takes someone else's club off",
+      "as": "finn",
+      "action": "socialArchiveOtherClub",
+      "otherClub": "dodgy",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a club already off the list",
+      "as": "rusty",
+      "action": "socialArchiveOtherClub",
+      "otherClub": "old-gold",
+      "allowed": false
+    },
+    {
+      "name": "Invites: an FNG passes on an invite",
+      "as": "finn",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": true,
+      "eventOnDays": 10
+    },
+    {
+      "name": "Invites: an invite for the whole club",
+      "as": "finn",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": null,
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": true
+    },
+    {
+      "name": "Invites: an applicant passes on an invite",
+      "as": "dylan",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": false
+    },
+    {
+      "name": "Invites: an invite from a club taken off the list",
+      "as": "finn",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "old-gold",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": false
+    },
+    {
+      "name": "Invites: an invite with no name",
+      "as": "finn",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "  ",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": false
+    },
+    {
+      "name": "Invites: an invite for a day gone by",
+      "as": "finn",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": false,
+      "eventOnDays": -1
+    },
+    {
+      "name": "Invites: an invite on a day that doesn't exist",
+      "as": "finn",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-02-30",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": false
+    },
+    {
+      "name": "Invites: linked to the Supported ride on its day",
+      "as": "torque",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": "future-supported-2",
+      "allowed": true
+    },
+    {
+      "name": "Invites: linked to one of the club's own rides",
+      "as": "torque",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": "future-west",
+      "allowed": false
+    },
+    {
+      "name": "Invites: linked to a ride on another day",
+      "as": "torque",
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-02",
+      "place": "",
+      "details": "",
+      "ride": "future-supported",
+      "allowed": false
+    },
+    {
+      "name": "Invites: whoever passed it on changes it while it waits",
+      "as": "spanner",
+      "action": "socialSaveInviteIn",
+      "invite": "in-waiting",
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run 2030",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": true
+    },
+    {
+      "name": "Invites: whoever passed it on, once it's answered",
+      "as": "spanner",
+      "action": "socialSaveInviteIn",
+      "invite": "in-yes",
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": false
+    },
+    {
+      "name": "Invites: a North road captain changes a West invite",
+      "as": "crank",
+      "action": "socialSaveInviteIn",
+      "invite": "in-waiting",
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": false
+    },
+    {
+      "name": "Invites: a West secretary moves it to North",
+      "as": "torque",
+      "action": "socialSaveInviteIn",
+      "invite": "in-waiting",
+      "otherClub": "dodgy",
+      "chapter": "north",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": false
+    },
+    {
+      "name": "Invites: a North president moves it to North",
+      "as": "smokey",
+      "action": "socialSaveInviteIn",
+      "invite": "in-waiting",
+      "otherClub": "dodgy",
+      "chapter": "north",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": true
+    },
+    {
+      "name": "Invites: changing an invite taken off",
+      "as": "rusty",
+      "action": "socialSaveInviteIn",
+      "invite": "in-off",
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null,
+      "allowed": false
+    },
+    {
+      "name": "Invites: a West secretary invites a club to a West ride",
+      "as": "torque",
+      "action": "socialInviteClub",
+      "ride": "future-west",
+      "otherClub": "dodgy",
+      "note": "Coffee's on us",
+      "allowed": true
+    },
+    {
+      "name": "Invites: a North road captain invites a club to a West ride",
+      "as": "crank",
+      "action": "socialInviteClub",
+      "ride": "future-west",
+      "otherClub": "dodgy",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a North road captain invites a club to a club ride",
+      "as": "crank",
+      "action": "socialInviteClub",
+      "ride": "future-club",
+      "otherClub": "valley",
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Invites: a club asked twice to the same ride",
+      "as": "crank",
+      "action": "socialInviteClub",
+      "ride": "future-club",
+      "otherClub": "dodgy",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a tail gunner invites a club",
+      "as": "spanner",
+      "action": "socialInviteClub",
+      "ride": "future-west",
+      "otherClub": "dodgy",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: inviting a club to another club's ride",
+      "as": "chair",
+      "action": "socialInviteClub",
+      "ride": "future-supported",
+      "otherClub": "dodgy",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: inviting a club to a cancelled ride",
+      "as": "chair",
+      "action": "socialInviteClub",
+      "ride": "cancelled-north",
+      "otherClub": "dodgy",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: inviting a club to a ride gone by",
+      "as": "chair",
+      "action": "socialInviteClub",
+      "ride": "past-club",
+      "otherClub": "dodgy",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: inviting a club taken off the list",
+      "as": "chair",
+      "action": "socialInviteClub",
+      "ride": "future-west",
+      "otherClub": "old-gold",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a West secretary says yes, as a Supported ride",
+      "as": "torque",
+      "action": "socialAnswerInvite",
+      "invite": "in-waiting",
+      "answer": "yes",
+      "label": "supported",
+      "bikes": null,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Invites: a West secretary says no",
+      "as": "torque",
+      "action": "socialAnswerInvite",
+      "invite": "in-waiting",
+      "answer": "no",
+      "label": null,
+      "bikes": null,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Invites: whoever passed it on answers it",
+      "as": "spanner",
+      "action": "socialAnswerInvite",
+      "invite": "in-waiting",
+      "answer": "yes",
+      "label": "supported",
+      "bikes": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a yes with no calendar label",
+      "as": "torque",
+      "action": "socialAnswerInvite",
+      "invite": "in-waiting",
+      "answer": "yes",
+      "label": null,
+      "bikes": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: an answer that isn't one",
+      "as": "torque",
+      "action": "socialAnswerInvite",
+      "invite": "in-waiting",
+      "answer": "maybe",
+      "label": null,
+      "bikes": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a road captain records a club coming with 12 bikes",
+      "as": "crank",
+      "action": "socialAnswerInvite",
+      "invite": "out-picnic",
+      "answer": "yes",
+      "label": null,
+      "bikes": 12,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Invites: no bikes is not a number of bikes",
+      "as": "crank",
+      "action": "socialAnswerInvite",
+      "invite": "out-picnic",
+      "answer": "yes",
+      "label": null,
+      "bikes": 0,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: answering an invite taken off",
+      "as": "rusty",
+      "action": "socialAnswerInvite",
+      "invite": "in-off",
+      "answer": "no",
+      "label": null,
+      "bikes": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: whoever passed it on takes it off while it waits",
+      "as": "spanner",
+      "action": "socialArchiveInvite",
+      "invite": "in-waiting",
+      "allowed": true
+    },
+    {
+      "name": "Invites: whoever passed it on, once it's answered",
+      "as": "spanner",
+      "action": "socialArchiveInvite",
+      "invite": "in-yes",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a West secretary takes an answered invite off",
+      "as": "torque",
+      "action": "socialArchiveInvite",
+      "invite": "in-yes",
+      "allowed": true
+    },
+    {
+      "name": "Invites: a member takes an outgoing invite off",
+      "as": "finn",
+      "action": "socialArchiveInvite",
+      "invite": "out-picnic",
+      "allowed": false
+    },
+    {
+      "name": "Invites: an invite already taken off",
+      "as": "rusty",
+      "action": "socialArchiveInvite",
+      "invite": "in-off",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a member changes a club whose adder has left",
+      "as": "finn",
+      "action": "socialSaveOtherClub",
+      "otherClub": "orphan",
+      "club": "Orphan MC",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a member takes off a club whose adder has left",
+      "as": "finn",
+      "action": "socialArchiveOtherClub",
+      "otherClub": "orphan",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a member changes an invite whose passer-on has left",
+      "as": "finn",
+      "allowed": false,
+      "action": "socialSaveInviteIn",
+      "invite": "in-orphan",
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null
+    },
+    {
+      "name": "Invites: a member takes off an invite whose passer-on has left",
+      "as": "finn",
+      "action": "socialArchiveInvite",
+      "invite": "in-orphan",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a West secretary moves an orphaned invite to North",
+      "as": "torque",
+      "allowed": false,
+      "action": "socialSaveInviteIn",
+      "invite": "in-orphan",
+      "otherClub": "dodgy",
+      "chapter": "north",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null
+    },
+    {
+      "name": "Invites: an invite keeps its club after the club is taken off",
+      "as": "torque",
+      "allowed": true,
+      "action": "socialSaveInviteIn",
+      "invite": "in-old-gold",
+      "otherClub": "old-gold",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null
+    },
+    {
+      "name": "Invites: an invite keeps its linked ride",
+      "as": "torque",
+      "allowed": true,
+      "action": "socialSaveInviteIn",
+      "invite": "in-linked",
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": "future-supported"
+    },
+    {
+      "name": "Invites: linked to a ride another invite holds",
+      "as": "torque",
+      "allowed": false,
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": "future-supported"
     }
   ],
   "chapters": [
@@ -10325,6 +10990,20 @@
       "title": "New Year's Eve run",
       "startsAt": "2020-12-31T13:30:00.000Z",
       "category": "club",
+      "cancelled": false
+    },
+    {
+      "key": "future-supported",
+      "title": "Mates club run",
+      "startsAt": "2030-01-01T00:00:00.000Z",
+      "category": "supported",
+      "cancelled": false
+    },
+    {
+      "key": "future-supported-2",
+      "title": "Another mates run",
+      "startsAt": "2030-01-01T02:00:00.000Z",
+      "category": "supported",
       "cancelled": false
     }
   ],
@@ -11709,5 +12388,110 @@
         "outcome": "withdrawn"
       }
     ]
-  }
+  },
+  "otherClubs": [
+    {
+      "key": "dodgy",
+      "name": "Dodgy Brothers MC",
+      "addedBy": "spanner",
+      "archived": false
+    },
+    {
+      "key": "valley",
+      "name": "Valley Vintage",
+      "addedBy": "rusty",
+      "archived": false
+    },
+    {
+      "key": "old-gold",
+      "name": "Old Gold Riders",
+      "addedBy": "rusty",
+      "archived": true
+    },
+    {
+      "key": "orphan",
+      "name": "Orphan MC",
+      "addedBy": null,
+      "archived": false
+    }
+  ],
+  "invites": [
+    {
+      "key": "in-waiting",
+      "direction": "in",
+      "club": "dodgy",
+      "chapter": "west",
+      "ride": null,
+      "answer": "waiting",
+      "label": null,
+      "addedBy": "spanner",
+      "archived": false
+    },
+    {
+      "key": "in-yes",
+      "direction": "in",
+      "club": "dodgy",
+      "chapter": "west",
+      "ride": null,
+      "answer": "yes",
+      "label": "supported",
+      "addedBy": "spanner",
+      "archived": false
+    },
+    {
+      "key": "in-off",
+      "direction": "in",
+      "club": "dodgy",
+      "chapter": "west",
+      "ride": null,
+      "answer": "waiting",
+      "label": null,
+      "addedBy": "spanner",
+      "archived": true
+    },
+    {
+      "key": "out-picnic",
+      "direction": "out",
+      "club": "dodgy",
+      "chapter": null,
+      "ride": "future-club",
+      "answer": "waiting",
+      "label": null,
+      "addedBy": "rusty",
+      "archived": false
+    },
+    {
+      "key": "in-orphan",
+      "direction": "in",
+      "club": "dodgy",
+      "chapter": "west",
+      "ride": null,
+      "answer": "waiting",
+      "label": null,
+      "addedBy": null,
+      "archived": false
+    },
+    {
+      "key": "in-old-gold",
+      "direction": "in",
+      "club": "old-gold",
+      "chapter": "west",
+      "ride": null,
+      "answer": "waiting",
+      "label": null,
+      "addedBy": "spanner",
+      "archived": false
+    },
+    {
+      "key": "in-linked",
+      "direction": "in",
+      "club": "dodgy",
+      "chapter": "west",
+      "ride": "future-supported",
+      "answer": "yes",
+      "label": "supported",
+      "addedBy": "spanner",
+      "archived": false
+    }
+  ]
 }

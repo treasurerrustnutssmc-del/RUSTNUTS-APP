@@ -169,7 +169,7 @@ Everything in this section is in scope. Each line says where it stands today.
 | Record a meeting, get the minutes and attendance written | **Not started** |
 | "Catch me up" summaries of missed chats | **Not started** |
 | Ride replay video of the day's route for socials | **Not started** |
-| Invites to and from other clubs for public events | **Not started** |
+| Invites to and from other clubs for public events | **Built** (Rides → Other clubs): members pass on invites, the board answers and says Supported or Non-Nuts, links the calendar ride; the club invites clubs from its own rides. The app sends nothing: replies and invitations are shared by the member. Live once its SQL is pasted |
 | A space for the sister club | **Not started** |
 
 ---

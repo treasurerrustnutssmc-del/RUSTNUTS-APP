@@ -8,6 +8,7 @@ import type { Listing, ListingInput } from '../../domain/social/swap';
 import type { BuildPost, BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, HistoryInput, Honour, HonourInput } from '../../domain/social/history';
 import type { Award, AwardInput, Nomination, NominationInput, Tally, Vote } from '../../domain/social/brag';
+import type { AnswerInput, ClubInvite, InviteInInput, InviteOutInput, OtherClub, OtherClubInput } from '../../domain/invites';
 import type { PickedMedia } from '../../domain/chat';
 import type { Ride, RideRoute } from '../../domain/types';
 import type { FeedItem, MediaSource } from '../chat/chatContext';
@@ -79,6 +80,19 @@ export interface SocialContextValue {
   withdrawNomination: (id: string) => Promise<void>;
   castBragVote: (nominationId: string) => Promise<void>;
   bragPhotoUrl: (path: string) => Promise<MediaSource>;
+  // Invites to and from other clubs
+  /** Clubs on the list and invites that stand (ones taken off aren't handed over). */
+  otherClubs: OtherClub[];
+  invites: ClubInvite[];
+  /** Adds (id null) or changes a club; resolves to its id. */
+  saveOtherClub: (input: OtherClubInput) => Promise<string>;
+  archiveOtherClub: (id: string) => Promise<void>;
+  /** Passes on (id null) or changes an incoming invite; resolves to its id. */
+  saveInviteIn: (input: InviteInInput) => Promise<string>;
+  /** Records that a club was invited to one of the club's rides; resolves to its id. Sends nothing. */
+  inviteClub: (input: InviteOutInput) => Promise<string>;
+  answerInvite: (input: AnswerInput) => Promise<void>;
+  archiveInvite: (id: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 

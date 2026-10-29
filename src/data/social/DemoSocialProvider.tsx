@@ -102,6 +102,27 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     },
     withdrawNomination: async (id) => setSocial(act.withdrawNomination(ctx(), id)),
     castBragVote: async (id) => setSocial(act.castBragVote(ctx(), id)),
+    // Like the database: approved members only, and nothing taken off.
+    otherClubs: notApproved ? [] : social.otherClubs.filter((c) => !c.archivedAt),
+    invites: notApproved ? [] : social.invites.filter((i) => !i.archivedAt),
+    saveOtherClub: async (input) => {
+      const result = act.saveOtherClub(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    archiveOtherClub: async (id) => setSocial(act.archiveOtherClub(ctx(), id)),
+    saveInviteIn: async (input) => {
+      const result = act.saveInviteIn(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    inviteClub: async (input) => {
+      const result = act.inviteClub(ctx(), input);
+      setSocial(result.social);
+      return result.id;
+    },
+    answerInvite: async (input) => setSocial(act.answerInvite(ctx(), input)),
+    archiveInvite: async (id) => setSocial(act.archiveInvite(ctx(), id)),
     bragPhotoUrl: listingPhotoUrl,
     refresh: async () => {},
   };
