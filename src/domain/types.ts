@@ -285,6 +285,9 @@ export interface ClubData extends LedgerData, AdminData, AuditData {
   rideHubs?: RideHub[];
   hubRegistrations?: HubRegistration[];
   crewSwaps?: CrewSwap[];
+  // Charity ride sign-ups. Missing means none.
+  charityRides?: CharityRide[];
+  charitySignups?: CharitySignup[];
   // Lane E: notifications
   /** The signed-in member's saved notification settings, or null for the defaults. */
   notificationPrefs?: NotificationPrefs | null;
@@ -1088,6 +1091,43 @@ export interface CrewSwap {
   state: SwapState;
   askedAt: string;
   answeredAt: string | null;
+}
+
+// Charity ride sign-ups
+
+/** A ride raising money for a cause, taking sign-ups for riders, guests and helpers. No payments yet. */
+export interface CharityRide {
+  rideId: string;
+  /** Who the ride is raising money for. */
+  cause: string;
+  /** Empty when none. */
+  about: string;
+  /** The last day to sign up, when there is one. */
+  closesOn: string | null;
+  /** People on bikes the ride can take (riders, pillions and guests), when it's limited. */
+  places: number | null;
+  /** Helper jobs people can pick, in order. */
+  jobs: string[];
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+/** A member's sign-up. A withdrawn one keeps its row. */
+export interface CharitySignup {
+  rideId: string;
+  memberId: string;
+  riding: boolean;
+  pillion: boolean;
+  /** Friends coming along who aren't in the app. */
+  guests: number;
+  /** Empty when none. */
+  guestNames: string;
+  /** The helper job picked, or null. */
+  job: string | null;
+  /** Empty when none. */
+  notes: string;
+  signedAt: string;
+  withdrawnAt: string | null;
 }
 
 // The National Auditor (constitution v4, 11.8) ---------------------------------------------------

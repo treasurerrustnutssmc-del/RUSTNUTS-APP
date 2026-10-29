@@ -355,6 +355,25 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      // Charity ride sign-ups
+      charity_rides: {
+        Row: {
+          ride_id: string; cause: string; about: string | null; closes_on: string | null; places: number | null; jobs: string[];
+          updated_by: string | null; updated_at: string;
+        };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      charity_signups: {
+        Row: {
+          ride_id: string; member_id: string; riding: boolean; pillion: boolean; guests: number; guest_names: string | null;
+          job: string | null; notes: string | null; signed_at: string; withdrawn_at: string | null;
+        };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       road_rules_signoffs: {
         Row: { member_id: string; signed_at: string; version: number };
         Insert: { [_ in never]: never }; // sign-offs are made only through sign_road_rules
@@ -478,6 +497,19 @@ export type Database = {
         Returns: undefined;
       };
       withdraw_hub: { Args: { p_ride: string }; Returns: undefined };
+      // Charity ride sign-ups
+      save_charity: {
+        Args: { p_ride: string; p_cause: string; p_about: string | null; p_closes_on: string | null; p_places: number | null; p_jobs: string[] };
+        Returns: undefined;
+      };
+      sign_up_charity: {
+        Args: {
+          p_ride: string; p_riding: boolean; p_pillion: boolean; p_guests: number; p_guest_names: string | null; p_job: string | null;
+          p_notes: string | null;
+        };
+        Returns: undefined;
+      };
+      withdraw_charity: { Args: { p_ride: string }; Returns: undefined };
       ask_swap: { Args: { p_ride: string; p_to: string; p_note: string | null }; Returns: string };
       answer_swap: { Args: { p_swap: string; p_yes: boolean }; Returns: undefined };
       withdraw_swap: { Args: { p_swap: string }; Returns: undefined };

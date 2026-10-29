@@ -770,6 +770,20 @@ for (const w of fx.crewSwaps ?? []) {
   );
 }
 
+// Charity ride sign-ups, inserted as the owner.
+for (const c of fx.charityRides ?? []) {
+  sql(
+    `insert into public.charity_rides (ride_id, cause, places, jobs, updated_at) values (` +
+      `${id('r', c.ride)}, ${q(c.cause)}, ${c.places ?? 'null'}, ${textArray(c.jobs)}, ${planned});`,
+  );
+}
+for (const s of fx.charitySignups ?? []) {
+  sql(
+    `insert into public.charity_signups (ride_id, member_id, riding, pillion, guests, job, signed_at) values (` +
+      `${id('r', s.ride)}, ${id('m', s.member)}, ${s.riding}, ${s.pillion}, ${s.guests}, ${s.job === null ? 'null' : q(s.job)}, ${planned});`,
+  );
+}
+
 /** A ride planning extras call, its texts as typed (the database trims them). */
 const planningCall = (c: ParityCase & Record<string, any>): string | null => {
   switch (c.action) {
@@ -798,6 +812,19 @@ const planningCall = (c: ParityCase & Record<string, any>): string | null => {
       return `public.answer_swap(${id('sw', c.swap)}, ${c.yes})`;
     case 'withdrawSwap':
       return `public.withdraw_swap(${id('sw', c.swap)})`;
+    // Charity ride sign-ups
+    case 'saveCharity':
+      return (
+        `public.save_charity(${id('r', c.ride)}, ${q(c.cause)}, ${text(c.about, c.repeat)}, ${date(c.closesOn ?? null)}, ` +
+        `${c.places ?? 'null'}, ${textArray(c.jobs)})`
+      );
+    case 'signUpCharity':
+      return (
+        `public.sign_up_charity(${id('r', c.ride)}, ${c.riding}, ${c.pillion}, ${c.guests}, ${q(c.guestNames)}, ` +
+        `${c.job === null ? 'null' : q(c.job)}, ${text(c.notes, c.repeat)})`
+      );
+    case 'withdrawCharity':
+      return `public.withdraw_charity(${id('r', c.ride)})`;
     default:
       return null;
   }
