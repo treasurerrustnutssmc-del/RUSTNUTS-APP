@@ -118,6 +118,7 @@ export const ALREADY_INVITED = 'That club has already been invited to this ride.
 export const BAD_ANSWER = 'Pick an answer.';
 export const NO_CALENDAR_LABEL = 'Pick how it goes on the club calendar.';
 export const BAD_BIKES = 'Bikes expected must be a whole number from 1 to 500.';
+export const RIDE_TAKEN = 'Another invite is already linked to that ride.';
 
 export const MAX_CLUB_NAME = 80;
 export const MAX_TOWN = 60;
@@ -206,14 +207,11 @@ function clubOnListProblem(clubId: string, clubs: OtherClub[]): string | null {
 }
 
 /**
- * Who answers for the club: for an incoming invite, its chapter's ride managers (any chapter's for
- * a whole-club one); for an outgoing one, its ride's. Mirrors private.manages_invite.
+ * Who answers for the club: the invite's chapter's ride managers (any chapter's for a whole-club
+ * one), which for an outgoing invite are its ride's, since it takes its ride's chapter. Mirrors
+ * private.manages_invite. It doesn't need the ride, which the live calendar drops once it's past.
  */
 export function canAnswer(me: Member | null, invite: ClubInvite, data: ClubData): boolean {
-  if (invite.direction === 'out') {
-    const ride = data.rides.find((r) => r.id === invite.rideId);
-    return ride ? managesRide(me, ride, data) : false;
-  }
   return managesChapterRides(me, invite.chapterId, data);
 }
 
@@ -241,8 +239,11 @@ export function inviteInProblem(
     if (existing.archivedAt) return INVITE_OFF;
     if (!canChangeInvite(me, existing, data)) return NOT_INVITE_EDITOR;
   }
-  const onList = clubOnListProblem(input.clubId, clubs);
-  if (onList) return onList;
+  // A club taken off the list keeps the invites it already has.
+  if (!existing || existing.clubId !== input.clubId) {
+    const onList = clubOnListProblem(input.clubId, clubs);
+    if (onList) return onList;
+  }
   if (input.chapterId !== null && !data.chapters.some((c) => c.id === input.chapterId)) return NO_SUCH_CHAPTER;
   // Moving it to another chapter: whoever passed it on may, while it waits; a manager needs that chapter too.
   if (existing && existing.chapterId !== input.chapterId) {
@@ -257,12 +258,14 @@ export function inviteInProblem(
   if (input.eventOn < today && !(existing && existing.eventOn === input.eventOn)) return EVENT_PASSED;
   const long = tooLong(clean.place, MAX_PLACE, 'the place') ?? tooLong(clean.details, MAX_DETAILS, 'the details');
   if (long) return long;
-  if (input.rideId !== null) {
+  // A ride already linked stays linked (the live calendar drops it once it's past).
+  if (input.rideId !== null && !(existing && existing.rideId === input.rideId)) {
     const ride = data.rides.find((r) => r.id === input.rideId);
     if (!ride) return RIDE_GONE;
     if (ride.category !== 'supported' && ride.category !== 'non_nuts') return RIDE_WRONG_LABEL;
     if (ride.cancelledAt) return RIDE_CANCELLED;
     if (melbourneDate(ride.startsAt) !== input.eventOn) return RIDE_OTHER_DAY;
+    if (live(invites).some((i) => i.direction === 'in' && i.rideId === ride.id && i.id !== input.id)) return RIDE_TAKEN;
   }
   return null;
 }
@@ -310,11 +313,15 @@ export function answerProblem(me: Member | null, input: AnswerInput, invites: Cl
   return tooLong(opt(input.note), MAX_NOTE, 'the note');
 }
 
-/** The answer as stored: a label only on an incoming yes, bikes only on an outgoing yes. */
+/**
+ * The answer as stored: a label only on an incoming yes, bikes only on an outgoing yes. An incoming
+ * invite that's no longer a yes lets go of its calendar ride.
+ */
 export function cleanAnswer(invite: ClubInvite, input: AnswerInput) {
   const answer = input.answer as InviteAnswer;
   return {
     answer,
+    rideId: invite.direction === 'in' && answer !== 'yes' ? null : invite.rideId,
     calendarLabel: invite.direction === 'in' && answer === 'yes' ? (input.label as CalendarLabel) : null,
     bikes: invite.direction === 'out' && answer === 'yes' ? input.bikes : null,
     note: opt(input.note),

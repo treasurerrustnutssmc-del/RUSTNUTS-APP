@@ -26,6 +26,7 @@ import {
   RIDE_GONE,
   RIDE_OTHER_DAY,
   RIDE_PASSED,
+  RIDE_TAKEN,
   RIDE_WRONG_LABEL,
   answerProblem,
   archiveClubProblem,
@@ -280,4 +281,24 @@ test('share texts never mention the app', () => {
     'G’day Dodgy Brothers MC, thanks for the invite to Toy Run on Sun 29/11/2026. We’ll let you know soon. Rustnuts SMC.',
   );
   for (const t of [text, replyText(yes, clubs[0], data.chapters)]) assert.doesNotMatch(t, /app/i);
+});
+
+test('review fixes: a missing adder gives nobody rights, an archived club and a past linked ride keep their invites', () => {
+  const orphanClub: OtherClub = { ...clubs[0], id: 'oc-3', name: 'Orphan MC', addedBy: null };
+  assert.equal(clubProblem(who('m-throttle'), { id: 'oc-3', name: 'Orphan MC', town: '', contact: '', note: '' }, [...clubs, orphanClub], data), NOT_CLUB_EDITOR);
+  const orphan = invite({ id: 'in-orphan', addedBy: null });
+  assert.equal(archiveInviteProblem(who('m-throttle'), 'in-orphan', [orphan], data), NOT_INVITE_EDITOR);
+  // The club is off the list: the invite can still be changed while its club stays the same.
+  const offClub = invite({ id: 'in-gold', clubId: 'oc-2' });
+  assert.equal(inviteInProblem(diesel, inInput({ id: 'in-gold', clubId: 'oc-2' }), clubs, [offClub], data, TODAY), null);
+  assert.equal(inviteInProblem(diesel, inInput({ id: 'in-waiting', clubId: 'oc-2' }), clubs, invites, data, TODAY), CLUB_OFF);
+  // A linked ride the calendar no longer has (it's past) stays linked.
+  const linked = invite({ id: 'in-past', rideId: 'r-gone', eventOn: '2026-10-01', answer: 'yes', calendarLabel: 'supported' });
+  assert.equal(inviteInProblem(diesel, inInput({ id: 'in-past', eventOn: '2026-10-01', rideId: 'r-gone' }), clubs, [linked], data, TODAY), null);
+  // One incoming invite per calendar ride.
+  const holder = invite({ id: 'in-holder', rideId: 'r-3', answer: 'yes', calendarLabel: 'non_nuts' });
+  assert.equal(inviteInProblem(diesel, inInput({ rideId: 'r-3' }), clubs, [holder], data, TODAY), RIDE_TAKEN);
+  // Outgoing replies are recorded after the ride too: the chapter decides, not the (dropped) ride.
+  const after = invite({ id: 'out-past', direction: 'out', rideId: 'r-gone', title: null, eventOn: null, chapterId: 'ch-west' });
+  assert.equal(canAnswer(diesel, after, data), true);
 });

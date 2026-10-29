@@ -228,3 +228,10 @@ test('invites in the demo: passing one on, answering it, linking it, and asking 
   assert.equal(off.invites.find((i) => i.id === out.id)?.archivedAt, now);
   assert.equal(archiveOtherClub({ ...diesel, social: off }, club.id).otherClubs.find((c) => c.id === club.id)?.archivedAt, now);
 });
+
+test('an incoming invite that stops being a yes lets go of its calendar ride', async () => {
+  const { answerInvite } = await import('./demoSocialActions');
+  const ctx = ctxAs('m-rusty');
+  const after = answerInvite(ctx, { id: 'inv-1', answer: 'no', label: null, bikes: null, note: '' });
+  assert.equal(after.invites.find((i) => i.id === 'inv-1')?.rideId, null);
+});

@@ -61,6 +61,9 @@ create index club_invites_club on public.club_invites (club_id);
 -- A club is asked to a ride once at a time.
 create unique index club_invites_once on public.club_invites (ride_id, club_id)
   where direction = 'out' and archived_at is null;
+-- A calendar ride is the event of one incoming invite at a time.
+create unique index club_invites_one_event on public.club_invites (ride_id)
+  where direction = 'in' and archived_at is null;
 
 -- Approved members read what hasn't been taken off; nobody writes through the API.
 alter table public.other_clubs enable row level security;
@@ -78,16 +81,16 @@ create policy club_invites_for_members on public.club_invites for select to auth
 -- Whoever added it, any chapter's board or Ride Committee, or the NEC. Same as canEditClub.
 create or replace function private.can_edit_other_club(p_added_by uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
-  select private.is_approved_member() and (p_added_by = auth.uid() or private.manages_chapter_rides(null));
+  select private.is_approved_member()
+    and (coalesce(p_added_by = auth.uid(), false) or private.manages_chapter_rides(null));
 $$;
 revoke all on function private.can_edit_other_club(uuid) from public, anon, authenticated;
 
--- Who answers for the club: an outgoing invite's ride managers, an incoming one's chapter ride
--- managers (any chapter's for a whole-club one). Same as canAnswer.
+-- Who answers for the club: the invite's chapter's ride managers (any chapter's for a whole-club
+-- one), which for an outgoing invite are its ride's, since it takes its ride's chapter. Same as canAnswer.
 create or replace function private.manages_invite(i public.club_invites)
 returns boolean language sql stable security definer set search_path = '' as $$
-  select case when i.direction = 'out' then private.manages_ride(i.ride_id)
-              else private.manages_chapter_rides(i.chapter_id) end;
+  select private.manages_chapter_rides(i.chapter_id);
 $$;
 revoke all on function private.manages_invite(public.club_invites) from public, anon, authenticated;
 
@@ -95,7 +98,7 @@ revoke all on function private.manages_invite(public.club_invites) from public, 
 create or replace function private.can_change_invite(i public.club_invites)
 returns boolean language sql stable security definer set search_path = '' as $$
   select private.is_approved_member() and (
-    (i.direction = 'in' and i.answer = 'waiting' and i.added_by = auth.uid()) or private.manages_invite(i)
+    coalesce(i.direction = 'in' and i.answer = 'waiting' and i.added_by = auth.uid(), false) or private.manages_invite(i)
   );
 $$;
 revoke all on function private.can_change_invite(public.club_invites) from public, anon, authenticated;
@@ -209,13 +212,16 @@ begin
     if i.archived_at is not null then raise exception 'That invite has been taken off.'; end if;
     if not private.can_change_invite(i) then raise exception 'Only the board or Ride Committee can change that invite.'; end if;
   end if;
-  perform private.check_club_on_list(p_club);
+  -- A club taken off the list keeps the invites it already has.
+  if p_id is null or p_club is distinct from i.club_id then
+    perform private.check_club_on_list(p_club);
+  end if;
   if p_chapter is not null and not exists (select 1 from public.chapters where id = p_chapter) then
     raise exception 'No such chapter.';
   end if;
   -- Moving it to another chapter: whoever passed it on may, while it waits; a manager needs that chapter too.
   if p_id is not null and i.chapter_id is distinct from p_chapter
-     and not (i.answer = 'waiting' and i.added_by = me) and not private.manages_chapter_rides(p_chapter) then
+     and not coalesce(i.answer = 'waiting' and i.added_by = me, false) and not private.manages_chapter_rides(p_chapter) then
     raise exception 'Only the board or Ride Committee can change that invite.';
   end if;
   if c_title = '' then raise exception 'Give the event a name.'; end if;
@@ -232,7 +238,8 @@ begin
   end if;
   if char_length(c_place) > 120 then raise exception 'Keep the place to 120 characters at most.'; end if;
   if char_length(c_details) > 1000 then raise exception 'Keep the details to 1,000 characters at most.'; end if;
-  if p_ride is not null then
+  -- A ride already linked stays linked.
+  if p_ride is not null and not (p_id is not null and i.ride_id is not distinct from p_ride) then
     select * into r from public.rides where id = p_ride;
     if not found then raise exception 'No such ride.'; end if;
     if r.category not in ('supported', 'non_nuts') then raise exception 'Link it to a Supported or Non-Nuts ride.'; end if;
@@ -240,18 +247,30 @@ begin
     if (r.starts_at at time zone 'Australia/Melbourne')::date <> c_on then
       raise exception 'That ride is on a different day.';
     end if;
+    if exists (select 1 from public.club_invites o
+               where o.direction = 'in' and o.ride_id = p_ride and o.archived_at is null and o.id is distinct from p_id) then
+      raise exception 'Another invite is already linked to that ride.';
+    end if;
   end if;
 
   if p_id is null then
-    insert into public.club_invites (direction, club_id, chapter_id, ride_id, title, event_on, place, details, added_by)
-    values ('in', p_club, p_chapter, p_ride, c_title, c_on, c_place, c_details, me)
-    returning id into new_id;
+    begin
+      insert into public.club_invites (direction, club_id, chapter_id, ride_id, title, event_on, place, details, added_by)
+      values ('in', p_club, p_chapter, p_ride, c_title, c_on, c_place, c_details, me)
+      returning id into new_id;
+    exception when unique_violation then
+      raise exception 'Another invite is already linked to that ride.';
+    end;
     return new_id;
   end if;
-  update public.club_invites
-  set club_id = p_club, chapter_id = p_chapter, ride_id = p_ride, title = c_title, event_on = c_on, place = c_place,
-      details = c_details
-  where id = p_id;
+  begin
+    update public.club_invites
+    set club_id = p_club, chapter_id = p_chapter, ride_id = p_ride, title = c_title, event_on = c_on, place = c_place,
+        details = c_details
+    where id = p_id;
+  exception when unique_violation then
+    raise exception 'Another invite is already linked to that ride.';
+  end;
   return p_id;
 end;
 $$;
@@ -327,6 +346,8 @@ begin
   set answer = p_answer::public.invite_answer,
       calendar_label = case when i.direction = 'in' and is_yes then p_label::public.ride_category end,
       bikes = case when i.direction = 'out' and is_yes then p_bikes::int end,
+      -- An incoming invite that's no longer a yes lets go of its calendar ride.
+      ride_id = case when i.direction = 'in' and not is_yes then null else i.ride_id end,
       note = c_note,
       answered_by = case when p_answer = 'waiting' then null else me end,
       answered_at = case when p_answer = 'waiting' then null else now() end

@@ -632,7 +632,8 @@ export function fixtureSocial(today: string = parityToday()): SocialData {
 interface FixtureOtherClub {
   key: string;
   name: string;
-  addedBy: string;
+  /** null: whoever added it has left. */
+  addedBy: string | null;
   archived: boolean;
 }
 
@@ -644,7 +645,7 @@ interface FixtureInvite {
   ride: string | null;
   answer: InviteAnswer;
   label: CalendarLabel | null;
-  addedBy: string;
+  addedBy: string | null;
   archived: boolean;
 }
 

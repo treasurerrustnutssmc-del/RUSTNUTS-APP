@@ -10242,7 +10242,7 @@
       "eventOn": "2030-01-01",
       "place": "",
       "details": "",
-      "ride": "future-supported",
+      "ride": "future-supported-2",
       "allowed": true
     },
     {
@@ -10560,6 +10560,101 @@
       "action": "socialArchiveInvite",
       "invite": "in-off",
       "allowed": false
+    },
+    {
+      "name": "Invites: a member changes a club whose adder has left",
+      "as": "finn",
+      "action": "socialSaveOtherClub",
+      "otherClub": "orphan",
+      "club": "Orphan MC",
+      "town": "",
+      "contact": "",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a member takes off a club whose adder has left",
+      "as": "finn",
+      "action": "socialArchiveOtherClub",
+      "otherClub": "orphan",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a member changes an invite whose passer-on has left",
+      "as": "finn",
+      "allowed": false,
+      "action": "socialSaveInviteIn",
+      "invite": "in-orphan",
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null
+    },
+    {
+      "name": "Invites: a member takes off an invite whose passer-on has left",
+      "as": "finn",
+      "action": "socialArchiveInvite",
+      "invite": "in-orphan",
+      "allowed": false
+    },
+    {
+      "name": "Invites: a West secretary moves an orphaned invite to North",
+      "as": "torque",
+      "allowed": false,
+      "action": "socialSaveInviteIn",
+      "invite": "in-orphan",
+      "otherClub": "dodgy",
+      "chapter": "north",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null
+    },
+    {
+      "name": "Invites: an invite keeps its club after the club is taken off",
+      "as": "torque",
+      "allowed": true,
+      "action": "socialSaveInviteIn",
+      "invite": "in-old-gold",
+      "otherClub": "old-gold",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": null
+    },
+    {
+      "name": "Invites: an invite keeps its linked ride",
+      "as": "torque",
+      "allowed": true,
+      "action": "socialSaveInviteIn",
+      "invite": "in-linked",
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": "future-supported"
+    },
+    {
+      "name": "Invites: linked to a ride another invite holds",
+      "as": "torque",
+      "allowed": false,
+      "action": "socialSaveInviteIn",
+      "invite": null,
+      "otherClub": "dodgy",
+      "chapter": "west",
+      "title": "Toy Run",
+      "eventOn": "2030-01-01",
+      "place": "",
+      "details": "",
+      "ride": "future-supported"
     }
   ],
   "chapters": [
@@ -10614,6 +10709,13 @@
       "key": "future-supported",
       "title": "Mates club run",
       "startsAt": "2030-01-01T00:00:00.000Z",
+      "category": "supported",
+      "cancelled": false
+    },
+    {
+      "key": "future-supported-2",
+      "title": "Another mates run",
+      "startsAt": "2030-01-01T02:00:00.000Z",
       "category": "supported",
       "cancelled": false
     }
@@ -11962,6 +12064,12 @@
       "name": "Old Gold Riders",
       "addedBy": "rusty",
       "archived": true
+    },
+    {
+      "key": "orphan",
+      "name": "Orphan MC",
+      "addedBy": null,
+      "archived": false
     }
   ],
   "invites": [
@@ -12007,6 +12115,39 @@
       "answer": "waiting",
       "label": null,
       "addedBy": "rusty",
+      "archived": false
+    },
+    {
+      "key": "in-orphan",
+      "direction": "in",
+      "club": "dodgy",
+      "chapter": "west",
+      "ride": null,
+      "answer": "waiting",
+      "label": null,
+      "addedBy": null,
+      "archived": false
+    },
+    {
+      "key": "in-old-gold",
+      "direction": "in",
+      "club": "old-gold",
+      "chapter": "west",
+      "ride": null,
+      "answer": "waiting",
+      "label": null,
+      "addedBy": "spanner",
+      "archived": false
+    },
+    {
+      "key": "in-linked",
+      "direction": "in",
+      "club": "dodgy",
+      "chapter": "west",
+      "ride": "future-supported",
+      "answer": "yes",
+      "label": "supported",
+      "addedBy": "spanner",
       "archived": false
     }
   ]

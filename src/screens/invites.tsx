@@ -15,6 +15,7 @@ import {
   answerProblem,
   CALENDAR_LABEL_NAME,
   CALENDAR_LABELS,
+  CLUB_GONE,
   calendarState,
   canAnswer,
   canChangeInvite,
@@ -411,7 +412,7 @@ export function InviteScreen({ route, navigation }: RootScreen<'Invite'>) {
         />
       ) : null}
 
-      {manager ? <AnswerForm key={`${invite.id}-${invite.answer}`} invite={invite} /> : null}
+      {manager ? <AnswerForm key={invite.id} invite={invite} /> : null}
 
       {club && manager && incoming ? <ShareTextButton label="Share our reply" message={replyText(invite, club, data.chapters)} /> : null}
       {club && manager && ride && !incoming ? (
@@ -648,7 +649,7 @@ function InviteForm({ existing, navigation }: { existing: ClubInvite | undefined
       eventOn: parseAuDate(dateText) ?? '', place, details, rideId: existing?.rideId ?? null,
     };
     const problem = inviteInProblem(me, input, otherClubs, invites, data, today);
-    if (problem) return setError(problem === 'No such club.' ? 'Pick the club that asked us.' : problem);
+    if (problem) return setError(problem === CLUB_GONE && !clubId ? 'Pick the club that asked us.' : problem);
     setBusy(true);
     saveInviteIn(input)
       .then((id) => (existing ? navigation.goBack() : navigation.replace('Invite', { inviteId: id })))

@@ -876,16 +876,16 @@ for (const u of (fx as typeof fx & { buildUpdates?: FixtureBuildUpdate[] }).buil
 }
 
 // Invites to and from other clubs: every incoming invite is for 01/01/2030.
-type FixtureOtherClub = { key: string; name: string; addedBy: string; archived: boolean };
+type FixtureOtherClub = { key: string; name: string; addedBy: string | null; archived: boolean };
 for (const c of (fx as typeof fx & { otherClubs?: FixtureOtherClub[] }).otherClubs ?? []) {
   sql(
     `insert into public.other_clubs (id, name, added_by, archived_at) values (${id('oc', c.key)}, ${q(c.name)}, ` +
-      `${id('m', c.addedBy)}, ${c.archived ? 'now()' : 'null'});`,
+      `${c.addedBy ? id('m', c.addedBy) : 'null'}, ${c.archived ? 'now()' : 'null'});`,
   );
 }
 type FixtureInvite = {
   key: string; direction: string; club: string; chapter: string | null; ride: string | null; answer: string; label: string | null;
-  addedBy: string; archived: boolean;
+  addedBy: string | null; archived: boolean;
 };
 for (const i of (fx as typeof fx & { invites?: FixtureInvite[] }).invites ?? []) {
   const incoming = i.direction === 'in';
@@ -893,7 +893,7 @@ for (const i of (fx as typeof fx & { invites?: FixtureInvite[] }).invites ?? [])
     `insert into public.club_invites (id, direction, club_id, chapter_id, ride_id, title, event_on, answer, calendar_label, ` +
       `added_by, answered_by, answered_at, archived_at) values (${id('inv', i.key)}, ${q(i.direction)}, ${id('oc', i.club)}, ` +
       `${chapter(i.chapter)}, ${i.ride ? id('r', i.ride) : 'null'}, ${incoming ? "'Fixture event'" : 'null'}, ` +
-      `${incoming ? "date '2030-01-01'" : 'null'}, ${q(i.answer)}, ${i.label ? q(i.label) : 'null'}, ${id('m', i.addedBy)}, ` +
+      `${incoming ? "date '2030-01-01'" : 'null'}, ${q(i.answer)}, ${i.label ? q(i.label) : 'null'}, ${i.addedBy ? id('m', i.addedBy) : 'null'}, ` +
       `${i.answer === 'waiting' ? 'null, null' : `${id('m', 'rusty')}, now()`}, ${i.archived ? 'now()' : 'null'});`,
   );
 }
