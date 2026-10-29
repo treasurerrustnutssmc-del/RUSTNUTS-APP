@@ -30,7 +30,7 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 - **Chapters:** West and North. The NEC (El Jefe, plus the two chapter presidents) sits above both.
 - **Ride calendar:** comes from the club website's Ride Calendar (www.rustnutssmc.com.au, largely built by Dysco). Its colour key is North, West, Rustnuts (whole club), Supported Club Rides and Non-Nuts.
 - **Member records:** the roster started as chapter spreadsheets and was loaded silently. A member's record links to them the first time they sign in with their email.
-- **The member disc:** the round MEMBER patch is earned at Full membership, and Nomads keep it. It sits in its Chapter Compass Ring (constitution v4 6.5): a red W for West, a red N for North, and all four letters red (National) for the NEC officers (Chairman, Secretary, Auditor). Chapter Presidents wear their own chapter.
+- **The member disc:** the round MEMBER patch is earned at Full membership, and Nomads keep it. It sits in its Chapter Compass Ring (constitution v4 6.5): a red W for West, a red N for North, and all four letters red (National) for El Jefe as National Chairman only. Everyone else, Presidents and NEC officers included, wears their own chapter.
 - **The Rusty Bus:** the club van, used for charity rides and vehicle recovery.
 - **Times:** dates are shown DD/MM/YYYY. Times are Melbourne time.
 

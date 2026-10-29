@@ -17,14 +17,14 @@ test('a sitting President still wears their own chapter, not national', () => {
   assert.equal(compassFor(m('m-smokey'), d), 'north');
 });
 
-test('the NEC officers wear the national compass', () => {
+test('only the National Chairman (El Jefe) wears the national compass', () => {
   assert.equal(compassFor(m('m-rusty'), d), 'national', 'National Chairman');
   for (const role of ['nec_secretary', 'nec_auditor'] as const) {
     const positions: Position[] = [
       ...d.positions,
       { id: 'x', memberId: 'm-spanner', chapterId: null, role, startedOn: '2026-01-01', endedOn: null },
     ];
-    assert.equal(compassFor(m('m-spanner'), { ...d, positions }), 'national', role);
+    assert.equal(compassFor(m('m-spanner'), { ...d, positions }), 'west', role);
   }
 });
 

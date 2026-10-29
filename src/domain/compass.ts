@@ -2,7 +2,7 @@
 // and ring are one assembly showing the current chapter or approved status). Only ever asked once
 // the disc is earned (see hasEarnedDisc).
 
-import { isNecOfficer } from './access';
+import { isChairman } from './access';
 import type { ClubData, Member } from './types';
 
 /** 'plain' is the disc without a chapter letter, for a chapter that has no compass patch yet. */
@@ -10,9 +10,9 @@ export type Compass = 'west' | 'north' | 'national' | 'plain';
 
 const CHAPTER_COMPASS: Record<string, Compass> = { west: 'west', north: 'north' };
 
-/** National Chairman, Secretary and Auditor wear the national ring; everyone else, their chapter's. */
+/** Only the National Chairman (El Jefe) wears the national ring; everyone else, Presidents included, their chapter's. */
 export function compassFor(member: Pick<Member, 'id' | 'chapterId'>, data: Pick<ClubData, 'positions' | 'chapters'>): Compass {
-  if (isNecOfficer(member.id, data.positions)) return 'national';
+  if (isChairman(member.id, data.positions)) return 'national';
   const slug = data.chapters.find((c) => c.id === member.chapterId)?.slug;
   return (slug && CHAPTER_COMPASS[slug]) || 'plain';
 }
