@@ -1,6 +1,7 @@
 // GPX files in the web build: a hidden file input to pick one, and a download to hand it on.
 // The preview runs inside a page whose URL the app doesn't control, so nothing here navigates.
 
+import { garminFileName, garminGpx } from '../domain/garmin';
 import { MAX_BYTES, TOO_BIG, UNREADABLE } from '../domain/gpx';
 import { routeFileName } from '../domain/routes';
 import { releaseAfterReturn, type ReturnWatch } from './pickGuard';
@@ -61,16 +62,28 @@ export function pickGpxFile(): Promise<{ name: string; text: string } | null> {
   });
 }
 
-/** Downloads the route as `<route name>.gpx`, to open in OsmAnd or MyRoute. */
-export async function openInMapsApp(name: string, gpx: string): Promise<void> {
+/** Downloads a GPX file under the given name. */
+function downloadGpx(fileName: string, gpx: string): void {
   const url = URL.createObjectURL(new Blob([gpx], { type: 'application/gpx+xml' }));
   const link = document.createElement('a');
   link.href = url;
-  link.download = routeFileName(name);
+  link.download = fileName;
   link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
   link.remove();
   // Give the browser a moment to start the download before letting the file go.
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/** Downloads the route as `<route name>.gpx`, to open in OsmAnd or MyRoute. */
+export async function openInMapsApp(name: string, gpx: string): Promise<void> {
+  downloadGpx(routeFileName(name), gpx);
+}
+
+/** Downloads the Garmin-ready copy, to copy onto a unit over USB or open in BaseCamp. */
+export async function sendToGarmin(name: string, gpx: string): Promise<void> {
+  const copy = garminGpx(gpx, name);
+  if (typeof copy === 'string') throw new Error(copy);
+  downloadGpx(garminFileName(name), copy.gpx);
 }

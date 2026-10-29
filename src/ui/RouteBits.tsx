@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { openInMapsApp } from '../data/routeFiles';
+import { openInMapsApp, sendToGarmin } from '../data/routeFiles';
 import { formatClimb, formatKm, routeChapterName } from '../domain/routes';
 import { routeScore, starsLine } from '../domain/ratings';
 import { navigateOptions, type NavApp } from '../domain/rideMap';
@@ -140,10 +140,26 @@ export function RouteRow({
 const ON_WEB = Platform.OS === 'web';
 
 /**
- * Hands the route to a maps app: the share sheet on a phone, where OsmAnd and MyRoute both take
- * GPX files, or a download on the web.
+ * A button that fetches the route's GPX and hands it on with `send`, showing what went wrong
+ * underneath when it can't.
  */
-export function OpenInMapsButton({ route, kind = 'primary' }: { route: Pick<Route, 'id' | 'name'>; kind?: 'primary' | 'secondary' }) {
+function GpxHandOffButton({
+  route,
+  send,
+  label,
+  icon,
+  accessibilityLabel,
+  help,
+  kind,
+}: {
+  route: Pick<Route, 'id' | 'name'>;
+  send: (name: string, gpx: string) => Promise<void>;
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  accessibilityLabel: string;
+  help: string;
+  kind: 'primary' | 'secondary';
+}) {
   const { routeGpx } = useClub();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +168,7 @@ export function OpenInMapsButton({ route, kind = 'primary' }: { route: Pick<Rout
     setError(null);
     setBusy(true);
     try {
-      await openInMapsApp(route.name, await routeGpx(route.id));
+      await send(route.name, await routeGpx(route.id));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -161,23 +177,52 @@ export function OpenInMapsButton({ route, kind = 'primary' }: { route: Pick<Rout
   };
   return (
     <Stack gap={space.sm}>
-      <Button
-        label={ON_WEB ? 'Download GPX' : 'Open in maps app'}
-        icon={ON_WEB ? 'download-outline' : 'share-outline'}
-        kind={kind}
-        busy={busy}
-        accessibilityLabel={ON_WEB ? `Download ${route.name} as a GPX file` : `Open ${route.name} in a maps app`}
-        onPress={open}
-      />
-      <Small>
-        {ON_WEB
-          ? 'Saves the GPX file. Open it in OsmAnd or MyRoute to ride it.'
-          : 'Pick OsmAnd or MyRoute from the share sheet. It stays there offline.'}
-      </Small>
+      <Button label={label} icon={icon} kind={kind} busy={busy} accessibilityLabel={accessibilityLabel} onPress={open} />
+      <Small>{help}</Small>
       <View accessibilityLiveRegion="polite" role="alert">
         {error ? <Notice tone="danger">{error}</Notice> : null}
       </View>
     </Stack>
+  );
+}
+
+/**
+ * Hands the route to a maps app: the share sheet on a phone, where OsmAnd and MyRoute both take
+ * GPX files, or a download on the web.
+ */
+export function OpenInMapsButton({ route, kind = 'primary' }: { route: Pick<Route, 'id' | 'name'>; kind?: 'primary' | 'secondary' }) {
+  return (
+    <GpxHandOffButton
+      route={route}
+      send={openInMapsApp}
+      label={ON_WEB ? 'Download GPX' : 'Open in maps app'}
+      icon={ON_WEB ? 'download-outline' : 'share-outline'}
+      kind={kind}
+      accessibilityLabel={ON_WEB ? `Download ${route.name} as a GPX file` : `Open ${route.name} in a maps app`}
+      help={ON_WEB ? 'Saves the GPX file. Open it in OsmAnd or MyRoute to ride it.' : 'Pick OsmAnd or MyRoute from the share sheet. It stays there offline.'}
+    />
+  );
+}
+
+/**
+ * Hands a Garmin-ready copy of the route on: the share sheet on a phone, for Garmin Tread, Explore
+ * or Drive, or a download on the web, to copy onto a zūmo or open in BaseCamp.
+ */
+export function SendToGarminButton({ route, kind = 'secondary' }: { route: Pick<Route, 'id' | 'name'>; kind?: 'primary' | 'secondary' }) {
+  return (
+    <GpxHandOffButton
+      route={route}
+      send={sendToGarmin}
+      label="Send to Garmin"
+      icon={ON_WEB ? 'download-outline' : 'navigate-circle-outline'}
+      kind={kind}
+      accessibilityLabel={ON_WEB ? `Download ${route.name} for a Garmin` : `Send ${route.name} to a Garmin app`}
+      help={
+        ON_WEB
+          ? 'Saves a Garmin-ready GPX. Copy it into the unit’s GPX folder, or open it in BaseCamp.'
+          : 'Pick your Garmin app (Tread, Explore or Drive) from the share sheet, then sync it to the unit.'
+      }
+    />
   );
 }
 
@@ -190,8 +235,8 @@ const NAV_ICON: Record<NavApp, React.ComponentProps<typeof Ionicons>['name']> = 
 /**
  * "Navigate": opens a row of maps apps the rider picks from, all heading to `to` (Apple Maps on an
  * iPhone, Google Maps, Waze). With a `route`, the list ends with the locked GPX for OsmAnd or
- * MyRoute, which follow the route itself rather than their own way to one spot. No pop-up: the
- * choices open in place, since the web preview can't show dialogs.
+ * MyRoute and a Garmin-ready copy, which follow the route itself rather than their own way to one
+ * spot. No pop-up: the choices open in place, since the web preview can't show dialogs.
  */
 export function NavigateChooser({
   to,
@@ -236,6 +281,7 @@ export function NavigateChooser({
             <>
               <Text style={[styles.navTitle, { marginTop: space.sm }]}>The whole route</Text>
               <OpenInMapsButton route={route} kind="secondary" />
+              <SendToGarminButton route={route} />
             </>
           ) : null}
         </Card>
