@@ -18,6 +18,7 @@ import {
   readProblem,
   removeProblem,
   rideChatListed,
+  unknownAuthors,
   type Conversation,
   type Message,
   type PickedMedia,
@@ -345,4 +346,11 @@ test('the charity committee chat is for its members and the NEC', () => {
   assert.equal(readProblem(westie, charity, withCharity), 'That chat is for the charity committee.', 'the ride committee isn’t on it');
   assert.equal(canModerate(legacy, charity, withCharity), false, 'not a board member');
   assert.equal(chatTitle(charity, legacy, withCharity), 'Charity committee');
+});
+
+test('unknownAuthors lists message authors missing from the members list, once each', () => {
+  const msgs = [{ authorId: 'wes' }, { authorId: 'roger' }, { authorId: 'roger' }, { authorId: 'gone' }];
+  assert.deepEqual(unknownAuthors(msgs, [member('wes')]), ['roger', 'gone']);
+  assert.deepEqual(unknownAuthors(msgs, [member('wes'), member('roger'), member('gone')]), []);
+  assert.deepEqual(unknownAuthors([], []), []);
 });
