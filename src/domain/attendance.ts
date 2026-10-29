@@ -58,7 +58,7 @@ export interface OpenCheckinInput {
   meetingType?: MeetingType;
 }
 
-/** Ordinary monthly meetings, special or annual meetings, and other events (4.6, 5.2). */
+/** Ordinary monthly meetings, special or annual meetings, and other events (5.2, 5.4). */
 export const MEETING_TYPES: MeetingType[] = ['ordinary', 'special', 'event'];
 
 const RUN_ONLY = 'Only that chapter’s board can run this check-in.';

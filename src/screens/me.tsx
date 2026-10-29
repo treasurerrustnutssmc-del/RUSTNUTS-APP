@@ -8,6 +8,7 @@ import { positionTitles } from '../domain/home';
 import { LICENCE_LABEL, ROLE_LABEL } from '../domain/labels';
 import { displayName, hasEarnedDisc, initials } from '../domain/profile';
 import { StandingCard } from './attendance';
+import { MyNotices } from './notices'; // the 5.5 notice
 import type { LicenceClass } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: notifications
@@ -112,6 +113,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       </Card>
 
       {/* Attendance rules and the membership card */}
+      <MyNotices />
       {me.approval === 'approved' ? (
         <Card style={{ padding: 0, gap: 0 }}>
           <ListRow

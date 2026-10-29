@@ -50,9 +50,9 @@ import {
 
 const KIND_LABEL = { ride: 'Ride', meeting: 'Meeting' } as const;
 const MEETING_TYPE_HINT: Record<MeetingType, string> = {
-  ordinary: 'Counts towards the 80% Full Members need, and an FNG’s meetings (5.2, 4.6). An Annual Chapter Meeting held with it counts once, as this.',
+  ordinary: 'Counts towards the 80% Full Members need, and the 50% FNGs need (5.2, 4.6). An Annual Chapter Meeting held with it counts once, as this.',
   special: 'Counts towards the two-of-three before a Big 4 (5.4), not the 80%.',
-  event: 'Counts towards an FNG’s other events (4.6).',
+  event: 'Recorded for the club. It doesn’t count towards anyone’s attendance.',
 };
 export const MEETING_TYPE_LABEL: Record<MeetingType, string> = { ordinary: 'Monthly meeting', special: 'Special or annual', event: 'Other event' };
 
