@@ -7,6 +7,8 @@ import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { RootScreen } from '../navigation/types';
 import { IntroProgressCard } from './fng'; // Stage 4
+import { SUPPORT_URL } from '../domain/clubLinks'; // Club links
+import { ClubLinksSection } from './clubLinks'; // Club links
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -29,8 +31,6 @@ import {
   Small,
   Stack,
 } from '../ui/primitives';
-
-const SUPPORT_URL = 'https://www.rustnutssmc.com.au/resources.html';
 
 export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
   const { data, isDemo } = useClub();
@@ -84,9 +84,12 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
           label="Support and resources"
           kind="secondary"
           icon="open-outline"
-          onPress={() => Linking.openURL(SUPPORT_URL)}
+          onPress={() => Linking.openURL(SUPPORT_URL).catch(() => {})}
         />
       </Card>
+
+      {/* Club links: the website, shop, podcast and socials */}
+      <ClubLinksSection withoutSupport />
 
       <Small style={{ textAlign: 'center' }}>Rustnuts Social Motorcycle Club Incorporated · Greater Melbourne</Small>
     </Screen>
