@@ -494,6 +494,30 @@ export function simplify(points: [number, number][], max = 300): [number, number
 
 // ---- The reader ----
 
+/** The points a route is drawn from, at full detail, with the stops as readGpx names them. */
+export interface GpxPoints {
+  track: { lat: number; lng: number; ele: number | null }[];
+  stops: GpxSummary['stops'];
+}
+
+/** The stops in a scanned file: the first MAX_STOPS waypoints, unnamed ones numbered. */
+function stopsOf(scanned: Scanned): GpxSummary['stops'] {
+  return scanned.wpt.slice(0, MAX_STOPS).map((w, k) => ({ name: w.name !== '' ? w.name : `Stop ${k + 1}`, lat: w.lat, lng: w.lng }));
+}
+
+/**
+ * Reads every track point (route points when there is no track) and the stops, or returns the
+ * message readGpx would. For writing the route out again, as the Garmin copy does.
+ */
+export function readGpxPoints(text: string): GpxPoints | string {
+  if (text.length > MAX_BYTES || utf8Bytes(text) > MAX_BYTES) return TOO_BIG;
+  const scanned = scan(text);
+  if (!scanned) return NOT_GPX;
+  const chosen = scanned.trk.length > 0 ? scanned.trk : scanned.rte;
+  if (chosen.length < 2) return NO_TRACK;
+  return { track: chosen.map((p) => ({ lat: p.lat, lng: p.lng, ele: p.ele })), stops: stopsOf(scanned) };
+}
+
 /** Reads a GPX file into a summary, or returns the message to show when it can't be used. */
 export function readGpx(text: string): GpxSummary | string {
   // More characters than the limit is already more bytes than the limit.
@@ -537,7 +561,7 @@ export function readGpx(text: string): GpxSummary | string {
     distanceM: Math.round(distance),
     climbM: withEle >= 2 ? Math.round(climb) : null,
     line: simplify(coords),
-    stops: scanned.wpt.slice(0, MAX_STOPS).map((w, k) => ({ name: w.name !== '' ? w.name : `Stop ${k + 1}`, lat: w.lat, lng: w.lng })),
+    stops: stopsOf(scanned),
     bounds: { minLat, minLng, maxLat, maxLng },
   };
 }
