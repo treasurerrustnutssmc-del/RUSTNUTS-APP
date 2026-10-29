@@ -60,7 +60,7 @@ import {
   Small,
   Stack,
 } from '../ui/primitives';
-import { OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
+import { NavigateChooser, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
 
 function RideMissing() {
   return (
@@ -211,7 +211,11 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
               <Text style={styles.big}>{route.name}</Text>
               <RouteFacts route={route} />
               {stops.length > 0 ? <StopList stops={stops} flat /> : null}
-              <OpenInMapsButton route={route} kind="secondary" />
+              {route.line.length > 0 ? (
+                <NavigateChooser to={{ lat: route.line[0][0], lng: route.line[0][1] }} toLabel="the start" route={route} />
+              ) : (
+                <OpenInMapsButton route={route} kind="secondary" />
+              )}
             </Stack>
           </>
         ) : stops.length > 0 ? (

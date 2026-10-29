@@ -74,6 +74,9 @@ export type RootParams = {
   // Attendance rules, Big 4 rides and the membership card
   Attendance: { chapterId?: string } | undefined;
   MembershipCard: undefined;
+  // Big 4 RSVP rules and the 5.5 notice
+  GiveNotice: { memberId: string };
+  StatusNotice: { noticeId: string };
   // Stage 3 (lane B): chats and photos
   Chat: { chatId: string; /** Lane E: share in. What was shared, as the starting draft. */ shared?: { text: string; media: PickedMedia[] } };
   NewChat: undefined;
@@ -126,6 +129,12 @@ export type RootParams = {
   ProposeContribution: undefined;
   ChapterProposal: { proposalId: string };
   ProposeChapter: undefined;
+  // The National Auditor (11.8). A request can start from one of the checks.
+  Audit: undefined;
+  AuditRecords: undefined;
+  NewAuditRequest: { checkKey?: string } | undefined;
+  AuditRequest: { requestId: string };
+  AuditReport: { reportId?: string } | undefined;
   // Stage 5C: document library. `version` opens that version instead of the one in force.
   Documents: undefined;
   Document: { id: string; version?: string };
@@ -133,6 +142,13 @@ export type RootParams = {
   PublishDocument: { id: string };
   DocumentApproval: { versionId: string };
   DocumentSignoffs: { id: string };
+  // Invites to and from other clubs
+  OtherClubs: undefined;
+  Invite: { inviteId: string };
+  EditInvite: { inviteId?: string } | undefined;
+  InviteClub: { rideId: string };
+  OtherClub: { clubId: string };
+  EditOtherClub: { clubId?: string } | undefined;
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

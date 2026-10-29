@@ -44,7 +44,7 @@ export function canRunCheckin(viewer: Member | null, chapterId: string | null, p
 /** Approved members, and applicants still in their introduction phase (it's their meetings that count). */
 export function canCheckIn(viewer: Member | null): boolean {
   if (!viewer) return false;
-  if (viewer.approval === 'approved') return true;
+  if (viewer.approval === 'approved') return viewer.status !== 'family'; // Family view: no attendance
   return viewer.approval === 'pending' && viewer.status === 'introduced';
 }
 
@@ -58,7 +58,7 @@ export interface OpenCheckinInput {
   meetingType?: MeetingType;
 }
 
-/** Ordinary monthly meetings, special or annual meetings, and other events (4.6, 5.2). */
+/** Ordinary monthly meetings, special or annual meetings, and other events (5.2, 5.4). */
 export const MEETING_TYPES: MeetingType[] = ['ordinary', 'special', 'event'];
 
 const RUN_ONLY = 'Only that chapter’s board can run this check-in.';

@@ -3,7 +3,7 @@
 // words, in the same order.
 
 import { KEEPS_ONLY, keepsBooks } from './ledger';
-import { runsScope, scopeRefusal, signedInProblem } from './meetings';
+import { reviewsScope, runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
 import { isIsoDate } from './conduct';
 import type { ClubData, Member, MerchItem, MerchOrder, MerchStatus, OrderStatus } from './types';
@@ -64,18 +64,18 @@ export const orderTotal = (o: Pick<MerchOrder, 'unitCents' | 'qty'>): number => 
 /** On sale or closed for any approved member; proposed and declined ones for the people who run it. */
 export function seesItem(me: Member | null, item: MerchItem, data: ClubData): boolean {
   if (!me || me.approval !== 'approved') return false;
-  return item.status === 'on_sale' || item.status === 'closed' || runsScope(me, item.chapterId, data.positions);
+  return item.status === 'on_sale' || item.status === 'closed' || reviewsScope(me, item.chapterId, data.positions);
 }
 
 export const visibleItems = (me: Member | null, data: ClubData): MerchItem[] =>
   (data.merchItems ?? []).filter((i) => seesItem(me, i, data));
 
-/** Who ordered it, the board that runs the item, and whoever keeps that fund's books. */
+/** Who ordered it, the board that runs the item, whoever keeps that fund's books, and the Auditor (11.8). */
 export function seesOrder(me: Member | null, order: MerchOrder, data: ClubData): boolean {
   if (!me || me.approval !== 'approved') return false;
   const item = (data.merchItems ?? []).find((i) => i.id === order.itemId);
   if (!item) return false;
-  return order.memberId === me.id || runsScope(me, item.chapterId, data.positions) || keepsBooks(me, item.chapterId, data.positions);
+  return order.memberId === me.id || reviewsScope(me, item.chapterId, data.positions) || keepsBooks(me, item.chapterId, data.positions);
 }
 
 export const visibleOrders = (me: Member | null, data: ClubData): MerchOrder[] =>

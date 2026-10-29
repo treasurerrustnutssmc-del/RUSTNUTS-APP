@@ -129,9 +129,9 @@ test('a member cannot hold the same open role twice', () => {
 });
 
 test('only the National Chairman hands out the other national roles', () => {
-  assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), null, 'nec_auditor', d)), false);
-  assert.equal(allowed(appointProblem(m('m-smokey'), m('m-spanner'), null, 'nec_auditor', d)), false); // a President
-  assert.equal(allowed(appointProblem(m('m-rusty'), m('m-spanner'), null, 'nec_auditor', d)), true); // the Chairman
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), null, 'nec_secretary', d)), false);
+  assert.equal(allowed(appointProblem(m('m-smokey'), m('m-spanner'), null, 'nec_secretary', d)), false); // a President
+  assert.equal(allowed(appointProblem(m('m-rusty'), m('m-spanner'), null, 'nec_secretary', d)), true); // the Chairman
 });
 
 test('nobody seats a National Chairman in the app; that follows the vote, recorded by the admin', () => {

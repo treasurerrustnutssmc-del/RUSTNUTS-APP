@@ -36,6 +36,16 @@ import {
   type Tally,
   type Vote,
 } from '../../domain/social/brag';
+import {
+  answerProblem,
+  archiveClubProblem,
+  archiveInviteProblem,
+  clubProblem,
+  inviteInProblem,
+  inviteOutProblem,
+  type ClubInvite,
+  type OtherClub,
+} from '../../domain/invites';
 import type { MediaSource } from '../chat/chatContext';
 import type { Ride, RideRoute } from '../../domain/types';
 import type { PickedMedia } from '../../domain/chat';
@@ -80,6 +90,16 @@ import {
   type MechanicRow,
   type SkillsRow,
   type VouchRow,
+  // Invites to and from other clubs
+  answerInviteArgs,
+  INVITE_COLUMNS,
+  inviteClubArgs,
+  saveInviteInArgs,
+  saveOtherClubArgs,
+  toInvites,
+  toOtherClubs,
+  type InviteRow,
+  type OtherClubRow,
 } from './liveSocial';
 import { SocialContext, type SocialContextValue } from './socialContext';
 
@@ -120,6 +140,8 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   const [tallies, setTallies] = useState<Tally[]>([]);
   const [bragRides, setBragRides] = useState<Ride[]>([]);
   const [pastRideRoutes, setPastRideRoutes] = useState<RideRoute[]>([]);
+  const [otherClubs, setOtherClubs] = useState<OtherClub[]>([]);
+  const [invites, setInvites] = useState<ClubInvite[]>([]);
   const allRideRoutes = useMemo(() => mergeRideRoutes(pastRideRoutes, club.rideRoutes ?? []), [pastRideRoutes, club.rideRoutes]);
   // Signed addresses, by bucket and path.
   const urls = useRef(new Map<string, { url: Promise<string>; until: number }>());
@@ -132,7 +154,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     }
     // Each table on its own: one that isn't live yet (or a dropped connection) leaves that part
     // empty, not the rest broken.
-    const [b, s, m, v, l, u, hy, ho, aw, no, bv, bt, rr] = await Promise.all([
+    const [b, s, m, v, l, u, hy, ho, aw, no, bv, bt, rr, oc, ci] = await Promise.all([
       db().from('member_birthdays').select('member_id, month, day'),
       db().from('member_skills').select('member_id, skills'),
       db().from('mechanics').select('id, name, suburb, phone, website, speciality, notes, added_by, added_at, archived_at'),
@@ -146,7 +168,11 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       db().from('brag_votes').select('award_id, member_id, nomination_id'),
       db().rpc('brag_tallies'),
       allPages<RideRouteRow>((from, to) => db().from('ride_routes').select('ride_id, route_id').order('ride_id').range(from, to)),
+      db().from('other_clubs').select('id, name, town, contact, note, added_by, added_at, archived_at').order('name'),
+      db().from('club_invites').select(INVITE_COLUMNS),
     ]);
+    if (!oc.error) setOtherClubs(toOtherClubs((oc.data ?? []) as OtherClubRow[]));
+    if (!ci.error) setInvites(toInvites((ci.data ?? []) as unknown as InviteRow[]));
     if (!b.error) setBirthdays(toBirthdays((b.data ?? []) as BirthdayRow[]));
     if (!s.error) setSkillsList(toSkills((s.data ?? []) as SkillsRow[]));
     if (!m.error) setMechanics(toMechanics((m.data ?? []) as MechanicRow[]));
@@ -380,6 +406,41 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       await load().catch(() => undefined);
     },
     bragPhotoUrl,
+    otherClubs,
+    invites,
+    saveOtherClub: async (input) => {
+      refuse(clubProblem(me, input, otherClubs, club));
+      const id = (await call('save_other_club', saveOtherClubArgs(input))) as string;
+      await load().catch(() => undefined);
+      return id;
+    },
+    archiveOtherClub: async (id) => {
+      refuse(archiveClubProblem(me, id, otherClubs, club));
+      await call('archive_other_club', { p_id: id });
+      await load().catch(() => undefined);
+    },
+    saveInviteIn: async (input) => {
+      refuse(inviteInProblem(me, input, otherClubs, invites, club, today));
+      const id = (await call('save_invite_in', saveInviteInArgs(input))) as string;
+      await load().catch(() => undefined);
+      return id;
+    },
+    inviteClub: async (input) => {
+      refuse(inviteOutProblem(me, input, otherClubs, invites, club, today));
+      const id = (await call('invite_club', inviteClubArgs(input))) as string;
+      await load().catch(() => undefined);
+      return id;
+    },
+    answerInvite: async (input) => {
+      refuse(answerProblem(me, input, invites, club));
+      await call('answer_invite', answerInviteArgs(input));
+      await load().catch(() => undefined);
+    },
+    archiveInvite: async (id) => {
+      refuse(archiveInviteProblem(me, id, invites, club));
+      await call('archive_invite', { p_id: id });
+      await load().catch(() => undefined);
+    },
     refresh: load,
   };
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;

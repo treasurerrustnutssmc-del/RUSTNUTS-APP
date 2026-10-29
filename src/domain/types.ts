@@ -248,7 +248,7 @@ export interface RosterTally {
   count: number;
 }
 
-export interface ClubData extends LedgerData, AdminData {
+export interface ClubData extends LedgerData, AdminData, AuditData {
   chapters: Chapter[];
   members: Member[];
   /** Roster places not yet claimed (live mode only). Missing means none. */
@@ -313,6 +313,11 @@ export interface ClubData extends LedgerData, AdminData {
   big4Rides?: Big4Ride[];
   /** Members excused from a meeting or ride. Missing means none. */
   exemptions?: AttendanceExemption[];
+  // Big 4 RSVP rules and the 5.5 notice
+  /** Members the board excused from 5.4 for one Big 4. Missing means none. */
+  big4Waivers?: Big4Waiver[];
+  /** 5.5 notices: the member's own, or their chapter's for its board. Missing means none. */
+  statusNotices?: StatusNotice[];
 }
 
 // ---------------------------------------------------------------------------
@@ -948,6 +953,48 @@ export interface AttendanceExemption {
   grantedAt: string;
 }
 
+/** The grounds 5.4 lets the board excuse a member from its meetings rule on. */
+export type Big4Ground = 'work' | 'family' | 'health' | 'injury' | 'distance';
+
+/** A member the board excused from 5.4 for one Big 4, so they can say Going. */
+export interface Big4Waiver {
+  rideId: string;
+  memberId: string;
+  ground: Big4Ground;
+  grantedBy: string | null;
+  grantedAt: string;
+}
+
+export type NoticeAbout = 'attendance' | 'dues';
+export type NoticeOutcome = 'withdrawn' | 'decided';
+
+/**
+ * A 5.5 notice: before proposing a change in internal status, the member gets the record, the
+ * proposed consequence and at least 14 days to explain, correct an error or ask for an exemption
+ * or payment arrangement.
+ */
+export interface StatusNotice {
+  id: string;
+  memberId: string;
+  /** The member's chapter when it was given. */
+  chapterId: string;
+  about: NoticeAbout;
+  record: string;
+  proposal: string;
+  givenOn: string;
+  respondBy: string;
+  givenBy: string | null;
+  /** Empty when they haven't replied. */
+  response: string;
+  respondedAt: string | null;
+  /** Null while open. */
+  outcome: NoticeOutcome | null;
+  /** Empty when none. */
+  outcomeNote: string;
+  closedOn: string | null;
+  closedBy: string | null;
+}
+
 // Ride planning extras --------------------------------------------------------------------------
 
 export type StopKind = 'fuel' | 'coffee' | 'lunch' | 'regroup' | 'other';
@@ -1041,4 +1088,52 @@ export interface CrewSwap {
   state: SwapState;
   askedAt: string;
   answeredAt: string | null;
+}
+
+// The National Auditor (constitution v4, 11.8) ---------------------------------------------------
+
+/** The records 11.8 names. */
+export type AuditArea = 'policy' | 'membership' | 'attendance' | 'event_funds' | 'bank' | 'transactions' | 'controls';
+
+/** "May request relevant information" or "issue written correction requests" (11.8). */
+export type AuditRequestKind = 'information' | 'correction';
+
+/** The Auditor's written request to one chapter's board, or to the NEC (chapterId null). */
+export interface AuditRequest {
+  id: string;
+  chapterId: string | null;
+  kind: AuditRequestKind;
+  area: AuditArea;
+  title: string;
+  details: string;
+  dueOn: string | null;
+  /** The line of the books it's about, if any. */
+  ledgerEntryId: string | null;
+  raisedBy: string | null;
+  raisedAt: string;
+  /** The board's (or the NEC's) written answer; it can be updated until the request is closed. */
+  answer: string | null;
+  answeredBy: string | null;
+  answeredAt: string | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  closeNote: string | null;
+}
+
+/** A findings report: a draft only the Auditor sees, then issued to the NEC and every board. */
+export interface AuditReport {
+  id: string;
+  title: string;
+  fromOn: string;
+  toOn: string;
+  findings: string;
+  recommendations: string | null;
+  writtenBy: string | null;
+  savedAt: string;
+  issuedAt: string | null;
+}
+
+export interface AuditData {
+  auditRequests?: AuditRequest[];
+  auditReports?: AuditReport[];
 }

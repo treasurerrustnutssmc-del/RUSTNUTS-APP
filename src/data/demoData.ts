@@ -470,9 +470,11 @@ export const DEMO_DATA: ClubData = {
 export const DEMO_PERSONAS = [
   { level: 'public', memberId: null, label: 'Public', blurb: 'Not signed in' },
   { level: 'pending', memberId: 'm-dylan', label: 'Applicant', blurb: 'Dylan, waiting on approval' },
+  { level: 'family', memberId: 'm-kerry', label: 'Family', blurb: 'Kerry, Diesel’s partner' },
   { level: 'member', memberId: 'm-spanner', label: 'Member', blurb: 'Spanner, West Tail Gunner' },
   { level: 'board', memberId: 'm-torque', label: 'Board', blurb: 'Torque, West Secretary' },
   { level: 'national', memberId: 'm-rusty', label: 'National', blurb: 'Rusty, West President and NEC Chair' },
+  { level: 'member', memberId: 'm-ace', label: 'Auditor', blurb: 'Ace, North Officer and National Auditor' },
 ] as const;
 
 // Lane E: live ride
@@ -833,6 +835,45 @@ Object.assign(DEMO_DATA, {
 } satisfies Partial<ClubData>);
 
 // ---------------------------------------------------------------------------
+// The National Auditor (11.8): Ace, eleven months into his twelve, so his renewal is coming up. He
+// asked West about the late-banked sausage sizzle (answered) and the NEC for September's bank
+// statement (overdue), issued a first findings report and has a second one in draft.
+// ---------------------------------------------------------------------------
+
+Object.assign(DEMO_DATA, {
+  positions: [
+    ...DEMO_DATA.positions,
+    { id: 'p-18', memberId: 'm-ace', chapterId: null, role: 'nec_auditor', startedOn: ago(330), endedOn: null },
+  ],
+  auditRequests: [
+    {
+      id: 'ar-1', chapterId: 'ch-west', kind: 'correction', area: 'bank', title: 'Sausage sizzle banked late',
+      details: 'The meeting sausage sizzle came in nine days before it was banked. Please say why, and how the next one gets banked within five working days (13.1).',
+      dueOn: ago(-7), ledgerEntryId: 'le-6', raisedBy: 'm-ace', raisedAt: at(ago(12)),
+      answer: 'The float tin sat with Sparks over the long weekend. From next month the Treasurer banks it on the Monday after the meeting.',
+      answeredBy: 'm-sparks', answeredAt: at(ago(10)), closedAt: null, closedBy: null, closeNote: null,
+    },
+    {
+      id: 'ar-2', chapterId: null, kind: 'information', area: 'bank', title: 'September bank statement',
+      details: 'Please send the Club fund’s September statement so I can match it to the books.',
+      dueOn: ago(3), ledgerEntryId: null, raisedBy: 'm-ace', raisedAt: at(ago(17)),
+      answer: null, answeredBy: null, answeredAt: null, closedAt: null, closedBy: null, closeNote: null,
+    },
+  ],
+  auditReports: [
+    {
+      id: 'rep-1', title: 'First review of the books', fromOn: ago(120), toOn: ago(60),
+      findings: 'Every payment had two approvals and none was approved by its payee. Two months’ reports were presented on time. One deposit was banked late.',
+      recommendations: 'Bank meeting takings on the Monday after the meeting.', writtenBy: 'm-ace', savedAt: at(ago(55)), issuedAt: at(ago(55)),
+    },
+    {
+      id: 'rep-2', title: 'Membership and attendance review', fromOn: ago(60), toOn: ago(1),
+      findings: 'Draft. Checking FNG trial dates against the check-ins.', recommendations: null, writtenBy: 'm-ace', savedAt: at(ago(1)), issuedAt: null,
+    },
+  ],
+} satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
 // Stage 5C: the document library. Constitution v4 is the real text, waiting for its adoption to
 // be recorded (its own control table says the publication date isn't the commencement date). The
 // rest are made-up samples, dated from today: West's bylaws are in force at v2 (no fresh sign-off,
@@ -938,6 +979,18 @@ Object.assign(DEMO_DATA, {
     ...went('cs-big4', ['m-rusty', 'm-torque', 'm-spanner', 'm-sparks', 'm-throttle', 'm-jet', 'm-ratchet'], addDays(ago(42), 1)),
   ],
   exemptions: [{ sessionId: 'cs-today', memberId: 'm-gravel', reason: 'Working away', grantedBy: 'm-torque', grantedAt: at(s4Today, '08:00:00') }],
+} satisfies Partial<ClubData>);
+
+// Big 4 RSVP rules and the 5.5 notice: Gravel has an open attendance notice from the Secretary.
+Object.assign(DEMO_DATA, {
+  big4Waivers: [],
+  statusNotices: [{
+    id: 'sn-gravel', memberId: 'm-gravel', chapterId: 'ch-west', about: 'attendance' as const,
+    record: 'Since 01/08:\nMonthly meetings · 80%: 1 of 3 (needs 3)\nBig 4 rides: 0 (needs 2, 1 still to come)',
+    proposal: 'Move to Supporter status from the November meeting, unless the board grants relief (4.12).',
+    givenOn: addDays(s4Today, -3), respondBy: addDays(s4Today, 11), givenBy: 'm-torque', response: '', respondedAt: null,
+    outcome: null, outcomeNote: '', closedOn: null, closedBy: null,
+  }],
 } satisfies Partial<ClubData>);
 
 // ---------------------------------------------------------------------------

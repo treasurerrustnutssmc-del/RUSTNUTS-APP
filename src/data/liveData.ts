@@ -10,6 +10,7 @@ import { toBusiness } from './businessLive';
 import { toLedger, toMeetingReports } from './ledgerLive'; // Stage 5B
 import { loadPlanning } from './planningLive'; // Ride planning extras
 import { toAdmin } from './adminLive'; // Stage 5D
+import { toAudit } from './auditLive'; // National Auditor
 import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
@@ -62,6 +63,15 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const unclaimedLoad = db.rpc('unclaimed_roster_counts').then(
     (r) => {
       if (r.error) console.warn('unclaimed roster counts:', r.error.message);
+      return r.error ? [] : (r.data ?? []);
+    },
+    () => [],
+  );
+  // Family view: Family get the rides here (ride_calendar() is empty for them). Nothing for anyone
+  // else, and nothing rather than blocking the app until the database has it.
+  const familyLoad = db.rpc('family_rides').then(
+    (r) => {
+      if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('family_rides:', r.error.message);
       return r.error ? [] : (r.data ?? []);
     },
     () => [],
@@ -141,6 +151,17 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     ),
   );
 
+  // The National Auditor's requests and reports, the same way.
+  const audit = toAudit(
+    await db.rpc('club_audit').then(
+      (r) => {
+        if (r.error) console.warn('club_audit:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+  );
+
   // Stage 5C: the document library, the same way. Texts load when a version is opened.
   const documents = toDocuments(
     await db.rpc('club_documents').then(
@@ -154,11 +175,14 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   );
   // Attendance rules and Big 4 rides: empty rather than blocking the app (also before the live
   // database has the tables).
-  const [big4, exemptions, meetingTypes] = await Promise.all([
+  const [big4, exemptions, meetingTypes, waivers, notices] = await Promise.all([
     db.from('big4_rides').select('*'),
     db.from('attendance_exemptions').select('*'),
     db.from('checkin_sessions').select('id, meeting_type'),
-  ]).catch(() => [null, null, null] as const);
+    // Big 4 RSVP rules and the 5.5 notice
+    db.from('big4_waivers').select('*'),
+    db.from('status_notices').select('*'),
+  ]).catch(() => [null, null, null, null, null] as const);
   const rowsOf = <T,>(r: { data: T[] | null; error: { message: string } | null } | null, what: string): T[] => {
     if (r?.error) console.warn(`${what}:`, r.error.message);
     return r?.error ? [] : (r?.data ?? []);
@@ -166,6 +190,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
   const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
+  const familyRides = await familyLoad;
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
@@ -238,7 +263,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       startedOn: p.started_on,
       endedOn: p.ended_on,
     })),
-    rides: (calendar.data?.rides ?? []).map((r) => ({
+    rides: [...(calendar.data?.rides ?? []), ...familyRides].map((r) => ({
       id: r.id,
       title: r.title,
       startsAt: instant(r.starts_at),
@@ -333,6 +358,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     ...ledger,
     ...meetingReports,
     ...admin,
+    ...audit,
     ...documents,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
     ...withMeetingTypes(stage4(money.error ? null : (money.data as MembersMoneyRows | null)), typeOf),
@@ -342,6 +368,16 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     })),
     exemptions: rowsOf(exemptions, 'attendance_exemptions').map((e) => ({
       sessionId: e.session_id, memberId: e.member_id, reason: e.reason, grantedBy: e.granted_by, grantedAt: instant(e.granted_at),
+    })),
+    // Big 4 RSVP rules and the 5.5 notice. Blank texts are stored as null.
+    big4Waivers: rowsOf(waivers, 'big4_waivers').map((w) => ({
+      rideId: w.ride_id, memberId: w.member_id, ground: w.ground, grantedBy: w.granted_by, grantedAt: instant(w.granted_at),
+    })),
+    statusNotices: rowsOf(notices, 'status_notices').map((n) => ({
+      id: n.id, memberId: n.member_id, chapterId: n.chapter_id, about: n.about, record: n.record, proposal: n.proposal,
+      givenOn: n.given_on, respondBy: n.respond_by, givenBy: n.given_by, response: n.response ?? '',
+      respondedAt: n.responded_at ? instant(n.responded_at) : null, outcome: n.outcome, outcomeNote: n.outcome_note ?? '',
+      closedOn: n.closed_on, closedBy: n.closed_by,
     })),
   };
 }

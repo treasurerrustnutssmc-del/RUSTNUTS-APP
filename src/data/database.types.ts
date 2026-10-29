@@ -2,11 +2,12 @@
 
 // Stage 5: meetings and votes
 import type {
-  AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
+  AgendaItem, BallotChoice, Big4Ground, NoticeAbout, NoticeOutcome, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
 } from '../domain/types'; // HubStaying, PlanStop, RideCallState, SwapState: ride planning extras
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson, MeetingReportJson } from './ledgerLive'; // Stage 5B
 import type { AdminJson } from './adminLive'; // Stage 5D
+import type { AuditJson } from './auditLive'; // National Auditor
 import type { DocumentsJson } from './documentsLive'; // Stage 5C
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
@@ -379,6 +380,23 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      // Big 4 RSVP rules and the 5.5 notice
+      big4_waivers: {
+        Row: { ride_id: string; member_id: string; ground: Big4Ground; granted_by: string | null; granted_at: string };
+        Insert: { [_ in never]: never }; // only through set_big4_waiver
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      status_notices: {
+        Row: {
+          id: string; member_id: string; chapter_id: string; about: NoticeAbout; record: string; proposal: string; given_on: string;
+          respond_by: string; given_by: string | null; response: string | null; responded_at: string | null;
+          outcome: NoticeOutcome | null; outcome_note: string | null; closed_on: string | null; closed_by: string | null;
+        };
+        Insert: { [_ in never]: never }; // only through give_status_notice, respond_to_notice and close_status_notice
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       // Only the columns read directly; the rest come through members_money().
       checkin_sessions: {
         Row: { id: string; meeting_type: MeetingType | null };
@@ -439,6 +457,13 @@ export type Database = {
       undesignate_big4: { Args: { p_ride: string }; Returns: undefined };
       set_meeting_type: { Args: { p_session: string; p_type: MeetingType }; Returns: undefined };
       set_exemption: { Args: { p_session: string; p_member: string; p_reason: string | null }; Returns: undefined };
+      set_big4_waiver: { Args: { p_ride: string; p_member: string; p_ground: Big4Ground | null }; Returns: undefined };
+      give_status_notice: {
+        Args: { p_member: string; p_about: string; p_record: string; p_proposal: string; p_respond_by: string };
+        Returns: string;
+      };
+      respond_to_notice: { Args: { p_notice: string; p_response: string }; Returns: undefined };
+      close_status_notice: { Args: { p_notice: string; p_outcome: NoticeOutcome; p_note: string }; Returns: undefined };
       // Ride planning extras
       set_bike_range: { Args: { p_bike: string; p_range: number | null }; Returns: undefined };
       save_ride_plan: { Args: { p_ride: string; p_stops: PlanStop[]; p_seen: string | null }; Returns: undefined };
@@ -474,6 +499,14 @@ export type Database = {
       };
       shared_phones: { Args: never; Returns: { member_id: string; phone: string }[] };
       claim_roster: { Args: never; Returns: boolean };
+      /** Family view: the calendar from today on, ride columns only. Empty for anyone who isn't Family. */
+      family_rides: {
+        Args: never;
+        Returns: Pick<
+          Database['public']['Tables']['rides']['Row'],
+          'id' | 'starts_at' | 'ends_at' | 'all_day' | 'title' | 'location' | 'notes' | 'category' | 'cancelled_at'
+        >[];
+      };
       unclaimed_roster_counts: { Args: never; Returns: { chapter_id: string; status: MemberStatus; n: number }[] };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
       end_position: { Args: { p_position: string }; Returns: undefined };
@@ -600,6 +633,24 @@ export type Database = {
       };
       settle_chapter_proposal: { Args: { p_id: string; p_vote: string }; Returns: string | null };
       withdraw_chapter_proposal: { Args: { p_id: string }; Returns: undefined };
+      // The National Auditor (11.8)
+      club_audit: { Args: never; Returns: AuditJson };
+      raise_audit_request: {
+        Args: {
+          p_chapter: string | null; p_kind: string; p_area: string; p_title: string; p_details: string; p_due: string | null;
+          p_ledger_entry: string | null;
+        };
+        Returns: string;
+      };
+      answer_audit_request: { Args: { p_id: string; p_answer: string }; Returns: undefined };
+      close_audit_request: { Args: { p_id: string; p_note: string }; Returns: undefined };
+      save_audit_report: {
+        Args: { p_id: string | null; p_title: string; p_from: string; p_to: string; p_findings: string; p_recommendations: string | null };
+        Returns: string;
+      };
+      issue_audit_report: { Args: { p_id: string }; Returns: undefined };
+      delete_audit_report: { Args: { p_id: string }; Returns: undefined };
+      renew_auditor: { Args: never; Returns: string };
       record_credit: {
         Args: { p_chapter: string | null; p_code: string; p_description: string; p_amount_cents: number; p_received_on: string | null; p_entry_on: string };
         Returns: string;

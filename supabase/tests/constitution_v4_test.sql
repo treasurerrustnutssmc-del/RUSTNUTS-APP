@@ -86,6 +86,10 @@ begin
   assert pg_temp.try_as(sec, format(appoint, '00000000-0000-0000-0000-0000000000a4', west, 'officer')) is null, 'a Nomad can be an Officer';
   assert pg_temp.try_as(chair, format(appoint, '00000000-0000-0000-0000-0000000000b1', null, 'nec_auditor'))
     = 'The National Auditor can’t also be a President or Treasurer (11.8).', 'a Treasurer isn''t the Auditor';
+  assert pg_temp.try_as(chair, format(appoint, '00000000-0000-0000-0000-0000000000a3', null, 'nec_auditor'))
+    = 'Appointing the National Auditor needs a carried two-thirds NEC vote about them in the last 90 days (11.8).', 'not without the NEC''s vote';
+  insert into votes (chapter_id, subject_member_id, question, electorate, threshold, quorum, closes_at, closed_at, result)
+  values (null, '00000000-0000-0000-0000-0000000000a3', 'Appoint Rita?', 'nec', 'two_thirds', 1, now() - interval '1 day', now() - interval '1 day', 'carried');
   assert pg_temp.try_as(chair, format(appoint, '00000000-0000-0000-0000-0000000000a3', null, 'nec_auditor')) is null, 'Rita audits';
   assert pg_temp.try_as(chair, format(appoint, '00000000-0000-0000-0000-0000000000a3', west, 'president'))
     = 'The National Auditor can’t also be a President or Treasurer (11.8).', 'and so can''t be President';
