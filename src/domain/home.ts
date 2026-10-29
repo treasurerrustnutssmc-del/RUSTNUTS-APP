@@ -9,12 +9,13 @@ export interface PositionTitle {
 
 /**
  * One title per role. A role held in more than one chapter shows once with each chapter named
- * ("Treasurer (West, North)"); a seat in a chapter other than home names that chapter.
+ * ("Treasurer (West, North)"), and a chapter seat always names its chapter ("President (West)").
  */
 export function positionTitles(
   positions: Position[],
   chapters: Chapter[],
-  homeChapterId: string,
+  // Kept so callers don't change; a chapter seat now names its chapter even at home ("PRES (WEST)").
+  _homeChapterId: string,
   labels: Record<PositionRole, string>,
 ): PositionTitle[] {
   const chapterName = (id: string | null) => chapters.find((c) => c.id === id)?.name;
@@ -22,8 +23,7 @@ export function positionTitles(
   for (const p of positions) byRole.set(p.role, [...(byRole.get(p.role) ?? []), p]);
   return [...byRole.entries()].map(([role, held]) => {
     const named = held.map((p) => p.chapterId).filter((id) => id !== null);
-    const showChapters = held.length > 1 || named.some((id) => id !== homeChapterId);
-    const where = showChapters ? named.map(chapterName).filter(Boolean).join(', ') : '';
+    const where = named.map(chapterName).filter(Boolean).join(', ');
     return { key: held[0].id, text: where ? `${labels[role]} (${where})` : labels[role] };
   });
 }
