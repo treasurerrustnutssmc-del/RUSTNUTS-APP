@@ -58,6 +58,7 @@ import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swa
 import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../screens/builds';
 import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
+import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
 } from '../screens/invites'; // Invites to and from other clubs
@@ -228,6 +229,8 @@ export function RootNavigator() {
             <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
             <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: '' }} />
             <Stack.Screen name="Join" component={JoinScreen} options={{ title: '' }} />
+            {/* Sponsors: anyone with the app sees them */}
+            <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
           </>
         ) : level === 'pending' ? (
           <>
@@ -236,6 +239,8 @@ export function RootNavigator() {
             {/* Stage 5C: applicants read the Registered Rules and the Constitution (15.7) */}
             <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
             <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
+            {/* Sponsors: anyone with the app sees them */}
+            <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
           </>
         ) : level === 'family' ? (
           <>
@@ -246,6 +251,8 @@ export function RootNavigator() {
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
+            {/* Sponsors: anyone with the app sees them */}
+            <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
           </>
         ) : (
           <>
@@ -390,6 +397,13 @@ export function RootNavigator() {
             <Stack.Screen name="Award" component={AwardScreen} options={{ title: 'Award' }} />
             <Stack.Screen name="Nominate" component={NominateScreen} options={{ title: 'Nominate' }} />
             <Stack.Screen name="OpenAward" component={OpenAwardScreen} options={{ title: 'Open an award' }} />
+            {/* Sponsors */}
+            <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen
+              name="EditSponsor"
+              component={EditSponsorScreen}
+              options={({ route }) => ({ title: route.params?.sponsorId ? 'Change the sponsor' : 'Add a sponsor' })}
+            />
             {/* Invites to and from other clubs */}
             <Stack.Screen name="OtherClubs" component={OtherClubsScreen} options={{ title: 'Other clubs' }} />
             <Stack.Screen name="Invite" component={InviteScreen} options={{ title: 'Invite' }} />

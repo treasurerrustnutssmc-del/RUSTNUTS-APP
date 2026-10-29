@@ -30,6 +30,7 @@ import {
   StatusChip,
 } from '../ui/primitives';
 import { ClubLinksSection } from './clubLinks';
+import { SponsorsSection } from './sponsors'; // Sponsors
 import { RideChip, RideRow, timeRange } from './rides';
 
 const mapsUrl = (place: string) => `https://maps.google.com/?q=${encodeURIComponent(place)}`;
@@ -230,6 +231,8 @@ export function FamilyMeScreen({ navigation }: TabScreen<'Me'>) {
       </Card>
 
       <ClubLinksSection />
+      {/* Sponsors: anyone with the app sees them */}
+      <SponsorsSection />
 
       <SectionTitle title="Privacy" />
       <Card>

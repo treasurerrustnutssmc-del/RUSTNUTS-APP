@@ -149,6 +149,9 @@ export type RootParams = {
   PublishDocument: { id: string };
   DocumentApproval: { versionId: string };
   DocumentSignoffs: { id: string };
+  // Sponsors
+  Sponsors: undefined;
+  EditSponsor: { sponsorId?: string } | undefined;
   // Invites to and from other clubs
   OtherClubs: undefined;
   Invite: { inviteId: string };

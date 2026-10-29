@@ -26,6 +26,7 @@ import { readRange } from './ridePlanning'; // Ride planning extras
 import { DocumentsMeRow } from './documents'; // Stage 5C
 import { BadgesCard } from './badges'; // Stage 7: badges
 import { ClubLinksSection } from './clubLinks'; // Club links
+import { SponsorsSection } from './sponsors'; // Sponsors
 import {
   Avatar,
   Button,
@@ -211,6 +212,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       <MeSocialSection />
       {/* Club links: the website, shop, podcast and socials */}
       <ClubLinksSection />
+      {/* Sponsors: who backs the club, and member deals */}
+      <SponsorsSection />
 
       <SectionTitle title="Privacy" />
       <Card>
