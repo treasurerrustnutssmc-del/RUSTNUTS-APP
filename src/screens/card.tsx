@@ -4,6 +4,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
+import { compassFor } from '../domain/compass';
 import { cardOf } from '../domain/card';
 import { formatAuDate } from '../domain/dates';
 import { STATUS_LABEL } from '../domain/labels';
@@ -49,7 +50,7 @@ export function MembershipCardScreen({ navigation }: RootScreen<'MembershipCard'
           {card.dues?.state === 'paid' ? <Chip label={`Paid ${card.clubYear}`} tone="ok" icon="checkmark" /> : null}
           {card.dues?.state === 'due' ? <Chip label={`Due ${formatAuDate(card.dues.dueOn)}`} tone="warn" /> : null}
         </Row>
-        {card.showDisc ? <MemberDisc size={96} /> : null}
+        {card.showDisc ? <MemberDisc size={120} compass={compassFor(me, data)} /> : null}
         <View style={{ alignSelf: 'stretch', gap: 2 }}>
           <KeyValue label="Chapter" value={chapter?.name ?? '—'} />
           {me.joinedOn ? <KeyValue label="Member since" value={formatAuDate(me.joinedOn)} /> : null}

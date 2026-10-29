@@ -15,6 +15,7 @@ import {
   TextInput,
   View,
   type HostInstance,
+  type ImageSourcePropType,
   type ScrollViewInstance,
   type StyleProp,
   type TextInputProps,
@@ -24,6 +25,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { STATUS_LABEL, ROLE_SHORT } from '../domain/labels';
 import type { MemberStatus, PositionRole } from '../domain/types';
+import type { Compass } from '../domain/compass';
 import { colors, fonts, MAX_CONTENT_WIDTH, radius, space, type } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -644,13 +646,30 @@ export function Flannel({ children, style }: { children?: React.ReactNode; style
   );
 }
 
-/** The embroidered MEMBER disc. Only shown once someone is a full member (see hasEarnedDisc). */
-export function MemberDisc({ size = 64 }: { size?: number }) {
+const DISC_ART: Record<Compass, ImageSourcePropType> = {
+  west: require('../../assets/member-disc-west.png'),
+  north: require('../../assets/member-disc-north.png'),
+  national: require('../../assets/member-disc-national.png'),
+  plain: require('../../assets/member-disc.png'),
+};
+
+const DISC_LABEL: Record<Compass, string> = {
+  west: 'Member disc, West compass',
+  north: 'Member disc, North compass',
+  national: 'Member disc, National compass',
+  plain: 'Member disc',
+};
+
+/**
+ * The embroidered MEMBER disc in its Chapter Compass Ring (see compassFor). Only shown once
+ * someone is a full member (see hasEarnedDisc).
+ */
+export function MemberDisc({ size = 64, compass }: { size?: number; compass: Compass }) {
   return (
     <Image
-      source={require('../../assets/member-disc.png')}
+      source={DISC_ART[compass]}
       style={{ width: size, height: size }}
-      accessibilityLabel="Full member disc"
+      accessibilityLabel={DISC_LABEL[compass]}
     />
   );
 }
