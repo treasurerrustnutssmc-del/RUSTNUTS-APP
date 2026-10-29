@@ -288,7 +288,7 @@ export function removeContact(ctx: DemoCtx, contactId: string): ClubData {
 
 export function appoint(ctx: DemoCtx, memberId: string, chapterId: string | null, role: PositionRole): ClubData {
   const target = findMember(ctx.data, memberId);
-  const problem = appointProblem(ctx.me, target, chapterId, role, ctx.data);
+  const problem = appointProblem(ctx.me, target, chapterId, role, ctx.data, ctx.today);
   if (problem) throw new NotAllowedError(problem);
   const seatChapter = NATIONAL_ROLES.includes(role) ? null : chapterId;
   return {

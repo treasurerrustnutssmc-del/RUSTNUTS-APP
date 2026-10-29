@@ -3,7 +3,7 @@
 // checks the same rules first only so members get a clear message without a round trip.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
+import { accessLevel, appointProblem, endTermProblem, renewAuditorProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
 import { bookProblem, cancelProblem, decideProblem } from '../domain/bus';
 // Ride planning extras
@@ -95,6 +95,7 @@ import { loadedBodies } from './documentsLive'; // Stage 5C
 import * as conduct from '../domain/conduct';
 import * as merch from '../domain/merch';
 import * as national from '../domain/national';
+import * as audit from '../domain/audit'; // National Auditor
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -409,7 +410,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     appoint: async (memberId, chapterId, role) => {
       const target = data.members.find((m) => m.id === memberId);
       if (!target) throw new Error('That member no longer exists.');
-      const problem = appointProblem(visibleMe, target, chapterId, role, data);
+      const problem = appointProblem(visibleMe, target, chapterId, role, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('appoint_position', { p_member: memberId, p_chapter: chapterId, p_role: role }));
       await after();
@@ -1183,6 +1184,54 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     withdrawChapter: async (id) => {
       deny(national.withdrawChapterProblem(visibleMe, id, data));
       ok(await supabase().rpc('withdraw_chapter_proposal', { p_id: id }));
+      await after();
+    },
+    // The National Auditor (11.8). Each checks the same rule first, then asks the database.
+    raiseAuditRequest: async (input) => {
+      deny(audit.raiseRequestProblem(visibleMe, input, data, today));
+      const r = ok(
+        await supabase().rpc('raise_audit_request', {
+          p_chapter: input.chapterId, p_kind: input.kind, p_area: input.area, p_title: input.title.trim(),
+          p_details: input.details.trim(), p_due: input.dueOn, p_ledger_entry: input.ledgerEntryId,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    answerAuditRequest: async (id, answer) => {
+      deny(audit.answerRequestProblem(visibleMe, id, answer, data));
+      ok(await supabase().rpc('answer_audit_request', { p_id: id, p_answer: answer.trim() }));
+      await after();
+    },
+    closeAuditRequest: async (id, note) => {
+      deny(audit.closeRequestProblem(visibleMe, id, note, data));
+      ok(await supabase().rpc('close_audit_request', { p_id: id, p_note: note.trim() }));
+      await after();
+    },
+    saveAuditReport: async (input) => {
+      deny(audit.saveReportProblem(visibleMe, input, data, today));
+      const r = ok(
+        await supabase().rpc('save_audit_report', {
+          p_id: input.id, p_title: input.title.trim(), p_from: input.fromOn, p_to: input.toOn,
+          p_findings: input.findings.trim(), p_recommendations: input.recommendations?.trim() || null,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    issueAuditReport: async (id) => {
+      deny(audit.issueReportProblem(visibleMe, id, data));
+      ok(await supabase().rpc('issue_audit_report', { p_id: id }));
+      await after();
+    },
+    deleteAuditReport: async (id) => {
+      deny(audit.deleteReportProblem(visibleMe, id, data));
+      ok(await supabase().rpc('delete_audit_report', { p_id: id }));
+      await after();
+    },
+    renewAuditor: async () => {
+      deny(renewAuditorProblem(visibleMe, data, today));
+      ok(await supabase().rpc('renew_auditor'));
       await after();
     },
     // Lane E: notifications

@@ -129,6 +129,12 @@ export type RootParams = {
   ProposeContribution: undefined;
   ChapterProposal: { proposalId: string };
   ProposeChapter: undefined;
+  // The National Auditor (11.8). A request can start from one of the checks.
+  Audit: undefined;
+  AuditRecords: undefined;
+  NewAuditRequest: { checkKey?: string } | undefined;
+  AuditRequest: { requestId: string };
+  AuditReport: { reportId?: string } | undefined;
   // Stage 5C: document library. `version` opens that version instead of the one in force.
   Documents: undefined;
   Document: { id: string; version?: string };
