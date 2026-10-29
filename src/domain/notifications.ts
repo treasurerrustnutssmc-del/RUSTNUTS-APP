@@ -13,6 +13,15 @@ export function completePrefs<T extends NotificationPrefs | null | undefined>(pr
 }
 
 /** The Harley rev, bundled with the phone build (app.json, expo-notifications "sounds"). */
+/**
+ * Whether the phone lets the app notify: on, not decided yet (the app can ask), or blocked (only the
+ * phone's settings can turn it back on). Unknown until read, and always on the web.
+ */
+export function phoneNotificationState(p: { granted: boolean; canAskAgain: boolean } | null): 'on' | 'ask' | 'blocked' | 'unknown' {
+  if (!p) return 'unknown';
+  return p.granted ? 'on' : p.canAskAgain ? 'ask' : 'blocked';
+}
+
 export const REV_SOUND = 'v_twin_rev.wav';
 
 /** What a notification is: a ride reminder, news from the club, a chat message, or a live ride alert (safety). */

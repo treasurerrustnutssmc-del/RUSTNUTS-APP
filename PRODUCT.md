@@ -30,7 +30,7 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 - **Chapters:** West and North. The NEC (El Jefe, plus the two chapter presidents) sits above both.
 - **Ride calendar:** comes from the club website's Ride Calendar (www.rustnutssmc.com.au, largely built by Dysco). Its colour key is North, West, Rustnuts (whole club), Supported Club Rides and Non-Nuts.
 - **Member records:** the roster started as chapter spreadsheets and was loaded silently. A member's record links to them the first time they sign in with their email.
-- **The member disc:** the round MEMBER patch is earned at Full membership, and Nomads keep it.
+- **The member disc:** the round MEMBER patch is earned at Full membership, and Nomads keep it. It sits in its Chapter Compass Ring (constitution v4 6.5): a red W for West, a red N for North, and all four letters red (National) for El Jefe as National Chairman only. Everyone else, Presidents and NEC officers included, wears their own chapter.
 - **The Rusty Bus:** the club van, used for charity rides and vehicle recovery.
 - **Times:** dates are shown DD/MM/YYYY. Times are Melbourne time.
 
@@ -38,7 +38,7 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 
 - **Built so far:** sign-in by emailed code; member profiles, bikes, regos and emergency contacts; approvals, ranks, hiatus, Legacy and positions; a claimable roster; the ride calendar and RSVPs, synced every 15 minutes.
 - **Stage 5 (meetings and votes):** board and general meetings with agendas, minutes that members read as a draft once the meeting's held and the board then confirms; action items; votes by the board or patched members, with quorum, majority, two-thirds or unanimous, secret ballots and the chair's casting vote on a tie. Patch votes start from Manage member. The rules follow the constitution (v4, Final Club Edition, 25 Oct 2026, in the project files under `reference/`): draft minutes within 7 days, quorum a third of voters (51% for the NEC; a board needs a majority and at least three), Nomads off chapter votes, one NEC vote per chapter, a chair who may cast or let a tie fall, and a patch vote needs every Full Member's yes. A vote stays open at most 60 days (inferred).
-- **Stage 5B (treasurer):** each chapter and the Club keep their own fund. The treasurer (or the National Chairman or Secretary) records money in and out under the club's payment codes; spending waits for two approvals from the fund's board (the sitting Presidents for the Club fund), never the person being paid, before it's paid (13.3). Mistakes are voided, never deleted. Confirmed fee payments go in with one tap. The monthly Treasurer's Report is worked out from the ledger and presented to members, who read it from Me (13.8). The board approves each fund's budget with a carried vote (13.4), and the National Auditor can read every fund (11.8).
+- **Stage 5B (treasurer):** each chapter and the Club keep their own fund. The treasurer (or the National Chairman or Secretary) records money in and out under the club's payment codes; spending waits for two approvals from the fund's board (the sitting Presidents for the Club fund), never the person being paid, before it's paid (13.3). Mistakes are voided, never deleted. Confirmed fee payments go in with one tap. The monthly Treasurer's Report is worked out from the ledger and presented to members, who read it from Me (13.8). The board approves each fund's budget with a carried vote (13.4), and the National Auditor can read every fund (11.8). The Treasurer's Report for a meeting covers any period inside a financial year, like Jeff's October 2026 report: cash position, each fund's movement, month by month, a read-out for the meeting, receipts and payments, the treasurer's notes and the checks. It shares as a PDF and, once presented, every member reads it from Me.
 - **Access rules:** these live in `src/domain/access.ts` and are mirrored by row-level security. Every approved member, Legacy included, sees the same members-only areas.
 - **No pop-up dialogs.** The web preview can't show them, so anything destructive uses a two-tap confirm.
 - **Navigation:** state-based React Navigation. No URL routing on the web build.
@@ -60,7 +60,7 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 
 - **Brand files:**
   - `assets/logo.png` (the logo with the flag)
-  - `assets/member-disc.png`
+  - `assets/member-disc-west.png`, `-north.png` and `-national.png` (the compass patches), and `assets/member-disc.png` (no chapter letter, for a chapter without its own patch yet)
   - `assets/skull.png` and the app icons
   - `assets/flannel.jpg`
   - `assets/fonts/RustnutsStencil-Regular.ttf` with `OFL.txt`

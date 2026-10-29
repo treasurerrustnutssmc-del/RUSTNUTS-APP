@@ -324,13 +324,14 @@ function HowToPayMerch({ item, order }: { item: MerchItem; order: MerchOrder }) 
             <View style={{ gap: 2 }}>
               <Label>Bank transfer</Label>
               <Body strong selectable>{`BSB ${d.bsb} · Account ${d.accountNo ?? ''}`}</Body>
+              {d.payidName ? <Small>{`Account name ${d.payidName}`}</Small> : null}
             </View>
           ) : null}
         </Stack>
       ) : (
         <Small>
           {item.chapterId
-            ? 'The chapter treasurer hasn’t added a PayID yet. Ask them how to pay, or pay cash.'
+            ? 'The chapter treasurer hasn’t added payment details yet. Ask them how to pay, or pay cash.'
             : 'Pay the National Treasurer, or your chapter treasurer in cash, and they’ll mark it paid.'}
         </Small>
       )}

@@ -200,6 +200,14 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_treasurer -f "$ROOT/supabase/tests/treasurer_test.sql"
 
+# The Treasurer's Report for a meeting, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_meeting_reports" >/dev/null
+"${PSQL[@]}" -d rustnuts_meeting_reports -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_meeting_reports -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_meeting_reports -f "$ROOT/supabase/tests/meeting_reports_test.sql"
+
 # Stage 5D: conduct records, merch, national contributions and new chapters, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_board_admin" >/dev/null
 "${PSQL[@]}" -d rustnuts_board_admin -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
@@ -239,6 +247,14 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_planning -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_planning -f "$ROOT/supabase/tests/ride_planning_extras_test.sql"
+
+# The club counts' unclaimed roster places, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_roster_counts" >/dev/null
+"${PSQL[@]}" -d rustnuts_roster_counts -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_roster_counts -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_roster_counts -f "$ROOT/supabase/tests/roster_counts_test.sql"
 
 echo 'ALL DATABASE CHECKS PASSED'
 

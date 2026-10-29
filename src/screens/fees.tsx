@@ -270,6 +270,7 @@ function HowToPay({ member }: { member: Member }) {
             <View style={{ gap: 2 }}>
               <Label>Bank transfer</Label>
               <Body strong selectable>{`BSB ${d.bsb} · Account ${d.accountNo ?? ''}`}</Body>
+              {d.payidName ? <Small>{`Account name ${d.payidName}`}</Small> : null}
             </View>
           ) : null}
           <View style={{ gap: 2 }}>
@@ -279,7 +280,7 @@ function HowToPay({ member }: { member: Member }) {
           <Small>Then tap “I’ve paid this” below, so the treasurer knows to look for it.</Small>
         </Stack>
       ) : (
-        <Small>{`The ${chapter?.name ?? ''} treasurer hasn’t added the chapter’s PayID yet. Ask them how to pay.`}</Small>
+        <Small>{`The ${chapter?.name ?? ''} treasurer hasn’t added the chapter’s payment details yet. Ask them how to pay.`}</Small>
       )}
     </Card>
   );
@@ -543,7 +544,7 @@ function PayIdCard({ chapterId, onDone }: { chapterId: string; onDone: (msg: str
     <Card>
       <H2>Where members pay</H2>
       <Field label="PayID" value={payid} onChangeText={setPayid} autoCapitalize="none" keyboardType="email-address" placeholder="Email or mobile" />
-      <Field label="PayID shows as" value={payidName} onChangeText={setPayidName} placeholder="Account name" />
+      <Field label="Account name" value={payidName} onChangeText={setPayidName} placeholder="Name on the account" />
       <Row style={{ gap: space.sm, flexWrap: 'nowrap' }}>
         <View style={{ flex: 1 }}>
           <Field label="BSB" value={bsb} onChangeText={setBsb} keyboardType="number-pad" maxLength={7} />

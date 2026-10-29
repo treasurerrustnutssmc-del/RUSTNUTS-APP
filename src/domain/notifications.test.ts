@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, type Reminder,
+  ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, phoneNotificationState, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, type Reminder,
 } from './notifications';
 import type { Ride, Rsvp } from './types';
 
@@ -147,4 +147,11 @@ test('a chat message isn’t shown as a banner while that chat is on screen', ()
   assert.equal(showWhileOpen({ kind: 'chat', chatId: 'c1' }, null), true);
   assert.equal(showWhileOpen({ kind: 'live-alert', rideId: 'r1' }, 'c1'), true);
   assert.equal(showWhileOpen(undefined, 'c1'), true);
+});
+
+test('phone notification state: on, can be asked, or blocked in the phone settings', () => {
+  assert.equal(phoneNotificationState({ granted: true, canAskAgain: true }), 'on');
+  assert.equal(phoneNotificationState({ granted: false, canAskAgain: true }), 'ask');
+  assert.equal(phoneNotificationState({ granted: false, canAskAgain: false }), 'blocked');
+  assert.equal(phoneNotificationState(null), 'unknown', 'not read yet, or the web: say nothing');
 });

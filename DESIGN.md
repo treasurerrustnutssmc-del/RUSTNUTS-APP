@@ -282,7 +282,7 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - **Ride screen:** a "Rusty Bus booked" (OK) or "Rusty Bus asked for" (warn) chip with a bus icon in the header's chip row, opening the Rusty Bus screen; when the booking's days aren't exactly the ride's own, the chip adds them ("Rusty Bus booked 07/11/2026 – 08/11/2026"). Crew managers who can book get a red-text **Book the Rusty Bus** link at the bottom of the header card while the ride is still to come and has no booking, opening the form with the ride and its days filled in. When another Booked booking already holds the bus on the ride's days (often the old booking of a ride the website moved), they get a steel "Rusty Bus booked those days" chip in its place, opening the Rusty Bus screen. On a cancelled ride the chip turns amber, "Rusty Bus still booked" (or "still asked for"), and opens the booking, which says the ride was called off or moved. Chips inside a link show the press: a steel one lifts to steelHi with the stronger hairline edge.
 
 ### Signature pieces
-- **Member disc:** the real round MEMBER patch art, shown only on Full members and Nomads.
+- **Member disc:** the real round MEMBER patch art in its Chapter Compass Ring (West, North or National, see `compassFor`), shown only on Full members and Nomads.
 - **Flannel:** a flannel photo under a 76% ink wash. It's an accent only, used for the welcome, the waiting screen, the Home greeting and the disc moment.
 - **Logo and skull:** the real artwork, never redrawn or recoloured.
 - **Result stamp (Stage 5):** a closed vote's result is a slightly tilted stencil stamp, green for Carried and bone for Lost or No quorum. It's used only on the vote screen.
@@ -300,6 +300,8 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - The red on Treasury is the approval badge; Money in and Money out are secondary. "Approve this payment" and "Present to members" are the red actions on their screens. Voiding is a two-tap danger button with a reason.
 - The Treasurer's Report reads like the club's paper one: opening balance, the seven credit and seven debit codes (zeros in mute), each fund's closing balance, less the cash float, then the bank figure in H2.
 - Months step with a pair of 44px chevrons around the month name in stencil.
+- The report for a meeting follows Jeff's paper report: cash position (the bank figure in H2), each fund's closing with its opening, in and out underneath, month by month with the net, the read-out in italics inside quotes, then receipts and payments by code (largest first, a Totals / Each line switch for whoever reads the lines), the treasurer's notes and the checks with green ticks. Amounts out are in brackets, as on paper. "Present to members" is the one red action; Save draft and Share as PDF are secondary; Delete draft is a two-tap danger button.
+- The printed report is ink on white: the real logo top left, headings in the stencil, the club red only for rules and section titles, and the footer "RUSTNUTS SMC | A0119901K | Treasurer's report • <month>" on every page.
 
 ## Do's and Don'ts
 

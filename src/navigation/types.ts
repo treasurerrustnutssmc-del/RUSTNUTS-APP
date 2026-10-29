@@ -109,6 +109,8 @@ export type RootParams = {
   LedgerEntry: { entryId: string };
   NewEntry: { kind?: 'credit' | 'debit'; fund?: string } | undefined;
   MonthReport: { month: string };
+  /** A Treasurer's Report for a meeting; no id starts a new one. */
+  MeetingReport: { id?: string } | undefined;
   Budget: { fund: string; fy?: number };
   ClubFinances: undefined;
   // Stage 5D: conduct records, merch, national contributions and new chapters

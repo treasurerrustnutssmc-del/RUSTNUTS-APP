@@ -9,6 +9,7 @@ import { clubYearOf } from '../src/domain/clubYear';
 import { fyOf } from '../src/domain/fees';
 import { readGpx } from '../src/domain/gpx';
 import { monthReport } from '../src/domain/ledger'; // Stage 5B
+import { meetingFigures } from '../src/domain/meetingReport';
 import {
   LEDGER_AT, BUDGET_AT, monthFrom, fixtureData, // Stage 5B
   BRIEFED_AT, BUS_AT, PLANNED_AT, BUS_DECLINE_REASON, caseAction, fixtureSignedAt, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
@@ -416,6 +417,8 @@ const ledgerCall = (c: ParityCase & Record<string, any>): string => {
       return `public.approve_budget(${chapter(c.chapter)}, ${c.fy}, ${id('v', c.vote)})`;
     case 'reopenBudget':
       return `public.reopen_budget(${chapter(c.chapter)}, ${c.fy})`;
+    case 'saveMeetingReport':
+      return `public.save_meeting_report(null, ${date(c.from ?? null)}, ${date(c.to ?? null)}, ${q(c.notes ?? '')})`;
     default:
       return `public.present_report(${date(c.month)})`;
   }
@@ -582,6 +585,7 @@ const call = (c: ParityCase & Record<string, any>): string => {
     case 'approveBudget':
     case 'reopenBudget':
     case 'presentReport':
+    case 'saveMeetingReport':
       return ledgerCall(resolveCase(c, today) as ParityCase & Record<string, any>);
     // Stage 5C: the document library. Dates come as …Days from today.
     case 'createDocument':
@@ -801,6 +805,31 @@ if (fx.reportMonth) {
   }
   sql('end $report$;');
   sql(`\\echo '  The ${fx.reportMonth.slice(0, 7)} Treasurer''s Report adds up the same in the demo and the database'`);
+}
+// The Treasurer's Report for a meeting: the same figures for a period that cuts months short.
+if (fx.reportPeriod) {
+  const { from, to } = fx.reportPeriod;
+  const f = meetingFigures(from, to, fixtureData([], today));
+  sql('do $period$ declare r jsonb := private.meeting_report(' + date(from) + ', ' + date(to) + '); begin');
+  const check = (expr: string, want: string, what: string) =>
+    sql(`  if (${expr}) is distinct from ${want} then raise exception 'PARITY: the meeting report''s ${what} differs: %', ${expr}; end if;`);
+  check(`(r->>'opening_cents')::bigint`, String(f.openingCents), 'opening');
+  check(`(r->>'closing_cents')::bigint`, String(f.closingCents), 'closing');
+  check(`(r->>'receipts_cents')::bigint`, String(f.receiptsCents), 'receipts');
+  check(`(r->>'payments_cents')::bigint`, String(f.paymentsCents), 'payments');
+  check(`(r->>'float_cents')::bigint`, String(f.floatCents), 'float');
+  check(`(r->>'line_count')::bigint`, String(f.lineCount), 'line count');
+  check(`r->'credits'`, json(f.credits), 'credits by code');
+  check(`r->'debits'`, json(f.debits), 'debits by code');
+  const months = f.months.map((m) => ({ month: m.month, from: m.from, to: m.to, receipts_cents: m.receiptsCents, payments_cents: m.paymentsCents }));
+  check(`r->'months'`, json(months), 'months');
+  for (const [k, m] of Object.entries(f.funds)) {
+    const key = k === 'club' ? q('club') : `(select id::text from public.chapters where slug = ${q(k)})`;
+    const want = { opening_cents: m.openingCents, receipts_cents: m.receiptsCents, payments_cents: m.paymentsCents, closing_cents: m.closingCents };
+    check(`r->'funds'->${key}`, json(want), `${k} fund`);
+  }
+  sql('end $period$;');
+  sql(`\\echo '  The Treasurer''s Report for ${from} to ${to} adds up the same in the demo and the database'`);
 }
 
 // Stage 7: social extras. The fixture's workshops, inserted as the owner.

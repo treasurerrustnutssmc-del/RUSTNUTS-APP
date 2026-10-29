@@ -3,6 +3,7 @@ import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
+import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
@@ -33,6 +34,7 @@ import {
   DocumentApprovalScreen, DocumentScreen, DocumentSignoffsScreen, DocumentsScreen, NewDocumentScreen, PublishDocumentScreen,
 } from '../screens/documents'; // Stage 5C
 import { BudgetScreen, ClubFinancesScreen, LedgerEntryScreen, LedgerScreen, MonthReportScreen, NewEntryScreen, TreasuryScreen } from '../screens/treasury';
+import { MeetingReportScreen } from '../screens/meetingReport';
 // Lane E: ride comms
 import { OnAirBar } from '../screens/rideComms';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
@@ -96,6 +98,10 @@ function MainTabs() {
   const waiting = isBoard ? pendingFor(me, data).length : 0;
   const { unreadTotal } = useChat();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  // Each tab's label gets the tab's width less the bar's own 5pt padding each side; "Members", the
+  // widest label, is about 5 times the font size wide in the club stencil (5.2 leaves a margin).
+  const labelSize = Math.min(11.5, Math.floor(((width / (isBoard ? 6 : 5) - 10) / 5.2) * 2) / 2);
   return (
     <>
       {/* Lane E: share in */}
@@ -127,19 +133,24 @@ function MainTabs() {
           tabBarHideOnKeyboard: true, // otherwise Android lifts the tab bar on top of the keyboard
           tabBarActiveTintColor: colors.redText,
           tabBarInactiveTintColor: colors.boneMute,
-          tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: 11.5, lineHeight: 16, letterSpacing: 0.3 },
+          // Six tabs on a narrow phone can't fit "Members" at full size, so every label gets the same
+          // size worked out from the tab width (labelSize above). The stock label is used: Android's
+          // adjustsFontSizeToFit sized short labels too narrow and clipped "Chat" to "Cha". No letter
+          // spacing either (Android leaves it out of the width), and no font scaling, so the size holds.
+          tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: labelSize, lineHeight: 16 },
+          tabBarAllowFontScaling: false,
+          tabBarItemStyle: { paddingHorizontal: 0 },
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size} color={color} />
           ),
         })}
       >
-        <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} />, tabBarLabel: 'Home' }} />
+        <Tabs.Screen name="Home" component={HomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} /> }} />
         <Tabs.Screen
           name="Chats"
           component={ChatListScreen}
           options={{
             title: 'Chat',
-            tabBarLabel: 'Chat',
             tabBarBadge: unreadTotal > 0 ? (unreadTotal > 99 ? '99+' : unreadTotal) : undefined,
             tabBarBadgeStyle: { backgroundColor: colors.redBright, fontFamily: fonts.stencil },
           }}
@@ -255,6 +266,7 @@ export function RootNavigator() {
             <Stack.Screen name="LedgerEntry" component={LedgerEntryScreen} options={{ title: 'Entry' }} />
             <Stack.Screen name="NewEntry" component={NewEntryScreen} options={{ title: 'New entry' }} />
             <Stack.Screen name="MonthReport" component={MonthReportScreen} options={{ title: 'Treasurer’s Report' }} />
+            <Stack.Screen name="MeetingReport" component={MeetingReportScreen} options={{ title: 'Report for a meeting' }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ title: 'Budget' }} />
             <Stack.Screen name="ClubFinances" component={ClubFinancesScreen} options={{ title: 'Club finances' }} />
             {/* Stage 5D: conduct records, merch, national contributions and new chapters */}

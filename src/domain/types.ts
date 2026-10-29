@@ -241,9 +241,18 @@ export interface BusBooking {
   cancelledAt: string | null;
 }
 
+/** How many roster places of one status in one chapter nobody has claimed yet. */
+export interface RosterTally {
+  chapterId: string;
+  status: MemberStatus;
+  count: number;
+}
+
 export interface ClubData extends LedgerData, AdminData {
   chapters: Chapter[];
   members: Member[];
+  /** Roster places not yet claimed (live mode only). Missing means none. */
+  unclaimedRoster?: RosterTally[];
   privates: MemberPrivate[];
   bikes: Bike[];
   registrations: BikeRegistration[];
@@ -642,6 +651,46 @@ export interface MonthReport {
   lastChangeAt: string | null;
 }
 
+/** A Treasurer's Report for a meeting: any period inside one financial year, with the treasurer's notes. */
+export interface MeetingReport {
+  id: string;
+  fromOn: string;
+  toOn: string;
+  notes: string;
+  savedBy: string | null;
+  savedAt: string;
+  /** Null while it's a draft. Presented reports are locked and every member can read them (13.8). */
+  presentedBy: string | null;
+  presentedAt: string | null;
+}
+
+export interface FundMovement {
+  openingCents: number;
+  receiptsCents: number;
+  paymentsCents: number;
+  closingCents: number;
+}
+
+/** A meeting report's figures, worked out from the paid lines dated in the period. */
+export interface MeetingFigures {
+  from: string;
+  to: string;
+  /** Keyed 'club' or by chapter id. */
+  funds: Record<string, FundMovement>;
+  credits: { code: LedgerCode; cents: number }[];
+  debits: { code: LedgerCode; cents: number }[];
+  receiptsCents: number;
+  paymentsCents: number;
+  /** Total funds (bank plus float) as the period starts and at its end. */
+  openingCents: number;
+  closingCents: number;
+  floatCents: number;
+  /** Each calendar month the period touches, cut to the period. */
+  months: { month: string; from: string; to: string; receiptsCents: number; paymentsCents: number }[];
+  lineCount: number;
+  lastChangeAt: string | null;
+}
+
 export interface LedgerData {
   ledger?: LedgerEntry[];
   fundOpenings?: FundOpening[];
@@ -650,6 +699,9 @@ export interface LedgerData {
   treasurerReports?: TreasurerReport[];
   /** Live only: presented months worked out by the database, for members who can't read the lines. */
   reportTotals?: MonthReport[];
+  meetingReports?: MeetingReport[];
+  /** Live only: each meeting report's figures, worked out by the database. */
+  meetingTotals?: (MeetingFigures & { id: string })[];
 }
 
 // Stage 5D: conduct records, merch, national contributions and new chapters ----------------------

@@ -198,6 +198,13 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     approveBudget: async (chapterId, fy, voteId) => setData(ledger.approveBudget(ctx, chapterId, fy, voteId)),
     reopenBudget: async (chapterId, fy) => setData(ledger.reopenBudget(ctx, chapterId, fy)),
     presentReport: async (month) => setData(ledger.presentReport(ctx, month)),
+    saveMeetingReport: async (id, input) => {
+      const result = ledger.saveMeetingReport(ctx, id, input);
+      setData(result.data);
+      return result.id;
+    },
+    presentMeetingReport: async (id) => setData(ledger.presentMeetingReport(ctx, id)),
+    deleteMeetingReport: async (id) => setData(ledger.deleteMeetingReport(ctx, id)),
     // Stage 5D: board and admin
     recordConduct: async (input) => {
       const result = admin.recordConduct(ctx, input);

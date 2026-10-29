@@ -556,7 +556,7 @@ Object.assign(DEMO_DATA, {
       state: 'confirmed', claimedBy: 'm-jet', receiptNo: receiptNo('north', s4Year, 1), decidedAt: at(paid('08-16')) },
   ],
   paymentDetails: [
-    { chapterId: 'ch-west', payid: 'west@rustnuts.example', payidName: 'Rustnuts SMC West', bsb: null, accountNo: null },
+    { chapterId: 'ch-west', payid: 'west@rustnuts.example', payidName: 'Rustnuts SMC West', bsb: '000-000', accountNo: '12345678' },
   ],
 } satisfies Partial<ClubData>);
 
@@ -754,6 +754,12 @@ Object.assign(DEMO_DATA, {
       approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: at(ago(60)) },
   ],
   treasurerReports: [{ month: lastMonth, presentedAt: at(thisMonth), presentedBy: 'm-sparks' }],
+  // Last month's meeting report, presented with Sparks's notes. A new one runs on from it.
+  meetingReports: [{
+    id: 'mr-1', fromOn: lastMonth, toOn: addDays(thisMonth, -1),
+    notes: 'The hoodie money came in ahead of the printer’s bill, so the Club fund looks flush. It isn’t: the second run is still to pay.\n\nGravel’s double payment is approved for a refund and goes out this month.',
+    savedBy: 'm-sparks', savedAt: at(thisMonth), presentedBy: 'm-sparks', presentedAt: at(thisMonth),
+  }],
 } satisfies Partial<ClubData>);
 
 // ---------------------------------------------------------------------------

@@ -62,6 +62,10 @@ begin
     select 1 from positions p join chapters c on c.id = p.chapter_id
     where p.member_id = rock and p.role = 'president' and c.slug = 'west' and p.ended_on is null
   ), 'their position';
+  -- The sheet's seats are the terms the constitution records as beginning 1 August 2026 (17.6),
+  -- not the day the member first signed in.
+  assert (select started_on from positions where member_id = rock and role = 'president') = date '2026-08-01',
+    'the seat runs from the recorded term start';
   assert not pg_temp.claim_as(rock), 'a second call does nothing';
   assert (select count(*) from positions where member_id = rock) = 1, 'no doubled positions';
 end $$;

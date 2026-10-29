@@ -7,7 +7,7 @@ import { cleanRoadRules, type RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
 import type { ClubData, MeetingType, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
-import { toLedger } from './ledgerLive'; // Stage 5B
+import { toLedger, toMeetingReports } from './ledgerLive'; // Stage 5B
 import { loadPlanning } from './planningLive'; // Ride planning extras
 import { toAdmin } from './adminLive'; // Stage 5D
 import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
@@ -58,6 +58,14 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   // Ride planning extras: its own queries (so ride_calendar() stays as it is), read alongside the rest.
   const planningLoad = loadPlanning(db);
   planningLoad.catch(() => undefined); // Awaited below; this only keeps an early failure elsewhere from leaving it unhandled.
+  // The club counts' roster places nobody has claimed yet: none rather than blocking the app.
+  const unclaimedLoad = db.rpc('unclaimed_roster_counts').then(
+    (r) => {
+      if (r.error) console.warn('unclaimed roster counts:', r.error.message);
+      return r.error ? [] : (r.data ?? []);
+    },
+    () => [],
+  );
   const [
     members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs, bus,
   ] = await Promise.all([
@@ -111,6 +119,17 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     ),
   );
 
+  // The Treasurer's Report for a meeting, the same way.
+  const meetingReports = toMeetingReports(
+    await db.rpc('meeting_reports').then(
+      (r) => {
+        if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('meeting_reports:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+  );
+
   // Stage 5D: conduct records, merch, contributions and new chapters, the same way.
   const admin = toAdmin(
     await db.rpc('club_admin').then(
@@ -145,6 +164,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     return r?.error ? [] : (r?.data ?? []);
   };
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
+  const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
@@ -175,6 +195,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
 
   return {
     chapters: base.chapters,
+    unclaimedRoster: unclaimed.map((t) => ({ chapterId: t.chapter_id, status: t.status, count: t.n })),
     members: (members.data ?? []).map((m) => ({
       id: m.id,
       chapterId: m.chapter_id,
@@ -310,6 +331,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     // Stage 5: meetings and votes
     ...business,
     ...ledger,
+    ...meetingReports,
     ...admin,
     ...documents,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),

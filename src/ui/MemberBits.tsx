@@ -1,11 +1,12 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { activePositions } from '../domain/access';
-import { ROLE_ORDER } from '../domain/labels';
+import { positionTitles } from '../domain/home';
+import { ROLE_ORDER, ROLE_SHORT } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
 import { colors, space, type } from '../theme';
-import { Avatar, Chip, ListRow, RoleChip, Row, Small, StatusChip } from './primitives';
+import { Avatar, Chip, ListRow, Row, Small, StatusChip } from './primitives';
 
 export function sortedPositions(memberId: string, data: ClubData) {
   return activePositions(memberId, data.positions).sort(
@@ -53,8 +54,8 @@ export function MemberRow({
           <Row style={{ gap: 6 }}>
             <StatusChip status={member.status} />
             {member.onHiatus ? <Chip label="On hiatus" icon="pause" /> : null}
-            {positions.map((p) => (
-              <RoleChip key={p.id} role={p.role} />
+            {positionTitles(positions, data.chapters, member.chapterId, ROLE_SHORT).map((t) => (
+              <Chip key={t.key} label={t.text} tone="bone" />
             ))}
             {showChapter && chapter ? <Small style={{ color: colors.boneMute }}>{chapter.name}</Small> : null}
           </Row>

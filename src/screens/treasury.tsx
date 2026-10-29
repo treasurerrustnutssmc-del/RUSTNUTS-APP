@@ -40,6 +40,7 @@ import {
   updatedSince,
   voidProblem,
 } from '../domain/ledger';
+import { bankCents, figuresFor, monthName } from '../domain/meetingReport';
 import { displayName } from '../domain/profile';
 import type { EntryState, LedgerCode, LedgerEntry } from '../domain/types';
 import type { RootParams, RootScreen } from '../navigation/types';
@@ -161,6 +162,7 @@ export function TreasuryScreen({ navigation }: RootScreen<'Treasury'>) {
   const waiting = needsMyApproval(me, data);
   const fees = feesToAdd(me, data);
   const lastMonth = addMonths(monthOf(today), -1);
+  const draft = (data.meetingReports ?? []).filter((r) => !r.presentedAt).sort((a, b) => b.savedAt.localeCompare(a.savedAt))[0];
   const fail = (e: unknown) => setMsg({ tone: 'danger', text: (e as Error).message });
   const memberName = (id: string) => {
     const m = data.members.find((x) => x.id === id);
@@ -218,6 +220,14 @@ export function TreasuryScreen({ navigation }: RootScreen<'Treasury'>) {
       ) : null}
 
       <Card style={{ padding: 0, gap: 0 }}>
+        {keepsBooks(me, null, data.positions) ? (
+          <ListRow
+            left={<IconBadge icon="megaphone-outline" />}
+            title="Report for a meeting"
+            subtitle={draft ? `Draft · ${formatAuDate(draft.fromOn)} to ${formatAuDate(draft.toOn)}` : 'Any period, with your notes, as a PDF'}
+            onPress={() => navigation.navigate('MeetingReport', draft ? { id: draft.id } : {})}
+          />
+        ) : null}
         <ListRow
           left={<IconBadge icon="document-text-outline" />}
           title="Treasurer’s Report"
@@ -944,12 +954,35 @@ export function ClubFinancesScreen({ navigation }: RootScreen<'ClubFinances'>) {
     );
   }
   const reports = [...(data.treasurerReports ?? [])].sort((a, b) => b.month.localeCompare(a.month));
+  const meetings = (data.meetingReports ?? []).filter((r) => r.presentedAt).sort((a, b) => b.toOn.localeCompare(a.toOn));
   return (
     <Screen>
       <Stack gap={space.xs}>
         <H1>Club finances</H1>
-        <Small>The Treasurer’s Report for each month, once it’s been presented. Every member can read them (13.8).</Small>
+        <Small>The Treasurer’s Reports, once they’ve been presented. Every member can read them (13.8).</Small>
       </Stack>
+      {meetings.length > 0 ? (
+        <>
+          <SectionTitle title="For meetings" />
+          <Card style={{ padding: 0, gap: 0 }}>
+            {meetings.map((r, i) => (
+              <ListRow
+                key={r.id}
+                last={i === meetings.length - 1}
+                left={<IconBadge icon="megaphone-outline" />}
+                title={`${monthName(r.toOn)} ${r.toOn.slice(0, 4)}`}
+                subtitle={`${formatAuDate(r.fromOn)} to ${formatAuDate(r.toOn)}`}
+                right={(() => {
+                  const f = figuresFor(r, data);
+                  return f ? <Text style={[type.name, num, { color: colors.boneDim }]}>{formatCents(bankCents(f, 'closing'))}</Text> : undefined;
+                })()}
+                onPress={() => navigation.navigate('MeetingReport', { id: r.id })}
+              />
+            ))}
+          </Card>
+          <SectionTitle title="Month by month" />
+        </>
+      ) : null}
       <Card style={{ padding: 0, gap: 0 }}>
         {reports.length === 0 ? (
           <View style={{ padding: space.lg }}>
