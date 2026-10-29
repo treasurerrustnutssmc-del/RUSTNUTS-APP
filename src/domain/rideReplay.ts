@@ -198,8 +198,9 @@ export function wrapLines(text: string, maxChars: number, maxLines: number): str
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
     if (w.length > maxChars) {
-      lines.push(clip(w.slice(0, maxChars - 1)));
-      return lines.slice(0, maxLines);
+      if (lines.length < maxLines) lines.push(clip(w.slice(0, maxChars - 1)));
+      else lines[lines.length - 1] = clip(lines[lines.length - 1]);
+      return lines;
     }
     const last = lines[lines.length - 1];
     if (last !== undefined && last.length + 1 + w.length <= maxChars) lines[lines.length - 1] = `${last} ${w}`;

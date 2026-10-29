@@ -48,6 +48,8 @@ function Player({ ride, route }: { ride: Ride; route: Route }) {
   const logoReady = useRef<Promise<void> | null>(null);
   const logoLoaded = useRef<() => void>(() => {});
   const stop = useRef(false);
+  const drawnRef = useRef<{ frame: ReplayFrame; done: () => void } | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   // Plays on open, unless the phone asks for less motion; then it opens on the end card.
   useEffect(() => {
@@ -119,7 +121,11 @@ function Player({ ride, route }: { ride: Ride; route: Route }) {
     });
     try {
       const grab = async (f: ReplayFrame) => {
+        if (stop.current) throw new Stopped();
+        // Wait until the drawing has committed this frame, then for it to reach the screen.
+        const drawn = new Promise<void>((done) => (drawnRef.current = { frame: f, done }));
         setCaptureFrame(f);
+        await drawn;
         await nextPaint();
         if (!captureRef.current) throw new Error('The replay closed before the video was made.');
         return framePixels(captureRef.current, VIDEO_W, VIDEO_H);
@@ -137,28 +143,27 @@ function Player({ ride, route }: { ride: Ride; route: Route }) {
       const maker = new GifMaker(VIDEO_W, VIDEO_H, samples, 1000 / FPS);
       const count = Math.ceil((plan.durationMs * FPS) / 1000);
       for (let k = 0; k <= count; k++) {
-        if (stop.current) {
-          setMaking({ state: 'idle' });
-          return;
-        }
         maker.add(await grab(frameAt(plan, (k * 1000) / FPS)));
         setMaking({ state: 'making', done: k / count });
       }
       const bytes = maker.finish();
+      if (stop.current) throw new Stopped();
       setMaking({ state: 'ready', bytes });
-      await shareVideo(bytes, replayFileName(ride.title));
+      await share(bytes);
     } catch (e) {
-      setMaking({ state: 'error', message: (e as Error).message || 'The video couldn’t be made.' });
+      if (e instanceof Stopped) setMaking({ state: 'idle' });
+      else setMaking({ state: 'error', message: (e as Error).message || 'The video couldn’t be made.' });
     } finally {
       setCaptureFrame(null);
     }
   };
 
-  const share = async (bytes: Uint8Array) => {
+  async function share(bytes: Uint8Array) {
+    setShareError(null);
     try {
       await shareVideo(bytes, replayFileName(ride.title));
     } catch (e) {
-      setMaking({ state: 'error', message: (e as Error).message });
+      setShareError((e as Error).message);
     }
   };
 
@@ -218,6 +223,8 @@ function Player({ ride, route }: { ride: Ride; route: Route }) {
           )}
           <View accessibilityLiveRegion="polite" role="status">
             {making.state === 'error' ? <Notice tone="danger">{making.message}</Notice> : null}
+            {shareError ? <Notice tone="danger">{shareError}</Notice> : null}
+            {making.state === 'making' ? <Small>{`Making the video, ${Math.floor(making.done * 10) * 10}% done.`}</Small> : null}
             {making.state === 'ready' ? <Small>The video is ready. It’s a GIF, so it plays in Messenger, WhatsApp and Facebook.</Small> : null}
           </View>
         </Stack>
@@ -231,10 +238,19 @@ function Player({ ride, route }: { ride: Ride; route: Route }) {
         // The drawing the video is made from, at the video's size, off the screen.
         <View style={[styles.offscreen, capture]} aria-hidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
           <ReplayCard ref={captureRef} {...cardProps} frame={captureFrame} width={capture.width} height={capture.height} onLogoLoad={() => logoLoaded.current()} />
+          <Drawn frame={captureFrame} onDrawn={(f) => drawnRef.current?.frame === f && drawnRef.current.done()} />
         </View>
       ) : null}
     </Screen>
   );
+}
+
+class Stopped extends Error {}
+
+/** Says when a capture frame has been committed, so the picture taken is that frame's. */
+function Drawn({ frame, onDrawn }: { frame: ReplayFrame; onDrawn: (f: ReplayFrame) => void }) {
+  useEffect(() => onDrawn(frame), [frame, onDrawn]);
+  return null;
 }
 
 const styles = StyleSheet.create({

@@ -3,10 +3,9 @@
 // cache and handed to the share sheet. All of it is JavaScript plus modules the app already has,
 // so it ships in an over-the-air update. The web build has its own version (replayVideo.web.ts).
 
-import { decode } from 'fast-png';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { PixelRatio, Platform } from 'react-native';
+import { PixelRatio } from 'react-native';
 import type Svg from 'react-native-svg';
 import { fitFrame, toRgba } from '../domain/gif';
 
@@ -14,16 +13,36 @@ import { fitFrame, toRgba } from '../domain/gif';
 export const canMakeVideo = true;
 
 /**
- * The capture drawing's size in layout units, so it comes out at `w`×`h` pixels: an iPhone hands
- * back its points at 1×, an Android phone draws at its own pixel density.
+ * The capture drawing's size in layout units, so it comes out at about `w`×`h` pixels: both phones
+ * draw it at their own pixel density. Any leftover difference is evened out by `fitFrame`.
  */
 export function captureSize(w: number, h: number): { width: number; height: number } {
-  const k = Platform.OS === 'android' ? PixelRatio.get() : 1;
+  const k = PixelRatio.get();
   return { width: w / k, height: h / k };
 }
 
+type Decode = (data: Uint8Array) => { width: number; height: number; data: ArrayLike<number>; channels: number };
+let decoder: Decode | null = null;
+
+/**
+ * fast-png, loaded the first time a video is made rather than when the app starts, so a phone
+ * whose JavaScript engine lacks something it needs only loses the video, never the app.
+ */
+function decodePng(bytes: Uint8Array) {
+  if (!decoder) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      decoder = (require('fast-png') as { decode: Decode }).decode;
+    } catch {
+      throw new Error('This phone can’t make the video yet.');
+    }
+  }
+  return decoder(bytes);
+}
+
 function base64Bytes(b64: string): Uint8Array {
-  const bin = atob(b64);
+  // iPhones wrap the base64 in lines.
+  const bin = atob(b64.replace(/\s/g, ''));
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
@@ -35,7 +54,7 @@ export function framePixels(svg: Svg, w: number, h: number): Promise<Uint8Array>
     try {
       svg.toDataURL((b64: string) => {
         try {
-          const png = decode(base64Bytes(b64));
+          const png = decodePng(base64Bytes(b64));
           const rgba = toRgba(png.data as Uint8Array, png.channels);
           resolve(fitFrame(rgba, png.width, png.height, w, h));
         } catch (e) {

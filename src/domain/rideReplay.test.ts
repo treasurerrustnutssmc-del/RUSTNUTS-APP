@@ -166,4 +166,5 @@ test('long titles wrap to two lines and end with an ellipsis', () => {
   assert.deepEqual(wrapLines('The Great Ocean Road Toy Run for Kids', 18, 2), ['The Great Ocean', 'Road Toy Run for…']);
   assert.deepEqual(wrapLines('Supercalifragilisticexpialidocious', 10, 2), ['Supercali…']);
   assert.deepEqual(wrapLines('', 10, 2), []);
+  assert.deepEqual(wrapLines('Big day out Supercalifragilistic', 11, 1), ['Big day ou…']);
 });

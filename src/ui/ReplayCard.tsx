@@ -34,6 +34,12 @@ export interface ReplayCardProps {
   onLogoLoad?: () => void;
 }
 
+/** Cuts a line to `n` characters (whole characters, so an emoji isn't split) with an ellipsis. */
+const clip = (text: string, n: number) => {
+  const chars = Array.from(text);
+  return chars.length > n ? `${chars.slice(0, n - 1).join('').trimEnd()}…` : text;
+};
+
 const fmt = (pts: [number, number][]) => pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
 
 export const ReplayCard = forwardRef<Svg, ReplayCardProps>(function ReplayCard(
@@ -110,7 +116,7 @@ export const ReplayCard = forwardRef<Svg, ReplayCardProps>(function ReplayCard(
             </SvgText>
           ) : null}
           <SvgText x={VIDEO_W / 2} y={778} textAnchor="middle" fontSize={14} letterSpacing={1.5} fill={colors.boneMute} {...stencil}>
-            RUSTNUTSSMC.COM.AU
+            rustnutssmc.com.au
           </SvgText>
         </G>
       ) : (
@@ -122,12 +128,12 @@ export const ReplayCard = forwardRef<Svg, ReplayCardProps>(function ReplayCard(
             <G>
               <Rect x={40} y={746} width={VIDEO_W - 80} height={34} rx={4} fill={colors.steelHi} />
               <SvgText x={VIDEO_W / 2} y={770} textAnchor="middle" fontSize={17} letterSpacing={1} fill={colors.bone} {...stencil}>
-                {`STOP ${stopNumber}  ·  ${frame.atStop.name.toUpperCase()}`.slice(0, 34)}
+                {clip(`STOP ${stopNumber}  ·  ${frame.atStop.name.toUpperCase()}`, 34)}
               </SvgText>
             </G>
           ) : (
             <SvgText x={VIDEO_W / 2} y={768} textAnchor="middle" fontSize={16} letterSpacing={1.5} fill={colors.boneMute} {...stencil}>
-              {routeName.toUpperCase().slice(0, 34)}
+              {clip(routeName.toUpperCase(), 34)}
             </SvgText>
           )}
         </G>
