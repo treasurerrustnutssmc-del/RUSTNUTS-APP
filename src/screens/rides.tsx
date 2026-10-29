@@ -61,6 +61,7 @@ import {
 } from '../ui/primitives';
 import { ChapterChip, NavigateChooser, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
 import { RideMap } from '../ui/RideMap';
+import { OtherClubsRow, RideInvitesSection } from './invites'; // Invites to and from other clubs
 
 /** "7:30 am", "All day", or "All day, to 31/01/2027". */
 function startLabel(ride: Ride): string {
@@ -124,12 +125,12 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
           />
           {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
           <ListRow
-            last
             left={<IconBadge icon="bus-outline" />}
             title="Rusty Bus"
             subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
             onPress={() => navigation.navigate('Bus')}
           />
+          <OtherClubsRow last />
         </Card>
       ) : null}
 
@@ -594,6 +595,11 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
 
       <CrewSection ride={ride} me={me} data={data} onPick={(role) => navigation.navigate('PickCrew', { rideId: ride.id, role })} />
       <SwapSection ride={ride} me={me} data={data} onAsk={() => navigation.navigate('AskSwap', { rideId: ride.id })} />
+      <RideInvitesSection
+        ride={ride}
+        onInvite={() => navigation.navigate('InviteClub', { rideId: ride.id })}
+        onOpen={(inviteId) => navigation.navigate('Invite', { inviteId })}
+      />
       {/* Stage 3 (lane B): the ride's chat and photo wall */}
       <RideChatRows
         rideId={ride.id}

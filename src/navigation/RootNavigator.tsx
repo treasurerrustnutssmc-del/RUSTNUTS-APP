@@ -56,6 +56,9 @@ import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swa
 import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../screens/builds';
 import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
+import {
+  EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
+} from '../screens/invites'; // Invites to and from other clubs
 import { FamilyHomeScreen, FamilyMeScreen, FamilyRideScreen } from '../screens/family'; // Family view
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -375,6 +378,21 @@ export function RootNavigator() {
             <Stack.Screen name="Award" component={AwardScreen} options={{ title: 'Award' }} />
             <Stack.Screen name="Nominate" component={NominateScreen} options={{ title: 'Nominate' }} />
             <Stack.Screen name="OpenAward" component={OpenAwardScreen} options={{ title: 'Open an award' }} />
+            {/* Invites to and from other clubs */}
+            <Stack.Screen name="OtherClubs" component={OtherClubsScreen} options={{ title: 'Other clubs' }} />
+            <Stack.Screen name="Invite" component={InviteScreen} options={{ title: 'Invite' }} />
+            <Stack.Screen
+              name="EditInvite"
+              component={EditInviteScreen}
+              options={({ route }) => ({ title: route.params?.inviteId ? 'Change the invite' : 'Pass on an invite' })}
+            />
+            <Stack.Screen name="InviteClub" component={InviteClubScreen} options={{ title: 'Invite a club' }} />
+            <Stack.Screen name="OtherClub" component={OtherClubScreen} options={{ title: 'Club' }} />
+            <Stack.Screen
+              name="EditOtherClub"
+              component={EditOtherClubScreen}
+              options={({ route }) => ({ title: route.params?.clubId ? 'Change the club' : 'Add a club' })}
+            />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}
