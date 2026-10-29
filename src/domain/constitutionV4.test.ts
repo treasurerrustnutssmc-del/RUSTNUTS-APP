@@ -3,14 +3,14 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { appointProblem, appointWarnings, statusChangeProblem } from './access';
+import { appointProblem, appointWarnings, AUDITOR_NEEDS_VOTE, statusChangeProblem } from './access';
 import { continuationFeeFor, continuationFeeProblem } from './fees';
 import { decideApplicationProblem, fngReviewProblem } from './joining';
 import { meetingKindLabel } from './labels';
 import { noticeWarning, saveMeetingProblem, type MeetingInput } from './meetings';
 import { club, member, who } from './stage4.testkit';
 import type { ClubData, MemberPrivate, Position, Vote } from './types';
-import { openVoteProblem, patchVoteFor, reinstateVoteFor, type VoteInput } from './votes';
+import { AUDITOR_VOTE, openVoteProblem, patchVoteFor, reinstateVoteFor, type VoteInput } from './votes';
 
 const seat = (id: string, memberId: string, chapterId: string | null, role: Position['role'], startedOn = '2025-01-01'): Position => ({
   id, memberId, chapterId, role, startedOn, endedOn: null,
@@ -74,9 +74,12 @@ test('the National Auditor stays apart from Presidents and Treasurers', () => {
   assert.equal(appointProblem(chair, who(data, 'pres'), null, 'nec_auditor', data), AUDITOR_APART);
   assert.equal(appointProblem(chair, who(data, 'tre'), null, 'nec_auditor', data), AUDITOR_APART);
   assert.equal(appointProblem(who(data, 'northsec'), who(data, 'auditor'), 'north', 'treasurer', data), AUDITOR_APART);
-  // The testkit's auditor holds the seat, so a second one waits; ending it frees the seat.
+  // The testkit's auditor holds the seat, so a second one waits; ending it frees the seat, and a
+  // carried two-thirds NEC vote about them lets the Chairman seat them (11.8).
   const free = { ...data, positions: data.positions.filter((p) => p.role !== 'nec_auditor') };
-  assert.equal(appointProblem(chair, who(free, 'rider'), null, 'nec_auditor', free), null);
+  assert.equal(appointProblem(chair, who(free, 'rider'), null, 'nec_auditor', free), AUDITOR_NEEDS_VOTE);
+  const voted = { ...free, votes: [{ ...necVote('rider', 'carried'), threshold: 'two_thirds' as const }] };
+  assert.equal(appointProblem(chair, who(voted, 'rider'), null, 'nec_auditor', voted, '2026-10-25'), null);
 });
 
 test('the two-year and full-term rules show as warnings, not refusals', () => {
@@ -162,7 +165,7 @@ test('a reinstatement vote is an NEC majority vote on someone not Full, Nomad or
   assert.equal(openVoteProblem(chair, input, data, now), null);
   assert.equal(openVoteProblem(chair, { ...input, secret: true }, data, now), null, 'secret or not is the NEC’s call');
   assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'legacy' }, data, now), null);
-  assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'rider' }, data, now), REINSTATE_VOTE);
+  assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'rider' }, data, now), AUDITOR_VOTE, 'a Full Member: only the Auditor vote');
   assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'fng' }, data, now), REINSTATE_VOTE);
   assert.equal(openVoteProblem(chair, { ...input, threshold: 'unanimous' }, data, now), REINSTATE_VOTE);
   assert.equal(openVoteProblem(chair, { ...input, electorate: 'club_patched', quorum: 3 }, data, now), REINSTATE_VOTE);

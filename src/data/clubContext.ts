@@ -44,6 +44,7 @@ import type { FngOutcome } from '../domain/joining';
 import type { ConductInput } from '../domain/conduct';
 import type { MerchInput, OrderInput } from '../domain/merch';
 import type { ChapterInput, ContributionInput } from '../domain/national';
+import type { ReportInput, RequestInput } from '../domain/audit'; // National Auditor
 
 export class NotAllowedError extends Error {}
 
@@ -320,6 +321,19 @@ export interface ClubContextValue {
   signDocument: (versionId: string) => Promise<void>;
   /** A version's text. Live loads it on first open and keeps it for the session. */
   loadDocumentBody: (versionId: string) => Promise<string>;
+  // The National Auditor (11.8)
+  /** The Auditor's written information or correction request to a board or the NEC. Resolves to its id. */
+  raiseAuditRequest: (input: RequestInput) => Promise<string>;
+  /** That board's (or the NEC's) written answer; it can be updated until the Auditor closes it. */
+  answerAuditRequest: (requestId: string, answer: string) => Promise<void>;
+  closeAuditRequest: (requestId: string, note: string) => Promise<void>;
+  /** Saves a findings report draft (a new one when input.id is null). Resolves to its id. */
+  saveAuditReport: (input: ReportInput) => Promise<string>;
+  /** Issues a draft to the NEC and every board. Final. */
+  issueAuditReport: (reportId: string) => Promise<void>;
+  deleteAuditReport: (reportId: string) => Promise<void>;
+  /** The Chairman renews the sitting Auditor for twelve months after a fresh two-thirds NEC vote. */
+  renewAuditor: () => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);

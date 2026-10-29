@@ -50,6 +50,7 @@ import { FngReviewScreen } from '../screens/fng';
 import { ConductRecordScreen, ConductScreen, RecordConductScreen } from '../screens/conduct';
 import { MerchItemScreen, MerchOrderScreen, MerchScreen, ProposeMerchScreen } from '../screens/merch';
 import { ChapterProposalScreen, ContributionScreen, NationalScreen, ProposeChapterScreen, ProposeContributionScreen } from '../screens/national';
+import { AuditRecordsScreen, AuditReportScreen, AuditRequestScreen, AuditScreen, NewAuditRequestScreen } from '../screens/audit';
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
 import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } from '../screens/help';
 import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swap';
@@ -335,6 +336,12 @@ export function RootNavigator() {
             <Stack.Screen name="ProposeContribution" component={ProposeContributionScreen} options={{ title: 'Ask the chapters' }} />
             <Stack.Screen name="ChapterProposal" component={ChapterProposalScreen} options={{ title: 'New chapter' }} />
             <Stack.Screen name="ProposeChapter" component={ProposeChapterScreen} options={{ title: 'New chapter' }} />
+            {/* The National Auditor */}
+            <Stack.Screen name="Audit" component={AuditScreen} options={{ title: 'Audit' }} />
+            <Stack.Screen name="AuditRecords" component={AuditRecordsScreen} options={{ title: 'Records' }} />
+            <Stack.Screen name="NewAuditRequest" component={NewAuditRequestScreen} options={{ title: 'New request' }} />
+            <Stack.Screen name="AuditRequest" component={AuditRequestScreen} options={{ title: 'Request' }} />
+            <Stack.Screen name="AuditReport" component={AuditReportScreen} options={{ title: 'Findings report' }} />
             {/* Stage 7: social extras */}
             <Stack.Screen name="Birthday" component={BirthdayScreen} options={{ title: 'Birthday shout-out' }} />
             <Stack.Screen name="OnThisDay" component={OnThisDayScreen} options={{ title: 'On this day' }} />
