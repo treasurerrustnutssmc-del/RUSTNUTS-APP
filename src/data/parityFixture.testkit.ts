@@ -30,6 +30,7 @@ import type { ListingKind } from '../domain/social/swap'; // Stage 7: social ext
 import { DOCUMENT_ACTIONS, runDocumentAction, type DocumentAction } from './documentActions'; // Stage 5C
 import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'; // Stage 5D
 import { sharesFor } from '../domain/national'; // Stage 5D
+import { AUDIT_ACTIONS, runAuditAction, type AuditAction } from './auditActions'; // National Auditor
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -506,6 +507,10 @@ export function demoAnswer(c: ParityCase): string | null {
     }
     if (ADMIN_ACTIONS.has(String(c.action))) {
       runAdminAction({ data, me, today }, resolveCase(c, today) as unknown as AdminAction);
+      return null;
+    }
+    if (AUDIT_ACTIONS.has(String(c.action))) {
+      runAuditAction({ data, me, today }, resolveCase(c, today) as unknown as AuditAction);
       return null;
     }
     if (LEDGER_ACTIONS.has(String(c.action))) {

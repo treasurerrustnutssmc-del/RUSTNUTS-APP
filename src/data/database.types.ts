@@ -7,6 +7,7 @@ import type {
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson, MeetingReportJson } from './ledgerLive'; // Stage 5B
 import type { AdminJson } from './adminLive'; // Stage 5D
+import type { AuditJson } from './auditLive'; // National Auditor
 import type { DocumentsJson } from './documentsLive'; // Stage 5C
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
@@ -608,6 +609,24 @@ export type Database = {
       };
       settle_chapter_proposal: { Args: { p_id: string; p_vote: string }; Returns: string | null };
       withdraw_chapter_proposal: { Args: { p_id: string }; Returns: undefined };
+      // The National Auditor (11.8)
+      club_audit: { Args: never; Returns: AuditJson };
+      raise_audit_request: {
+        Args: {
+          p_chapter: string | null; p_kind: string; p_area: string; p_title: string; p_details: string; p_due: string | null;
+          p_ledger_entry: string | null;
+        };
+        Returns: string;
+      };
+      answer_audit_request: { Args: { p_id: string; p_answer: string }; Returns: undefined };
+      close_audit_request: { Args: { p_id: string; p_note: string }; Returns: undefined };
+      save_audit_report: {
+        Args: { p_id: string | null; p_title: string; p_from: string; p_to: string; p_findings: string; p_recommendations: string | null };
+        Returns: string;
+      };
+      issue_audit_report: { Args: { p_id: string }; Returns: undefined };
+      delete_audit_report: { Args: { p_id: string }; Returns: undefined };
+      renew_auditor: { Args: never; Returns: string };
       record_credit: {
         Args: { p_chapter: string | null; p_code: string; p_description: string; p_amount_cents: number; p_received_on: string | null; p_entry_on: string };
         Returns: string;

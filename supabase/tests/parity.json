@@ -6930,6 +6930,116 @@
       "allowed": false
     },
     {
+      "name": "Auditor: asks West's board for information (11.8)",
+      "as": "kim",
+      "action": "raiseAuditRequest",
+      "chapter": "west",
+      "kind": "information",
+      "area": "bank",
+      "title": "September statement",
+      "details": "Please send it.",
+      "dueDays": 14,
+      "allowed": true
+    },
+    {
+      "name": "Auditor: a correction request to the NEC (11.8)",
+      "as": "kim",
+      "action": "raiseAuditRequest",
+      "chapter": null,
+      "kind": "correction",
+      "area": "controls",
+      "title": "Two approvals",
+      "details": "The Club fund paid one with one approval.",
+      "allowed": true
+    },
+    {
+      "name": "Auditor: a request due yesterday",
+      "as": "kim",
+      "action": "raiseAuditRequest",
+      "chapter": "west",
+      "kind": "information",
+      "area": "bank",
+      "title": "Statement",
+      "details": "Please.",
+      "dueDays": -1,
+      "allowed": false
+    },
+    {
+      "name": "Auditor: a request with no title",
+      "as": "kim",
+      "action": "raiseAuditRequest",
+      "chapter": "west",
+      "kind": "information",
+      "area": "bank",
+      "title": "  ",
+      "details": "Please.",
+      "allowed": false
+    },
+    {
+      "name": "The Chairman raises an audit request",
+      "as": "chair",
+      "action": "raiseAuditRequest",
+      "chapter": "west",
+      "kind": "information",
+      "area": "bank",
+      "title": "Statement",
+      "details": "Please.",
+      "allowed": false
+    },
+    {
+      "name": "A chapter Secretary raises an audit request",
+      "as": "torque",
+      "action": "raiseAuditRequest",
+      "chapter": "west",
+      "kind": "information",
+      "area": "bank",
+      "title": "Statement",
+      "details": "Please.",
+      "allowed": false
+    },
+    {
+      "name": "Auditor: saves a findings report",
+      "as": "kim",
+      "action": "saveAuditReport",
+      "title": "Quarter review",
+      "fromDays": -90,
+      "toDays": 0,
+      "findings": "Books in order.",
+      "allowed": true
+    },
+    {
+      "name": "Auditor: a report that runs past today",
+      "as": "kim",
+      "action": "saveAuditReport",
+      "title": "Quarter review",
+      "fromDays": -90,
+      "toDays": 1,
+      "findings": "Books in order.",
+      "allowed": false
+    },
+    {
+      "name": "The Chairman writes a findings report",
+      "as": "chair",
+      "action": "saveAuditReport",
+      "title": "Quarter review",
+      "fromDays": -90,
+      "toDays": 0,
+      "findings": "Books in order.",
+      "allowed": false
+    },
+    {
+      "name": "The Chairman renews the Auditor without a fresh vote (11.8)",
+      "as": "chair",
+      "action": "renewAuditor",
+      "allowed": false
+    },
+    {
+      "name": "The Auditor renews themselves",
+      "as": "kim",
+      "action": "renewAuditor",
+      "allowed": false
+    },
+    {
       "name": "A chapter Secretary makes a ride a Big 4",
       "as": "torque",
       "action": "designateBig4",

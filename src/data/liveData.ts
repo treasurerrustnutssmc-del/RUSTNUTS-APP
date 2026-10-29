@@ -10,6 +10,7 @@ import { toBusiness } from './businessLive';
 import { toLedger, toMeetingReports } from './ledgerLive'; // Stage 5B
 import { loadPlanning } from './planningLive'; // Ride planning extras
 import { toAdmin } from './adminLive'; // Stage 5D
+import { toAudit } from './auditLive'; // National Auditor
 import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
@@ -144,6 +145,17 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     await db.rpc('club_admin').then(
       (r) => {
         if (r.error) console.warn('club_admin:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+  );
+
+  // The National Auditor's requests and reports, the same way.
+  const audit = toAudit(
+    await db.rpc('club_audit').then(
+      (r) => {
+        if (r.error) console.warn('club_audit:', r.error.message);
         return r.error ? null : r.data;
       },
       () => null,
@@ -343,6 +355,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     ...ledger,
     ...meetingReports,
     ...admin,
+    ...audit,
     ...documents,
     ...stage4(money.error ? null : (money.data as MembersMoneyRows | null)),
     ...withMeetingTypes(stage4(money.error ? null : (money.data as MembersMoneyRows | null)), typeOf),

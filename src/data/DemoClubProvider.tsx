@@ -17,6 +17,7 @@ import * as ledger from './ledgerActions';
 import * as admin from './adminActions'; // Stage 5D
 import * as docs from './documentActions';
 import { forFamily } from './familyData'; // Family view
+import * as audit from './auditActions'; // National Auditor
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
@@ -258,6 +259,22 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       return result.chapterId;
     },
     withdrawChapter: async (id) => setData(admin.withdrawChapter(ctx, id)),
+    // The National Auditor
+    raiseAuditRequest: async (input) => {
+      const r = audit.raiseAuditRequest(ctx, input);
+      setData(r.data);
+      return r.id;
+    },
+    answerAuditRequest: async (id, answer) => setData(audit.answerAuditRequest(ctx, id, answer)),
+    closeAuditRequest: async (id, note) => setData(audit.closeAuditRequest(ctx, id, note)),
+    saveAuditReport: async (input) => {
+      const r = audit.saveAuditReport(ctx, input);
+      setData(r.data);
+      return r.id;
+    },
+    issueAuditReport: async (id) => setData(audit.issueAuditReport(ctx, id)),
+    deleteAuditReport: async (id) => setData(audit.deleteAuditReport(ctx, id)),
+    renewAuditor: async () => setData(audit.renewAuditor(ctx)),
     // Stage 5C: document library
     createDocument: async (input) => {
       const result = docs.createDocument(ctx, input);

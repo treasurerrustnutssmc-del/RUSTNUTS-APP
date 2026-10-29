@@ -291,7 +291,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const positions = sortedPositions(member.id, data);
   // Only the roles this person could actually fill right now (seat free, allowed to appoint it).
   const roleOptions = [...BOARD_ROLES, ...CLUB_ROLES, ...NATIONAL_ROLES].filter(
-    (r) => appointProblem(me, member, member.chapterId, r, data) === null,
+    (r) => appointProblem(me, member, member.chapterId, r, data, today) === null,
   );
   const statusBlock = status && status !== member.status ? statusChangeProblem(me, member, status, data, today) : null;
   const warnings = role ? appointWarnings(member, role, data, today) : [];

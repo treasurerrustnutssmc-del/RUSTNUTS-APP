@@ -493,8 +493,24 @@ const adminCall = (c: ParityCase & Record<string, any>): string => {
   }
 };
 
+// The National Auditor: requests, reports and renewal. Dates come as …Days from today.
+const auditCall = (c: ParityCase & Record<string, any>): string | null => {
+  switch (c.action) {
+    case 'raiseAuditRequest':
+      return `public.raise_audit_request(${chapter(c.chapter)}, ${q(c.kind)}, ${q(c.area)}, ${q(c.title)}, ${q(c.details)}, ${maybeDate(c.due)}, null)`;
+    case 'saveAuditReport':
+      return `public.save_audit_report(null, ${q(c.title)}, ${maybeDate(c.from)}, ${maybeDate(c.to)}, ${q(c.findings)}, ${c.recommendations ? q(c.recommendations) : 'null'})`;
+    case 'renewAuditor':
+      return 'public.renew_auditor()';
+    default:
+      return null;
+  }
+};
+
 const call = (c: ParityCase & Record<string, any>): string => {
   if (ADMIN_CASE_ACTIONS.has(String(c.action))) return adminCall(resolveCase(c, today) as ParityCase & Record<string, any>);
+  const audit = auditCall(resolveCase(c, today) as ParityCase & Record<string, any>);
+  if (audit) return audit;
   const stage4 = stage4Call(resolveCase(c, today) as ParityCase & Record<string, any>);
   if (stage4) return stage4;
   const planning = planningCall(c);
