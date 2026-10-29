@@ -72,7 +72,7 @@ test('a ride with only a location looks it up, guess by guess, then asks for the
   assert.equal(r.kind, 'ready');
   if (r.kind !== 'ready') return;
   assert.equal(r.place, 'Bacchus Marsh');
-  assert.deepEqual(r.view.headline, { sky: 'Cloudy', icon: 'cloudy', low: 10, high: 16, rain: 10, gust: 30 });
+  assert.deepEqual(r.view.headline, { sky: 'Cloudy', icon: 'cloudy', low: 10, high: 15, rain: 10, gust: 30 });
   assert.equal(f.asked.filter((u) => u.includes('geocoding')).length, 1, 'stops at the first hit');
 });
 
@@ -102,8 +102,29 @@ test('answers are kept for half an hour', async () => {
   await rideForecast(ride(), data(), '2026-11-01', source);
   assert.equal(f.asked.length, 2, 'one place search, one forecast');
   now = 31 * 60_000;
-  await rideForecast(ride(), data(), '2026-11-01', source);
+  const r = await rideForecast(ride(), data(), '2026-11-01', source);
   assert.equal(f.asked.length, 4);
+  assert.equal(r.kind === 'ready' && r.fetchedAt, 31 * 60_000);
+});
+
+test('Updated is when the forecast came, not when the card was drawn again', async () => {
+  let now = 1000;
+  const f = fakeFetch({ 'geo:Bacchus Marsh': { results: [{ name: 'Bacchus Marsh', latitude: -37.67, longitude: 144.43 }] }, forecast: place() });
+  const source = forecastSource(f, () => now);
+  await rideForecast(ride(), data(), '2026-11-01', source);
+  now = 25 * 60_000;
+  const r = await rideForecast(ride(), data(), '2026-11-01', source);
+  assert.equal(r.kind === 'ready' && r.fetchedAt, 1000);
+});
+
+test('an answer that doesn’t read is never kept, so Try again asks again', async () => {
+  const answers: Record<string, unknown> = { 'geo:Bacchus Marsh': { results: [{ name: 'Bacchus Marsh', latitude: -37.67, longitude: 144.43 }] }, forecast: { hourly: {} } };
+  const f = fakeFetch(answers);
+  const source = forecastSource(f, () => 0);
+  await assert.rejects(rideForecast(ride(), data(), '2026-11-01', source), /isn’t answering/);
+  answers.forecast = place();
+  const r = await rideForecast(ride(), data(), '2026-11-01', source);
+  assert.equal(r.kind, 'ready');
 });
 
 test('the demo forecast is made up from the ride, the same every time, and covers its hours', () => {

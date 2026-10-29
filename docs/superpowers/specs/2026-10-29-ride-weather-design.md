@@ -28,18 +28,22 @@ id, so the card can be seen and checked.
    most 5 points (start, up to 3 stops spread along, finish).
 2. **No route, but a location:** the location is looked up by place name in Australia. Calendar locations
    are often full addresses ("Maccas, 12 Main St, Bacchus Marsh VIC 3340"), so the guesses are tried in
-   order: each comma part from the last, with the state and postcode taken off, then the whole text. The
-   first hit wins. It's labelled with the place found.
-3. **Neither, or nothing found:** "No forecast: this ride has no route or meeting place yet."
+   order, at most six: each comma part from the last, with the state and postcode taken off and street
+   addresses and state names skipped; each part whole, then without its last word ("Kilmore Bakery" →
+   "Kilmore"), then without its first when that leaves two words or more. The first hit wins, unless it
+   is more than 800 km from Melbourne (taken as the wrong town). It's labelled with the place found.
+3. **Neither, or nothing found:** "No forecast yet: this ride has no route, and its meeting place can't be
+   found on the map."
 
 ## When
 
-- A timed ride: from its start hour to its end, or 6 hours when it has no end.
-- An all-day ride: 8 am to 5 pm on each of its days.
+- A timed ride: from its start hour to the last hour that starts before its end, or 6 hours when it has
+  no end. An evening ride past midnight still goes by place, not by day.
+- An all-day ride (or one longer than a day): 8 am to 5 pm on each of its days, with rows by day.
 - Times are Melbourne time; Open-Meteo is asked for `timezone=Australia/Melbourne`.
 
 The card shows:
-- **Too far out** (first day more than 15 days away): "Forecast opens on DD/MM/YYYY."
+- **Too far out** (first day more than 15 days away): "The forecast opens on Fri 23/10/2026."
 - **Over or cancelled:** nothing.
 - **A multi-day ride past the forecast's reach:** the days it has, and "Later days open closer to the ride."
 
@@ -51,12 +55,14 @@ The card shows:
   - rain chance 50% or more ("60% chance of rain at Kinglake"),
   - gusts 60 km/h or more ("Gusts to 65 km/h at Kinglake"),
   - 35° or more ("Up to 37° at the finish"),
-  - 3° or less ("Down to 2° at the start, watch for ice").
+  - 3° or less ("Down to 2° at the start. Watch for ice.").
   These thresholds are the app's call, kept in one place in `src/domain/weather.ts`.
 - One row per point (or per day, on a multi-day ride): label, sky word and icon, low–high, rain chance,
   gust.
 - "Updated 7:42 am" and the Open-Meteo credit as fine print.
-- While loading: a short spinner line. On failure: "The forecast isn't answering." with Try again.
+- While loading: a short spinner line. On any failure: "The forecast isn't answering. Try again soon." with
+  Try again. An answer that doesn't read is never kept, so Try again really asks again.
+- "Updated" is when Open-Meteo answered, not when the card was drawn.
 
 ## Units
 

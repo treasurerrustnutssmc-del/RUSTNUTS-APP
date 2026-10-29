@@ -23,8 +23,8 @@ export type Fetcher = (url: string) => Promise<{ ok: boolean; status: number; js
 export interface ForecastSource {
   /** The first place a name matches in Australia, or null. */
   geocode: (name: string) => Promise<ForecastPoint | null>;
-  /** One series per point, for the days given. */
-  forecast: (points: ForecastPoint[], days: string[]) => Promise<HourlySeries[]>;
+  /** One series per point, for the days given, and when Open-Meteo gave it (epoch ms). */
+  forecast: (points: ForecastPoint[], days: string[]) => Promise<{ series: HourlySeries[]; at: number }>;
 }
 
 export type RideForecast =
@@ -38,12 +38,18 @@ export type RideForecast =
 export const NOT_ANSWERING = 'The forecast isn’t answering. Try again soon.';
 const KEEP_MS = 30 * 60_000;
 
-/** Open-Meteo through `fetch`, keeping each answer for half an hour. */
+/** The most answers kept; the oldest goes first. */
+const KEEP_MAX = 50;
+
+/**
+ * Open-Meteo through `fetch`, keeping each answer that reads well for half an hour. An answer that
+ * doesn't read is never kept, so Try again really asks again.
+ */
 export function forecastSource(fetcher: Fetcher, now: () => number = Date.now): ForecastSource {
-  const kept = new Map<string, { at: number; json: unknown }>();
-  const get = async (url: string): Promise<unknown> => {
+  const kept = new Map<string, { at: number; value: unknown }>();
+  const get = async <T>(url: string, read: (json: unknown) => T, keepIf: (value: T) => boolean): Promise<{ value: T; at: number }> => {
     const hit = kept.get(url);
-    if (hit && now() - hit.at < KEEP_MS) return hit.json;
+    if (hit && now() - hit.at < KEEP_MS) return { value: hit.value as T, at: hit.at };
     let json: unknown;
     try {
       const res = await fetcher(url);
@@ -52,15 +58,22 @@ export function forecastSource(fetcher: Fetcher, now: () => number = Date.now): 
     } catch {
       throw new Error(NOT_ANSWERING);
     }
-    kept.set(url, { at: now(), json });
-    return json;
+    const value = read(json);
+    const at = now();
+    if (keepIf(value)) {
+      kept.delete(url);
+      kept.set(url, { at, value });
+      if (kept.size > KEEP_MAX) kept.delete(kept.keys().next().value as string);
+    }
+    return { value, at };
   };
   return {
-    geocode: async (name) => parseGeocode(await get(geocodeUrl(name))),
+    // A place nothing matches is kept too: it was a good answer.
+    geocode: async (name) => (await get(geocodeUrl(name), parseGeocode, () => true)).value,
     forecast: async (points, days) => {
-      const series = parseForecast(await get(forecastUrl(points, days)), points.length);
-      if (!series) throw new Error(NOT_ANSWERING);
-      return series;
+      const { value, at } = await get(forecastUrl(points, days), (json) => parseForecast(json, points.length), (v) => v !== null);
+      if (!value) throw new Error(NOT_ANSWERING);
+      return { series: value, at };
     },
   };
 }
@@ -99,7 +112,7 @@ export const demoSource: ForecastSource = {
   geocode: async (name) => ({ label: name, ...DEMO_PLACE }),
   forecast: async (points, days) => {
     const hours = days.flatMap((d) => Array.from({ length: 24 }, (_, h) => `${d}T${String(h).padStart(2, '0')}:00`));
-    return demoSeries(`${points.map((p) => p.label).join('|')}:${days[0]}`, points.length, hours);
+    return { series: demoSeries(`${points.map((p) => p.label).join('|')}:${days[0]}`, points.length, hours), at: Date.now() };
   },
 };
 
@@ -126,10 +139,10 @@ export async function rideForecast(ride: Ride, data: ClubData, today: string, so
   }
   if (points.length === 0) return { kind: 'none' };
 
-  const series = await source.forecast(points, reach.days);
+  const { series, at } = await source.forecast(points, reach.days);
   const days = new Set(reach.days);
   const window = rideWindow(ride);
-  const view = forecastView(points, series, { days: reach.days, hours: window.hours.filter((h) => days.has(h.slice(0, 10))) });
+  const view = forecastView(points, series, { ...window, days: reach.days, hours: window.hours.filter((h) => days.has(h.slice(0, 10))) });
   if (!view) throw new Error(NOT_ANSWERING);
-  return { kind: 'ready', view, clipped: reach.clipped, place, fetchedAt: Date.now() };
+  return { kind: 'ready', view, clipped: reach.clipped, place, fetchedAt: at };
 }

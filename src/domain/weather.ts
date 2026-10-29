@@ -37,6 +37,8 @@ export interface ForecastPoint {
 export interface ForecastWindow {
   days: string[];
   hours: string[];
+  /** All day, or longer than a day: rows and heads-ups go by day. An evening ride past midnight doesn't. */
+  byDay: boolean;
 }
 
 export type ForecastReach =
@@ -119,10 +121,10 @@ export function placeGuesses(location: string): string[] {
   for (const p of parts) {
     add(p);
     const words = p.split(' ');
-    if (words.length > 1) {
-      add(words.slice(0, -1).join(' '));
-      add(words.slice(1).join(' '));
-    }
+    // Without the last word ("Kilmore Bakery" → "Kilmore"); without the first only when that leaves
+    // two words or more, since a lone trailing word ("Marsh", "Island") finds the wrong town.
+    if (words.length > 1) add(words.slice(0, -1).join(' '));
+    if (words.length > 2) add(words.slice(1).join(' '));
   }
   return out.slice(0, MAX_GUESSES);
 }
@@ -159,14 +161,15 @@ export function rideWindow(ride: Ride): ForecastWindow {
   if (ride.allDay || (end !== null && end - start > 24 * HOUR)) {
     const days = daysFrom(melbourneDate(ride.startsAt), lastDay(ride));
     const hours = days.flatMap((d) => Array.from({ length: DAY_TO - DAY_FROM + 1 }, (_, i) => `${d}T${pad(DAY_FROM + i)}:00`));
-    return { days, hours };
+    return { days, hours, byDay: true };
   }
   const from = Math.floor(start / HOUR) * HOUR;
-  const to = end !== null ? Math.max(from, Math.floor(end / HOUR) * HOUR) : from + (DEFAULT_HOURS - 1) * HOUR;
+  // The last hour that starts before the end.
+  const to = end !== null ? Math.max(from, Math.ceil(end / HOUR) * HOUR - HOUR) : from + (DEFAULT_HOURS - 1) * HOUR;
   const hours: string[] = [];
   for (let t = from; t <= to; t += HOUR) hours.push(melbourneHour(t));
   const days = [...new Set(hours.map((h) => h.slice(0, 10)))];
-  return { days, hours };
+  return { days, hours, byDay: false };
 }
 
 /** Whether the forecast reaches the ride yet, and which of its days it covers. */
@@ -206,9 +209,14 @@ export function geocodeUrl(name: string): string {
   return url.toString();
 }
 
+/** Melbourne, and how far from it a meeting place can be before a match is taken as the wrong town. */
+const MELBOURNE: [number, number] = [-37.81, 144.96];
+const FARTHEST_M = 800_000;
+
 export function parseGeocode(json: unknown): ForecastPoint | null {
   const hit = (json as { results?: { name?: unknown; latitude?: unknown; longitude?: unknown }[] } | null)?.results?.[0];
   if (!hit || typeof hit.name !== 'string' || typeof hit.latitude !== 'number' || typeof hit.longitude !== 'number') return null;
+  if (haversineM(MELBOURNE, [hit.latitude, hit.longitude]) > FARTHEST_M) return null;
   return { label: hit.name, lat: hit.latitude, lng: hit.longitude };
 }
 
@@ -300,7 +308,7 @@ export function forecastView(points: ForecastPoint[], series: HourlySeries[], wi
   const all = readings(series, new Set(window.hours));
   const headline = summarise(all);
   if (!headline) return null;
-  const multiDay = window.days.length > 1;
+  const multiDay = window.byDay && window.days.length > 1;
 
   const rows = (
     multiDay

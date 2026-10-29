@@ -81,19 +81,30 @@ test('an empty route gives no points', () => {
 });
 
 test('place guesses: the last part first, without street numbers, state or postcode, then shorter', () => {
-  assert.deepEqual(placeGuesses('Maccas, 12 Main St, Bacchus Marsh VIC 3340'), ['Bacchus Marsh', 'Bacchus', 'Marsh', 'Maccas']);
-  assert.deepEqual(placeGuesses('Kilmore Bakery'), ['Kilmore Bakery', 'Kilmore', 'Bakery']);
+  assert.deepEqual(placeGuesses('Maccas, 12 Main St, Bacchus Marsh VIC 3340'), ['Bacchus Marsh', 'Bacchus', 'Maccas']);
+  assert.deepEqual(placeGuesses('Kilmore Bakery'), ['Kilmore Bakery', 'Kilmore']);
   assert.deepEqual(placeGuesses('Caltex Laverton North'), ['Caltex Laverton North', 'Caltex Laverton', 'Laverton North']);
-  assert.deepEqual(placeGuesses('Phillip Island, Victoria, Australia'), ['Phillip Island', 'Phillip', 'Island']);
+  assert.deepEqual(placeGuesses('Phillip Island, Victoria, Australia'), ['Phillip Island', 'Phillip']);
   assert.deepEqual(placeGuesses('Bacchus Marsh McDonald’s'), ['Bacchus Marsh McDonald’s', 'Bacchus Marsh', 'Marsh McDonald’s']);
   assert.equal(placeGuesses('A, B, C, D, E, F, G').length, 6, 'at most six tries');
   assert.deepEqual(placeGuesses('  '), []);
 });
 
-test('a timed ride: its start hour to its end hour, in Melbourne time', () => {
+test('a timed ride: its start hour to the last hour before its end, in Melbourne time', () => {
   const w = rideWindow(ride());
   assert.deepEqual(w.days, ['2026-11-07']);
-  assert.deepEqual(w.hours, ['2026-11-07T08:00', '2026-11-07T09:00', '2026-11-07T10:00', '2026-11-07T11:00', '2026-11-07T12:00']);
+  assert.deepEqual(w.hours, ['2026-11-07T08:00', '2026-11-07T09:00', '2026-11-07T10:00', '2026-11-07T11:00']);
+  assert.equal(w.byDay, false);
+  // Ending at 12:30 takes in the 12 o'clock hour.
+  assert.equal(rideWindow(ride({ endsAt: '2026-11-07T01:30:00.000Z' })).hours.at(-1), '2026-11-07T12:00');
+});
+
+test('an evening ride past midnight spans two dates but still goes by place', () => {
+  // 8 pm Sat to 1 am Sun, Melbourne
+  const w = rideWindow(ride({ startsAt: '2026-11-07T09:00:00.000Z', endsAt: '2026-11-07T14:00:00.000Z' }));
+  assert.deepEqual(w.days, ['2026-11-07', '2026-11-08']);
+  assert.equal(w.byDay, false);
+  assert.deepEqual(w.hours, ['2026-11-07T20:00', '2026-11-07T21:00', '2026-11-07T22:00', '2026-11-07T23:00', '2026-11-08T00:00']);
 });
 
 test('a timed ride with no end gets 6 hours', () => {
@@ -111,6 +122,7 @@ test('an all-day ride: 8 am to 5 pm on each of its days', () => {
   assert.equal(w.hours[0], '2027-01-29T08:00');
   assert.equal(w.hours[9], '2027-01-29T17:00');
   assert.equal(w.hours[29], '2027-01-31T17:00');
+  assert.equal(w.byDay, true);
 });
 
 test('reach: too far out says when it opens; over or cancelled shows nothing', () => {
@@ -153,6 +165,7 @@ test('reading a place search', () => {
     lat: -37.67,
     lng: 144.43,
   });
+  assert.equal(parseGeocode({ results: [{ name: 'Marsh', latitude: -27.5, longitude: 153.0 }] }), null, 'a match far from Melbourne is the wrong town');
   assert.equal(parseGeocode({}), null);
   assert.equal(parseGeocode({ results: [{ name: 'x', latitude: 'no' }] }), null);
   assert.equal(parseGeocode(null), null);
@@ -192,7 +205,7 @@ test('the view: a headline for the whole ride, and a row per point', () => {
   const view = forecastView(
     [{ label: 'Start', lat: 0, lng: 0 }, { label: 'Kinglake', lat: 1, lng: 1 }],
     [series([9.6, 12, 14.4], [0, 10, 20], [20, 30, 25], [0, 2, 1]), series([8, 11, 13], [30, 40, 20], [40, 45, 35], [3, 61, 3])],
-    { days: ['2026-11-07'], hours: HOURS },
+    { days: ['2026-11-07'], hours: HOURS, byDay: false },
   );
   assert.deepEqual(view?.headline, { sky: 'Rain', icon: 'rainy', low: 8, high: 14, rain: 40, gust: 45 });
   assert.deepEqual(view?.rows.map((r) => [r.label, r.summary.sky, r.summary.low, r.summary.high, r.summary.rain, r.summary.gust]), [
@@ -206,16 +219,17 @@ test('the view only counts the ride’s hours, and has nothing when none come ba
   const view = forecastView([{ label: 'Start', lat: 0, lng: 0 }], [series([5, 20, 30], [0, 0, 90], [0, 0, 90], [0, 0, 95])], {
     days: ['2026-11-07'],
     hours: HOURS.slice(0, 2),
+    byDay: false,
   });
   assert.deepEqual(view?.headline, { sky: 'Clear', icon: 'sunny', low: 5, high: 20, rain: 0, gust: 0 });
-  assert.equal(forecastView([{ label: 'Start', lat: 0, lng: 0 }], [series([1, 2, 3], [0, 0, 0], [0, 0, 0], [0, 0, 0])], { days: ['2026-11-08'], hours: ['2026-11-08T08:00'] }), null);
+  assert.equal(forecastView([{ label: 'Start', lat: 0, lng: 0 }], [series([1, 2, 3], [0, 0, 0], [0, 0, 0], [0, 0, 0])], { days: ['2026-11-08'], hours: ['2026-11-08T08:00'], byDay: false }), null);
 });
 
 test('heads-ups: rain, gusts, heat and ice, each at its worst place', () => {
   const view = forecastView(
     [{ label: 'Start and finish', lat: 0, lng: 0 }, { label: 'Kinglake', lat: 1, lng: 1 }],
     [series([2, 20, 36], [10, 20, 50], [30, 59, 20], [0, 0, 0]), series([4, 30, 37.4], [60, 20, 10], [65, 20, 20], [0, 0, 0])],
-    { days: ['2026-11-07'], hours: HOURS },
+    { days: ['2026-11-07'], hours: HOURS, byDay: false },
   );
   assert.deepEqual(view?.headsUps, [
     '60% chance of rain at Kinglake',
@@ -232,7 +246,7 @@ test('a multi-day ride: a row per day, and heads-ups name the day', () => {
   const view = forecastView(
     [{ label: 'Phillip Island', lat: 0, lng: 0 }],
     [s([20, 24, 18, 19], [0, 10, 70, 40])],
-    { days, hours },
+    { days, hours, byDay: true },
   );
   assert.deepEqual(view?.rows.map((r) => [r.label, r.summary.sky, r.summary.high, r.summary.rain]), [
     ['Fri 29/01/2027', 'Clear', 24, 10],

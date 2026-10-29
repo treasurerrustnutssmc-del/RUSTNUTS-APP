@@ -23,15 +23,15 @@ export function RideWeatherSection({ ride }: { ride: Ride }) {
   const { data, today, isDemo } = useClub();
   const [attempt, setAttempt] = useState(0);
   const [answer, setAnswer] = useState<{ key: string; result: State } | null>(null);
-  const routeId = routeOf(ride.id, data)?.id ?? null;
+  const route = routeOf(ride.id, data);
   // Only the parts of the ride the forecast depends on, so a new RSVP doesn't ask again.
-  const key = [ride.id, ride.startsAt, ride.endsAt, ride.allDay, ride.location, ride.cancelledAt, routeId, today, isDemo, attempt].join('|');
+  const key = [ride.id, ride.startsAt, ride.endsAt, ride.allDay, ride.location, ride.cancelledAt, route?.id, route?.updatedAt, today, isDemo, attempt].join('|');
 
   useEffect(() => {
     let alive = true;
     rideForecast(ride, data, today, isDemo ? demoSource : liveSource)
       .then((result) => alive && setAnswer({ key, result }))
-      .catch((e: Error) => alive && setAnswer({ key, result: { kind: 'failed', message: e.message || NOT_ANSWERING } }));
+      .catch(() => alive && setAnswer({ key, result: { kind: 'failed', message: NOT_ANSWERING } }));
     return () => {
       alive = false;
     };
@@ -108,9 +108,9 @@ function Forecast({ state }: { state: Extract<RideForecast, { kind: 'ready' }> }
 
       {rows.length > 1 ? (
         <View style={styles.rows}>
-          {rows.map((r) => (
+          {rows.map((r, i) => (
             <View
-              key={r.label}
+              key={i}
               style={styles.row}
               accessible
               accessibilityLabel={`${r.label}: ${r.summary.sky}, ${temps(r.summary)}, ${r.summary.rain}% chance of rain, gusts to ${r.summary.gust} km/h`}
@@ -136,7 +136,8 @@ function Forecast({ state }: { state: Extract<RideForecast, { kind: 'ready' }> }
           <Pressable
             accessibilityRole="link"
             accessibilityLabel="Forecast by Open-Meteo, open their site"
-            hitSlop={{ top: 12, bottom: 12, left: 4, right: 12 }}
+            hitSlop={{ left: 4, right: 12 }}
+            style={styles.creditLink}
             onPress={() => Linking.openURL(OPEN_METEO).catch(() => {})}
           >
             <Small style={styles.credit}>Open-Meteo</Small>
@@ -178,5 +179,6 @@ const styles = StyleSheet.create({
   rows: { borderTopWidth: 1, borderTopColor: colors.line },
   row: { gap: 2, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: colors.line },
   rowTemp: { fontFamily: fonts.stencil, fontSize: 16, letterSpacing: 0.4, color: colors.bone, minWidth: 64, textAlign: 'right' },
+  creditLink: { minHeight: 44, justifyContent: 'center' },
   credit: { color: colors.boneDim, textDecorationLine: 'underline' },
 });
