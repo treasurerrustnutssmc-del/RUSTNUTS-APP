@@ -3,7 +3,7 @@
 // checks the same rules first only so members get a clear message without a round trip.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
+import { accessLevel, appointProblem, endTermProblem, renewAuditorProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
 import { bookProblem, cancelProblem, decideProblem } from '../domain/bus';
 // Ride planning extras
@@ -95,7 +95,6 @@ import * as conduct from '../domain/conduct';
 import * as merch from '../domain/merch';
 import * as national from '../domain/national';
 import * as audit from '../domain/audit'; // National Auditor
-import { renewAuditorProblem } from '../domain/access';
 
 const clubCache = createClubCache(AsyncStorage);
 

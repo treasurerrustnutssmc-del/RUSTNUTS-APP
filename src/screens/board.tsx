@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { appointProblem, appointWarnings, endTermProblem, hasCarriedReinstateVote, pendingFor, statusChangeProblem } from '../domain/access';
+import {
+  appointProblem, appointWarnings, auditorSeat, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, isChairman, pendingFor,
+  renewAuditorProblem, statusChangeProblem,
+} from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
 import { signoffSummary } from '../domain/roadRules';
 import { melbourneDate } from '../domain/rides';
-import { nineMonthsAfter, patchVoteFor, patchVoteTooEarly, REINSTATABLE, reinstateVoteFor } from '../domain/votes';
+import { auditorVoteFor, nineMonthsAfter, patchVoteFor, patchVoteTooEarly, REINSTATABLE, reinstateVoteFor } from '../domain/votes';
 import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole, Votes } from '../domain/types';
@@ -20,6 +23,7 @@ import { termEndsOn, termState } from '../domain/terms';
 import { BoardFees } from './fees';
 import { TreasuryRow } from './treasury';
 import { BoardAdminCard } from './adminRows'; // Stage 5D
+import { BoardAuditRow } from './audit'; // National Auditor
 import { DocumentsBoardRow } from './documents'; // Stage 5C
 import { seesAnyLedger } from '../domain/ledger';
 import { IntroProgressCard, VotesFields } from './fng';
@@ -197,6 +201,8 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
 
       {/* Stage 5D: conduct records, merch, national */}
       <BoardAdminCard />
+      {/* The National Auditor's requests and reports */}
+      <BoardAuditRow />
 
       <SectionTitle title="Waiting for approval" action={<Small>{pending.length}</Small>} />
       {pending.length === 0 ? (
@@ -281,7 +287,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
 // ---------------------------------------------------------------------------
 
 export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMember'>) {
-  const { me, data, today, setMemberStatus, appoint, endPosition } = useClub();
+  const { me, data, today, setMemberStatus, appoint, endPosition, renewAuditor } = useClub();
   const member = data.members.find((m) => m.id === route.params.memberId);
   const [status, setStatus] = useState<MemberStatus | null>(member?.status ?? null);
   const [role, setRole] = useState<PositionRole | null>(null);
@@ -313,6 +319,18 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const reinstateOpen = reinstateVote !== null && reinstateVote.closedAt === null;
   const necSaidYes = hasCarriedReinstateVote(member.id, data, today);
   const canStartReinstateVote = reinstatable && !reinstateOpen && !necSaidYes && runsScope(me, null, data.positions);
+  // The National Auditor: a two-thirds NEC vote first, then the Chairman appoints or renews (11.8).
+  const seat = auditorSeat(data);
+  const sitting = seat?.memberId === member.id;
+  const auditorVote = member.status === 'full' ? auditorVoteFor(member.id, data.votes ?? []) : null;
+  const auditorVoteOpen = auditorVote !== null && auditorVote.closedAt === null;
+  const auditorYes = hasCarriedAuditorVote(member.id, data, today);
+  const apart = positions.some((p) => p.endedOn === null && (p.role === 'president' || p.role === 'treasurer'));
+  const seatFree = !seat || (sitting && termState(seat, today) !== 'running');
+  const canStartAuditorVote =
+    member.status === 'full' && member.approval === 'approved' && !apart && seatFree && !auditorVoteOpen && !auditorYes &&
+    runsScope(me, null, data.positions);
+  const canRenew = sitting && renewAuditorProblem(me, data, today) === null;
 
   const run = async (fn: () => Promise<void>, ok: string) => {
     try {
@@ -431,6 +449,39 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
             ) : null}
           </View>
         ))}
+        {/* The National Auditor (11.8) */}
+        {sitting && termState(seat!, today) !== 'running' && isChairman(me.id, data.positions) ? (
+          <Small>
+            {auditorYes
+              ? 'The NEC voted to keep them on, so you can renew them for another twelve months.'
+              : 'Their twelve months are up or nearly up. Renewing needs a fresh two-thirds NEC vote (11.8).'}
+          </Small>
+        ) : !seat && auditorYes ? (
+          <Small>The NEC voted by two-thirds to appoint them National Auditor (11.8).</Small>
+        ) : null}
+        {auditorVote ? (
+          <Button
+            label={auditorVoteOpen ? 'See the Auditor vote' : 'See the Auditor vote result'}
+            kind="secondary"
+            onPress={() => navigation.navigate('Vote', { voteId: auditorVote.id })}
+          />
+        ) : null}
+        {canStartAuditorVote ? (
+          <Button
+            label={sitting ? 'Start NEC vote to renew as Auditor' : 'Start NEC vote for National Auditor'}
+            kind="secondary"
+            onPress={() => navigation.navigate('NewVote', { subjectMemberId: member.id })}
+          />
+        ) : null}
+        {canRenew ? (
+          <ConfirmButton
+            label="Renew as National Auditor"
+            confirmLabel="Renew for twelve months"
+            kind="secondary"
+            confirmNote="Their current term ends today and a new twelve-month term starts today."
+            onConfirm={() => run(() => renewAuditor(), `${displayName(member)} is National Auditor for another twelve months.`)}
+          />
+        ) : null}
         {roleOptions.length > 0 ? (
           <>
             <Label>Appoint to</Label>

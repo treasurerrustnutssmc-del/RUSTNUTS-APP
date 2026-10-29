@@ -834,6 +834,45 @@ Object.assign(DEMO_DATA, {
 } satisfies Partial<ClubData>);
 
 // ---------------------------------------------------------------------------
+// The National Auditor (11.8): Ace, eleven months into his twelve, so his renewal is coming up. He
+// asked West about the late-banked sausage sizzle (answered) and the NEC for September's bank
+// statement (overdue), issued a first findings report and has a second one in draft.
+// ---------------------------------------------------------------------------
+
+Object.assign(DEMO_DATA, {
+  positions: [
+    ...DEMO_DATA.positions,
+    { id: 'p-18', memberId: 'm-ace', chapterId: null, role: 'nec_auditor', startedOn: ago(330), endedOn: null },
+  ],
+  auditRequests: [
+    {
+      id: 'ar-1', chapterId: 'ch-west', kind: 'correction', area: 'bank', title: 'Sausage sizzle banked late',
+      details: 'The meeting sausage sizzle came in nine days before it was banked. Please say why, and how the next one gets banked within five working days (13.1).',
+      dueOn: ago(-7), ledgerEntryId: 'le-6', raisedBy: 'm-ace', raisedAt: at(ago(12)),
+      answer: 'The float tin sat with Sparks over the long weekend. From next month the Treasurer banks it on the Monday after the meeting.',
+      answeredBy: 'm-sparks', answeredAt: at(ago(10)), closedAt: null, closedBy: null, closeNote: null,
+    },
+    {
+      id: 'ar-2', chapterId: null, kind: 'information', area: 'bank', title: 'September bank statement',
+      details: 'Please send the Club fund’s September statement so I can match it to the books.',
+      dueOn: ago(3), ledgerEntryId: null, raisedBy: 'm-ace', raisedAt: at(ago(17)),
+      answer: null, answeredBy: null, answeredAt: null, closedAt: null, closedBy: null, closeNote: null,
+    },
+  ],
+  auditReports: [
+    {
+      id: 'rep-1', title: 'First review of the books', fromOn: ago(120), toOn: ago(60),
+      findings: 'Every payment had two approvals and none was approved by its payee. Two months’ reports were presented on time. One deposit was banked late.',
+      recommendations: 'Bank meeting takings on the Monday after the meeting.', writtenBy: 'm-ace', savedAt: at(ago(55)), issuedAt: at(ago(55)),
+    },
+    {
+      id: 'rep-2', title: 'Membership and attendance review', fromOn: ago(60), toOn: ago(1),
+      findings: 'Draft. Checking FNG trial dates against the check-ins.', recommendations: null, writtenBy: 'm-ace', savedAt: at(ago(1)), issuedAt: null,
+    },
+  ],
+} satisfies Partial<ClubData>);
+
+// ---------------------------------------------------------------------------
 // Stage 5C: the document library. Constitution v4 is the real text, waiting for its adoption to
 // be recorded (its own control table says the publication date isn't the commencement date). The
 // rest are made-up samples, dated from today: West's bylaws are in force at v2 (no fresh sign-off,

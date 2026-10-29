@@ -1,7 +1,7 @@
 // Fees by club year (AGM to AGM, see clubYear.ts), charges, PayID claims and receipts. Money is whole
 // cents. The database's fee actions apply the same rules with the same words.
 
-import { activePositions, holdsBoardSeat, isBoardOf, reviewsChapter } from './access';
+import { activePositions, holdsBoardSeat, reviewsChapter } from './access';
 import { daysBetween } from './dates';
 import type { Charge, ClubData, Member, MemberStatus, Payment, PaymentMethod, Position } from './types';
 

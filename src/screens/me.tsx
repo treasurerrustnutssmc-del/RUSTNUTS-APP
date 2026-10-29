@@ -18,6 +18,7 @@ import { colors, space, type } from '../theme';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import { seesReports } from '../domain/ledger'; // Stage 5B
 import { MeAdminSection } from './adminRows'; // Stage 5D
+import { MeAuditSection } from './audit'; // National Auditor
 import { asksToSign, currentRoadRules, myRoadRulesLine, needsSigning, roadRulesStatus } from '../domain/roadRules'; // Road Rules
 import { MAX_RANGE, MIN_RANGE, RANGE_LIMITS } from '../domain/fuel'; // Ride planning extras
 import { readRange } from './ridePlanning'; // Ride planning extras
@@ -200,6 +201,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       </Card>
       {/* Stage 5D: merch and your conduct records */}
       <MeAdminSection />
+      {/* The National Auditor */}
+      <MeAuditSection />
       {/* Lane E: notifications */}
       <NotificationSettings />
       {/* Stage 7: social extras */}
