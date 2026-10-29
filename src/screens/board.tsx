@@ -332,14 +332,15 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
     member.status === 'full' && member.approval === 'approved' && !apart && seatFree && !auditorVoteOpen && !auditorYes &&
     runsScope(me, null, data.positions);
   const canRenew = sitting && renewAuditorProblem(me, data, today) === null;
-  // The National Secretary: a two-thirds NEC vote first, then the Chairman appoints (11.6).
+  // The National Secretary: a two-thirds NEC vote first, then the Chairman appoints (11.6). The vote
+  // can open while a Secretary sits (their successor's); only the appointment needs the seat free.
   const secretarySeat = data.positions.find((p) => p.role === 'nec_secretary' && p.endedOn === null) ?? null;
   const secretaryVote = member.status === 'full' ? seatVoteFor(member.id, data.votes ?? [], 'nec_secretary') : null;
   const secretaryVoteOpen = secretaryVote !== null && secretaryVote.closedAt === null;
   const secretaryYes = hasCarriedSeatVote(member.id, 'nec_secretary', data, today);
   const onNec = positions.some((p) => p.endedOn === null && (p.role === 'nec_chair' || p.role === 'nec_secretary' || p.role === 'nec_auditor'));
   const canStartSecretaryVote =
-    member.status === 'full' && member.approval === 'approved' && !onNec && !secretarySeat && !secretaryVoteOpen && !secretaryYes &&
+    member.status === 'full' && member.approval === 'approved' && !onNec && !secretaryVoteOpen && !secretaryYes &&
     runsScope(me, null, data.positions);
 
   const run = async (fn: () => Promise<void>, ok: string) => {

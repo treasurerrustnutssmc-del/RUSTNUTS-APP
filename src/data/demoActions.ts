@@ -14,10 +14,10 @@ import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, sign
 import { rsvpProblem } from '../domain/rides';
 import type { Casting } from '../domain/votes';
 import { APPROVE_AS, NATIONAL_ROLES } from '../domain/labels';
-import type { // Ride planning extras
-  CrewRole, // Ride planning extras
-  PlanStop, // Ride planning extras
-  RideCallState, BallotChoice, BusBooking, BusPurpose, ClubData, Electorate, HubStaying, MeetingKind, Member, MemberStatus, NecSeatRole, PositionRole, Route, RsvpAnswer, Threshold } from '../domain/types';
+import type {
+  BallotChoice, BusBooking, BusPurpose, ClubData, CrewRole, Electorate, HubStaying, MeetingKind, Member, MemberStatus, NecSeatRole,
+  PlanStop, PositionRole, RideCallState, Route, RsvpAnswer, Threshold,
+} from '../domain/types';
 import * as business from './businessActions';
 import * as planning from './planningActions'; // Ride planning extras
 import * as charity from './charityActions'; // Charity ride sign-ups

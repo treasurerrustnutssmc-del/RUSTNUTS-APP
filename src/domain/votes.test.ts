@@ -223,6 +223,19 @@ test('a national vote needs voters from 51% of the chapters (10.6)', () => {
   assert.equal(lacksChapters(closed, d.members), true);
   assert.equal(lacksChapters({ ...closed, tally: { yes: 2, no: 0, abstain: 0 } }, d.members), false, 'too few ballots is the plain reason');
   assert.equal(lacksChapters({ ...closed, electorate: 'chapter_patched' }, d.members), false);
+  // Three chapters: 51% means two of them.
+  const south = { id: 'ch-south', slug: 'south', name: 'South', area: 'Southern Melbourne', state: 'VIC' };
+  const d3 = { ...d, chapters: [...d.chapters, south], members: [...d.members, { ...m('m-jet'), id: 'm-sunny', chapterId: 'ch-south', fullName: 'Sunny Day', roadName: 'Sunny' }] };
+  const three = (votedIds: string[]) =>
+    vote({ id: 'v-nat3', chapterId: null, electorate: 'club_patched', quorum: 4, electorIds: electorsFor('club_patched', null, d3), votedIds });
+  assert.equal(chaptersRepresented(three(west.slice(0, 4)), d3.members), false, 'one chapter of three');
+  assert.equal(chaptersRepresented(three([...west.slice(0, 3), 'm-jet']), d3.members), true, 'two of three is 51%, rounded up');
+  assert.equal(chaptersRepresented(three([...west.slice(0, 3), 'm-sunny']), d3.members), true, 'whichever two');
+  assert.deepEqual(outcome(three(west.slice(0, 4)), fourWest, null, d3.members), { result: 'no_quorum', tied: false });
+  // An NEC vote is exempt: 10.6 is about the club's Voting Members, and the NEC has its own quorum (11.5).
+  const nec = vote({ id: 'v-nec', chapterId: null, electorate: 'nec', quorum: 1, electorIds: ['m-smokey'], votedIds: ['m-smokey'] });
+  assert.equal(chaptersRepresented(nec, d.members), true);
+  assert.deepEqual(outcome(nec, { yes: 1, no: 0, abstain: 0 }, null, d.members), { result: 'carried', tied: false }, 'an NEC vote is its own business');
 });
 
 test('no casting vote on a vote about a member: a tie is lost (10.7)', () => {

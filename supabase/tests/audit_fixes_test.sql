@@ -152,6 +152,29 @@ begin
   update votes set closes_at = now() - interval '1 minute' where id = v;
   assert pg_temp.try_as(pg_temp.f(2), format('select public.close_vote(%L, null)', v)) is null, 'closes';
   assert (select result from votes where id = v) = 'carried', 'a chapter vote is its own business';
+
+  -- Three chapters: 51% means two of them. South gets one Full Member (a1) and stays for the rest
+  -- of the file; it has no President, so the NEC is unchanged.
+  insert into chapters (id, slug, name, area) values ('00000000-0000-0000-0000-00000000c0de', 'south', 'South', 'Southern Melbourne');
+  insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000a1', 'a1@example.com', now());
+  insert into members (id, chapter_id, full_name, status, approval)
+  values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-00000000c0de', 'Sunny South', 'full', 'approved');
+  v := pg_temp.value_as(pg_temp.f(1), open_it)::uuid;
+  perform pg_temp.try_as(pg_temp.f(2), format(cast_it, v));
+  perform pg_temp.try_as(pg_temp.f(4), format(cast_it, v));
+  perform pg_temp.try_as(pg_temp.f(5), format(cast_it, v));
+  perform pg_temp.try_as(pg_temp.f(7), format(cast_it, v));
+  update votes set closes_at = now() - interval '1 minute' where id = v;
+  assert pg_temp.try_as(pg_temp.f(1), format('select public.close_vote(%L, null)', v)) is null, 'closes';
+  assert (select result from votes where id = v) = 'no_quorum', 'one chapter of three';
+  v := pg_temp.value_as(pg_temp.f(1), open_it)::uuid;
+  perform pg_temp.try_as(pg_temp.f(2), format(cast_it, v));
+  perform pg_temp.try_as(pg_temp.f(4), format(cast_it, v));
+  perform pg_temp.try_as(pg_temp.f(5), format(cast_it, v));
+  perform pg_temp.try_as(pg_temp.f(6), format(cast_it, v));
+  update votes set closes_at = now() - interval '1 minute' where id = v;
+  assert pg_temp.try_as(pg_temp.f(1), format('select public.close_vote(%L, null)', v)) is null, 'closes';
+  assert (select result from votes where id = v) = 'carried', 'two chapters of three is 51%, rounded up';
 end $$;
 
 \echo 'No casting vote on a vote about a member: a tie is lost (10.7)'

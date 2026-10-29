@@ -782,7 +782,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
           {vote.castingVote ? (
             <Small>{`Tied, so the chair gave the casting vote: ${BALLOT_LABEL[vote.castingVote]}.`}</Small>
           ) : vote.result === 'lost' && vote.threshold === 'majority' && vote.tally && vote.tally.yes > 0 && vote.tally.yes === vote.tally.no ? (
-            <Small>Tied with no casting vote, so it’s lost (9.10).</Small>
+            <Small>{vote.subjectMemberId ? 'Tied, and there’s no casting vote on a vote about a member, so it’s lost (10.7).' : 'Tied with no casting vote, so it’s lost (9.10).'}</Small>
           ) : null}
           {vote.result === 'no_quorum' ? (
             <Small>
@@ -954,10 +954,10 @@ const QUORUM_RULE: Record<Electorate, string> = {
   nec: '51%, rounded up (11.5)',
 };
 
-/** A week from today, at 7 pm Melbourne time. */
 /** What the chip on a vote for a national seat says. */
 const SEAT_VOTE_LABEL: Record<NecSeatRole, string> = { nec_auditor: 'Auditor vote', nec_secretary: 'Secretary vote' };
 
+/** A week from today, at 7 pm Melbourne time. */
 function defaultClose(): { date: string; time: string } {
   const week = new Date(Date.now() + 7 * 86_400_000).toISOString();
   return { date: formatAuDate(melbourneDate(week)), time: '19:00' };
