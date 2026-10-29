@@ -369,6 +369,13 @@ export function mediaSummary(count: number, voice: boolean): string {
   return count > 1 ? `${count} photos` : 'Photo';
 }
 
+/** Authors the member list doesn't have yet: someone who joined after the club was loaded (or a
+ *  removed member). The chat reloads the club once for these before calling anyone "Former member". */
+export function unknownAuthors(messages: Pick<Message, 'authorId'>[], members: Pick<Member, 'id'>[]): string[] {
+  const known = new Set(members.map((m) => m.id));
+  return [...new Set(messages.map((m) => m.authorId))].filter((id) => !known.has(id));
+}
+
 /** What a chat is called in the list and its header. */
 export function chatTitle(conv: Conversation, me: Member | null, data: ClubData, ride?: Ride | null): string {
   switch (conv.kind) {

@@ -19,6 +19,7 @@ import {
   MAX_MEDIA,
   mediaSummary,
   removeProblem,
+  unknownAuthors,
   type Message,
 } from '../domain/chat';
 import { formatAuDate } from '../domain/dates';
@@ -175,6 +176,10 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
 
 type Item = { key: string; kind: 'day'; label: string } | { key: string; kind: 'message'; message: Message; first: boolean; last: boolean };
 
+// Members the club was reloaded for once already this run, so a removed member's old messages
+// don't reload it every time.
+const reloadedFor = new Set<string>();
+
 /** Phones only: how far the keyboard covers the screen, so the composer sits on top of it. */
 function useKeyboardHeight() {
   const [height, setHeight] = useState(0);
@@ -192,7 +197,7 @@ function useKeyboardHeight() {
 
 export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const { chatId } = route.params;
-  const { me, data, today } = useClub();
+  const { me, data, today, refresh } = useClub();
   const chat = useChat();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
@@ -229,6 +234,19 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
       };
     }, [chatId]), // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // Someone who joined after the club was loaded isn't in the member list yet: reload it once
+  // rather than calling them "Former member".
+  const missingKey = useMemo(
+    () => unknownAuthors(messages, data.members).filter((id) => !reloadedFor.has(id)).join(','),
+    [messages, data.members],
+  );
+  useEffect(() => {
+    if (!missingKey) return;
+    const ids = missingKey.split(',');
+    ids.forEach((id) => reloadedFor.add(id));
+    // A failed reload (offline) can try again next time.
+    refresh().catch(() => ids.forEach((id) => reloadedFor.delete(id)));
+  }, [missingKey, refresh]);
   useLayoutEffect(() => {
     // A chat opened from a ride, photo or report may not be in the list, so its name is worked out here.
     const title = summary?.title ?? (conv && me ? chatTitle(conv, me, data, data.rides.find((r) => r.id === conv.rideId) ?? null) : 'Chat');
