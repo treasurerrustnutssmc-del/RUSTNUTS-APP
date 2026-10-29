@@ -13,6 +13,7 @@ import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
 import type { MeetingReportInput } from '../domain/meetingReport';
 import type { ApprovalInput, DocumentInput, VersionInput } from '../domain/documents'; // Stage 5C
 import type {
+  Big4Ground, NoticeOutcome, // Big 4 RSVP rules and the 5.5 notice
   BallotChoice,
   Bike,
   BikeRegistration,
@@ -37,7 +38,6 @@ import type {
 // Stage 4
 import type { OpenCheckinInput } from '../domain/attendance';
 import type { NoticeInput } from '../domain/notices';
-import type { Big4Ground, NoticeOutcome } from '../domain/types';
 import type { FngOutcome } from '../domain/joining';
 // Stage 5D: board and admin
 import type { ConductInput } from '../domain/conduct';

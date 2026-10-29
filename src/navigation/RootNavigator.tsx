@@ -41,6 +41,7 @@ import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen
 import { CheckInScreen, OpenMeetingScreen, RunCheckinScreen } from '../screens/checkin';
 import { ChapterFeesScreen, MemberFeesScreen } from '../screens/fees';
 import { AttendanceScreen } from '../screens/attendance';
+import { GiveNoticeScreen, StatusNoticeScreen } from '../screens/notices'; // Big 4 RSVP rules and the 5.5 notice
 import { MembershipCardScreen } from '../screens/card';
 import { FngReviewScreen } from '../screens/fng';
 // Stage 7: social extras
@@ -250,6 +251,9 @@ export function RootNavigator() {
             {/* Attendance rules, Big 4 rides and the membership card */}
             <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ title: 'Attendance' }} />
             <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
+            {/* Big 4 RSVP rules and the 5.5 notice */}
+            <Stack.Screen name="GiveNotice" component={GiveNoticeScreen} options={{ title: 'Give notice' }} />
+            <Stack.Screen name="StatusNotice" component={StatusNoticeScreen} options={{ title: 'Notice' }} getId={({ params }) => params.noticeId} />
             {/* Stage 3 (lane B): chats and photos */}
             {/* One screen per chat (and per ride below), so opening another one from a notification never
                 reuses the one on screen with its half-typed message. */}
