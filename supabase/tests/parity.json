@@ -10188,6 +10188,252 @@
       "allowed": false
     },
     {
+      "name": "A board member makes a West ride a charity ride",
+      "as": "torque",
+      "action": "saveCharity",
+      "allowed": true,
+      "ride": "future-west",
+      "cause": " Ride for Kids ",
+      "about": "",
+      "closesOn": null,
+      "places": null,
+      "jobs": [
+        " BBQ ",
+        ""
+      ]
+    },
+    {
+      "name": "A member without a seat can't run charity sign-ups",
+      "as": "spanner",
+      "action": "saveCharity",
+      "allowed": false,
+      "ride": "future-club",
+      "cause": "Ride for Kids",
+      "about": "",
+      "closesOn": null,
+      "places": null,
+      "jobs": []
+    },
+    {
+      "name": "A charity ride says who it's raising money for",
+      "as": "torque",
+      "action": "saveCharity",
+      "allowed": false,
+      "ride": "future-west",
+      "cause": "  ",
+      "about": "",
+      "closesOn": null,
+      "places": null,
+      "jobs": []
+    },
+    {
+      "name": "A charity ride's about has a limit",
+      "as": "torque",
+      "action": "saveCharity",
+      "allowed": false,
+      "ride": "future-west",
+      "cause": "Ride for Kids",
+      "about": "x",
+      "closesOn": null,
+      "places": null,
+      "jobs": [],
+      "repeat": 1001
+    },
+    {
+      "name": "A charity ride takes up to 8 helper jobs",
+      "as": "torque",
+      "action": "saveCharity",
+      "allowed": false,
+      "ride": "future-west",
+      "cause": "Ride for Kids",
+      "about": "",
+      "closesOn": null,
+      "places": null,
+      "jobs": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i"
+      ]
+    },
+    {
+      "name": "A charity ride lists each job once",
+      "as": "torque",
+      "action": "saveCharity",
+      "allowed": false,
+      "ride": "future-west",
+      "cause": "Ride for Kids",
+      "about": "",
+      "closesOn": null,
+      "places": null,
+      "jobs": [
+        "BBQ",
+        " bbq "
+      ]
+    },
+    {
+      "name": "A job someone's helping with stays on the list",
+      "as": "torque",
+      "action": "saveCharity",
+      "allowed": false,
+      "ride": "future-club",
+      "cause": "Ride for Kids",
+      "about": "",
+      "closesOn": null,
+      "places": 4,
+      "jobs": [
+        "Marshal"
+      ]
+    },
+    {
+      "name": "A cancelled ride can't take charity sign-ups",
+      "as": "chair",
+      "action": "saveCharity",
+      "allowed": false,
+      "ride": "cancelled-north",
+      "cause": "Ride for Kids",
+      "about": "",
+      "closesOn": null,
+      "places": null,
+      "jobs": []
+    },
+    {
+      "name": "Charity sign-ups can't change after the ride day",
+      "as": "chair",
+      "action": "saveCharity",
+      "allowed": false,
+      "ride": "past-club",
+      "cause": "Ride for Kids",
+      "about": "",
+      "closesOn": null,
+      "places": null,
+      "jobs": []
+    },
+    {
+      "name": "A member signs up to ride a charity ride",
+      "as": "spanner",
+      "action": "signUpCharity",
+      "allowed": true,
+      "ride": "future-club",
+      "riding": true,
+      "pillion": false,
+      "guests": 0,
+      "guestNames": "",
+      "job": null,
+      "notes": ""
+    },
+    {
+      "name": "A charity ride's places count pillions and guests",
+      "as": "spanner",
+      "action": "signUpCharity",
+      "allowed": false,
+      "ride": "future-club",
+      "riding": true,
+      "pillion": true,
+      "guests": 1,
+      "guestNames": "",
+      "job": null,
+      "notes": ""
+    },
+    {
+      "name": "A helper bringing nobody fits a charity ride",
+      "as": "spanner",
+      "action": "signUpCharity",
+      "allowed": true,
+      "ride": "future-club",
+      "riding": false,
+      "pillion": false,
+      "guests": 0,
+      "guestNames": "",
+      "job": "Marshal",
+      "notes": ""
+    },
+    {
+      "name": "A charity sign-up rides or helps",
+      "as": "spanner",
+      "action": "signUpCharity",
+      "allowed": false,
+      "ride": "future-club",
+      "riding": false,
+      "pillion": false,
+      "guests": 0,
+      "guestNames": "",
+      "job": null,
+      "notes": ""
+    },
+    {
+      "name": "A charity helper picks a job from the list",
+      "as": "spanner",
+      "action": "signUpCharity",
+      "allowed": false,
+      "ride": "future-club",
+      "riding": true,
+      "pillion": false,
+      "guests": 0,
+      "guestNames": "",
+      "job": "Buckets",
+      "notes": ""
+    },
+    {
+      "name": "A charity sign-up's notes have a limit",
+      "as": "spanner",
+      "action": "signUpCharity",
+      "allowed": false,
+      "ride": "future-club",
+      "riding": true,
+      "pillion": false,
+      "guests": 0,
+      "guestNames": "",
+      "job": null,
+      "notes": "x",
+      "repeat": 201
+    },
+    {
+      "name": "A ride with no sign-ups takes none",
+      "as": "spanner",
+      "action": "signUpCharity",
+      "allowed": false,
+      "ride": "future-west",
+      "riding": true,
+      "pillion": false,
+      "guests": 0,
+      "guestNames": "",
+      "job": null,
+      "notes": ""
+    },
+    {
+      "name": "An applicant can't sign up to a charity ride",
+      "as": "dylan",
+      "action": "signUpCharity",
+      "allowed": false,
+      "ride": "future-club",
+      "riding": true,
+      "pillion": false,
+      "guests": 0,
+      "guestNames": "",
+      "job": null,
+      "notes": ""
+    },
+    {
+      "name": "A charity helper withdraws",
+      "as": "gravel",
+      "action": "withdrawCharity",
+      "allowed": true,
+      "ride": "future-club"
+    },
+    {
+      "name": "Withdrawing needs a sign-up",
+      "as": "spanner",
+      "action": "withdrawCharity",
+      "allowed": false,
+      "ride": "future-club"
+    },
+    {
       "name": "A North member with no North meetings says Going on a Big 4",
       "as": "jet",
       "action": "rsvp",
@@ -12543,6 +12789,35 @@
       }
     ]
   },
+  "charityRides": [
+    {
+      "ride": "future-club",
+      "cause": "Royal Children's Hospital",
+      "places": 4,
+      "jobs": [
+        "BBQ",
+        "Marshal"
+      ]
+    }
+  ],
+  "charitySignups": [
+    {
+      "ride": "future-club",
+      "member": "rusty",
+      "riding": true,
+      "pillion": true,
+      "guests": 0,
+      "job": null
+    },
+    {
+      "ride": "future-club",
+      "member": "gravel",
+      "riding": false,
+      "pillion": false,
+      "guests": 0,
+      "job": "BBQ"
+    }
+  ],
   "big4Rsvp": {
     "about": "Big 4 RSVP rules and the 5.5 notice. Notice dates are days from today.",
     "big4Rides": [

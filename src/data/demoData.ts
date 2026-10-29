@@ -464,6 +464,21 @@ export const DEMO_DATA: ClubData = {
     { rideId: 'r-4', memberId: 'm-crank', staying: 'group', pillion: true, shareWith: 'Smokey', notes: '', registeredAt: '2026-10-22T12:40:00.000Z', withdrawnAt: null },
   ],
   crewSwaps: [],
+  // Charity ride sign-ups: Ride for Kids, with riders, a guest and helpers. Spanner isn't in yet.
+  charityRides: [
+    {
+      rideId: 'r-6', cause: 'Royal Children’s Hospital Good Friday Appeal',
+      about: 'Gold coin at the gate, BBQ after. The Rusty Bus carries the toys and anyone’s bike that gives up.',
+      closesOn: null, places: 60, jobs: ['BBQ', 'Marshal', 'Collection bucket', 'Rusty Bus'], updatedBy: 'm-torque', updatedAt: '2026-10-20T08:00:00.000Z',
+    },
+  ],
+  charitySignups: [
+    { rideId: 'r-6', memberId: 'm-diesel', riding: true, pillion: true, guests: 1, guestNames: 'Mate from work', job: null, notes: '', signedAt: '2026-10-20T09:00:00.000Z', withdrawnAt: null },
+    { rideId: 'r-6', memberId: 'm-chook', riding: true, pillion: false, guests: 0, guestNames: '', job: 'Marshal', notes: '', signedAt: '2026-10-20T10:00:00.000Z', withdrawnAt: null },
+    { rideId: 'r-6', memberId: 'm-sparks', riding: false, pillion: false, guests: 0, guestNames: '', job: 'Rusty Bus', notes: 'Driving the bus', signedAt: '2026-10-21T07:30:00.000Z', withdrawnAt: null },
+    { rideId: 'r-6', memberId: 'm-jet', riding: false, pillion: false, guests: 0, guestNames: '', job: 'BBQ', notes: '', signedAt: '2026-10-21T08:00:00.000Z', withdrawnAt: null },
+    { rideId: 'r-6', memberId: 'm-patches', riding: true, pillion: false, guests: 2, guestNames: 'Kids, on the back of their mum’s', job: null, notes: '', signedAt: '2026-10-22T06:00:00.000Z', withdrawnAt: null },
+  ],
 };
 
 /** The people you can "view as" in the demo, one per access level. */

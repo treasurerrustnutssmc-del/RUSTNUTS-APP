@@ -19,6 +19,7 @@ import { PickCrewScreen } from '../screens/pickCrew';
 import { EditRouteScreen, PickRouteScreen, RouteScreen, RoutesScreen } from '../screens/routes';
 import { BriefingScreen, EditBriefingScreen } from '../screens/briefing';
 import { AskSwapScreen, CallRideScreen, EditHubScreen, HubScreen, PlanRideScreen } from '../screens/ridePlanning';
+import { CharityScreen, EditCharityScreen } from '../screens/charity'; // Charity ride sign-ups
 import { EditRoadRulesScreen, RoadRulesScreen, RoadRulesSignoffsScreen } from '../screens/roadRules';
 import { BookBusScreen, BusBookingScreen, BusScreen } from '../screens/bus';
 // Lane E: live ride
@@ -276,6 +277,9 @@ export function RootNavigator() {
             <Stack.Screen name="CallRide" component={CallRideScreen} options={{ title: 'Ride’s off or postponed' }} />
             <Stack.Screen name="Hub" component={HubScreen} options={{ title: 'Registrations' }} />
             <Stack.Screen name="EditHub" component={EditHubScreen} options={{ title: 'Run the hub' }} />
+            {/* Charity ride sign-ups */}
+            <Stack.Screen name="Charity" component={CharityScreen} options={{ title: 'Charity ride' }} />
+            <Stack.Screen name="EditCharity" component={EditCharityScreen} options={{ title: 'Run sign-ups' }} />
             <Stack.Screen name="AskSwap" component={AskSwapScreen} options={{ title: 'Ask to swap' }} />
             {/* Road Rules sign-off */}
             <Stack.Screen name="RoadRules" component={RoadRulesScreen} options={{ title: 'Road Rules' }} />

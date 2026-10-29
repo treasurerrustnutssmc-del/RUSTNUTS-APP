@@ -34,6 +34,7 @@ import type {
 } from '../domain/types';
 import * as business from './businessActions';
 import * as planning from './planningActions'; // Ride planning extras
+import * as charity from './charityActions'; // Charity ride sign-ups
 import {
   NotAllowedError,
   validateApplicationBike,
@@ -619,7 +620,11 @@ export type DemoAction =
   | { action: 'withdrawHub'; ride: string }
   | { action: 'askSwap'; ride: string; to: string; note: string; repeat?: number }
   | { action: 'answerSwap'; swap: string; yes: boolean }
-  | { action: 'withdrawSwap'; swap: string };
+  | { action: 'withdrawSwap'; swap: string }
+  // Charity ride sign-ups. `repeat` writes the about, or the notes, out that many times, for the limits.
+  | { action: 'saveCharity'; ride: string; cause: string; about: string; closesOn: string | null; places: number | null; jobs: string[]; repeat?: number }
+  | { action: 'signUpCharity'; ride: string; riding: boolean; pillion: boolean; guests: number; guestNames: string; job: string | null; notes: string; repeat?: number }
+  | { action: 'withdrawCharity'; ride: string };
 
 export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
   switch (a.action) {
@@ -697,6 +702,15 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return planning.answerSwap(ctx, a.swap, a.yes);
     case 'withdrawSwap':
       return planning.withdrawSwap(ctx, a.swap);
+    // Charity ride sign-ups
+    case 'saveCharity':
+      return charity.saveCharity(ctx, a.ride, { cause: a.cause, about: a.about.repeat(a.repeat ?? 1), closesOn: a.closesOn, places: a.places, jobs: a.jobs });
+    case 'signUpCharity':
+      return charity.signUpCharity(ctx, a.ride, {
+        riding: a.riding, pillion: a.pillion, guests: a.guests, guestNames: a.guestNames, job: a.job, notes: a.notes.repeat(a.repeat ?? 1),
+      });
+    case 'withdrawCharity':
+      return charity.withdrawCharity(ctx, a.ride);
     case 'removeContact':
       return removeContact(ctx, a.contact);
     case 'saveBike':
