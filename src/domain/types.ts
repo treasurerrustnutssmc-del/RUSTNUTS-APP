@@ -248,7 +248,7 @@ export interface RosterTally {
   count: number;
 }
 
-export interface ClubData extends LedgerData, AdminData {
+export interface ClubData extends LedgerData, AdminData, AuditData {
   chapters: Chapter[];
   members: Member[];
   /** Roster places not yet claimed (live mode only). Missing means none. */
@@ -1041,4 +1041,52 @@ export interface CrewSwap {
   state: SwapState;
   askedAt: string;
   answeredAt: string | null;
+}
+
+// The National Auditor (constitution v4, 11.8) ---------------------------------------------------
+
+/** The records 11.8 names. */
+export type AuditArea = 'policy' | 'membership' | 'attendance' | 'event_funds' | 'bank' | 'transactions' | 'controls';
+
+/** "May request relevant information" or "issue written correction requests" (11.8). */
+export type AuditRequestKind = 'information' | 'correction';
+
+/** The Auditor's written request to one chapter's board, or to the NEC (chapterId null). */
+export interface AuditRequest {
+  id: string;
+  chapterId: string | null;
+  kind: AuditRequestKind;
+  area: AuditArea;
+  title: string;
+  details: string;
+  dueOn: string | null;
+  /** The line of the books it's about, if any. */
+  ledgerEntryId: string | null;
+  raisedBy: string | null;
+  raisedAt: string;
+  /** The board's (or the NEC's) written answer; it can be updated until the request is closed. */
+  answer: string | null;
+  answeredBy: string | null;
+  answeredAt: string | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  closeNote: string | null;
+}
+
+/** A findings report: a draft only the Auditor sees, then issued to the NEC and every board. */
+export interface AuditReport {
+  id: string;
+  title: string;
+  fromOn: string;
+  toOn: string;
+  findings: string;
+  recommendations: string | null;
+  writtenBy: string | null;
+  savedAt: string;
+  issuedAt: string | null;
+}
+
+export interface AuditData {
+  auditRequests?: AuditRequest[];
+  auditReports?: AuditReport[];
 }
