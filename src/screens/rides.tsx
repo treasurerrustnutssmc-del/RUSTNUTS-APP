@@ -37,6 +37,7 @@ import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import { RideCheckinCard } from './checkin'; // Stage 4
 import { Big4Card } from './attendance'; // Attendance rules and Big 4 rides
 import { isBig4 } from '../domain/big4';
+import { RideWeatherSection } from './rideWeather'; // Ride weather
 import {
   Avatar,
   Body,
@@ -457,6 +458,9 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       <LiveRideCard ride={ride} onOpen={() => navigation.navigate('LiveRide', { rideId: ride.id })} />
       {/* Lane E: share */}
       <ShareRideButton ride={ride} />
+
+      {/* Ride weather: before the answers, so riders see it before they say Going */}
+      <RideWeatherSection ride={ride} />
 
       {/* Road Rules: the nudge, when the ride isn't taking answers (the prompt above the answers covers the rest). */}
       {!mustSign && showsRoadRulesNudge(me, ride, data, today) ? (
