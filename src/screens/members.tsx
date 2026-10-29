@@ -10,6 +10,7 @@ import {
   visibleMembers,
   withHolders,
 } from '../domain/access';
+import { compassFor } from '../domain/compass';
 import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { clubCounts, positionTitles } from '../domain/home';
@@ -122,7 +123,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
               {positions.length ? ` · ${positionTitles(positions, data.chapters, me.chapterId, ROLE_LABEL).map((t) => t.text).join(', ')}` : ''}
             </Small>
           </View>
-          {hasEarnedDisc(me) ? <MemberDisc size={52} /> : null}
+          {hasEarnedDisc(me) ? <MemberDisc size={52} compass={compassFor(me, data)} /> : null}
         </Row>
       </Flannel>
 
@@ -359,7 +360,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
               ))}
             </Row>
           </View>
-          {hasEarnedDisc(member) ? <MemberDisc size={60} /> : null}
+          {hasEarnedDisc(member) ? <MemberDisc size={60} compass={compassFor(member, data)} /> : null}
         </Row>
         <Stack gap={2}>
           <KeyValue label="Chapter" value={`${chapter?.name} · ${chapter?.area}`} />
