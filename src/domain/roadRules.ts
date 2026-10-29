@@ -217,7 +217,7 @@ export function askedToSign(data: ClubData): Member[] {
   return data.members.filter(isAsked).sort(byName);
 }
 
-const isAsked = (m: Member): boolean => m.approval === 'approved' && m.status !== 'legacy';
+const isAsked = (m: Member): boolean => m.approval === 'approved' && m.status !== 'legacy' && m.status !== 'family';
 
 /**
  * The Who's signed lists for `members` (the caller picks the chapter), each in name order: Not
