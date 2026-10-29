@@ -9990,6 +9990,293 @@
       "action": "withdrawChapter",
       "proposal": "cp-open",
       "allowed": false
+    },
+    {
+      "name": "A North member with no North meetings says Going on a Big 4",
+      "as": "jet",
+      "action": "rsvp",
+      "ride": "big4-run",
+      "answer": "going",
+      "allowed": true
+    },
+    {
+      "name": "A West member who missed the last 3 meetings says Going on a Big 4",
+      "as": "spanner",
+      "action": "rsvp",
+      "ride": "big4-run",
+      "answer": "going",
+      "allowed": false
+    },
+    {
+      "name": "A West member who missed the last 3 meetings says Maybe on a Big 4",
+      "as": "spanner",
+      "action": "rsvp",
+      "ride": "big4-run",
+      "answer": "maybe",
+      "allowed": true
+    },
+    {
+      "name": "A member the board excused from 5.4 says Going on a Big 4",
+      "as": "torque",
+      "action": "rsvp",
+      "ride": "big4-run",
+      "answer": "going",
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member says Going on a Big 4",
+      "as": "hacker",
+      "action": "rsvp",
+      "ride": "big4-run",
+      "answer": "going",
+      "allowed": false
+    },
+    {
+      "name": "A Supporter says Going on a Big 4",
+      "as": "sue",
+      "action": "rsvp",
+      "ride": "big4-run",
+      "answer": "going",
+      "noRoadRules": true,
+      "allowed": false
+    },
+    {
+      "name": "A Supporter says Can't make it to a Big 4",
+      "as": "sue",
+      "action": "rsvp",
+      "ride": "big4-run",
+      "answer": "no",
+      "noRoadRules": true,
+      "allowed": true
+    },
+    {
+      "name": "A Road Captain puts someone who missed the meetings on a Big 4 crew",
+      "as": "crank",
+      "action": "crew",
+      "ride": "big4-run",
+      "member": "spanner",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "A Road Captain puts an eligible member on a Big 4 crew",
+      "as": "crank",
+      "action": "crew",
+      "ride": "big4-run",
+      "member": "jet",
+      "role": "officer",
+      "allowed": true
+    },
+    {
+      "name": "West's Secretary excuses a member from 5.4 for a Big 4",
+      "as": "torque",
+      "action": "setBig4Waiver",
+      "ride": "big4-run",
+      "member": "spanner",
+      "ground": "work",
+      "allowed": true
+    },
+    {
+      "name": "West's President clears the Secretary's 5.4 excuse",
+      "as": "rusty",
+      "action": "setBig4Waiver",
+      "ride": "big4-run",
+      "member": "torque",
+      "ground": null,
+      "allowed": true
+    },
+    {
+      "name": "West's Secretary excuses herself from 5.4",
+      "as": "torque",
+      "action": "setBig4Waiver",
+      "ride": "big4-run",
+      "member": "torque",
+      "ground": "work",
+      "allowed": false
+    },
+    {
+      "name": "North's Road Captain excuses a West member from 5.4",
+      "as": "crank",
+      "action": "setBig4Waiver",
+      "ride": "big4-run",
+      "member": "spanner",
+      "ground": "work",
+      "allowed": false
+    },
+    {
+      "name": "A 5.4 excuse on a ride that isn't a Big 4",
+      "as": "torque",
+      "action": "setBig4Waiver",
+      "ride": "future-west",
+      "member": "spanner",
+      "ground": "work",
+      "allowed": false
+    },
+    {
+      "name": "A 5.4 excuse on a ground 5.4 doesn't name",
+      "as": "torque",
+      "action": "setBig4Waiver",
+      "ride": "big4-run",
+      "member": "spanner",
+      "ground": "bored",
+      "allowed": false
+    },
+    {
+      "name": "West's Secretary gives a member a dues notice with 14 days",
+      "as": "torque",
+      "action": "giveNotice",
+      "member": "gravel",
+      "about": "dues",
+      "record": "Annual fee $360 unpaid",
+      "proposal": "Move to Supporter",
+      "respondByDays": 14,
+      "allowed": true
+    },
+    {
+      "name": "A second open attendance notice for the same member",
+      "as": "torque",
+      "action": "giveNotice",
+      "member": "gravel",
+      "about": "attendance",
+      "record": "Meetings 1 of 6",
+      "proposal": "Move to Supporter",
+      "respondByDays": 20,
+      "allowed": false
+    },
+    {
+      "name": "A notice with only 13 days to respond",
+      "as": "torque",
+      "action": "giveNotice",
+      "member": "spanner",
+      "about": "attendance",
+      "record": "Meetings 1 of 6",
+      "proposal": "Move to Supporter",
+      "respondByDays": 13,
+      "allowed": false
+    },
+    {
+      "name": "North's Road Captain gives a West member notice",
+      "as": "crank",
+      "action": "giveNotice",
+      "member": "spanner",
+      "about": "attendance",
+      "record": "Meetings 1 of 6",
+      "proposal": "Move to Supporter",
+      "respondByDays": 14,
+      "allowed": false
+    },
+    {
+      "name": "West's Secretary gives herself notice",
+      "as": "torque",
+      "action": "giveNotice",
+      "member": "torque",
+      "about": "attendance",
+      "record": "Meetings 1 of 6",
+      "proposal": "Move to Supporter",
+      "respondByDays": 14,
+      "allowed": false
+    },
+    {
+      "name": "A notice to a Legacy member",
+      "as": "torque",
+      "action": "giveNotice",
+      "member": "hacker",
+      "about": "attendance",
+      "record": "Meetings 1 of 6",
+      "proposal": "Move to Supporter",
+      "respondByDays": 14,
+      "allowed": false
+    },
+    {
+      "name": "A notice about something other than attendance or dues",
+      "as": "torque",
+      "action": "giveNotice",
+      "member": "spanner",
+      "about": "vibes",
+      "record": "Meetings 1 of 6",
+      "proposal": "Move to Supporter",
+      "respondByDays": 14,
+      "allowed": false
+    },
+    {
+      "name": "A notice with no record",
+      "as": "torque",
+      "action": "giveNotice",
+      "member": "spanner",
+      "about": "attendance",
+      "record": "  ",
+      "proposal": "Move to Supporter",
+      "respondByDays": 14,
+      "allowed": false
+    },
+    {
+      "name": "A member replies to their notice",
+      "as": "finn",
+      "action": "respondNotice",
+      "notice": "finn-new",
+      "response": "I was working away in August; I can show the roster.",
+      "allowed": true
+    },
+    {
+      "name": "Someone else replies to a member's notice",
+      "as": "gravel",
+      "action": "respondNotice",
+      "notice": "finn-new",
+      "response": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "A member replies to a closed notice",
+      "as": "rusty",
+      "action": "respondNotice",
+      "notice": "rusty-shut",
+      "response": "Hi",
+      "allowed": false
+    },
+    {
+      "name": "The board records its decision after the respond-by date",
+      "as": "torque",
+      "action": "closeNotice",
+      "notice": "gravel-old",
+      "outcome": "decided",
+      "note": "Board meeting, 4 for, 1 against",
+      "allowed": true
+    },
+    {
+      "name": "The board records a decision before the respond-by date",
+      "as": "torque",
+      "action": "closeNotice",
+      "notice": "finn-new",
+      "outcome": "decided",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "The board withdraws a notice early",
+      "as": "torque",
+      "action": "closeNotice",
+      "notice": "finn-new",
+      "outcome": "withdrawn",
+      "note": "Exemption granted",
+      "allowed": true
+    },
+    {
+      "name": "North's Road Captain withdraws a West notice",
+      "as": "crank",
+      "action": "closeNotice",
+      "notice": "finn-new",
+      "outcome": "withdrawn",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "The board closes a closed notice",
+      "as": "torque",
+      "action": "closeNotice",
+      "notice": "rusty-shut",
+      "outcome": "withdrawn",
+      "note": "",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -10107,6 +10394,13 @@
         "name": "Sally Moss",
         "status": "supporter",
         "approval": "pending"
+      },
+      {
+        "key": "sue",
+        "chapter": "west",
+        "name": "Sue Hart",
+        "status": "supporter",
+        "approval": "approved"
       }
     ],
     "positions": [
@@ -10122,6 +10416,13 @@
         "key": "club-run",
         "title": "Club run",
         "startsAt": "2030-02-01T00:00:00.000Z",
+        "category": "club",
+        "cancelled": false
+      },
+      {
+        "key": "big4-run",
+        "title": "Not Dead Yet Run",
+        "startsAt": "2030-03-01T00:00:00.000Z",
         "category": "club",
         "cancelled": false
       }
@@ -10797,7 +11098,11 @@
     }
   ],
   "rideCalls": [
-    { "ride": "future-club", "state": "off", "reason": "Weather" }
+    {
+      "ride": "future-club",
+      "state": "off",
+      "reason": "Weather"
+    }
   ],
   "rideHubs": [
     {
@@ -11360,6 +11665,48 @@
         "president": "gravel",
         "saa": "jet",
         "proposedBy": "chair"
+      }
+    ]
+  },
+  "big4Rsvp": {
+    "about": "Big 4 RSVP rules and the 5.5 notice. Notice dates are days from today.",
+    "big4Rides": [
+      {
+        "ride": "big4-run",
+        "chapter": null
+      }
+    ],
+    "waivers": [
+      {
+        "ride": "big4-run",
+        "member": "torque",
+        "ground": "family"
+      }
+    ],
+    "notices": [
+      {
+        "key": "gravel-old",
+        "member": "gravel",
+        "about": "attendance",
+        "givenDays": -20,
+        "respondByDays": -6,
+        "outcome": null
+      },
+      {
+        "key": "finn-new",
+        "member": "finn",
+        "about": "attendance",
+        "givenDays": -1,
+        "respondByDays": 13,
+        "outcome": null
+      },
+      {
+        "key": "rusty-shut",
+        "member": "rusty",
+        "about": "dues",
+        "givenDays": -30,
+        "respondByDays": -16,
+        "outcome": "withdrawn"
       }
     ]
   }

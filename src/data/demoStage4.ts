@@ -21,10 +21,10 @@ import {
 } from '../domain/fees';
 import { decideApplicationProblem, fngOutcomeStatus, fngReviewProblem, type FngOutcome } from '../domain/joining';
 import { melbourneDate } from '../domain/rides';
-import type { Charge, ClubData, MeetingType, MemberStatus, Payment, PaymentDetails, PaymentMethod, Votes } from '../domain/types';
+import type { Big4Ground, Charge, ClubData, MeetingType, MemberStatus, NoticeOutcome, Payment, PaymentDetails, PaymentMethod, Votes } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import { approve, decline, withPatchInFee, type DemoCtx } from './demoActions';
-import { designateBig4, setExemption, setMeetingType, undesignateBig4 } from './demoAttendance';
+import { closeStatusNotice, designateBig4, giveStatusNotice, respondToNotice, setBig4Waiver, setExemption, setMeetingType, undesignateBig4 } from './demoAttendance';
 
 let counter = 0;
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
@@ -309,13 +309,19 @@ export type Stage4Action =
   | { action: 'designateBig4'; ride: string; chapter: string | null }
   | { action: 'undesignateBig4'; ride: string }
   | { action: 'setMeetingType'; session: string; type: MeetingType }
-  | { action: 'setExemption'; session: string; member: string; reason: string | null };
+  | { action: 'setExemption'; session: string; member: string; reason: string | null }
+  // Big 4 RSVP rules and the 5.5 notice
+  | { action: 'setBig4Waiver'; ride: string; member: string; ground: Big4Ground | null }
+  | { action: 'giveNotice'; member: string; about: string; record: string; proposal: string; respondBy: string }
+  | { action: 'respondNotice'; notice: string; response: string }
+  | { action: 'closeNotice'; notice: string; outcome: NoticeOutcome; note: string };
 
 export const STAGE4_ACTIONS = new Set<string>([
   'openCheckin', 'checkIn', 'markAttendance', 'closeCheckin', 'decideApplication', 'fngReview', 'setFeeRate',
   'setContinuationFee', 'setPaymentDetails', 'raiseFees', 'recordAgm', 'raiseCharge', 'waiveCharge', 'claimPayment',
   'recordPayment', 'confirmPayment', 'rejectPayment',
   'designateBig4', 'undesignateBig4', 'setMeetingType', 'setExemption',
+  'setBig4Waiver', 'giveNotice', 'respondNotice', 'closeNotice',
 ]);
 
 export function runStage4Action(ctx: DemoCtx, a: Stage4Action): ClubData {
@@ -354,6 +360,14 @@ export function runStage4Action(ctx: DemoCtx, a: Stage4Action): ClubData {
       return setMeetingType(ctx, a.session, a.type);
     case 'setExemption':
       return setExemption(ctx, a.session, a.member, a.reason);
+    case 'setBig4Waiver':
+      return setBig4Waiver(ctx, a.ride, a.member, a.ground);
+    case 'giveNotice':
+      return giveStatusNotice(ctx, a.member, a).data;
+    case 'respondNotice':
+      return respondToNotice(ctx, a.notice, a.response);
+    case 'closeNotice':
+      return closeStatusNotice(ctx, a.notice, a.outcome, a.note);
     case 'claimPayment':
       return claimPayment(ctx, a.charge, a.amountCents, a.paidOn, a.method, a.reference);
     case 'recordPayment':

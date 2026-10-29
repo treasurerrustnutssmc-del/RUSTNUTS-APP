@@ -36,6 +36,8 @@ import type {
 } from '../domain/types';
 // Stage 4
 import type { OpenCheckinInput } from '../domain/attendance';
+import type { NoticeInput } from '../domain/notices';
+import type { Big4Ground, NoticeOutcome } from '../domain/types';
 import type { FngOutcome } from '../domain/joining';
 // Stage 5D: board and admin
 import type { ConductInput } from '../domain/conduct';
@@ -161,6 +163,14 @@ export interface ClubContextValue {
   undesignateBig4: (rideId: string) => Promise<void>;
   /** Excuses a member from a check-in with a reason; null or blank clears it. */
   setExemption: (sessionId: string, memberId: string, reason: string | null) => Promise<void>;
+  // Big 4 RSVP rules and the 5.5 notice
+  /** Excuses a member from 5.4 for one Big 4 on a ground; null clears it. */
+  setBig4Waiver: (rideId: string, memberId: string, ground: Big4Ground | null) => Promise<void>;
+  /** Gives a member a 5.5 notice. Resolves to its id. */
+  giveStatusNotice: (memberId: string, input: NoticeInput) => Promise<string>;
+  /** The member's reply; a new one replaces the last. */
+  respondToNotice: (noticeId: string, response: string) => Promise<void>;
+  closeStatusNotice: (noticeId: string, outcome: NoticeOutcome, note: string) => Promise<void>;
   /** Approves an applicant as `status`, or declines them (null), recording the board's tally. */
   decideApplication: (memberId: string, status: MemberStatus | null, votes: Votes, note: string) => Promise<void>;
   recordFngReview: (memberId: string, atMonths: number, outcome: FngOutcome, votes: Votes, note: string) => Promise<void>;

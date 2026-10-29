@@ -11,6 +11,7 @@ import type {
   EntryState, LedgerCode, VoteResult, // Stage 5B
   ApprovingBody, DocumentKind, // Stage 5C
   ConductKind, MerchStatus, OrderStatus, // Stage 5D
+  Big4Ground, NoticeAbout, NoticeOutcome, // Big 4 RSVP rules and the 5.5 notice
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -137,6 +138,12 @@ export interface ParityFixture {
   documentSignoffs?: { version: string; member: string }[];
   /** Stage 5D: dates are days from today; everything else was made at ADMIN_AT. */
   admin?: AdminFixture;
+  /** Big 4 RSVP rules and the 5.5 notice. Notice dates are days from today. */
+  big4Rsvp?: {
+    big4Rides: { ride: string; chapter: string | null }[];
+    waivers: { ride: string; member: string; ground: Big4Ground }[];
+    notices: { key: string; member: string; about: NoticeAbout; givenDays: number; respondByDays: number; outcome: NoticeOutcome | null }[];
+  };
 }
 
 export interface AdminFixture {
@@ -315,7 +322,26 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  return withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today));
+  return withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today)), today);
+}
+
+/** When the fixture's Big 4s, 5.4 excuses and 5.5 notices were made. */
+export const BIG4_RSVP_AT = '2026-01-01T00:00:00.000Z';
+
+// Big 4 RSVP rules and the 5.5 notice.
+function withBig4Rsvp(data: ClubData, today: string): ClubData {
+  const b = fixture.big4Rsvp;
+  if (!b) return data;
+  return {
+    ...data,
+    big4Rides: b.big4Rides.map((r) => ({ rideId: r.ride, chapterId: r.chapter, designatedBy: null, designatedAt: BIG4_RSVP_AT })),
+    big4Waivers: b.waivers.map((w) => ({ rideId: w.ride, memberId: w.member, ground: w.ground, grantedBy: null, grantedAt: BIG4_RSVP_AT })),
+    statusNotices: b.notices.map((n) => ({
+      id: n.key, memberId: n.member, chapterId: data.members.find((m) => m.id === n.member)!.chapterId, about: n.about,
+      record: n.key, proposal: n.key, givenOn: addDays(today, n.givenDays), respondBy: addDays(today, n.respondByDays), givenBy: null,
+      response: '', respondedAt: null, outcome: n.outcome, outcomeNote: '', closedOn: n.outcome ? addDays(today, n.givenDays) : null, closedBy: null,
+    })),
+  };
 }
 
 // Ride planning extras.

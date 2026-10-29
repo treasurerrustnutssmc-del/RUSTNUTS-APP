@@ -54,7 +54,8 @@ import {
 } from './liveData';
 // Stage 4
 import { canCheckIn, closeProblem, exemptionProblem, markProblem, openCheckinProblem } from '../domain/attendance';
-import { designateBig4Problem, undesignateBig4Problem } from '../domain/big4';
+import { big4GoingProblem, big4WaiverProblem, designateBig4Problem, undesignateBig4Problem } from '../domain/big4';
+import { closeNoticeProblem, giveNoticeProblem, respondProblem } from '../domain/notices';
 import {
   claimProblem,
   continuationFeeProblem,
@@ -423,7 +424,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     setRsvp: async (rideId, answer) => {
       const problem =
         rsvpProblem(visibleMe, data.rides.find((r) => r.id === rideId), new Date().toISOString()) ??
-        goingProblem(visibleMe, answer, data, today);
+        goingProblem(visibleMe, answer, data, today) ??
+        big4GoingProblem(visibleMe, rideId, answer, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('set_rsvp', { p_ride: rideId, p_answer: answer }));
       await after();
@@ -581,6 +583,32 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     setExemption: async (sessionId, memberId, reason) => {
       deny(exemptionProblem(visibleMe, sessionId, memberId, reason, data));
       ok(await supabase().rpc('set_exemption', { p_session: sessionId, p_member: memberId, p_reason: reason?.trim() || null }));
+      await after();
+    },
+    // Big 4 RSVP rules and the 5.5 notice
+    setBig4Waiver: async (rideId, memberId, ground) => {
+      deny(big4WaiverProblem(visibleMe, rideId, memberId, ground, data, new Date().toISOString()));
+      ok(await supabase().rpc('set_big4_waiver', { p_ride: rideId, p_member: memberId, p_ground: ground }));
+      await after();
+    },
+    giveStatusNotice: async (memberId, input) => {
+      deny(giveNoticeProblem(visibleMe, memberId, input, data, today));
+      const r = ok(
+        await supabase().rpc('give_status_notice', {
+          p_member: memberId, p_about: input.about, p_record: input.record.trim(), p_proposal: input.proposal.trim(), p_respond_by: input.respondBy,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    respondToNotice: async (noticeId, response) => {
+      deny(respondProblem(visibleMe, noticeId, response, data));
+      ok(await supabase().rpc('respond_to_notice', { p_notice: noticeId, p_response: response.trim() }));
+      await after();
+    },
+    closeStatusNotice: async (noticeId, outcome, note) => {
+      deny(closeNoticeProblem(visibleMe, noticeId, outcome, note, data, today));
+      ok(await supabase().rpc('close_status_notice', { p_notice: noticeId, p_outcome: outcome, p_note: note.trim() }));
       await after();
     },
     decideApplication: async (memberId, status, votes, note) => {
