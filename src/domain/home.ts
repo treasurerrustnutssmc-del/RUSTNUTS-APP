@@ -14,7 +14,8 @@ export interface PositionTitle {
 export function positionTitles(
   positions: Position[],
   chapters: Chapter[],
-  homeChapterId: string,
+  // Kept so callers don't change; a chapter seat now names its chapter even at home ("PRES (WEST)").
+  _homeChapterId: string,
   labels: Record<PositionRole, string>,
 ): PositionTitle[] {
   const chapterName = (id: string | null) => chapters.find((c) => c.id === id)?.name;

@@ -16,7 +16,7 @@ import {
   type LinkPreview,
   type MediaSource,
 } from './chatContext';
-import { sortSummaries, unknownAuthors, withoutBlocked } from './chatList';
+import { sortSummaries, withoutBlocked } from './chatList';
 import {
   goneMedia,
   mergeMessages,
@@ -68,7 +68,7 @@ function uploadError(error: { message?: string; statusCode?: string }, contentTy
 }
 
 export function LiveChatProvider({ children }: { children: React.ReactNode }) {
-  const { data: club, me, refresh: refreshClub } = useClub();
+  const { data: club, me } = useClub();
   const [rawList, setRawList] = useState<Omit<ChatSummary, 'title'>[]>([]);
   const [ready, setReady] = useState(false);
   const [pages, setPages] = useState<Record<string, Message[]>>({});
@@ -165,16 +165,6 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
       db().removeChannel(channel);
     };
   }, [meId, loadList, loadPage, markRead]);
-
-  // Someone who joined after the club list loaded would show as "Former member", so the list
-  // reloads once for each writer it doesn't know. A real former member stays unknown and isn't asked about again.
-  const askedAbout = useRef(new Set<string>());
-  useEffect(() => {
-    const unknown = unknownAuthors(pages, club.members, askedAbout.current);
-    if (!unknown.length) return;
-    for (const id of unknown) askedAbout.current.add(id);
-    refreshClub().catch(() => undefined);
-  }, [pages, club.members, refreshClub]);
 
   const list = useMemo(
     () => sortSummaries(rawList.map((s) => ({ ...s, title: chatTitle(s.conversation, me, club, s.ride) }))),

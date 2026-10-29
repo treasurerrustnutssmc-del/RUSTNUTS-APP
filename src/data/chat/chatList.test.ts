@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Message, MessageMedia } from '../../domain/chat';
 import { fixtureChat, fixtureData } from '../parityFixture.testkit';
-import { feedFrom, listFor, rideWallFrom, rideWallsFrom, sortSummaries, unknownAuthors, withoutBlocked } from './chatList';
+import { feedFrom, listFor, rideWallFrom, rideWallsFrom, sortSummaries, withoutBlocked } from './chatList';
 import type { ChatData } from './demoChatActions';
 
 const club = fixtureData();
@@ -124,14 +124,4 @@ test('ride walls: rides with photos, newest ride first, each with its newest pho
   assert.deepEqual(wall.media.map((m) => m.id), ['b-0', 'b-1', 'a-0']);
   assert.throws(() => rideWallFrom(chat, club, as('crank'), 'nope'), /No such ride\./);
   assert.throws(() => rideWallFrom(chat, club, as('dylan'), 'soon'), /Only approved members can do that\./);
-});
-
-test('authors the club list does not know yet are named once, so a new member gets loaded', () => {
-  const msg = (id: string, authorId: string) => ({ id, authorId }) as Message;
-  const pages = { a: [msg('1', 'spanner'), msg('2', 'newbie')], b: [msg('3', 'newbie'), msg('4', 'stranger')] };
-  const asked = new Set<string>();
-  assert.deepEqual(unknownAuthors(pages, club.members, asked), ['newbie', 'stranger']);
-  // Once asked about, the same people don't set off another reload (a real former member stays unknown).
-  for (const id of ['newbie', 'stranger']) asked.add(id);
-  assert.deepEqual(unknownAuthors(pages, club.members, asked), []);
 });

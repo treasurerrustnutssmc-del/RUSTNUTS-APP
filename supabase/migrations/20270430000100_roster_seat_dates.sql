@@ -1,6 +1,7 @@
 -- A seat from the club's sheet is one of the terms the constitution records as beginning
 -- 1 August 2026 (17.6), so it runs from then, not from the day its holder first signed in.
 -- (Otherwise the profile says "President since" the sign-in day and the term ends two years after it.)
+-- The roster is the one-time load of the club's sheet; anyone elected later is appointed in the app.
 create or replace function private.add_roster_position(p_member uuid, p_seat uuid, p_role public.position_role)
 returns boolean language plpgsql set search_path = '' as $$
 begin
