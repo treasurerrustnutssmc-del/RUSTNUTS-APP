@@ -71,6 +71,8 @@ export type RootParams = {
   BusCosts: undefined;
   // Lane E: live ride
   LiveRide: { rideId: string };
+  // Ride replay
+  RideReplay: { rideId: string };
   // Stage 4: members and money
   CheckIn: undefined;
   RunCheckin: { sessionId: string };

@@ -62,6 +62,7 @@ import {
 } from '../ui/primitives';
 import { ChapterChip, NavigateChooser, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
 import { RideMap } from '../ui/RideMap';
+import { canReplay } from '../domain/rideReplay'; // Ride replay
 import { OtherClubsRow, RideInvitesSection } from './invites'; // Invites to and from other clubs
 
 /** "7:30 am", "All day", or "All day, to 31/01/2027". */
@@ -561,6 +562,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         data={data}
         onOpen={(routeId) => navigation.navigate('Route', { routeId })}
         onChoose={() => navigation.navigate('PickRoute', { rideId: ride.id })}
+        onReplay={() => navigation.navigate('RideReplay', { rideId: ride.id })}
       />
 
       <BriefingSection
@@ -704,12 +706,14 @@ function RouteSection({
   data,
   onOpen,
   onChoose,
+  onReplay,
 }: {
   ride: Ride;
   me: Member;
   data: ClubData;
   onOpen: (routeId: string) => void;
   onChoose: () => void;
+  onReplay: () => void;
 }) {
   const { setRideRoute } = useClub();
   const [removing, setRemoving] = useState(false);
@@ -768,6 +772,10 @@ function RouteSection({
             ) : (
               <OpenInMapsButton route={route} kind="secondary" />
             )}
+            {/* Ride replay */}
+            {canReplay(route) ? (
+              <Button label="Ride replay" icon="film-outline" kind="secondary" accessibilityLabel="Play the ride replay and share it as a video" onPress={onReplay} />
+            ) : null}
             {canChange ? (
               <Row style={styles.crewActions}>
                 {removing ? (
