@@ -302,7 +302,6 @@ export interface ClubData extends LedgerData, AdminData, AuditData {
   feeRates?: FeeRate[];
   /** Recorded AGM dates (fees run AGM to AGM). */
   agms?: Agm[];
-  continuationFees?: ContinuationFee[];
   charges?: Charge[];
   payments?: Payment[];
   paymentDetails?: PaymentDetails[];
@@ -403,12 +402,6 @@ export interface FeeRate {
   status: MemberStatus;
   amountCents: number;
   dueOn: string;
-}
-
-export interface ContinuationFee {
-  chapterId: string;
-  fy: number;
-  amountCents: number;
 }
 
 /** Something a member owes: the member and their chapter's board only. */

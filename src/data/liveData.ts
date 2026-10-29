@@ -417,7 +417,6 @@ function stage4(m: MembersMoneyRows | null): Partial<ClubData> {
     })),
     agms: (m?.agms ?? []).map((a) => ({ year: a.year, heldOn: a.held_on })),
     feeRates: (m?.rates ?? []).map((r) => ({ chapterId: r.chapter_id, fy: r.fy, status: r.status, amountCents: r.amount_cents, dueOn: r.due_on })),
-    continuationFees: (m?.continuation ?? []).map((f) => ({ chapterId: f.chapter_id, fy: f.fy, amountCents: f.amount_cents })),
     charges: (m?.charges ?? []).map((c) => ({
       id: c.id, memberId: c.member_id, chapterId: c.chapter_id, fy: c.fy, kind: c.kind, description: c.description,
       amountCents: c.amount_cents, dueOn: c.due_on, createdAt: instant(c.created_at), waivedAt: c.waived_at ? instant(c.waived_at) : null,

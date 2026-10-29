@@ -523,7 +523,7 @@ export function ListRow({
     <>
       {left}
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        {typeof title === 'string' ? <Text numberOfLines={1} style={type.name}>{title}</Text> : title}
+        {typeof title === 'string' ? <Text numberOfLines={2} style={type.name}>{title}</Text> : title}
         {typeof subtitle === 'string' ? <Small numberOfLines={2}>{subtitle}</Small> : subtitle}
       </View>
       {right}

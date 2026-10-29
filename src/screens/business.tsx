@@ -204,7 +204,7 @@ function VoteRow({ vote, needsMe, last, onPress }: { vote: Vote; needsMe: boolea
       left={<View style={[styles.voteBadge, needsMe && styles.voteBadgeOn]}>
         <Ionicons name={closed ? 'checkmark-done' : 'hand-left'} size={18} color={colors.bone} />
       </View>}
-      title={<Text numberOfLines={2} style={type.name}>{vote.question}</Text>}
+      title={<Text numberOfLines={3} style={type.name}>{vote.question}</Text>}
       subtitle={status}
       right={
         // A vote waiting on you already wears the red badge and sits under "Your vote".

@@ -230,7 +230,7 @@ export interface Stage4Fixture {
 export const parityToday = (): string => melbourneDate(new Date().toISOString());
 
 /** Fee actions count years AGM to AGM; the treasurer's books by financial year. */
-const CLUB_YEAR_ACTIONS = new Set(['setFeeRate', 'setContinuationFee', 'raiseFees']);
+const CLUB_YEAR_ACTIONS = new Set(['setFeeRate', 'raiseFees']);
 
 /** A case with its …Days fields turned into dates and fyOffset into a year (club or financial). */
 export function resolveCase(c: ParityCase, today: string): ParityCase {
@@ -519,7 +519,6 @@ function withStage4(data: ClubData, today: string): ClubData {
     attendance: s4.attendance.map((a) => ({ sessionId: a.session, memberId: a.member, checkedInAt: '2026-01-01T00:00:00.000Z', markedBy: null })),
     decisions: [],
     feeRates: s4.rates.map((r) => ({ chapterId: r.chapter, fy: fy + r.fyOffset, status: r.status, amountCents: r.amountCents, dueOn: addDays(today, r.dueOnDays) })),
-    continuationFees: [],
     charges: s4.charges.map((c) => ({
       id: c.key, memberId: c.member, chapterId: c.chapter, fy, kind: c.kind, description: c.kind === 'other' ? 'Fixture' : null,
       amountCents: c.amountCents, dueOn: addDays(today, c.dueOnDays), createdAt: '2026-01-01T00:00:00.000Z',

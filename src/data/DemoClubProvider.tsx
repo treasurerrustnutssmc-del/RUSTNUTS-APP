@@ -137,7 +137,6 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     recordFngReview: async (memberId, atMonths, outcome, votes, note) =>
       setData(s4.recordFngReview(ctx, memberId, atMonths, outcome, votes, note)),
     setFeeRate: async (chapterId, fy, status, amountCents, dueOn) => setData(s4.setFeeRate(ctx, chapterId, fy, status, amountCents, dueOn)),
-    setContinuationFee: async (chapterId, fy, amountCents) => setData(s4.setContinuationFee(ctx, chapterId, fy, amountCents)),
     setPaymentDetails: async (details) => setData(s4.setPaymentDetails(ctx, details)),
     raiseFees: async (chapterId, fy) => {
       const result = s4.raiseFees(ctx, chapterId, fy);

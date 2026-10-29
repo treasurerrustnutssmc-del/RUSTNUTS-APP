@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { appointProblem, appointWarnings, AUDITOR_NEEDS_VOTE, statusChangeProblem } from './access';
-import { continuationFeeFor, continuationFeeProblem } from './fees';
+import { continuationFeeFor } from './fees';
 import { decideApplicationProblem, fngReviewProblem } from './joining';
 import { meetingKindLabel } from './labels';
 import { noticeWarning, saveMeetingProblem, type MeetingInput } from './meetings';
@@ -240,10 +240,6 @@ test('the continuation fee is half the Full fee for the year', () => {
   assert.equal(continuationFeeFor('west', 2026, data), 12_500, 'rounded down to the cent');
   assert.equal(continuationFeeFor('west', 2027, data), null, 'no Full fee that year, no continuation fee');
   assert.equal(continuationFeeFor('north', 2026, data), null);
-  assert.equal(
-    continuationFeeProblem(who(data, 'tre'), 'west', 5_000, data),
-    'The continuation fee is half the Full fee (4.11), so the app works it out.',
-  );
 });
 
 // --- E. Meeting kinds and notice ----------------------------------------------------------------

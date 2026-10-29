@@ -194,8 +194,6 @@ const stage4Call = (c: ParityCase & Record<string, any>): string | null => {
       return `public.record_fng_review(${id('m', c.member)}, ${c.atMonths}, ${q(c.outcome)}, ${int(v.for)}, ${int(v.against)}, ${int(v.abstained)}, ${textOrNull(c.note)})`;
     case 'setFeeRate':
       return `public.set_fee_rate(${chapter(c.chapter)}, ${c.fy}, ${q(c.status)}, ${c.amountCents}, ${date(c.dueOn)})`;
-    case 'setContinuationFee':
-      return `public.set_continuation_fee(${chapter(c.chapter)}, ${c.fy}, ${c.amountCents})`;
     case 'setPaymentDetails':
       return `public.set_payment_details(${chapter(c.chapter)}, ${textOrNull(c.payid)}, null, null, null)`;
     case 'raiseFees':

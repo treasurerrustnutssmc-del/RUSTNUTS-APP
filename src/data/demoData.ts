@@ -549,7 +549,6 @@ Object.assign(DEMO_DATA, {
     rate(c, 'full', 25000), rate(c, 'nomad', 25000), rate(c, 'fng', 15000), rate(c, 'supporter', 5000), rate(c, 'family', 5000),
   ]),
   agms: [],
-  continuationFees: [{ chapterId: 'ch-west', fy: s4Year, amountCents: 5000 }],
   charges: [
     annual('ch-1', 'm-rusty', 'ch-west', 25000),
     annual('ch-2', 'm-torque', 'ch-west', 25000),
