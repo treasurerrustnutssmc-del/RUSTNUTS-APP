@@ -311,7 +311,7 @@ export function signDocumentProblem(me: Member | null, versionId: string, data: 
 // ---------------------------------------------------------------------------
 
 const isAsked = (m: Member, doc: ClubDocument): boolean =>
-  m.approval === 'approved' && m.status !== 'legacy' && (doc.chapterId === null || m.chapterId === doc.chapterId);
+  m.approval === 'approved' && m.status !== 'legacy' && m.status !== 'family' && (doc.chapterId === null || m.chapterId === doc.chapterId);
 
 /** Who's asked to sign `doc`, in name order. Empty when it doesn't ask. */
 export function askedToSignDocument(doc: ClubDocument, data: ClubData): Member[] {

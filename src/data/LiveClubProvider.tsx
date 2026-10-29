@@ -3,7 +3,7 @@
 // checks the same rules first only so members get a clear message without a round trip.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { accessLevel, appointProblem, endTermProblem } from '../domain/access';
+import { accessLevel, appointProblem, endTermProblem, renewAuditorProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
 import { bookProblem, cancelProblem, decideProblem } from '../domain/bus';
 // Ride planning extras
@@ -54,7 +54,8 @@ import {
 } from './liveData';
 // Stage 4
 import { canCheckIn, closeProblem, exemptionProblem, markProblem, openCheckinProblem } from '../domain/attendance';
-import { designateBig4Problem, undesignateBig4Problem } from '../domain/big4';
+import { big4CrewProblem, big4GoingProblem, big4WaiverProblem, seesBig4Records, designateBig4Problem, undesignateBig4Problem } from '../domain/big4';
+import { closeNoticeProblem, giveNoticeProblem, respondProblem } from '../domain/notices';
 import {
   claimProblem,
   continuationFeeProblem,
@@ -68,6 +69,7 @@ import {
 } from '../domain/fees';
 import { decideApplicationProblem, fngReviewProblem } from '../domain/joining';
 import { agmDateProblem, recordAgmProblem } from '../domain/clubYear';
+import { forFamily } from './familyData'; // Family view
 import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
 // Lane E: offline
@@ -93,6 +95,7 @@ import { loadedBodies } from './documentsLive'; // Stage 5C
 import * as conduct from '../domain/conduct';
 import * as merch from '../domain/merch';
 import * as national from '../domain/national';
+import * as audit from '../domain/audit'; // National Auditor
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -238,6 +241,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   // giving them someone else's (or nobody's) access level.
   const visibleMe = view === 'ready' ? me : null;
   const level = accessLevel(visibleMe, data.positions);
+  // Family view: the database already trims what Family get; this keeps the app to the same.
+  const shown = useMemo(() => (level === 'family' && visibleMe ? forFamily(data, visibleMe) : data), [level, visibleMe, data]);
 
   const refresh = useCallback(() => reload(userId), [reload, userId]);
 
@@ -251,7 +256,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     mode: 'live',
     isDemo: false,
     loading: !started || view === 'loading',
-    data,
+    data: shown,
     me: visibleMe,
     level,
     today,
@@ -405,7 +410,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     appoint: async (memberId, chapterId, role) => {
       const target = data.members.find((m) => m.id === memberId);
       if (!target) throw new Error('That member no longer exists.');
-      const problem = appointProblem(visibleMe, target, chapterId, role, data);
+      const problem = appointProblem(visibleMe, target, chapterId, role, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('appoint_position', { p_member: memberId, p_chapter: chapterId, p_role: role }));
       await after();
@@ -423,7 +428,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     setRsvp: async (rideId, answer) => {
       const problem =
         rsvpProblem(visibleMe, data.rides.find((r) => r.id === rideId), new Date().toISOString()) ??
-        goingProblem(visibleMe, answer, data, today);
+        goingProblem(visibleMe, answer, data, today) ??
+        big4GoingProblem(visibleMe, rideId, answer, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('set_rsvp', { p_ride: rideId, p_answer: answer }));
       await after();
@@ -540,7 +546,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
           p_title: input.title.trim() || null,
           p_held_on: input.kind === 'meeting' ? input.heldOn : null,
           // Anything but an ordinary meeting goes to the six-argument version, which opens and
-          // classifies it in one go (4.6). Ordinary keeps the original call.
+          // classifies it in one go (5.2, 5.4). Ordinary keeps the original call.
           ...(input.kind === 'meeting' && input.meetingType && input.meetingType !== 'ordinary' ? { p_meeting_type: input.meetingType } : {}),
         }),
       );
@@ -581,6 +587,32 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     setExemption: async (sessionId, memberId, reason) => {
       deny(exemptionProblem(visibleMe, sessionId, memberId, reason, data));
       ok(await supabase().rpc('set_exemption', { p_session: sessionId, p_member: memberId, p_reason: reason?.trim() || null }));
+      await after();
+    },
+    // Big 4 RSVP rules and the 5.5 notice
+    setBig4Waiver: async (rideId, memberId, ground) => {
+      deny(big4WaiverProblem(visibleMe, rideId, memberId, ground, data, new Date().toISOString()));
+      ok(await supabase().rpc('set_big4_waiver', { p_ride: rideId, p_member: memberId, p_ground: ground }));
+      await after();
+    },
+    giveStatusNotice: async (memberId, input) => {
+      deny(giveNoticeProblem(visibleMe, memberId, input, data, today));
+      const r = ok(
+        await supabase().rpc('give_status_notice', {
+          p_member: memberId, p_about: input.about, p_record: input.record.trim(), p_proposal: input.proposal.trim(), p_respond_by: input.respondBy,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    respondToNotice: async (noticeId, response) => {
+      deny(respondProblem(visibleMe, noticeId, response, data));
+      ok(await supabase().rpc('respond_to_notice', { p_notice: noticeId, p_response: response.trim() }));
+      await after();
+    },
+    closeStatusNotice: async (noticeId, outcome, note) => {
+      deny(closeNoticeProblem(visibleMe, noticeId, outcome, note, data, today));
+      ok(await supabase().rpc('close_status_notice', { p_notice: noticeId, p_outcome: outcome, p_note: note.trim() }));
       await after();
     },
     decideApplication: async (memberId, status, votes, note) => {
@@ -684,15 +716,12 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
 
     setCrew: async (rideId, memberId, role) => {
-      const problem = crewProblem(
-        visibleMe,
-        data.rides.find((r) => r.id === rideId),
-        data.members.find((m) => m.id === memberId),
-        role,
-        data,
-        new Date().toISOString(),
-      );
-      if (problem) throw new NotAllowedError(problem);
+      const target = data.members.find((m) => m.id === memberId);
+      const problem = crewProblem(visibleMe, data.rides.find((r) => r.id === rideId), target, role, data, new Date().toISOString());
+      // A manager who isn't the target's board can't see their meetings or excuses, so the Big 4
+      // check would only guess: set_crew decides that one.
+      const big4Guess = !!target && !seesBig4Records(visibleMe, target, data.positions) && problem === big4CrewProblem(target, rideId, data, today);
+      if (problem && !big4Guess) throw new NotAllowedError(problem);
       ok(await supabase().rpc('set_crew', { p_ride: rideId, p_member: memberId, p_role: role }));
       await after();
     },
@@ -1155,6 +1184,54 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     withdrawChapter: async (id) => {
       deny(national.withdrawChapterProblem(visibleMe, id, data));
       ok(await supabase().rpc('withdraw_chapter_proposal', { p_id: id }));
+      await after();
+    },
+    // The National Auditor (11.8). Each checks the same rule first, then asks the database.
+    raiseAuditRequest: async (input) => {
+      deny(audit.raiseRequestProblem(visibleMe, input, data, today));
+      const r = ok(
+        await supabase().rpc('raise_audit_request', {
+          p_chapter: input.chapterId, p_kind: input.kind, p_area: input.area, p_title: input.title.trim(),
+          p_details: input.details.trim(), p_due: input.dueOn, p_ledger_entry: input.ledgerEntryId,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    answerAuditRequest: async (id, answer) => {
+      deny(audit.answerRequestProblem(visibleMe, id, answer, data));
+      ok(await supabase().rpc('answer_audit_request', { p_id: id, p_answer: answer.trim() }));
+      await after();
+    },
+    closeAuditRequest: async (id, note) => {
+      deny(audit.closeRequestProblem(visibleMe, id, note, data));
+      ok(await supabase().rpc('close_audit_request', { p_id: id, p_note: note.trim() }));
+      await after();
+    },
+    saveAuditReport: async (input) => {
+      deny(audit.saveReportProblem(visibleMe, input, data, today));
+      const r = ok(
+        await supabase().rpc('save_audit_report', {
+          p_id: input.id, p_title: input.title.trim(), p_from: input.fromOn, p_to: input.toOn,
+          p_findings: input.findings.trim(), p_recommendations: input.recommendations?.trim() || null,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    issueAuditReport: async (id) => {
+      deny(audit.issueReportProblem(visibleMe, id, data));
+      ok(await supabase().rpc('issue_audit_report', { p_id: id }));
+      await after();
+    },
+    deleteAuditReport: async (id) => {
+      deny(audit.deleteReportProblem(visibleMe, id, data));
+      ok(await supabase().rpc('delete_audit_report', { p_id: id }));
+      await after();
+    },
+    renewAuditor: async () => {
+      deny(renewAuditorProblem(visibleMe, data, today));
+      ok(await supabase().rpc('renew_auditor'));
       await after();
     },
     // Lane E: notifications

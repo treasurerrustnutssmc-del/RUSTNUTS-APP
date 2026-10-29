@@ -7,6 +7,9 @@ import type { BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, HistoryInput, HistoryPrecision, Honour, HonourInput } from '../../domain/social/history';
 import type { Award, AwardInput, BragKind, Nomination, NominationInput, Tally, Vote } from '../../domain/social/brag';
 import type { Ride, RideCategory, RideRoute } from '../../domain/types';
+import type {
+  AnswerInput, CalendarLabel, ClubInvite, InviteAnswer, InviteDirection, InviteInInput, InviteOutInput, OtherClub, OtherClubInput,
+} from '../../domain/invites';
 
 export interface BirthdayRow {
   member_id: string;
@@ -260,3 +263,71 @@ export async function allPages<T>(
     if ((data ?? []).length < size) return { data: rows, error: null };
   }
 }
+
+// Invites to and from other clubs ------------------------------------------------------------
+
+export interface OtherClubRow {
+  id: string;
+  name: string;
+  town: string | null;
+  contact: string | null;
+  note: string | null;
+  added_by: string | null;
+  added_at: string;
+  archived_at: string | null;
+}
+
+export const toOtherClubs = (rows: OtherClubRow[]): OtherClub[] =>
+  rows.map((r) => ({
+    id: r.id, name: r.name, town: r.town, contact: r.contact, note: r.note, addedBy: r.added_by, addedAt: r.added_at,
+    archivedAt: r.archived_at,
+  }));
+
+export interface InviteRow {
+  id: string;
+  direction: InviteDirection;
+  club_id: string;
+  chapter_id: string | null;
+  ride_id: string | null;
+  title: string | null;
+  event_on: string | null;
+  place: string | null;
+  details: string | null;
+  answer: InviteAnswer;
+  calendar_label: CalendarLabel | null;
+  bikes: number | null;
+  note: string | null;
+  added_by: string | null;
+  added_at: string;
+  answered_by: string | null;
+  answered_at: string | null;
+  archived_at: string | null;
+}
+
+export const INVITE_COLUMNS =
+  'id, direction, club_id, chapter_id, ride_id, title, event_on, place, details, answer, calendar_label, bikes, note, ' +
+  'added_by, added_at, answered_by, answered_at, archived_at';
+
+export const toInvites = (rows: InviteRow[]): ClubInvite[] =>
+  rows.map((r) => ({
+    id: r.id, direction: r.direction, clubId: r.club_id, chapterId: r.chapter_id, rideId: r.ride_id, title: r.title,
+    eventOn: r.event_on, place: r.place, details: r.details, answer: r.answer, calendarLabel: r.calendar_label, bikes: r.bikes,
+    note: r.note, addedBy: r.added_by, addedAt: r.added_at, answeredBy: r.answered_by, answeredAt: r.answered_at,
+    archivedAt: r.archived_at,
+  }));
+
+/** The database calls: it trims and checks them the same way. */
+export const saveOtherClubArgs = (i: OtherClubInput) => ({
+  p_id: i.id, p_name: i.name, p_town: i.town, p_contact: i.contact, p_note: i.note,
+});
+
+export const saveInviteInArgs = (i: InviteInInput) => ({
+  p_id: i.id, p_club: i.clubId, p_chapter: i.chapterId, p_title: i.title, p_event_on: i.eventOn, p_place: i.place,
+  p_details: i.details, p_ride: i.rideId,
+});
+
+export const inviteClubArgs = (i: InviteOutInput) => ({ p_ride: i.rideId, p_club: i.clubId, p_note: i.note });
+
+export const answerInviteArgs = (i: AnswerInput) => ({
+  p_id: i.id, p_answer: i.answer, p_label: i.label, p_bikes: i.bikes, p_note: i.note,
+});

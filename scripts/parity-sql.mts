@@ -224,10 +224,38 @@ const stage4Call = (c: ParityCase & Record<string, any>): string | null => {
       return `public.set_meeting_type(${id('s', c.session)}, ${q(c.type)})`;
     case 'setExemption':
       return `public.set_exemption(${id('s', c.session)}, ${id('m', c.member)}, ${textOrNull(c.reason)})`;
+    // Big 4 RSVP rules and the 5.5 notice
+    case 'setBig4Waiver':
+      return `public.set_big4_waiver(${id('r', c.ride)}, ${id('m', c.member)}, ${textOrNull(c.ground)})`;
+    case 'giveNotice':
+      return `public.give_status_notice(${id('m', c.member)}, ${q(c.about)}, ${q(c.record)}, ${q(c.proposal)}, ${date(c.respondBy)})`;
+    case 'respondNotice':
+      return `public.respond_to_notice(${id('n', c.notice)}, ${q(c.response)})`;
+    case 'closeNotice':
+      return `public.close_status_notice(${id('n', c.notice)}, ${q(c.outcome)}, ${q(c.note)})`;
     default:
       return null;
   }
 };
+
+// Big 4 RSVP rules and the 5.5 notice
+const b4 = fx.big4Rsvp;
+if (b4) {
+  for (const r of b4.big4Rides) {
+    sql(`insert into public.big4_rides (ride_id, chapter_id) values (${id('r', r.ride)}, ${chapter(r.chapter)});`);
+  }
+  for (const w of b4.waivers) {
+    sql(`insert into public.big4_waivers (ride_id, member_id, ground) values (${id('r', w.ride)}, ${id('m', w.member)}, ${q(w.ground)});`);
+  }
+  for (const n of b4.notices) {
+    sql(
+      `insert into public.status_notices (id, member_id, chapter_id, about, record, proposal, given_on, respond_by, outcome, closed_on) ` +
+        `select ${id('n', n.key)}, m.id, m.chapter_id, ${q(n.about)}, ${q(n.key)}, ${q(n.key)}, ${date(addDays(today, n.givenDays))}, ` +
+        `${date(addDays(today, n.respondByDays))}, ${textOrNull(n.outcome)}, ${n.outcome ? date(addDays(today, n.givenDays)) : 'null'} ` +
+        `from public.members m where m.id = ${id('m', n.member)};`,
+    );
+  }
+}
 
 for (const k of fx.crew ?? []) {
   sql(
@@ -493,8 +521,24 @@ const adminCall = (c: ParityCase & Record<string, any>): string => {
   }
 };
 
+// The National Auditor: requests, reports and renewal. Dates come as …Days from today.
+const auditCall = (c: ParityCase & Record<string, any>): string | null => {
+  switch (c.action) {
+    case 'raiseAuditRequest':
+      return `public.raise_audit_request(${chapter(c.chapter)}, ${q(c.kind)}, ${q(c.area)}, ${q(c.title)}, ${q(c.details)}, ${maybeDate(c.due)}, null)`;
+    case 'saveAuditReport':
+      return `public.save_audit_report(null, ${q(c.title)}, ${maybeDate(c.from)}, ${maybeDate(c.to)}, ${q(c.findings)}, ${c.recommendations ? q(c.recommendations) : 'null'})`;
+    case 'renewAuditor':
+      return 'public.renew_auditor()';
+    default:
+      return null;
+  }
+};
+
 const call = (c: ParityCase & Record<string, any>): string => {
   if (ADMIN_CASE_ACTIONS.has(String(c.action))) return adminCall(resolveCase(c, today) as ParityCase & Record<string, any>);
+  const audit = auditCall(resolveCase(c, today) as ParityCase & Record<string, any>);
+  if (audit) return audit;
   const stage4 = stage4Call(resolveCase(c, today) as ParityCase & Record<string, any>);
   if (stage4) return stage4;
   const planning = planningCall(c);
@@ -668,6 +712,30 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.withdraw_nomination(${id('nom', c.nomination)})`;
     case 'socialCastBragVote':
       return `public.cast_brag_vote(${id('nom', c.nomination)})`;
+    // Invites to and from other clubs
+    case 'socialSaveOtherClub':
+      return (
+        `public.save_other_club(${c.otherClub ? id('oc', c.otherClub) : 'null'}, ${q(c.club)}, ${q(c.town)}, ${q(c.contact)}, ` +
+        `${q(c.note)})`
+      );
+    case 'socialArchiveOtherClub':
+      return `public.archive_other_club(${id('oc', c.otherClub)})`;
+    case 'socialSaveInviteIn': {
+      const r = resolveCase(c, today) as ParityCase & Record<string, any>; // eventOnDays: days from today
+      return (
+        `public.save_invite_in(${r.invite ? id('inv', r.invite) : 'null'}, ${id('oc', r.otherClub)}, ${chapter(r.chapter)}, ` +
+        `${q(r.title)}, ${q(r.eventOn)}, ${q(r.place)}, ${q(r.details)}, ${r.ride ? id('r', r.ride) : 'null'})`
+      );
+    }
+    case 'socialInviteClub':
+      return `public.invite_club(${id('r', c.ride)}, ${id('oc', c.otherClub)}, ${q(c.note)})`;
+    case 'socialAnswerInvite':
+      return (
+        `public.answer_invite(${id('inv', c.invite)}, ${q(c.answer)}, ${c.label === null ? 'null' : q(c.label)}, ` +
+        `${c.bikes ?? 'null'}, ${q(c.note)})`
+      );
+    case 'socialArchiveInvite':
+      return `public.archive_invite(${id('inv', c.invite)})`;
     default:
       throw new Error(`Unknown action ${c.action} in "${c.name}"`);
   }
@@ -848,6 +916,29 @@ for (const u of (fx as typeof fx & { buildUpdates?: FixtureBuildUpdate[] }).buil
   sql(
     `insert into public.build_updates (id, bike_id, author_id, body, photos, taken_down_at) values (${id('build', u.key)}, ` +
       `${id('b', u.bike)}, ${id('m', u.author)}, 'Fixture update', ${json(photos)}, ${u.takenDown ? 'now()' : 'null'});`,
+  );
+}
+
+// Invites to and from other clubs: every incoming invite is for 01/01/2030.
+type FixtureOtherClub = { key: string; name: string; addedBy: string | null; archived: boolean };
+for (const c of (fx as typeof fx & { otherClubs?: FixtureOtherClub[] }).otherClubs ?? []) {
+  sql(
+    `insert into public.other_clubs (id, name, added_by, archived_at) values (${id('oc', c.key)}, ${q(c.name)}, ` +
+      `${c.addedBy ? id('m', c.addedBy) : 'null'}, ${c.archived ? 'now()' : 'null'});`,
+  );
+}
+type FixtureInvite = {
+  key: string; direction: string; club: string; chapter: string | null; ride: string | null; answer: string; label: string | null;
+  addedBy: string | null; archived: boolean;
+};
+for (const i of (fx as typeof fx & { invites?: FixtureInvite[] }).invites ?? []) {
+  const incoming = i.direction === 'in';
+  sql(
+    `insert into public.club_invites (id, direction, club_id, chapter_id, ride_id, title, event_on, answer, calendar_label, ` +
+      `added_by, answered_by, answered_at, archived_at) values (${id('inv', i.key)}, ${q(i.direction)}, ${id('oc', i.club)}, ` +
+      `${chapter(i.chapter)}, ${i.ride ? id('r', i.ride) : 'null'}, ${incoming ? "'Fixture event'" : 'null'}, ` +
+      `${incoming ? "date '2030-01-01'" : 'null'}, ${q(i.answer)}, ${i.label ? q(i.label) : 'null'}, ${i.addedBy ? id('m', i.addedBy) : 'null'}, ` +
+      `${i.answer === 'waiting' ? 'null, null' : `${id('m', 'rusty')}, now()`}, ${i.archived ? 'now()' : 'null'});`,
   );
 }
 

@@ -4,7 +4,7 @@
 // marked (inferred) are ones it doesn't settle. The database's actions
 // (supabase/migrations/20270101000200_treasurer.sql) apply the same rules with the same words.
 
-import { activePositions, holdsBoardSeat } from './access';
+import { activePositions, holdsBoardSeat, isAuditor } from './access';
 import { fyOf } from './fees';
 import { signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
@@ -70,9 +70,7 @@ export function approvesFor(me: Member | null, chapterId: string | null, positio
     : holdsBoardSeat(me.id, chapterId, positions);
 }
 
-export function isAuditor(me: Member | null, positions: Position[]): boolean {
-  return approved(me) && holds(me, positions, (p) => p.role === 'nec_auditor');
-}
+export { isAuditor };
 
 /** Reads a fund's lines: whoever keeps or approves for it, and the National Auditor (11.8). */
 export function seesLedger(me: Member | null, chapterId: string | null, positions: Position[]): boolean {

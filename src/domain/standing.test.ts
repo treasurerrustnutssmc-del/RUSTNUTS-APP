@@ -109,8 +109,9 @@ test('a Nomad needs two in three meetings and one Big 4', () => {
   assert.equal(line(s, 'big4')?.needed, 1);
 });
 
-test('an FNG needs 50% of each category since their trial began', () => {
+test('an FNG needs 50% of monthly meetings and 50% of Big 4 rides since their trial began (4.6)', () => {
   const m = member('m', { status: 'fng', fngStartedOn: '2026-07-01', patchedOn: null });
+  const bigRide = (id: string, heldOn: string) => session(id, { kind: 'ride', rideId: `r-${id}`, chapterId: null, heldOn });
   const data = world(m, {
     checkinSessions: [
       monthly('before', '2026-06-20'),
@@ -120,19 +121,42 @@ test('an FNG needs 50% of each category since their trial began', () => {
       monthly('sp', '2026-09-20', { meetingType: 'special' }),
       monthly('ev', '2026-09-27', { meetingType: 'event' }),
       session('rw', { kind: 'ride', rideId: 'r-west', chapterId: 'west', heldOn: '2026-08-02' }),
-      session('rc', { kind: 'ride', rideId: 'r-club', chapterId: null, heldOn: '2026-09-02' }),
-      session('rn', { kind: 'ride', rideId: 'r-n', chapterId: 'north', heldOn: '2026-09-03' }),
+      bigRide('old', '2026-06-06'),
+      bigRide('club', '2026-08-09'),
+      bigRide('mine', '2026-09-06'),
+      bigRide('theirs', '2026-09-13'),
+      bigRide('off', '2026-09-27'),
+      bigRide('away', '2026-10-04'),
+      bigRide('third', '2026-10-11'),
     ],
-    attendance: [came('a'), came('b'), came('rw'), came('rn')],
+    attendance: [came('a'), came('b'), came('rw'), came('ev'), came('old'), came('club'), came('theirs'), came('off')],
+    exemptions: [excused('away')],
+    rides: [
+      ride('r-old', { startsAt: '2026-06-06T00:00:00.000Z' }),
+      ride('r-club', { startsAt: '2026-08-09T00:00:00.000Z' }),
+      ride('r-mine', { startsAt: '2026-09-06T00:00:00.000Z' }),
+      ride('r-theirs', { startsAt: '2026-09-13T00:00:00.000Z' }),
+      ride('r-off', { startsAt: '2026-09-27T00:00:00.000Z', cancelledAt: '2026-09-20T00:00:00.000Z' }),
+      ride('r-away', { startsAt: '2026-10-04T00:00:00.000Z' }),
+      ride('r-third', { startsAt: '2026-10-11T00:00:00.000Z' }),
+    ],
+    big4Rides: [big4('r-old'), big4('r-club'), big4('r-mine', 'west'), big4('r-theirs', 'north'), big4('r-off'), big4('r-away'), big4('r-third')],
   });
   const s = standingOf(m, data, '2026-10-24');
   assert.equal(s?.kind, 'fng');
   assert.equal(s?.from, '2026-07-01');
-  assert.deepEqual(s?.lines.map((l) => [l.key, l.attended, l.held, l.needed, l.state]), [
-    ['rides', 1, 2, 1, 'met'],
-    ['meetings', 2, 3, 2, 'met'],
-    ['events', 0, 1, 1, 'behind'],
+  // Other rides and other events don't count for FNGs; a Big 4 for another chapter, a cancelled
+  // one, an excused one and one before the trial drop out.
+  assert.deepEqual(s?.lines.map((l) => [l.key, l.label, l.attended, l.held, l.needed, l.state]), [
+    ['meetings', 'Monthly meetings · 50%', 2, 3, 2, 'met'],
+    ['big4', 'Big 4 rides · 50%', 1, 3, 2, 'behind'],
   ]);
+});
+
+test('an FNG with no Big 4 held yet has nothing to meet there', () => {
+  const m = member('m', { status: 'fng', fngStartedOn: '2026-07-01', patchedOn: null });
+  const s = standingOf(m, world(m, { checkinSessions: [monthly('a', '2026-07-16')] }), '2026-10-24');
+  assert.deepEqual(line(s, 'big4'), { key: 'big4', label: 'Big 4 rides · 50%', attended: 0, held: 0, needed: 0, upcoming: 0, state: 'none' });
 });
 
 test('no requirement for other statuses, or on hiatus', () => {

@@ -41,6 +41,7 @@ import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen
 import { CheckInScreen, OpenMeetingScreen, RunCheckinScreen } from '../screens/checkin';
 import { ChapterFeesScreen, MemberFeesScreen } from '../screens/fees';
 import { AttendanceScreen } from '../screens/attendance';
+import { GiveNoticeScreen, StatusNoticeScreen } from '../screens/notices'; // Big 4 RSVP rules and the 5.5 notice
 import { MembershipCardScreen } from '../screens/card';
 import { FngReviewScreen } from '../screens/fng';
 // Stage 7: social extras
@@ -48,6 +49,7 @@ import { FngReviewScreen } from '../screens/fng';
 import { ConductRecordScreen, ConductScreen, RecordConductScreen } from '../screens/conduct';
 import { MerchItemScreen, MerchOrderScreen, MerchScreen, ProposeMerchScreen } from '../screens/merch';
 import { ChapterProposalScreen, ContributionScreen, NationalScreen, ProposeChapterScreen, ProposeContributionScreen } from '../screens/national';
+import { AuditRecordsScreen, AuditReportScreen, AuditRequestScreen, AuditScreen, NewAuditRequestScreen } from '../screens/audit';
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
 import { EditMechanicScreen, MechanicScreen, MySkillsScreen, WhoCanHelpScreen } from '../screens/help';
 import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swap';
@@ -55,6 +57,10 @@ import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../scree
 import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
+import {
+  EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
+} from '../screens/invites'; // Invites to and from other clubs
+import { FamilyHomeScreen, FamilyMeScreen, FamilyRideScreen } from '../screens/family'; // Family view
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -171,6 +177,37 @@ function MainTabs() {
   );
 }
 
+// Family view: Home, Rides and Me. No chats, directory or board, and none of the members' sync helpers.
+function FamilyTabs() {
+  const insets = useSafeAreaInsets();
+  return (
+    <Tabs.Navigator
+      screenOptions={({ route }) => ({
+        ...headerOptions,
+        tabBarStyle: {
+          backgroundColor: colors.ink2,
+          borderTopColor: colors.line,
+          height: 66 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: insets.bottom + 6,
+        },
+        tabBarHideOnKeyboard: true,
+        tabBarActiveTintColor: colors.redText,
+        tabBarInactiveTintColor: colors.boneMute,
+        tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: 11.5, lineHeight: 16 },
+        tabBarAllowFontScaling: false,
+        tabBarIcon: ({ focused, color, size }) => (
+          <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size} color={color} />
+        ),
+      })}
+    >
+      <Tabs.Screen name="Home" component={FamilyHomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} /> }} />
+      <Tabs.Screen name="Rides" component={RidesScreen} />
+      <Tabs.Screen name="Me" component={FamilyMeScreen} />
+    </Tabs.Navigator>
+  );
+}
+
 export function RootNavigator() {
   const { level, me, needsApplication, loadError } = useClub();
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
@@ -200,6 +237,18 @@ export function RootNavigator() {
             {/* Stage 5C: applicants read the Registered Rules and the Constitution (15.7) */}
             <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
             <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
+            {/* Sponsors: anyone with the app sees them */}
+            <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+          </>
+        ) : level === 'family' ? (
+          <>
+            {/* Family view: its own small set of screens, like Pending */}
+            <Stack.Screen name="Tabs" component={FamilyTabs} options={{ headerShown: false }} />
+            <Stack.Screen name="RideDetail" component={FamilyRideScreen} options={{ title: 'Ride' }} getId={({ params }) => params.rideId} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
+            <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
+            <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
+            <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
           </>
@@ -255,6 +304,9 @@ export function RootNavigator() {
             {/* Attendance rules, Big 4 rides and the membership card */}
             <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ title: 'Attendance' }} />
             <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
+            {/* Big 4 RSVP rules and the 5.5 notice */}
+            <Stack.Screen name="GiveNotice" component={GiveNoticeScreen} options={{ title: 'Give notice' }} />
+            <Stack.Screen name="StatusNotice" component={StatusNoticeScreen} options={{ title: 'Notice' }} getId={({ params }) => params.noticeId} />
             {/* Stage 3 (lane B): chats and photos */}
             {/* One screen per chat (and per ride below), so opening another one from a notification never
                 reuses the one on screen with its half-typed message. */}
@@ -287,6 +339,12 @@ export function RootNavigator() {
             <Stack.Screen name="ProposeContribution" component={ProposeContributionScreen} options={{ title: 'Ask the chapters' }} />
             <Stack.Screen name="ChapterProposal" component={ChapterProposalScreen} options={{ title: 'New chapter' }} />
             <Stack.Screen name="ProposeChapter" component={ProposeChapterScreen} options={{ title: 'New chapter' }} />
+            {/* The National Auditor */}
+            <Stack.Screen name="Audit" component={AuditScreen} options={{ title: 'Audit' }} />
+            <Stack.Screen name="AuditRecords" component={AuditRecordsScreen} options={{ title: 'Records' }} />
+            <Stack.Screen name="NewAuditRequest" component={NewAuditRequestScreen} options={{ title: 'New request' }} />
+            <Stack.Screen name="AuditRequest" component={AuditRequestScreen} options={{ title: 'Request' }} />
+            <Stack.Screen name="AuditReport" component={AuditReportScreen} options={{ title: 'Findings report' }} />
             {/* Stage 7: social extras */}
             <Stack.Screen name="Birthday" component={BirthdayScreen} options={{ title: 'Birthday shout-out' }} />
             <Stack.Screen name="OnThisDay" component={OnThisDayScreen} options={{ title: 'On this day' }} />
@@ -336,6 +394,21 @@ export function RootNavigator() {
               name="EditSponsor"
               component={EditSponsorScreen}
               options={({ route }) => ({ title: route.params?.sponsorId ? 'Change the sponsor' : 'Add a sponsor' })}
+            />
+            {/* Invites to and from other clubs */}
+            <Stack.Screen name="OtherClubs" component={OtherClubsScreen} options={{ title: 'Other clubs' }} />
+            <Stack.Screen name="Invite" component={InviteScreen} options={{ title: 'Invite' }} />
+            <Stack.Screen
+              name="EditInvite"
+              component={EditInviteScreen}
+              options={({ route }) => ({ title: route.params?.inviteId ? 'Change the invite' : 'Pass on an invite' })}
+            />
+            <Stack.Screen name="InviteClub" component={InviteClubScreen} options={{ title: 'Invite a club' }} />
+            <Stack.Screen name="OtherClub" component={OtherClubScreen} options={{ title: 'Club' }} />
+            <Stack.Screen
+              name="EditOtherClub"
+              component={EditOtherClubScreen}
+              options={({ route }) => ({ title: route.params?.clubId ? 'Change the club' : 'Add a club' })}
             />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>

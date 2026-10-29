@@ -13,6 +13,7 @@ import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
 import type { MeetingReportInput } from '../domain/meetingReport';
 import type { ApprovalInput, DocumentInput, VersionInput } from '../domain/documents'; // Stage 5C
 import type {
+  Big4Ground, NoticeOutcome, // Big 4 RSVP rules and the 5.5 notice
   BallotChoice,
   Bike,
   BikeRegistration,
@@ -36,11 +37,13 @@ import type {
 } from '../domain/types';
 // Stage 4
 import type { OpenCheckinInput } from '../domain/attendance';
+import type { NoticeInput } from '../domain/notices';
 import type { FngOutcome } from '../domain/joining';
 // Stage 5D: board and admin
 import type { ConductInput } from '../domain/conduct';
 import type { MerchInput, OrderInput } from '../domain/merch';
 import type { ChapterInput, ContributionInput } from '../domain/national';
+import type { ReportInput, RequestInput } from '../domain/audit'; // National Auditor
 
 export class NotAllowedError extends Error {}
 
@@ -161,6 +164,14 @@ export interface ClubContextValue {
   undesignateBig4: (rideId: string) => Promise<void>;
   /** Excuses a member from a check-in with a reason; null or blank clears it. */
   setExemption: (sessionId: string, memberId: string, reason: string | null) => Promise<void>;
+  // Big 4 RSVP rules and the 5.5 notice
+  /** Excuses a member from 5.4 for one Big 4 on a ground; null clears it. */
+  setBig4Waiver: (rideId: string, memberId: string, ground: Big4Ground | null) => Promise<void>;
+  /** Gives a member a 5.5 notice. Resolves to its id. */
+  giveStatusNotice: (memberId: string, input: NoticeInput) => Promise<string>;
+  /** The member's reply; a new one replaces the last. */
+  respondToNotice: (noticeId: string, response: string) => Promise<void>;
+  closeStatusNotice: (noticeId: string, outcome: NoticeOutcome, note: string) => Promise<void>;
   /** Approves an applicant as `status`, or declines them (null), recording the board's tally. */
   decideApplication: (memberId: string, status: MemberStatus | null, votes: Votes, note: string) => Promise<void>;
   recordFngReview: (memberId: string, atMonths: number, outcome: FngOutcome, votes: Votes, note: string) => Promise<void>;
@@ -303,6 +314,19 @@ export interface ClubContextValue {
   signDocument: (versionId: string) => Promise<void>;
   /** A version's text. Live loads it on first open and keeps it for the session. */
   loadDocumentBody: (versionId: string) => Promise<string>;
+  // The National Auditor (11.8)
+  /** The Auditor's written information or correction request to a board or the NEC. Resolves to its id. */
+  raiseAuditRequest: (input: RequestInput) => Promise<string>;
+  /** That board's (or the NEC's) written answer; it can be updated until the Auditor closes it. */
+  answerAuditRequest: (requestId: string, answer: string) => Promise<void>;
+  closeAuditRequest: (requestId: string, note: string) => Promise<void>;
+  /** Saves a findings report draft (a new one when input.id is null). Resolves to its id. */
+  saveAuditReport: (input: ReportInput) => Promise<string>;
+  /** Issues a draft to the NEC and every board. Final. */
+  issueAuditReport: (reportId: string) => Promise<void>;
+  deleteAuditReport: (reportId: string) => Promise<void>;
+  /** The Chairman renews the sitting Auditor for twelve months after a fresh two-thirds NEC vote. */
+  renewAuditor: () => Promise<void>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);

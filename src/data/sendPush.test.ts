@@ -8,12 +8,12 @@ const row = (over: Partial<OutboxMessage> = {}): OutboxMessage => ({
   tokens: ['ExponentPushToken[a]', 'ExponentPushToken[b]'], ...over,
 });
 
-test('one message per phone; live ride alerts are urgent and use the alerts channel', () => {
+test('one message per phone, all sent high priority so a sleeping Android shows them straight away; live ride alerts use the alerts channel', () => {
   const msgs = toExpoMessages([row(), row({ id: 2, title: 'EMERGENCY: Rusty needs help', data: { kind: 'live-alert', rideId: 'r2' }, tokens: ['ExponentPushToken[c]'] })]);
   assert.equal(msgs.length, 3);
   assert.deepEqual(msgs[0], {
     to: 'ExponentPushToken[a]', title: 'Ride cancelled', body: 'West run · Sat 07/11/2026', sound: 'v_twin_rev.wav',
-    channelId: 'club-rev', data: { kind: 'ride', rideId: 'r1' }, outboxId: 1,
+    channelId: 'club-rev', data: { kind: 'ride', rideId: 'r1' }, priority: 'high', outboxId: 1,
   });
   assert.equal(msgs[2].priority, 'high');
   assert.equal(msgs[2].channelId, 'ride-alerts');

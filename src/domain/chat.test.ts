@@ -73,11 +73,12 @@ const message = (over: Partial<Message> = {}): Message => ({
 });
 
 test('every approved member reads the whole-club and ride chats; nobody else does', () => {
-  for (const m of [westie, northie, legacy, member('fam', { status: 'family' })]) {
+  for (const m of [westie, northie, legacy]) {
     assert.equal(readProblem(m, club, data), null, m.id);
     assert.equal(readProblem(m, rideChat, data), null, m.id);
   }
   assert.equal(readProblem(applicant, club, data), 'Only approved members can do that.');
+  assert.equal(readProblem(member('fam', { status: 'family' }), club, data), 'Only approved members can do that.', 'family use the app without the chats');
   assert.equal(readProblem(member('gone', { approval: 'suspended' }), club, data), 'Only approved members can do that.');
   assert.equal(readProblem(null, club, data), 'Sign in first.');
   assert.equal(readProblem(westie, undefined, data), 'No such chat.');

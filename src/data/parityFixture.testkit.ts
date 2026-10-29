@@ -11,6 +11,7 @@ import type {
   EntryState, LedgerCode, VoteResult, // Stage 5B
   ApprovingBody, DocumentKind, // Stage 5C
   ConductKind, MerchStatus, OrderStatus, // Stage 5D
+  Big4Ground, NoticeAbout, NoticeOutcome, // Big 4 RSVP rules and the 5.5 notice
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -27,9 +28,11 @@ import { directId, runChatAction, type ChatAction, type ChatData } from './chat/
 import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
 import { runSocialAction, type SocialAction, type SocialData } from './social/demoSocialActions'; // Stage 7: social extras
 import type { ListingKind } from '../domain/social/swap'; // Stage 7: social extras
+import type { CalendarLabel, InviteAnswer, InviteDirection } from '../domain/invites'; // Invites to and from other clubs
 import { DOCUMENT_ACTIONS, runDocumentAction, type DocumentAction } from './documentActions'; // Stage 5C
 import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'; // Stage 5D
 import { sharesFor } from '../domain/national'; // Stage 5D
+import { AUDIT_ACTIONS, runAuditAction, type AuditAction } from './auditActions'; // National Auditor
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -137,6 +140,12 @@ export interface ParityFixture {
   documentSignoffs?: { version: string; member: string }[];
   /** Stage 5D: dates are days from today; everything else was made at ADMIN_AT. */
   admin?: AdminFixture;
+  /** Big 4 RSVP rules and the 5.5 notice. Notice dates are days from today. */
+  big4Rsvp?: {
+    big4Rides: { ride: string; chapter: string | null }[];
+    waivers: { ride: string; member: string; ground: Big4Ground }[];
+    notices: { key: string; member: string; about: NoticeAbout; givenDays: number; respondByDays: number; outcome: NoticeOutcome | null }[];
+  };
 }
 
 export interface AdminFixture {
@@ -315,7 +324,26 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  return withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today));
+  return withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today)), today);
+}
+
+/** When the fixture's Big 4s, 5.4 excuses and 5.5 notices were made. */
+export const BIG4_RSVP_AT = '2026-01-01T00:00:00.000Z';
+
+// Big 4 RSVP rules and the 5.5 notice.
+function withBig4Rsvp(data: ClubData, today: string): ClubData {
+  const b = fixture.big4Rsvp;
+  if (!b) return data;
+  return {
+    ...data,
+    big4Rides: b.big4Rides.map((r) => ({ rideId: r.ride, chapterId: r.chapter, designatedBy: null, designatedAt: BIG4_RSVP_AT })),
+    big4Waivers: b.waivers.map((w) => ({ rideId: w.ride, memberId: w.member, ground: w.ground, grantedBy: null, grantedAt: BIG4_RSVP_AT })),
+    statusNotices: b.notices.map((n) => ({
+      id: n.key, memberId: n.member, chapterId: data.members.find((m) => m.id === n.member)!.chapterId, about: n.about,
+      record: n.key, proposal: n.key, givenOn: addDays(today, n.givenDays), respondBy: addDays(today, n.respondByDays), givenBy: null,
+      response: '', respondedAt: null, outcome: n.outcome, outcomeNote: '', closedOn: n.outcome ? addDays(today, n.givenDays) : null, closedBy: null,
+    })),
+  };
 }
 
 // Ride planning extras.
@@ -508,6 +536,10 @@ export function demoAnswer(c: ParityCase): string | null {
       runAdminAction({ data, me, today }, resolveCase(c, today) as unknown as AdminAction);
       return null;
     }
+    if (AUDIT_ACTIONS.has(String(c.action))) {
+      runAuditAction({ data, me, today }, resolveCase(c, today) as unknown as AuditAction);
+      return null;
+    }
     if (LEDGER_ACTIONS.has(String(c.action))) {
       runLedgerAction({ data, me, today }, resolveCase(c, today) as unknown as LedgerAction);
       return null;
@@ -612,7 +644,40 @@ export function fixtureSocial(today: string = parityToday()): SocialData {
     bragVotes: ((f as { bragVotes?: { award: string; member: string; nomination: string }[] }).bragVotes ?? []).map((v) => ({
       awardId: v.award, memberId: v.member, nominationId: v.nomination,
     })),
+    // Invites to and from other clubs
+    otherClubs: ((f as { otherClubs?: FixtureOtherClub[] }).otherClubs ?? []).map((c) => ({
+      id: c.key, name: c.name, town: null, contact: null, note: null, addedBy: c.addedBy, addedAt: '2026-10-01T00:00:00.000Z',
+      archivedAt: c.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    invites: ((f as { invites?: FixtureInvite[] }).invites ?? []).map((i) => ({
+      id: i.key, direction: i.direction, clubId: i.club, chapterId: i.chapter, rideId: i.ride,
+      title: i.direction === 'in' ? 'Fixture event' : null, eventOn: i.direction === 'in' ? '2030-01-01' : null, place: null,
+      details: null, answer: i.answer, calendarLabel: i.label, bikes: null, note: null, addedBy: i.addedBy,
+      addedAt: '2026-10-01T00:00:00.000Z', answeredBy: i.answer === 'waiting' ? null : 'rusty',
+      answeredAt: i.answer === 'waiting' ? null : '2026-10-02T00:00:00.000Z', archivedAt: i.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
   };
+}
+
+// Invites to and from other clubs: every incoming invite is for 01/01/2030.
+interface FixtureOtherClub {
+  key: string;
+  name: string;
+  /** null: whoever added it has left. */
+  addedBy: string | null;
+  archived: boolean;
+}
+
+interface FixtureInvite {
+  key: string;
+  direction: InviteDirection;
+  club: string;
+  chapter: string | null;
+  ride: string | null;
+  answer: InviteAnswer;
+  label: CalendarLabel | null;
+  addedBy: string | null;
+  archived: boolean;
 }
 
 interface FixtureAward {
