@@ -12,6 +12,7 @@ import type {
   ApprovingBody, DocumentKind, // Stage 5C
   ConductKind, MerchStatus, OrderStatus, // Stage 5D
   Big4Ground, NoticeAbout, NoticeOutcome, // Big 4 RSVP rules and the 5.5 notice
+  BusCostKind, // Rusty Bus extras
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -34,7 +35,6 @@ import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'
 import { sharesFor } from '../domain/national'; // Stage 5D
 import { AUDIT_ACTIONS, runAuditAction, type AuditAction } from './auditActions'; // National Auditor
 import { BUS_EXTRAS_ACTIONS, runBusExtrasAction, type BusExtrasAction } from './busExtrasActions'; // Rusty Bus extras
-import type { BusCostKind } from '../domain/types'; // Rusty Bus extras
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;

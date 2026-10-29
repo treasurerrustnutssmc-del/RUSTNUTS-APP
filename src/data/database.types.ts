@@ -2,14 +2,13 @@
 
 // Stage 5: meetings and votes
 import type {
-  AgendaItem, BallotChoice, Big4Ground, NoticeAbout, NoticeOutcome, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
+  AgendaItem, BallotChoice, Big4Ground, NoticeAbout, NoticeOutcome, BusCostKind, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
 } from '../domain/types'; // HubStaying, PlanStop, RideCallState, SwapState: ride planning extras
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson, MeetingReportJson } from './ledgerLive'; // Stage 5B
 import type { AdminJson } from './adminLive'; // Stage 5D
 import type { AuditJson } from './auditLive'; // National Auditor
 import type { DocumentsJson } from './documentsLive'; // Stage 5C
-import type { BusCostKind } from '../domain/types'; // Rusty Bus extras
 
 type MemberStatus = 'introduced' | 'fng' | 'full' | 'nomad' | 'supporter' | 'family' | 'legacy';
 type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';

@@ -16,8 +16,11 @@ import {
   NO_YES_IN_TIME,
   RIDE_CALLED_OFF,
   RIDE_CALLED_OFF_HINT,
+  NOT_BUS_CHANGER,
   bookProblem,
   bookedStraightAway,
+  canChangeBus,
+  changeProblem,
   busDrivers,
   busMonthLabel,
   busPersonName,
@@ -42,10 +45,12 @@ import {
   type BusInput,
 } from '../domain/bus';
 import { charCount } from '../domain/chat';
+import { bookingKm, formatKm, isBusHand, keyHolder, latestReading, visibleCosts, yearSummary } from '../domain/busLog'; // Rusty Bus extras
+import { formatCents, fyLabel, fyOf } from '../domain/fees'; // Rusty Bus extras
 import { daysBetween, formatAuDate, parseAuDate, typeDate, weekday } from '../domain/dates';
 import { displayName } from '../domain/profile';
 import { lastDay, melbourneDate } from '../domain/rides';
-import type { BusBooking, BusPurpose, BusStatus, ClubData, Member } from '../domain/types';
+import type { BusBooking, BusPurpose, BusStatus, ClubData, Member, Ride } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import {
@@ -58,8 +63,10 @@ import {
   Divider,
   Field,
   H1,
+  IconBadge,
   Ionicons,
   Label,
+  ListRow,
   Notice,
   Row,
   Screen,
@@ -175,6 +182,18 @@ function ClashText({ line }: { line: string }) {
 // Rusty Bus
 // ---------------------------------------------------------------------------
 
+/** "Keys with Diesel · 124,402 km on 29/10/2026", or what's not logged yet. */
+function keysLine(data: ClubData): string {
+  const holder = keyHolder(data);
+  const reading = latestReading(data);
+  return [
+    holder ? `Keys with ${busPersonName(holder.toId, data)}` : 'Keys not logged yet',
+    reading ? `${formatKm(reading.km)} on ${formatAuDate(reading.readOn)}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 export function BusScreen({ navigation }: RootScreen<'Bus'>) {
   const { me, data, today } = useClub();
   if (!me) return null;
@@ -231,6 +250,30 @@ export function BusScreen({ navigation }: RootScreen<'Bus'>) {
         ) : (
           <Small>{NOT_BUS_BOOKER}</Small>
         )}
+      </Card>
+
+      {/* Rusty Bus extras: who has the keys, the odometer, and the running costs. */}
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          left={<IconBadge icon="key-outline" />}
+          title="Keys and odometer"
+          subtitle={<Text style={styles.meta}>{keysLine(data)}</Text>}
+          last={!manager && !isBusHand(me, data) && visibleCosts(me, data).length === 0}
+          onPress={() => navigation.navigate('BusKeys')}
+        />
+        {manager || isBusHand(me, data) || visibleCosts(me, data).length > 0 ? (
+          <ListRow
+            last
+            left={<IconBadge icon="receipt-outline" />}
+            title="Running costs"
+            subtitle={
+              <Text style={styles.meta}>
+                {manager ? `${fyLabel(fyOf(today))}: ${formatCents(yearSummary(data, fyOf(today)).totalCents)}` : 'Log fuel, tolls and the rest'}
+              </Text>
+            }
+            onPress={() => navigation.navigate('BusCosts')}
+          />
+        ) : null}
       </Card>
 
       {manager ? (
@@ -370,6 +413,9 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
   const clash = waiting && !unanswered ? clashLine(clashesWith({ first: booking.firstDay, last: booking.lastDay }, data, booking.id)) : null;
   const reasonTooLong = charCount(reason.trim()) > MAX_BUS_REASON;
   const cancellable = cancelProblem(me, booking, data, today) === null;
+  // Rusty Bus extras: whoever booked it or the board can change a booking that's still on.
+  const changeable = canChangeBus(me, booking, data) && (booking.status === 'approved' || booking.status === 'requested') && booking.lastDay >= today;
+  const kmRun = bookingKm(booking.id, data);
 
   const run = async (label: string, action: () => Promise<void>) => {
     if (busy) return;
@@ -423,6 +469,12 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
             <Ionicons name="person-outline" size={18} color={colors.boneMute} />
             <Text style={styles.factText}>{`${name(booking.driverId)} driving`}</Text>
           </Row>
+          {kmRun !== null ? (
+            <Row style={styles.fact}>
+              <Ionicons name="speedometer-outline" size={18} color={colors.boneMute} />
+              <Text style={styles.factText}>{`${formatKm(kmRun)} on the odometer`}</Text>
+            </Row>
+          ) : null}
           {ride ? (
             <Pressable
               accessibilityRole="link"
@@ -457,6 +509,7 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
           {everBooked && booking.decidedAt && booking.decidedBy !== booking.bookedBy ? (
             <Text style={styles.metaDim}>{`Yes from ${name(booking.decidedBy)} on ${dayOf(booking.decidedAt)}`}</Text>
           ) : null}
+          {booking.changedAt ? <Text style={styles.metaDim}>{`Changed by ${name(booking.changedBy ?? null)} on ${dayOf(booking.changedAt)}`}</Text> : null}
           {unanswered ? (
             <Text style={styles.metaDim}>{NO_YES_IN_TIME}</Text>
           ) : waiting && !deciding ? (
@@ -515,6 +568,16 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
         </Stack>
       ) : null}
 
+      {changeable ? (
+        <Button
+          label="Change booking"
+          kind="secondary"
+          icon="create-outline"
+          disabled={busy !== null}
+          onPress={() => navigation.navigate('ChangeBus', { bookingId: booking.id })}
+        />
+      ) : null}
+
       {cancellable ? (
         busy === 'cancel' ? (
           <Button label="Cancel booking" kind="secondary" busy onPress={() => {}} />
@@ -555,29 +618,51 @@ function useDay(initialIso: string) {
 }
 
 export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
-  const { me, data, today, bookBus } = useClub();
+  const { data } = useClub();
   // Opened from a ride: its days and the ride to start with.
   const fromRide = route.params?.rideId ? data.rides.find((r) => r.id === route.params?.rideId) : undefined;
+  // The new booking takes the form's place, so Back goes to where Book was opened from.
+  return <BusForm fromRide={fromRide} done={(id) => navigation.replace('BusBooking', { bookingId: id })} />;
+}
+
+// Rusty Bus extras: the same form, filled in from the booking, saves changes in place.
+export function ChangeBusScreen({ route, navigation }: RootScreen<'ChangeBus'>) {
+  const { data } = useClub();
+  const booking = (data.busBookings ?? []).find((b) => b.id === route.params.bookingId);
+  if (!booking) {
+    return (
+      <Screen>
+        <Notice tone="warn" title="Booking not found">{'It may have been removed. The Rusty Bus screen has what’s coming up.'}</Notice>
+      </Screen>
+    );
+  }
+  return <BusForm key={booking.id} booking={booking} done={() => navigation.goBack()} />;
+}
+
+/** Booking the bus, or (given `booking`) changing a booking. `done` gets the booking's id once saved. */
+function BusForm({ fromRide, booking, done }: { fromRide?: Ride; booking?: BusBooking; done: (bookingId: string) => void }) {
+  const { me, data, today, bookBus, changeBus } = useClub();
+  const editing = booking !== undefined;
   const rideStart = fromRide ? melbourneDate(fromRide.startsAt) : '';
-  const first = useDay(fromRide ? (rideStart < today ? today : rideStart) : '');
-  const last = useDay(fromRide ? lastDay(fromRide) : '');
+  const first = useDay(booking ? booking.firstDay : fromRide ? (rideStart < today ? today : rideStart) : '');
+  const last = useDay(booking ? booking.lastDay : fromRide ? lastDay(fromRide) : '');
   // The last day follows the first until it's typed in itself, so one day needs typing once.
-  const [lastTyped, setLastTyped] = useState(!!fromRide);
-  const [purpose, setPurpose] = useState<BusPurpose | null>(null);
-  const [rideId, setRideId] = useState<string | null>(fromRide?.id ?? null);
-  const [driverId, setDriverId] = useState<string | null>(me?.id ?? null);
+  const [lastTyped, setLastTyped] = useState(!!fromRide || editing);
+  const [purpose, setPurpose] = useState<BusPurpose | null>(booking?.purpose ?? null);
+  const [rideId, setRideId] = useState<string | null>(booking ? booking.rideId : (fromRide?.id ?? null));
+  const [driverId, setDriverId] = useState<string | null>(booking ? booking.driverId : (me?.id ?? null));
   const [picking, setPicking] = useState(false);
   const [find, setFind] = useState('');
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(booking?.notes ?? '');
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   if (!me) return null;
-  if (!canBookBus(me, data)) {
+  if (booking ? !canChangeBus(me, booking, data) : !canBookBus(me, data)) {
     return (
       <Screen>
-        <Notice tone="warn">{NOT_BUS_BOOKER}</Notice>
+        <Notice tone="warn">{booking ? NOT_BUS_CHANGER : NOT_BUS_BOOKER}</Notice>
       </Screen>
     );
   }
@@ -585,14 +670,15 @@ export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
   const firstDay = first.iso ?? '';
   const lastDayIso = (lastTyped ? last.iso : first.iso) ?? '';
   const input: BusInput = { firstDay, lastDay: lastDayIso, purpose, rideId, driverId, notes };
-  const straightAway = bookedStraightAway(me, input, today, data);
+  // A change keeps the booking's status, so a Booked one is held to the clash rule as if booked straight away.
+  const straightAway = booking ? booking.status === 'approved' : bookedStraightAway(me, input, today, data);
   const range = firstDay && lastDayIso && lastDayIso >= firstDay ? { first: firstDay, last: lastDayIso } : null;
-  const clashes = range ? clashesWith(range, data) : [];
+  const clashes = range ? clashesWith(range, data, booking?.id) : [];
   const clash = clashLine(clashes);
   const manager = managesBus(me, data);
   // Booked straight away onto Booked days can only be refused, so Book it is off and the clash says why.
   const blocked = straightAway && clashes.length > 0;
-  const problem = bookProblem(me, input, data, today);
+  const problem = booking ? changeProblem(me, booking, input, data, today) : bookProblem(me, input, data, today);
   const notesTooLong = charCount(notes.trim()) > MAX_BUS_NOTES;
   // Refusals show from the first tap on, and follow the form as it's fixed. A clash already has
   // its own line, and the notes their own error, so they aren't said twice.
@@ -621,9 +707,12 @@ export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
     }
     setSaving(true);
     try {
-      const id = await bookBus(input);
-      // The new booking takes the form's place, so Back goes to where Book was opened from.
-      navigation.replace('BusBooking', { bookingId: id });
+      if (booking) {
+        await changeBus(booking.id, input);
+        done(booking.id);
+      } else {
+        done(await bookBus(input));
+      }
     } catch (e) {
       setSaveError((e as Error).message);
       setSaving(false);
@@ -674,10 +763,12 @@ export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
             <ClashText line={clash} />
             <Small style={{ color: colors.boneDim }}>
               {!straightAway
-                ? 'You can still ask, but the board can only say yes if that booking comes off.'
-                : manager
-                  ? 'It can’t be booked twice, so Book it is off. Pick other days, or cancel that booking first.'
-                  : 'It can’t be booked twice, so Book it is off. Pick other days, or ask the board about that booking.'}
+                ? editing
+                  ? 'You can still move it there, but the board can only say yes if that booking comes off.'
+                  : 'You can still ask, but the board can only say yes if that booking comes off.'
+                : `It can’t be booked twice, so ${editing ? 'Save changes' : 'Book it'} is off. Pick other days, or ${
+                    manager ? 'cancel that booking first.' : 'ask the board about that booking.'
+                  }`}
             </Small>
           </View>
         ) : null}
@@ -770,15 +861,17 @@ export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
 
       <Stack gap={space.sm}>
         <Small style={{ color: colors.boneDim }}>
-          {straightAway
-            ? manager
-              ? 'You’re on the board or NEC, so it’s booked straight away.'
-              : 'A recovery for today or tomorrow is booked straight away when the bus is free.'
-            : 'The board or NEC says yes or no.'}
+          {booking
+            ? changeNote(booking, manager)
+            : straightAway
+              ? manager
+                ? 'You’re on the board or NEC, so it’s booked straight away.'
+                : 'A recovery for today or tomorrow is booked straight away when the bus is free.'
+              : 'The board or NEC says yes or no.'}
         </Small>
         <Button
-          label={straightAway ? 'Book it' : 'Ask for it'}
-          icon={straightAway ? 'checkmark' : 'paper-plane-outline'}
+          label={editing ? 'Save changes' : straightAway ? 'Book it' : 'Ask for it'}
+          icon={editing || straightAway ? 'checkmark' : 'paper-plane-outline'}
           busy={saving}
           disabled={first.error !== null || (lastTyped && last.error !== null) || notesTooLong || blocked}
           onPress={save}
@@ -790,6 +883,12 @@ export function BookBusScreen({ route, navigation }: RootScreen<'BookBus'>) {
       </Stack>
     </Screen>
   );
+}
+
+/** What a change keeps: a Booked booking stays Booked (and only the board adds days), a Waiting one still waits. */
+function changeNote(booking: BusBooking, manager: boolean): string {
+  if (booking.status !== 'approved') return 'It still waits for a yes from the board or NEC.';
+  return manager ? 'It stays Booked.' : 'It stays Booked. You can shorten it or change the rest; to add days, ask the board or NEC.';
 }
 
 /** A pick-one row: a radio mark, a stencil label and an optional line under it. */

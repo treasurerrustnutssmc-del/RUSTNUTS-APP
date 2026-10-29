@@ -21,7 +21,8 @@ import { BriefingScreen, EditBriefingScreen } from '../screens/briefing';
 import { AskSwapScreen, CallRideScreen, EditHubScreen, HubScreen, PlanRideScreen } from '../screens/ridePlanning';
 import { CharityScreen, EditCharityScreen } from '../screens/charity'; // Charity ride sign-ups
 import { EditRoadRulesScreen, RoadRulesScreen, RoadRulesSignoffsScreen } from '../screens/roadRules';
-import { BookBusScreen, BusBookingScreen, BusScreen } from '../screens/bus';
+import { BookBusScreen, BusBookingScreen, BusScreen, ChangeBusScreen } from '../screens/bus';
+import { BusCostsScreen, BusKeysScreen } from '../screens/busLog'; // Rusty Bus extras
 // Lane E: live ride
 import { LiveRideScreen } from '../screens/liveRide';
 // Lane E: notifications
@@ -289,6 +290,10 @@ export function RootNavigator() {
             <Stack.Screen name="Bus" component={BusScreen} options={{ title: 'Rusty Bus' }} />
             <Stack.Screen name="BusBooking" component={BusBookingScreen} options={{ title: 'Booking' }} />
             <Stack.Screen name="BookBus" component={BookBusScreen} options={{ title: 'Book the Rusty Bus' }} />
+            {/* Rusty Bus extras */}
+            <Stack.Screen name="ChangeBus" component={ChangeBusScreen} options={{ title: 'Change booking' }} />
+            <Stack.Screen name="BusKeys" component={BusKeysScreen} options={{ title: 'Keys and odometer' }} />
+            <Stack.Screen name="BusCosts" component={BusCostsScreen} options={{ title: 'Running costs' }} />
             {/* Lane E: live ride */}
             <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} getId={({ params }) => params.rideId} />
             {/* Stage 4: members and money */}
