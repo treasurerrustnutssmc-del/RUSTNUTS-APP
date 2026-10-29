@@ -556,7 +556,7 @@ Object.assign(DEMO_DATA, {
       state: 'confirmed', claimedBy: 'm-jet', receiptNo: receiptNo('north', s4Year, 1), decidedAt: at(paid('08-16')) },
   ],
   paymentDetails: [
-    { chapterId: 'ch-west', payid: 'west@rustnuts.example', payidName: 'Rustnuts SMC West', bsb: null, accountNo: null },
+    { chapterId: 'ch-west', payid: 'west@rustnuts.example', payidName: 'Rustnuts SMC West', bsb: '000-000', accountNo: '12345678' },
   ],
 } satisfies Partial<ClubData>);
 
