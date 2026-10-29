@@ -8,6 +8,7 @@ import type { ClubData } from '../domain/types';
 import { ClubContext, type ClubContextValue } from './clubContext';
 import * as business from './businessActions';
 import * as planning from './planningActions'; // Ride planning extras
+import * as charity from './charityActions'; // Charity ride sign-ups
 import * as act from './demoActions';
 import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
@@ -168,6 +169,10 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     saveHub: async (rideId, input) => keep(planning.saveHub(fresh(), rideId, input)),
     registerHub: async (rideId, input) => keep(planning.registerHub(fresh(), rideId, input)),
     withdrawHub: async (rideId) => keep(planning.withdrawHub(fresh(), rideId)),
+    // Charity ride sign-ups
+    saveCharity: async (rideId, input) => keep(charity.saveCharity(fresh(), rideId, input)),
+    signUpCharity: async (rideId, input) => keep(charity.signUpCharity(fresh(), rideId, input)),
+    withdrawCharity: async (rideId) => keep(charity.withdrawCharity(fresh(), rideId)),
     askSwap: async (rideId, toId, note) => {
       const result = planning.askSwap(fresh(), rideId, toId, note);
       keep(result.data);

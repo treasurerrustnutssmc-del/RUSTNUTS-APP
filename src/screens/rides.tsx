@@ -31,6 +31,8 @@ import { LiveRideCard } from './liveRide';
 // Lane E: share
 import { ShareRideButton } from './shareRide';
 import { HubSection, RideCallBanner, RidePlanSection, SwapSection } from './ridePlanning'; // Ride planning extras
+import { CharitySection } from './charity'; // Charity ride sign-ups
+import { isCharityRide } from '../domain/charity'; // Charity ride sign-ups
 // Stage 3 (lane B): ride chat and wall
 import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
@@ -179,6 +181,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
                 crewNeeded={showsCrewNeeded(me, ride, data, today)}
                 big4={isBig4(ride.id, data)}
                 call={activeCall(ride.id, data)}
+                charity={isCharityRide(ride.id, data)}
                 last={i === g.rides.length - 1}
                 onPress={() => navigation.navigate('RideDetail', { rideId: ride.id })}
               />
@@ -200,6 +203,7 @@ function RideRow({
   crewNeeded,
   big4,
   call,
+  charity,
   last,
   onPress,
 }: {
@@ -214,6 +218,8 @@ function RideRow({
   big4: boolean;
   /** The ride's Off or Postponed call, if any. */
   call: RideCall | null;
+  /** Takes charity sign-ups. */
+  charity: boolean;
   last: boolean;
   onPress: () => void;
 }) {
@@ -228,6 +234,7 @@ function RideRow({
     ride.location,
     RIDE_CATEGORY_LABEL[ride.category],
     big4 ? 'Big 4' : null,
+    charity ? 'charity ride' : null,
     !cancelled && going > 0 ? `${going} going` : null,
     !cancelled && mine ? `you: ${RSVP_LABEL[mine]}` : null,
     !cancelled && spot ? `you’re crew: ${ROLE_LABEL[spot]}` : null,
@@ -261,6 +268,7 @@ function RideRow({
         <Row style={{ gap: 6, marginTop: 2 }}>
           <RideChip category={ride.category} />
           {big4 ? <Chip label="Big 4" tone="red" icon="trophy" /> : null}
+          {charity ? <Chip label="Charity" tone="bone" icon="heart" /> : null}
           {cancelled ? (
             <Chip label="Cancelled" tone="danger" />
           ) : (
@@ -387,6 +395,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         <Row style={{ gap: 6 }}>
           <RideChip category={ride.category} />
           {isBig4(ride.id, data) ? <Chip label="Big 4" tone="red" icon="trophy" /> : null}
+          {isCharityRide(ride.id, data) ? <Chip label="Charity" tone="bone" icon="heart" /> : null}
           {cancelled ? <Chip label="Cancelled" tone="danger" /> : null}
           {!cancelled && call ? <Chip label={callTitle(call)} tone={call.state === 'off' ? 'danger' : 'warn'} icon="rainy" /> : null}
           {busChip ? (
@@ -562,6 +571,15 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         today={today}
         onOpen={() => navigation.navigate('Hub', { rideId: ride.id })}
         onEdit={() => navigation.navigate('EditHub', { rideId: ride.id })}
+      />
+      {/* Charity ride sign-ups */}
+      <CharitySection
+        ride={ride}
+        me={me}
+        data={data}
+        today={today}
+        onOpen={() => navigation.navigate('Charity', { rideId: ride.id })}
+        onEdit={() => navigation.navigate('EditCharity', { rideId: ride.id })}
       />
 
       <CrewSection ride={ride} me={me} data={data} onPick={(role) => navigation.navigate('PickCrew', { rideId: ride.id, role })} />

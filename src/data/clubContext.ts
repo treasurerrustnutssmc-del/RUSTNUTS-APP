@@ -7,6 +7,7 @@ import type { BriefingInput } from '../domain/briefings';
 import type { RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
 import type { HubInput, RegisterInput } from '../domain/hubs'; // Ride planning extras
+import type { CharityInput, SignupInput } from '../domain/charity'; // Charity ride sign-ups
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { Casting, VoteInput } from '../domain/votes';
 import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
@@ -234,6 +235,12 @@ export interface ClubContextValue {
   /** Registers you for a ride's hub, or changes your registration. */
   registerHub: (rideId: string, input: RegisterInput) => Promise<void>;
   withdrawHub: (rideId: string) => Promise<void>;
+  // Charity ride sign-ups
+  /** Makes a ride a charity ride, or changes its sign-ups (its crew managers and the Charity Committee). */
+  saveCharity: (rideId: string, input: CharityInput) => Promise<void>;
+  /** Signs you up to ride or help, or changes your sign-up. */
+  signUpCharity: (rideId: string, input: SignupInput) => Promise<void>;
+  withdrawCharity: (rideId: string) => Promise<void>;
   /** Asks someone to take your crew spot (or trade); resolves to the ask's id. */
   askSwap: (rideId: string, toId: string, note: string) => Promise<string>;
   /** The person asked says yes or no. */

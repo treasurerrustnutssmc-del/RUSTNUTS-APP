@@ -106,6 +106,9 @@ export interface ParityFixture {
   rideHubs?: { ride: string; membersOnly: boolean; beds: number | null }[];
   hubRegistrations?: { ride: string; member: string; staying: HubStaying; pillion: boolean }[];
   crewSwaps?: { key: string; ride: string; askedBy: string; role: CrewRole; askedTo: string; theirRole: CrewRole | null; state: SwapState }[];
+  // Charity ride sign-ups, made at PLANNED_AT by no one.
+  charityRides?: { ride: string; cause: string; places: number | null; jobs: string[] }[];
+  charitySignups?: { ride: string; member: string; riding: boolean; pillion: boolean; guests: number; job: string | null }[];
   stage4?: Stage4Fixture;
   // Stage 3 (lane B): chats. A chat is named `club`, `nec`, `committee:ride`, `committee:charity`,
   // `chapter:<slug>`, `board:<slug>`, `ride:<ride key>` or `direct:<key>:<key>` (keys in order).
@@ -332,6 +335,13 @@ function withPlanning(data: ClubData): ClubData {
     })),
     hubRegistrations: (fixture.hubRegistrations ?? []).map((r) => ({
       rideId: r.ride, memberId: r.member, staying: r.staying, pillion: r.pillion, shareWith: '', notes: '', registeredAt: PLANNED_AT, withdrawnAt: null,
+    })),
+    charityRides: (fixture.charityRides ?? []).map((c) => ({
+      rideId: c.ride, cause: c.cause, about: '', closesOn: null, places: c.places, jobs: c.jobs, updatedBy: null, updatedAt: PLANNED_AT,
+    })),
+    charitySignups: (fixture.charitySignups ?? []).map((s) => ({
+      rideId: s.ride, memberId: s.member, riding: s.riding, pillion: s.pillion, guests: s.guests, guestNames: '', job: s.job, notes: '',
+      signedAt: PLANNED_AT, withdrawnAt: null,
     })),
     crewSwaps: (fixture.crewSwaps ?? []).map((s) => ({
       id: s.key, rideId: s.ride, askedBy: s.askedBy, role: s.role, askedTo: s.askedTo, theirRole: s.theirRole, note: '', state: s.state,

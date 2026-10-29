@@ -53,6 +53,9 @@ export type RootParams = {
   CallRide: { rideId: string };
   Hub: { rideId: string };
   EditHub: { rideId: string };
+  // Charity ride sign-ups
+  Charity: { rideId: string };
+  EditCharity: { rideId: string };
   AskSwap: { rideId: string };
   // Road Rules sign-off. An older version number opens that version read-only.
   RoadRules: { version?: number } | undefined;

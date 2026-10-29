@@ -9,6 +9,8 @@ import { bookProblem, cancelProblem, decideProblem } from '../domain/bus';
 // Ride planning extras
 import { rangeProblem } from '../domain/fuel';
 import { registerProblem, saveHubProblem, withdrawHubProblem } from '../domain/hubs';
+import { saveCharityProblem, signupProblem, withdrawCharityProblem } from '../domain/charity'; // Charity ride sign-ups
+import { saveCharityArgs, signUpCharityArgs } from './charityLive'; // Charity ride sign-ups
 import { rateProblem } from '../domain/ratings';
 import { callProblem } from '../domain/rideCalls';
 import { isPlanConflict, savePlanProblem } from '../domain/ridePlan';
@@ -849,6 +851,22 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     withdrawHub: async (rideId) => {
       deny(withdrawHubProblem(visibleMe, data.rides.find((r) => r.id === rideId), data, new Date().toISOString()));
       ok(await supabase().rpc('withdraw_hub', { p_ride: rideId }));
+      await after();
+    },
+    // Charity ride sign-ups
+    saveCharity: async (rideId, input) => {
+      deny(saveCharityProblem(visibleMe, data.rides.find((r) => r.id === rideId), input, data, new Date().toISOString()));
+      ok(await supabase().rpc('save_charity', saveCharityArgs(rideId, input)));
+      await after();
+    },
+    signUpCharity: async (rideId, input) => {
+      deny(signupProblem(visibleMe, data.rides.find((r) => r.id === rideId), input, data, new Date().toISOString(), today));
+      ok(await supabase().rpc('sign_up_charity', signUpCharityArgs(rideId, input)));
+      await after();
+    },
+    withdrawCharity: async (rideId) => {
+      deny(withdrawCharityProblem(visibleMe, data.rides.find((r) => r.id === rideId), data, new Date().toISOString()));
+      ok(await supabase().rpc('withdraw_charity', { p_ride: rideId }));
       await after();
     },
     askSwap: async (rideId, toId, note) => {

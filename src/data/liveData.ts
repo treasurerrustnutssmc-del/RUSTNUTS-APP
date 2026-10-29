@@ -9,6 +9,7 @@ import type { ClubData, MeetingType, MemberPrivate, Route } from '../domain/type
 import { toBusiness } from './businessLive';
 import { toLedger, toMeetingReports } from './ledgerLive'; // Stage 5B
 import { loadPlanning } from './planningLive'; // Ride planning extras
+import { loadCharity } from './charityLive'; // Charity ride sign-ups
 import { toAdmin } from './adminLive'; // Stage 5D
 import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
 import { EMPTY_DATA } from './clubContext';
@@ -58,6 +59,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   // Ride planning extras: its own queries (so ride_calendar() stays as it is), read alongside the rest.
   const planningLoad = loadPlanning(db);
   planningLoad.catch(() => undefined); // Awaited below; this only keeps an early failure elsewhere from leaving it unhandled.
+  // Charity ride sign-ups: the same, from their own two tables.
+  const charityLoad = loadCharity(db);
+  charityLoad.catch(() => undefined);
   // The club counts' roster places nobody has claimed yet: none rather than blocking the app.
   const unclaimedLoad = db.rpc('unclaimed_roster_counts').then(
     (r) => {
@@ -166,6 +170,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
   const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
+  const charity = await charityLoad;
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
@@ -328,6 +333,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
     ...planning,
+    ...charity,
     // Stage 5: meetings and votes
     ...business,
     ...ledger,
