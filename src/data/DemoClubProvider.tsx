@@ -122,6 +122,15 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     designateBig4: async (rideId, chapterId) => setData(attendanceRules.designateBig4(ctx, rideId, chapterId)),
     undesignateBig4: async (rideId) => setData(attendanceRules.undesignateBig4(ctx, rideId)),
     setExemption: async (sessionId, memberId, reason) => setData(attendanceRules.setExemption(ctx, sessionId, memberId, reason)),
+    // Big 4 RSVP rules and the 5.5 notice
+    setBig4Waiver: async (rideId, memberId, ground) => setData(attendanceRules.setBig4Waiver(ctx, rideId, memberId, ground)),
+    giveStatusNotice: async (memberId, input) => {
+      const result = attendanceRules.giveStatusNotice(ctx, memberId, input);
+      setData(result.data);
+      return result.id;
+    },
+    respondToNotice: async (noticeId, response) => setData(attendanceRules.respondToNotice(ctx, noticeId, response)),
+    closeStatusNotice: async (noticeId, outcome, note) => setData(attendanceRules.closeStatusNotice(ctx, noticeId, outcome, note)),
     decideApplication: async (memberId, status, votes, note) => setData(s4.decideApplication(ctx, memberId, status, votes, note)),
     recordFngReview: async (memberId, atMonths, outcome, votes, note) =>
       setData(s4.recordFngReview(ctx, memberId, atMonths, outcome, votes, note)),

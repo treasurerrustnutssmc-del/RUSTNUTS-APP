@@ -313,6 +313,11 @@ export interface ClubData extends LedgerData, AdminData, AuditData {
   big4Rides?: Big4Ride[];
   /** Members excused from a meeting or ride. Missing means none. */
   exemptions?: AttendanceExemption[];
+  // Big 4 RSVP rules and the 5.5 notice
+  /** Members the board excused from 5.4 for one Big 4. Missing means none. */
+  big4Waivers?: Big4Waiver[];
+  /** 5.5 notices: the member's own, or their chapter's for its board. Missing means none. */
+  statusNotices?: StatusNotice[];
 }
 
 // ---------------------------------------------------------------------------
@@ -946,6 +951,48 @@ export interface AttendanceExemption {
   reason: string;
   grantedBy: string | null;
   grantedAt: string;
+}
+
+/** The grounds 5.4 lets the board excuse a member from its meetings rule on. */
+export type Big4Ground = 'work' | 'family' | 'health' | 'injury' | 'distance';
+
+/** A member the board excused from 5.4 for one Big 4, so they can say Going. */
+export interface Big4Waiver {
+  rideId: string;
+  memberId: string;
+  ground: Big4Ground;
+  grantedBy: string | null;
+  grantedAt: string;
+}
+
+export type NoticeAbout = 'attendance' | 'dues';
+export type NoticeOutcome = 'withdrawn' | 'decided';
+
+/**
+ * A 5.5 notice: before proposing a change in internal status, the member gets the record, the
+ * proposed consequence and at least 14 days to explain, correct an error or ask for an exemption
+ * or payment arrangement.
+ */
+export interface StatusNotice {
+  id: string;
+  memberId: string;
+  /** The member's chapter when it was given. */
+  chapterId: string;
+  about: NoticeAbout;
+  record: string;
+  proposal: string;
+  givenOn: string;
+  respondBy: string;
+  givenBy: string | null;
+  /** Empty when they haven't replied. */
+  response: string;
+  respondedAt: string | null;
+  /** Null while open. */
+  outcome: NoticeOutcome | null;
+  /** Empty when none. */
+  outcomeNote: string;
+  closedOn: string | null;
+  closedBy: string | null;
 }
 
 // Ride planning extras --------------------------------------------------------------------------

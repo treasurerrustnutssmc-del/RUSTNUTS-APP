@@ -2,7 +2,7 @@
 
 // Stage 5: meetings and votes
 import type {
-  AgendaItem, BallotChoice, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
+  AgendaItem, BallotChoice, Big4Ground, NoticeAbout, NoticeOutcome, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
 } from '../domain/types'; // HubStaying, PlanStop, RideCallState, SwapState: ride planning extras
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson, MeetingReportJson } from './ledgerLive'; // Stage 5B
@@ -380,6 +380,23 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      // Big 4 RSVP rules and the 5.5 notice
+      big4_waivers: {
+        Row: { ride_id: string; member_id: string; ground: Big4Ground; granted_by: string | null; granted_at: string };
+        Insert: { [_ in never]: never }; // only through set_big4_waiver
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      status_notices: {
+        Row: {
+          id: string; member_id: string; chapter_id: string; about: NoticeAbout; record: string; proposal: string; given_on: string;
+          respond_by: string; given_by: string | null; response: string | null; responded_at: string | null;
+          outcome: NoticeOutcome | null; outcome_note: string | null; closed_on: string | null; closed_by: string | null;
+        };
+        Insert: { [_ in never]: never }; // only through give_status_notice, respond_to_notice and close_status_notice
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       // Only the columns read directly; the rest come through members_money().
       checkin_sessions: {
         Row: { id: string; meeting_type: MeetingType | null };
@@ -440,6 +457,13 @@ export type Database = {
       undesignate_big4: { Args: { p_ride: string }; Returns: undefined };
       set_meeting_type: { Args: { p_session: string; p_type: MeetingType }; Returns: undefined };
       set_exemption: { Args: { p_session: string; p_member: string; p_reason: string | null }; Returns: undefined };
+      set_big4_waiver: { Args: { p_ride: string; p_member: string; p_ground: Big4Ground | null }; Returns: undefined };
+      give_status_notice: {
+        Args: { p_member: string; p_about: string; p_record: string; p_proposal: string; p_respond_by: string };
+        Returns: string;
+      };
+      respond_to_notice: { Args: { p_notice: string; p_response: string }; Returns: undefined };
+      close_status_notice: { Args: { p_notice: string; p_outcome: NoticeOutcome; p_note: string }; Returns: undefined };
       // Ride planning extras
       set_bike_range: { Args: { p_bike: string; p_range: number | null }; Returns: undefined };
       save_ride_plan: { Args: { p_ride: string; p_stops: PlanStop[]; p_seen: string | null }; Returns: undefined };
