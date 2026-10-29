@@ -8,7 +8,7 @@
 import { isBoardOf } from './access';
 import { isIsoDate } from './conduct';
 import { addDays, formatAuDate } from './dates';
-import type { Standing } from './standing';
+import { isShareLine, type Standing } from './standing';
 import type { ClubData, Member, NoticeAbout, NoticeOutcome, StatusNotice } from './types';
 
 export const NOTICE_DAYS = 14;
@@ -99,9 +99,9 @@ export function closeNoticeProblem(
 /** The record, filled in from where they stand, for the board to check and edit. */
 export function noticeRecordFrom(standing: Standing): string {
   const lines = standing.lines.map((l) =>
-    l.key === 'big4'
-      ? `${l.label}: ${l.attended} (needs ${l.needed}${l.upcoming ? `, ${l.upcoming} still to come` : ''})`
-      : `${l.label}: ${l.attended} of ${l.held} (needs ${l.needed})`,
+    isShareLine(standing, l)
+      ? l.held === 0 ? `${l.label}: none held yet` : `${l.label}: ${l.attended} of ${l.held} (needs ${l.needed})`
+      : `${l.label}: ${l.attended} (needs ${l.needed}${l.upcoming ? `, ${l.upcoming} still to come` : ''})`,
   );
   return [`Since ${formatAuDate(standing.from)}:`, ...lines].join('\n');
 }

@@ -14,7 +14,7 @@ import { formatAuDate } from '../domain/dates';
 import { isBoardOf } from '../domain/access';
 import { displayName, initials } from '../domain/profile';
 import { answersClose, melbourneDate } from '../domain/rides';
-import { standingOf, type Standing, type StandingLine } from '../domain/standing';
+import { isShareLine, standingOf, type Standing, type StandingLine } from '../domain/standing';
 import type { Big4Ground, Member, Ride } from '../domain/types';
 import type { RootParams, RootScreen } from '../navigation/types';
 import { ChapterNotices } from './notices'; // the 5.5 notice
@@ -48,8 +48,8 @@ const CHIP: Record<StandingLine['state'], { label: string; tone: 'ok' | 'warn' |
   none: null,
 };
 
-function detail(line: StandingLine): string {
-  if (line.key === 'big4') {
+function detail(standing: Standing, line: StandingLine): string {
+  if (!isShareLine(standing, line)) {
     if (line.state === 'none') return 'None on the calendar yet';
     const more = line.upcoming > 0 ? ` · ${line.upcoming} more on the calendar` : '';
     return `${line.attended} of ${line.needed} ridden${more}`;
@@ -69,7 +69,7 @@ export function StandingLines({ standing }: { standing: Standing }) {
           <Row key={l.key} style={{ gap: space.md, flexWrap: 'nowrap' }}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={type.name}>{l.label}</Text>
-              <Small style={{ fontVariant: ['tabular-nums'] }}>{detail(l)}</Small>
+              <Small style={{ fontVariant: ['tabular-nums'] }}>{detail(standing, l)}</Small>
             </View>
             {chip ? <Chip label={chip.label} tone={chip.tone} /> : null}
           </Row>

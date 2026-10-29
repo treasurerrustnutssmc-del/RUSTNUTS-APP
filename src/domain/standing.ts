@@ -1,7 +1,8 @@
 // Where a member stands on attendance (constitution v4): a Full Member needs 80% of the ordinary
 // monthly Home Chapter meetings held while Full this club year and two applicable Big 4 rides
-// (5.2, 5.11); a Nomad two of every three meetings and one Big 4 (5.7); an FNG half of each
-// category held during their trial (4.6). Counts round up (2.4). Only activities someone opened a
+// (5.2, 5.11); a Nomad two of every three meetings and one Big 4 (5.7); an FNG half of the monthly
+// meetings and half of the Big 4 rides held during their trial (4.6: the board's list, Jeff's pick
+// of 29 Oct 2026; other rides and events don't count). Counts round up (2.4). Only activities someone opened a
 // check-in for are "held"; an excused one drops out of that member's count. This only informs the
 // board: a status change still needs the 5.5 process.
 
@@ -14,7 +15,7 @@ import type { CheckinSession, ClubData, Member } from './types';
 export type StandingState = 'met' | 'to_go' | 'behind' | 'none';
 
 export interface StandingLine {
-  key: 'meetings' | 'big4' | 'rides' | 'events';
+  key: 'meetings' | 'big4';
   label: string;
   attended: number;
   /** Held so far and counted for them (for Big 4: those already ridden or missed). */
@@ -31,6 +32,11 @@ export interface Standing {
   from: string;
   onHiatus: boolean;
   lines: StandingLine[];
+}
+
+/** Full and Nomad Big 4 lines count rides against a fixed number; every other line is a share of those held. */
+export function isShareLine(standing: Standing, line: StandingLine): boolean {
+  return line.key !== 'big4' || standing.kind === 'fng';
 }
 
 /** The smallest whole number that's at least num/den of held (2.4). */
@@ -100,12 +106,13 @@ export function standingOf(member: Member, data: ClubData, today: string): Stand
     if (!from) return null;
     if (member.onHiatus) return { kind: 'fng', from, onHiatus: true, lines: [] };
     const trial = sessions.filter((s) => s.heldOn >= from);
+    const isBig4For = (rideId: string | null) => (data.big4Rides ?? []).some((b) =>
+      b.rideId === rideId && appliesTo(b, member) && !data.rides.find((r) => r.id === rideId)?.cancelledAt);
     return {
       kind: 'fng', from, onHiatus: false,
       lines: [
-        countLine('rides', 'Rides · 50%', trial.filter((s) => s.kind === 'ride' && (s.chapterId === null || home(s))), member, data, today, 1, 2),
         countLine('meetings', 'Monthly meetings · 50%', trial.filter((s) => home(s) && meetingTypeOf(s) === 'ordinary'), member, data, today, 1, 2),
-        countLine('events', 'Other events · 50%', trial.filter((s) => home(s) && meetingTypeOf(s) === 'event'), member, data, today, 1, 2),
+        countLine('big4', 'Big 4 rides · 50%', trial.filter((s) => s.kind === 'ride' && isBig4For(s.rideId)), member, data, today, 1, 2),
       ],
     };
   }

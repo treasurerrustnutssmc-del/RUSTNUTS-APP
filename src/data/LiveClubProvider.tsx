@@ -542,7 +542,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
           p_title: input.title.trim() || null,
           p_held_on: input.kind === 'meeting' ? input.heldOn : null,
           // Anything but an ordinary meeting goes to the six-argument version, which opens and
-          // classifies it in one go (4.6). Ordinary keeps the original call.
+          // classifies it in one go (5.2, 5.4). Ordinary keeps the original call.
           ...(input.kind === 'meeting' && input.meetingType && input.meetingType !== 'ordinary' ? { p_meeting_type: input.meetingType } : {}),
         }),
       );

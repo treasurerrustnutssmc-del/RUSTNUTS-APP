@@ -62,9 +62,18 @@ A notice stays with the chapter the member was in when it was given: if they mov
 
 **Screens:** "Notices (5.5)" on Board → Attendance with each open notice and a **Give notice** button on each member (attendance or dues; an attendance notice is pre-filled from their standing lines); a `StatusNotice` screen (read, reply, withdraw, decided); a card on Me when you have an open notice. A ConfirmButton for Withdraw and Decided.
 
+## 3A. The FNG activity list (4.6), Jeff 29 Oct 2026
+
+4.6 lets the board set which activities count for FNGs. Jeff's pick (decision card, 29 Oct): **just monthly meetings and Big 4 rides**. So an FNG needs 50% of each, counted since their trial began, rounded up (2.4):
+
+- **Monthly meetings · 50%**: ordinary meetings of their home chapter that had a check-in (unchanged).
+- **Big 4 rides · 50%**: Big 4 rides that apply to them (club-wide or their chapter's), not cancelled, that had a check-in. Excused ones drop out, as everywhere else. No "still to come" count: a trial has no fixed end.
+- Other rides and other events no longer count for FNGs. They're still checked in and recorded.
+
+Because the list is fixed, nothing is stored: no table, no SQL. The board screen, the FNG review and the 5.5 notice record show the two lines. The check-in hint for "Other event" stops saying it counts for FNGs.
+
 ## 4. Not in this change
 
-- The board-set FNG activity list (4.6): each meeting check-in is already classified in advance (ordinary, special, event); a per-year list is a bigger feature with its own spec.
 - Push for notices (held until Jeff says).
 
 ## 5. Testing

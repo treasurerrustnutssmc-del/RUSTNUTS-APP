@@ -97,3 +97,19 @@ test('the record is filled in from where they stand', () => {
   });
   assert.equal(text, 'Since 01/08/2026:\nMonthly meetings · 80%: 2 of 3 (needs 3)\nBig 4 rides: 0 (needs 2, 1 still to come)');
 });
+
+test('an FNG’s Big 4 line reads as a share of those held (4.6)', () => {
+  const text = noticeRecordFrom({
+    kind: 'fng', from: '2026-07-01', onHiatus: false,
+    lines: [
+      { key: 'meetings', label: 'Monthly meetings · 50%', attended: 2, held: 3, needed: 2, upcoming: 0, state: 'met' },
+      { key: 'big4', label: 'Big 4 rides · 50%', attended: 1, held: 3, needed: 2, upcoming: 0, state: 'behind' },
+    ],
+  });
+  assert.equal(text, 'Since 01/07/2026:\nMonthly meetings · 50%: 2 of 3 (needs 2)\nBig 4 rides · 50%: 1 of 3 (needs 2)');
+  const none = noticeRecordFrom({
+    kind: 'fng', from: '2026-07-01', onHiatus: false,
+    lines: [{ key: 'big4', label: 'Big 4 rides · 50%', attended: 0, held: 0, needed: 0, upcoming: 0, state: 'none' }],
+  });
+  assert.equal(none, 'Since 01/07/2026:\nBig 4 rides · 50%: none held yet');
+});
