@@ -264,5 +264,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_family -f "$ROOT/supabase/tests/family_view_test.sql"
 
+# The National Auditor, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_auditor" >/dev/null
+"${PSQL[@]}" -d rustnuts_auditor -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_auditor -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_auditor -f "$ROOT/supabase/tests/auditor_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
 
