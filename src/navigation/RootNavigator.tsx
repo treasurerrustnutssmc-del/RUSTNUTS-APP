@@ -3,7 +3,7 @@ import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
-import { Text, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
@@ -100,7 +100,7 @@ function MainTabs() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // Each tab's label gets the tab's width less the bar's own 5pt padding each side; "Members", the
-  // widest label, is a little over 5 times the font size wide in the club stencil.
+  // widest label, is about 5 times the font size wide in the club stencil (5.2 leaves a margin).
   const labelSize = Math.min(11.5, Math.floor(((width / (isBoard ? 6 : 5) - 10) / 5.2) * 2) / 2);
   return (
     <>
@@ -133,18 +133,12 @@ function MainTabs() {
           tabBarHideOnKeyboard: true, // otherwise Android lifts the tab bar on top of the keyboard
           tabBarActiveTintColor: colors.redText,
           tabBarInactiveTintColor: colors.boneMute,
-          // Six tabs on a narrow phone can't fit "Members" at full size, so the labels shrink together
-          // to fit the tab width (the web ignores adjustsFontSizeToFit; on phones it also covers large text).
-          tabBarLabel: ({ color, children }) => (
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-              style={{ color, fontFamily: fonts.stencil, fontSize: labelSize, lineHeight: 16, letterSpacing: 0.3, textAlign: 'center' }}
-            >
-              {children}
-            </Text>
-          ),
+          // Six tabs on a narrow phone can't fit "Members" at full size, so every label gets the same
+          // size worked out from the tab width (labelSize above). The stock label is used: Android's
+          // adjustsFontSizeToFit sized short labels too narrow and clipped "Chat" to "Cha". No letter
+          // spacing either (Android leaves it out of the width), and no font scaling, so the size holds.
+          tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: labelSize, lineHeight: 16 },
+          tabBarAllowFontScaling: false,
           tabBarItemStyle: { paddingHorizontal: 0 },
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size} color={color} />
