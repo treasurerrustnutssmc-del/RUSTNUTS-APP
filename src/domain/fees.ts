@@ -1,7 +1,7 @@
 // Fees by club year (AGM to AGM, see clubYear.ts), charges, PayID claims and receipts. Money is whole
 // cents. The database's fee actions apply the same rules with the same words.
 
-import { activePositions, holdsBoardSeat, isBoardOf } from './access';
+import { activePositions, holdsBoardSeat, isBoardOf, reviewsChapter } from './access';
 import { daysBetween } from './dates';
 import type { Charge, ClubData, Member, MemberStatus, Payment, PaymentMethod, Position } from './types';
 
@@ -99,9 +99,9 @@ export function canSetFees(viewer: Member | null, chapterId: string, positions: 
   return canManageFees(viewer, chapterId, positions) || holdsBoardSeat(viewer.id, chapterId, positions);
 }
 
-/** Fee handlers, the chapter's board and the NEC (the National Auditor included) can look. */
+/** Fee handlers, the chapter's board, the NEC and the National Auditor (11.8) can look. */
 export function canSeeFees(viewer: Member | null, chapterId: string, positions: Position[]): boolean {
-  return canManageFees(viewer, chapterId, positions) || isBoardOf(viewer, chapterId, positions);
+  return canManageFees(viewer, chapterId, positions) || reviewsChapter(viewer, chapterId, positions);
 }
 
 export function feeRateProblem(me: Member | null, chapterId: string, status: MemberStatus, amountCents: number, data: ClubData): string | null {

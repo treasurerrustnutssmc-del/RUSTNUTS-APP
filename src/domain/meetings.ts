@@ -3,7 +3,7 @@
 // database's actions (supabase/migrations/20270101000000_meetings_votes.sql) apply the same rules
 // with the same words.
 
-import { isBoardOf, isNational } from './access';
+import { isAuditor, isBoardOf, isNational } from './access';
 import { kindsFor } from './labels';
 import { melbourneDate } from './rides';
 import type { ActionItem, AgendaItem, ClubData, Meeting, MeetingKind, Member, Position } from './types';
@@ -45,6 +45,11 @@ export function runsScope(me: Member | null, chapterId: string | null, positions
   return chapterId === null ? isNational(me.id, positions) : isBoardOf(me, chapterId, positions);
 }
 
+/** Reads a scope's private business (board and NEC meetings, draft minutes, votes): whoever runs it, or the Auditor (11.8). */
+export function reviewsScope(me: Member | null, chapterId: string | null, positions: Position[]): boolean {
+  return runsScope(me, chapterId, positions) || isAuditor(me, positions);
+}
+
 export function scopeRefusal(chapterId: string | null): string {
   return chapterId === null ? 'Only the NEC can do that.' : 'Only that chapter’s board can do that.';
 }
@@ -60,7 +65,7 @@ const isPrivateKind = (kind: MeetingKind) => kind === 'board' || kind === 'nec';
 
 export function canSeeMeeting(me: Member | null, meeting: Meeting, positions: Position[]): boolean {
   if (!approved(me)) return false;
-  return isPrivateKind(meeting.kind) ? runsScope(me, meeting.chapterId, positions) : true;
+  return isPrivateKind(meeting.kind) ? reviewsScope(me, meeting.chapterId, positions) : true;
 }
 
 const started = (meeting: Meeting, now: string) => new Date(now).getTime() >= new Date(meeting.startsAt).getTime();
@@ -71,12 +76,12 @@ const started = (meeting: Meeting, now: string) => new Date(now).getTime() >= ne
  */
 export function canSeeMinutes(me: Member | null, meeting: Meeting, positions: Position[]): boolean {
   if (!canSeeMeeting(me, meeting, positions)) return false;
-  return meeting.minutesApprovedAt !== null || !!meeting.minutesSharedAt || runsScope(me, meeting.chapterId, positions);
+  return meeting.minutesApprovedAt !== null || !!meeting.minutesSharedAt || reviewsScope(me, meeting.chapterId, positions);
 }
 
 export function canSeeActionItem(me: Member | null, item: ActionItem, positions: Position[]): boolean {
   if (!approved(me)) return false;
-  return item.ownerId === me.id || runsScope(me, item.chapterId, positions);
+  return item.ownerId === me.id || reviewsScope(me, item.chapterId, positions);
 }
 
 /**

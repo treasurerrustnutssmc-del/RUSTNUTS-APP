@@ -491,13 +491,13 @@
       "allowed": false
     },
     {
-      "name": "The Chairman appoints a National Auditor",
+      "name": "The Chairman appoints a National Auditor without a two-thirds NEC vote (11.8)",
       "as": "chair",
       "action": "appoint",
       "member": "torque",
       "chapter": null,
       "role": "nec_auditor",
-      "allowed": true,
+      "allowed": false,
       "without": [
         "kim-nec-auditor"
       ]
@@ -566,11 +566,11 @@
       "allowed": true
     },
     {
-      "name": "The National Auditor ends the North President's term",
+      "name": "The National Auditor ends the North President's term (11.8)",
       "as": "kim",
       "action": "endTerm",
       "position": "smokey-president",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "West board approves a West applicant",
@@ -6844,6 +6844,92 @@
       "allowed": false
     },
     {
+      "name": "Auditor: approves a West applicant (11.8)",
+      "as": "kim",
+      "action": "approve",
+      "member": "dylan",
+      "status": "introduced",
+      "allowed": false
+    },
+    {
+      "name": "Auditor: changes a member's status (11.8)",
+      "as": "kim",
+      "action": "setStatus",
+      "member": "gravel",
+      "status": "supporter",
+      "allowed": false
+    },
+    {
+      "name": "Auditor: appoints a West Officer (11.8)",
+      "as": "kim",
+      "action": "appoint",
+      "member": "spanner",
+      "chapter": "west",
+      "role": "officer",
+      "allowed": false
+    },
+    {
+      "name": "Auditor: opens a meeting check-in (11.8)",
+      "as": "kim",
+      "action": "openCheckin",
+      "kind": "meeting",
+      "ride": null,
+      "chapter": "west",
+      "title": "Club meeting",
+      "heldOnDays": 0,
+      "allowed": false
+    },
+    {
+      "name": "Auditor: publishes the Road Rules (11.8)",
+      "as": "kim",
+      "action": "publishRoadRules",
+      "body": "# Road Rules\n\nRide safe.",
+      "changes": "Audit",
+      "fresh": true,
+      "seen": 2,
+      "allowed": false
+    },
+    {
+      "name": "Auditor: calls a board meeting (11.8)",
+      "as": "kim",
+      "action": "saveMeeting",
+      "chapter": "west",
+      "kind": "board",
+      "title": "Audit board meeting",
+      "startsAt": "2030-03-01T08:00:00Z",
+      "allowed": false
+    },
+    {
+      "name": "Auditor: opens a chapter vote (11.8)",
+      "as": "kim",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_patched",
+      "threshold": "two_thirds",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "Auditor: says yes to a Rusty Bus request (11.8)",
+      "as": "kim",
+      "action": "decideBus",
+      "booking": "asked-free",
+      "yes": true,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "Auditor: proposes a national contribution (11.8)",
+      "as": "kim",
+      "action": "proposeContribution",
+      "title": "Audit run",
+      "purpose": "Patches.",
+      "totalCents": 150000,
+      "allowed": false
+    },
+    {
       "name": "A chapter Secretary makes a ride a Big 4",
       "as": "torque",
       "action": "designateBig4",
@@ -10797,7 +10883,11 @@
     }
   ],
   "rideCalls": [
-    { "ride": "future-club", "state": "off", "reason": "Weather" }
+    {
+      "ride": "future-club",
+      "state": "off",
+      "reason": "Weather"
+    }
   ],
   "rideHubs": [
     {

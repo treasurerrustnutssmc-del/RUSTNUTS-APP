@@ -6,13 +6,14 @@
 
 import { activePositions } from './access';
 import { BOARD_ROLES, electoratesFor } from './labels';
-import { runsScope, scopeRefusal, signedInProblem } from './meetings';
+import { reviewsScope, runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
 import type { ClubData, Electorate, Member, MemberStatus, Position, Tally, Threshold, Vote, VoteResult } from './types';
 
 /** Who the NEC can vote to bring back to Full or Nomad (5.6). */
 export const REINSTATABLE: MemberStatus[] = ['supporter', 'legacy', 'family', 'introduced'];
 export const REINSTATE_VOTE = 'A reinstatement vote is an NEC majority vote on a member who isn’t Full, Nomad or an FNG (5.6).';
+export const AUDITOR_VOTE = 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President or Treasurer (11.8).';
 
 /** How long a vote can stay open (inferred). */
 export const MAX_OPEN_DAYS = 60;
@@ -155,9 +156,13 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
   if (!input.closesAt || !(ms(input.closesAt) > ms(now))) return 'Pick a closing time in the future.';
   if (ms(input.closesAt) > ms(now) + MAX_OPEN_DAYS * 86_400_000) return 'Votes can stay open for 60 days at most.';
   if (input.subjectMemberId !== null && input.chapterId === null) {
-    // Bringing someone back to Full or Nomad is the NEC's decision (5.6).
     const subject = data.members.find((x) => x.id === input.subjectMemberId);
-    if (!subject || subject.approval !== 'approved' || !REINSTATABLE.includes(subject.status) || input.electorate !== 'nec' || input.threshold !== 'majority') {
+    if (subject?.approval === 'approved' && subject.status === 'full') {
+      // Appointing the National Auditor: two-thirds of the NEC, never a President or Treasurer (11.8).
+      const apart = activePositions(subject.id, data.positions).some((p) => p.role === 'president' || p.role === 'treasurer');
+      if (apart || input.electorate !== 'nec' || input.threshold !== 'two_thirds') return AUDITOR_VOTE;
+    } else if (!subject || subject.approval !== 'approved' || !REINSTATABLE.includes(subject.status) || input.electorate !== 'nec' || input.threshold !== 'majority') {
+      // Bringing someone back to Full or Nomad is the NEC's decision (5.6).
       return REINSTATE_VOTE;
     }
   } else if (input.subjectMemberId !== null) {
@@ -228,7 +233,7 @@ export function closeProblem(
 
 export function canSeeVote(me: Member | null, vote: Vote, positions: Position[]): boolean {
   if (!me || me.approval !== 'approved') return false;
-  return vote.electorIds.includes(me.id) || runsScope(me, vote.chapterId, positions);
+  return vote.electorIds.includes(me.id) || reviewsScope(me, vote.chapterId, positions);
 }
 
 const THRESHOLD_LINE: Record<Threshold, string> = {
@@ -249,8 +254,8 @@ export function ruleLine(vote: Pick<Vote, 'threshold' | 'quorum' | 'electorIds' 
 }
 
 /** The latest vote of one kind about a member: the open one if there is one, else the one that closed last. */
-function subjectVoteFor(memberId: string, votes: Vote[], electorate: Electorate): Vote | null {
-  const theirs = votes.filter((v) => v.subjectMemberId === memberId && v.electorate === electorate);
+function subjectVoteFor(memberId: string, votes: Vote[], electorate: Electorate, threshold?: Threshold): Vote | null {
+  const theirs = votes.filter((v) => v.subjectMemberId === memberId && v.electorate === electorate && (!threshold || v.threshold === threshold));
   return (
     theirs.find((v) => v.closedAt === null) ??
     theirs.sort((a, b) => b.closedAt!.localeCompare(a.closedAt!))[0] ??
@@ -262,4 +267,7 @@ function subjectVoteFor(memberId: string, votes: Vote[], electorate: Electorate)
 export const patchVoteFor = (memberId: string, votes: Vote[]) => subjectVoteFor(memberId, votes, 'chapter_patched');
 
 /** The NEC's vote on bringing a member back to Full or Nomad (5.6). */
-export const reinstateVoteFor = (memberId: string, votes: Vote[]) => subjectVoteFor(memberId, votes, 'nec');
+export const reinstateVoteFor = (memberId: string, votes: Vote[]) => subjectVoteFor(memberId, votes, 'nec', 'majority');
+
+/** The NEC's two-thirds vote on appointing a member National Auditor (11.8). */
+export const auditorVoteFor = (memberId: string, votes: Vote[]) => subjectVoteFor(memberId, votes, 'nec', 'two_thirds');

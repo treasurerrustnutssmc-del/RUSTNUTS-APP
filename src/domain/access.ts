@@ -6,6 +6,7 @@ import { BOARD_ROLES, NATIONAL_ROLES, TITLE_ROLES } from './labels';
 import { addMonths } from './profile';
 import { melbourneDate } from './rides';
 import { addDays } from './dates';
+import { termState } from './terms';
 import type { ClubData, Member, MemberStatus, Position, PositionRole } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'family' | 'member' | 'board' | 'national';
@@ -35,11 +36,27 @@ export function holdsBoardSeat(memberId: string, chapterId: string, positions: P
   );
 }
 
-/** Sits on the National Executive Committee: a national role, or any sitting chapter President. */
+/**
+ * The national officers with NEC powers. The National Auditor holds a national seat but reviews
+ * and never runs anything (11.8), so they aren't one.
+ */
+const NEC_OFFICER_ROLES: PositionRole[] = ['nec_chair', 'nec_secretary'];
+
+/** Sits on the National Executive Committee: the Chairman, the Secretary, or any sitting chapter President. */
 export function isNational(memberId: string, positions: Position[]): boolean {
   return activePositions(memberId, positions).some(
-    (p) => NATIONAL_ROLES.includes(p.role) || p.role === 'president',
+    (p) => NEC_OFFICER_ROLES.includes(p.role) || p.role === 'president',
   );
+}
+
+/** The sitting National Auditor (11.8). Mirrors private.is_auditor. */
+export function isAuditor(me: Member | null, positions: Position[]): boolean {
+  return !!me && me.approval === 'approved' && activePositions(me.id, positions).some((p) => p.role === 'nec_auditor');
+}
+
+/** Reads a chapter's membership and attendance records: its board, the NEC, or the Auditor (11.8). */
+export function reviewsChapter(viewer: Member | null, chapterId: string, positions: Position[]): boolean {
+  return isBoardOf(viewer, chapterId, positions) || isAuditor(viewer, positions);
 }
 
 /**
@@ -92,7 +109,7 @@ export function canSeeMember(viewer: Member | null, target: Member, positions: P
   if (!viewer) return false;
   if (viewer.id === target.id) return true;
   if (target.approval === 'approved') return isApprovedMember(viewer);
-  return isBoardOf(viewer, target.chapterId, positions);
+  return reviewsChapter(viewer, target.chapterId, positions);
 }
 
 /** Phone number: self, chapter board, or any member when the target chose to share it. */
@@ -118,9 +135,12 @@ export function canManageMember(viewer: Member | null, target: Member, positions
   return isBoardOf(viewer, target.chapterId, positions);
 }
 
-/** National Chairman, Secretary or Auditor. Sitting Presidents are on the NEC but are not officers. */
+/**
+ * National Chairman or Secretary. Sitting Presidents are on the NEC but are not officers, and the
+ * Auditor doesn't seat the people they review (11.8).
+ */
 export function isNecOfficer(memberId: string, positions: Position[]): boolean {
-  return activePositions(memberId, positions).some((p) => NATIONAL_ROLES.includes(p.role));
+  return activePositions(memberId, positions).some((p) => NEC_OFFICER_ROLES.includes(p.role));
 }
 
 /** The sitting National Chairman. */
@@ -141,6 +161,7 @@ export function appointProblem(
   chapterId: string | null,
   role: PositionRole,
   data: ClubData,
+  today: string = melbourneDate(new Date().toISOString()),
 ): string | null {
   if (!me) return 'Sign in first.';
   if (me.approval !== 'approved') return 'Only approved members can do that.';
@@ -156,7 +177,7 @@ export function appointProblem(
   } else {
     if (!seatChapter || seatChapter !== target.chapterId) return 'They’re not a member of that chapter.';
     if (role === 'president') {
-      if (!isNecOfficer(me.id, data.positions)) return 'Only the National Chairman, Secretary or Auditor can seat a President.';
+      if (!isNecOfficer(me.id, data.positions)) return 'Only the National Chairman or Secretary can seat a President.';
     } else if (!isBoardOf(me, seatChapter, data.positions)) {
       return 'Only that chapter’s board can appoint here.';
     }
@@ -166,7 +187,44 @@ export function appointProblem(
   const open = data.positions.filter((p) => p.endedOn === null && p.role === role && p.chapterId === seatChapter);
   if (open.some((p) => p.memberId === target.id)) return 'They already hold that role.';
   if ((BOARD_ROLES.includes(role) || national) && open.length > 0) return 'That seat is taken. End the current term first.';
+  if (role === 'nec_auditor' && !hasCarriedAuditorVote(target.id, data, today)) return AUDITOR_NEEDS_VOTE;
   return null;
+}
+
+/** How long a carried vote to appoint the Auditor stays good for (inferred, as for reinstatement). */
+export const AUDITOR_VOTE_DAYS = 90;
+export const AUDITOR_NEEDS_VOTE = 'Appointing the National Auditor needs a carried two-thirds NEC vote about them in the last 90 days (11.8).';
+
+/** The NEC voted by two-thirds, in the last 90 days, to appoint this member National Auditor (11.8). */
+export function hasCarriedAuditorVote(memberId: string, data: ClubData, today: string): boolean {
+  const since = addDays(today, -AUDITOR_VOTE_DAYS);
+  return (data.votes ?? []).some(
+    (v) => v.subjectMemberId === memberId && v.chapterId === null && v.electorate === 'nec' && v.threshold === 'two_thirds'
+      && v.closedAt !== null && v.result === 'carried' && melbourneDate(v.closedAt) >= since,
+  );
+}
+
+/** The sitting Auditor's seat, if there is one. */
+export function auditorSeat(data: ClubData): Position | null {
+  return data.positions.find((p) => p.role === 'nec_auditor' && p.endedOn === null) ?? null;
+}
+
+/**
+ * Why `me` can't renew the sitting Auditor for another twelve months, or null (11.8). The term has to
+ * be ending (60 days) or over, and the NEC has to have voted again. Mirrors the database's renew_auditor.
+ */
+export function renewAuditorProblem(me: Member | null, data: ClubData, today: string): string | null {
+  if (!me) return 'Sign in first.';
+  if (me.approval !== 'approved') return 'Only approved members can do that.';
+  if (!isChairman(me.id, data.positions)) return 'Only the National Chairman renews the National Auditor.';
+  const seat = auditorSeat(data);
+  if (!seat) return 'There’s no sitting National Auditor to renew.';
+  if (termState(seat, today) === 'running') return 'The Auditor’s term isn’t ending yet. Renew in its last 60 days.';
+  const target = data.members.find((m) => m.id === seat.memberId);
+  if (!target) return 'There’s no sitting National Auditor to renew.';
+  const unfit = holdProblem(target, 'nec_auditor', data.positions);
+  if (unfit) return unfit;
+  return hasCarriedAuditorVote(target.id, data, today) ? null : AUDITOR_NEEDS_VOTE;
 }
 
 const patched = (status: MemberStatus) => status === 'full' || status === 'nomad';
@@ -233,7 +291,7 @@ export const REINSTATE_VOTE_DAYS = 90;
 export function hasCarriedReinstateVote(memberId: string, data: ClubData, today: string): boolean {
   const since = addDays(today, -REINSTATE_VOTE_DAYS);
   return (data.votes ?? []).some(
-    (v) => v.subjectMemberId === memberId && v.electorate === 'nec' && v.closedAt !== null && v.result === 'carried' && melbourneDate(v.closedAt) >= since,
+    (v) => v.subjectMemberId === memberId && v.electorate === 'nec' && v.threshold === 'majority' && v.closedAt !== null && v.result === 'carried' && melbourneDate(v.closedAt) >= since,
   );
 }
 
@@ -280,7 +338,7 @@ export function endTermProblem(me: Member | null, position: Position, data: Club
   if (position.role === 'president') {
     return isNecOfficer(me.id, data.positions)
       ? null
-      : 'Only the National Chairman, Secretary or Auditor can end a President’s term.';
+      : 'Only the National Chairman or Secretary can end a President’s term.';
   }
   return isBoardOf(me, position.chapterId, data.positions) ? null : 'Only that chapter’s board can end this term.';
 }
