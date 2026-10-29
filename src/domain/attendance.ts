@@ -44,7 +44,7 @@ export function canRunCheckin(viewer: Member | null, chapterId: string | null, p
 /** Approved members, and applicants still in their introduction phase (it's their meetings that count). */
 export function canCheckIn(viewer: Member | null): boolean {
   if (!viewer) return false;
-  if (viewer.approval === 'approved') return true;
+  if (viewer.approval === 'approved') return viewer.status !== 'family'; // Family view: no attendance
   return viewer.approval === 'pending' && viewer.status === 'introduced';
 }
 
