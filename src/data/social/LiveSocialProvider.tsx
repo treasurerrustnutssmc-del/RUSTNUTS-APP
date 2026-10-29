@@ -46,17 +46,6 @@ import {
   type ClubInvite,
   type OtherClub,
 } from '../../domain/invites';
-import {
-  answerInviteArgs,
-  INVITE_COLUMNS,
-  inviteClubArgs,
-  saveInviteInArgs,
-  saveOtherClubArgs,
-  toInvites,
-  toOtherClubs,
-  type InviteRow,
-  type OtherClubRow,
-} from './liveSocial';
 import type { MediaSource } from '../chat/chatContext';
 import type { Ride, RideRoute } from '../../domain/types';
 import type { PickedMedia } from '../../domain/chat';
@@ -101,6 +90,16 @@ import {
   type MechanicRow,
   type SkillsRow,
   type VouchRow,
+  // Invites to and from other clubs
+  answerInviteArgs,
+  INVITE_COLUMNS,
+  inviteClubArgs,
+  saveInviteInArgs,
+  saveOtherClubArgs,
+  toInvites,
+  toOtherClubs,
+  type InviteRow,
+  type OtherClubRow,
 } from './liveSocial';
 import { SocialContext, type SocialContextValue } from './socialContext';
 

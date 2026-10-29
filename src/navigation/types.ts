@@ -133,6 +133,13 @@ export type RootParams = {
   PublishDocument: { id: string };
   DocumentApproval: { versionId: string };
   DocumentSignoffs: { id: string };
+  // Invites to and from other clubs
+  OtherClubs: undefined;
+  Invite: { inviteId: string };
+  EditInvite: { inviteId?: string } | undefined;
+  InviteClub: { rideId: string };
+  OtherClub: { clubId: string };
+  EditOtherClub: { clubId?: string } | undefined;
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;
