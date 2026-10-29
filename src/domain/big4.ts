@@ -121,6 +121,11 @@ export function big4GoingProblem(me: Member | null, rideId: string, answer: Rsvp
   return m.ok ? null : `You need ${needsMeetingsText(m)} to ride a Big 4 (5.4). Your board can excuse work, family, health, injury or distance.`;
 }
 
+/** Whether `viewer` has a member's meetings and excuses to judge 5.4 by: their own, or their chapter board's. */
+export function seesBig4Records(viewer: Member | null, target: Member, positions: Position[]): boolean {
+  return !!viewer && (viewer.id === target.id || isBoardOf(viewer, target.chapterId, positions));
+}
+
 /** Why `target` can't be put on this Big 4's crew under 5.4, or null. (Crew is Full and Nomad only already.) */
 export function big4CrewProblem(target: Member, rideId: string, data: ClubData, today: string): string | null {
   if (!isBig4(rideId, data)) return null;

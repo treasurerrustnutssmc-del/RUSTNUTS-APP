@@ -54,7 +54,7 @@ import {
 } from './liveData';
 // Stage 4
 import { canCheckIn, closeProblem, exemptionProblem, markProblem, openCheckinProblem } from '../domain/attendance';
-import { big4GoingProblem, big4WaiverProblem, designateBig4Problem, undesignateBig4Problem } from '../domain/big4';
+import { big4CrewProblem, big4GoingProblem, big4WaiverProblem, seesBig4Records, designateBig4Problem, undesignateBig4Problem } from '../domain/big4';
 import { closeNoticeProblem, giveNoticeProblem, respondProblem } from '../domain/notices';
 import {
   claimProblem,
@@ -712,15 +712,12 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
 
     setCrew: async (rideId, memberId, role) => {
-      const problem = crewProblem(
-        visibleMe,
-        data.rides.find((r) => r.id === rideId),
-        data.members.find((m) => m.id === memberId),
-        role,
-        data,
-        new Date().toISOString(),
-      );
-      if (problem) throw new NotAllowedError(problem);
+      const target = data.members.find((m) => m.id === memberId);
+      const problem = crewProblem(visibleMe, data.rides.find((r) => r.id === rideId), target, role, data, new Date().toISOString());
+      // A manager who isn't the target's board can't see their meetings or excuses, so the Big 4
+      // check would only guess: set_crew decides that one.
+      const big4Guess = !!target && !seesBig4Records(visibleMe, target, data.positions) && problem === big4CrewProblem(target, rideId, data, today);
+      if (problem && !big4Guess) throw new NotAllowedError(problem);
       ok(await supabase().rpc('set_crew', { p_ride: rideId, p_member: memberId, p_role: role }));
       await after();
     },

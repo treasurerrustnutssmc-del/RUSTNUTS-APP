@@ -46,6 +46,8 @@ create table public.status_notices (
   closed_by uuid references public.members (id) on delete set null
 );
 create index status_notices_member on public.status_notices (member_id);
+-- One open notice per member and kind.
+create unique index status_notices_one_open on public.status_notices (member_id, about) where outcome is null;
 create index status_notices_chapter on public.status_notices (chapter_id);
 
 alter table public.big4_waivers enable row level security;
@@ -248,7 +250,8 @@ declare
   target public.members%rowtype;
   closes timestamptz;
 begin
-  select * into ride from public.rides where id = p_ride;
+  -- The same lock set_rsvp takes, so an excuse cleared while they answer is seen by one or the other.
+  select * into ride from public.rides where id = p_ride for no key update;
   if not found then raise exception 'No such ride.'; end if;
   if not exists (select 1 from public.big4_rides where ride_id = p_ride) then raise exception 'That ride isn’t a Big 4.'; end if;
   if ride.cancelled_at is not null then raise exception 'That ride was cancelled.'; end if;
@@ -299,14 +302,17 @@ begin
   if char_length(prop) > 500 then raise exception 'Keep the proposal under 500 characters.'; end if;
   if p_respond_by is null then raise exception 'Pick a real date.'; end if;
   if p_respond_by < private.club_date() + 14 then raise exception 'Give them at least 14 days to respond (5.5).'; end if;
-  -- One open notice per member and kind; the lock stops two at once.
-  perform 1 from public.members where id = p_member for update;
   if exists (select 1 from public.status_notices where member_id = p_member and about = p_about and outcome is null) then
     raise exception 'They already have an open notice about that.';
   end if;
-  insert into public.status_notices (member_id, chapter_id, about, record, proposal, respond_by, given_by)
-  values (p_member, target.chapter_id, p_about, rec, prop, p_respond_by, me)
-  returning id into new_id;
+  begin
+    insert into public.status_notices (member_id, chapter_id, about, record, proposal, respond_by, given_by)
+    values (p_member, target.chapter_id, p_about, rec, prop, p_respond_by, me)
+    returning id into new_id;
+  exception when unique_violation then
+    -- Someone else on the board gave one at the same moment.
+    raise exception 'They already have an open notice about that.';
+  end;
   return new_id;
 end;
 $$;

@@ -22,7 +22,7 @@ Refusals, same words in app and database:
 - Any status but FNG, Full or Nomad: "Big 4 rides are for FNGs, Full Members and Nomads (5.4)."
 - Not eligible and not excused: "You need 2 of the last 3 meetings to ride a Big 4 (5.4). Your board can excuse work, family, health, injury or distance." (the number is `needed` and `of`, so "1 of the last 1 meetings" reads "the last meeting"; see `big4.ts`)
 
-`set_crew` on a Big 4 refuses an ineligible target: "They need 2 of the last 3 meetings to ride this Big 4 (5.4)." (crew is Full and Nomad only already).
+`set_crew` on a Big 4 refuses an ineligible target: "They need 2 of the last 3 meetings to ride this Big 4 (5.4)." (crew is Full and Nomad only already). In the live app, a manager who isn't the target's chapter board can't read their meetings or excuses, so the app leaves that one check to `set_crew`.
 
 **Eligibility** stays `big4Eligibility` (three most recent ordinary or special meetings of the home chapter, held before the ride's date and by today, excused ones skipped, two needed or all if fewer). One change: meetings on the same day are ordered with the ones the member attended first, so the demo and database pick the same three whatever their ids. The database gets `private.big4_eligible(member, ride)` with the same rules.
 
@@ -53,12 +53,14 @@ UI: on the ride's Big 4 card, a board member sees "Not eligible yet" (their chap
   - "Set out the record." / "Say what’s proposed." (and length limits: "Keep the record under 2000 characters." / "Keep the proposal under 500 characters.")
   - "Give them at least 14 days to respond (5.5)."
   - "They already have an open notice about that."
-- `respond_to_notice(p_notice, p_response)`: the member only, while open; replaces their reply. "No such notice.", "Only they can reply to their notice.", "That notice is closed.", "Write your reply." / "Keep your reply under 2000 characters."
+- `respond_to_notice(p_notice, p_response)`: the member only, while open; replaces their reply. "No such notice.", "Only the member can reply to their notice.", "That notice is closed.", "Write your reply." / "Keep your reply under 2000 characters."
 - `close_status_notice(p_notice, p_outcome, p_note)`: the member's chapter board, not the member. Withdraw any time; Decided only after respond-by ("The board decides after DD/MM/YYYY (5.5)."). A decision is recorded as a conduct record of kind Attendance (14-day review, 14.6A) and the status change made as today; the app links to both, it doesn't do them.
+
+A notice stays with the chapter the member was in when it was given: if they move, their old board closes it (rare; a new notice can be given by the new board).
 
 **No gate on status changes.** `set_member_status` isn't blocked by a missing notice: a member can ask to step down, and section 14 outcomes don't use 5.5. The board screen shows open notices instead. *Jeff can ask for a hard gate later.*
 
-**Screens:** "Notices (5.5)" on Board → Attendance with each open notice and a **Give notice** button on each Behind member (pre-filled record from their standing lines); a `StatusNotice` screen (read, reply, withdraw, decided); a card on Me when you have an open notice. A ConfirmButton for Withdraw and Decided.
+**Screens:** "Notices (5.5)" on Board → Attendance with each open notice and a **Give notice** button on each member (attendance or dues; an attendance notice is pre-filled from their standing lines); a `StatusNotice` screen (read, reply, withdraw, decided); a card on Me when you have an open notice. A ConfirmButton for Withdraw and Decided.
 
 ## 4. Not in this change
 

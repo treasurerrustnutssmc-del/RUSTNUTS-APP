@@ -15,6 +15,7 @@ import {
   big4WaiverProblem,
   isBig4Waived,
   needsMeetingsText,
+  seesBig4Records,
   canDesignateBig4,
   designateBig4Problem,
   isBig4,
@@ -230,4 +231,12 @@ test('the board sees which of its members aren’t eligible for a Big 4 yet', ()
   // rider made 1 of 3; fresh and nomad made none; fng is excused; sup and fam aren't Club status.
   assert.deepEqual(notYet.map((m) => m.id).sort(), ['fresh', 'nomad', 'rider', 'tre']);
   assert.deepEqual(excused.map((w) => w.memberId), ['fng']);
+});
+
+test('only the member and their chapter board have the records to judge 5.4 by', () => {
+  const data = big4Club();
+  assert.equal(seesBig4Records(who(data, 'rider'), who(data, 'rider'), data.positions), true);
+  assert.equal(seesBig4Records(who(data, 'sec'), who(data, 'rider'), data.positions), true);
+  assert.equal(seesBig4Records(who(data, 'northsec'), who(data, 'rider'), data.positions), false);
+  assert.equal(seesBig4Records(null, who(data, 'rider'), data.positions), false);
 });

@@ -266,9 +266,10 @@ export function Big4Card({ ride }: { ride: Ride }) {
               <Small>{eligibility.of === 0 ? 'No meetings to count yet.' : `${eligibility.attended} of the last ${eligibility.of} meetings (5.4).`}</Small>
             </Row>
           ) : (
-            <Notice tone="warn" title={`Needs ${needsMeetingsText(eligibility)}`}>
-              {`You’ve made ${eligibility.attended}, so you can’t say Going yet (5.4). Your board can excuse work, family, health, injury or distance.`}
-            </Notice>
+            <Row style={{ gap: space.sm }}>
+              <Chip label="Not yet" tone="warn" />
+              <Small>{`${eligibility.attended} of the last ${eligibility.of} meetings. Needs ${needsMeetingsText(eligibility)} (5.4).`}</Small>
+            </Row>
           )
         ) : null}
         {canChange && !big4 ? (
@@ -337,7 +338,10 @@ function Big4Excuses({ ride }: { ride: Ride }) {
     <Stack gap={space.md}>
       {lists.map(({ c, notYet, excused }) => (
         <Stack key={c.id} gap={space.sm}>
-          <Text style={type.name}>{`${c.name} board · 5.4`}</Text>
+          <View style={{ gap: 2, marginTop: space.sm }}>
+            <Text style={type.name}>{`${c.name}: not eligible yet`}</Text>
+            <Small>Your board can excuse work, family, health, injury or distance (5.4).</Small>
+          </View>
           {notYet.filter((m) => m.id !== me.id).map((m) => {
             const e = big4Eligibility(m, melbourneDate(ride.startsAt), data, today);
             return (
@@ -345,10 +349,10 @@ function Big4Excuses({ ride }: { ride: Ride }) {
                 <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Body strong>{displayName(m)}</Body>
-                    <Small style={{ fontVariant: ['tabular-nums'] }}>{`${e.attended} of the last ${e.of} meetings · needs ${e.needed}`}</Small>
+                    <Small style={{ fontVariant: ['tabular-nums'] }}>{`${e.attended} of the last ${e.of} meetings`}</Small>
                   </View>
                   {picking !== m.id ? (
-                    <Button label="Excuse" kind="secondary" accessibilityLabel={`Excuse ${displayName(m)} from 5.4`} onPress={() => { setPicking(m.id); setGround('work'); }} />
+                    <Button label="Excuse" kind="secondary" disabled={busy} accessibilityLabel={`Excuse ${displayName(m)} from 5.4`} onPress={() => { setPicking(m.id); setGround('work'); }} />
                   ) : null}
                 </Row>
                 {picking === m.id ? (

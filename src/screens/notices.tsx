@@ -13,6 +13,7 @@ import {
   noticeOf, noticeRecordFrom, openNoticesOf, respondProblem,
 } from '../domain/notices';
 import { displayName } from '../domain/profile';
+import { melbourneDate } from '../domain/rides';
 import { standingOf } from '../domain/standing';
 import type { NoticeAbout, NoticeOutcome, StatusNotice } from '../domain/types';
 import type { RootParams, RootScreen } from '../navigation/types';
@@ -32,7 +33,7 @@ function noticeState(n: StatusNotice, today: string): { label: string; tone: 'wa
 
 /** On Me: your open notices, each opening the notice. Nothing when there are none. */
 export function MyNotices() {
-  const { me, data, today } = useClub();
+  const { me, data } = useClub();
   const navigation = useNavigation<NavigationProp<RootParams>>();
   if (!me) return null;
   const open = openNoticesOf(me.id, data);
@@ -46,8 +47,7 @@ export function MyNotices() {
             key={n.id}
             left={<IconBadge icon="document-text-outline" tone="red" />}
             title={`${ABOUT_LABEL[n.about]} (5.5)`}
-            subtitle={n.response ? 'You’ve replied. You can change your reply until the board decides.' : `Read it and reply by ${formatAuDate(n.respondBy)}.`}
-            right={<Chip label={noticeState(n, today).label} tone={noticeState(n, today).tone} />}
+            subtitle={n.response ? 'You’ve replied. You can change it until the board decides.' : `Read it and reply by ${formatAuDate(n.respondBy)}.`}
             onPress={() => navigation.navigate('StatusNotice', { noticeId: n.id })}
             last={i === open.length - 1}
           />
@@ -75,8 +75,8 @@ export function ChapterNotices({ chapterId }: { chapterId: string }) {
               key={n.id}
               left={<IconBadge icon="document-text-outline" tone={state.tone === 'warn' ? 'red' : 'steel'} />}
               title={`${m ? displayName(m) : 'Someone'} · ${ABOUT_LABEL[n.about]}`}
-              subtitle={n.response ? 'They’ve replied' : 'No reply yet'}
-              right={<Chip label={state.label} tone={state.tone} />}
+              subtitle={`${n.response ? 'Replied' : 'No reply yet'} · reply by ${formatAuDate(n.respondBy)}`}
+              right={state.tone === 'warn' ? <Chip label="Decide" tone="warn" /> : undefined}
               onPress={() => navigation.navigate('StatusNotice', { noticeId: n.id })}
               last={i === open.length - 1}
             />
@@ -96,7 +96,8 @@ export function GiveNoticeScreen({ route, navigation }: RootScreen<'GiveNotice'>
   const member = data.members.find((m) => m.id === route.params.memberId);
   const standing = member ? standingOf(member, data, today) : null;
   const [about, setAbout] = useState<NoticeAbout>('attendance');
-  const [record, setRecord] = useState(standing && standing.lines.length > 0 ? noticeRecordFrom(standing) : '');
+  const fromStanding = standing && standing.lines.length > 0 ? noticeRecordFrom(standing) : '';
+  const [record, setRecord] = useState(fromStanding);
   const [proposal, setProposal] = useState('');
   const respondBy = useDate(addDays(today, NOTICE_DAYS));
   const [busy, setBusy] = useState(false);
@@ -138,7 +139,12 @@ export function GiveNoticeScreen({ route, navigation }: RootScreen<'GiveNotice'>
         label="About"
         options={[{ value: 'attendance', label: 'Attendance' }, { value: 'dues', label: 'Dues' }]}
         value={about}
-        onChange={setAbout}
+        onChange={(a) => {
+          setAbout(a);
+          // The attendance record filled in for them doesn't fit dues, and back again, unless it's been edited.
+          if (a === 'dues' && record === fromStanding) setRecord('');
+          if (a === 'attendance' && record === '') setRecord(fromStanding);
+        }}
       />
       <Field
         label="The record"
@@ -213,7 +219,8 @@ export function StatusNoticeScreen({ route, navigation }: RootScreen<'StatusNoti
     if (problem) return setError(problem);
     run(() => closeStatusNotice(n.id, outcome, note));
   };
-  const canDecide = closeNoticeProblem(me, n.id, 'decided', note, data, today) === null;
+  // The board decides only after the reply-by date (5.5).
+  const tooSoon = today <= n.respondBy;
 
   return (
     <Screen>
@@ -256,7 +263,7 @@ export function StatusNoticeScreen({ route, navigation }: RootScreen<'StatusNoti
             hint={n.response ? 'Sending again replaces your last reply.' : 'Explain, point out an error, or ask for an exemption or a payment arrangement.'}
           />
           <Button label={n.response ? 'Update reply' : 'Send reply'} icon="send" busy={busy} onPress={sendReply} />
-          {n.respondedAt ? <Small>{`Last sent ${formatAuDate(n.respondedAt.slice(0, 10))}.`}</Small> : null}
+          {n.respondedAt ? <Small>{`Last sent ${formatAuDate(melbourneDate(n.respondedAt))}.`}</Small> : null}
         </Stack>
       ) : (
         <Card>
@@ -289,11 +296,11 @@ export function StatusNoticeScreen({ route, navigation }: RootScreen<'StatusNoti
             label="The board has decided"
             confirmLabel="Record it"
             kind="secondary"
-            disabled={busy || !canDecide}
+            disabled={busy || tooSoon}
             confirmNote="Only once the board has decided by a majority at a quorate meeting, with written reasons and the effective date."
             onConfirm={() => close('decided')}
           />
-          {!canDecide ? <Small>{`The board decides after ${formatAuDate(n.respondBy)}.`}</Small> : null}
+          {tooSoon ? <Small>{`The board decides after ${formatAuDate(n.respondBy)}.`}</Small> : null}
         </Stack>
       ) : null}
 
