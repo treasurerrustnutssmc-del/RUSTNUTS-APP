@@ -529,6 +529,7 @@ test('signed in: the Rusty Bus bookings are read with the rest, and become app r
           id: 'bus1', first_day: '2026-11-07', last_day: '2026-11-08', purpose: 'charity_ride', ride_id: 'r1', driver_id: 'm1',
           notes: 'Spares and water', status: 'approved', booked_by: 'm2', booked_at: '2026-10-19T03:04:05.678901+00:00',
           decided_by: 'm2', decided_at: '2026-10-19T03:04:05.678901+00:00', decline_reason: null, cancelled_by: null, cancelled_at: null,
+          changed_by: 'm1', changed_at: '2026-10-20T00:00:00+00:00',
         },
         {
           id: 'bus2', first_day: '2026-10-20', last_day: '2026-10-20', purpose: 'other', ride_id: null, driver_id: null,
@@ -545,12 +546,15 @@ test('signed in: the Rusty Bus bookings are read with the rest, and become app r
       id: 'bus1', firstDay: '2026-11-07', lastDay: '2026-11-08', purpose: 'charity_ride', rideId: 'r1', driverId: 'm1',
       notes: 'Spares and water', status: 'approved', bookedBy: 'm2', bookedAt: '2026-10-19T03:04:05.678Z',
       decidedBy: 'm2', decidedAt: '2026-10-19T03:04:05.678Z', declineReason: '', cancelledBy: null, cancelledAt: null,
+      changedBy: 'm1', changedAt: '2026-10-20T00:00:00.000Z',
     },
     {
       id: 'bus2', firstDay: '2026-10-20', lastDay: '2026-10-20', purpose: 'other', rideId: null, driverId: null,
       notes: '', status: 'cancelled', bookedBy: null, bookedAt: '2026-10-01T00:00:00.000Z',
       decidedBy: 'm3', decidedAt: '2026-10-02T01:00:00.000Z', declineReason: 'Not that day', cancelledBy: 'm3',
       cancelledAt: '2026-10-03T02:00:00.500Z',
+      // A row from before the Rusty Bus extras migration has no changed columns.
+      changedBy: null, changedAt: null,
     },
   ]);
 });

@@ -11384,6 +11384,477 @@
       "place": "",
       "details": "",
       "ride": "future-supported"
+    },
+    {
+      "name": "Whoever booked a Rusty Bus booking under way changes its driver, keeping its first day",
+      "as": "gravel",
+      "action": "changeBus",
+      "booking": "out-today",
+      "firstDays": -1,
+      "lastDays": 0,
+      "purpose": "recovery",
+      "ride": null,
+      "driver": "spanner",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A Waiting Rusty Bus request moves onto Booked days (the board still says yes)",
+      "as": "gravel",
+      "action": "changeBus",
+      "booking": "asked-free",
+      "firstDays": 11,
+      "lastDays": 11,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "Someone else can't change a Rusty Bus booking",
+      "as": "spanner",
+      "action": "changeBus",
+      "booking": "asked-free",
+      "firstDays": 20,
+      "lastDays": 21,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A member can't add days to a Booked Rusty Bus booking",
+      "as": "gravel",
+      "action": "changeBus",
+      "booking": "out-today",
+      "firstDays": -1,
+      "lastDays": 1,
+      "purpose": "recovery",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A board member adds a free day to a Booked Rusty Bus booking",
+      "as": "torque",
+      "action": "changeBus",
+      "booking": "booked-day-three",
+      "firstDays": 3,
+      "lastDays": 4,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "rusty",
+      "notes": "",
+      "allowed": true
+    },
+    {
+      "name": "A board member can't stretch a Booked Rusty Bus booking onto another",
+      "as": "torque",
+      "action": "changeBus",
+      "booking": "booked-day-three",
+      "firstDays": 3,
+      "lastDays": 10,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "rusty",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A declined Rusty Bus booking can't be changed",
+      "as": "gravel",
+      "action": "changeBus",
+      "booking": "declined",
+      "firstDays": 30,
+      "lastDays": 30,
+      "purpose": "other",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus request whose days have passed can't be changed",
+      "as": "spanner",
+      "action": "changeBus",
+      "booking": "asked-past",
+      "firstDays": -3,
+      "lastDays": -2,
+      "purpose": "other",
+      "ride": null,
+      "driver": "spanner",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus booking under way can't be changed to end before today",
+      "as": "gravel",
+      "action": "changeBus",
+      "booking": "out-today",
+      "firstDays": -1,
+      "lastDays": -1,
+      "purpose": "recovery",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A changed Rusty Bus request can't start in the past",
+      "as": "gravel",
+      "action": "changeBus",
+      "booking": "asked-free",
+      "firstDays": -1,
+      "lastDays": 0,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "A changed Rusty Bus booking with 501 characters of notes",
+      "as": "gravel",
+      "action": "changeBus",
+      "booking": "asked-free",
+      "firstDays": 20,
+      "lastDays": 21,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "x",
+      "allowed": false,
+      "repeat": 501
+    },
+    {
+      "name": "An applicant can't change a Rusty Bus booking",
+      "as": "dylan",
+      "action": "changeBus",
+      "booking": "asked-free",
+      "firstDays": 20,
+      "lastDays": 21,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Someone not signed in can't change a Rusty Bus booking",
+      "as": null,
+      "action": "changeBus",
+      "booking": "asked-free",
+      "firstDays": 20,
+      "lastDays": 21,
+      "purpose": "charity_ride",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
+      "name": "Whoever has the Rusty Bus keys (an FNG) hands them on",
+      "as": "finn",
+      "action": "handBusKeys",
+      "to": "rusty",
+      "note": "  On the hook.  ",
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member can't log the Rusty Bus keys",
+      "as": "hacker",
+      "action": "handBusKeys",
+      "to": "rusty",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "The Rusty Bus keys can't go to whoever already has them",
+      "as": "gravel",
+      "action": "handBusKeys",
+      "to": "finn",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "The Rusty Bus keys can't go to an applicant",
+      "as": "gravel",
+      "action": "handBusKeys",
+      "to": "dylan",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A Rusty Bus keys note of 201 characters",
+      "as": "gravel",
+      "action": "handBusKeys",
+      "to": "rusty",
+      "note": "x",
+      "repeat": 201,
+      "allowed": false
+    },
+    {
+      "name": "Someone not signed in can't log the Rusty Bus keys",
+      "as": null,
+      "action": "handBusKeys",
+      "to": "rusty",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A Full member logs the Rusty Bus odometer today",
+      "as": "gravel",
+      "action": "logBusKm",
+      "km": 100600,
+      "onDays": 0,
+      "booking": null,
+      "note": " Home ",
+      "allowed": true
+    },
+    {
+      "name": "An odometer reading lower than the last one is refused",
+      "as": "gravel",
+      "action": "logBusKm",
+      "km": 100400,
+      "onDays": 0,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An odometer reading back-dated between two others",
+      "as": "gravel",
+      "action": "logBusKm",
+      "km": 100200,
+      "onDays": -20,
+      "booking": null,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "A struck-out odometer reading doesn't block a lower one after it",
+      "as": "gravel",
+      "action": "logBusKm",
+      "km": 100600,
+      "onDays": -4,
+      "booking": null,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "An odometer reading for tomorrow is refused",
+      "as": "gravel",
+      "action": "logBusKm",
+      "km": 100600,
+      "onDays": 1,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An odometer reading of 0 km is refused",
+      "as": "gravel",
+      "action": "logBusKm",
+      "km": 0,
+      "onDays": 0,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An odometer reading on a Waiting booking is refused",
+      "as": "gravel",
+      "action": "logBusKm",
+      "km": 100600,
+      "onDays": 0,
+      "booking": "asked-free",
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "An odometer reading on a Booked booking",
+      "as": "gravel",
+      "action": "logBusKm",
+      "km": 100600,
+      "onDays": 0,
+      "booking": "out-today",
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "Whoever has the Rusty Bus keys (an FNG) logs the odometer",
+      "as": "finn",
+      "action": "logBusKm",
+      "km": 100600,
+      "onDays": 0,
+      "booking": null,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member can't log the Rusty Bus odometer",
+      "as": "hacker",
+      "action": "logBusKm",
+      "km": 100600,
+      "onDays": 0,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A Full member logs Rusty Bus fuel, litres rounded",
+      "as": "gravel",
+      "action": "logBusCost",
+      "onDays": 0,
+      "kind": "fuel",
+      "cents": 9850,
+      "litres": 52.456,
+      "booking": "out-today",
+      "note": " Shell ",
+      "allowed": true
+    },
+    {
+      "name": "Rego can't take litres",
+      "as": "gravel",
+      "action": "logBusCost",
+      "onDays": 0,
+      "kind": "rego",
+      "cents": 92000,
+      "litres": 5,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Litres that round to nothing are refused",
+      "as": "gravel",
+      "action": "logBusCost",
+      "onDays": 0,
+      "kind": "fuel",
+      "cents": 100,
+      "litres": 0.004,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A running cost of nothing is refused",
+      "as": "gravel",
+      "action": "logBusCost",
+      "onDays": 0,
+      "kind": "fuel",
+      "cents": 0,
+      "litres": null,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A running cost with no kind is refused",
+      "as": "gravel",
+      "action": "logBusCost",
+      "onDays": 0,
+      "kind": null,
+      "cents": 100,
+      "litres": null,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "A running cost for tomorrow is refused",
+      "as": "gravel",
+      "action": "logBusCost",
+      "onDays": 1,
+      "kind": "tolls",
+      "cents": 100,
+      "litres": null,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Whoever has the Rusty Bus keys (an FNG) logs a running cost",
+      "as": "finn",
+      "action": "logBusCost",
+      "onDays": 0,
+      "kind": "tolls",
+      "cents": 1875,
+      "litres": null,
+      "booking": null,
+      "note": "",
+      "allowed": true
+    },
+    {
+      "name": "A Legacy member can't log a Rusty Bus running cost",
+      "as": "hacker",
+      "action": "logBusCost",
+      "onDays": 0,
+      "kind": "tolls",
+      "cents": 100,
+      "litres": null,
+      "booking": null,
+      "note": "",
+      "allowed": false
+    },
+    {
+      "name": "Whoever logged an odometer reading strikes it out",
+      "as": "gravel",
+      "action": "strikeBusKm",
+      "entry": "km-a",
+      "allowed": true
+    },
+    {
+      "name": "Someone else can't strike out an odometer reading",
+      "as": "spanner",
+      "action": "strikeBusKm",
+      "entry": "km-a",
+      "allowed": false
+    },
+    {
+      "name": "The board strikes out an odometer reading",
+      "as": "torque",
+      "action": "strikeBusKm",
+      "entry": "km-a",
+      "allowed": true
+    },
+    {
+      "name": "An odometer reading already struck out",
+      "as": "spanner",
+      "action": "strikeBusKm",
+      "entry": "km-struck",
+      "allowed": false
+    },
+    {
+      "name": "Striking out an odometer reading that doesn't exist",
+      "as": "gravel",
+      "action": "strikeBusKm",
+      "entry": "nope",
+      "allowed": false
+    },
+    {
+      "name": "Whoever logged a running cost strikes it out",
+      "as": "gravel",
+      "action": "strikeBusCost",
+      "entry": "c-a",
+      "allowed": true
+    },
+    {
+      "name": "Someone else can't strike out a running cost",
+      "as": "spanner",
+      "action": "strikeBusCost",
+      "entry": "c-a",
+      "allowed": false
+    },
+    {
+      "name": "A running cost already struck out",
+      "as": "gravel",
+      "action": "strikeBusCost",
+      "entry": "c-struck",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -12963,6 +13434,56 @@
       "label": "supported",
       "addedBy": "spanner",
       "archived": false
+    }
+  ],
+  "busKeys": [
+    {
+      "key": "k1",
+      "to": "gravel"
+    },
+    {
+      "key": "k2",
+      "to": "finn"
+    }
+  ],
+  "busKm": [
+    {
+      "key": "km-a",
+      "km": 100000,
+      "onDays": -30,
+      "loggedBy": "gravel"
+    },
+    {
+      "key": "km-b",
+      "km": 100500,
+      "onDays": -10,
+      "loggedBy": "gravel"
+    },
+    {
+      "key": "km-struck",
+      "km": 900000,
+      "onDays": -5,
+      "loggedBy": "spanner",
+      "struck": true
+    }
+  ],
+  "busCosts": [
+    {
+      "key": "c-a",
+      "onDays": -10,
+      "kind": "fuel",
+      "cents": 9000,
+      "litres": 50,
+      "loggedBy": "gravel"
+    },
+    {
+      "key": "c-struck",
+      "onDays": -10,
+      "kind": "fuel",
+      "cents": 9000,
+      "litres": 50,
+      "loggedBy": "gravel",
+      "struck": true
     }
   ]
 }

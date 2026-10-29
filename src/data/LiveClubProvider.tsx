@@ -5,7 +5,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel, appointProblem, endTermProblem, renewAuditorProblem } from '../domain/access';
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
-import { bookProblem, cancelProblem, decideProblem } from '../domain/bus';
+import { bookProblem, cancelProblem, changeProblem, decideProblem } from '../domain/bus';
+// Rusty Bus extras
+import { handKeysProblem, logCostProblem, logKmProblem, roundLitres, strikeCostProblem, strikeKmProblem } from '../domain/busLog';
+import { changeBusArgs, handBusKeysArgs, logBusCostArgs, logBusKmArgs, strikeArgs } from './busExtrasLive';
 // Ride planning extras
 import { rangeProblem } from '../domain/fuel';
 import { registerProblem, saveHubProblem, withdrawHubProblem } from '../domain/hubs';
@@ -842,6 +845,38 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const problem = cancelProblem(visibleMe, booking, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('cancel_bus', cancelBusArgs(bookingId)));
+      await after();
+    },
+
+    // Rusty Bus extras: the app's rules first, then the database's action, then a reload.
+    changeBus: async (bookingId, input) => {
+      deny(changeProblem(visibleMe, (data.busBookings ?? []).find((b) => b.id === bookingId), input, data, today));
+      ok(await supabase().rpc('change_bus', changeBusArgs(bookingId, input)));
+      await after();
+    },
+    handBusKeys: async (toId, note) => {
+      deny(handKeysProblem(visibleMe, toId, note, data));
+      ok(await supabase().rpc('hand_bus_keys', handBusKeysArgs(toId, note)));
+      await after();
+    },
+    logBusKm: async (input) => {
+      deny(logKmProblem(visibleMe, input, data, today));
+      ok(await supabase().rpc('log_bus_km', logBusKmArgs(input)));
+      await after();
+    },
+    logBusCost: async (input) => {
+      deny(logCostProblem(visibleMe, { ...input, litres: roundLitres(input.litres) }, data, today));
+      ok(await supabase().rpc('log_bus_cost', logBusCostArgs(input)));
+      await after();
+    },
+    strikeBusKm: async (id) => {
+      deny(strikeKmProblem(visibleMe, (data.busKm ?? []).find((r) => r.id === id), data));
+      ok(await supabase().rpc('strike_bus_km', strikeArgs(id)));
+      await after();
+    },
+    strikeBusCost: async (id) => {
+      deny(strikeCostProblem(visibleMe, (data.busCosts ?? []).find((c) => c.id === id), data));
+      ok(await supabase().rpc('strike_bus_cost', strikeArgs(id)));
       await after();
     },
 

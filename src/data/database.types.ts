@@ -2,7 +2,7 @@
 
 // Stage 5: meetings and votes
 import type {
-  AgendaItem, BallotChoice, Big4Ground, NoticeAbout, NoticeOutcome, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
+  AgendaItem, BallotChoice, Big4Ground, NoticeAbout, NoticeOutcome, BusCostKind, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
 } from '../domain/types'; // HubStaying, PlanStop, RideCallState, SwapState: ride planning extras
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson, MeetingReportJson } from './ledgerLive'; // Stage 5B
@@ -304,8 +304,36 @@ export type Database = {
           decline_reason: string | null;
           cancelled_by: string | null;
           cancelled_at: string | null;
+          // Rusty Bus extras
+          changed_by: string | null;
+          changed_at: string | null;
         };
         Insert: { [_ in never]: never }; // bookings change only through book_bus, decide_bus and cancel_bus
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      // Rusty Bus extras: each changes only through its actions.
+      bus_key_handovers: {
+        Row: { id: string; to_id: string | null; note: string | null; logged_by: string | null; logged_at: string };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      bus_km: {
+        Row: {
+          id: string; km: number; read_on: string; booking_id: string | null; note: string | null; logged_by: string | null;
+          logged_at: string; struck_by: string | null; struck_at: string | null;
+        };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      bus_costs: {
+        Row: {
+          id: string; spent_on: string; kind: BusCostKind; amount_cents: number; litres: number | string | null; booking_id: string | null;
+          note: string | null; logged_by: string | null; logged_at: string; struck_by: string | null; struck_at: string | null;
+        };
+        Insert: { [_ in never]: never };
         Update: { [_ in never]: never };
         Relationships: [];
       };
@@ -471,6 +499,27 @@ export type Database = {
       };
       decide_bus: { Args: { p_booking: string; p_yes: boolean; p_reason: string | null }; Returns: undefined };
       cancel_bus: { Args: { p_booking: string }; Returns: undefined };
+      // Rusty Bus extras
+      change_bus: {
+        Args: {
+          p_booking: string;
+          p_first: string | null;
+          p_last: string | null;
+          p_purpose: BusPurpose | null;
+          p_ride: string | null;
+          p_driver: string | null;
+          p_notes: string | null;
+        };
+        Returns: undefined;
+      };
+      hand_bus_keys: { Args: { p_to: string | null; p_note: string | null }; Returns: string };
+      log_bus_km: { Args: { p_km: number; p_on: string | null; p_booking: string | null; p_note: string | null }; Returns: string };
+      log_bus_cost: {
+        Args: { p_on: string | null; p_kind: BusCostKind | null; p_cents: number; p_litres: number | null; p_booking: string | null; p_note: string | null };
+        Returns: string;
+      };
+      strike_bus_km: { Args: { p_id: string }; Returns: undefined };
+      strike_bus_cost: { Args: { p_id: string }; Returns: undefined };
       // Attendance rules and Big 4 rides
       designate_big4: { Args: { p_ride: string; p_chapter: string | null }; Returns: undefined };
       undesignate_big4: { Args: { p_ride: string }; Returns: undefined };

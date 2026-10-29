@@ -28,8 +28,12 @@ import {
   RIDE_BUS_BUSY,
   RIDE_CALLED_OFF,
   RIDE_CALLED_OFF_HINT,
+  BUS_ADD_DAYS,
+  BUS_PAST_END,
+  NOT_BUS_CHANGER,
   bookProblem,
   bookedStraightAway,
+  changeProblem,
   busDrivers,
   busChipLabel,
   busChipTone,
@@ -721,4 +725,71 @@ test('people and rides who have gone still render (Review Focus 5)', () => {
   const withNobody = data({ busBookings: [nobody] });
   assert.equal(busToday(withNobody, TODAY)?.id, 'nobody');
   assert.deepEqual(upcomingBus(withNobody, TODAY)[0].bookings.map((b) => b.id), ['nobody']);
+});
+
+// ---------------------------------------------------------------------------
+// Changing a booking (Rusty Bus extras)
+// ---------------------------------------------------------------------------
+
+test('changing a booking: the new messages', () => {
+  assert.equal(NOT_BUS_CHANGER, 'Only whoever booked it or the board can change it.');
+  assert.equal(BUS_ADD_DAYS, 'Only the board or NEC can add days to a Booked booking.');
+  assert.equal(BUS_PAST_END, 'The last day can’t be before today.');
+});
+
+test('changing a booking: the checks in order', () => {
+  const asked = booking('asked', '2026-11-08', '2026-11-09', { status: 'requested', decidedBy: null, decidedAt: null });
+  const held = booking('held', '2026-11-08', '2026-11-10');
+  const other = booking('other', '2026-11-12', '2026-11-12', { bookedBy: 'nomad', driverId: 'nomad' });
+  const off = booking('off', '2026-11-08', '2026-11-09', { status: 'cancelled', cancelledAt: '2026-10-20T00:00:00.000Z' });
+  const over = booking('over', '2026-10-20', '2026-10-23');
+  const underway = booking('underway', '2026-10-24', '2026-10-26');
+  const d = data({ busBookings: [asked, held, other, off, over, underway] });
+  const input = (b: BusBooking, change: Partial<BusInput> = {}): BusInput => ({
+    firstDay: b.firstDay, lastDay: b.lastDay, purpose: b.purpose, rideId: b.rideId, driverId: b.driverId, notes: b.notes, ...change,
+  });
+  assert.equal(changeProblem(null, held, input(held), d, TODAY), 'Sign in first.');
+  assert.equal(changeProblem(pending, held, input(held), d, TODAY), 'Only approved members can do that.');
+  assert.equal(changeProblem(rider, undefined, input(held), d, TODAY), NO_BOOKING);
+  assert.equal(changeProblem(nomad, held, input(held), d, TODAY), NOT_BUS_CHANGER, 'not the booker');
+  assert.equal(changeProblem(rider, held, input(held), d, TODAY), null, 'the booker');
+  assert.equal(changeProblem(nec, held, input(held), d, TODAY), null, 'the board');
+  assert.equal(changeProblem(rider, off, input(off), d, TODAY), ALREADY_OFF);
+  assert.equal(changeProblem(rider, over, input(over), d, TODAY), BUS_DAYS_PASSED);
+  assert.equal(changeProblem(rider, held, input(held, { firstDay: '' }), d, TODAY), BUS_DAYS_MISSING);
+  assert.equal(changeProblem(rider, held, input(held, { lastDay: '2026-11-07' }), d, TODAY), BUS_LAST_BEFORE_FIRST);
+  // Under way: its own first day may stay in the past, but not move further back.
+  assert.equal(changeProblem(rider, underway, input(underway, { lastDay: '2026-10-25' }), d, TODAY), null);
+  assert.equal(changeProblem(rider, underway, input(underway, { firstDay: '2026-10-23' }), d, TODAY), BUS_PAST_START);
+  assert.equal(changeProblem(rider, underway, input(underway, { lastDay: '2026-10-24' }), d, TODAY), BUS_PAST_END, 'can’t end before today');
+  // Its own ride, already over and so not loaded in live, can stay; another ride that isn't there can't.
+  const onGoneRide = { ...underway, rideId: 'r-over' };
+  const d3 = data({ busBookings: [onGoneRide] });
+  assert.equal(changeProblem(rider, onGoneRide, input(onGoneRide, { lastDay: '2026-10-25' }), d3, TODAY), null);
+  assert.equal(changeProblem(rider, onGoneRide, input(onGoneRide, { rideId: 'r-other-gone' }), d3, TODAY), BUS_NO_RIDE);
+  assert.equal(changeProblem(rider, asked, input(asked, { firstDay: '2026-10-24' }), d, TODAY), BUS_PAST_START);
+  assert.equal(changeProblem(rider, asked, input(asked, { lastDay: '2026-11-22' }), d, TODAY), BUS_TOO_LONG);
+  assert.equal(changeProblem(rider, asked, input(asked, { firstDay: '2027-10-26', lastDay: '2027-10-26' }), d, TODAY), BUS_TOO_FAR);
+  assert.equal(changeProblem(rider, asked, input(asked, { purpose: null }), d, TODAY), BUS_NO_PURPOSE);
+  assert.equal(changeProblem(rider, asked, input(asked, { rideId: 'r-gone' }), d, TODAY), BUS_NO_RIDE);
+  assert.equal(changeProblem(rider, asked, input(asked, { driverId: 'pending' }), d, TODAY), BUS_BAD_DRIVER);
+  assert.equal(changeProblem(rider, asked, input(asked, { notes: 'x'.repeat(501) }), d, TODAY), BUS_NOTES_TOO_LONG);
+  // A Waiting booking may move anywhere, clash or not: the board still says yes.
+  assert.equal(changeProblem(rider, asked, input(asked, { firstDay: '2026-11-12', lastDay: '2026-11-12' }), d, TODAY), null);
+  // A Booked one: a member may shrink it or change the rest, but not add days.
+  assert.equal(changeProblem(rider, held, input(held, { firstDay: '2026-11-09', lastDay: '2026-11-09' }), d, TODAY), null);
+  assert.equal(changeProblem(rider, held, input(held, { driverId: 'nomad', notes: 'New driver' }), d, TODAY), null);
+  assert.equal(changeProblem(rider, held, input(held, { lastDay: '2026-11-11' }), d, TODAY), BUS_ADD_DAYS);
+  assert.equal(changeProblem(rider, held, input(held, { firstDay: '2026-11-07' }), d, TODAY), BUS_ADD_DAYS);
+  // The board may add days, as long as they're free.
+  assert.equal(changeProblem(nec, held, input(held, { lastDay: '2026-11-11' }), d, TODAY), null);
+  assert.equal(changeProblem(nec, held, input(held, { lastDay: '2026-11-12' }), d, TODAY), BUS_CLASH);
+  // A recovery from today or tomorrow would be booked straight away anyway, so a member may move one there.
+  const rescue = booking('rescue', '2026-10-27', '2026-10-27', { purpose: 'recovery' });
+  const near = booking('near', '2026-10-29', '2026-10-29', { bookedBy: 'nomad', driverId: 'nomad' });
+  const d2 = data({ busBookings: [rescue, near] });
+  assert.equal(changeProblem(rider, rescue, input(rescue, { firstDay: '2026-10-26', lastDay: '2026-10-28' }), d2, TODAY), null);
+  assert.equal(changeProblem(rider, rescue, input(rescue, { firstDay: '2026-10-26', lastDay: '2026-10-29' }), d2, TODAY), BUS_CLASH);
+  // Not from today or tomorrow: no adding days.
+  assert.equal(changeProblem(rider, rescue, input(rescue, { lastDay: '2026-10-28' }), d2, TODAY), BUS_ADD_DAYS);
 });

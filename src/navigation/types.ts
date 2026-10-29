@@ -65,6 +65,10 @@ export type RootParams = {
   Bus: undefined;
   BusBooking: { bookingId: string };
   BookBus: { rideId?: string } | undefined;
+  // Rusty Bus extras: changing a booking, the keys and odometer, and the running costs.
+  ChangeBus: { bookingId: string };
+  BusKeys: undefined;
+  BusCosts: undefined;
   // Lane E: live ride
   LiveRide: { rideId: string };
   // Stage 4: members and money

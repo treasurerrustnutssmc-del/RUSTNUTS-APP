@@ -12,6 +12,7 @@ import type {
   ApprovingBody, DocumentKind, // Stage 5C
   ConductKind, MerchStatus, OrderStatus, // Stage 5D
   Big4Ground, NoticeAbout, NoticeOutcome, // Big 4 RSVP rules and the 5.5 notice
+  BusCostKind, // Rusty Bus extras
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -33,6 +34,7 @@ import { DOCUMENT_ACTIONS, runDocumentAction, type DocumentAction } from './docu
 import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'; // Stage 5D
 import { sharesFor } from '../domain/national'; // Stage 5D
 import { AUDIT_ACTIONS, runAuditAction, type AuditAction } from './auditActions'; // National Auditor
+import { BUS_EXTRAS_ACTIONS, runBusExtrasAction, type BusExtrasAction } from './busExtrasActions'; // Rusty Bus extras
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -101,6 +103,11 @@ export interface ParityFixture {
     bookedBy: string | null; status: BusStatus;
   }[];
   cases: ParityCase[];
+  // Rusty Bus extras. Handovers are logged a minute apart from BUS_AT, in order, by no one; readings
+  // and costs on days counted from today, at BUS_AT, struck out (by no one, at BUS_AT) when marked.
+  busKeys?: { key: string; to: string }[];
+  busKm?: { key: string; km: number; onDays: number; loggedBy: string; struck?: boolean }[];
+  busCosts?: { key: string; onDays: number; kind: BusCostKind; cents: number; litres: number | null; loggedBy: string; struck?: boolean }[];
   // Ride planning extras, all made at PLANNED_AT by no one (a swap by its asker).
   bikeRanges?: { bike: string; rangeKm: number }[];
   ridePlans?: { ride: string; stops: PlanStop[] }[];
@@ -327,7 +334,7 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  return withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today)), today);
+  return withBusExtras(withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today)), today), today);
 }
 
 /** When the fixture's Big 4s, 5.4 excuses and 5.5 notices were made. */
@@ -345,6 +352,25 @@ function withBig4Rsvp(data: ClubData, today: string): ClubData {
       id: n.key, memberId: n.member, chapterId: data.members.find((m) => m.id === n.member)!.chapterId, about: n.about,
       record: n.key, proposal: n.key, givenOn: addDays(today, n.givenDays), respondBy: addDays(today, n.respondByDays), givenBy: null,
       response: '', respondedAt: null, outcome: n.outcome, outcomeNote: '', closedOn: n.outcome ? addDays(today, n.givenDays) : null, closedBy: null,
+    })),
+  };
+}
+
+/** When the fixture's nth key handover was logged: a minute apart from BUS_AT. */
+export const busKeyAt = (n: number): string => new Date(Date.parse(BUS_AT) + n * 60_000).toISOString();
+
+// Rusty Bus extras.
+function withBusExtras(data: ClubData, today: string): ClubData {
+  const struck = (e: { struck?: boolean }) => (e.struck ? { struckBy: null, struckAt: BUS_AT } : { struckBy: null, struckAt: null });
+  return {
+    ...data,
+    busKeys: (fixture.busKeys ?? []).map((k, i) => ({ id: k.key, toId: k.to, note: '', loggedBy: null, loggedAt: busKeyAt(i) })),
+    busKm: (fixture.busKm ?? []).map((r) => ({
+      id: r.key, km: r.km, readOn: addDays(today, r.onDays), bookingId: null, note: '', loggedBy: r.loggedBy, loggedAt: BUS_AT, ...struck(r),
+    })),
+    busCosts: (fixture.busCosts ?? []).map((c) => ({
+      id: c.key, spentOn: addDays(today, c.onDays), kind: c.kind, amountCents: c.cents, litres: c.litres, bookingId: null, note: '',
+      loggedBy: c.loggedBy, loggedAt: BUS_AT, ...struck(c),
     })),
   };
 }
@@ -557,6 +583,10 @@ export function demoAnswer(c: ParityCase): string | null {
     // Stage 7: social extras
     if (String(c.action).startsWith('social')) {
       runSocialAction({ social: fixtureSocial(today), club: data, me, today }, resolveCase(c, today) as unknown as SocialAction);
+      return null;
+    }
+    if (BUS_EXTRAS_ACTIONS.has(String(c.action))) {
+      runBusExtrasAction({ data, me, today }, resolveCase(c, today) as unknown as BusExtrasAction);
       return null;
     }
     if (DOCUMENT_ACTIONS.has(String(c.action))) {

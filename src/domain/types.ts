@@ -239,6 +239,9 @@ export interface BusBooking {
   declineReason: string;
   cancelledBy: string | null;
   cancelledAt: string | null;
+  /** Who last changed its days or details, and when (Rusty Bus extras). Missing or null: never changed. */
+  changedBy?: string | null;
+  changedAt?: string | null;
 }
 
 /** How many roster places of one status in one chapter nobody has claimed yet. */
@@ -321,6 +324,11 @@ export interface ClubData extends LedgerData, AdminData, AuditData {
   big4Waivers?: Big4Waiver[];
   /** 5.5 notices: the member's own, or their chapter's for its board. Missing means none. */
   statusNotices?: StatusNotice[];
+  // Rusty Bus extras: keys, odometer and running costs. Missing means none.
+  busKeys?: BusKeyHandover[];
+  busKm?: BusKm[];
+  /** Only the costs this person may see: all of them for a bus manager, otherwise their own. */
+  busCosts?: BusCost[];
 }
 
 // ---------------------------------------------------------------------------
@@ -1176,4 +1184,53 @@ export interface AuditReport {
 export interface AuditData {
   auditRequests?: AuditRequest[];
   auditReports?: AuditReport[];
+}
+
+// ---------------------------------------------------------------------------
+// Rusty Bus extras: keys, odometer and running costs
+// ---------------------------------------------------------------------------
+
+/** What a running cost was for. */
+export type BusCostKind = 'fuel' | 'service' | 'repairs' | 'tyres' | 'rego' | 'insurance' | 'tolls' | 'cleaning' | 'other';
+
+/** The bus keys passing to someone. The newest names who has them now. */
+export interface BusKeyHandover {
+  id: string;
+  /** Null once they've left the club. */
+  toId: string | null;
+  /** Empty when none. */
+  note: string;
+  loggedBy: string | null;
+  loggedAt: string;
+}
+
+/** An odometer reading in whole km on a day. A struck-out one stays, and counts for nothing. */
+export interface BusKm {
+  id: string;
+  km: number;
+  readOn: string;
+  bookingId: string | null;
+  /** Empty when none. */
+  note: string;
+  loggedBy: string | null;
+  loggedAt: string;
+  struckBy: string | null;
+  struckAt: string | null;
+}
+
+/** Money spent on the bus on a day. A struck-out one stays, and counts for nothing. */
+export interface BusCost {
+  id: string;
+  spentOn: string;
+  kind: BusCostKind;
+  amountCents: number;
+  /** Fuel only, to two decimals, or null. */
+  litres: number | null;
+  bookingId: string | null;
+  /** Empty when none. */
+  note: string;
+  loggedBy: string | null;
+  loggedAt: string;
+  struckBy: string | null;
+  struckAt: string | null;
 }

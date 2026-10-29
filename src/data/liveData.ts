@@ -10,6 +10,7 @@ import { toBusiness } from './businessLive';
 import { toLedger, toMeetingReports } from './ledgerLive'; // Stage 5B
 import { loadPlanning } from './planningLive'; // Ride planning extras
 import { loadCharity } from './charityLive'; // Charity ride sign-ups
+import { loadBusExtras } from './busExtrasLive'; // Rusty Bus extras
 import { toAdmin } from './adminLive'; // Stage 5D
 import { toAudit } from './auditLive'; // National Auditor
 import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
@@ -63,6 +64,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   // Charity ride sign-ups: the same, from their own two tables.
   const charityLoad = loadCharity(db);
   charityLoad.catch(() => undefined);
+  // Rusty Bus extras: keys, odometer and running costs, the same way.
+  const busExtrasLoad = loadBusExtras(db);
+  busExtrasLoad.catch(() => undefined);
   // The club counts' roster places nobody has claimed yet: none rather than blocking the app.
   const unclaimedLoad = db.rpc('unclaimed_roster_counts').then(
     (r) => {
@@ -196,6 +200,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const planning = await planningLoad;
   const charity = await charityLoad;
   const familyRides = await familyLoad;
+  const busExtras = await busExtrasLoad;
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
@@ -355,10 +360,13 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       declineReason: b.decline_reason ?? '',
       cancelledBy: b.cancelled_by,
       cancelledAt: b.cancelled_at ? instant(b.cancelled_at) : null,
+      changedBy: b.changed_by ?? null,
+      changedAt: b.changed_at ? instant(b.changed_at) : null,
     })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
     ...planning,
     ...charity,
+    ...busExtras,
     // Stage 5: meetings and votes
     ...business,
     ...ledger,

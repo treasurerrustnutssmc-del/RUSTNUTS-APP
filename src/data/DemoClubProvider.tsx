@@ -9,6 +9,7 @@ import { ClubContext, type ClubContextValue } from './clubContext';
 import * as business from './businessActions';
 import * as planning from './planningActions'; // Ride planning extras
 import * as charity from './charityActions'; // Charity ride sign-ups
+import * as busExtras from './busExtrasActions'; // Rusty Bus extras
 import * as act from './demoActions';
 import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
@@ -174,6 +175,13 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     decideBus: async (bookingId, yes, reason) => setData(act.decideBus(ctx, bookingId, yes, reason)),
     cancelBus: async (bookingId) => setData(act.cancelBus(ctx, bookingId)),
+    // Rusty Bus extras
+    changeBus: async (bookingId, input) => keep(busExtras.changeBus(fresh(), bookingId, input)),
+    handBusKeys: async (toId, note) => keep(busExtras.handBusKeys(fresh(), toId, note).data),
+    logBusKm: async (input) => keep(busExtras.logBusKm(fresh(), input).data),
+    logBusCost: async (input) => keep(busExtras.logBusCost(fresh(), input).data),
+    strikeBusKm: async (id) => keep(busExtras.strikeBusKm(fresh(), id)),
+    strikeBusCost: async (id) => keep(busExtras.strikeBusCost(fresh(), id)),
     // Ride planning extras
     setBikeRange: async (bikeId, rangeKm) => keep(planning.setBikeRange(fresh(), bikeId, rangeKm)),
     saveRidePlan: async (rideId, stops, seen) => keep(planning.saveRidePlan(fresh(), rideId, stops, seen)),
