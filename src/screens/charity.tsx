@@ -94,7 +94,7 @@ export function CharitySection({ ride, me, data, today, onOpen, onEdit }: {
         <Button
           label={mine || closed ? 'Open sign-ups' : 'Sign up'}
           icon="heart-outline"
-          kind={mine || closed ? 'secondary' : 'primary'}
+          kind="secondary"
           onPress={onOpen}
         />
       </Card>
@@ -139,18 +139,27 @@ function Stepper({ label, value, max, onChange }: { label: string; value: number
 const subtitleOf = (s: CharitySignup) =>
   [s.riding ? `Riding${signupExtras(s)}` : `Helping${signupExtras(s)}`, s.riding && s.job ? `also ${s.job}` : null].filter(Boolean).join(' · ');
 
-export function CharityScreen({ route: nav, navigation }: RootScreen<'Charity'>) {
+/** The sheet starts again from your saved sign-up whenever it changes (here or on another phone). */
+export function CharityScreen(props: RootScreen<'Charity'>) {
+  const { me, data } = useClub();
+  const saved = me ? mySignup(props.route.params.rideId, me.id, data) : undefined;
+  return <CharitySheet key={saved?.signedAt ?? 'none'} {...props} />;
+}
+
+function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
   const { me, data, today, signUpCharity, withdrawCharity } = useClub();
   const ride = data.rides.find((r) => r.id === nav.params.rideId);
   const charity = ride ? charityFor(ride.id, data) : undefined;
   const mine = ride && me ? mySignup(ride.id, me.id, data) : undefined;
-  const [riding, setRiding] = useState(mine?.riding ?? true);
+  // On a full ride a newcomer starts as a helper, since helpers still fit.
+  const [riding, setRiding] = useState(mine?.riding ?? (ride ? placesLeft(ride.id, data) !== 0 : true));
   const [pillion, setPillion] = useState(mine?.pillion ?? false);
   const [guests, setGuests] = useState(mine?.guests ?? 0);
   const [guestNames, setGuestNames] = useState(mine?.guestNames ?? '');
   const [job, setJob] = useState<string>(mine?.job ?? NO_JOB);
   const [notes, setNotes] = useState(mine?.notes ?? '');
   const { busy, error, setError, run } = useAction();
+  const withdrawing = useAction();
   const [shareError, setShareError] = useState<string | null>(null);
 
   if (!ride || !me || !charity) {
@@ -160,7 +169,9 @@ export function CharityScreen({ route: nav, navigation }: RootScreen<'Charity'>)
       </Screen>
     );
   }
-  const input: SignupInput = { riding, pillion: riding && pillion, guests, guestNames, job: job === NO_JOB ? null : job, notes };
+  const input: SignupInput = {
+    riding, pillion: riding && pillion, guests, guestNames: guests > 0 ? guestNames : '', job: job === NO_JOB ? null : job, notes,
+  };
   const runs = runsCharity(me, ride, data);
   const closed = ride.cancelledAt !== null || signupsClosed(ride, charity, nowIso(), today);
   const counts = charityCounts(ride.id, data);
@@ -261,8 +272,9 @@ export function CharityScreen({ route: nav, navigation }: RootScreen<'Charity'>)
           </Card>
         )}
         {mine && canWithdraw ? (
-          <ConfirmButton label="Withdraw" confirmLabel="Yes, withdraw" kind="secondary" onConfirm={() => run(() => withdrawCharity(ride.id))} />
+          <ConfirmButton label="Withdraw" confirmLabel="Yes, withdraw" kind="secondary" onConfirm={() => withdrawing.run(() => withdrawCharity(ride.id))} />
         ) : null}
+        <ErrorLine error={withdrawing.error} />
       </Stack>
 
       <Stack gap={space.sm}>
@@ -335,7 +347,8 @@ export function EditCharityScreen({ route: nav, navigation }: RootScreen<'EditCh
   const set = <T,>(fn: (v: T) => void) => (v: T) => { setError(null); fn(v); };
   const save = () =>
     run(async () => {
-      if (closesError) throw new Error(closesError);
+      // A half-typed day is refused, never saved as no closing day.
+      if (closesTyped && !closesOn) throw new Error('Use DD/MM/YYYY, like 01/03/2027.');
       const problem = saveCharityProblem(me, ride, input, data, nowIso());
       if (problem) throw new Error(problem);
       await saveCharity(ride.id, input);

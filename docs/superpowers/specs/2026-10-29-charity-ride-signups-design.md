@@ -85,11 +85,19 @@ from there. That needs Jeff's yes (money), and nothing in this build assumes how
 
 - **Ride screen** (after Registrations): a **Charity ride** card with a heart badge, the cause in stencil,
   the counts ("8 riding · 2 pillions · 3 guests · 4 helping"), chips (You're in / Closes / Full / Closed)
-  and **Sign up** (primary when you're not in and it's open, else **Open sign-ups**, secondary). Managers
+  and **Sign up** (or **Open sign-ups**), secondary, since the ride's answers are that screen's red. Managers
   with no sheet yet get a one-line offer and **Make it a charity ride** (secondary).
 - **Charity ride** screen: cause, about, places left, the donations line; your sign-up form or the reason
   you can't; Withdraw (`ConfirmButton`); Who's coming; Run it (Share the list, Edit).
 - **Run sign-ups** screen: the settings above; jobs typed one per line.
+
+## Review notes (independent review, 29 Oct 2026)
+
+- Fixed: a half-typed closing day is refused instead of saved as none; a failed withdraw shows its error under Withdraw;
+  on a full ride a newcomer's form starts as a helper; guests' names are dropped when guests go back to 0; the sheet
+  starts again from the saved sign-up when it changes; the ride card's button is secondary.
+- Left as is: places can be set below the people already signed up (the sheet then reads Full and nobody new can
+  ride); "Each job once" folds case with JS `toLowerCase` and Postgres `lower`, which agree for ordinary job names.
 
 ## Later
 
