@@ -70,6 +70,15 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     },
     () => [],
   );
+  // Family view: Family get the rides here (ride_calendar() is empty for them). Nothing for anyone
+  // else, and nothing rather than blocking the app until the database has it.
+  const familyLoad = db.rpc('family_rides').then(
+    (r) => {
+      if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('family_rides:', r.error.message);
+      return r.error ? [] : (r.data ?? []);
+    },
+    () => [],
+  );
   const [
     members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs, bus,
   ] = await Promise.all([
@@ -158,11 +167,14 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   );
   // Attendance rules and Big 4 rides: empty rather than blocking the app (also before the live
   // database has the tables).
-  const [big4, exemptions, meetingTypes] = await Promise.all([
+  const [big4, exemptions, meetingTypes, waivers, notices] = await Promise.all([
     db.from('big4_rides').select('*'),
     db.from('attendance_exemptions').select('*'),
     db.from('checkin_sessions').select('id, meeting_type'),
-  ]).catch(() => [null, null, null] as const);
+    // Big 4 RSVP rules and the 5.5 notice
+    db.from('big4_waivers').select('*'),
+    db.from('status_notices').select('*'),
+  ]).catch(() => [null, null, null, null, null] as const);
   const rowsOf = <T,>(r: { data: T[] | null; error: { message: string } | null } | null, what: string): T[] => {
     if (r?.error) console.warn(`${what}:`, r.error.message);
     return r?.error ? [] : (r?.data ?? []);
@@ -171,6 +183,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
   const charity = await charityLoad;
+  const familyRides = await familyLoad;
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
@@ -243,7 +256,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       startedOn: p.started_on,
       endedOn: p.ended_on,
     })),
-    rides: (calendar.data?.rides ?? []).map((r) => ({
+    rides: [...(calendar.data?.rides ?? []), ...familyRides].map((r) => ({
       id: r.id,
       title: r.title,
       startsAt: instant(r.starts_at),
@@ -348,6 +361,16 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     })),
     exemptions: rowsOf(exemptions, 'attendance_exemptions').map((e) => ({
       sessionId: e.session_id, memberId: e.member_id, reason: e.reason, grantedBy: e.granted_by, grantedAt: instant(e.granted_at),
+    })),
+    // Big 4 RSVP rules and the 5.5 notice. Blank texts are stored as null.
+    big4Waivers: rowsOf(waivers, 'big4_waivers').map((w) => ({
+      rideId: w.ride_id, memberId: w.member_id, ground: w.ground, grantedBy: w.granted_by, grantedAt: instant(w.granted_at),
+    })),
+    statusNotices: rowsOf(notices, 'status_notices').map((n) => ({
+      id: n.id, memberId: n.member_id, chapterId: n.chapter_id, about: n.about, record: n.record, proposal: n.proposal,
+      givenOn: n.given_on, respondBy: n.respond_by, givenBy: n.given_by, response: n.response ?? '',
+      respondedAt: n.responded_at ? instant(n.responded_at) : null, outcome: n.outcome, outcomeNote: n.outcome_note ?? '',
+      closedOn: n.closed_on, closedBy: n.closed_by,
     })),
   };
 }

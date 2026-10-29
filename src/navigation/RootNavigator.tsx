@@ -42,6 +42,7 @@ import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen
 import { CheckInScreen, OpenMeetingScreen, RunCheckinScreen } from '../screens/checkin';
 import { ChapterFeesScreen, MemberFeesScreen } from '../screens/fees';
 import { AttendanceScreen } from '../screens/attendance';
+import { GiveNoticeScreen, StatusNoticeScreen } from '../screens/notices'; // Big 4 RSVP rules and the 5.5 notice
 import { MembershipCardScreen } from '../screens/card';
 import { FngReviewScreen } from '../screens/fng';
 // Stage 7: social extras
@@ -55,6 +56,7 @@ import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swa
 import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../screens/builds';
 import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
+import { FamilyHomeScreen, FamilyMeScreen, FamilyRideScreen } from '../screens/family'; // Family view
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -171,6 +173,37 @@ function MainTabs() {
   );
 }
 
+// Family view: Home, Rides and Me. No chats, directory or board, and none of the members' sync helpers.
+function FamilyTabs() {
+  const insets = useSafeAreaInsets();
+  return (
+    <Tabs.Navigator
+      screenOptions={({ route }) => ({
+        ...headerOptions,
+        tabBarStyle: {
+          backgroundColor: colors.ink2,
+          borderTopColor: colors.line,
+          height: 66 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: insets.bottom + 6,
+        },
+        tabBarHideOnKeyboard: true,
+        tabBarActiveTintColor: colors.redText,
+        tabBarInactiveTintColor: colors.boneMute,
+        tabBarLabelStyle: { fontFamily: fonts.stencil, fontSize: 11.5, lineHeight: 16 },
+        tabBarAllowFontScaling: false,
+        tabBarIcon: ({ focused, color, size }) => (
+          <Ionicons name={TAB_ICONS[route.name][focused ? 0 : 1]} size={size} color={color} />
+        ),
+      })}
+    >
+      <Tabs.Screen name="Home" component={FamilyHomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} /> }} />
+      <Tabs.Screen name="Rides" component={RidesScreen} />
+      <Tabs.Screen name="Me" component={FamilyMeScreen} />
+    </Tabs.Navigator>
+  );
+}
+
 export function RootNavigator() {
   const { level, me, needsApplication, loadError } = useClub();
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
@@ -198,6 +231,16 @@ export function RootNavigator() {
             {/* Stage 5C: applicants read the Registered Rules and the Constitution (15.7) */}
             <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
             <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
+          </>
+        ) : level === 'family' ? (
+          <>
+            {/* Family view: its own small set of screens, like Pending */}
+            <Stack.Screen name="Tabs" component={FamilyTabs} options={{ headerShown: false }} />
+            <Stack.Screen name="RideDetail" component={FamilyRideScreen} options={{ title: 'Ride' }} getId={({ params }) => params.rideId} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
+            <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
+            <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
+            <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
           </>
         ) : (
           <>
@@ -254,6 +297,9 @@ export function RootNavigator() {
             {/* Attendance rules, Big 4 rides and the membership card */}
             <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ title: 'Attendance' }} />
             <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
+            {/* Big 4 RSVP rules and the 5.5 notice */}
+            <Stack.Screen name="GiveNotice" component={GiveNoticeScreen} options={{ title: 'Give notice' }} />
+            <Stack.Screen name="StatusNotice" component={StatusNoticeScreen} options={{ title: 'Notice' }} getId={({ params }) => params.noticeId} />
             {/* Stage 3 (lane B): chats and photos */}
             {/* One screen per chat (and per ride below), so opening another one from a notification never
                 reuses the one on screen with its half-typed message. */}

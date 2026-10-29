@@ -77,6 +77,9 @@ export type RootParams = {
   // Attendance rules, Big 4 rides and the membership card
   Attendance: { chapterId?: string } | undefined;
   MembershipCard: undefined;
+  // Big 4 RSVP rules and the 5.5 notice
+  GiveNotice: { memberId: string };
+  StatusNotice: { noticeId: string };
   // Stage 3 (lane B): chats and photos
   Chat: { chatId: string; /** Lane E: share in. What was shared, as the starting draft. */ shared?: { text: string; media: PickedMedia[] } };
   NewChat: undefined;

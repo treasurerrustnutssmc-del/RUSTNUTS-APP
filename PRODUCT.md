@@ -116,9 +116,16 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 ## Attendance rules, Big 4 rides, terms and the card (28 Oct 2026)
 
 - **Big 4 rides:** the NEC (the Chair, a Chapter President, or the National Secretary) marks a club, North or West ride as a Big 4 ahead of time, for the whole club or one chapter (5.11). It can't be added or taken off once the ride's day has come.
-- **Meeting kinds:** a meeting check-in is opened as a monthly meeting, a special or annual meeting, or another event, so the right ones count (4.6, 5.2).
-- **Where you stand:** Full Members see their monthly meetings against 80% and their Big 4 rides against two; Nomads two in three and one Big 4; FNGs half of each of rides, monthly meetings and other events since their trial began. Only activities that had a check-in count. The member and their board see it; the board's Attendance screen lists the chapter, Behind first. It never changes anyone's status: that's still the board's decision after the 14-day notice (5.5).
+- **Meeting kinds:** a meeting check-in is opened as a monthly meeting, a special or annual meeting, or another event, so the right ones count (5.2, 5.4).
+- **Where you stand:** Full Members see their monthly meetings against 80% and their Big 4 rides against two; Nomads two in three and one Big 4; FNGs half of the monthly meetings and half of the Big 4 rides since their trial began (the 4.6 list, Jeff's pick of 29 Oct 2026; other rides and events don't count). Only activities that had a check-in count. The member and their board see it; the board's Attendance screen lists the chapter, Behind first. It never changes anyone's status: that's still the board's decision after the 14-day notice (5.5).
 - **Excused:** the member's chapter board can excuse them from one check-in with a reason (work, family, health, injury, distance). It drops out of their count. Only the member and their board see the reason.
 - **Before a Big 4:** members see whether they've made two of the last three meetings (5.4); Supporters see they can't join (5.8). It's shown, not enforced, for now.
 - **Terms:** each position shows when its term ends (two years; the National Auditor twelve months; terms recorded before 1 August 2026 run from then, 17.6). The Board screen lists terms that have ended or end within 60 days. Re-elected means end the term and appoint again.
 - **Membership card:** on Me, with the real logo, name, status, chapter, member since, patched (Full and Nomad, with the disc), the club year and whether this year's dues are paid.
+
+## Family view (29 Oct 2026)
+
+- **Who:** Family is an app-only status for partners and kids, with no Club rights (5.8). The club is family-oriented (1.3, 1.4), so family get a small view of their own.
+- **What they see:** three tabs. Home (a welcome, the next three rides, the club links), Rides (the calendar the website shows: when, where from, notes and the colour key, with no answers, crew, routes or briefings, and no Going button) and Me (their profile, emergency contacts for when they're on the back of a bike, a Family membership card with no disc or dues, the club links).
+- **What they don't:** the directory and phones, chats, photos, the board, meetings and votes, attendance, fees and the books, conduct, merch, documents, Road Rules sign-off, the Rusty Bus, live ride and the social extras. The database enforces it; members still see family in the directory, and can't open a private chat with them.
+- Spec: `docs/superpowers/specs/2026-10-29-family-view-design.md`.

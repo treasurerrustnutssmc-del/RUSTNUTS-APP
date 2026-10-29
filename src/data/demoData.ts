@@ -485,6 +485,7 @@ export const DEMO_DATA: ClubData = {
 export const DEMO_PERSONAS = [
   { level: 'public', memberId: null, label: 'Public', blurb: 'Not signed in' },
   { level: 'pending', memberId: 'm-dylan', label: 'Applicant', blurb: 'Dylan, waiting on approval' },
+  { level: 'family', memberId: 'm-kerry', label: 'Family', blurb: 'Kerry, Diesel’s partner' },
   { level: 'member', memberId: 'm-spanner', label: 'Member', blurb: 'Spanner, West Tail Gunner' },
   { level: 'board', memberId: 'm-torque', label: 'Board', blurb: 'Torque, West Secretary' },
   { level: 'national', memberId: 'm-rusty', label: 'National', blurb: 'Rusty, West President and NEC Chair' },
@@ -953,6 +954,18 @@ Object.assign(DEMO_DATA, {
     ...went('cs-big4', ['m-rusty', 'm-torque', 'm-spanner', 'm-sparks', 'm-throttle', 'm-jet', 'm-ratchet'], addDays(ago(42), 1)),
   ],
   exemptions: [{ sessionId: 'cs-today', memberId: 'm-gravel', reason: 'Working away', grantedBy: 'm-torque', grantedAt: at(s4Today, '08:00:00') }],
+} satisfies Partial<ClubData>);
+
+// Big 4 RSVP rules and the 5.5 notice: Gravel has an open attendance notice from the Secretary.
+Object.assign(DEMO_DATA, {
+  big4Waivers: [],
+  statusNotices: [{
+    id: 'sn-gravel', memberId: 'm-gravel', chapterId: 'ch-west', about: 'attendance' as const,
+    record: 'Since 01/08:\nMonthly meetings · 80%: 1 of 3 (needs 3)\nBig 4 rides: 0 (needs 2, 1 still to come)',
+    proposal: 'Move to Supporter status from the November meeting, unless the board grants relief (4.12).',
+    givenOn: addDays(s4Today, -3), respondBy: addDays(s4Today, 11), givenBy: 'm-torque', response: '', respondedAt: null,
+    outcome: null, outcomeNote: '', closedOn: null, closedBy: null,
+  }],
 } satisfies Partial<ClubData>);
 
 // ---------------------------------------------------------------------------

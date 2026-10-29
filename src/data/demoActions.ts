@@ -3,6 +3,7 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, endTermProblem, isBoardOf, isLearner, LEARNER_FNG, statusChangeProblem } from '../domain/access';
+import { big4GoingProblem } from '../domain/big4';
 import { bookedStraightAway, bookProblem, cancelProblem, decideProblem, type BusInput } from '../domain/bus';
 import { cleanBriefing, readBriefingProblem, saveBriefingProblem, type BriefingInput } from '../domain/briefings';
 import { patchInCharge } from '../domain/clubYear';
@@ -313,7 +314,10 @@ export function endTerm(ctx: DemoCtx, positionId: string): ClubData {
 
 export function setRsvp(ctx: DemoCtx, rideId: string, answer: RsvpAnswer): ClubData {
   const now = ctx.now ?? new Date().toISOString();
-  const problem = rsvpProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), now) ?? goingProblem(ctx.me, answer, ctx.data, ctx.today);
+  const problem =
+    rsvpProblem(ctx.me, ctx.data.rides.find((r) => r.id === rideId), now) ??
+    goingProblem(ctx.me, answer, ctx.data, ctx.today) ??
+    big4GoingProblem(ctx.me, rideId, answer, ctx.data, ctx.today);
   if (problem) throw new NotAllowedError(problem);
   const memberId = ctx.me!.id;
   const others = ctx.data.rsvps.filter((r) => !(r.rideId === rideId && r.memberId === memberId));

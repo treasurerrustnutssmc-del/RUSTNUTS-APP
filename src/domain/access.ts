@@ -8,15 +8,21 @@ import { melbourneDate } from './rides';
 import { addDays } from './dates';
 import type { ClubData, Member, MemberStatus, Position, PositionRole } from './types';
 
-export type AccessLevel = 'public' | 'pending' | 'member' | 'board' | 'national';
+export type AccessLevel = 'public' | 'pending' | 'family' | 'member' | 'board' | 'national';
 
 export const LEVEL_RANK: Record<AccessLevel, number> = {
   public: 0,
   pending: 1,
-  member: 2,
-  board: 3,
-  national: 4,
+  family: 2,
+  member: 3,
+  board: 4,
+  national: 5,
 };
+
+/** An approved Family person: the rides, Home and their own record, nothing members-only. Mirrors private.is_family. */
+export function isFamily(viewer: Member | null): boolean {
+  return !!viewer && viewer.approval === 'approved' && viewer.status === 'family';
+}
 
 export function activePositions(memberId: string, positions: Position[]): Position[] {
   return positions.filter((p) => p.memberId === memberId && p.endedOn === null);
@@ -60,6 +66,7 @@ export function managesChapterRides(me: Member | null, chapterId: string | null,
 export function accessLevel(viewer: Member | null, positions: Position[]): AccessLevel {
   if (!viewer) return 'public';
   if (viewer.approval !== 'approved') return 'pending';
+  if (viewer.status === 'family') return 'family';
   if (isNational(viewer.id, positions)) return 'national';
   const board = activePositions(viewer.id, positions).some((p) => BOARD_ROLES.includes(p.role));
   return board ? 'board' : 'member';
@@ -71,8 +78,9 @@ export function isBoardOf(viewer: Member | null, chapterId: string, positions: P
   return holdsBoardSeat(viewer.id, chapterId, positions) || isNational(viewer.id, positions);
 }
 
+/** An approved member who isn't Family. Mirrors private.is_approved_member. */
 function isApprovedMember(viewer: Member | null): viewer is Member {
-  return !!viewer && viewer.approval === 'approved';
+  return !!viewer && viewer.approval === 'approved' && viewer.status !== 'family';
 }
 
 export function canSeeDirectory(viewer: Member | null): boolean {

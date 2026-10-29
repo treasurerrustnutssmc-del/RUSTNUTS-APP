@@ -633,3 +633,31 @@ test('signed in: before the live database has the attendance tables, the club st
   assert.deepEqual(data.big4Rides, []);
   assert.deepEqual(data.exemptions, []);
 });
+
+// Big 4 RSVP rules and the 5.5 notice
+test('signed in: Big 4 excuses and 5.5 notices load, blank texts as empty', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      big4_waivers: [{ ride_id: 'r1', member_id: 'm2', ground: 'work', granted_by: 'm1', granted_at: '2026-10-24T00:00:00+00:00' }],
+      status_notices: [{
+        id: 'n1', member_id: 'm2', chapter_id: 'c1', about: 'attendance', record: 'Meetings 2 of 6', proposal: 'Move to Supporter',
+        given_on: '2026-10-01', respond_by: '2026-10-15', given_by: 'm1', response: null, responded_at: null,
+        outcome: null, outcome_note: null, closed_on: null, closed_by: null,
+      }],
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.big4Waivers, [{ rideId: 'r1', memberId: 'm2', ground: 'work', grantedBy: 'm1', grantedAt: '2026-10-24T00:00:00.000Z' }]);
+  assert.deepEqual(data.statusNotices, [{
+    id: 'n1', memberId: 'm2', chapterId: 'c1', about: 'attendance', record: 'Meetings 2 of 6', proposal: 'Move to Supporter',
+    givenOn: '2026-10-01', respondBy: '2026-10-15', givenBy: 'm1', response: '', respondedAt: null,
+    outcome: null, outcomeNote: '', closedOn: null, closedBy: null,
+  }]);
+});
+
+test('signed in: before the live database has the notice tables, the club still loads without them', async () => {
+  const data = await loadClub(tableFails('status_notices', 'Could not find the table', 'PGRST205'), true);
+  assert.deepEqual(data.statusNotices, []);
+  assert.deepEqual(data.big4Waivers, []);
+});

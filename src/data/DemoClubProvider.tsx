@@ -17,6 +17,7 @@ import * as attendanceRules from './demoAttendance';
 import * as ledger from './ledgerActions';
 import * as admin from './adminActions'; // Stage 5D
 import * as docs from './documentActions';
+import { forFamily } from './familyData'; // Family view
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
@@ -28,6 +29,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
 
   const me = useMemo(() => data.members.find((m) => m.id === meId) ?? null, [data.members, meId]);
   const level = accessLevel(me, data.positions);
+  // Family view: Family see only what the database would hand them.
+  const shown = useMemo(() => (level === 'family' && me ? forFamily(data, me) : data), [level, me, data]);
   useEffect(() => bindDemoLive(() => ({ data, me })), [data, me]);
   const ctx: act.DemoCtx = { data, me, today };
   // Saving the minutes and then sharing or confirming them happens in one press, so the second
@@ -47,7 +50,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     mode: 'demo',
     isDemo: true,
     loading: false,
-    data,
+    data: shown,
     me,
     level,
     today,
@@ -119,6 +122,15 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     designateBig4: async (rideId, chapterId) => setData(attendanceRules.designateBig4(ctx, rideId, chapterId)),
     undesignateBig4: async (rideId) => setData(attendanceRules.undesignateBig4(ctx, rideId)),
     setExemption: async (sessionId, memberId, reason) => setData(attendanceRules.setExemption(ctx, sessionId, memberId, reason)),
+    // Big 4 RSVP rules and the 5.5 notice
+    setBig4Waiver: async (rideId, memberId, ground) => setData(attendanceRules.setBig4Waiver(ctx, rideId, memberId, ground)),
+    giveStatusNotice: async (memberId, input) => {
+      const result = attendanceRules.giveStatusNotice(ctx, memberId, input);
+      setData(result.data);
+      return result.id;
+    },
+    respondToNotice: async (noticeId, response) => setData(attendanceRules.respondToNotice(ctx, noticeId, response)),
+    closeStatusNotice: async (noticeId, outcome, note) => setData(attendanceRules.closeStatusNotice(ctx, noticeId, outcome, note)),
     decideApplication: async (memberId, status, votes, note) => setData(s4.decideApplication(ctx, memberId, status, votes, note)),
     recordFngReview: async (memberId, atMonths, outcome, votes, note) =>
       setData(s4.recordFngReview(ctx, memberId, atMonths, outcome, votes, note)),

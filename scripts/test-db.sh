@@ -263,6 +263,34 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   "${PSQL[@]}" -d rustnuts_charity -f "$f" >/dev/null
 done
 "${PSQL[@]}" -d rustnuts_charity -f "$ROOT/supabase/tests/charity_signups_test.sql"
+# Big 4 RSVP rules and the 5.5 notice, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_big4_rsvp" >/dev/null
+"${PSQL[@]}" -d rustnuts_big4_rsvp -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_big4_rsvp -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_big4_rsvp -f "$ROOT/supabase/tests/big4_rsvp_notices_test.sql"
+# Pasted before attendance-big4.sql, it must refuse and change nothing.
+"${PSQL[@]}" -c "create database rustnuts_big4_order" >/dev/null
+"${PSQL[@]}" -d rustnuts_big4_order -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  [[ "$(basename "$f")" < "20270405000000" ]] || continue
+  "${PSQL[@]}" -d rustnuts_big4_order -f "$f" >/dev/null 2>&1
+done
+if out="$("${PSQL[@]}" -d rustnuts_big4_order -f "$ROOT/supabase/migrations/20270510000000_big4_rsvp_notices.sql" 2>&1)"; then
+  echo "The Big 4 RSVP migration applied without attendance-big4.sql"; exit 1
+fi
+echo "$out" | grep -q 'Paste attendance-big4.sql first.' || { echo "Wrong refusal: $out"; exit 1; }
+"${PSQL[@]}" -d rustnuts_big4_order -tAc "select count(*) from pg_proc where proname = 'big4_problem'" | grep -qx 0 \
+  || { echo "The Big 4 RSVP migration changed something without attendance-big4.sql"; exit 1; }
+echo 'The Big 4 RSVP migration refuses to go in before attendance-big4.sql, and changes nothing'
+# The family view, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_family" >/dev/null
+"${PSQL[@]}" -d rustnuts_family -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_family -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_family -f "$ROOT/supabase/tests/family_view_test.sql"
 
 echo 'ALL DATABASE CHECKS PASSED'
 
