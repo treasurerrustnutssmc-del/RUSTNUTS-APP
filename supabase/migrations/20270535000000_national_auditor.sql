@@ -57,6 +57,49 @@ $$;
 revoke all on function private.is_auditor() from public, anon;
 grant execute on function private.is_auditor() to authenticated;
 
+-- Off the NEC, so not a ride leader either: Road Captain, Tail Gunner or Assistant TG, or a board
+-- or NEC officer seat.
+create or replace function private.is_ride_leader(who uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.positions p join public.members m on m.id = p.member_id
+    where p.member_id = who and p.ended_on is null and m.approval = 'approved'
+      and p.role in ('road_captain', 'tail_gunner', 'assistant_tail_gunner', 'president', 'vice_president',
+                     'secretary', 'treasurer', 'sergeant_at_arms', 'nec_chair', 'nec_secretary')
+  );
+$$;
+
+-- Why p_member can't hold p_role, or null. Now also: the Auditor can't be National Chairman or
+-- Secretary at the same time, since they aren't on the NEC (11.2, 11.8).
+create or replace function private.hold_problem(p_member uuid, p_role public.position_role)
+returns text language plpgsql stable security definer set search_path = '' as $$
+declare target public.members%rowtype;
+begin
+  select * into target from public.members where id = p_member;
+  if target.status not in ('full', 'nomad') then
+    return 'Only Full and Nomad members hold Club positions (4.6, 5.8).';
+  end if;
+  if target.status = 'nomad' and p_role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms',
+                                            'road_captain', 'nec_chair', 'nec_secretary', 'nec_auditor') then
+    return 'Nomads can’t hold a board or national seat (9.1).';
+  end if;
+  if (p_role = 'nec_auditor' and exists (
+        select 1 from public.positions where member_id = p_member and ended_on is null and role in ('president', 'treasurer')))
+     or (p_role in ('president', 'treasurer') and exists (
+        select 1 from public.positions where member_id = p_member and ended_on is null and role = 'nec_auditor')) then
+    return 'The National Auditor can’t also be a President or Treasurer (11.8).';
+  end if;
+  if (p_role = 'nec_auditor' and exists (
+        select 1 from public.positions where member_id = p_member and ended_on is null and role in ('nec_chair', 'nec_secretary')))
+     or (p_role in ('nec_chair', 'nec_secretary') and exists (
+        select 1 from public.positions where member_id = p_member and ended_on is null and role = 'nec_auditor')) then
+    return 'The National Auditor isn’t on the NEC, so can’t also be National Chairman or Secretary (11.8).';
+  end if;
+  return null;
+end;
+$$;
+revoke all on function private.is_ride_leader(uuid), private.hold_problem(uuid, public.position_role) from public, anon, authenticated;
+
 -- 2. What the Auditor reads (11.8) --------------------------------------------------------------
 
 -- A chapter's membership and attendance records: its board, the NEC, or the Auditor.
@@ -252,6 +295,9 @@ returns boolean language sql stable security definer set search_path = '' as $$
     where subject_member_id = p_member and chapter_id is null and electorate = 'nec' and threshold = 'two_thirds'
       and closed_at is not null and result = 'carried'
       and private.club_date(closed_at) >= private.club_date() - 90
+      -- One vote seats them once: it has to close after their last Auditor term began.
+      and private.club_date(closed_at) > coalesce(
+        (select max(started_on) from public.positions where member_id = p_member and role = 'nec_auditor'), '-infinity'::date)
   );
 $$;
 
@@ -288,10 +334,11 @@ begin
   if p_subject is not null and p_chapter is null then
     select * into subject from public.members where id = p_subject;
     if found and subject.approval = 'approved' and subject.status = 'full' then
-      -- Appointing the National Auditor: two-thirds of the NEC, never a President or Treasurer (11.8).
-      if exists (select 1 from public.positions where member_id = p_subject and ended_on is null and role in ('president', 'treasurer'))
+      -- Appointing the National Auditor: two-thirds of the NEC, never a President, Treasurer or NEC officer (11.8).
+      if exists (select 1 from public.positions where member_id = p_subject and ended_on is null
+                   and role in ('president', 'treasurer', 'nec_chair', 'nec_secretary'))
          or p_electorate <> 'nec' or p_threshold <> 'two_thirds' then
-        raise exception 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President or Treasurer (11.8).';
+        raise exception 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President, Treasurer or NEC officer (11.8).';
       end if;
     elsif not found or subject.approval <> 'approved' or subject.status not in ('supporter', 'legacy', 'family', 'introduced')
        or p_electorate <> 'nec' or p_threshold <> 'majority' then
@@ -445,6 +492,7 @@ begin
   if not private.is_chairman() then raise exception 'Only the National Chairman renews the National Auditor.'; end if;
   select * into seat from public.positions where role = 'nec_auditor' and ended_on is null for update;
   if not found then raise exception 'There’s no sitting National Auditor to renew.'; end if;
+  if seat.member_id = me then raise exception 'You can’t renew yourself.'; end if;
   if (seat.started_on + interval '1 year')::date - private.club_date() > 60 then
     raise exception 'The Auditor’s term isn’t ending yet. Renew in its last 60 days.';
   end if;

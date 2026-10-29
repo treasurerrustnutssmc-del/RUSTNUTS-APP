@@ -143,3 +143,11 @@ anyone on live until one is appointed. It contains `drop policy` lines (to repla
 - A National Treasurer role (11.2, 11.6), so "can't also be National Treasurer" waits for it.
 - Push for requests and reports (push is held until launch); they show on the Board and Audit screens.
 - An external auditor's login.
+
+## After review (29/10/2026)
+
+- The Auditor can't also be National Chairman or Secretary, either way round, since they aren't on the NEC. An Auditor vote can't be about an NEC officer either.
+- One carried vote seats the Auditor once: it has to close after their last Auditor term began.
+- Nobody renews themselves.
+- The Auditor isn't a ride leader (regroup pins, alerts), and the Chapters screen no longer counts them on the NEC.
+- Left as is: the Auditor's read access runs until the Chairman ends the seat, even past twelve months. Manage member shows the ended term.

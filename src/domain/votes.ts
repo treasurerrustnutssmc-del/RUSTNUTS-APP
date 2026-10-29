@@ -4,16 +4,19 @@
 // Section numbers refer to the club constitution (v4, Final Club Edition, 25 Oct 2026); rules marked (inferred) are
 // ones it doesn't settle.
 
-import { activePositions } from './access';
+import { activePositions, NEC_OFFICER_ROLES } from './access';
 import { BOARD_ROLES, electoratesFor } from './labels';
 import { reviewsScope, runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
-import type { ClubData, Electorate, Member, MemberStatus, Position, Tally, Threshold, Vote, VoteResult } from './types';
+import type { ClubData, Electorate, Member, MemberStatus, Position, PositionRole, Tally, Threshold, Vote, VoteResult } from './types';
 
 /** Who the NEC can vote to bring back to Full or Nomad (5.6). */
 export const REINSTATABLE: MemberStatus[] = ['supporter', 'legacy', 'family', 'introduced'];
 export const REINSTATE_VOTE = 'A reinstatement vote is an NEC majority vote on a member who isn’t Full, Nomad or an FNG (5.6).';
-export const AUDITOR_VOTE = 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President or Treasurer (11.8).';
+export const AUDITOR_VOTE = 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President, Treasurer or NEC officer (11.8).';
+
+/** Seats the National Auditor can't hold at the same time (11.2, 11.8). */
+const AUDITOR_APART: PositionRole[] = ['president', 'treasurer', ...NEC_OFFICER_ROLES];
 
 /** How long a vote can stay open (inferred). */
 export const MAX_OPEN_DAYS = 60;
@@ -158,8 +161,8 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
   if (input.subjectMemberId !== null && input.chapterId === null) {
     const subject = data.members.find((x) => x.id === input.subjectMemberId);
     if (subject?.approval === 'approved' && subject.status === 'full') {
-      // Appointing the National Auditor: two-thirds of the NEC, never a President or Treasurer (11.8).
-      const apart = activePositions(subject.id, data.positions).some((p) => p.role === 'president' || p.role === 'treasurer');
+      // Appointing the National Auditor: two-thirds of the NEC, never a President, Treasurer or NEC officer (11.8).
+      const apart = activePositions(subject.id, data.positions).some((p) => AUDITOR_APART.includes(p.role));
       if (apart || input.electorate !== 'nec' || input.threshold !== 'two_thirds') return AUDITOR_VOTE;
     } else if (!subject || subject.approval !== 'approved' || !REINSTATABLE.includes(subject.status) || input.electorate !== 'nec' || input.threshold !== 'majority') {
       // Bringing someone back to Full or Nomad is the NEC's decision (5.6).

@@ -40,7 +40,7 @@ export function holdsBoardSeat(memberId: string, chapterId: string, positions: P
  * The national officers with NEC powers. The National Auditor holds a national seat but reviews
  * and never runs anything (11.8), so they aren't one.
  */
-const NEC_OFFICER_ROLES: PositionRole[] = ['nec_chair', 'nec_secretary'];
+export const NEC_OFFICER_ROLES: PositionRole[] = ['nec_chair', 'nec_secretary'];
 
 /** Sits on the National Executive Committee: the Chairman, the Secretary, or any sitting chapter President. */
 export function isNational(memberId: string, positions: Position[]): boolean {
@@ -193,14 +193,21 @@ export function appointProblem(
 
 /** How long a carried vote to appoint the Auditor stays good for (inferred, as for reinstatement). */
 export const AUDITOR_VOTE_DAYS = 90;
+export const AUDITOR_NOT_NEC = 'The National Auditor isn’t on the NEC, so can’t also be National Chairman or Secretary (11.8).';
 export const AUDITOR_NEEDS_VOTE = 'Appointing the National Auditor needs a carried two-thirds NEC vote about them in the last 90 days (11.8).';
 
-/** The NEC voted by two-thirds, in the last 90 days, to appoint this member National Auditor (11.8). */
+/**
+ * The NEC voted by two-thirds, in the last 90 days, to appoint this member National Auditor (11.8).
+ * The vote has to close after their last Auditor term began, so one vote seats them only once.
+ */
 export function hasCarriedAuditorVote(memberId: string, data: ClubData, today: string): boolean {
   const since = addDays(today, -AUDITOR_VOTE_DAYS);
+  const lastStart = data.positions
+    .filter((p) => p.memberId === memberId && p.role === 'nec_auditor')
+    .reduce((max, p) => (p.startedOn > max ? p.startedOn : max), '');
   return (data.votes ?? []).some(
     (v) => v.subjectMemberId === memberId && v.chapterId === null && v.electorate === 'nec' && v.threshold === 'two_thirds'
-      && v.closedAt !== null && v.result === 'carried' && melbourneDate(v.closedAt) >= since,
+      && v.closedAt !== null && v.result === 'carried' && melbourneDate(v.closedAt) >= since && melbourneDate(v.closedAt) > lastStart,
   );
 }
 
@@ -219,6 +226,7 @@ export function renewAuditorProblem(me: Member | null, data: ClubData, today: st
   if (!isChairman(me.id, data.positions)) return 'Only the National Chairman renews the National Auditor.';
   const seat = auditorSeat(data);
   if (!seat) return 'There’s no sitting National Auditor to renew.';
+  if (seat.memberId === me.id) return 'You can’t renew yourself.';
   if (termState(seat, today) === 'running') return 'The Auditor’s term isn’t ending yet. Renew in its last 60 days.';
   const target = data.members.find((m) => m.id === seat.memberId);
   if (!target) return 'There’s no sitting National Auditor to renew.';
@@ -233,7 +241,8 @@ const SEAT_ROLES: PositionRole[] = [...BOARD_ROLES, ...NATIONAL_ROLES];
 /**
  * Whether `target` may hold `role` (constitution v4): only Full and Nomad members hold Club
  * positions (4.6, 5.8); Nomads hold Non-Board roles only (9.1); the National Auditor can't also
- * be a President or Treasurer (11.8). Mirrors private.hold_problem.
+ * be a President or Treasurer (11.8), nor National Chairman or Secretary, since they aren't on the
+ * NEC (11.2, 11.8). Mirrors private.hold_problem.
  */
 function holdProblem(target: Member, role: PositionRole, positions: Position[]): string | null {
   if (!patched(target.status)) return 'Only Full and Nomad members hold Club positions (4.6, 5.8).';
@@ -241,6 +250,9 @@ function holdProblem(target: Member, role: PositionRole, positions: Position[]):
   const holds = (roles: PositionRole[]) => activePositions(target.id, positions).some((p) => roles.includes(p.role));
   if ((role === 'nec_auditor' && holds(['president', 'treasurer'])) || ((role === 'president' || role === 'treasurer') && holds(['nec_auditor']))) {
     return 'The National Auditor can’t also be a President or Treasurer (11.8).';
+  }
+  if ((role === 'nec_auditor' && holds(NEC_OFFICER_ROLES)) || (NEC_OFFICER_ROLES.includes(role) && holds(['nec_auditor']))) {
+    return AUDITOR_NOT_NEC;
   }
   return null;
 }

@@ -165,9 +165,9 @@ declare
 begin
   assert pg_temp.try_as(chair, format(open_vote, rider, 'two_thirds')) is null, 'a two-thirds vote about a Full Member';
   assert pg_temp.try_as(chair, format(open_vote, rider, 'majority'))
-    = 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President or Treasurer (11.8).', 'not a majority';
+    = 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President, Treasurer or NEC officer (11.8).', 'not a majority';
   assert pg_temp.try_as(chair, format(open_vote, pres, 'two_thirds'))
-    = 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President or Treasurer (11.8).', 'never a President';
+    = 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President, Treasurer or NEC officer (11.8).', 'never a President';
   assert pg_temp.try_as(aud, format(open_vote, rider, 'two_thirds')) is not null, 'the Auditor doesn''t open NEC votes';
 
   -- Renewal: the term (started 330 days ago) is in its last 60 days.
@@ -268,6 +268,45 @@ begin
   assert jsonb_array_length(j->'reports') = 1, 'so does every board';
   j := pg_temp.value_as(rider, 'select public.club_audit()')::jsonb;
   assert jsonb_array_length(j->'reports') = 0, 'members don''t';
+end $$;
+
+\echo 'The Auditor isn''t an NEC officer or a ride leader; one vote seats them once; no renewing yourself'
+do $$
+declare
+  chair constant uuid := '00000000-0000-0000-0000-0000000008a1';
+  aud constant uuid := '00000000-0000-0000-0000-0000000008a3';
+  rider constant uuid := '00000000-0000-0000-0000-0000000008a4';
+  not_nec constant text := 'The National Auditor isn’t on the NEC, so can’t also be National Chairman or Secretary (11.8).';
+  vote_rule constant text := 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President, Treasurer or NEC officer (11.8).';
+  open_vote text := $q$select public.open_vote(null, null, %L, 'Appoint?', null, 'nec', 'two_thirds', false, 1, now() + interval '7 days')$q$;
+begin
+  assert pg_temp.try_as(chair, format('select public.appoint_position(%L, null, %L)', aud, 'nec_secretary')) = not_nec, 'the Auditor isn''t made Secretary';
+  assert pg_temp.try_as(chair, format(open_vote, chair)) = vote_rule, 'no Auditor vote on the Chairman';
+  assert not private.is_ride_leader(aud), 'the Auditor doesn''t lead rides';
+  assert private.is_ride_leader(chair), 'the Chairman still does';
+
+  -- Tried inside a block that's rolled back, so the club's seats stay as they were.
+  begin
+    insert into positions (member_id, chapter_id, role, started_on) values (rider, null, 'nec_secretary', '2025-08-16');
+    assert pg_temp.try_as(chair, format(open_vote, rider)) = vote_rule, 'no Auditor vote on the Secretary';
+    insert into votes (chapter_id, subject_member_id, question, electorate, threshold, quorum, closes_at, closed_at, result)
+    values (null, rider, 'Appoint?', 'nec', 'two_thirds', 1, now() - interval '5 days', now() - interval '5 days', 'carried');
+    assert private.hold_problem(rider, 'nec_auditor') = not_nec, 'the Secretary isn''t made Auditor';
+    delete from positions where member_id = rider and role = 'nec_secretary';
+    assert private.has_carried_auditor_vote(rider), 'a fresh vote';
+    insert into positions (member_id, chapter_id, role, started_on, ended_on) values (rider, null, 'nec_auditor', current_date - 2, current_date - 1);
+    assert not private.has_carried_auditor_vote(rider), 'a vote from before their last term doesn''t seat them again';
+
+    update positions set ended_on = current_date where role = 'nec_auditor' and ended_on is null;
+    insert into positions (member_id, chapter_id, role, started_on) values (chair, null, 'nec_auditor', current_date - 330);
+    insert into votes (chapter_id, subject_member_id, question, electorate, threshold, quorum, closes_at, closed_at, result)
+    values (null, chair, 'Renew?', 'nec', 'two_thirds', 1, now() - interval '1 day', now() - interval '1 day', 'carried');
+    assert pg_temp.try_as(chair, 'select public.renew_auditor()') = 'You can’t renew yourself.', 'nobody renews themselves';
+    raise exception 'roll back';
+  exception when raise_exception then
+    if sqlerrm <> 'roll back' then raise; end if;
+  end;
+  assert (select count(*) from positions where member_id = rider and role in ('nec_secretary', 'nec_auditor')) = 0, 'rolled back';
 end $$;
 
 \echo 'AUDITOR CHECKS PASSED'

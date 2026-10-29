@@ -543,7 +543,7 @@ export function ChaptersScreen({ navigation }: RootScreen<'Chapters'>) {
 
       <SectionTitle title="National" />
       <Card>
-        <Small>The National Executive Committee: sitting chapter Presidents plus the national roles.</Small>
+        <Small>The National Executive Committee is the Chairman, the Secretary and the sitting chapter Presidents. The National Auditor reviews the records from outside it (11.8).</Small>
         {necSeats
           .sort((a, b) => [...NATIONAL_ROLES, 'president'].indexOf(a.role) - [...NATIONAL_ROLES, 'president'].indexOf(b.role))
           .map((p) => {

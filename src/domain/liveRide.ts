@@ -3,9 +3,9 @@
 // (supabase/migrations/20270201000000_live_ride.sql) apply the same rules with the same words.
 
 import { formatAuDate } from './dates';
-import { BOARD_ROLES, NATIONAL_ROLES } from './labels';
+import { BOARD_ROLES } from './labels';
 import { lastDay, melbourneDate, melbourneTime } from './rides';
-import { activePositions } from './access';
+import { activePositions, NEC_OFFICER_ROLES } from './access';
 import type { AlertKind, LatLng, LiveRider, Member, Position, PositionRole, Ride, RideAlert } from './types';
 
 export const LIVE_MSG = {
@@ -76,9 +76,9 @@ export function personalStop(ride: Ride, now: string): string {
   return iso(w ? Math.min(cap, new Date(w.closes).getTime()) : cap);
 }
 
-const LEADER_ROLES: PositionRole[] = ['road_captain', 'tail_gunner', 'assistant_tail_gunner', ...BOARD_ROLES, ...NATIONAL_ROLES];
+const LEADER_ROLES: PositionRole[] = ['road_captain', 'tail_gunner', 'assistant_tail_gunner', ...BOARD_ROLES, ...NEC_OFFICER_ROLES];
 
-/** Road Captain, Tail Gunner or Assistant TG, or a board or NEC seat. Mirrors private.is_ride_leader. */
+/** Road Captain, Tail Gunner or Assistant TG, or a board or NEC officer seat (not the Auditor, who runs nothing). Mirrors private.is_ride_leader. */
 export function isRideLeader(memberId: string, positions: Position[]): boolean {
   return activePositions(memberId, positions).some((p) => LEADER_ROLES.includes(p.role));
 }

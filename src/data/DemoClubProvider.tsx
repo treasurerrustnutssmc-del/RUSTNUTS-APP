@@ -259,22 +259,22 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       return result.chapterId;
     },
     withdrawChapter: async (id) => setData(admin.withdrawChapter(ctx, id)),
-    // The National Auditor
+    // The National Auditor (saving a report then issuing it happens in one press, so build on the latest)
     raiseAuditRequest: async (input) => {
-      const r = audit.raiseAuditRequest(ctx, input);
-      setData(r.data);
+      const r = audit.raiseAuditRequest(fresh(), input);
+      keep(r.data);
       return r.id;
     },
-    answerAuditRequest: async (id, answer) => setData(audit.answerAuditRequest(ctx, id, answer)),
-    closeAuditRequest: async (id, note) => setData(audit.closeAuditRequest(ctx, id, note)),
+    answerAuditRequest: async (id, answer) => keep(audit.answerAuditRequest(fresh(), id, answer)),
+    closeAuditRequest: async (id, note) => keep(audit.closeAuditRequest(fresh(), id, note)),
     saveAuditReport: async (input) => {
-      const r = audit.saveAuditReport(ctx, input);
-      setData(r.data);
+      const r = audit.saveAuditReport(fresh(), input);
+      keep(r.data);
       return r.id;
     },
-    issueAuditReport: async (id) => setData(audit.issueAuditReport(ctx, id)),
-    deleteAuditReport: async (id) => setData(audit.deleteAuditReport(ctx, id)),
-    renewAuditor: async () => setData(audit.renewAuditor(ctx)),
+    issueAuditReport: async (id) => keep(audit.issueAuditReport(fresh(), id)),
+    deleteAuditReport: async (id) => keep(audit.deleteAuditReport(fresh(), id)),
+    renewAuditor: async () => keep(audit.renewAuditor(fresh())),
     // Stage 5C: document library
     createDocument: async (input) => {
       const result = docs.createDocument(ctx, input);

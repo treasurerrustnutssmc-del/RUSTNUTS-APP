@@ -4,11 +4,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  accessLevel, appointProblem, AUDITOR_NEEDS_VOTE, canApprove, canManageMember, canSeeMember, canSeePhone, canSeePrivate,
+  accessLevel, appointProblem, AUDITOR_NEEDS_VOTE, AUDITOR_NOT_NEC, canApprove, canManageMember, canSeeMember, canSeePhone, canSeePrivate,
   endTermProblem, hasCarriedAuditorVote, isAuditor, isBoardOf, isNational, isNecOfficer, renewAuditorProblem,
   reviewsChapter, statusChangeProblem,
 } from './access';
 import { canManageFees, canSeeFees } from './fees';
+import { isRideLeader } from './liveRide';
 import { canSeeActionItem, canSeeMeeting, canSeeMinutes, reviewsScope, runsScope } from './meetings';
 import { seesItem, seesOrder } from './merch';
 import { club, member, who } from './stage4.testkit';
@@ -183,4 +184,44 @@ test('the Chairman renews the Auditor for twelve months with a fresh carried vot
   assert.notEqual(renewAuditorProblem(chair, early, TODAY), null);
   const none = { ...d, positions: d.positions.filter((p) => p.role !== 'nec_auditor') };
   assert.notEqual(renewAuditorProblem(chair, none, TODAY), null);
+});
+
+// 4. Review fixes -----------------------------------------------------------------------------------
+
+test('the Auditor can’t also be National Chairman or Secretary, either way round', () => {
+  const base = auditClub();
+  const withVote = (d: ClubData, id: string) => ({ ...d, votes: [auditorVote(id)] });
+  const chair = who(base, 'chair');
+  // The sitting Auditor can't be seated as National Secretary.
+  assert.equal(appointProblem(chair, who(base, 'auditor'), null, 'nec_secretary', base, TODAY), AUDITOR_NOT_NEC);
+  // A National Secretary can't be voted on or seated as Auditor.
+  const free = { ...base, positions: [...base.positions.filter((p) => p.role !== 'nec_auditor'),
+    { id: 'p-nsec', memberId: 'rider', chapterId: null, role: 'nec_secretary' as const, startedOn: '2025-08-16', endedOn: null }] };
+  assert.equal(appointProblem(chair, who(free, 'rider'), null, 'nec_auditor', withVote(free, 'rider'), TODAY), AUDITOR_NOT_NEC);
+  assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: 'rider' }), free, NOW), AUDITOR_VOTE);
+  assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: 'chair' }), free, NOW), AUDITOR_VOTE);
+});
+
+test('a vote that closed before the Auditor’s last term began doesn’t seat them again', () => {
+  const base = auditClub();
+  const ended: Position = { id: 'p-auditor', memberId: 'auditor', chapterId: null, role: 'nec_auditor', startedOn: '2026-10-21', endedOn: '2026-10-28' };
+  const d = { ...base, positions: [...base.positions.filter((p) => p.role !== 'nec_auditor'), ended], votes: [auditorVote('auditor')] };
+  assert.equal(hasCarriedAuditorVote('auditor', d, TODAY), false);
+  assert.equal(appointProblem(who(d, 'chair'), who(d, 'auditor'), null, 'nec_auditor', d, TODAY), AUDITOR_NEEDS_VOTE);
+  // A vote after that term began does.
+  const fresh = { ...d, votes: [auditorVote('auditor', { closedAt: '2026-10-28T00:00:00.000Z' })] };
+  assert.equal(hasCarriedAuditorVote('auditor', fresh, TODAY), true);
+});
+
+test('nobody renews themselves as Auditor', () => {
+  const base = auditClub();
+  const seat: Position = { id: 'p-auditor', memberId: 'chair', chapterId: null, role: 'nec_auditor', startedOn: '2025-12-01', endedOn: null };
+  const d = { ...base, positions: [...base.positions.filter((p) => p.role !== 'nec_auditor'), seat], votes: [auditorVote('chair')] };
+  assert.equal(renewAuditorProblem(who(d, 'chair'), d, TODAY), 'You can’t renew yourself.');
+});
+
+test('the Auditor doesn’t lead rides', () => {
+  const d = auditClub();
+  assert.equal(isRideLeader('auditor', d.positions), false);
+  assert.equal(isRideLeader('chair', d.positions), true);
 });
