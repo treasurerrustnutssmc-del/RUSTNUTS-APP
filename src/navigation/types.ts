@@ -133,6 +133,9 @@ export type RootParams = {
   PublishDocument: { id: string };
   DocumentApproval: { versionId: string };
   DocumentSignoffs: { id: string };
+  // Sponsors
+  Sponsors: undefined;
+  EditSponsor: { sponsorId?: string } | undefined;
 };
 
 export type RootScreen<K extends keyof RootParams> = NativeStackScreenProps<RootParams, K>;

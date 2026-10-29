@@ -54,6 +54,7 @@ import { EditListingScreen, ListingScreen, SwapSellScreen } from '../screens/swa
 import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../screens/builds';
 import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
+import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
 import type { RootParams, TabParams } from './types';
@@ -325,6 +326,13 @@ export function RootNavigator() {
             <Stack.Screen name="Award" component={AwardScreen} options={{ title: 'Award' }} />
             <Stack.Screen name="Nominate" component={NominateScreen} options={{ title: 'Nominate' }} />
             <Stack.Screen name="OpenAward" component={OpenAwardScreen} options={{ title: 'Open an award' }} />
+            {/* Sponsors */}
+            <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen
+              name="EditSponsor"
+              component={EditSponsorScreen}
+              options={({ route }) => ({ title: route.params?.sponsorId ? 'Change the sponsor' : 'Add a sponsor' })}
+            />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
           </>
         )}
