@@ -9,6 +9,7 @@ import type { RootScreen } from '../navigation/types';
 import { IntroProgressCard } from './fng'; // Stage 4
 import { SUPPORT_URL } from '../domain/clubLinks'; // Club links
 import { ClubLinksSection } from './clubLinks'; // Club links
+import { SponsorsSection } from './sponsors'; // Sponsors
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -90,6 +91,8 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
 
       {/* Club links: the website, shop, podcast and socials */}
       <ClubLinksSection withoutSupport />
+      {/* Sponsors: anyone with the app sees them */}
+      <SponsorsSection />
 
       <Small style={{ textAlign: 'center' }}>Rustnuts Social Motorcycle Club Incorporated · Greater Melbourne</Small>
     </Screen>
@@ -448,6 +451,8 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
           }}
         />
       ) : null}
+      {/* Sponsors: anyone with the app sees them */}
+      <SponsorsSection />
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
     </Screen>
   );

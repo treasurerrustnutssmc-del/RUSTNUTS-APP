@@ -1,5 +1,5 @@
 // The club's sponsors: who backs the club, a link to each, and any deal for members. The board
-// looks after the list; approved members read it.
+// looks after the list. Anyone with the app sees it; the deals are for approved members only.
 
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { Image } from 'expo-image';
@@ -50,13 +50,13 @@ const LOGO_TILE = 64;
 const LOGO_PLATE = '#FFFFFF';
 
 // ---------------------------------------------------------------------------
-// Me: the way in
+// Me, the welcome screen and the waiting screen: the way in
 // ---------------------------------------------------------------------------
 
 export function SponsorsSection() {
   const navigation = useNavigation<Nav>();
   const { me } = useClub();
-  if (me?.approval !== 'approved') return null;
+  const member = me?.approval === 'approved';
   return (
     <>
       <SectionTitle title="Sponsors" />
@@ -65,7 +65,7 @@ export function SponsorsSection() {
           last
           left={<IconBadge icon="ribbon-outline" />}
           title="Club sponsors"
-          subtitle="Who backs the club, and deals for members"
+          subtitle={member ? 'Who backs the club, and deals for members' : 'The businesses that back the club'}
           onPress={() => navigation.navigate('Sponsors')}
         />
       </Card>
@@ -175,7 +175,11 @@ export function SponsorsScreen({ navigation }: RootScreen<'Sponsors'>) {
   const shown = sponsorsFor(sponsors);
   return (
     <Screen onRefresh={refresh}>
-      <Body>The businesses that back the club. Tell them you’re a Rustnuts member.</Body>
+      <Body>
+        {me?.approval === 'approved'
+          ? 'The businesses that back the club. Tell them you’re a Rustnuts member.'
+          : 'The businesses that back the club. Some have deals for members.'}
+      </Body>
       {keeper ? <Button label="Add a sponsor" icon="add" onPress={() => navigation.navigate('EditSponsor')} /> : null}
       {loadError ? <Notice tone="danger" title="Couldn’t load the sponsors">{loadError}</Notice> : null}
       {!ready ? (

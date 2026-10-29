@@ -14,6 +14,7 @@ import {
   siteLabel,
   sponsorProblem,
   sponsorsFor,
+  sponsorsSeenBy,
   type Sponsor,
   type SponsorInput,
 } from './sponsors';
@@ -106,4 +107,12 @@ test('a website shows as its plain address', () => {
   assert.equal(siteLabel('https://www.tyres.example.com.au/shop?x=1'), 'tyres.example.com.au');
   assert.equal(siteLabel('http://Bikes.example/'), 'bikes.example');
   assert.equal(siteLabel('https://'), 'https://');
+});
+
+test('everyone sees the sponsors; only approved members see the deals', () => {
+  const list = [sponsor({ id: 'a', deal: '10% off' })];
+  assert.equal(sponsorsSeenBy(list, plain)[0].deal, '10% off');
+  assert.equal(sponsorsSeenBy(list, pending)[0].deal, null);
+  assert.equal(sponsorsSeenBy(list, null)[0].deal, null);
+  assert.equal(sponsorsSeenBy(list, null)[0].name, 'X');
 });

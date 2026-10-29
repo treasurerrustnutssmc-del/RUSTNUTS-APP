@@ -1,5 +1,6 @@
 -- The club's sponsors: a logo, a short blurb, a link and any deal for members. Any board seat or
--- the NEC looks after the list (private.is_any_board); approved members read it. Everything changes
+-- the NEC looks after the list (private.is_any_board). Anyone with the app sees the sponsors
+-- (public.list_sponsors); the member deals are for approved members only. Everything changes
 -- only through save_sponsor and archive_sponsor, which apply the same checks with the same words as
 -- src/domain/sponsors.ts, in the same order. Nothing is ever deleted: a sponsor taken off is
 -- archived, with who took it off.
@@ -39,7 +40,23 @@ grant execute on function private.is_sponsor_keeper() to authenticated;
 create policy sponsors_for_board on public.sponsors for select to authenticated
   using (private.is_sponsor_keeper());
 
--- Logos: a private bucket. Approved members read the logos of sponsors on the list; the board
+-- Everyone's view of the list, signed out included: the deal only for approved members, and
+-- sponsors taken off only for the board. The same as sponsorsSeenBy in src/domain/sponsors.ts.
+create or replace function public.list_sponsors()
+returns table (id uuid, name text, blurb text, url text, deal text, logo_path text, chapter_id uuid,
+               added_by uuid, archived_at timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select s.id, s.name, s.blurb, s.url,
+         case when private.is_approved_member() then s.deal end,
+         s.logo_path, s.chapter_id, s.added_by, s.archived_at
+  from public.sponsors s
+  where s.archived_at is null or private.is_any_board()
+  order by s.name;
+$$;
+revoke all on function public.list_sponsors() from public;
+grant execute on function public.list_sponsors() to anon, authenticated;
+
+-- Logos: a private bucket. Anyone with the app reads the logos of sponsors on the list; the board
 -- reads them all and uploads into their own folder (`<member id>/...`).
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('sponsor-logos', 'sponsor-logos', false, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
@@ -56,12 +73,12 @@ create policy sponsor_logos_upload on storage.objects for insert to authenticate
   with check (bucket_id = 'sponsor-logos' and private.can_upload_sponsor_logo(name));
 create or replace function private.can_read_sponsor_logo(p_name text)
 returns boolean language sql stable security definer set search_path = '' as $$
-  select private.is_any_board() or (private.is_approved_member() and exists (
+  select private.is_any_board() or exists (
     select 1 from public.sponsors where logo_path = p_name and archived_at is null
-  ));
+  );
 $$;
-revoke all on function private.can_read_sponsor_logo(text) from public, anon;
-grant execute on function private.can_read_sponsor_logo(text) to authenticated;
+revoke all on function private.can_read_sponsor_logo(text) from public;
+grant execute on function private.can_read_sponsor_logo(text) to anon, authenticated;
 
 -- Whether any sponsor uses a file, taken-off ones included (they're kept, logo and all).
 create or replace function private.sponsor_logo_in_use(p_name text)
@@ -71,7 +88,7 @@ $$;
 revoke all on function private.sponsor_logo_in_use(text) from public, anon;
 grant execute on function private.sponsor_logo_in_use(text) to authenticated;
 
-create policy sponsor_logos_read on storage.objects for select to authenticated
+create policy sponsor_logos_read on storage.objects for select to anon, authenticated
   using (bucket_id = 'sponsor-logos' and private.can_read_sponsor_logo(name));
 -- An upload whose save failed can be cleared away by whoever uploaded it; a logo in use stays.
 create policy sponsor_logos_tidy on storage.objects for delete to authenticated

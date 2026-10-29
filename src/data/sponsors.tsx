@@ -8,7 +8,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 import type { PickedMedia } from '../domain/chat';
-import { archiveSponsorProblem, sponsorProblem, type Sponsor, type SponsorInput } from '../domain/sponsors';
+import { archiveSponsorProblem, sponsorProblem, sponsorsSeenBy, type Sponsor, type SponsorInput } from '../domain/sponsors';
 import type { MediaSource } from './chat/chatContext';
 import { uploadName } from './chat/liveChat';
 import { NotAllowedError, useClub } from './clubContext';
@@ -19,7 +19,6 @@ import {
   demoArchiveSponsor,
   demoSaveSponsor,
   saveSponsorArgs,
-  SPONSOR_COLUMNS,
   toSponsors,
   type SponsorCtx,
   type SponsorRow,
@@ -50,15 +49,15 @@ const URL_KEEP_MS = 4 * 60_000;
 const db = () => supabase() as unknown as SupabaseClient;
 
 interface State {
-  /** Whose list it is: a new person signing in loads their own. */
-  forId: string | null;
+  /** Whose list it is (null signed out, undefined not loaded yet): a new person signing in loads their own. */
+  forId: string | null | undefined;
   ready: boolean;
   sponsors: Sponsor[];
   loadError: string | null;
 }
 
 let state: State = USE_LIVE_DATA
-  ? { forId: null, ready: false, sponsors: [], loadError: null }
+  ? { forId: undefined, ready: false, sponsors: [], loadError: null }
   : { forId: null, ready: true, sponsors: DEMO_SPONSORS, loadError: null };
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => {
@@ -73,9 +72,10 @@ const urls = new Map<string, { url: string; until: number }>();
 // Each load is numbered, so one that finishes after a later one can't put back an older list.
 let loads = 0;
 
-async function loadLive(forId: string | null): Promise<void> {
+async function loadLive(forId: string | null | undefined): Promise<void> {
   const mine = ++loads;
-  const { data, error } = await db().from('sponsors').select(SPONSOR_COLUMNS).order('name');
+  // Everyone sees the list, signed out too; the database leaves the deals off for non-members.
+  const { data, error } = await db().rpc('list_sponsors');
   if (mine !== loads || state.forId !== forId) return; // a later load, or someone else signed in
   if (error) {
     set({ ready: true, loadError: friendlyError(error).message });
@@ -113,7 +113,7 @@ export function useSponsors(): SponsorsValue {
     if (!USE_LIVE_DATA || state.forId === meId) return;
     set({ forId: meId, ready: false, sponsors: [], loadError: null });
     urls.clear();
-    if (meId) void refresh();
+    void refresh();
   }, [meId, refresh]);
 
   const ctx = (): SponsorCtx => ({ me, positions: data.positions, chapterIds: data.chapters.map((c) => c.id) });
@@ -161,7 +161,8 @@ export function useSponsors(): SponsorsValue {
 
   return {
     ready: current.ready,
-    sponsors: current.sponsors,
+    // Like the database: deals only for approved members.
+    sponsors: sponsorsSeenBy(current.sponsors, me),
     loadError: current.loadError,
     save,
     archive,

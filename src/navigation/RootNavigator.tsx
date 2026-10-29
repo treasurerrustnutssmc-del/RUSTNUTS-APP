@@ -190,6 +190,8 @@ export function RootNavigator() {
             <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
             <Stack.Screen name="SignIn" component={SignInScreen} options={{ title: '' }} />
             <Stack.Screen name="Join" component={JoinScreen} options={{ title: '' }} />
+            {/* Sponsors: anyone with the app sees them */}
+            <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
           </>
         ) : level === 'pending' ? (
           <>
@@ -198,6 +200,8 @@ export function RootNavigator() {
             {/* Stage 5C: applicants read the Registered Rules and the Constitution (15.7) */}
             <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
             <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
+            {/* Sponsors: anyone with the app sees them */}
+            <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
           </>
         ) : (
           <>

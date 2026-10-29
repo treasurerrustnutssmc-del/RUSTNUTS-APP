@@ -34,6 +34,9 @@ from (values
 ) as v(id, slug, role, ended)
 join chapters c on c.slug = v.slug;
 
+-- Supabase lets anon read storage.objects (row-level security decides what); the stub doesn't.
+grant select on storage.objects to anon;
+
 -- Runs a statement as a signed-in user (or anon when who is null) and returns its error, or null.
 create function pg_temp.try_as(who uuid, stmt text) returns text language plpgsql as $$
 begin
@@ -144,9 +147,9 @@ begin
   assert pg_temp.count_as(nell, $q$storage.objects where bucket_id = 'sponsor-logos'$q$) = 0, 'members don''t see unused files';
   assert pg_temp.count_as(bea, $q$storage.objects where bucket_id = 'sponsor-logos'$q$) = 2, 'the board sees them all';
   -- Put the logo back on, so members can see it.
-  assert pg_temp.try_as(bea, pg_temp.save_sql(s, 'Tyre Shed', '', '', '', bea || '/b.png', null)) is null, 'logo back on';
+  assert pg_temp.try_as(bea, pg_temp.save_sql(s, 'Tyre Shed', '', '', '10% off', bea || '/b.png', null)) is null, 'logo back on';
   assert pg_temp.count_as(nell, $q$storage.objects where bucket_id = 'sponsor-logos'$q$) = 1, 'members see the logo in use';
-  assert pg_temp.count_as(paul, $q$storage.objects where bucket_id = 'sponsor-logos'$q$) = 0, 'pending doesn''t';
+  assert pg_temp.count_as(paul, $q$storage.objects where bucket_id = 'sponsor-logos'$q$) = 1, 'pending sees the logo in use too';
   assert pg_temp.try_as(nell, format($q$insert into storage.objects (bucket_id, name, owner, owner_id) values ('sponsor-logos', %L, auth.uid(), auth.uid()::text)$q$, nell || '/c.png'))
     like '%row-level security%', 'members can''t upload';
   assert pg_temp.try_as(bea, format($q$insert into storage.objects (bucket_id, name, owner, owner_id) values ('sponsor-logos', %L, auth.uid(), auth.uid()::text)$q$, wes || '/c.png'))
@@ -161,6 +164,20 @@ begin
   perform pg_temp.try_as(bea, format($q$delete from storage.objects where bucket_id = 'sponsor-logos' and name = %L$q$, bea || '/b.png'));
   assert (select count(*) from storage.objects where name = bea || '/b.png') = 1, 'a logo in use stays';
 
+  -- Anyone with the app sees the sponsors and their logos through list_sponsors; deals are for members.
+  assert pg_temp.try_as(null, 'select * from public.list_sponsors()') is null, 'anon can list them';
+  perform set_config('request.jwt.claim.sub', '', true);
+  set local role anon;
+  assert (select count(*) from public.list_sponsors()) = 1, 'anon sees the sponsor';
+  assert (select deal is null and name = 'Tyre Shed' and logo_path = bea || '/b.png' from public.list_sponsors()), 'but not the deal';
+  assert (select count(*) from storage.objects where bucket_id = 'sponsor-logos') = 1, 'anon sees the logo in use';
+  reset role;
+  perform set_config('request.jwt.claim.sub', paul::text, true);
+  set local role authenticated;
+  assert (select deal is null from public.list_sponsors()), 'pending doesn''t see the deal';
+  reset role;
+  assert pg_temp.value_as(nell, 'select deal from public.list_sponsors()') = '10% off', 'members see the deal';
+
   -- Taking it off.
   assert pg_temp.try_as(nell, format('select public.archive_sponsor(%L)', s)) = 'Only the board can look after the club’s sponsors.', 'not Nell';
   assert pg_temp.try_as(bea, format('select public.archive_sponsor(%L)', s)) is null, 'the board';
@@ -170,6 +187,8 @@ begin
   assert pg_temp.try_as(bea, format('select public.archive_sponsor(%L)', '00000000-0000-0000-0000-000000000000')) = 'No such sponsor.', 'gone';
   assert pg_temp.count_as(nell, 'sponsors') = 0, 'hidden once off';
   assert pg_temp.count_as(bea, 'sponsors') = 1, 'the board still reads it';
+  assert pg_temp.value_as(bea, 'select count(*) from public.list_sponsors()') = '1', 'the board lists it, taken off';
+  assert pg_temp.value_as(nell, 'select count(*) from public.list_sponsors()') = '0', 'members don''t';
   assert pg_temp.count_as(nell, $q$storage.objects where bucket_id = 'sponsor-logos'$q$) = 0, 'and its logo is hidden from members';
 end $$;
 

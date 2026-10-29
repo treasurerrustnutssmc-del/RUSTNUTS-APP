@@ -119,3 +119,9 @@ export function siteLabel(url: string): string {
   const host = /^https?:\/\/([^/?#]+)/i.exec(url)?.[1];
   return host ? host.toLowerCase().replace(/^www\./, '') : url;
 }
+
+/** Anyone with the app sees the sponsors; the member deals are for approved members only. */
+export function sponsorsSeenBy(sponsors: Sponsor[], me: Member | null): Sponsor[] {
+  if (me?.approval === 'approved') return sponsors;
+  return sponsors.map((s) => (s.deal === null ? s : { ...s, deal: null }));
+}

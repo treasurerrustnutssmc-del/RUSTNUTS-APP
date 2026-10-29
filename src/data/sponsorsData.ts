@@ -57,6 +57,7 @@ export function demoArchiveSponsor(list: Sponsor[], ctx: SponsorCtx, id: string,
   return list.map((s) => (s.id === id ? { ...s, archivedAt: now } : s));
 }
 
+/** A row from public.list_sponsors. */
 export interface SponsorRow {
   id: string;
   name: string;
@@ -68,8 +69,6 @@ export interface SponsorRow {
   added_by: string | null;
   archived_at: string | null;
 }
-
-export const SPONSOR_COLUMNS = 'id, name, blurb, url, deal, logo_path, chapter_id, added_by, archived_at';
 
 export function toSponsors(rows: SponsorRow[]): Sponsor[] {
   return rows.map((r) => ({
