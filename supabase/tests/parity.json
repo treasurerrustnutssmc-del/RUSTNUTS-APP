@@ -463,11 +463,11 @@
       "allowed": false
     },
     {
-      "name": "A President ends a term in another chapter",
+      "name": "A President can't end a term in another chapter",
       "as": "rusty",
       "action": "endTerm",
       "position": "crank-road-captain",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "A term that already ended is ended again",
@@ -589,12 +589,12 @@
       "allowed": false
     },
     {
-      "name": "A West President approves a North applicant",
+      "name": "A West President can't approve a North applicant",
       "as": "rusty",
       "action": "approve",
       "member": "josh",
       "status": "family",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "A member approves an applicant",
@@ -7209,13 +7209,13 @@
       "allowed": false
     },
     {
-      "name": "The National Chairman excuses a West FNG",
+      "name": "The National Chairman can't excuse a West FNG without a West seat",
       "as": "chair",
       "action": "setExemption",
       "session": "yesterday-west",
       "member": "finn",
       "reason": "Injury",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "A member sets their own bike's range",
@@ -9017,7 +9017,7 @@
       "allowed": true
     },
     {
-      "name": "5D: the NEC records about any chapter's member",
+      "name": "5D: the NEC can't record about another chapter's member",
       "as": "chair",
       "action": "recordConduct",
       "member": "gravel",
@@ -9025,7 +9025,7 @@
       "summary": "Passed in a no-pass zone.",
       "decidedDays": 0,
       "noticeDays": 0,
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "5D: a formal reprimand needs no notice date",
@@ -9356,7 +9356,7 @@
       "allowed": false
     },
     {
-      "name": "5D: the NEC sets up the hearing",
+      "name": "5D: the NEC can't set up another chapter's hearing",
       "as": "chair",
       "action": "setHearing",
       "record": "unheard-gravel",
@@ -9366,7 +9366,7 @@
         "ash"
       ],
       "hearingDays": 5,
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "5D: whoever recorded it sets up the hearing",

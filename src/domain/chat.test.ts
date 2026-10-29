@@ -141,7 +141,7 @@ test('who can remove a message', () => {
   assert.equal(removeProblem(secretary, club, theirs, data), null, 'any board member in the whole-club chat');
   assert.equal(removeProblem(secretary, rideChat, theirs, data), null, 'and in ride chats');
   assert.equal(removeProblem(secretary, north, theirs, data), 'That chat is for North chapter members.');
-  assert.equal(removeProblem(northPres, west, theirs, data), null, 'the NEC anywhere');
+  assert.equal(removeProblem(northPres, west, theirs, data), 'You can only remove your own messages.', 'the NEC reads every chat but moderates only its own');
   assert.equal(removeProblem(westie, direct, message({ authorId: 'northie' }), data), 'You can only remove your own messages.');
   assert.equal(removeProblem(westie, club, undefined, data), 'No such message.');
   assert.equal(removeProblem(westie, club, message({ removedAt: '2026-11-01T01:00:00.000Z' }), data), 'That message was removed.');
@@ -305,7 +305,7 @@ test('reporting a message, and who sees the report', () => {
   assert.equal(canSeeReport(westie, west, northie, data), false);
   assert.equal(canSeeReport(secretary, direct, westie, data), true, 'a private chat: the reporter’s chapter board');
   assert.equal(canSeeReport(secretary, direct, northie, data), false, 'not the other chapter’s');
-  assert.equal(canSeeReport(northPres, direct, westie, data), true, 'the NEC');
+  assert.equal(canSeeReport(northPres, direct, westie, data), false, 'not the NEC without a West seat');
 });
 
 test('blocking', () => {

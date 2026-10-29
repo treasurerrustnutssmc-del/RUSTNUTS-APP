@@ -2,7 +2,7 @@
 // The database's open_checkin, check_in, mark_attendance and close_checkin actions apply the same
 // rules with the same words.
 
-import { activePositions, isBoardOf, isNational } from './access';
+import { activePositions, isBoardOf, isNational, reviewsChapter } from './access';
 import { BOARD_ROLES } from './labels';
 import type { Chapter, CheckinKind, CheckinSession, ClubData, MeetingType, Member, Position, Ride } from './types';
 
@@ -114,6 +114,15 @@ export function closeProblem(me: Member | null, session: CheckinSession, data: C
   if (!canRunCheckin(me, session.chapterId, data.positions)) return RUN_ONLY;
   if (session.closedAt) return 'That check-in is already closed.';
   return null;
+}
+
+/**
+ * Whose meeting check-ins `viewer` sees: their own, as the member's chapter board (or a national
+ * role), or as the Auditor. Ride check-ins are every approved member's (badges and ride walls are
+ * built on them). Mirrors the attendance_read policy.
+ */
+export function canSeeAttendance(viewer: Member | null, target: Member, positions: Position[]): boolean {
+  return !!viewer && (viewer.id === target.id || reviewsChapter(viewer, target.chapterId, positions));
 }
 
 /** Rides and meetings attended, by the date each was held: from `from`, up to `to` when given. */

@@ -144,9 +144,15 @@ end $$;
 do $$
 declare rock constant uuid := '00000000-0000-0000-0000-0000000000a1';
 declare holder constant uuid := '00000000-0000-0000-0000-0000000000a6';
+declare wendy constant uuid := '00000000-0000-0000-0000-0000000000a7';
 begin
-  -- Holder is North President, so on the NEC and board of every chapter.
-  perform set_config('request.jwt.claim.sub', holder::text, true);
+  -- Wendy sits on West's board. Holder is North's President: on the NEC, so he reads West's
+  -- records, but only West's board changes a West member's status (8.2, 12.3).
+  insert into auth.users (id, email, email_confirmed_at) values (wendy, 'wendy@example.com', now());
+  insert into members (id, chapter_id, full_name, status, approval)
+  select wendy, id, 'Wendy Sec', 'full', 'approved' from chapters where slug = 'west';
+  insert into positions (member_id, chapter_id, role) select wendy, id, 'secretary' from chapters where slug = 'west';
+  perform set_config('request.jwt.claim.sub', wendy::text, true);
   set local role authenticated;
   begin
     perform public.set_member_status(rock, 'legacy');
@@ -157,6 +163,16 @@ begin
   reset role;
   update positions set ended_on = private.club_date() where member_id = rock;
   update members set on_hiatus = true where id = rock;
+  perform set_config('request.jwt.claim.sub', holder::text, true);
+  set local role authenticated;
+  begin
+    perform public.set_member_status(rock, 'legacy');
+    raise exception 'a North President changed a West member''s status';
+  exception when raise_exception then
+    assert sqlerrm = 'Only that chapter’s board can change this member’s status.', sqlerrm;
+  end;
+  reset role;
+  perform set_config('request.jwt.claim.sub', wendy::text, true);
   set local role authenticated;
   perform public.set_member_status(rock, 'legacy');
   reset role;

@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BEDS_LIMITS, GROUP_FULL, HUB_LOCKED, HUB_TEXT_TOO_LONG, hubCounts, hubListText, MEMBERS_ONLY, NO_HUB, NOT_HUB_MANAGER, NOT_REGISTERED,
-  BAD_CLOSING_DAY, REGISTER_TOO_LONG, REGISTRATIONS_CLOSED, registerProblem, saveHubProblem, withdrawHubProblem, type HubInput, type RegisterInput,
+  BEDS_LIMITS, GROUP_FULL, groupBedsTaken, HUB_LOCKED, HUB_TEXT_TOO_LONG, hubCounts, hubListText, MEMBERS_ONLY, NO_HUB, NOT_HUB_MANAGER,
+  NOT_REGISTERED, BAD_CLOSING_DAY, REGISTER_TOO_LONG, REGISTRATIONS_CLOSED, registerProblem, saveHubProblem, visibleRegistrations, withdrawHubProblem,
+  type HubInput, type RegisterInput,
 } from './hubs';
-import { AFTER_DAY, BEFORE, planningClub, who } from './planning.testkit';
+import { AFTER_DAY, BEFORE, member, planningClub, who } from './planning.testkit';
 import type { HubRegistration, RideHub } from './types';
 
 const hubInput: HubInput = { membersOnly: true, closesOn: null, beds: null, accommodation: '', notes: '' };
@@ -85,10 +86,50 @@ test('the counts and the shared list', () => {
     ],
   });
   assert.deepEqual(hubCounts('r-club', data), { riders: 4, pillions: 1, group: 1, own: 1, camping: 1, day: 1 });
-  const text = hubListText(data.rides.find((r) => r.id === 'r-club')!, data);
+  const text = hubListText(who(data, 'sec'), data.rides.find((r) => r.id === 'r-club')!, data);
   assert.match(text, /^Coffee run · Sun 08\/11\/2026/);
   assert.match(text, /4 riders, 1 pillion/);
   assert.match(text, /With the group \(2 of 10 beds\)\n- rc Rider \+ pillion, sharing with TG/);
   assert.match(text, /Camping\n- off Rider: Vego/);
   assert.doesNotMatch(text, /nomad/);
+});
+
+test('who sees the registrations: your own, all of them for the ride’s managers, and your chapter’s members for its board', () => {
+  const base = planningClub();
+  const data = planningClub({
+    members: [...base.members, member('ninth', { chapterId: 'north' })],
+    rideHubs: [hub(), hub({ rideId: 'r-west' })],
+    hubRegistrations: [reg('rc', { pillion: true }), reg('tg', { staying: 'own' }), reg('rc', { rideId: 'r-west' }), reg('ninth', { rideId: 'r-west' })],
+  });
+  const ids = (me: string, rideId: string) => visibleRegistrations(who(data, me), rideId, data).map((r) => r.memberId);
+  assert.deepEqual(ids('rc', 'r-club'), ['rc'], 'your own');
+  assert.deepEqual(ids('rider', 'r-club'), [], 'nobody else’s');
+  assert.deepEqual(ids('sec', 'r-club'), ['rc', 'tg'], 'the ride’s managers see them all');
+  assert.deepEqual(ids('northsec', 'r-club'), ['rc', 'tg'], 'any board runs a whole-club ride');
+  assert.deepEqual(ids('auditor', 'r-club'), [], 'the Auditor runs no rides');
+  assert.deepEqual(ids('sec', 'r-west'), ['rc', 'ninth'], 'West’s board runs West’s ride');
+  assert.deepEqual(ids('northsec', 'r-west'), ['ninth'], 'North’s board sees its own member there');
+  assert.deepEqual(ids('chair', 'r-west'), ['rc', 'ninth'], 'the national roles run every ride');
+  assert.deepEqual(visibleRegistrations(null, 'r-club', data), []);
+  assert.deepEqual(visibleRegistrations(who(data, 'applicant'), 'r-club', data), []);
+  const west = data.rides.find((r) => r.id === 'r-west')!;
+  assert.match(hubListText(who(data, 'northsec'), west, data), /ninth Rider/);
+  assert.doesNotMatch(hubListText(who(data, 'northsec'), west, data), /rc Rider/);
+});
+
+test('the numbers come from the database’s counts when they’re here; your own beds aren’t counted against you', () => {
+  const counts = {
+    rideId: 'r-club', hubRiders: 4, hubPillions: 1, hubGroup: 2, hubOwn: 1, hubCamping: 1, hubDay: 0, hubGroupBeds: 3,
+    charityRiding: 0, charityPillions: 0, charityGuests: 0, charityHelping: 0, charityPeople: 0,
+  };
+  const data = planningClub({ rideHubs: [hub({ beds: 4 })], hubRegistrations: [reg('rider', { pillion: true })], signupCounts: [counts] });
+  assert.deepEqual(hubCounts('r-club', data), { riders: 4, pillions: 1, group: 2, own: 1, camping: 1, day: 0 });
+  assert.equal(groupBedsTaken('r-club', data), 3);
+  const club = data.rides.find((r) => r.id === 'r-club')!;
+  assert.equal(registerProblem(who(data, 'rider'), club, regInput({ pillion: true }), data, BEFORE, '2026-11-01'), null, 'one bed held by others, two wanted, four beds');
+  assert.equal(registerProblem(who(data, 'tg'), club, regInput({ pillion: true }), data, BEFORE, '2026-11-01'), GROUP_FULL, 'three held, two wanted');
+  assert.equal(registerProblem(who(data, 'tg'), club, regInput(), data, BEFORE, '2026-11-01'), null, 'three held, one wanted');
+  const other = { ...data, signupCounts: [{ ...counts, rideId: 'r-west' }] };
+  assert.deepEqual(hubCounts('r-club', other), { riders: 1, pillions: 1, group: 1, own: 0, camping: 0, day: 0 }, 'no counts for this ride: the rows');
+  assert.equal(groupBedsTaken('r-club', other), 2);
 });

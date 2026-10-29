@@ -87,6 +87,7 @@ end $$;
 do $$
 declare
   sec constant uuid := '00000000-0000-0000-0000-0000000005d2';
+  tre constant uuid := '00000000-0000-0000-0000-0000000005d3';
   rider constant uuid := '00000000-0000-0000-0000-0000000005d4';
   other constant uuid := '00000000-0000-0000-0000-0000000005d5';
   chair constant uuid := '00000000-0000-0000-0000-0000000005d1';
@@ -139,7 +140,11 @@ begin
   -- A review, a panel, and set aside: the record goes straight away (6.9).
   assert pg_temp.try_as(rider, format('select public.lodge_conduct_appeal(%L, ''It was a rain cover.'')', rec)) is null, 'lodged';
   assert (select lodged_on from conduct_appeals where record_id = rec) = t, 'lodged today';
+  -- The Chairman holds no West seat, so West's board sets the hearing (the Secretary recorded it, so the Treasurer).
   assert pg_temp.try_as(chair, format('select public.set_conduct_hearing(%L, array[%L, %L, %L]::uuid[], %L)',
+    rec, other, '00000000-0000-0000-0000-0000000005d6', '00000000-0000-0000-0000-0000000005d7', t))
+    = 'Only the board, apart from whoever recorded it, can set up the hearing.', 'the NEC doesn''t set a chapter''s hearing';
+  assert pg_temp.try_as(tre, format('select public.set_conduct_hearing(%L, array[%L, %L, %L]::uuid[], %L)',
     rec, other, '00000000-0000-0000-0000-0000000005d6', '00000000-0000-0000-0000-0000000005d7', t)) is null, 'panel set';
   assert jsonb_array_length(pg_temp.value_as(other, 'select public.club_admin()->''conduct''')::jsonb) = 1, 'the panel sees it';
   assert pg_temp.try_as(other, format('select public.decide_conduct_appeal(%L, ''set_aside'', '''')', rec)) is null, 'set aside';
@@ -150,7 +155,7 @@ begin
   rec := pg_temp.value_as(sec, format('select public.record_conduct(%L, ''expulsion'', ''Expelled.'', ''RR 22'', %L, null, null)', rider, t))::uuid;
   assert (select notice_on from conduct_records where id = rec) = t, 'a formal outcome''s notice is its decision date';
   perform pg_temp.try_as(rider, format('select public.lodge_conduct_appeal(%L, ''Appeal.'')', rec));
-  perform pg_temp.try_as(chair, format('select public.set_conduct_hearing(%L, array[%L, %L, %L]::uuid[], %L)',
+  perform pg_temp.try_as(tre, format('select public.set_conduct_hearing(%L, array[%L, %L, %L]::uuid[], %L)',
     rec, other, '00000000-0000-0000-0000-0000000005d6', '00000000-0000-0000-0000-0000000005d7', t));
   assert pg_temp.try_as(other, format('select public.decide_conduct_appeal(%L, ''confirmed'', ''Upheld by secret ballot.'')', rec)) is null, 'upheld';
   assert (select outcome from conduct_appeals where record_id = rec) = 'confirmed', 'kept as confirmed';

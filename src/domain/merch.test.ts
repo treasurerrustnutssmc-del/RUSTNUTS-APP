@@ -46,7 +46,7 @@ const input = (over: Partial<MerchInput> = {}): MerchInput => ({
 test('the chapter board puts an item up; the NEC for club-wide ones', () => {
   const d = data();
   assert.equal(proposeMerchProblem(who(d, 'sec'), input(), d), null);
-  assert.equal(proposeMerchProblem(who(d, 'chair'), input(), d), null);
+  assert.equal(proposeMerchProblem(who(d, 'chair'), input(), d), 'Only that chapter’s board can do that.', 'no West seat');
   assert.equal(proposeMerchProblem(who(d, 'chair'), input({ chapterId: null }), d), null);
   assert.equal(proposeMerchProblem(null, input(), d), 'Sign in first.');
   assert.equal(proposeMerchProblem(who(d, 'rider'), input(), d), 'Only that chapter’s board can do that.');
@@ -121,7 +121,7 @@ test('ordering: a size, 1 to 10, patched-only items for Full and Nomad members',
 test('the board says yes or no to an order, never its own', () => {
   const d = data([item()], [order(), order({ id: 'mine', memberId: 'sec' })]);
   assert.equal(decideOrderProblem(who(d, 'sec'), 'o1', true, '', d), null);
-  assert.equal(decideOrderProblem(who(d, 'chair'), 'o1', false, 'Out of L.', d), null);
+  assert.equal(decideOrderProblem(who(d, 'chair'), 'o1', false, 'Out of L.', d), 'Only that chapter’s board can do that.', 'no West seat');
   assert.equal(decideOrderProblem(who(d, 'rider'), 'o1', true, '', d), 'Only that chapter’s board can do that.');
   assert.equal(decideOrderProblem(who(d, 'northsec'), 'o1', true, '', d), 'No such order.');
   assert.equal(decideOrderProblem(who(d, 'sec'), 'mine', true, '', d), 'Someone else approves your own order.');

@@ -12,6 +12,7 @@ import {
   minutesDueOn,
   minutesState,
   runsScope,
+  seesScope,
   saveMeetingProblem,
   saveMinutesProblem,
   setDoneProblem,
@@ -59,7 +60,12 @@ test('a chapter board runs its own chapter; the NEC runs the whole club', () => 
   assert.equal(runsScope(m('m-torque'), 'ch-north', P), false);
   assert.equal(runsScope(m('m-torque'), null, P), false);
   assert.equal(runsScope(m('m-smokey'), null, P), true);
-  assert.equal(runsScope(m('m-smokey'), 'ch-west', P), true, 'the NEC reaches every chapter');
+  assert.equal(runsScope(m('m-smokey'), 'ch-west', P), false, 'the NEC doesn’t run a chapter it holds no seat in');
+  assert.equal(seesScope(m('m-smokey'), 'ch-west', P), true, 'but sees its business');
+  assert.equal(seesScope(m('m-torque'), 'ch-north', P), false);
+  assert.equal(seesScope(m('m-torque'), null, P), false);
+  assert.equal(seesScope(m('m-smokey'), null, P), true);
+  assert.equal(seesScope(m('m-spanner'), 'ch-west', P), false);
   assert.equal(runsScope(m('m-spanner'), 'ch-west', P), false);
   assert.equal(runsScope(null, 'ch-west', P), false);
 });

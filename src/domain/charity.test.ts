@@ -4,7 +4,7 @@ import {
   BAD_CHARITY_CLOSING_DAY, CAUSE_NEEDED, CHARITY_LOCKED, CHARITY_TEXT_TOO_LONG, charityCounts, charityFor, charityListText, isCharityRide,
   JOB_IN_USE, JOB_NOT_LISTED, JOBS_LIMITS, JOBS_REPEATED, GUESTS_LIMITS, NO_CHARITY, NOT_CHARITY_MANAGER, NOT_SIGNED_UP, NOTHING_PICKED,
   PILLION_NEEDS_RIDER, PLACES_LIMITS, placesLeft, RIDE_FULL, ridingNotGoing, runsCharity, saveCharityProblem, SIGNUP_TOO_LONG,
-  SIGNUPS_CLOSED, signupProblem, signupsClosed, signupsFor, withdrawCharityProblem, type CharityInput, type SignupInput,
+  SIGNUPS_CLOSED, signupProblem, signupsClosed, signupsFor, visibleSignups, withdrawCharityProblem, type CharityInput, type SignupInput,
 } from './charity';
 import { AFTER_DAY, BEFORE, member, planningClub, who } from './planning.testkit';
 import type { CharityRide, CharitySignup, ClubData } from './types';
@@ -172,7 +172,7 @@ test('the counts, the list in order, and the Going nudge', () => {
   assert.deepEqual(charityCounts('r-club', data), { riding: 2, pillions: 1, guests: 2, helping: 2, people: 5 });
   const ride = data.rides.find((r) => r.id === 'r-club')!;
   assert.equal(
-    charityListText(ride, data),
+    charityListText(who(data, 'sec'), ride, data),
     [
       'Coffee run · Sun 08/11/2026',
       'Raising money for Royal Children’s Hospital',
@@ -194,4 +194,45 @@ test('the counts, the list in order, and the Going nudge', () => {
   assert.equal(ridingNotGoing('r-club', who(data, 'tg'), data), false, 'helping only');
   const going = { ...data, rsvps: [...data.rsvps, { rideId: 'r-club', memberId: 'rc', answer: 'going' as const, updatedAt: '2026-10-01T00:00:00.000Z' }] };
   assert.equal(ridingNotGoing('r-club', who(going, 'rc'), going), false);
+});
+
+test('who sees the sign-ups: your own, all of them for the organisers, and your chapter’s members for its board', () => {
+  const base = charityClub();
+  const data = charityClub({
+    members: [...base.members, member('ninth', { chapterId: 'north' })],
+    charityRides: [charity(), charity({ rideId: 'r-west' })],
+    charitySignups: [
+      signup('rc'), signup('rider', { job: 'Marshal' }), signup('ninth', { signedAt: '2026-10-03T00:00:00.000Z' }),
+      signup('rc', { rideId: 'r-west' }), signup('ninth', { rideId: 'r-west', signedAt: '2026-10-03T00:00:00.000Z' }),
+    ],
+  });
+  const ids = (me: string, rideId: string) => visibleSignups(who(data, me), rideId, data).map((s) => s.memberId);
+  assert.deepEqual(ids('rc', 'r-club'), ['rc'], 'your own');
+  assert.deepEqual(ids('tg', 'r-club'), [], 'nobody else’s');
+  assert.deepEqual(ids('cc', 'r-club'), ['rc', 'rider', 'ninth'], 'the Charity Committee');
+  assert.deepEqual(ids('sec', 'r-club'), ['rc', 'rider', 'ninth'], 'the ride’s managers');
+  assert.deepEqual(ids('northsec', 'r-club'), ['rc', 'rider', 'ninth'], 'any board runs a whole-club ride');
+  assert.deepEqual(ids('auditor', 'r-club'), [], 'the Auditor runs no rides');
+  assert.deepEqual(ids('northsec', 'r-west'), ['ninth'], 'North’s board sees its own member on a West ride');
+  assert.deepEqual(ids('chair', 'r-west'), ['rc', 'ninth'], 'the national roles run every ride');
+  assert.deepEqual(visibleSignups(null, 'r-club', data), []);
+  const ride = data.rides.find((r) => r.id === 'r-club')!;
+  assert.match(charityListText(who(data, 'rc'), ride, data), /rc Rider/);
+  assert.doesNotMatch(charityListText(who(data, 'rc'), ride, data), /ninth Rider/);
+});
+
+test('the numbers come from the database’s counts when they’re here; your own places aren’t counted against you', () => {
+  const counts = {
+    rideId: 'r-club', hubRiders: 0, hubPillions: 0, hubGroup: 0, hubOwn: 0, hubCamping: 0, hubDay: 0, hubGroupBeds: 0,
+    charityRiding: 3, charityPillions: 1, charityGuests: 2, charityHelping: 1, charityPeople: 6,
+  };
+  const data = charityClub({ charityRides: [charity({ places: 8 })], charitySignups: [signup('rider', { pillion: true })], signupCounts: [counts] });
+  assert.deepEqual(charityCounts('r-club', data), { riding: 3, pillions: 1, guests: 2, helping: 1, people: 6 });
+  assert.equal(placesLeft('r-club', data), 2);
+  const club = data.rides.find((r) => r.id === 'r-club')!;
+  const check = (me: string, s: SignupInput) => signupProblem(who(data, me), club, s, data, BEFORE, '2026-11-01');
+  assert.equal(check('rider', mine({ pillion: true, guests: 2 })), null, 'four held by others, four wanted, eight places');
+  assert.equal(check('rider', mine({ pillion: true, guests: 3 })), RIDE_FULL);
+  assert.equal(check('tg', mine({ pillion: true })), null, 'six held, two wanted');
+  assert.equal(check('tg', mine({ pillion: true, guests: 1 })), RIDE_FULL);
 });

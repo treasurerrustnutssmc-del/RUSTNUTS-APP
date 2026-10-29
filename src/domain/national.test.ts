@@ -7,6 +7,8 @@ import {
   settleChapterProblem,
   settledStatus,
   shareOut,
+  visibleContributions,
+  visibleProposals,
   slugOf,
   votingCounts,
   withdrawChapterProblem,
@@ -221,4 +223,34 @@ test('the NEC or whoever proposed it withdraws it', () => {
   assert.equal(withdrawChapterProblem(who(d, 'f1'), 'cp1', d), null);
   assert.equal(withdrawChapterProblem(who(d, 'chair'), 'cp1', d), null);
   assert.equal(withdrawChapterProblem(who(d, 'f2'), 'cp1', d), 'Only the NEC or whoever put it forward can withdraw it.');
+});
+
+test('an open proposal is board and NEC business; everyone sees it once decided (12.1)', () => {
+  const d = data({ chapterProposals: [proposal()] });
+  const ids = (me: string) => visibleProposals(who(d, me), d).map((p) => p.id);
+  assert.deepEqual(ids('rider'), [], 'a member');
+  assert.deepEqual(ids('sec'), ['cp1'], 'a chapter board');
+  assert.deepEqual(ids('northsec'), ['cp1'], 'any chapter board');
+  assert.deepEqual(ids('chair'), ['cp1'], 'the NEC');
+  assert.deepEqual(ids('f1'), ['cp1'], 'whoever put it forward');
+  assert.deepEqual(ids('nomad'), ['cp1'], 'a named founder');
+  assert.deepEqual(ids('applicant'), [], 'never an applicant');
+  assert.deepEqual(visibleProposals(null, d), []);
+  const done = data({ chapterProposals: [proposal({ status: 'approved' })] });
+  assert.deepEqual(visibleProposals(who(done, 'rider'), done).map((p) => p.id), ['cp1'], 'decided: everyone');
+  const gone = data({ chapterProposals: [proposal({ status: 'withdrawn' })] });
+  assert.deepEqual(visibleProposals(who(gone, 'rider'), gone).map((p) => p.id), ['cp1'], 'withdrawn: everyone');
+});
+
+test('an open contribution is the boards’ and the NEC’s; everyone sees it once settled (13.6)', () => {
+  const d = data();
+  const ids = (me: string) => visibleContributions(who(d, me), d).map((k) => k.id);
+  assert.deepEqual(ids('rider'), []);
+  assert.deepEqual(ids('sec'), ['k1']);
+  assert.deepEqual(ids('northsec'), ['k1'], 'any chapter board');
+  assert.deepEqual(ids('chair'), ['k1']);
+  assert.deepEqual(ids('auditor'), [], 'the Auditor holds no board seat');
+  assert.deepEqual(visibleContributions(null, d), []);
+  const settled = data({ contributions: [contribution({ status: 'approved' })] });
+  assert.deepEqual(visibleContributions(who(settled, 'rider'), settled).map((k) => k.id), ['k1']);
 });

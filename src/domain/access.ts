@@ -56,9 +56,9 @@ export function isAuditor(me: Member | null, positions: Position[]): boolean {
   return !!me && me.approval === 'approved' && activePositions(me.id, positions).some((p) => p.role === 'nec_auditor');
 }
 
-/** Reads a chapter's membership and attendance records: its board, the NEC, or the Auditor (11.8). */
+/** Reads a chapter's membership and attendance records: its board, the national roles, or the Auditor (11.8). */
 export function reviewsChapter(viewer: Member | null, chapterId: string, positions: Position[]): boolean {
-  return isBoardOf(viewer, chapterId, positions) || isAuditor(viewer, positions);
+  return seesBoardOf(viewer, chapterId, positions) || isAuditor(viewer, positions);
 }
 
 /**
@@ -91,14 +91,26 @@ export function accessLevel(viewer: Member | null, positions: Position[]): Acces
   return board ? 'board' : 'member';
 }
 
-/** Board of that chapter, or anyone on the NEC. */
-export function isBoardOf(viewer: Member | null, chapterId: string, positions: Position[]): boolean {
+/**
+ * Sees a chapter's board records (private details, conduct, notices, attendance): a seated board
+ * member of that chapter, or anyone national. Mirrors private.sees_board_of.
+ */
+export function seesBoardOf(viewer: Member | null, chapterId: string, positions: Position[]): boolean {
   if (!viewer || viewer.approval !== 'approved') return false;
   return holdsBoardSeat(viewer.id, chapterId, positions) || isNational(viewer.id, positions);
 }
 
+/**
+ * Acts as a chapter's board (approving, status, notices, conduct, attendance, terms): a seated
+ * board member of that chapter only (8.2, 12.3). Mirrors private.is_board_of.
+ */
+export function isBoardOf(viewer: Member | null, chapterId: string, positions: Position[]): boolean {
+  if (!viewer || viewer.approval !== 'approved') return false;
+  return holdsBoardSeat(viewer.id, chapterId, positions);
+}
+
 /** An approved member who isn't Family. Mirrors private.is_approved_member. */
-function isApprovedMember(viewer: Member | null): viewer is Member {
+export function isApprovedMember(viewer: Member | null): viewer is Member {
   return !!viewer && viewer.approval === 'approved' && viewer.status !== 'family';
 }
 
@@ -114,27 +126,32 @@ export function canSeeMember(viewer: Member | null, target: Member, positions: P
   return reviewsChapter(viewer, target.chapterId, positions);
 }
 
-/** Phone number: self, chapter board, or any member when the target chose to share it. */
+/** Phone number: self, chapter board and the national roles, or any member when the target chose to share it. */
 export function canSeePhone(viewer: Member | null, target: Member, positions: Position[]): boolean {
   if (!viewer) return false;
-  if (viewer.id === target.id || isBoardOf(viewer, target.chapterId, positions)) return true;
+  if (viewer.id === target.id || seesBoardOf(viewer, target.chapterId, positions)) return true;
   return isApprovedMember(viewer) && target.approval === 'approved' && target.sharePhone;
 }
 
-/** Email, licence, first aid, regos, emergency contacts: self and chapter board only. */
+/** Email, licence, first aid, regos, emergency contacts: self, chapter board and the national roles only. */
 export function canSeePrivate(viewer: Member | null, target: Member, positions: Position[]): boolean {
   if (!viewer) return false;
-  return viewer.id === target.id || isBoardOf(viewer, target.chapterId, positions);
+  return viewer.id === target.id || seesBoardOf(viewer, target.chapterId, positions);
 }
 
 export function canApprove(viewer: Member | null, applicant: Member, positions: Position[]): boolean {
   return applicant.approval === 'pending' && isBoardOf(viewer, applicant.chapterId, positions);
 }
 
-/** Board can change an approved member's status, but nobody can change their own. */
+/**
+ * Opens the Manage member screen: the member's chapter board, and the national roles, whose own acts
+ * live there too (the 5.6 reinstatement vote and record, the Auditor's and Secretary's NEC votes,
+ * national seats). Each act on the screen has its own gate; a national role outside the member's
+ * chapter is refused the chapter's acts with the chapter board's words. Nobody manages themselves.
+ */
 export function canManageMember(viewer: Member | null, target: Member, positions: Position[]): boolean {
   if (!viewer || viewer.id === target.id || target.approval !== 'approved') return false;
-  return isBoardOf(viewer, target.chapterId, positions);
+  return seesBoardOf(viewer, target.chapterId, positions);
 }
 
 /**
@@ -329,16 +346,17 @@ export const NEEDS_PATCH_VOTE = 'Full membership needs a carried patch vote of t
  */
 export function statusChangeProblem(me: Member | null, target: Member, status: MemberStatus, data: ClubData, today: string): string | null {
   if (me?.id === target.id) return 'You can’t change your own status.';
-  if (!isBoardOf(me, target.chapterId, data.positions)) return 'Only that chapter’s board can change this member’s status.';
-  if (target.approval !== 'approved') return 'Approve them first.';
-  if (patched(status) && !patched(target.status)) {
-    if (target.status === 'fng') {
-      if (!hasCarriedPatchVote(target.id, data)) return NEEDS_PATCH_VOTE;
-    } else if (!isNational(me!.id, data.positions)) {
-      return 'Only the NEC can bring someone back to Full or Nomad (5.6).';
-    } else if (!hasCarriedReinstateVote(target.id, data, today)) {
-      return NEEDS_NEC_VOTE;
-    }
+  // Bringing an approved Supporter, Family or Legacy member back to Full or Nomad is the NEC's (5.6);
+  // every other change, an applicant's approval first of all, is their chapter board's (8.2).
+  // Mirrors set_member_status.
+  if (patched(status) && !patched(target.status) && target.status !== 'fng' && target.approval === 'approved') {
+    if (!me || !isNational(me.id, data.positions)) return 'Only the NEC can bring someone back to Full or Nomad (5.6).';
+    if (target.approval !== 'approved') return 'Approve them first.';
+    if (!hasCarriedReinstateVote(target.id, data, today)) return NEEDS_NEC_VOTE;
+  } else {
+    if (!isBoardOf(me, target.chapterId, data.positions)) return 'Only that chapter’s board can change this member’s status.';
+    if (target.approval !== 'approved') return 'Approve them first.';
+    if (patched(status) && target.status === 'fng' && !hasCarriedPatchVote(target.id, data)) return NEEDS_PATCH_VOTE;
   }
   if (status === 'fng' && isLearner(target.id, data)) return LEARNER_FNG;
   const held = activePositions(target.id, data.positions).filter((p) => !TITLE_ROLES.includes(p.role));

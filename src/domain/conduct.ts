@@ -3,7 +3,7 @@
 // database's actions (supabase/migrations/20270420000000_board_admin.sql) refuse with the same
 // words, in the same order.
 
-import { isBoardOf } from './access';
+import { isBoardOf, seesBoardOf } from './access';
 import { addDays, formatAuDate } from './dates';
 import { signedInProblem } from './meetings';
 import { addMonths } from './profile';
@@ -43,7 +43,7 @@ export const MAX_HOLD_REASON = 300;
 export const MAX_GROUNDS = 1000;
 
 export const NO_RECORD = 'No such record.';
-export const NOT_CONDUCT_BOARD = 'Only that member’s chapter board or the NEC can do that.';
+export const NOT_CONDUCT_BOARD = 'Only that member’s chapter board can do that.';
 export const ABOUT_YOURSELF = 'You can’t record one about yourself.';
 export const NO_APPEAL = 'No review or appeal is lodged.';
 export const SETTLED = 'That one is settled.';
@@ -89,10 +89,10 @@ export function outcomeLabel(kind: ConductKind, outcome: AppealOutcome): string 
 export const conductChapter = (r: Pick<ConductRecord, 'memberId' | 'chapterId'>, data: ClubData): string =>
   data.members.find((m) => m.id === r.memberId)?.chapterId ?? r.chapterId;
 
-/** The member, their chapter's board, the NEC, and the panel hearing it. */
+/** The member, their chapter's board, the national roles, and the panel hearing it. */
 export function seesConduct(me: Member | null, r: ConductRecord, data: ClubData): boolean {
   if (!me || me.approval !== 'approved') return false;
-  return me.id === r.memberId || isBoardOf(me, conductChapter(r, data), data.positions) || (r.appeal?.panelIds ?? []).includes(me.id);
+  return me.id === r.memberId || seesBoardOf(me, conductChapter(r, data), data.positions) || (r.appeal?.panelIds ?? []).includes(me.id);
 }
 
 /** Every record this viewer may see that's still kept, newest decision first. */
@@ -209,7 +209,7 @@ export function hearingProblem(
   if ('problem' in found) return found.problem;
   const r = found.record;
   if (!isBoardOf(me, conductChapter(r, data), data.positions) || me!.id === r.memberId || me!.id === r.recordedBy) {
-    return 'Only the board or NEC, apart from whoever recorded it, can set up the hearing.';
+    return 'Only the board, apart from whoever recorded it, can set up the hearing.';
   }
   if (panelIds.length !== 3 || new Set(panelIds).size !== 3) return 'Pick three different people.';
   const fit = (pid: string) => data.members.some((m) => m.id === pid && m.approval === 'approved' && m.status !== 'legacy');
@@ -241,6 +241,6 @@ export function withdrawProblem(me: Member | null, id: string, data: ClubData, t
   return found.record.memberId === me!.id ? null : 'Only the member can withdraw it.';
 }
 
-/** Board seats this viewer can record conduct for: anyone they're on the board or NEC over. */
+/** Whether this viewer sits on a chapter board, so can record conduct for its members. */
 export const recordsConductFor = (me: Member | null, data: ClubData): boolean =>
   !!me && me.approval === 'approved' && data.chapters.some((c) => isBoardOf(me, c.id, data.positions));

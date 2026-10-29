@@ -7,12 +7,12 @@ import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { isBig4 } from '../domain/big4';
 import { writesBriefing } from '../domain/briefings';
-import { pickGroups, spotOf } from '../domain/crew';
+import { managesRide, pickGroups, spotOf } from '../domain/crew';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import { bikeRange, fuelCheck, kmAlong, type FuelCheck } from '../domain/fuel';
 import {
-  hubCounts, hubFor, hubListText, MAX_HUB_TEXT, MAX_REG_NOTES, MAX_SHARE_WITH, myRegistration, registeredNotGoing, registerProblem,
-  registrationsClosed, registrationsFor, saveHubProblem, STAYING, STAYING_LABEL, withdrawHubProblem, type RegisterInput,
+  groupBedsTaken, hubCounts, hubFor, hubListText, MAX_HUB_TEXT, MAX_REG_NOTES, MAX_SHARE_WITH, myRegistration, registeredNotGoing,
+  registerProblem, registrationsClosed, saveHubProblem, STAYING, STAYING_LABEL, visibleRegistrations, withdrawHubProblem, type RegisterInput,
 } from '../domain/hubs';
 import { ROLE_LABEL } from '../domain/labels';
 import { displayName, initials, memberName } from '../domain/profile';
@@ -547,7 +547,8 @@ export function HubScreen({ route: nav, navigation }: RootScreen<'Hub'>) {
   const canRun = saveHubProblem(me, ride, { membersOnly: hub.membersOnly, closesOn: hub.closesOn, beds: hub.beds, accommodation: '', notes: '' }, data, nowIso()) === null;
   const closed = registrationsClosed(ride, hub, nowIso(), today);
   const counts = hubCounts(ride.id, data);
-  const regs = registrationsFor(ride.id, data);
+  const regs = visibleRegistrations(me, ride.id, data);
+  const seesAll = managesRide(me, ride, data);
   const canWithdraw = withdrawHubProblem(me, ride, data, nowIso()) === null;
   const blocked = registerProblem(me, ride, { ...input, staying: 'own' }, data, nowIso(), today);
   const set = <T,>(fn: (v: T) => void) => (v: T) => { setError(null); fn(v); };
@@ -560,7 +561,7 @@ export function HubScreen({ route: nav, navigation }: RootScreen<'Hub'>) {
   const share = async () => {
     setShareError(null);
     try {
-      await Share.share({ message: hubListText(ride, data) });
+      await Share.share({ message: hubListText(me, ride, data) });
     } catch {
       setShareError('Couldn’t open sharing on this device.');
     }
@@ -608,7 +609,7 @@ export function HubScreen({ route: nav, navigation }: RootScreen<'Hub'>) {
               value={staying}
               onChange={set(setStaying)}
             />
-            {hub.beds && staying === 'group' ? <Small>{`${counts.group > 0 ? `${regsPlaces(regs)} of ${hub.beds}` : `0 of ${hub.beds}`} group beds taken.`}</Small> : null}
+            {hub.beds && staying === 'group' ? <Small>{`${groupBedsTaken(ride.id, data)} of ${hub.beds} group beds taken.`}</Small> : null}
             <Toggle label="Bringing a pillion" value={pillion} onChange={set(setPillion)} />
             <Field label="Sharing with" value={shareWith} onChangeText={set(setShareWith)} placeholder="Who you’d bunk with" maxLength={MAX_SHARE_WITH + 20} hint="Optional." />
             <Field label="Notes" value={notes} onChangeText={set(setNotes)} placeholder="Dietary needs, arriving late" multiline hint={`Optional. ${MAX_REG_NOTES} characters at most.`} />
@@ -624,8 +625,9 @@ export function HubScreen({ route: nav, navigation }: RootScreen<'Hub'>) {
       <Stack gap={space.sm}>
         <SectionTitle title="Who’s coming" action={<Text style={styles.count}>{counts.riders}</Text>} />
         <Small>{`${counts.pillions} pillion${counts.pillions === 1 ? '' : 's'} · ${STAYING.map((s) => `${counts[s]} ${STAYING_LABEL[s].toLowerCase()}`).join(' · ')}`}</Small>
+        {!seesAll ? <Small>The ride’s organisers and the boards see who’s coming; the numbers are everyone’s.</Small> : null}
         {regs.length === 0 ? (
-          <Small>Nobody yet.</Small>
+          seesAll ? <Small>Nobody yet.</Small> : null
         ) : (
           <Card style={{ padding: 0, gap: 0 }}>
             {regs.map((r, i) => {
@@ -656,10 +658,6 @@ export function HubScreen({ route: nav, navigation }: RootScreen<'Hub'>) {
     </Screen>
   );
 }
-
-/** Group places taken: riders with the group and their pillions. */
-const regsPlaces = (regs: ReturnType<typeof registrationsFor>) =>
-  regs.filter((r) => r.staying === 'group').reduce((n, r) => n + 1 + (r.pillion ? 1 : 0), 0);
 
 export function EditHubScreen({ route: nav, navigation }: RootScreen<'EditHub'>) {
   const { me, data, saveHub } = useClub();

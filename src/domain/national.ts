@@ -2,14 +2,35 @@
 // shared by Voting Members, and new chapters. The database's actions refuse with the same words,
 // in the same order.
 
-import { activePositions, holdsBoardSeat, isNational } from './access';
+import { activePositions, holdsBoardSeat, isApprovedMember, isNational } from './access';
 import { TITLE_ROLES } from './labels';
 import { signedInProblem } from './meetings';
+import { isAnyBoard } from './social/help';
 import type {
   ChapterPart, ChapterProposal, ClubData, Contribution, ContributionShare, ContributionStatus, Member, ProposalStatus, Vote,
 } from './types';
 
 export const CHAPTER_PARTS: ChapterPart[] = ['location', 'membership', 'leadership', 'budget', 'operations'];
+
+/**
+ * An open proposal is board and NEC business (12.1): until it's decided or withdrawn, only chapter
+ * boards, the national roles, whoever put it forward and the named founders see it. Mirrors
+ * club_admin().
+ */
+export function visibleProposals(me: Member | null, data: ClubData): ChapterProposal[] {
+  if (!isApprovedMember(me)) return [];
+  const board = isAnyBoard(me, data.positions);
+  return (data.chapterProposals ?? []).filter(
+    (p) => p.status !== 'proposed' || board || p.proposedBy === me.id || p.founderIds.includes(me.id),
+  );
+}
+
+/** An open contribution is the boards' and the NEC's to see (13.6); everyone sees it once settled. Mirrors club_admin(). */
+export function visibleContributions(me: Member | null, data: ClubData): Contribution[] {
+  if (!isApprovedMember(me)) return [];
+  const board = isAnyBoard(me, data.positions);
+  return (data.contributions ?? []).filter((k) => k.status !== 'proposed' || board);
+}
 export const PART_LABEL: Record<ChapterPart, string> = {
   location: 'Location',
   membership: 'Membership',

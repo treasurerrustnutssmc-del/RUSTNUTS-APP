@@ -152,9 +152,11 @@ begin
   -- The fee schedule, in force since last year; West's bylaws v1 then v2 without a fresh sign-off.
   perform pg_temp.value_as(pg_temp.u(1), format($q$public.publish_document_version(%L, 0, '2025', 'Fees', '', true, 'nec', %L::date - 400, %L::date - 380)$q$, f, pg_temp.today(), pg_temp.today()));
   insert into ids select 'w1', pg_temp.value_as(pg_temp.u(2), format($q$public.publish_document_version(%L, 0, 'v1', 'One', '', true, 'chapter_board', %L::date - 30, %L::date - 30)$q$, w, pg_temp.today(), pg_temp.today()))::uuid;
-  insert into ids select 'w2', pg_temp.value_as(pg_temp.u(4), format($q$public.publish_document_version(%L, 1, 'v2', 'Two', 'Small fix', false, 'chapter_board', %L::date - 2, %L::date - 1)$q$, w, pg_temp.today(), pg_temp.today()))::uuid;
+  assert pg_temp.try_as(pg_temp.u(4), format($q$select public.publish_document_version(%L, 1, 'v2', 'Two', 'Small fix', false, 'chapter_board', %L::date - 2, %L::date - 1)$q$, w, pg_temp.today(), pg_temp.today()))
+    = 'Only that chapter’s board can do that.', 'North''s President (on the NEC) doesn''t publish West''s';
+  insert into ids select 'w2', pg_temp.value_as(pg_temp.u(2), format($q$public.publish_document_version(%L, 1, 'v2', 'Two', 'Small fix', false, 'chapter_board', %L::date - 2, %L::date - 1)$q$, w, pg_temp.today(), pg_temp.today()))::uuid;
   assert (select (number, fresh_sign_off, published_by) from document_versions where id = (select id from ids where name = 'w2'))
-    = (2, false, pg_temp.u(4)), 'v2 by a President (on the NEC), no fresh sign-off';
+    = (2, false, pg_temp.u(2)), 'v2 by West''s board, no fresh sign-off';
 end $$;
 
 \echo 'Recording approval later'

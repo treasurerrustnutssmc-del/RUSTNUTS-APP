@@ -2,7 +2,7 @@
 // club or one chapter (constitution v4 5.11, 12.7), and who's eligible to ride one (5.4, 5.8). The
 // database's designate_big4 and undesignate_big4 apply the same rules with the same words.
 
-import { activePositions, isBoardOf } from './access';
+import { activePositions, isBoardOf, seesBoardOf } from './access';
 import { attended, excusedAway, meetingTypeOf } from './attendance';
 import { answersClose, melbourneDate } from './rides';
 import type { Big4Ground, Big4Ride, Big4Waiver, ClubData, Member, Position, PositionRole, RsvpAnswer } from './types';
@@ -121,9 +121,9 @@ export function big4GoingProblem(me: Member | null, rideId: string, answer: Rsvp
   return m.ok ? null : `You need ${needsMeetingsText(m)} to ride a Big 4 (5.4). Your board can excuse work, family, health, injury or distance.`;
 }
 
-/** Whether `viewer` has a member's meetings and excuses to judge 5.4 by: their own, or their chapter board's. */
+/** Whether `viewer` has a member's meetings and excuses to judge 5.4 by: their own, or as their chapter's board (or national). */
 export function seesBig4Records(viewer: Member | null, target: Member, positions: Position[]): boolean {
-  return !!viewer && (viewer.id === target.id || isBoardOf(viewer, target.chapterId, positions));
+  return !!viewer && (viewer.id === target.id || seesBoardOf(viewer, target.chapterId, positions));
 }
 
 /** Why `target` can't be put on this Big 4's crew under 5.4, or null. (Crew is Full and Nomad only already.) */

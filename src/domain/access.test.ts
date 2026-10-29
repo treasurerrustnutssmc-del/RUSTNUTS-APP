@@ -8,12 +8,14 @@ import {
   AUDITOR_NEEDS_VOTE,
   canApprove,
   canManageMember,
+  statusChangeProblem,
   canSeeMember,
   canSeePhone,
   canSeePrivate,
   endTermProblem,
   isBoardOf,
   isNecOfficer,
+  seesBoardOf,
   pendingFor,
   SECRETARY_NEEDS_VOTE,
   visibleMembers,
@@ -48,7 +50,8 @@ test('ended positions stop counting', () => {
 test('board power is limited to their own chapter', () => {
   assert.equal(isBoardOf(m('m-torque'), 'ch-west', P), true);
   assert.equal(isBoardOf(m('m-torque'), 'ch-north', P), false);
-  assert.equal(isBoardOf(m('m-rusty'), 'ch-north', P), true); // national reaches every chapter
+  assert.equal(isBoardOf(m('m-rusty'), 'ch-north', P), false); // national doesn't act as another chapter's board
+  assert.equal(isBoardOf(m('m-rusty'), 'ch-west', P), true); // his own seat
   assert.equal(isBoardOf(m('m-spanner'), 'ch-west', P), false);
 });
 
@@ -88,7 +91,7 @@ test('approvals and member changes', () => {
   assert.equal(canApprove(m('m-torque'), m('m-josh'), P), false); // North applicant
   assert.equal(canApprove(m('m-torque'), m('m-spanner'), P), false); // already approved
   assert.deepEqual(pendingFor(m('m-torque'), d).map((x) => x.id), ['m-dylan']);
-  assert.deepEqual(pendingFor(m('m-rusty'), d).map((x) => x.id), ['m-dylan', 'm-josh']);
+  assert.deepEqual(pendingFor(m('m-rusty'), d).map((x) => x.id), ['m-dylan'], 'only the chapter he sits on');
   assert.equal(canManageMember(m('m-torque'), m('m-spanner'), P), true);
   assert.equal(canManageMember(m('m-torque'), m('m-torque'), P), false); // no self-promotion
   assert.equal(canManageMember(m('m-spanner'), m('m-chook'), P), false);
@@ -188,7 +191,7 @@ test('a chapter board ends other people\'s chapter terms, never its own', () => 
   assert.equal(allowed(endTermProblem(m('m-torque'), pos('p-7'), d)), true); // Spanner, Tail Gunner
   assert.equal(allowed(endTermProblem(m('m-torque'), pos('p-3'), d)), false); // her own Secretary term
   assert.equal(allowed(endTermProblem(m('m-crank'), pos('p-7'), d)), false); // North board, West seat
-  assert.equal(allowed(endTermProblem(m('m-smokey'), pos('p-7'), d)), true); // national reaches every chapter
+  assert.equal(allowed(endTermProblem(m('m-smokey'), pos('p-7'), d)), false); // North's President holds no West seat
 });
 
 test('only NEC officers end a President\'s term, and never their own', () => {
@@ -236,4 +239,24 @@ test('Founder is a title: it carries no chapter and no national powers', () => {
   assert.equal(isChapterless('nec_chair'), true);
   assert.equal(isChapterless('ride_committee'), false);
   assert.equal(isChapterless('assistant_tail_gunner'), false);
+});
+
+test('national roles see every chapter’s board records, and act only where they hold a seat', () => {
+  assert.equal(seesBoardOf(m('m-rusty'), 'ch-north', P), true); // National Chairman and West President
+  assert.equal(seesBoardOf(m('m-smokey'), 'ch-west', P), true); // North's President sits on the NEC
+  assert.equal(seesBoardOf(m('m-torque'), 'ch-west', P), true);
+  assert.equal(seesBoardOf(m('m-torque'), 'ch-north', P), false);
+  assert.equal(seesBoardOf(m('m-spanner'), 'ch-west', P), false);
+  assert.equal(seesBoardOf(m('m-dylan'), 'ch-west', P), false); // an applicant
+  assert.equal(seesBoardOf(null, 'ch-west', P), false);
+  assert.equal(canSeePrivate(m('m-smokey'), m('m-spanner'), P), true, 'reads a West member’s private details');
+  assert.equal(canManageMember(m('m-smokey'), m('m-spanner'), P), true, 'opens Manage member (the NEC’s own acts live there)');
+  assert.equal(
+    statusChangeProblem(m('m-smokey'), m('m-spanner'), 'supporter', d, '2026-10-29'),
+    'Only that chapter’s board can change this member’s status.',
+    'but the chapter’s acts on it refuse them',
+  );
+  // An applicant who isn't approved yet is the board's to approve first, not a 5.6 reinstatement.
+  assert.equal(statusChangeProblem(m('m-torque'), m('m-dylan'), 'full', d, '2026-10-29'), 'Approve them first.');
+  assert.equal(statusChangeProblem(m('m-smokey'), m('m-dylan'), 'full', d, '2026-10-29'), 'Only that chapter’s board can change this member’s status.');
 });

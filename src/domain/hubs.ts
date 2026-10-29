@@ -2,6 +2,7 @@
 // Yet Run). No payments. These are the rules the database's save_hub, register_hub and withdraw_hub
 // apply, in the same order with the same words.
 
+import { isApprovedMember, seesBoardOf } from './access';
 import { managesRide } from './crew';
 import { formatAuDate, weekday } from './dates';
 import { displayName } from './profile';
@@ -62,6 +63,24 @@ export function myRegistration(rideId: string, memberId: string, data: ClubData)
   return registrationsFor(rideId, data).find((r) => r.memberId === memberId);
 }
 
+/**
+ * The registrations `me` sees: their own, all of them when they run the ride, and those of members
+ * whose chapter board records they see. Mirrors the hub_registrations read policy.
+ */
+export function visibleRegistrations(me: Member | null, rideId: string, data: ClubData): HubRegistration[] {
+  if (!isApprovedMember(me)) return [];
+  const ride = data.rides.find((r) => r.id === rideId);
+  const all = !!ride && managesRide(me, ride, data);
+  return registrationsFor(rideId, data).filter((r) => {
+    if (all || r.memberId === me.id) return true;
+    const who = data.members.find((m) => m.id === r.memberId);
+    return !!who && seesBoardOf(me, who.chapterId, data.positions);
+  });
+}
+
+/** The ride's counts as the database hands them out, when it has. */
+const countsRow = (rideId: string, data: ClubData) => (data.signupCounts ?? []).find((c) => c.rideId === rideId);
+
 /** Why `me` can't open or change this ride's hub, or null when they can. Mirrors public.save_hub. */
 export function saveHubProblem(me: Member | null, ride: Ride | undefined, input: HubInput, data: ClubData, now: string): string | null {
   const opening = signedInProblem(me);
@@ -86,11 +105,20 @@ export function registrationsClosed(ride: Ride, hub: RideHub, now: string, today
 }
 
 /** Group places taken: riders and their pillions with the group, leaving out `exceptId`. */
+/** Group beds taken by everyone but `exceptId`: from the counts when the rows aren't all here. */
 function groupTaken(rideId: string, data: ClubData, exceptId: string | null): number {
+  const counts = countsRow(rideId, data);
+  if (counts) {
+    const mine = exceptId === null ? undefined : myRegistration(rideId, exceptId, data);
+    return counts.hubGroupBeds - (mine?.staying === 'group' ? 1 + (mine.pillion ? 1 : 0) : 0);
+  }
   return registrationsFor(rideId, data)
     .filter((r) => r.staying === 'group' && r.memberId !== exceptId)
     .reduce((n, r) => n + 1 + (r.pillion ? 1 : 0), 0);
 }
+
+/** Group beds taken by everyone registered. */
+export const groupBedsTaken = (rideId: string, data: ClubData): number => groupTaken(rideId, data, null);
 
 /** Why `me` can't register (or change their registration), or null. Mirrors public.register_hub. */
 export function registerProblem(
@@ -131,8 +159,10 @@ export interface HubCounts extends Record<HubStaying, number> {
   pillions: number;
 }
 
-/** The hub's numbers: riders, pillions, and riders by where they're staying. */
+/** The hub's numbers: riders, pillions, and riders by where they're staying. From the database's counts when it has them. */
 export function hubCounts(rideId: string, data: ClubData): HubCounts {
+  const c = countsRow(rideId, data);
+  if (c) return { riders: c.hubRiders, pillions: c.hubPillions, group: c.hubGroup, own: c.hubOwn, camping: c.hubCamping, day: c.hubDay };
   const counts: HubCounts = { riders: 0, pillions: 0, group: 0, own: 0, camping: 0, day: 0 };
   for (const r of registrationsFor(rideId, data)) {
     counts.riders += 1;
@@ -142,8 +172,8 @@ export function hubCounts(rideId: string, data: ClubData): HubCounts {
   return counts;
 }
 
-/** The registrations as plain text, for booking rooms: by where they're staying, then by name. */
-export function hubListText(ride: Ride, data: ClubData): string {
+/** The registrations `me` sees as plain text, for booking rooms: by where they're staying, then by name. */
+export function hubListText(me: Member | null, ride: Ride, data: ClubData): string {
   const day = melbourneDate(ride.startsAt);
   const counts = hubCounts(ride.id, data);
   const hub = hubFor(ride.id, data);
@@ -157,7 +187,7 @@ export function hubListText(ride: Ride, data: ClubData): string {
   ];
   if (hub?.accommodation) lines.push(`Staying: ${hub.accommodation}`);
   for (const staying of STAYING) {
-    const regs = registrationsFor(ride.id, data).filter((r) => r.staying === staying);
+    const regs = visibleRegistrations(me, ride.id, data).filter((r) => r.staying === staying);
     if (regs.length === 0) continue;
     const beds = staying === 'group' && hub?.beds ? ` (${groupTaken(ride.id, data, null)} of ${hub.beds} beds)` : '';
     lines.push('', `${STAYING_LABEL[staying]}${beds}`);

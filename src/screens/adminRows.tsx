@@ -5,7 +5,7 @@ import React from 'react';
 import { useClub } from '../data/ClubStore';
 import { appealOpen, conductFor, recordsConductFor, visibleConduct } from '../domain/conduct';
 import { ordersToAct, visibleItems } from '../domain/merch';
-import { contributionsToDecide } from '../domain/national';
+import { contributionsToDecide, visibleProposals } from '../domain/national';
 import type { RootParams } from '../navigation/types';
 import { Card, IconBadge, ListRow, SectionTitle } from '../ui/primitives';
 
@@ -22,7 +22,7 @@ export function BoardAdminCard() {
   const orders = ordersToAct(me, data).length;
   const waitingItems = visibleItems(me, data).filter((i) => i.status === 'proposed').length;
   const decide = contributionsToDecide(me, data).length;
-  const proposals = (data.chapterProposals ?? []).filter((p) => p.status === 'proposed').length;
+  const proposals = visibleProposals(me, data).filter((p) => p.status === 'proposed').length;
   const showConduct = recordsConductFor(me, data) || records.length > 0;
   const merchNotes = [orders > 0 ? count(orders, 'order') + ' to act on' : null, waitingItems > 0 ? count(waitingItems, 'item') + ' waiting' : null].filter(Boolean);
   const nationalNotes = [decide > 0 ? `${decide} to decide` : null, proposals > 0 ? count(proposals, 'new chapter') : null].filter(Boolean);
@@ -88,9 +88,9 @@ export function MeAdminSection() {
 
 /** Chapters screen: new chapters and national contributions. */
 export function ChaptersNationalRow() {
-  const { data } = useClub();
+  const { me, data } = useClub();
   const navigation = useNavigation<Nav>();
-  const open = (data.chapterProposals ?? []).filter((p) => p.status === 'proposed').length;
+  const open = visibleProposals(me, data).filter((p) => p.status === 'proposed').length;
   return (
     <Card style={{ padding: 0, gap: 0 }}>
       <ListRow

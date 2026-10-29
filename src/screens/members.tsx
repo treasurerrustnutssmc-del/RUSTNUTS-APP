@@ -10,6 +10,7 @@ import {
   visibleMembers,
   withHolders,
 } from '../domain/access';
+import { canSeeAttendance } from '../domain/attendance';
 import { compassFor } from '../domain/compass';
 import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
@@ -397,7 +398,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
 
       {/* Stage 4: the way in, turn-up and fees */}
       {member.approval === 'pending' && member.status === 'introduced' && canManage ? <IntroProgressCard member={member} /> : null}
-      {member.approval === 'approved' ? <AttendanceSummary member={member} /> : null}
+      {member.approval === 'approved' && canSeeAttendance(me, member, data.positions) ? <AttendanceSummary member={member} /> : null}
       {member.approval === 'approved' && me?.approval === 'approved' ? <BadgesCard member={member} /> : null}
       {member.approval === 'approved' && (member.id === me?.id || reviewsChapter(me, member.chapterId, data.positions)) ? <StandingCard member={member} /> : null}
       {!isSelf && member.approval === 'approved' && canSeeFees(me, member.chapterId, data.positions) ? (
