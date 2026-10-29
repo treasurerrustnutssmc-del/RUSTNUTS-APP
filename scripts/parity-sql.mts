@@ -224,10 +224,38 @@ const stage4Call = (c: ParityCase & Record<string, any>): string | null => {
       return `public.set_meeting_type(${id('s', c.session)}, ${q(c.type)})`;
     case 'setExemption':
       return `public.set_exemption(${id('s', c.session)}, ${id('m', c.member)}, ${textOrNull(c.reason)})`;
+    // Big 4 RSVP rules and the 5.5 notice
+    case 'setBig4Waiver':
+      return `public.set_big4_waiver(${id('r', c.ride)}, ${id('m', c.member)}, ${textOrNull(c.ground)})`;
+    case 'giveNotice':
+      return `public.give_status_notice(${id('m', c.member)}, ${q(c.about)}, ${q(c.record)}, ${q(c.proposal)}, ${date(c.respondBy)})`;
+    case 'respondNotice':
+      return `public.respond_to_notice(${id('n', c.notice)}, ${q(c.response)})`;
+    case 'closeNotice':
+      return `public.close_status_notice(${id('n', c.notice)}, ${q(c.outcome)}, ${q(c.note)})`;
     default:
       return null;
   }
 };
+
+// Big 4 RSVP rules and the 5.5 notice
+const b4 = fx.big4Rsvp;
+if (b4) {
+  for (const r of b4.big4Rides) {
+    sql(`insert into public.big4_rides (ride_id, chapter_id) values (${id('r', r.ride)}, ${chapter(r.chapter)});`);
+  }
+  for (const w of b4.waivers) {
+    sql(`insert into public.big4_waivers (ride_id, member_id, ground) values (${id('r', w.ride)}, ${id('m', w.member)}, ${q(w.ground)});`);
+  }
+  for (const n of b4.notices) {
+    sql(
+      `insert into public.status_notices (id, member_id, chapter_id, about, record, proposal, given_on, respond_by, outcome, closed_on) ` +
+        `select ${id('n', n.key)}, m.id, m.chapter_id, ${q(n.about)}, ${q(n.key)}, ${q(n.key)}, ${date(addDays(today, n.givenDays))}, ` +
+        `${date(addDays(today, n.respondByDays))}, ${textOrNull(n.outcome)}, ${n.outcome ? date(addDays(today, n.givenDays)) : 'null'} ` +
+        `from public.members m where m.id = ${id('m', n.member)};`,
+    );
+  }
+}
 
 for (const k of fx.crew ?? []) {
   sql(

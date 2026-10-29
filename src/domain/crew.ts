@@ -3,6 +3,7 @@
 // words, so the app never offers what the server would refuse.
 
 import { activePositions, isNational, managesChapterRides } from './access';
+import { big4CrewProblem } from './big4';
 import { daysBetween } from './dates';
 import { CREW_ROLES } from './labels';
 import { endOfFirstDay, melbourneDate } from './rides';
@@ -72,6 +73,9 @@ export function crewProblem(
   if (eligibility) return eligibility;
   // Crewing makes them Going, so the Going gate applies to whoever is put on.
   if (mustSignFirst(target, data, melbourneDate(now))) return CREW_NOT_SIGNED;
+  // And on a Big 4, 5.4's meetings rule (or the board's excuse).
+  const big4 = big4CrewProblem(target, ride.id, data, melbourneDate(now));
+  if (big4) return big4;
   if (target.id !== me.id && data.rsvps.some((r) => r.rideId === ride.id && r.memberId === target.id && r.answer === 'no')) {
     return 'They said they can’t make it.';
   }

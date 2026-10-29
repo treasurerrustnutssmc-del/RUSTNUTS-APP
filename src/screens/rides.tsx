@@ -36,7 +36,7 @@ import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import { RideCheckinCard } from './checkin'; // Stage 4
 import { Big4Card } from './attendance'; // Attendance rules and Big 4 rides
-import { isBig4 } from '../domain/big4';
+import { big4GoingProblem, isBig4 } from '../domain/big4';
 import { isFamily } from '../domain/access'; // Family view
 import {
   Avatar,
@@ -295,6 +295,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   // The Going gate prompt's sentence, which the turned-off Going points to. Unique per screen,
   // since the web keeps earlier screens mounted.
   const signToGoId = useId();
+  const big4BlockId = useId();
   const ride = data.rides.find((r) => r.id === route.params.rideId);
 
   if (!ride || !me) {
@@ -312,6 +313,8 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   // The Going gate: while the ride takes answers, an unsigned or expired member gets the prompt
   // above the answers in place of the nudge, and Going is off until they sign.
   const mustSign = !problem && mustSignFirst(me, data, today);
+  // On a Big 4, Going is only for FNGs, Full Members and Nomads who meet 5.4 (or were excused).
+  const big4Block = !problem && !mustSign ? big4GoingProblem(me, ride.id, 'going', data, today) : null;
   const counts = rsvpCounts(ride.id, data.rsvps);
   const people = (answer: RsvpAnswer) =>
     data.rsvps
@@ -482,12 +485,17 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
             onOpen={() => navigation.navigate('RoadRules')}
           />
         ) : null}
+        {big4Block ? (
+          <View nativeID={big4BlockId}>
+            <Notice tone="warn" title="Going is off for this Big 4">{big4Block}</Notice>
+          </View>
+        ) : null}
         <View style={styles.answers}>
           {ANSWERS.map((a) => {
             // While an answer saves, it shows as chosen with a spinner and the others dim.
             const saving = busy === a;
             const selected = busy ? saving : mine === a;
-            const gated = mustSign && a === 'going';
+            const gated = (mustSign || !!big4Block) && a === 'going';
             const disabled = !!problem || busy !== null || gated;
             return (
               <Pressable
@@ -498,8 +506,8 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
                 aria-disabled={disabled}
                 aria-busy={saving}
                 accessibilityLabel={RSVP_LABEL[a]}
-                accessibilityHint={gated ? GOING_HINT : undefined}
-                aria-describedby={gated ? signToGoId : undefined}
+                accessibilityHint={gated ? (mustSign ? GOING_HINT : big4Block ?? undefined) : undefined}
+                aria-describedby={gated ? (mustSign ? signToGoId : big4BlockId) : undefined}
                 disabled={disabled}
                 onPress={() => answer(a)}
                 style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [

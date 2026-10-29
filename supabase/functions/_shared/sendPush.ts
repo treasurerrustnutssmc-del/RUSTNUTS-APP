@@ -43,11 +43,11 @@ function soundFor(kind: unknown, rev: boolean): { channelId: string; sound: stri
   return rev ? { channelId: `${base}-rev`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
 }
 
-/** One message per phone. Live ride alerts are urgent and keep the urgent sound; the rest rev unless
- *  the member switched it off. */
+/** One message per phone. Live ride alerts keep the urgent sound; the rest rev unless the member
+ *  switched it off. All go high priority: Android holds normal ones while the phone sleeps, so a chat
+ *  message could turn up many minutes late or not until the app is opened. */
 export function toExpoMessages(rows: OutboxMessage[]): ExpoMessage[] {
   return rows.flatMap((r) => {
-    const alert = r.data.kind === 'live-alert';
     const { channelId, sound } = soundFor(r.data.kind, r.rev ?? true);
     return r.tokens.map((to): ExpoMessage => ({
       to,
@@ -56,7 +56,7 @@ export function toExpoMessages(rows: OutboxMessage[]): ExpoMessage[] {
       sound,
       channelId,
       data: r.data,
-      ...(alert ? { priority: 'high' as const } : {}),
+      priority: 'high',
       outboxId: r.id,
     }));
   });
