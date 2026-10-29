@@ -57,7 +57,6 @@ import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '..
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
 } from '../screens/invites'; // Invites to and from other clubs
-
 import { FamilyHomeScreen, FamilyMeScreen, FamilyRideScreen } from '../screens/family'; // Family view
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
