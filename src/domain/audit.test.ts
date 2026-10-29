@@ -182,6 +182,7 @@ test('the checks find a past month that was never presented, and funds with no a
   });
   const k = keys(d);
   assert.ok(k.includes('not-presented:2026-09-01'));
+  assert.equal(auditChecks(d, NOW).find((c) => c.key === 'not-presented:2026-09-01')!.detail, 'September 2026 has lines in the books');
   assert.ok(!k.includes('not-presented:2026-10-01'), 'this month is still running');
   assert.ok(k.includes('no-budget:club'));
   assert.ok(k.includes('no-budget:north'));

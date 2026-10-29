@@ -41,6 +41,7 @@ import type {
   Threshold,
   Vote,
 } from '../domain/types';
+import { auditorSeat } from '../domain/access';
 import { castProblem, chairOf, defaultQuorum, electorsFor, REINSTATABLE, ruleLine, TIE } from '../domain/votes';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
@@ -800,7 +801,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
               label={
                 vote.electorate !== 'nec'
                   ? `Record ${displayName(subject)}’s patch`
-                  : vote.threshold === 'two_thirds' ? `Appoint ${displayName(subject)} as Auditor` : `Bring ${displayName(subject)} back`
+                  : vote.threshold === 'two_thirds' ? `${auditorSeat(data)?.memberId === subject.id ? 'Renew' : 'Appoint'} ${displayName(subject)} as Auditor` : `Bring ${displayName(subject)} back`
               }
               kind="secondary"
               onPress={() => navigation.navigate('ManageMember', { memberId: subject.id })}
@@ -969,6 +970,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   // A vote about a member: the chapter's patch vote on an FNG (4.9), the NEC's on bringing someone back (5.6),
   // or the NEC's two-thirds vote on a Full Member as National Auditor (11.8).
   const auditor = !!subject && subject.status === 'full';
+  const renewing = auditor && auditorSeat(data)?.memberId === subject.id;
   const reinstate = !!subject && subject.status !== 'fng' && !auditor;
   const national = reinstate || auditor;
   const fixedScope = params.chapterId !== undefined || !!subject;
@@ -979,7 +981,9 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   const [threshold, setThreshold] = useState<Threshold>(auditor ? 'two_thirds' : subject && !reinstate ? 'unanimous' : 'majority');
   const [question, setQuestion] = useState(
     auditor
-      ? `Appoint ${displayName(subject)} as National Auditor for twelve months?`
+      ? renewing
+        ? `Keep ${displayName(subject)} on as National Auditor for another twelve months?`
+        : `Appoint ${displayName(subject)} as National Auditor for twelve months?`
       : reinstate ? `Bring ${displayName(subject)} back to Full or Nomad?` : subject ? `Patch ${displayName(subject)} as a Full member?` : '',
   );
   const [details, setDetails] = useState('');
@@ -1033,7 +1037,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
       ) : null}
       {auditor ? (
         <Notice title="NEC vote, two-thirds">
-          {`Each chapter’s President votes for their chapter (11.2), and it needs at least two yes for every no. If it carries, the National Chairman can appoint ${displayName(subject!)} National Auditor within 90 days (11.8).`}
+          {`Each chapter’s President votes for their chapter (11.2), and it needs at least two yes for every no. If it carries, the National Chairman can ${renewing ? 'renew' : 'appoint'} ${displayName(subject!)} ${renewing ? 'for another twelve months' : 'National Auditor'} within 90 days (11.8).`}
         </Notice>
       ) : reinstate ? (
         <Notice title="NEC vote">

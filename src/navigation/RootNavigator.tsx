@@ -327,7 +327,7 @@ export function RootNavigator() {
             <Stack.Screen name="ProposeChapter" component={ProposeChapterScreen} options={{ title: 'New chapter' }} />
             {/* The National Auditor */}
             <Stack.Screen name="Audit" component={AuditScreen} options={{ title: 'Audit' }} />
-            <Stack.Screen name="AuditRecords" component={AuditRecordsScreen} options={{ title: 'Membership records' }} />
+            <Stack.Screen name="AuditRecords" component={AuditRecordsScreen} options={{ title: 'Records' }} />
             <Stack.Screen name="NewAuditRequest" component={NewAuditRequestScreen} options={{ title: 'New request' }} />
             <Stack.Screen name="AuditRequest" component={AuditRequestScreen} options={{ title: 'Request' }} />
             <Stack.Screen name="AuditReport" component={AuditReportScreen} options={{ title: 'Findings report' }} />

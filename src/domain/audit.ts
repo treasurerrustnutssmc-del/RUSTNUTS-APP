@@ -203,6 +203,7 @@ export interface AuditCheck {
 }
 
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 /**
@@ -249,7 +250,7 @@ export function auditChecks(data: ClubData, now: string): AuditCheck[] {
   for (const month of [...months].sort()) {
     if (month >= thisMonth || presented.has(month)) continue;
     push({ key: `not-presented:${month}`, area: 'bank', chapterId: null, ledgerEntryId: null,
-      title: 'A month’s Treasurer’s Report was never presented', detail: `${dmy(month).slice(3)} has lines in the books` });
+      title: 'A month’s Treasurer’s Report was never presented', detail: `${MONTH_NAMES[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)} has lines in the books` });
   }
 
   const fy = fyOf(today);

@@ -474,6 +474,7 @@ export const DEMO_PERSONAS = [
   { level: 'member', memberId: 'm-spanner', label: 'Member', blurb: 'Spanner, West Tail Gunner' },
   { level: 'board', memberId: 'm-torque', label: 'Board', blurb: 'Torque, West Secretary' },
   { level: 'national', memberId: 'm-rusty', label: 'National', blurb: 'Rusty, West President and NEC Chair' },
+  { level: 'member', memberId: 'm-ace', label: 'Auditor', blurb: 'Ace, North Officer and National Auditor' },
 ] as const;
 
 // Lane E: live ride

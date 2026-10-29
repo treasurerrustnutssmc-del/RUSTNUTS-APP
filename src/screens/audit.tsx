@@ -64,7 +64,7 @@ export function AuditScreen({ navigation }: RootScreen<'Audit'>) {
   return (
     <Screen>
       <Stack gap={space.xs}>
-        <H1>Audit</H1>
+        <H1>National Auditor</H1>
         <Small>
           {auditor
             ? 'You review the club’s records and controls, ask the boards for information or corrections, and report what you find (11.8).'
