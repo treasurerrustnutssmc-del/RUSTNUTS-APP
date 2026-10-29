@@ -188,9 +188,9 @@ export function visibleCosts(me: Member | null, data: ClubData): BusCost[] {
 export const costHistory = (costs: BusCost[]): BusCost[] =>
   [...costs].sort((a, b) => cmp(b.spentOn, a.spentOn) || cmp(b.loggedAt, a.loggedAt));
 
-/** The financial years to offer, newest first: this one, plus every year with a cost. */
-export function costYears(data: ClubData, today: string): number[] {
-  const years = new Set([fyOf(today), ...(data.busCosts ?? []).map((c) => fyOf(c.spentOn))]);
+/** The financial years to offer, newest first: this one, plus every year with one of `costs`. */
+export function costYears(data: ClubData, today: string, costs: BusCost[] = data.busCosts ?? []): number[] {
+  const years = new Set([fyOf(today), ...costs.map((c) => fyOf(c.spentOn))]);
   return [...years].sort((a, b) => b - a);
 }
 

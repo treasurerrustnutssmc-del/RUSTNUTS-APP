@@ -27,7 +27,7 @@ Arguments: the booking, then the same six as `book_bus`.
 2. Not whoever booked it and not a bus manager: `Only whoever booked it or the board can change it.` *Inferred:* the driver can cancel but not change.
 3. Declined or Cancelled: `That booking is already off.`
 4. Its last day is before today: `That booking’s days have passed.`
-5. The booking checks 4 to 12 from the original spec, in order (days missing, last before first, past start, 14 days, 12 months, purpose, ride, driver, notes), except that a first day before today is allowed when it's the booking's own first day (a booking under way can still change its last day or driver).
+5. The booking checks 4 to 12 from the original spec, in order (days missing, last before first, past start, then `The last day can’t be before today.` so a change never rewrites where the bus already was, 14 days, 12 months, purpose, ride, driver, notes), except that a first day before today is allowed when it's the booking's own first day (a booking under way can still change its last day or driver), and the booking's own ride may stay even when the app hasn't loaded it (live loads rides from today on).
 6. A Booked booking, changed by someone who isn't a bus manager, to any day outside its current days, unless the change would be booked straight away anyway (a recovery whose first day is today or tomorrow): `Only the board or NEC can add days to a Booked booking.` Shrinking, or changing anything but the days, is fine.
 7. A Booked booking whose new days share a day with another Booked one: `The Rusty Bus is already booked then.`
 
@@ -94,7 +94,7 @@ No Alert dialogs. Names, labels, numbers and dates in Rustnuts Stencil. Theme to
 - `public.bus_km (id, km int 1..2000000, read_on date, booking_id → bus_bookings set null, note ≤ 200, logged_by, logged_at, struck_by, struck_at)`.
 - `public.bus_costs (id, spent_on date, kind, amount_cents int 1..10000000, litres numeric(6,2) > 0 ≤ 1000 and only on fuel, booking_id, note ≤ 200, logged_by, logged_at, struck_by, struck_at)`.
 - RLS select only, as above; no API writes. Helper `private.bus_hand()`.
-- No `drop` and no `delete from`. The live app reads the new tables with their own queries (`src/data/busLogLive.ts`), and a missing table loads as none.
+- No `drop` and no `delete from`. The live app reads the new tables with their own queries (`src/data/busExtrasLive.ts`), and a missing table loads as none.
 
 ## App
 - Types: `BusKeyHandover`, `BusKm`, `BusCost`, `BusCostKind`; `BusBooking.changedBy/changedAt`; `ClubData.busKeys?`, `busKm?`, `busCosts?`.

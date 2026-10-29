@@ -223,6 +223,7 @@ begin
   assert pg_temp.change(fran, held, t + 42, t + 41, 'other', null, fran, null) = 'The last day can’t be before the first.';
   assert pg_temp.change(fran, underway, t - 1, t, 'other', null, fran, null) is null, 'under way keeps its first day';
   assert pg_temp.change(fran, underway, t - 2, t, 'other', null, fran, null) = 'Bookings can’t start in the past.';
+  assert pg_temp.change(fran, underway, t - 1, t - 1, 'other', null, fran, null) = 'The last day can’t be before today.';
   assert pg_temp.change(fran, asked, t - 1, t + 1, 'other', null, fran, null) = 'Bookings can’t start in the past.';
   assert pg_temp.change(fran, asked, t + 30, t + 44, 'other', null, fran, null) = 'Keep a booking to 14 days at most.';
   assert pg_temp.change(fran, asked, (t + interval '1 year')::date + 1, (t + interval '1 year')::date + 1, 'other', null, fran, null)

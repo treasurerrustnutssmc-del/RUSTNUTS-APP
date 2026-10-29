@@ -182,13 +182,13 @@ function ClashText({ line }: { line: string }) {
 // Rusty Bus
 // ---------------------------------------------------------------------------
 
-/** "Keys with Diesel · 124,402 km on 29/10/2026", or what's not logged yet. */
+/** "Keys with Diesel since 29/10/2026 · Odometer 124,402 km on 29/10/2026", or what's not logged yet. */
 function keysLine(data: ClubData): string {
   const holder = keyHolder(data);
   const reading = latestReading(data);
   return [
-    holder ? `Keys with ${busPersonName(holder.toId, data)}` : 'Keys not logged yet',
-    reading ? `${formatKm(reading.km)} on ${formatAuDate(reading.readOn)}` : null,
+    holder ? `Keys with ${busPersonName(holder.toId, data)} since ${formatAuDate(melbourneDate(holder.loggedAt))}` : 'Nobody’s logged the keys yet',
+    reading ? `Odometer ${formatKm(reading.km)} on ${formatAuDate(reading.readOn)}` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -265,10 +265,10 @@ export function BusScreen({ navigation }: RootScreen<'Bus'>) {
           <ListRow
             last
             left={<IconBadge icon="receipt-outline" />}
-            title="Running costs"
+            title={manager ? 'Running costs' : 'Log a running cost'}
             subtitle={
               <Text style={styles.meta}>
-                {manager ? `${fyLabel(fyOf(today))}: ${formatCents(yearSummary(data, fyOf(today)).totalCents)}` : 'Log fuel, tolls and the rest'}
+                {manager ? `${fyLabel(fyOf(today))}: ${formatCents(yearSummary(data, fyOf(today)).totalCents)}` : 'Fuel, tolls and the rest, and what you’ve logged'}
               </Text>
             }
             onPress={() => navigation.navigate('BusCosts')}
@@ -687,6 +687,7 @@ function BusForm({ fromRide, booking, done }: { fromRide?: Ride; booking?: BusBo
 
   const onRides = range ? ridesInDays(range, data) : [];
   const picked = rideId ? data.rides.find((r) => r.id === rideId) : undefined;
+  const keptGoneRide = !!booking && rideId !== null && rideId === booking.rideId && !picked;
   // A ride already picked stays on the list when the days move off it, so it never vanishes unseen.
   const rideOptions = picked && !onRides.some((r) => r.id === picked.id) ? [picked, ...onRides] : onRides;
 
@@ -784,7 +785,11 @@ function BusForm({ fromRide, booking, done }: { fromRide?: Ride; booking?: BusBo
       <View style={styles.field}>
         <Label>For a ride?</Label>
         <Card style={{ padding: 0, gap: 0 }}>
-          <RadioRow label="No ride" on={rideId === null} last={rideOptions.length === 0} onPress={() => change(setRideId)(null)} />
+          <RadioRow label="No ride" on={rideId === null} last={rideOptions.length === 0 && !keptGoneRide} onPress={() => change(setRideId)(null)} />
+          {/* A booking under way keeps its own ride once that ride is over (live no longer loads it). */}
+          {keptGoneRide ? (
+            <RadioRow label="Its ride" sub="Already over" on last={rideOptions.length === 0} onPress={() => {}} />
+          ) : null}
           {rideOptions.map((r, i) => (
             <RadioRow
               key={r.id}

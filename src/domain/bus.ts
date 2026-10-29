@@ -44,6 +44,7 @@ export const ALREADY_OFF = 'That booking is already off.';
 // Rusty Bus extras: changing a booking.
 export const NOT_BUS_CHANGER = 'Only whoever booked it or the board can change it.';
 export const BUS_ADD_DAYS = 'Only the board or NEC can add days to a Booked booking.';
+export const BUS_PAST_END = 'The last day can’t be before today.';
 
 /** A Waiting booking whose days went by with no yes or no (shown only; it's still stored as Waiting). */
 export const NOT_ANSWERED = 'Not answered';
@@ -409,12 +410,15 @@ export function changeProblem(
   if (!isIsoDate(first) || !isIsoDate(last)) return BUS_DAYS_MISSING;
   if (last < first) return BUS_LAST_BEFORE_FIRST;
   if (first < today && first !== booking.firstDay) return BUS_PAST_START;
+  if (last < today) return BUS_PAST_END;
   if (daysBetween(first, last) + 1 > MAX_BUS_DAYS) return BUS_TOO_LONG;
   if (first > yearAhead(today)) return BUS_TOO_FAR;
   if (!input.purpose) return BUS_NO_PURPOSE;
   if (input.rideId !== null) {
+    // Live loads rides from today on, so a booking under way may keep its own ride that's already over.
     const ride = data.rides.find((r) => r.id === input.rideId);
-    if (!ride || ride.cancelledAt) return BUS_NO_RIDE;
+    const ownRideGone = !ride && input.rideId === booking.rideId;
+    if (!ownRideGone && (!ride || ride.cancelledAt)) return BUS_NO_RIDE;
   }
   const driver = input.driverId === null ? undefined : data.members.find((m) => m.id === input.driverId);
   if (!driver || driver.approval !== 'approved') return BUS_BAD_DRIVER;

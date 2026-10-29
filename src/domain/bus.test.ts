@@ -29,6 +29,7 @@ import {
   RIDE_CALLED_OFF,
   RIDE_CALLED_OFF_HINT,
   BUS_ADD_DAYS,
+  BUS_PAST_END,
   NOT_BUS_CHANGER,
   bookProblem,
   bookedStraightAway,
@@ -733,6 +734,7 @@ test('people and rides who have gone still render (Review Focus 5)', () => {
 test('changing a booking: the new messages', () => {
   assert.equal(NOT_BUS_CHANGER, 'Only whoever booked it or the board can change it.');
   assert.equal(BUS_ADD_DAYS, 'Only the board or NEC can add days to a Booked booking.');
+  assert.equal(BUS_PAST_END, 'The last day can’t be before today.');
 });
 
 test('changing a booking: the checks in order', () => {
@@ -759,6 +761,12 @@ test('changing a booking: the checks in order', () => {
   // Under way: its own first day may stay in the past, but not move further back.
   assert.equal(changeProblem(rider, underway, input(underway, { lastDay: '2026-10-25' }), d, TODAY), null);
   assert.equal(changeProblem(rider, underway, input(underway, { firstDay: '2026-10-23' }), d, TODAY), BUS_PAST_START);
+  assert.equal(changeProblem(rider, underway, input(underway, { lastDay: '2026-10-24' }), d, TODAY), BUS_PAST_END, 'can’t end before today');
+  // Its own ride, already over and so not loaded in live, can stay; another ride that isn't there can't.
+  const onGoneRide = { ...underway, rideId: 'r-over' };
+  const d3 = data({ busBookings: [onGoneRide] });
+  assert.equal(changeProblem(rider, onGoneRide, input(onGoneRide, { lastDay: '2026-10-25' }), d3, TODAY), null);
+  assert.equal(changeProblem(rider, onGoneRide, input(onGoneRide, { rideId: 'r-other-gone' }), d3, TODAY), BUS_NO_RIDE);
   assert.equal(changeProblem(rider, asked, input(asked, { firstDay: '2026-10-24' }), d, TODAY), BUS_PAST_START);
   assert.equal(changeProblem(rider, asked, input(asked, { lastDay: '2026-11-22' }), d, TODAY), BUS_TOO_LONG);
   assert.equal(changeProblem(rider, asked, input(asked, { firstDay: '2027-10-26', lastDay: '2027-10-26' }), d, TODAY), BUS_TOO_FAR);

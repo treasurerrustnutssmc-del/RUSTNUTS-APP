@@ -11490,6 +11490,19 @@
       "allowed": false
     },
     {
+      "name": "A Rusty Bus booking under way can't be changed to end before today",
+      "as": "gravel",
+      "action": "changeBus",
+      "booking": "out-today",
+      "firstDays": -1,
+      "lastDays": -1,
+      "purpose": "recovery",
+      "ride": null,
+      "driver": "gravel",
+      "notes": "",
+      "allowed": false
+    },
+    {
       "name": "A changed Rusty Bus request can't start in the past",
       "as": "gravel",
       "action": "changeBus",

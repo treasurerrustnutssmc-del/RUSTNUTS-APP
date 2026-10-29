@@ -250,6 +250,7 @@ test('the years offered: this one plus any with a cost, newest first', () => {
   assert.deepEqual(costYears(data(), TODAY), [2026]);
   const d = data({ busCosts: [cost('a', 'fuel', 1, '2025-03-01'), cost('b', 'fuel', 1, '2026-06-30'), cost('c', 'fuel', 1, '2026-07-01')] });
   assert.deepEqual(costYears(d, TODAY), [2026, 2025, 2024]);
+  assert.deepEqual(costYears(d, TODAY, [d.busCosts![0]]), [2026, 2024], 'only the costs given');
 });
 
 test('a year’s summary: totals by kind, litres, km run and cost per km', () => {

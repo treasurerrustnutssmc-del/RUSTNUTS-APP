@@ -129,6 +129,7 @@ begin
   if p_first is null or p_last is null then raise exception 'Pick the first and last day.'; end if;
   if p_last < p_first then raise exception 'The last day can’t be before the first.'; end if;
   if p_first < today and p_first <> b.first_day then raise exception 'Bookings can’t start in the past.'; end if;
+  if p_last < today then raise exception 'The last day can’t be before today.'; end if;
   if p_last - p_first + 1 > 14 then raise exception 'Keep a booking to 14 days at most.'; end if;
   if p_first > (today + interval '1 year')::date then raise exception 'Book at most 12 months ahead.'; end if;
   if p_purpose is null then raise exception 'Pick what it’s for.'; end if;

@@ -419,9 +419,7 @@ function KmSection({ me, data }: { me: Member; data: ClubData }) {
             />
             <Button label="Log km" icon="checkmark" busy={busy === 'km'} disabled={!km.trim() || !!kmError || !!day.error || noteTooLong} onPress={save} />
           </Stack>
-        ) : (
-          <Small>{NOT_BUS_HAND}</Small>
-        )}
+        ) : null}
         <LiveError error={error} />
       </Card>
       {readings.length > 0 ? (
@@ -475,7 +473,7 @@ export function BusCostsScreen(_props: RootScreen<'BusCosts'>) {
   const { me, data, today, logBusCost, strikeBusCost } = useClub();
   const { busy, error, setError, run } = useRun();
   const strikes = useRun();
-  const years = costYears(data, today);
+  const years = costYears(data, today, me ? visibleCosts(me, data) : []);
   const [fy, setFy] = useState(years[0]);
   const [kind, setKind] = useState<BusCostKind | null>(null);
   const [amount, setAmount] = useState('');
@@ -547,9 +545,10 @@ export function BusCostsScreen(_props: RootScreen<'BusCosts'>) {
           </Stack>
         )}
         <Divider />
+        {/* Km run and cost per km are the whole bus's, so only beside the whole bus's costs. */}
         <Row style={styles.facts}>
-          <Fact label="Km run" value={summary.kmRun === null ? '—' : formatKm(summary.kmRun)} />
-          <Fact label="Per km" value={summary.centsPerKm === null ? '—' : formatCents(summary.centsPerKm)} />
+          {manager ? <Fact label="Km run" value={summary.kmRun === null ? '—' : formatKm(summary.kmRun)} /> : null}
+          {manager ? <Fact label="Per km" value={summary.centsPerKm === null ? '—' : formatCents(summary.centsPerKm)} /> : null}
           <Fact label="Fuel" value={summary.litres > 0 ? `${summary.litres.toLocaleString('en-AU')} L` : '—'} />
         </Row>
         <Small>These aren’t in the books. Pay, or pay people back, through the Treasury as usual.</Small>
