@@ -28,6 +28,9 @@ insert into rides (id, source, starts_at, title, location, notes, category) valu
   ('00000000-0000-0000-0000-0000000000a2', 'app', now() - interval '30 days', 'Last month’s run', null, null, 'club');
 insert into rsvps (ride_id, member_id, answer) values ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000f1', 'going');
 
+insert into checkin_sessions (kind, chapter_id, title, held_on, code, opened_by)
+select 'meeting', id, 'West monthly meeting', private.club_date(), 'FAM123', '00000000-0000-0000-0000-0000000000f1' from chapters where slug = 'west';
+
 insert into treasurer_meeting_reports (from_on, to_on, presented_at) values (date '2026-10-01', date '2026-10-31', now());
 
 \o
@@ -65,7 +68,24 @@ begin
   assert jsonb_array_length(public.club_ledger() -> 'reports') = 0, 'no report totals';
 end $$;
 
-\echo 'Family can’t answer a ride, but can keep their own profile and emergency contacts'
+\echo 'Family don’t check in or see check-ins, attendance, business, documents or admin'
+do $$
+begin
+  assert (select count(*) from public.checkin_sessions) = 0, 'no check-in sessions';
+  assert jsonb_array_length(coalesce(public.members_money() -> 'sessions', '[]'::jsonb)) = 0, 'no sessions through members_money';
+  begin
+    perform public.check_in('FAM123');
+    assert false, 'family can’t check in';
+  exception when raise_exception then
+    assert sqlerrm = 'Only members and applicants can check in.', sqlerrm;
+  end;
+  assert (select count(*) from public.attendance) = 0, 'no attendance';
+  assert coalesce(jsonb_array_length(public.club_business() -> 'meetings'), 0) = 0, 'no meetings';
+  assert coalesce(jsonb_array_length(public.club_documents() -> 'documents'), 0) = 0, 'no documents';
+  assert coalesce(jsonb_array_length(public.club_admin() -> 'conduct'), 0) = 0, 'no conduct records';
+end $$;
+
+\echo 'Family can’t answer a ride, but can keep their own profile, emergency contacts and bikes'
 do $$
 begin
   begin
@@ -79,6 +99,8 @@ begin
   insert into public.emergency_contacts (member_id, name, relationship, phone)
   values ('00000000-0000-0000-0000-0000000000f2', 'Dean Mercer', 'Partner', '0400 111 222');
   assert (select count(*) from public.emergency_contacts) = 1;
+  perform public.save_bike(null, 'Honda', 'Rebel 500', 2022, null, false, 'KM 500', (current_date + 200));
+  assert (select count(*) from public.bikes) = 1, 'their own bike';
 end $$;
 reset role;
 
@@ -91,6 +113,7 @@ begin
   assert jsonb_array_length(public.meeting_reports()) = 1, 'members still get presented reports';
   assert jsonb_array_length(public.ride_calendar() -> 'rides') = 1;
   assert jsonb_array_length(public.family_rides()) = 0, 'members use ride_calendar';
+  assert (select count(*) from public.checkin_sessions) = 1, 'members still see check-ins';
   begin
     perform public.open_direct_chat('00000000-0000-0000-0000-0000000000f2');
     assert false, 'no private chat with family';

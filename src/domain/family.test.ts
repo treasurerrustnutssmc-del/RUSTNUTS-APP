@@ -4,6 +4,7 @@ import { DEMO_DATA } from '../data/demoData';
 import { accessLevel, canSeeDirectory, canSeeMember, canSeePhone, isFamily, visibleMembers } from './access';
 import { approvalProblem, directProblem, readProblem, type Conversation } from './chat';
 import { asksToSign } from './roadRules';
+import { canCheckIn } from './attendance';
 import { askedToSignDocument } from './documents';
 import type { ClubDocument } from './types';
 import { nextRides } from './family';
@@ -60,4 +61,9 @@ test('Home shows the next few rides on the calendar, in date order, cancelled on
   assert.deepEqual(nextRides(rides, '2026-10-29').map((r) => r.id), ['next', 'soon', 'later']);
   assert.deepEqual(nextRides(rides, '2026-10-29', 5).map((r) => r.id), ['next', 'soon', 'later', 'last']);
   assert.deepEqual(nextRides([], '2026-10-29'), []);
+});
+
+test('family don’t check in to meetings or rides', () => {
+  assert.equal(canCheckIn(kerry), false);
+  assert.equal(canCheckIn(m('m-spanner')), true);
 });

@@ -44,6 +44,15 @@ $$;
 revoke all on function public.family_rides() from public, anon;
 grant execute on function public.family_rides() to authenticated;
 
+-- Check-ins went to anyone approved, Family included: they could read every session and check in.
+-- Now approved members who aren't Family, and Introduced applicants. Mirrors canCheckIn.
+create or replace function private.can_check_in()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() or exists (
+    select 1 from public.members where id = auth.uid() and approval = 'pending' and status = 'introduced'
+  );
+$$;
+
 -- Presented Treasurer's Reports went to anyone approved who hadn't left, Family included. Now
 -- approved members who haven't left (13.8). Otherwise as in 20270430000000_meeting_reports.sql.
 create or replace function public.meeting_reports()

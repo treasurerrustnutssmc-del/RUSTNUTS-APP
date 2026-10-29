@@ -23,8 +23,8 @@ Three tabs, nothing else:
 - **Rides:** the ride calendar from today on (title, date and time, where from, notes, the colour key,
   called off). This is the same calendar the club website shows the public. No RSVP list (that's
   members' names), no crew, routes, briefings, weather or planning, and no Going button.
-- **Me:** their profile, their emergency contacts (for when they're on the back of a bike), a
-  membership card that says Family (no disc, no dues line), the club links, sign out.
+- **Me:** their profile, their emergency contacts (for when they're on the back of a bike), their
+  garage (some ride their own bike), a membership card that says Family (no disc, no dues line), the club links, sign out.
 
 ## What family don't see
 
@@ -44,9 +44,10 @@ The database is the real wall; the app follows it.
 - `private.is_family()` is new: approved and Family.
 - `public.family_rides()` is new: the calendar from today on, ride columns only, for Family (empty
   for anyone else, who use `ride_calendar()`).
-- Two places that checked `approval = 'approved'` by hand are fixed: `meeting_reports()` (presented
-  Treasurer's Reports went to anyone approved who hadn't left) and `open_direct_chat` (a member could
-  open a private chat with a Family person: "Family don’t use the club chats.").
+- Three places that checked `approval = 'approved'` by hand are fixed: `meeting_reports()` (presented
+  Treasurer's Reports went to anyone approved who hadn't left), `private.can_check_in()` (Family could
+  read every check-in session and check in, which put them in attendance) and `open_direct_chat` (a
+  member could open a private chat with a Family person: "Family don’t use the club chats.").
 - What Family can still do comes from their own-row policies, which never used the helper: read and
   edit their own profile, bikes and emergency contacts.
 
@@ -68,6 +69,17 @@ Migration `20270530000000_family_view.sql`.
 **Chat.** Recommended: no chats for Family for now. It's easy to open the whole-club chat to them
 later, and hard to take it back once members have said things there they assumed were members only.
 The alternative is Family in the whole-club chat (read and post) and nothing else.
+
+## Left as they are (from the review)
+
+- **Fees:** a board could still set a Family fee rate, and Family would get charges they never see.
+  Jeff's rule is that only Full members pay, so nobody should set one; the fees lane owns tightening
+  that.
+- **New-ride pushes** pick everyone approved with the setting on. Family can't turn it on (the
+  settings save refuses them), so it only touches someone moved to Family with an old setting, and
+  they can see the rides anyway.
+- **Loading:** Family still run the members' queries, which come back empty. A shorter load for
+  Family can follow if it's ever slow.
 
 ## Later, if wanted
 

@@ -5,7 +5,7 @@
 import React from 'react';
 import { Linking, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { formatAuDate, weekday } from '../domain/dates';
+import { describeExpiry, formatAuDate, weekday } from '../domain/dates';
 import { nextRides } from '../domain/family';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
@@ -149,9 +149,10 @@ export function FamilyRideScreen({ route }: RootScreen<'RideDetail'>) {
 // ---------------------------------------------------------------------------
 
 export function FamilyMeScreen({ navigation }: TabScreen<'Me'>) {
-  const { me, data, signOut, isDemo } = useClub();
+  const { me, data, today, signOut, isDemo } = useClub();
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
+  const bikes = data.bikes.filter((b) => b.memberId === me.id);
   const contacts = data.emergencyContacts.filter((c) => c.memberId === me.id);
   return (
     <Screen>
@@ -205,6 +206,27 @@ export function FamilyMeScreen({ navigation }: TabScreen<'Me'>) {
           title="Add an emergency contact"
           onPress={() => navigation.navigate('EditContact', {})}
         />
+      </Card>
+
+      <SectionTitle title="Garage" />
+      <Card style={{ padding: 0, gap: 0 }}>
+        {bikes.map((b) => {
+          const reg = data.registrations.find((r) => r.bikeId === b.id);
+          return (
+            <ListRow
+              key={b.id}
+              left={<IconBadge icon="speedometer" tone={b.isProject ? 'steel' : 'red'} />}
+              title={b.nickname ?? `${b.make} ${b.model}`}
+              subtitle={
+                b.isProject
+                  ? `${b.year ?? ''} ${b.make} ${b.model} · project`.trim()
+                  : `${reg?.rego ?? 'No rego'} · ${describeExpiry(reg?.regoExpiry ?? null, today)}`
+              }
+              onPress={() => navigation.navigate('EditBike', { bikeId: b.id })}
+            />
+          );
+        })}
+        <ListRow last left={<IconBadge icon="add" tone="red" />} title="Add a bike" onPress={() => navigation.navigate('EditBike', {})} />
       </Card>
 
       <ClubLinksSection />

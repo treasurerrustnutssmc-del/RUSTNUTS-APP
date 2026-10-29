@@ -236,6 +236,7 @@ export function RootNavigator() {
             <Stack.Screen name="Tabs" component={FamilyTabs} options={{ headerShown: false }} />
             <Stack.Screen name="RideDetail" component={FamilyRideScreen} options={{ title: 'Ride' }} getId={({ params }) => params.rideId} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
+            <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
           </>
