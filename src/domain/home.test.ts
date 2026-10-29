@@ -22,9 +22,9 @@ test('a role held in two chapters shows once, naming both chapters', () => {
   assert.deepEqual(titles.map((t) => t.text), [ROLE_LABEL.founder, ROLE_LABEL.nec_chair, 'Treasurer (West, North)']);
 });
 
-test('a seat in another chapter names that chapter; a home seat does not', () => {
+test('a chapter seat always names its chapter, home or not (West Pres, not just Pres)', () => {
   const titles = positionTitles([pos('a', 'secretary', 'ch-west'), pos('b', 'treasurer', 'ch-north')], chapters, 'ch-west', ROLE_LABEL);
-  assert.deepEqual(titles.map((t) => t.text), ['Secretary', 'Treasurer (North)']);
+  assert.deepEqual(titles.map((t) => t.text), ['Secretary (West)', 'Treasurer (North)']);
   assert.deepEqual(titles.map((t) => t.key), ['a', 'b']);
 });
 

@@ -113,3 +113,12 @@ export function rideWallFrom(chat: ChatData, club: ClubData, me: Member | null, 
   const conv = chat.conversations.find((c) => c.kind === 'ride' && c.rideId === rideId);
   return { ride, chatId: conv?.id ?? `ride:${rideId}`, media: conv ? wallItems(chat, me, conv.id) : [] };
 }
+
+/** Who wrote in the loaded chats but isn't in the club list in memory, leaving out anyone already
+ *  asked about. Someone who signed up after the list loaded shows up here until it reloads. */
+export function unknownAuthors(pages: Record<string, Message[]>, members: Member[], asked: Set<string>): string[] {
+  const known = new Set(members.map((m) => m.id));
+  const out = new Set<string>();
+  for (const msgs of Object.values(pages)) for (const m of msgs) if (!known.has(m.authorId) && !asked.has(m.authorId)) out.add(m.authorId);
+  return [...out];
+}
