@@ -186,3 +186,45 @@ test('bragging rights in the demo: one award voting, one taking nominations, las
   assert.equal(opened.social.awards.find((a) => a.id === opened.id)?.title, 'Best photo');
   assert.ok(archiveAward({ ...board, social: opened.social }, opened.id).awards.find((a) => a.id === opened.id)?.archivedAt);
 });
+
+test('invites in the demo: passing one on, answering it, linking it, and asking a club to a ride', async () => {
+  const { saveOtherClub, archiveOtherClub, saveInviteIn, answerInvite, inviteClub, archiveInvite } = await import('./demoSocialActions');
+  const { calendarState, invitesIn, invitesOutByRide } = await import('../../domain/invites');
+  const now = '2026-10-27T04:00:00Z';
+  const spanner = { ...ctxAs('m-spanner'), now };
+  const diesel = { ...ctxAs('m-diesel'), now };
+  // The demo shows something in every view, and Ride for Kids offers its calendar ride.
+  assert.ok(invitesIn(spanner.social.invites, spanner.today).upcoming.length >= 3);
+  assert.equal(invitesOutByRide(spanner.social.invites, demoData.rides, spanner.today)[0].invites.length, 2);
+  const kids = spanner.social.invites.find((i) => i.id === 'inv-2')!;
+  const state = calendarState(kids, spanner.social.invites, demoData.rides);
+  assert.deepEqual(state.kind === 'add' && state.suggestions.map((r) => r.id), ['r-6']);
+
+  const club = saveOtherClub(spanner, { id: null, name: ' Valley Vintage ', town: 'Lilydale', contact: '', note: '' });
+  assert.deepEqual(club.social.otherClubs.find((c) => c.id === club.id)?.name, 'Valley Vintage');
+  const passed = saveInviteIn({ ...spanner, social: club.social }, {
+    id: null, clubId: club.id, chapterId: 'ch-west', title: 'Swap meet ride', eventOn: '2026-11-15', place: '', details: '', rideId: null,
+  });
+  const added = passed.social.invites.find((i) => i.id === passed.id)!;
+  assert.deepEqual([added.direction, added.answer, added.addedBy, added.place], ['in', 'waiting', 'm-spanner', null]);
+  assert.throws(
+    () => answerInvite({ ...spanner, social: passed.social }, { id: passed.id, answer: 'yes', label: 'supported', bikes: null, note: '' }),
+    /Only the board or Ride Committee can answer invites\./,
+  );
+  const answered = answerInvite({ ...diesel, social: passed.social }, { id: passed.id, answer: 'yes', label: 'non_nuts', bikes: 9, note: ' ' });
+  const yes = answered.invites.find((i) => i.id === passed.id)!;
+  assert.deepEqual([yes.answer, yes.calendarLabel, yes.bikes, yes.note, yes.answeredBy, yes.answeredAt], ['yes', 'non_nuts', null, null, 'm-diesel', now]);
+  const back = answerInvite({ ...diesel, social: answered }, { id: passed.id, answer: 'waiting', label: 'non_nuts', bikes: null, note: '' });
+  assert.deepEqual(
+    [back.invites.find((i) => i.id === passed.id)?.answeredBy, back.invites.find((i) => i.id === passed.id)?.calendarLabel],
+    [null, null],
+  );
+
+  const out = inviteClub({ ...diesel, social: passed.social }, { rideId: 'r-1', clubId: 'oc-2', note: 'Bring the coffee' });
+  const asked = out.social.invites.find((i) => i.id === out.id)!;
+  assert.deepEqual([asked.direction, asked.chapterId, asked.rideId, asked.note], ['out', 'ch-west', 'r-1', 'Bring the coffee']);
+  assert.throws(() => inviteClub({ ...diesel, social: out.social }, { rideId: 'r-1', clubId: 'oc-2', note: '' }), /already been invited/);
+  const off = archiveInvite({ ...diesel, social: out.social }, out.id);
+  assert.equal(off.invites.find((i) => i.id === out.id)?.archivedAt, now);
+  assert.equal(archiveOtherClub({ ...diesel, social: off }, club.id).otherClubs.find((c) => c.id === club.id)?.archivedAt, now);
+});

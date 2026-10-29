@@ -9,6 +9,7 @@ import type { Listing } from '../../domain/social/swap';
 import type { BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, Honour } from '../../domain/social/history';
 import type { Award, Nomination, Vote } from '../../domain/social/brag';
+import type { ClubInvite, OtherClub } from '../../domain/invites';
 import type { SocialData } from './demoSocialActions';
 
 const monthDay = (iso: string) => ({ month: Number(iso.slice(5, 7)), day: Number(iso.slice(8, 10)) });
@@ -78,7 +79,43 @@ export function demoSocialData(today: string): SocialData {
     history: DEMO_HISTORY,
     honours: DEMO_HONOURS,
     ...demoBragging(today),
+    ...demoInvites(today),
   };
+}
+
+/**
+ * Invites to and from other clubs (made-up clubs). In: the Toy Run, accepted and on the calendar;
+ * Ride for Kids, accepted but not linked yet (so the calendar suggestion shows); a bike show ride
+ * Spanner passed on that nobody has answered. Out: two clubs asked to the Christmas ride.
+ */
+function demoInvites(today: string): { otherClubs: OtherClub[]; invites: ClubInvite[] } {
+  const at = '2026-10-10T00:00:00.000Z';
+  const club = (id: string, name: string, town: string, contact: string | null, addedBy: string): OtherClub => ({
+    id, name, town, contact, note: null, addedBy, addedAt: at, archivedAt: null,
+  });
+  const otherClubs: OtherClub[] = [
+    club('oc-1', 'Grease Monkeys MCC', 'Werribee', 'Big Al, 0400 555 101', 'm-rusty'),
+    club('oc-2', 'Southern Cross Cruisers', 'Geelong', 'Their Facebook page', 'm-diesel'),
+    club('oc-3', 'Goldfields Gearheads', 'Bendigo', null, 'm-spanner'),
+  ];
+  const base = {
+    rideId: null, title: null, eventOn: null, place: null, details: null, answer: 'waiting' as const, calendarLabel: null,
+    bikes: null, note: null, addedAt: at, answeredBy: null, answeredAt: null, archivedAt: null,
+  };
+  const invites: ClubInvite[] = [
+    { ...base, id: 'inv-1', direction: 'in', clubId: 'oc-1', chapterId: null, rideId: 'r-3', title: 'Toy Run', eventOn: '2026-11-29',
+      place: 'Werribee Racecourse', details: 'Charity run for the children’s hospital. Bring a wrapped toy.', answer: 'yes',
+      calendarLabel: 'non_nuts', addedBy: 'm-rusty', answeredBy: 'm-rusty', answeredAt: '2026-10-12T00:00:00.000Z' },
+    { ...base, id: 'inv-2', direction: 'in', clubId: 'oc-2', chapterId: 'ch-west', title: 'Ride for Kids', eventOn: '2027-01-17',
+      place: 'Geelong Waterfront', answer: 'yes', calendarLabel: 'supported', note: 'Rusty Bus on recovery.', addedBy: 'm-diesel',
+      answeredBy: 'm-diesel', answeredAt: '2026-10-14T00:00:00.000Z' },
+    { ...base, id: 'inv-3', direction: 'in', clubId: 'oc-3', chapterId: 'ch-west', title: 'Bike show ride', eventOn: addDays(today, 20),
+      place: 'Bendigo Showgrounds', details: 'They ride in together from Castlemaine and park up at the show.', addedBy: 'm-spanner' },
+    { ...base, id: 'inv-4', direction: 'out', clubId: 'oc-1', chapterId: null, rideId: 'r-4', answer: 'yes', bikes: 15,
+      addedBy: 'm-rusty', answeredBy: 'm-rusty', answeredAt: '2026-10-20T00:00:00.000Z' },
+    { ...base, id: 'inv-5', direction: 'out', clubId: 'oc-3', chapterId: null, rideId: 'r-4', addedBy: 'm-rusty' },
+  ];
+  return { otherClubs, invites };
 }
 
 /**

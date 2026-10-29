@@ -144,3 +144,34 @@ test('a table bigger than one page is read page by page', async () => {
   const empty = await allPages(async () => ({ data: [], error: null }));
   assert.deepEqual(empty, { data: [], error: null });
 });
+
+test('other club and invite rows, and their calls', async () => {
+  const { toOtherClubs, toInvites, saveOtherClubArgs, saveInviteInArgs, inviteClubArgs, answerInviteArgs } = await import('./liveSocial');
+  assert.deepEqual(
+    toOtherClubs([{ id: 'c', name: 'N', town: null, contact: 'x', note: null, added_by: null, added_at: 't', archived_at: null }]),
+    [{ id: 'c', name: 'N', town: null, contact: 'x', note: null, addedBy: null, addedAt: 't', archivedAt: null }],
+  );
+  assert.deepEqual(
+    toInvites([{
+      id: 'i', direction: 'in', club_id: 'c', chapter_id: null, ride_id: 'r', title: 'T', event_on: '2026-11-29', place: null,
+      details: null, answer: 'yes', calendar_label: 'supported', bikes: null, note: 'n', added_by: 'a', added_at: 't',
+      answered_by: 'b', answered_at: 'u', archived_at: null,
+    }]),
+    [{
+      id: 'i', direction: 'in', clubId: 'c', chapterId: null, rideId: 'r', title: 'T', eventOn: '2026-11-29', place: null,
+      details: null, answer: 'yes', calendarLabel: 'supported', bikes: null, note: 'n', addedBy: 'a', addedAt: 't',
+      answeredBy: 'b', answeredAt: 'u', archivedAt: null,
+    }],
+  );
+  assert.deepEqual(saveOtherClubArgs({ id: null, name: 'n', town: 't', contact: 'c', note: '' }), {
+    p_id: null, p_name: 'n', p_town: 't', p_contact: 'c', p_note: '',
+  });
+  assert.deepEqual(
+    saveInviteInArgs({ id: 'i', clubId: 'c', chapterId: null, title: 't', eventOn: '2026-11-29', place: '', details: 'd', rideId: null }),
+    { p_id: 'i', p_club: 'c', p_chapter: null, p_title: 't', p_event_on: '2026-11-29', p_place: '', p_details: 'd', p_ride: null },
+  );
+  assert.deepEqual(inviteClubArgs({ rideId: 'r', clubId: 'c', note: '' }), { p_ride: 'r', p_club: 'c', p_note: '' });
+  assert.deepEqual(answerInviteArgs({ id: 'i', answer: 'no', label: null, bikes: null, note: '' }), {
+    p_id: 'i', p_answer: 'no', p_label: null, p_bikes: null, p_note: '',
+  });
+});

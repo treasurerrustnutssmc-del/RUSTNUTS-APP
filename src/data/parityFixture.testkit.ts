@@ -27,6 +27,7 @@ import { directId, runChatAction, type ChatAction, type ChatData } from './chat/
 import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
 import { runSocialAction, type SocialAction, type SocialData } from './social/demoSocialActions'; // Stage 7: social extras
 import type { ListingKind } from '../domain/social/swap'; // Stage 7: social extras
+import type { CalendarLabel, InviteAnswer, InviteDirection } from '../domain/invites'; // Invites to and from other clubs
 import { DOCUMENT_ACTIONS, runDocumentAction, type DocumentAction } from './documentActions'; // Stage 5C
 import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'; // Stage 5D
 import { sharesFor } from '../domain/national'; // Stage 5D
@@ -612,7 +613,39 @@ export function fixtureSocial(today: string = parityToday()): SocialData {
     bragVotes: ((f as { bragVotes?: { award: string; member: string; nomination: string }[] }).bragVotes ?? []).map((v) => ({
       awardId: v.award, memberId: v.member, nominationId: v.nomination,
     })),
+    // Invites to and from other clubs
+    otherClubs: ((f as { otherClubs?: FixtureOtherClub[] }).otherClubs ?? []).map((c) => ({
+      id: c.key, name: c.name, town: null, contact: null, note: null, addedBy: c.addedBy, addedAt: '2026-10-01T00:00:00.000Z',
+      archivedAt: c.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
+    invites: ((f as { invites?: FixtureInvite[] }).invites ?? []).map((i) => ({
+      id: i.key, direction: i.direction, clubId: i.club, chapterId: i.chapter, rideId: i.ride,
+      title: i.direction === 'in' ? 'Fixture event' : null, eventOn: i.direction === 'in' ? '2030-01-01' : null, place: null,
+      details: null, answer: i.answer, calendarLabel: i.label, bikes: null, note: null, addedBy: i.addedBy,
+      addedAt: '2026-10-01T00:00:00.000Z', answeredBy: i.answer === 'waiting' ? null : 'rusty',
+      answeredAt: i.answer === 'waiting' ? null : '2026-10-02T00:00:00.000Z', archivedAt: i.archived ? '2026-10-02T00:00:00.000Z' : null,
+    })),
   };
+}
+
+// Invites to and from other clubs: every incoming invite is for 01/01/2030.
+interface FixtureOtherClub {
+  key: string;
+  name: string;
+  addedBy: string;
+  archived: boolean;
+}
+
+interface FixtureInvite {
+  key: string;
+  direction: InviteDirection;
+  club: string;
+  chapter: string | null;
+  ride: string | null;
+  answer: InviteAnswer;
+  label: CalendarLabel | null;
+  addedBy: string;
+  archived: boolean;
 }
 
 interface FixtureAward {
