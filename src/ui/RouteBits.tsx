@@ -220,7 +220,7 @@ export function SendToGarminButton({ route, kind = 'secondary' }: { route: Pick<
       help={
         ON_WEB
           ? 'Saves a Garmin-ready GPX. Copy it into the unit’s GPX folder, or open it in BaseCamp.'
-          : 'Pick Garmin Tread or Explore from the share sheet, then sync it to your zūmo.'
+          : 'Pick your Garmin app (Tread, Explore or Drive) from the share sheet, then sync it to the unit.'
       }
     />
   );

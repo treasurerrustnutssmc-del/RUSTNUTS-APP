@@ -431,8 +431,13 @@ function scan(text: string): Scanned | null {
  * stops at the smallest tolerance that fits. The first and last points are always kept.
  */
 export function simplify(points: [number, number][], max = 300): [number, number][] {
+  return simplifyIndices(points, max).map((k) => points[k]);
+}
+
+/** Which points simplify keeps, as indices in order. */
+export function simplifyIndices(points: [number, number][], max = 300): number[] {
   const n = points.length;
-  if (n <= max || n <= 2) return points.slice();
+  if (n <= max || n <= 2) return points.map((_p, k) => k);
   // Flatten to a plane around the middle latitude; the tolerance is only used for ranking.
   const midLat = (points[0][0] + points[n - 1][0]) / 2;
   const kx = Math.cos((midLat * Math.PI) / 180);
@@ -469,26 +474,53 @@ export function simplify(points: [number, number][], max = 300): [number, number
   keep[0] = 1;
   keep[n - 1] = 1;
   let kept = 2;
-  const open: { lo: number; hi: number; index: number; dist: number }[] = [];
+  // The open segments, as a binary max-heap on dist, so taking the farthest one is cheap even
+  // when thousands of points are kept.
+  type Seg = { lo: number; hi: number; index: number; dist: number };
+  const open: Seg[] = [];
+  const push = (seg: Seg) => {
+    let k = open.push(seg) - 1;
+    while (k > 0) {
+      const up = (k - 1) >> 1;
+      if (open[up].dist >= open[k].dist) break;
+      [open[up], open[k]] = [open[k], open[up]];
+      k = up;
+    }
+  };
+  const pop = (): Seg => {
+    const top = open[0];
+    const last = open.pop()!;
+    if (open.length > 0) {
+      open[0] = last;
+      let k = 0;
+      for (;;) {
+        const l = 2 * k + 1;
+        const r = l + 1;
+        let big = k;
+        if (l < open.length && open[l].dist > open[big].dist) big = l;
+        if (r < open.length && open[r].dist > open[big].dist) big = r;
+        if (big === k) break;
+        [open[big], open[k]] = [open[k], open[big]];
+        k = big;
+      }
+    }
+    return top;
+  };
   const add = (lo: number, hi: number) => {
     if (hi - lo < 2) return;
     const f = farthest(lo, hi);
-    if (f.index >= 0) open.push({ lo, hi, ...f });
+    if (f.index >= 0) push({ lo, hi, ...f });
   };
   add(0, n - 1);
   while (kept < max && open.length > 0) {
-    let top = 0;
-    for (let k = 1; k < open.length; k++) if (open[k].dist > open[top].dist) top = k;
-    const seg = open[top];
-    open[top] = open[open.length - 1];
-    open.pop();
+    const seg = pop();
     keep[seg.index] = 1;
     kept++;
     add(seg.lo, seg.index);
     add(seg.index, seg.hi);
   }
-  const out: [number, number][] = [];
-  for (let k = 0; k < n; k++) if (keep[k]) out.push(points[k]);
+  const out: number[] = [];
+  for (let k = 0; k < n; k++) if (keep[k]) out.push(k);
   return out;
 }
 

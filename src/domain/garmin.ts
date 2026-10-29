@@ -3,7 +3,7 @@
 // Garmin re-routes between, and more points than a unit keeps, so this writes a fresh plain
 // GPX 1.1 file: the stops as waypoints and one track, followed as drawn.
 
-import { readGpxPoints, simplify } from './gpx';
+import { readGpxPoints, simplifyIndices } from './gpx';
 
 /** The most track points a zūmo or Edge keeps in one track. */
 export const GARMIN_MAX_POINTS = 10_000;
@@ -30,10 +30,8 @@ export function garminGpx(text: string, name: string): { gpx: string } | string 
   const read = readGpxPoints(text);
   if (typeof read === 'string') return read;
 
-  // simplify hands back the same pairs it was given, so each kept pair finds its point again.
   const pairs = read.track.map((p): [number, number] => [p.lat, p.lng]);
-  const index = new Map(pairs.map((pair, k) => [pair, k]));
-  const kept = simplify(pairs, GARMIN_MAX_POINTS).map((pair) => read.track[index.get(pair)!]);
+  const kept = simplifyIndices(pairs, GARMIN_MAX_POINTS).map((k) => read.track[k]);
 
   const title = `<name>${xmlText(name)}</name>`;
   const wpts = read.stops.map((s) => `<wpt ${at(s.lat, s.lng)}><name>${xmlText(s.name)}</name></wpt>`);
@@ -59,6 +57,8 @@ export function garminGpx(text: string, name: string): { gpx: string } | string 
 export function garminFileName(name: string): string {
   const ascii = name
     .normalize('NFKD')
+    // Separators become spaces, so "Omeo/Dargo" doesn't run together; other characters go.
+    .replace(/[/\\:.,;|+&]/g, ' ')
     .replace(/[^A-Za-z0-9 _-]/g, '')
     .replace(/\s+/g, ' ')
     .trim()

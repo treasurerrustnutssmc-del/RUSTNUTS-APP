@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { GARMIN_MAX_POINTS, garminFileName, garminGpx } from './garmin';
 import { NO_TRACK, NOT_GPX, readGpx } from './gpx';
+import type { GpxSummary } from './gpx';
 
 function gpx(body: string, attrs = ''): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="test"${attrs}>${body}</gpx>`;
@@ -24,9 +25,35 @@ test('garminGpx: a plain GPX 1.1 file with the app’s name on the track', () =>
   assert.match(out, /<trk><name>Black Spur loop<\/name><trkseg>/);
   assert.ok(!out.includes('Old name'));
   assert.match(out, /<trkpt lat="-37\.100000" lon="144\.100000"><ele>200\.0<\/ele><\/trkpt>/);
-  // It reads back as the same route.
-  const back = readGpx(out);
-  assert.equal(typeof back, 'object');
+});
+
+test('garminGpx: reads back as the same route, stops and all', () => {
+  const input = gpx(
+    `<wpt lat="-37.3" lon="144.3"><name>Pub</name></wpt><trk><trkseg>${pt(-37.1, 144.1, 200)}${pt(-37.2, 144.25, 260)}${pt(-37.35, 144.3, 240)}</trkseg></trk>`,
+  );
+  const before = readGpx(input) as GpxSummary;
+  const after = readGpx(made(garminGpx(input, 'Loop'))) as GpxSummary;
+  assert.equal(typeof after, 'object');
+  assert.equal(after.name, 'Loop');
+  assert.equal(after.distanceM, before.distanceM);
+  assert.equal(after.climbM, before.climbM);
+  assert.deepEqual(after.line, before.line);
+  assert.deepEqual(after.stops, before.stops);
+});
+
+test('garminGpx: leaves out characters XML refuses in the name', () => {
+  const out = made(garminGpx(gpx(`<trk><trkseg>${pt(1, 1)}${pt(2, 2)}</trkseg></trk>`), 'a\u0001b\uD800c'));
+  assert.ok(out.includes('<name>abc</name>'));
+  assert.equal(typeof readGpx(out), 'object');
+});
+
+test('garminGpx: a 5 MB track comes down to the Garmin limit quickly', () => {
+  const points: string[] = [];
+  for (let k = 0; k < 70_000; k++) points.push(pt(-37 + k * 0.00001, 144 + Math.sin(k / 50) * 0.01, k % 500));
+  const start = Date.now();
+  const out = made(garminGpx(gpx(`<trk><trkseg>${points.join('')}</trkseg></trk>`), 'Big'));
+  assert.equal(count(out, '<trkpt '), GARMIN_MAX_POINTS);
+  assert.ok(Date.now() - start < 1500, `took ${Date.now() - start} ms`);
 });
 
 test('garminGpx: escapes the name', () => {
@@ -91,7 +118,7 @@ test('garminGpx: returns readGpx’s message for a file it can’t use', () => {
 
 test('garminFileName: ASCII only, accents folded, a fallback and a cap', () => {
   assert.equal(garminFileName('Black Spur loop'), 'Black Spur loop.gpx');
-  assert.equal(garminFileName('Café run: Ōmeo/Dargo'), 'Cafe run OmeoDargo.gpx');
+  assert.equal(garminFileName('Café run: Ōmeo/Dargo'), 'Cafe run Omeo Dargo.gpx');
   assert.equal(garminFileName('  🏍️ 🔥 '), 'Rustnuts route.gpx');
   assert.equal(garminFileName('a'.repeat(60)), `${'a'.repeat(40)}.gpx`);
   assert.equal(garminFileName('Two   spaces'), 'Two spaces.gpx');
