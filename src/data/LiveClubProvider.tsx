@@ -513,6 +513,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
           p_chapter: input.chapterId,
           p_meeting: input.meetingId,
           p_subject: input.subjectMemberId,
+          // The seat a vote about a Full Member is for; left out otherwise, so older databases still take the call.
+          ...(input.subjectRole ? { p_role: input.subjectRole } : {}),
           p_question: input.question,
           p_details: input.details,
           p_electorate: input.electorate,

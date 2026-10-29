@@ -35,6 +35,9 @@ export type PositionRole =
   // Stage 3 (lane B): a club position held on top of any rank or other position
   | 'charity_committee';
 
+/** The national seats the NEC votes people into by two-thirds: the Secretary (11.6) and the Auditor (11.8). */
+export type NecSeatRole = Extract<PositionRole, 'nec_auditor' | 'nec_secretary'>;
+
 export type LicenceClass = 'full_open' | 'probationary_open' | 'learner';
 
 export interface Chapter {
@@ -499,6 +502,8 @@ export interface Vote {
   meetingId: string | null;
   /** The member a patch vote is about. */
   subjectMemberId: string | null;
+  /** Which national seat a two-thirds NEC vote about a Full Member is for (11.6, 11.8). */
+  subjectRole: NecSeatRole | null;
   question: string;
   details: string | null;
   electorate: Electorate;

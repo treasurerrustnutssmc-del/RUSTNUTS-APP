@@ -3,7 +3,7 @@ import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigat
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FeedItem } from '../data/chat/chatContext';
 import type { PickedMedia } from '../domain/chat';
-import type { CrewRole } from '../domain/types';
+import type { CrewRole, NecSeatRole } from '../domain/types';
 
 export type TabParams = {
   Home: undefined;
@@ -38,7 +38,7 @@ export type RootParams = {
   Meeting: { meetingId: string };
   EditMeeting: { meetingId?: string; chapterId?: string | null } | undefined;
   Vote: { voteId: string };
-  NewVote: { chapterId?: string | null; meetingId?: string; subjectMemberId?: string } | undefined;
+  NewVote: { chapterId?: string | null; meetingId?: string; subjectMemberId?: string; subjectRole?: NecSeatRole } | undefined;
   // ride crew
   PickCrew: { rideId: string; role: CrewRole };
   // ride routes

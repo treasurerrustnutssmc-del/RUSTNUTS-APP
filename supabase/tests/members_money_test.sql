@@ -208,7 +208,7 @@ begin
   assert pg_temp.try_as(tre, format($q$select public.set_fee_rate(%L, %s, 'fng', 15000, %L)$q$, west, fy, private.club_date() + 30)) is null, 'fng rate';
   assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a1', format($q$select public.set_fee_rate(%L, %s, 'supporter', 5000, %L)$q$, west, fy, private.club_date() + 30)) is null, 'the chapter board sets fees';
   assert pg_temp.try_as(rita, format($q$select public.set_fee_rate(%L, %s, 'full', 1, %L)$q$, west, fy, private.club_date() + 30)) = 'Only that chapter’s board sets its fees.', 'not a member';
-  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a5', format('select public.set_continuation_fee(%L, %s, 100)', west, fy)) = 'Only that chapter’s board sets its fees.', 'not the auditor';
+  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a5', format($q$select public.set_fee_rate(%L, %s, 'full', 1, %L)$q$, west, fy, private.club_date() + 30)) = 'Only that chapter’s board sets its fees.', 'not the auditor';
   -- Someone on hiatus doesn't pay.
   insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000b1', 'hank@example.com', now());
   insert into members (id, chapter_id, full_name, road_name, status, approval, on_hiatus)

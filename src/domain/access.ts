@@ -7,7 +7,7 @@ import { addMonths } from './profile';
 import { melbourneDate } from './rides';
 import { addDays } from './dates';
 import { termState } from './terms';
-import type { ClubData, Member, MemberStatus, Position, PositionRole } from './types';
+import type { ClubData, Member, MemberStatus, NecSeatRole, Position, PositionRole } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'family' | 'member' | 'board' | 'national';
 
@@ -41,6 +41,8 @@ export function holdsBoardSeat(memberId: string, chapterId: string, positions: P
  * and never runs anything (11.8), so they aren't one.
  */
 export const NEC_OFFICER_ROLES: PositionRole[] = ['nec_chair', 'nec_secretary'];
+/** The seats the NEC votes people into by two-thirds, and the Chairman then fills (11.6, 11.8). */
+export const NEC_SEATS: NecSeatRole[] = ['nec_auditor', 'nec_secretary'];
 
 /** Sits on the National Executive Committee: the Chairman, the Secretary, or any sitting chapter President. */
 export function isNational(memberId: string, positions: Position[]): boolean {
@@ -187,29 +189,38 @@ export function appointProblem(
   const open = data.positions.filter((p) => p.endedOn === null && p.role === role && p.chapterId === seatChapter);
   if (open.some((p) => p.memberId === target.id)) return 'They already hold that role.';
   if ((BOARD_ROLES.includes(role) || national) && open.length > 0) return 'That seat is taken. End the current term first.';
-  if (role === 'nec_auditor' && !hasCarriedAuditorVote(target.id, data, today)) return AUDITOR_NEEDS_VOTE;
+  // The Auditor (11.8) and the Secretary (11.6) are seated after a carried two-thirds NEC vote about them.
+  if (isNecSeat(role) && !hasCarriedSeatVote(target.id, role, data, today)) return seatNeedsVote(role);
   return null;
 }
 
-/** How long a carried vote to appoint the Auditor stays good for (inferred, as for reinstatement). */
+export const isNecSeat = (role: PositionRole): role is NecSeatRole => NEC_SEATS.includes(role as NecSeatRole);
+
+/** How long a carried vote to fill a national seat stays good for (inferred, as for reinstatement). */
 export const AUDITOR_VOTE_DAYS = 90;
 export const AUDITOR_NOT_NEC = 'The National Auditor isn’t on the NEC, so can’t also be National Chairman or Secretary (11.8).';
 export const AUDITOR_NEEDS_VOTE = 'Appointing the National Auditor needs a carried two-thirds NEC vote about them in the last 90 days (11.8).';
+export const SECRETARY_NEEDS_VOTE = 'Appointing the National Secretary needs a carried two-thirds NEC vote about them in the last 90 days (11.6).';
+export const seatNeedsVote = (seat: NecSeatRole) => (seat === 'nec_auditor' ? AUDITOR_NEEDS_VOTE : SECRETARY_NEEDS_VOTE);
 
 /**
- * The NEC voted by two-thirds, in the last 90 days, to appoint this member National Auditor (11.8).
- * The vote has to close after their last Auditor term began, so one vote seats them only once.
+ * The NEC voted by two-thirds, in the last 90 days, to seat this member as National Auditor (11.8) or
+ * Secretary (11.6). The vote names its seat, and has to close after their last term in that seat
+ * began, so one vote seats them once. Mirrors private.has_carried_nec_vote.
  */
-export function hasCarriedAuditorVote(memberId: string, data: ClubData, today: string): boolean {
+export function hasCarriedSeatVote(memberId: string, seat: NecSeatRole, data: ClubData, today: string): boolean {
   const since = addDays(today, -AUDITOR_VOTE_DAYS);
   const lastStart = data.positions
-    .filter((p) => p.memberId === memberId && p.role === 'nec_auditor')
+    .filter((p) => p.memberId === memberId && p.role === seat)
     .reduce((max, p) => (p.startedOn > max ? p.startedOn : max), '');
   return (data.votes ?? []).some(
-    (v) => v.subjectMemberId === memberId && v.chapterId === null && v.electorate === 'nec' && v.threshold === 'two_thirds'
-      && v.closedAt !== null && v.result === 'carried' && melbourneDate(v.closedAt) >= since && melbourneDate(v.closedAt) > lastStart,
+    (v) => v.subjectMemberId === memberId && v.subjectRole === seat && v.chapterId === null && v.electorate === 'nec'
+      && v.threshold === 'two_thirds' && v.closedAt !== null && v.result === 'carried'
+      && melbourneDate(v.closedAt) >= since && melbourneDate(v.closedAt) > lastStart,
   );
 }
+
+export const hasCarriedAuditorVote = (memberId: string, data: ClubData, today: string) => hasCarriedSeatVote(memberId, 'nec_auditor', data, today);
 
 /** The sitting Auditor's seat, if there is one. */
 export function auditorSeat(data: ClubData): Position | null {

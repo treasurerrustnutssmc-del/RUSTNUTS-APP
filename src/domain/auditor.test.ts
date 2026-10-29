@@ -14,13 +14,15 @@ import { canSeeActionItem, canSeeMeeting, canSeeMinutes, reviewsScope, runsScope
 import { seesItem, seesOrder } from './merch';
 import { club, member, who } from './stage4.testkit';
 import type { ActionItem, ClubData, Meeting, MerchItem, MerchOrder, Position, Vote } from './types';
-import { AUDITOR_VOTE, canSeeVote, openVoteProblem, REINSTATE_VOTE, type VoteInput } from './votes';
+import {
+  AUDITOR_VOTE, canSeeVote, openVoteProblem, REINSTATE_VOTE, SEAT_VOTE_FULL_ONLY, SEAT_VOTE_IS_NATIONAL, SEAT_VOTE_NEEDS_SEAT, type VoteInput,
+} from './votes';
 
 const TODAY = '2026-10-29';
 const NOW = '2026-10-29T01:00:00.000Z';
 
 const auditorVote = (memberId: string, over: Partial<Vote> = {}): Vote => ({
-  id: `v-aud-${memberId}`, chapterId: null, meetingId: null, subjectMemberId: memberId, question: 'Appoint the National Auditor?',
+  id: `v-aud-${memberId}`, chapterId: null, meetingId: null, subjectMemberId: memberId, subjectRole: 'nec_auditor', question: 'Appoint the National Auditor?',
   details: null, electorate: 'nec', threshold: 'two_thirds', secret: false, quorum: 1,
   openedAt: '2026-10-10T00:00:00.000Z', closesAt: '2026-10-20T00:00:00.000Z', closedAt: '2026-10-20T00:00:00.000Z',
   result: 'carried', castingVote: null, tally: null, electorIds: [], votedIds: [], ballots: [], createdBy: 'chair', ...over,
@@ -133,7 +135,7 @@ test('the Auditor reads merch items and orders (event funds) but doesn’t run t
 // 3. Appointment by a two-thirds NEC vote, renewable ---------------------------------------------
 
 const voteInput = (over: Partial<VoteInput> = {}): VoteInput => ({
-  chapterId: null, meetingId: null, subjectMemberId: 'rider', question: 'Appoint Rider as National Auditor?', details: null,
+  chapterId: null, meetingId: null, subjectMemberId: 'rider', subjectRole: 'nec_auditor', question: 'Appoint Rider as National Auditor?', details: null,
   electorate: 'nec', threshold: 'two_thirds', secret: false, quorum: 1, closesAt: '2026-11-05T01:00:00.000Z', ...over,
 });
 
@@ -144,9 +146,13 @@ test('an NEC two-thirds vote about a Full Member is an auditor appointment vote 
   assert.equal(openVoteProblem(chair, voteInput({ threshold: 'majority' }), d, NOW), AUDITOR_VOTE);
   assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: 'tre' }), d, NOW), AUDITOR_VOTE); // a Treasurer
   assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: 'pres' }), d, NOW), AUDITOR_VOTE); // a President
-  // Reinstatement is unchanged: a majority vote on someone who isn't Full, Nomad or an FNG.
-  assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: 'legacy', threshold: 'majority' }), d, NOW), null);
-  assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: 'legacy' }), d, NOW), REINSTATE_VOTE);
+  // Reinstatement is unchanged: a majority vote on someone who isn't Full, Nomad or an FNG, and no seat.
+  assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: 'legacy', threshold: 'majority', subjectRole: null }), d, NOW), null);
+  assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: 'legacy', subjectRole: null }), d, NOW), REINSTATE_VOTE);
+  assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: 'legacy', threshold: 'majority' }), d, NOW), SEAT_VOTE_FULL_ONLY);
+  // The vote names its seat.
+  assert.equal(openVoteProblem(chair, voteInput({ subjectRole: null }), d, NOW), SEAT_VOTE_NEEDS_SEAT);
+  assert.equal(openVoteProblem(chair, voteInput({ subjectMemberId: null }), d, NOW), SEAT_VOTE_IS_NATIONAL);
   // The Auditor can't open one.
   assert.notEqual(openVoteProblem(who(d, 'auditor'), voteInput(), d, NOW), null);
 });

@@ -323,5 +323,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_auditor -f "$ROOT/supabase/tests/auditor_test.sql"
 
+# The launch audit's database repairs, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_audit_fixes" >/dev/null
+"${PSQL[@]}" -d rustnuts_audit_fixes -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_audit_fixes -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_audit_fixes -f "$ROOT/supabase/tests/audit_fixes_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
 

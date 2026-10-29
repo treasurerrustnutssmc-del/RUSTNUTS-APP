@@ -15,7 +15,7 @@ import {
 } from '../domain/meetings';
 import { melbourneDate } from '../domain/rides';
 import type { BallotChoice, ClubData, Meeting, Tally, Vote } from '../domain/types';
-import { castProblem, closeProblem, decide, electorsFor, openVoteProblem, type Casting, type VoteInput } from '../domain/votes';
+import { castProblem, closeProblem, electorsFor, openVoteProblem, outcome, type Casting, type VoteInput } from '../domain/votes';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
 
@@ -112,6 +112,7 @@ export function openVote(ctx: DemoCtx, input: VoteInput): { data: ClubData; id: 
     chapterId: input.chapterId,
     meetingId: input.meetingId,
     subjectMemberId: input.subjectMemberId,
+    subjectRole: input.subjectRole,
     question: input.question.trim(),
     details: blankToNull(input.details),
     electorate: input.electorate,
@@ -157,7 +158,7 @@ export function closeVote(ctx: DemoCtx, voteId: string, casting: Casting | null)
   const vote = votesOf(ctx.data).find((v) => v.id === voteId);
   const tally = vote ? tallyOf(vote.ballots) : null;
   refuse(closeProblem(ctx.me, vote, tally, casting, ctx.data, nowOf(ctx)));
-  const { result } = decide(vote!.threshold, vote!.quorum, tally!, casting, vote!.electorIds.length);
+  const { result } = outcome(vote!, tally!, casting, ctx.data.members);
   const castingVote = casting === 'decline' ? null : casting;
   // A patch vote keeps only its result (4.9). An NEC vote on someone is an ordinary vote.
   if (vote!.subjectMemberId !== null && vote!.electorate === 'chapter_patched') {

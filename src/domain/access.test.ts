@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoData';
-import type { Position } from './types';
+import type { Position, Vote } from './types';
 import {
   accessLevel,
   appointProblem,
+  AUDITOR_NEEDS_VOTE,
   canApprove,
   canManageMember,
   canSeeMember,
@@ -14,6 +15,7 @@ import {
   isBoardOf,
   isNecOfficer,
   pendingFor,
+  SECRETARY_NEEDS_VOTE,
   visibleMembers,
   withHolders,
 } from './access';
@@ -128,10 +130,23 @@ test('a member cannot hold the same open role twice', () => {
   assert.equal(allowed(appointProblem(m('m-torque'), m('m-chook'), 'ch-west', 'officer', d)), false);
 });
 
-test('only the National Chairman hands out the other national roles', () => {
-  assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), null, 'nec_secretary', d)), false);
-  assert.equal(allowed(appointProblem(m('m-smokey'), m('m-spanner'), null, 'nec_secretary', d)), false); // a President
-  assert.equal(allowed(appointProblem(m('m-rusty'), m('m-spanner'), null, 'nec_secretary', d)), true); // the Chairman
+test('only the National Chairman hands out the other national roles, and the Secretary after the NEC’s two-thirds vote (11.6)', () => {
+  const today = '2026-10-29';
+  assert.equal(allowed(appointProblem(m('m-torque'), m('m-spanner'), null, 'nec_secretary', d, today)), false);
+  assert.equal(allowed(appointProblem(m('m-smokey'), m('m-spanner'), null, 'nec_secretary', d, today)), false); // a President
+  assert.equal(appointProblem(m('m-rusty'), m('m-spanner'), null, 'nec_secretary', d, today), SECRETARY_NEEDS_VOTE); // the Chairman, once the NEC has voted
+  const secretaryVote: Vote = {
+    id: 'v-sec', chapterId: null, meetingId: null, subjectMemberId: 'm-spanner', subjectRole: 'nec_secretary', question: 'Appoint Spanner as National Secretary?',
+    details: null, electorate: 'nec', threshold: 'two_thirds', secret: false, quorum: 1, openedAt: '2026-10-10T00:00:00.000Z',
+    closesAt: '2026-10-20T00:00:00.000Z', closedAt: '2026-10-20T00:00:00.000Z', result: 'carried', castingVote: null, tally: null,
+    electorIds: ['m-smokey'], votedIds: ['m-smokey'], ballots: [], createdBy: 'm-rusty',
+  };
+  const voted = { ...d, votes: [...(d.votes ?? []), secretaryVote] };
+  assert.equal(allowed(appointProblem(m('m-rusty'), m('m-spanner'), null, 'nec_secretary', voted, today)), true);
+  const freeAuditor = { ...voted, positions: voted.positions.filter((p) => p.role !== 'nec_auditor') };
+  assert.equal(appointProblem(m('m-rusty'), m('m-spanner'), null, 'nec_auditor', freeAuditor, today), AUDITOR_NEEDS_VOTE, 'a Secretary vote is not an Auditor vote');
+  const auditorVoted = { ...d, votes: [{ ...secretaryVote, subjectRole: 'nec_auditor' as const }] };
+  assert.equal(appointProblem(m('m-rusty'), m('m-spanner'), null, 'nec_secretary', auditorVoted, today), SECRETARY_NEEDS_VOTE);
 });
 
 test('nobody seats a National Chairman in the app; that follows the vote, recorded by the admin', () => {

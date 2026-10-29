@@ -35,8 +35,9 @@ export async function registerThisDevice(): Promise<void> {
   }
 }
 
-/** Removes this phone from the club's list. Gives up after 3 seconds so sign-out never hangs; the
- *  token is then kept on the phone and removed next time the app opens signed out. */
+/** Removes this phone from the club's list, while still signed in (only the owner may). Gives up
+ *  after 3 seconds so sign-out never hangs; the phone then stays listed until the next sign-in
+ *  on it registers it again, for whoever that is. */
 export async function forgetThisDevice(): Promise<void> {
   try {
     const token = await AsyncStorage.getItem(KEY);

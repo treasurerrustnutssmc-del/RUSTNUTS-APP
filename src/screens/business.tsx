@@ -29,20 +29,9 @@ import {
 } from '../domain/meetings';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
-import type {
-  ActionItem,
-  AgendaItem,
-  BallotChoice,
-  ClubData,
-  Electorate,
-  Meeting,
-  MeetingKind,
-  Member,
-  Threshold,
-  Vote,
-} from '../domain/types';
+import type { ActionItem, AgendaItem, BallotChoice, ClubData, Electorate, Meeting, MeetingKind, Member, NecSeatRole, Threshold, Vote } from '../domain/types';
 import { auditorSeat } from '../domain/access';
-import { castProblem, chairOf, defaultQuorum, electorsFor, REINSTATABLE, ruleLine, TIE } from '../domain/votes';
+import { castProblem, chairOf, defaultQuorum, electorsFor, lacksChapters, REINSTATABLE, ruleLine, TIE } from '../domain/votes';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import {
@@ -765,7 +754,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
         <Row style={{ gap: 6 }}>
           <Chip label={scopeLabel(vote.chapterId, data)} tone="steel" />
           {subject ? (
-            <Chip label={vote.electorate !== 'nec' ? 'Patch vote' : vote.threshold === 'two_thirds' ? 'Auditor vote' : 'NEC vote'} tone="redOutline" />
+            <Chip label={vote.electorate !== 'nec' ? 'Patch vote' : vote.subjectRole ? SEAT_VOTE_LABEL[vote.subjectRole] : 'NEC vote'} tone="redOutline" />
           ) : null}
           {vote.secret ? <Chip label="Secret ballot" tone="bone" icon="lock-closed" /> : null}
         </Row>
@@ -795,13 +784,21 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
           ) : vote.result === 'lost' && vote.threshold === 'majority' && vote.tally && vote.tally.yes > 0 && vote.tally.yes === vote.tally.no ? (
             <Small>Tied with no casting vote, so it’s lost (9.10).</Small>
           ) : null}
-          {vote.result === 'no_quorum' ? <Small>{`Fewer than ${vote.quorum} ballots came in, so the vote doesn’t count.`}</Small> : null}
-          {subject && vote.result === 'carried' && runs && (vote.electorate !== 'nec' || REINSTATABLE.includes(subject.status) || vote.threshold === 'two_thirds') ? (
+          {vote.result === 'no_quorum' ? (
+            <Small>
+              {lacksChapters(vote, data.members)
+                ? 'Voters from fewer than 51% of the chapters took part (10.6), so the vote doesn’t count.'
+                : `Fewer than ${vote.quorum} ballots came in, so the vote doesn’t count.`}
+            </Small>
+          ) : null}
+          {subject && vote.result === 'carried' && runs && (vote.electorate !== 'nec' || REINSTATABLE.includes(subject.status) || vote.subjectRole) ? (
             <Button
               label={
                 vote.electorate !== 'nec'
                   ? `Record ${displayName(subject)}’s patch`
-                  : vote.threshold === 'two_thirds' ? `${auditorSeat(data)?.memberId === subject.id ? 'Renew' : 'Appoint'} ${displayName(subject)} as Auditor` : `Bring ${displayName(subject)} back`
+                  : vote.subjectRole === 'nec_auditor'
+                    ? `${auditorSeat(data)?.memberId === subject.id ? 'Renew' : 'Appoint'} ${displayName(subject)} as Auditor`
+                    : vote.subjectRole === 'nec_secretary' ? `Appoint ${displayName(subject)} as Secretary` : `Bring ${displayName(subject)} back`
               }
               kind="secondary"
               onPress={() => navigation.navigate('ManageMember', { memberId: subject.id })}
@@ -875,6 +872,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
       {!closed && runs ? (
         <Stack gap={space.sm}>
           <SectionTitle title="Close the vote" />
+          {subject && vote.threshold === 'majority' ? <Small>No casting vote on a vote about a member: a tie is lost (10.7).</Small> : null}
           {!pastTime && !everyone ? (
             <Small>{`It can be closed once it’s past closing time, or as soon as everyone has voted.`}</Small>
           ) : tied && isChair ? (
@@ -957,6 +955,9 @@ const QUORUM_RULE: Record<Electorate, string> = {
 };
 
 /** A week from today, at 7 pm Melbourne time. */
+/** What the chip on a vote for a national seat says. */
+const SEAT_VOTE_LABEL: Record<NecSeatRole, string> = { nec_auditor: 'Auditor vote', nec_secretary: 'Secretary vote' };
+
 function defaultClose(): { date: string; time: string } {
   const week = new Date(Date.now() + 7 * 86_400_000).toISOString();
   return { date: formatAuDate(melbourneDate(week)), time: '19:00' };
@@ -968,23 +969,27 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   const scopes = scopesRun(me, data);
   const subject = params.subjectMemberId ? data.members.find((m) => m.id === params.subjectMemberId) : undefined;
   // A vote about a member: the chapter's patch vote on an FNG (4.9), the NEC's on bringing someone back (5.6),
-  // or the NEC's two-thirds vote on a Full Member as National Auditor (11.8).
-  const auditor = !!subject && subject.status === 'full';
-  const renewing = auditor && auditorSeat(data)?.memberId === subject.id;
-  const reinstate = !!subject && subject.status !== 'fng' && !auditor;
-  const national = reinstate || auditor;
+  // or the NEC's two-thirds vote on a Full Member for a national seat: Auditor (11.8) or Secretary (11.6).
+  const seat = subject?.status === 'full' ? params.subjectRole ?? null : null;
+  const auditor = seat === 'nec_auditor';
+  const secretary = seat === 'nec_secretary';
+  const renewing = auditor && auditorSeat(data)?.memberId === subject!.id;
+  const reinstate = !!subject && subject.status !== 'fng' && subject.status !== 'full';
+  const national = reinstate || seat !== null;
   const fixedScope = params.chapterId !== undefined || !!subject;
   const [scope, setScope] = useState<string | null>(
     national ? null : subject ? subject.chapterId : params.chapterId !== undefined ? params.chapterId : scopes[0] ?? null,
   );
   const [electorate, setElectorate] = useState<Electorate>(national ? 'nec' : subject ? 'chapter_patched' : electoratesFor(scope)[0]);
-  const [threshold, setThreshold] = useState<Threshold>(auditor ? 'two_thirds' : subject && !reinstate ? 'unanimous' : 'majority');
+  const [threshold, setThreshold] = useState<Threshold>(seat ? 'two_thirds' : subject && !reinstate ? 'unanimous' : 'majority');
   const [question, setQuestion] = useState(
     auditor
       ? renewing
-        ? `Keep ${displayName(subject)} on as National Auditor for another twelve months?`
-        : `Appoint ${displayName(subject)} as National Auditor for twelve months?`
-      : reinstate ? `Bring ${displayName(subject)} back to Full or Nomad?` : subject ? `Patch ${displayName(subject)} as a Full member?` : '',
+        ? `Keep ${displayName(subject!)} on as National Auditor for another twelve months?`
+        : `Appoint ${displayName(subject!)} as National Auditor for twelve months?`
+      : secretary
+        ? `Appoint ${displayName(subject!)} as National Secretary?`
+        : reinstate ? `Bring ${displayName(subject)} back to Full or Nomad?` : subject ? `Patch ${displayName(subject)} as a Full member?` : '',
   );
   const [details, setDetails] = useState('');
   const [secret, setSecret] = useState(!!subject && !national);
@@ -1014,6 +1019,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
         chapterId: scope,
         meetingId: params.meetingId ?? null,
         subjectMemberId: subject?.id ?? null,
+        subjectRole: seat,
         question,
         details: details || null,
         electorate,
@@ -1038,6 +1044,10 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
       {auditor ? (
         <Notice title="NEC vote, two-thirds">
           {`Each chapter’s President votes for their chapter (11.2), and it needs at least two yes for every no. If it carries, the National Chairman can ${renewing ? 'renew' : 'appoint'} ${displayName(subject!)} ${renewing ? 'for another twelve months' : 'National Auditor'} within 90 days (11.8).`}
+        </Notice>
+      ) : secretary ? (
+        <Notice title="NEC vote, two-thirds">
+          {`Each chapter’s President votes for their chapter (11.2), and it needs at least two yes for every no. If it carries, the National Chairman can appoint ${displayName(subject!)} National Secretary within 90 days (11.6).`}
         </Notice>
       ) : reinstate ? (
         <Notice title="NEC vote">

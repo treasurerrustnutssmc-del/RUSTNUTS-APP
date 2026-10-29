@@ -17,7 +17,7 @@ import { club, member } from './stage4.testkit';
 import type { ChapterProposal, ClubData, Contribution, Vote } from './types';
 
 const vote = (id: string, over: Partial<Vote> = {}): Vote => ({
-  id, chapterId: 'west', meetingId: null, subjectMemberId: null, question: 'Fund the national run?', details: null,
+  id, chapterId: 'west', meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Fund the national run?', details: null,
   electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 1, openedAt: '2026-10-21T00:00:00.000Z',
   closesAt: '2026-10-25T00:00:00.000Z', closedAt: '2026-10-25T00:00:00.000Z', result: 'carried', castingVote: null,
   tally: { yes: 2, no: 0, abstain: 0 }, electorIds: [], votedIds: [], ballots: [], createdBy: null, ...over,

@@ -234,8 +234,12 @@ begin
   update rides set starts_at = now() + interval '83 days' where id = '00000000-0000-0000-0000-0000000000b9';
   res := public.push_take(10);
   assert res->'messages'->0->'rev' = 'false'::jsonb, res::text;
-  assert pg_temp.try_as(null, 'anon', $s$select public.forget_push_device('ExponentPushToken[shared]')$s$) is null,
-    'a phone that signed out with no signal removes itself later, signed out';
+  -- A phone is forgotten by whoever it belongs to, signed in (the app does that before signing out).
+  assert pg_temp.try_as(null, 'anon', $s$select public.forget_push_device('ExponentPushToken[shared]')$s$) is not null,
+    'signed out, a phone can''t be forgotten';
+  assert pg_temp.try_as(rita, 'authenticated', $s$select public.forget_push_device('ExponentPushToken[shared]')$s$) is null
+    and exists (select 1 from push_devices where token = 'ExponentPushToken[shared]'), 'someone else''s call changes nothing';
+  assert pg_temp.try_as(tom, 'authenticated', $s$select public.forget_push_device('ExponentPushToken[shared]')$s$) is null;
   assert not exists (select 1 from push_devices where token = 'ExponentPushToken[shared]'), 'signing out removes this phone';
 end $$;
 
