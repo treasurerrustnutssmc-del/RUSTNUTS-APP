@@ -68,6 +68,7 @@ import {
 } from '../domain/fees';
 import { decideApplicationProblem, fngReviewProblem } from '../domain/joining';
 import { agmDateProblem, recordAgmProblem } from '../domain/clubYear';
+import { forFamily } from './familyData'; // Family view
 import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
 // Lane E: offline
@@ -238,6 +239,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   // giving them someone else's (or nobody's) access level.
   const visibleMe = view === 'ready' ? me : null;
   const level = accessLevel(visibleMe, data.positions);
+  // Family view: the database already trims what Family get; this keeps the app to the same.
+  const shown = useMemo(() => (level === 'family' && visibleMe ? forFamily(data, visibleMe) : data), [level, visibleMe, data]);
 
   const refresh = useCallback(() => reload(userId), [reload, userId]);
 
@@ -251,7 +254,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     mode: 'live',
     isDemo: false,
     loading: !started || view === 'loading',
-    data,
+    data: shown,
     me: visibleMe,
     level,
     today,

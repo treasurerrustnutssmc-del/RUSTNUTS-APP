@@ -37,6 +37,7 @@ import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import { RideCheckinCard } from './checkin'; // Stage 4
 import { Big4Card } from './attendance'; // Attendance rules and Big 4 rides
 import { isBig4 } from '../domain/big4';
+import { isFamily } from '../domain/access'; // Family view
 import {
   Avatar,
   Body,
@@ -67,7 +68,7 @@ function startLabel(ride: Ride): string {
 }
 
 /** "7:30 am – 12:00 pm", or the end's date too when it finishes on another day. */
-function timeRange(ride: Ride): string {
+export function timeRange(ride: Ride): string {
   if (ride.allDay || !ride.endsAt) return startLabel(ride);
   const sameDay = melbourneDate(ride.endsAt) === melbourneDate(ride.startsAt);
   const end = sameDay ? melbourneTime(ride.endsAt) : `${formatAuDate(melbourneDate(ride.endsAt))} ${melbourneTime(ride.endsAt)}`;
@@ -78,7 +79,7 @@ const ANSWER_ICON: Record<RsvpAnswer, IconName> = { going: 'checkmark-circle', m
 const ANSWER_TONE = { going: 'ok', maybe: 'warn', no: 'steel' } as const;
 
 /** A category colour chip, in the website's colours. */
-function RideChip({ category }: { category: RideCategory }) {
+export function RideChip({ category }: { category: RideCategory }) {
   const c = rideColors[category];
   return (
     <View style={[styles.rideChip, { backgroundColor: c.bg, borderColor: c.bg }]}>
@@ -106,7 +107,8 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
-      {me.approval === 'approved' ? (
+      {/* Family view: no route library or Rusty Bus for Family */}
+      {me.approval === 'approved' && !isFamily(me) ? (
         <Card style={{ padding: 0, gap: 0 }}>
           <ListRow
             left={<IconBadge icon="map-outline" />}
@@ -192,7 +194,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
   );
 }
 
-function RideRow({
+export function RideRow({
   ride,
   going,
   mine,
