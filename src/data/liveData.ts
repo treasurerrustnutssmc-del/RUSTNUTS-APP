@@ -66,6 +66,15 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     },
     () => [],
   );
+  // Family view: Family get the rides here (ride_calendar() is empty for them). Nothing for anyone
+  // else, and nothing rather than blocking the app until the database has it.
+  const familyLoad = db.rpc('family_rides').then(
+    (r) => {
+      if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('family_rides:', r.error.message);
+      return r.error ? [] : (r.data ?? []);
+    },
+    () => [],
+  );
   const [
     members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs, bus,
   ] = await Promise.all([
@@ -169,6 +178,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
   const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
+  const familyRides = await familyLoad;
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
@@ -241,7 +251,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       startedOn: p.started_on,
       endedOn: p.ended_on,
     })),
-    rides: (calendar.data?.rides ?? []).map((r) => ({
+    rides: [...(calendar.data?.rides ?? []), ...familyRides].map((r) => ({
       id: r.id,
       title: r.title,
       startsAt: instant(r.starts_at),

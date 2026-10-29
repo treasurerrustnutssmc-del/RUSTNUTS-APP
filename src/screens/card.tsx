@@ -53,7 +53,7 @@ export function MembershipCardScreen({ navigation }: RootScreen<'MembershipCard'
         {card.showDisc ? <MemberDisc size={120} compass={compassFor(me, data)} /> : null}
         <View style={{ alignSelf: 'stretch', gap: 2 }}>
           <KeyValue label="Chapter" value={chapter?.name ?? '—'} />
-          {me.joinedOn ? <KeyValue label="Member since" value={formatAuDate(me.joinedOn)} /> : null}
+          {me.joinedOn ? <KeyValue label={me.status === 'family' ? 'With the club since' : 'Member since'} value={formatAuDate(me.joinedOn)} /> : null}
           {card.showDisc && me.patchedOn ? <KeyValue label="Patched" value={formatAuDate(me.patchedOn)} /> : null}
           <KeyValue label="Club year" value={card.clubYear} />
         </View>

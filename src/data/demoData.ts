@@ -470,6 +470,7 @@ export const DEMO_DATA: ClubData = {
 export const DEMO_PERSONAS = [
   { level: 'public', memberId: null, label: 'Public', blurb: 'Not signed in' },
   { level: 'pending', memberId: 'm-dylan', label: 'Applicant', blurb: 'Dylan, waiting on approval' },
+  { level: 'family', memberId: 'm-kerry', label: 'Family', blurb: 'Kerry, Diesel’s partner' },
   { level: 'member', memberId: 'm-spanner', label: 'Member', blurb: 'Spanner, West Tail Gunner' },
   { level: 'board', memberId: 'm-torque', label: 'Board', blurb: 'Torque, West Secretary' },
   { level: 'national', memberId: 'm-rusty', label: 'National', blurb: 'Rusty, West President and NEC Chair' },

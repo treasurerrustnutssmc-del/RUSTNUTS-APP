@@ -96,7 +96,8 @@ const RUN_GAP_MS = 5 * 60_000;
 /** Why `me` can't use the chats at all, or null. */
 export function approvalProblem(me: Member | null): string | null {
   if (!me) return 'Sign in first.';
-  if (me.approval !== 'approved') return 'Only approved members can do that.';
+  // Family use the app without the chats (mirrors private.is_approved_member).
+  if (me.approval !== 'approved' || me.status === 'family') return 'Only approved members can do that.';
   return null;
 }
 
@@ -230,6 +231,7 @@ export function directProblem(me: Member | null, target: Member | undefined, blo
   if (!target) return 'That member no longer exists.';
   if (target.id === me.id) return 'You can’t message yourself.';
   if (target.approval !== 'approved') return 'They’re not an approved member.';
+  if (target.status === 'family') return 'Family don’t use the club chats.';
   if (me.status === 'introduced') return 'Private chats open up once you’re an FNG.';
   if (target.status === 'introduced') return 'They can’t get private messages until they’re an FNG.';
   if (blockedBetween(me.id, target.id, blocks)) return 'You can’t message them.';

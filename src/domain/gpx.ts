@@ -431,8 +431,13 @@ function scan(text: string): Scanned | null {
  * stops at the smallest tolerance that fits. The first and last points are always kept.
  */
 export function simplify(points: [number, number][], max = 300): [number, number][] {
+  return simplifyIndices(points, max).map((k) => points[k]);
+}
+
+/** Which points simplify keeps, as indices in order. */
+export function simplifyIndices(points: [number, number][], max = 300): number[] {
   const n = points.length;
-  if (n <= max || n <= 2) return points.slice();
+  if (n <= max || n <= 2) return points.map((_p, k) => k);
   // Flatten to a plane around the middle latitude; the tolerance is only used for ranking.
   const midLat = (points[0][0] + points[n - 1][0]) / 2;
   const kx = Math.cos((midLat * Math.PI) / 180);
@@ -469,30 +474,81 @@ export function simplify(points: [number, number][], max = 300): [number, number
   keep[0] = 1;
   keep[n - 1] = 1;
   let kept = 2;
-  const open: { lo: number; hi: number; index: number; dist: number }[] = [];
+  // The open segments, as a binary max-heap on dist, so taking the farthest one is cheap even
+  // when thousands of points are kept.
+  type Seg = { lo: number; hi: number; index: number; dist: number };
+  const open: Seg[] = [];
+  const push = (seg: Seg) => {
+    let k = open.push(seg) - 1;
+    while (k > 0) {
+      const up = (k - 1) >> 1;
+      if (open[up].dist >= open[k].dist) break;
+      [open[up], open[k]] = [open[k], open[up]];
+      k = up;
+    }
+  };
+  const pop = (): Seg => {
+    const top = open[0];
+    const last = open.pop()!;
+    if (open.length > 0) {
+      open[0] = last;
+      let k = 0;
+      for (;;) {
+        const l = 2 * k + 1;
+        const r = l + 1;
+        let big = k;
+        if (l < open.length && open[l].dist > open[big].dist) big = l;
+        if (r < open.length && open[r].dist > open[big].dist) big = r;
+        if (big === k) break;
+        [open[big], open[k]] = [open[k], open[big]];
+        k = big;
+      }
+    }
+    return top;
+  };
   const add = (lo: number, hi: number) => {
     if (hi - lo < 2) return;
     const f = farthest(lo, hi);
-    if (f.index >= 0) open.push({ lo, hi, ...f });
+    if (f.index >= 0) push({ lo, hi, ...f });
   };
   add(0, n - 1);
   while (kept < max && open.length > 0) {
-    let top = 0;
-    for (let k = 1; k < open.length; k++) if (open[k].dist > open[top].dist) top = k;
-    const seg = open[top];
-    open[top] = open[open.length - 1];
-    open.pop();
+    const seg = pop();
     keep[seg.index] = 1;
     kept++;
     add(seg.lo, seg.index);
     add(seg.index, seg.hi);
   }
-  const out: [number, number][] = [];
-  for (let k = 0; k < n; k++) if (keep[k]) out.push(points[k]);
+  const out: number[] = [];
+  for (let k = 0; k < n; k++) if (keep[k]) out.push(k);
   return out;
 }
 
 // ---- The reader ----
+
+/** The points a route is drawn from, at full detail, with the stops as readGpx names them. */
+export interface GpxPoints {
+  track: { lat: number; lng: number; ele: number | null }[];
+  stops: GpxSummary['stops'];
+}
+
+/** The stops in a scanned file: the first MAX_STOPS waypoints, unnamed ones numbered. */
+function stopsOf(scanned: Scanned): GpxSummary['stops'] {
+  return scanned.wpt.slice(0, MAX_STOPS).map((w, k) => ({ name: w.name !== '' ? w.name : `Stop ${k + 1}`, lat: w.lat, lng: w.lng }));
+}
+
+/**
+ * Reads every track point (route points when there is no track) and the stops, or returns the
+ * message readGpx would. For writing the route out again, as the Garmin copy does.
+ */
+export function readGpxPoints(text: string): GpxPoints | string {
+  if (text.length > MAX_BYTES || utf8Bytes(text) > MAX_BYTES) return TOO_BIG;
+  const scanned = scan(text);
+  if (!scanned) return NOT_GPX;
+  const chosen = scanned.trk.length > 0 ? scanned.trk : scanned.rte;
+  if (chosen.length < 2) return NO_TRACK;
+  return { track: chosen.map((p) => ({ lat: p.lat, lng: p.lng, ele: p.ele })), stops: stopsOf(scanned) };
+}
 
 /** Reads a GPX file into a summary, or returns the message to show when it can't be used. */
 export function readGpx(text: string): GpxSummary | string {
@@ -537,7 +593,7 @@ export function readGpx(text: string): GpxSummary | string {
     distanceM: Math.round(distance),
     climbM: withEle >= 2 ? Math.round(climb) : null,
     line: simplify(coords),
-    stops: scanned.wpt.slice(0, MAX_STOPS).map((w, k) => ({ name: w.name !== '' ? w.name : `Stop ${k + 1}`, lat: w.lat, lng: w.lng })),
+    stops: stopsOf(scanned),
     bounds: { minLat, minLng, maxLat, maxLng },
   };
 }

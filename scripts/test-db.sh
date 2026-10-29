@@ -277,6 +277,13 @@ echo "$out" | grep -q 'Paste attendance-big4.sql first.' || { echo "Wrong refusa
 "${PSQL[@]}" -d rustnuts_big4_order -tAc "select count(*) from pg_proc where proname = 'big4_problem'" | grep -qx 0 \
   || { echo "The Big 4 RSVP migration changed something without attendance-big4.sql"; exit 1; }
 echo 'The Big 4 RSVP migration refuses to go in before attendance-big4.sql, and changes nothing'
+# The family view, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_family" >/dev/null
+"${PSQL[@]}" -d rustnuts_family -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_family -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_family -f "$ROOT/supabase/tests/family_view_test.sql"
 
 echo 'ALL DATABASE CHECKS PASSED'
 

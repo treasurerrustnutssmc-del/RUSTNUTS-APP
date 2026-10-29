@@ -498,6 +498,14 @@ export type Database = {
       };
       shared_phones: { Args: never; Returns: { member_id: string; phone: string }[] };
       claim_roster: { Args: never; Returns: boolean };
+      /** Family view: the calendar from today on, ride columns only. Empty for anyone who isn't Family. */
+      family_rides: {
+        Args: never;
+        Returns: Pick<
+          Database['public']['Tables']['rides']['Row'],
+          'id' | 'starts_at' | 'ends_at' | 'all_day' | 'title' | 'location' | 'notes' | 'category' | 'cancelled_at'
+        >[];
+      };
       unclaimed_roster_counts: { Args: never; Returns: { chapter_id: string; status: MemberStatus; n: number }[] };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
       end_position: { Args: { p_position: string }; Returns: undefined };
