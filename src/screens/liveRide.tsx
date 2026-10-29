@@ -33,7 +33,7 @@ import {
   Small,
   Stack,
 } from '../ui/primitives';
-import { RideMap } from '../ui/RideMap';
+import { hasRealMap, RideMap } from '../ui/RideMap';
 import { NavigateChooser } from '../ui/RouteBits';
 
 const open = (url: string) => Linking.openURL(url).catch(() => {});
@@ -255,7 +255,7 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
         <Button label="Call 000" icon="call-outline" kind="quiet" onPress={() => open('tel:000')} />
       </Stack>
 
-      {pins.length > 0 || rideRoute ? (
+      {(hasRealMap() && pins.length > 0) || rideRoute ? (
         <Stack gap={space.sm}>
           <SectionTitle title="Map" />
           <RideMap route={rideRoute} riders={pins} regroup={regroup?.position ?? null} height={320} />

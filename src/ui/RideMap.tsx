@@ -6,7 +6,7 @@
 import Constants from 'expo-constants';
 import { useImage, type ImageRef } from 'expo-image';
 import { AppleMaps, GoogleMaps } from 'expo-maps';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { boundsAround, fitCamera, mapsAvailable, type PinTone, type RiderPin } from '../domain/rideMap';
 import { formatKm } from '../domain/routes';
@@ -59,6 +59,10 @@ const toCoords = (p: LatLng) => ({ latitude: p.lat, longitude: p.lng });
 
 export function RideMap({ route = null, riders = [], regroup = null, height = 280 }: RideMapProps) {
   const [width, setWidth] = useState(0);
+  // The map's first view, kept as it is: both maps move the camera whenever this changes, so a
+  // fresh fit on every rider update would yank back anyone who had zoomed in. Fit puts it back.
+  const [initial, setInitial] = useState<Camera | null>(null);
+  const moverRef = useRef<Mover | null>(null);
   if (!canMap) return route ? <RouteShape route={route} /> : null;
   const points = [...riders.map((r) => r.position), ...(regroup ? [regroup] : [])];
   const bounds = boundsAround(route?.bounds ?? null, points);
@@ -70,16 +74,16 @@ export function RideMap({ route = null, riders = [], regroup = null, height = 28
   ]
     .filter(Boolean)
     .join(', ');
+  const fit = width > 0 ? fitCamera(bounds, width, height, PAD) : null;
+  if (fit && !initial) setInitial(fit);
   return (
     <View style={{ gap: space.sm }}>
-      <View
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel={label}
-        onLayout={(e) => setWidth(Math.floor(e.nativeEvent.layout.width))}
-        style={[styles.tile, { height }]}
-      >
-        {width > 0 ? <NativeMap route={route} riders={riders} regroup={regroup} camera={fitCamera(bounds, width, height, PAD)} /> : null}
+      {/* The label sits on the map alone, so the fit button beside it stays reachable. */}
+      <View onLayout={(e) => setWidth(Math.floor(e.nativeEvent.layout.width))} style={[styles.tile, { height }]}>
+        <View accessible accessibilityRole="image" accessibilityLabel={label} style={StyleSheet.absoluteFill}>
+          {initial ? <NativeMap route={route} riders={riders} regroup={regroup} camera={initial} moverRef={moverRef} /> : null}
+        </View>
+        {initial ? <RecentreButton onPress={() => moverRef.current?.(fit ?? initial)} /> : null}
       </View>
       <MapKey route={!!route} riders={riders} regroup={!!regroup} />
     </View>
@@ -88,7 +92,11 @@ export function RideMap({ route = null, riders = [], regroup = null, height = 28
 
 type Camera = LatLng & { zoom: number };
 
-function NativeMap(props: { route: MapRoute | null; riders: RiderPin[]; regroup: LatLng | null; camera: Camera }) {
+/** Moves the map's camera; each map fills it in once it has its ref. */
+type Mover = (to: Camera) => void;
+type MapParts = { route: MapRoute | null; riders: RiderPin[]; regroup: LatLng | null; camera: Camera; moverRef: React.RefObject<Mover | null> };
+
+function NativeMap(props: MapParts) {
   return Platform.OS === 'ios' ? <AppleMap {...props} /> : <GoogleMap {...props} />;
 }
 
@@ -105,8 +113,11 @@ function RecentreButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function AppleMap({ route, riders, regroup, camera }: { route: MapRoute | null; riders: RiderPin[]; regroup: LatLng | null; camera: Camera }) {
+function AppleMap({ route, riders, regroup, camera, moverRef }: MapParts) {
   const ref = useRef<AppleMaps.MapView>(null);
+  useEffect(() => {
+    moverRef.current = (to) => ref.current?.setCameraPosition({ coordinates: toCoords(to), zoom: to.zoom });
+  }, [moverRef]);
   const start = route?.line[0];
   const finish = route?.line[route.line.length - 1];
   const markers: AppleMaps.Marker[] = [
@@ -117,7 +128,7 @@ function AppleMap({ route, riders, regroup, camera }: { route: MapRoute | null; 
     ...riders.map((r) =>
       r.tone === 'help'
         ? { id: `rider-${r.memberId}`, coordinates: toCoords(r.position), title: `${r.name} needs help`, systemImage: 'exclamationmark.triangle.fill', tintColor: APPLE_TINT.help }
-        : { id: `rider-${r.memberId}`, coordinates: toCoords(r.position), title: r.tone === 'me' ? 'You' : r.name, monogram: initialsOf(r.name), tintColor: APPLE_TINT[r.tone] },
+        : { id: `rider-${r.memberId}`, coordinates: toCoords(r.position), title: r.tone === 'me' ? 'You' : r.name, ...(initialsOf(r.name) ? { monogram: initialsOf(r.name) } : { systemImage: 'person.fill' }), tintColor: APPLE_TINT[r.tone] },
     ),
   ];
   return (
@@ -132,7 +143,6 @@ function AppleMap({ route, riders, regroup, camera }: { route: MapRoute | null; 
         uiSettings={{ compassEnabled: true, scaleBarEnabled: true, myLocationButtonEnabled: false }}
         properties={{ isMyLocationEnabled: false, selectionEnabled: true }}
       />
-      <RecentreButton onPress={() => ref.current?.setCameraPosition({ coordinates: toCoords(camera), zoom: camera.zoom })} />
     </>
   );
 }
@@ -155,8 +165,11 @@ function useGooglePins(): Record<'start' | 'finish' | 'stop' | 'regroup' | PinTo
 
 const MIDDLE = { x: 0.5, y: 0.5 };
 
-function GoogleMap({ route, riders, regroup, camera }: { route: MapRoute | null; riders: RiderPin[]; regroup: LatLng | null; camera: Camera }) {
+function GoogleMap({ route, riders, regroup, camera, moverRef }: MapParts) {
   const ref = useRef<GoogleMaps.MapView>(null);
+  useEffect(() => {
+    moverRef.current = (to) => ref.current?.setCameraPosition({ coordinates: toCoords(to), zoom: to.zoom, duration: 400 });
+  }, [moverRef]);
   const pins = useGooglePins();
   const icon = (img: ImageRef | null) => (img ? { icon: img, anchor: MIDDLE } : {});
   const start = route?.line[0];
@@ -186,7 +199,6 @@ function GoogleMap({ route, riders, regroup, camera }: { route: MapRoute | null;
         uiSettings={{ compassEnabled: true, mapToolbarEnabled: false, myLocationButtonEnabled: false, zoomControlsEnabled: false, scaleBarEnabled: true }}
         properties={{ isMyLocationEnabled: false, isBuildingEnabled: false, isIndoorEnabled: false }}
       />
-      <RecentreButton onPress={() => ref.current?.setCameraPosition({ coordinates: toCoords(camera), zoom: camera.zoom, duration: 400 })} />
     </>
   );
 }

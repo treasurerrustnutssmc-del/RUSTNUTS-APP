@@ -8,6 +8,7 @@ Show a ride's locked route, and on a live ride the riders, on a real map inside 
 ## Decisions
 - **The phone's own map, through `expo-maps`** (the Expo-recommended module): Apple Maps on iPhone, Google Maps on Android. No map account is needed for iPhones.
 - **Android needs a Google Maps key.** `app.config.ts` reads it at build time from the EAS environment variable `GOOGLE_MAPS_ANDROID_KEY` and sets `extra.androidMaps`. The key never sits in the repo. The key is restricted to Maps SDK for Android and to `au.com.rustnutssmc.app` with the EAS signing SHA-1.
+- **Builds and over-the-air updates must agree.** The key also sets `extra.androidMaps`, which reaches the app in the update manifest, and the runtime version is a fingerprint of the config. So the key lives in the EAS project's environment variables (preview, production and development), not on one build profile, and `eas update` runs with `--environment` so it sees the same value.
 - **Fallback.** Where a map can't be drawn, the existing drawn route shape shows instead: the web preview, iPhones before iOS 17 (`expo-maps` needs 17 for Apple Maps), and Android builds without the key. The app's minimum iOS doesn't change.
 - **What's on the map:**
   - the route line (club red)

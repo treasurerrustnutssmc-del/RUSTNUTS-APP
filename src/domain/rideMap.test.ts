@@ -32,7 +32,7 @@ test('the camera centres on the bounds and zooms so they fit', () => {
   const cam = fitCamera(b, 390, 260, 24);
   assert.ok(Math.abs(cam.lat - -37.75) < 0.01);
   assert.ok(Math.abs(cam.lng - 144.8) < 1e-9);
-  // 0.4° of longitude across ~342 px is about zoom 9.7; it rounds down so nothing is cut off.
+  // The 0.3° of latitude in ~212 px is the tighter fit (about zoom 9.6); it rounds down so nothing is cut off.
   assert.ok(cam.zoom >= 9 && cam.zoom < 10, `zoom ${cam.zoom}`);
   // A bigger box zooms in no less.
   assert.ok(fitCamera(b, 780, 520, 24).zoom > cam.zoom);
