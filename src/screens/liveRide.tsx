@@ -10,6 +10,8 @@ import { smsUrl } from '../data/liveQueue';
 import { useLiveRide } from '../data/useLiveRide';
 import { awayText, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, offTime, splitGroups, splitWarning } from '../domain/liveRide';
 import { initials } from '../domain/profile';
+import { riderPins } from '../domain/rideMap';
+import { routeOf } from '../domain/routes';
 import type { LatLng, LiveRider, Ride, RideAlert } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 // Lane E: ride comms
@@ -31,6 +33,8 @@ import {
   Small,
   Stack,
 } from '../ui/primitives';
+import { RideMap } from '../ui/RideMap';
+import { NavigateChooser } from '../ui/RouteBits';
 
 const open = (url: string) => Linking.openURL(url).catch(() => {});
 const mapsUrl = (p: LatLng) => `https://maps.google.com/?q=${p.lat},${p.lng}`;
@@ -171,6 +175,10 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
   // Riders away from the main group, marked for leaders so they know who to wait for.
   const splitOff = new Set(split ? splitGroups(state.riders, now).slice(1).flat().map((r) => r.memberId) : []);
   const leaderPhones = state.riders.filter((r) => r.leader && r.phone && r.memberId !== me.id).map((r) => r.phone as string);
+  const helpIds = new Set(urgent.filter((a) => a.kind === 'emergency').map((a) => a.memberId));
+  if (myEmergency) helpIds.add(me.id);
+  const pins = riderPins(state.riders, now, { meId: me.id, help: helpIds, splitOff });
+  const rideRoute = routeOf(ride.id, data);
   const textUrl = smsUrl(Platform.OS, leaderPhones, `Rustnuts emergency. I'm here: ${myPos ? mapsUrl(myPos) : 'location unknown'}`);
 
   return (
@@ -231,7 +239,7 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
             <Small style={{ color: colors.boneDim }}>
               {`${awayText(myPos, regroup.position) ?? 'Location unknown'} · set by ${regroup.name} ${lastSeen(regroup.createdAt, now)}`}
             </Small>
-            {regroup.position ? <Button label="Open in maps" icon="map-outline" kind="secondary" onPress={() => open(mapsUrl(regroup.position as LatLng))} /> : null}
+            {regroup.position ? <NavigateChooser to={regroup.position} toLabel="the regroup pin" /> : null}
           </Stack>
         </Notice>
       ) : null}
@@ -246,6 +254,13 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
         ) : null}
         <Button label="Call 000" icon="call-outline" kind="quiet" onPress={() => open('tel:000')} />
       </Stack>
+
+      {pins.length > 0 || rideRoute ? (
+        <Stack gap={space.sm}>
+          <SectionTitle title="Map" />
+          <RideMap route={rideRoute} riders={pins} regroup={regroup?.position ?? null} height={320} />
+        </Stack>
+      ) : null}
 
       <Stack gap={space.sm}>
         <SectionTitle title="Riders" action={<Text style={styles.count}>{state.riders.length}</Text>} />
@@ -304,14 +319,10 @@ function AlertBlock({
     <Notice tone={kind === 'emergency' ? 'danger' : 'warn'} title={ALERT_TITLE[kind](alert.name)}>
       <Stack gap={space.sm}>
         <Small style={{ color: colors.boneDim }}>{`${awayText(myPos, alert.position) ?? 'Location unknown'} · ${lastSeen(alert.createdAt, now)}`}</Small>
-        <Row style={{ gap: space.sm }}>
-          {alert.position ? (
-            <Button label="Open in maps" icon="map-outline" kind="secondary" onPress={() => open(mapsUrl(alert.position as LatLng))} style={{ flexGrow: 1 }} />
-          ) : null}
-          {alert.phone ? (
-            <Button label={`Call ${alert.name}`} icon="call-outline" kind="secondary" onPress={() => open(telUrl(alert.phone as string))} style={{ flexGrow: 1 }} />
-          ) : null}
-        </Row>
+        {alert.position ? <NavigateChooser to={alert.position} toLabel={alert.name} /> : null}
+        {alert.phone ? (
+          <Button label={`Call ${alert.name}`} icon="call-outline" kind="secondary" onPress={() => open(telUrl(alert.phone as string))} />
+        ) : null}
         {contacts.length > 0 ? (
           <Stack gap={space.xs}>
             <Text style={styles.contactsTitle}>Emergency contacts</Text>

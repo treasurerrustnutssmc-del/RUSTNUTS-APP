@@ -2,12 +2,13 @@
 // row, and the button that hands a route to a maps app.
 
 import React, { useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { openInMapsApp } from '../data/routeFiles';
 import { formatClimb, formatKm, routeChapterName } from '../domain/routes';
 import { routeScore, starsLine } from '../domain/ratings';
-import type { ClubData, Route } from '../domain/types';
+import { navigateOptions, type NavApp } from '../domain/rideMap';
+import type { ClubData, LatLng, Route } from '../domain/types';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import { Button, Card, Chip, Ionicons, Notice, Row, Small, Stack } from './primitives';
 import { RouteShape } from './RouteShape';
@@ -180,6 +181,69 @@ export function OpenInMapsButton({ route, kind = 'primary' }: { route: Pick<Rout
   );
 }
 
+const NAV_ICON: Record<NavApp, React.ComponentProps<typeof Ionicons>['name']> = {
+  apple: 'logo-apple',
+  google: 'logo-google',
+  waze: 'car-outline',
+};
+
+/**
+ * "Navigate": opens a row of maps apps the rider picks from, all heading to `to` (Apple Maps on an
+ * iPhone, Google Maps, Waze). With a `route`, the list ends with the locked GPX for OsmAnd or
+ * MyRoute, which follow the route itself rather than their own way to one spot. No pop-up: the
+ * choices open in place, since the web preview can't show dialogs.
+ */
+export function NavigateChooser({
+  to,
+  toLabel,
+  route,
+  kind = 'secondary',
+}: {
+  to: LatLng;
+  /** What `to` is, for the button: "the start", "the regroup pin", "Rocko". */
+  toLabel: string;
+  route?: Pick<Route, 'id' | 'name'>;
+  kind?: 'primary' | 'secondary';
+}) {
+  const [open, setOpen] = useState(false);
+  const options = navigateOptions(to, Platform.OS);
+  return (
+    <Stack gap={space.sm}>
+      <Button
+        label={open ? 'Close' : 'Navigate'}
+        icon={open ? 'close' : 'navigate-outline'}
+        kind={open ? 'quiet' : kind}
+        accessibilityLabel={open ? 'Close the maps apps' : `Navigate to ${toLabel}`}
+        onPress={() => setOpen((o) => !o)}
+      />
+      {open ? (
+        <Card style={{ gap: space.sm }}>
+          <Text style={styles.navTitle}>{`To ${toLabel}`}</Text>
+          {options.map((o) => (
+            <Button
+              key={o.app}
+              label={o.label}
+              icon={NAV_ICON[o.app]}
+              kind="secondary"
+              accessibilityLabel={`Navigate to ${toLabel} in ${o.label}`}
+              onPress={() => {
+                Linking.openURL(o.url).catch(() => {});
+                setOpen(false);
+              }}
+            />
+          ))}
+          {route ? (
+            <>
+              <Text style={[styles.navTitle, { marginTop: space.sm }]}>The whole route</Text>
+              <OpenInMapsButton route={route} kind="secondary" />
+            </>
+          ) : null}
+        </Card>
+      ) : null}
+    </Stack>
+  );
+}
+
 const styles = StyleSheet.create({
   chip: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' },
   chipText: { fontFamily: fonts.stencil, fontSize: 11.5, letterSpacing: 1, textTransform: 'uppercase' },
@@ -203,4 +267,5 @@ const styles = StyleSheet.create({
   item: { borderBottomWidth: 1, borderBottomColor: colors.line },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 72, padding: space.md },
   rowError: { paddingHorizontal: space.md, paddingBottom: space.md },
+  navTitle: { fontFamily: fonts.stencil, fontSize: 14, letterSpacing: 0.6, color: colors.bone, textTransform: 'uppercase' },
 });

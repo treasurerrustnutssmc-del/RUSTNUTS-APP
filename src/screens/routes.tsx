@@ -47,7 +47,8 @@ import {
   Toggle,
 } from '../ui/primitives';
 import { RouteRatings } from './ridePlanning'; // Ride planning extras
-import { ChapterChip, chapterColours, OpenInMapsButton, RouteFacts, RouteRow, StopList } from '../ui/RouteBits';
+import { ChapterChip, chapterColours, NavigateChooser, OpenInMapsButton, RouteFacts, RouteRow, StopList } from '../ui/RouteBits';
+import { RideMap } from '../ui/RideMap';
 import { RouteShape } from '../ui/RouteShape';
 
 /** Chapter filters and choices use this for "Whole club" (a route with no chapter). */
@@ -193,9 +194,13 @@ export function RouteScreen({ route: nav, navigation }: RootScreen<'Route'>) {
         <RouteFacts route={route} />
       </Stack>
 
-      <RouteShape route={route} />
+      <RideMap route={route} />
 
-      <OpenInMapsButton route={route} />
+      {route.line.length > 0 ? (
+        <NavigateChooser to={{ lat: route.line[0][0], lng: route.line[0][1] }} toLabel="the start" route={route} kind="primary" />
+      ) : (
+        <OpenInMapsButton route={route} />
+      )}
 
       {route.archivedAt ? (
         <Notice tone="warn">Archived: it’s out of the library, but the rides that use it keep it.</Notice>

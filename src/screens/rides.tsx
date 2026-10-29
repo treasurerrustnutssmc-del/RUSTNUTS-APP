@@ -56,8 +56,8 @@ import {
   Stack,
   type IconName,
 } from '../ui/primitives';
-import { ChapterChip, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
-import { RouteShape } from '../ui/RouteShape';
+import { ChapterChip, NavigateChooser, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
+import { RideMap } from '../ui/RideMap';
 
 /** "7:30 am", "All day", or "All day, to 31/01/2027". */
 function startLabel(ride: Ride): string {
@@ -717,7 +717,7 @@ function RouteSection({
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.boneMute} />
             </Pressable>
-            <RouteShape route={route} />
+            <RideMap route={route} />
             <RouteFacts route={route} />
             {route.stops.length > 0 ? (
               <Stack gap={space.xs}>
@@ -725,7 +725,11 @@ function RouteSection({
                 <StopList stops={route.stops} flat />
               </Stack>
             ) : null}
-            <OpenInMapsButton route={route} kind="secondary" />
+            {route.line.length > 0 ? (
+              <NavigateChooser to={{ lat: route.line[0][0], lng: route.line[0][1] }} toLabel="the start" route={route} />
+            ) : (
+              <OpenInMapsButton route={route} kind="secondary" />
+            )}
             {canChange ? (
               <Row style={styles.crewActions}>
                 {removing ? (

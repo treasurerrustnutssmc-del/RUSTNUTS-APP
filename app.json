@@ -123,7 +123,8 @@
           "microphonePermission": "Rustnuts uses your microphone for ride comms, and to record voice notes and the sound with videos for club chats.",
           "recordAudioAndroid": true
         }
-      ]
+      ],
+      "expo-maps"
     ],
     "owner": "rustnutssmcs-team",
     "runtimeVersion": {
