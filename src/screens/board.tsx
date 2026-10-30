@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useClub } from '../data/ClubStore';
 import {
-  appointProblem, appointWarnings, auditorSeat, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, holdsBoardSeat, isChairman, pendingFor, renewAuditorProblem, statusChangeProblem,
+  appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, holdsBoardSeat, isBoardOf, isChairman, pendingFor, renewAuditorProblem, statusChangeProblem,
 } from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
 import { signoffSummary } from '../domain/roadRules';
 import { melbourneDate } from '../domain/rides';
-import { auditorVoteFor, nineMonthsAfter, patchVoteFor, patchVoteTooEarly, REINSTATABLE, reinstateVoteFor, seatVoteFor } from '../domain/votes';
-import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
+import { auditorVoteFor, nineMonthsAfter, patchVoteFor, patchVoteTooEarly, REINSTATABLE, reinstateVoteFor, removalVoteFor, seatVoteFor } from '../domain/votes';
+import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER, TITLE_ROLES } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
-import type { Member, MemberStatus, PositionRole, Votes } from '../domain/types';
+import type { Member, MemberStatus, Position, PositionRole, Votes } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 // Stage 4
@@ -49,6 +50,7 @@ import {
   Small,
   Stack,
   StatusChip,
+  Toggle,
 } from '../ui/primitives';
 
 
@@ -288,9 +290,10 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
 // ---------------------------------------------------------------------------
 
 export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMember'>) {
-  const { me, data, today, setMemberStatus, appoint, endPosition, renewAuditor } = useClub();
+  const { me, data, today, setMemberStatus, appoint, renewAuditor } = useClub();
   const member = data.members.find((m) => m.id === route.params.memberId);
   const [status, setStatus] = useState<MemberStatus | null>(member?.status ?? null);
+  const [byRequest, setByRequest] = useState(false);
   const [role, setRole] = useState<PositionRole | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'danger'; text: string } | null>(null);
   if (!member || !me) return null;
@@ -300,7 +303,14 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const roleOptions = [...BOARD_ROLES, ...CLUB_ROLES, ...NATIONAL_ROLES].filter(
     (r) => appointProblem(me, member, member.chapterId, r, data, today) === null,
   );
-  const statusBlock = status && status !== member.status ? statusChangeProblem(me, member, status, data, today) : null;
+  const statusBlock = status && status !== member.status ? statusChangeProblem(me, member, status, data, today, byRequest) : null;
+  // Moving an FNG, Full Member or Nomad to Supporter follows a decided 5.5 notice, unless it's at their request (L2).
+  // The toggle shows only when the request is what stands between the board and the move.
+  const gatedToSupporter =
+    status === 'supporter' && ['fng', 'full', 'nomad'].includes(member.status) && isBoardOf(me, member.chapterId, data.positions)
+    && statusChangeProblem(me, member, status, data, today, true) === null;
+  const decidedNotice = gatedToSupporter ? decidedNoticeFor(member.id, data, today) : null;
+  const history = (data.statusChanges ?? []).filter((c) => c.memberId === member.id).sort((a, b) => b.changedAt.localeCompare(a.changedAt));
   const warnings = role ? appointWarnings(member, role, data, today) : [];
   const holdsNothing = member.status !== 'full' && member.status !== 'nomad';
   // Stage 5: the patch vote on this FNG (open, or the latest result), or the chance to start one.
@@ -374,6 +384,17 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
           value={status}
           onChange={setStatus}
         />
+        {gatedToSupporter ? (
+          <Toggle
+            label="At the member’s request"
+            description="They asked to step back to Supporter, so no 5.5 notice is needed. The record says so."
+            value={byRequest}
+            onChange={setByRequest}
+          />
+        ) : null}
+        {gatedToSupporter && decidedNotice && !byRequest ? (
+          <Small>{`Their 5.5 notice was decided on ${formatAuDate(decidedNotice.closedOn!)}, so the board can move them to Supporter.`}</Small>
+        ) : null}
         {statusBlock ? (
           <Small style={{ color: colors.warn }}>{statusBlock}</Small>
         ) : member.status === 'fng' ? (
@@ -433,8 +454,22 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         <Button
           label="Change status"
           disabled={!status || status === member.status || statusBlock !== null}
-          onPress={() => status && run(() => setMemberStatus(member.id, status), `${displayName(member)} is now ${STATUS_LABEL[status]}.`)}
+          onPress={() => status && run(() => setMemberStatus(member.id, status, byRequest), `${displayName(member)} is now ${STATUS_LABEL[status]}.`)}
         />
+        {history.length ? (
+          <Stack gap={2}>
+            <Label>Status changes</Label>
+            {history.slice(0, 5).map((c) => {
+              const by = c.changedBy ? data.members.find((m) => m.id === c.changedBy) : undefined;
+              const how = c.byRequest ? ' at their request' : c.noticeId ? ' after a 5.5 notice' : '';
+              return (
+                <Small key={c.id}>
+                  {`${formatAuDate(c.changedOn)}: ${STATUS_LABEL[c.fromStatus]} to ${STATUS_LABEL[c.toStatus]}${how}${by ? `, by ${displayName(by)}` : ''}.`}
+                </Small>
+              );
+            })}
+          </Stack>
+        ) : null}
       </Card>
 
       <Card style={{ gap: space.md }}>
@@ -450,14 +485,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
                 tone={termState(p, today) === 'running' ? undefined : 'warn'}
               />
             ) : null}
-            {endTermProblem(me, p, data) === null ? (
-              <ConfirmButton
-                label="End term"
-                confirmLabel={`End ${ROLE_LABEL[p.role]} term`}
-                kind="quiet"
-                onConfirm={() => run(() => endPosition(p.id), `${ROLE_LABEL[p.role]} term ended today.`)}
-              />
-            ) : null}
+            <TermActions position={p} member={member} />
           </View>
         ))}
         {/* The National Auditor (11.8) */}
@@ -542,6 +570,56 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         )}
       </Card>
     </Screen>
+  );
+}
+
+/**
+ * What `me` can do about one term on the Manage member screen: step down from their own, end it after
+ * a carried removal vote, or start that vote (9.3). The vote's shape follows the role: two-thirds of
+ * the chapter's Full Members for a board seat, a majority of the chapter board otherwise.
+ */
+function TermActions({ position: p, member }: { position: Position; member: Member }) {
+  const { me, data, today, endPosition } = useClub();
+  const navigation = useNavigation<RootScreen<'ManageMember'>['navigation']>();
+  const [error, setError] = useState<string | null>(null);
+  if (!me) return null;
+  const own = p.memberId === me.id;
+  const problem = endTermProblem(me, p, data, today);
+  const role = ROLE_LABEL[p.role];
+  const end = () => endPosition(p.id).then(() => setError(null), (e: Error) => setError(e.message));
+  if (problem === null) {
+    return (
+      <>
+        {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+        <ConfirmButton label={own ? 'Step down' : 'End term'} confirmLabel={own ? `Step down as ${role}` : `End ${role} term`} kind="quiet" onConfirm={end} />
+      </>
+    );
+  }
+  // A chapter role someone else holds: the chapter board can start, or follow, the removal vote.
+  if (own || p.chapterId === null || TITLE_ROLES.includes(p.role) || !runsScope(me, p.chapterId, data.positions)) return null;
+  const vote = removalVoteFor(p, data.votes ?? []);
+  const open = vote !== null && vote.closedAt === null;
+  const boardSeat = BOARD_ROLES.includes(p.role);
+  return (
+    <>
+      <Small>
+        {vote && !open
+          ? `Removal vote closed ${formatAuDate(melbourneDate(vote.closedAt!))}: ${RESULT_LABEL[vote.result!]}.`
+          : boardSeat
+            ? 'Removing a board member takes a two-thirds vote of the chapter’s Full Members (9.3).'
+            : 'Ending someone’s chapter role takes a majority vote of the chapter board (9.3).'}
+      </Small>
+      {vote ? (
+        <Button label={open ? 'See the removal vote' : 'See the result'} kind="secondary" onPress={() => navigation.navigate('Vote', { voteId: vote.id })} />
+      ) : null}
+      {!open ? (
+        <Button
+          label="Start removal vote"
+          kind="secondary"
+          onPress={() => navigation.navigate('NewVote', { chapterId: p.chapterId, subjectMemberId: member.id, subjectRole: p.role })}
+        />
+      ) : null}
+    </>
   );
 }
 

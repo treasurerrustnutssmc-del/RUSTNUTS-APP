@@ -414,11 +414,11 @@
       "allowed": false
     },
     {
-      "name": "National Chair ends the West President's term",
+      "name": "National Chair ends the West President's term with no removal vote (9.3)",
       "as": "chair",
       "action": "endTerm",
       "position": "rusty-president",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "A West President ends the North President's term",
@@ -435,25 +435,25 @@
       "allowed": false
     },
     {
-      "name": "National Chair ends the North President's term",
+      "name": "National Chair ends the North President's term with no removal vote (9.3)",
       "as": "chair",
       "action": "endTerm",
       "position": "smokey-president",
-      "allowed": true
-    },
-    {
-      "name": "Secretary ends her own term",
-      "as": "torque",
-      "action": "endTerm",
-      "position": "torque-secretary",
       "allowed": false
     },
     {
-      "name": "Secretary ends the Tail Gunner's term",
+      "name": "Secretary steps down from her own term (9.3)",
+      "as": "torque",
+      "action": "endTerm",
+      "position": "torque-secretary",
+      "allowed": true
+    },
+    {
+      "name": "Secretary ends the Tail Gunner's term with no removal vote (9.3)",
       "as": "torque",
       "action": "endTerm",
       "position": "spanner-tail-gunner",
-      "allowed": true
+      "allowed": false
     },
     {
       "name": "North board ends a West term",
@@ -627,7 +627,7 @@
       "allowed": false
     },
     {
-      "name": "Board changes a member's status",
+      "name": "Board moves a member to Supporter after a decided 5.5 notice",
       "as": "torque",
       "action": "setStatus",
       "member": "gravel",
@@ -11883,6 +11883,207 @@
       "action": "strikeBusCost",
       "entry": "c-struck",
       "allowed": false
+    },
+    {
+      "name": "The Tail Gunner steps down (9.3)",
+      "as": "spanner",
+      "action": "endTerm",
+      "position": "spanner-tail-gunner",
+      "allowed": true
+    },
+    {
+      "name": "The North President steps down (9.3)",
+      "as": "smokey",
+      "action": "endTerm",
+      "position": "smokey-president",
+      "allowed": true
+    },
+    {
+      "name": "The National Secretary steps down (9.3)",
+      "as": "lou",
+      "action": "endTerm",
+      "position": "lou-nec-secretary",
+      "allowed": true
+    },
+    {
+      "name": "The National Chair steps down from the Chairman's seat",
+      "as": "chair",
+      "action": "endTerm",
+      "position": "chair-nec-chair",
+      "allowed": false
+    },
+    {
+      "name": "A member ends a Founder honour of his own",
+      "as": "rusty",
+      "action": "endTerm",
+      "position": "rusty-founder",
+      "allowed": false
+    },
+    {
+      "name": "The President ends the Secretary's board seat with no removal vote (9.3)",
+      "as": "rusty",
+      "action": "endTerm",
+      "position": "torque-secretary",
+      "allowed": false
+    },
+    {
+      "name": "The board opens a two-thirds vote of the chapter's Full Members to remove its Secretary (9.3)",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "torque",
+      "role": "secretary",
+      "electorate": "chapter_patched",
+      "threshold": "two_thirds",
+      "quorum": 3,
+      "days": 7,
+      "allowed": true
+    },
+    {
+      "name": "A removal vote on a board seat by the board alone (9.3)",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "torque",
+      "role": "secretary",
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "A removal vote on a board seat by a bare majority (9.3)",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "torque",
+      "role": "secretary",
+      "electorate": "chapter_patched",
+      "threshold": "majority",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "A removal vote about someone who doesn't hold the role (9.3)",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "gravel",
+      "role": "secretary",
+      "electorate": "chapter_patched",
+      "threshold": "two_thirds",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "A removal vote about another chapter's Road Captain (9.3)",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "crank",
+      "role": "road_captain",
+      "electorate": "chapter_patched",
+      "threshold": "two_thirds",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "A removal vote with no one named (9.3)",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "role": "tail_gunner",
+      "electorate": "chapter_patched",
+      "threshold": "two_thirds",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "A chapter vote naming a national seat (11.6)",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "torque",
+      "role": "nec_secretary",
+      "electorate": "chapter_patched",
+      "threshold": "two_thirds",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "The NEC opens a vote to remove a chapter's Tail Gunner (9.3)",
+      "as": "lou",
+      "action": "openVote",
+      "chapter": null,
+      "subject": "spanner",
+      "role": "tail_gunner",
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "A member opens a removal vote (9.3)",
+      "as": "spanner",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "torque",
+      "role": "secretary",
+      "electorate": "chapter_patched",
+      "threshold": "two_thirds",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false
+    },
+    {
+      "name": "Board moves a Full Member to Supporter with no 5.5 notice",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "hal",
+      "status": "supporter",
+      "allowed": false
+    },
+    {
+      "name": "Board moves a Full Member to Supporter at their own request",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "hal",
+      "status": "supporter",
+      "byRequest": true,
+      "allowed": true
+    },
+    {
+      "name": "Board moves an FNG with an open notice to Supporter",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "finn",
+      "status": "supporter",
+      "allowed": false
+    },
+    {
+      "name": "Board moves an FNG to Supporter at their own request",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "finn",
+      "status": "supporter",
+      "byRequest": true,
+      "allowed": true
+    },
+    {
+      "name": "Board moves a Full Member to Legacy, which isn't gated",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "hal",
+      "status": "legacy",
+      "allowed": true
     }
   ],
   "chapters": [
@@ -13356,6 +13557,14 @@
         "givenDays": -30,
         "respondByDays": -16,
         "outcome": "withdrawn"
+      },
+      {
+        "key": "gravel-decided",
+        "member": "gravel",
+        "about": "dues",
+        "givenDays": -40,
+        "respondByDays": -26,
+        "outcome": "decided"
       }
     ]
   },

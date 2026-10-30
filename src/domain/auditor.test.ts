@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   accessLevel, appointProblem, AUDITOR_NEEDS_VOTE, AUDITOR_NOT_NEC, canApprove, canManageMember, canSeeMember, canSeePhone, canSeePrivate,
-  endTermProblem, hasCarriedAuditorVote, isAuditor, isBoardOf, isNational, isNecOfficer, renewAuditorProblem,
+  endTermProblem, hasCarriedAuditorVote, isAuditor, isBoardOf, isNational, isNecOfficer, PRESIDENT_NEEDS_VOTE, renewAuditorProblem,
   reviewsChapter, statusChangeProblem,
 } from './access';
 import { canManageFees, canSeeFees } from './fees';
@@ -70,9 +70,9 @@ test('the Auditor can’t approve, manage, seat or end Presidents', () => {
   assert.notEqual(statusChangeProblem(aud, who(d, 'rider'), 'supporter', d, TODAY), null);
   assert.notEqual(appointProblem(aud, who(d, 'rider'), 'west', 'president', d), null);
   const presSeat = d.positions.find((p) => p.id === 'p-pres')!;
-  assert.notEqual(endTermProblem(aud, presSeat, d), null);
-  // The Chairman still can.
-  assert.equal(endTermProblem(who(d, 'chair'), presSeat, d), null);
+  assert.notEqual(endTermProblem(aud, presSeat, d, TODAY), null);
+  // The Chairman still can, once the chapter's two-thirds removal vote has carried (9.3).
+  assert.equal(endTermProblem(who(d, 'chair'), presSeat, d, TODAY), PRESIDENT_NEEDS_VOTE);
 });
 
 // 2. What the Auditor reads -----------------------------------------------------------------------

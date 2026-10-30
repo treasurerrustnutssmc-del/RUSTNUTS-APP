@@ -12,12 +12,20 @@ import {
   defaultQuorum,
   electorsFor,
   lacksChapters,
+  NEC_SEATS_ONLY,
   openVoteProblem,
   outcome,
   patchVoteFor,
   patchVoteTooEarly,
+  REMOVAL_BOARD_SEAT,
+  REMOVAL_CHAPTER_ROLE,
+  REMOVAL_NEEDS_HOLDER,
+  REMOVAL_SUBJECT,
+  removalShape,
+  removalVoteFor,
   ruleLine,
   seatVoteFor,
+  SEAT_VOTE_IS_NATIONAL,
   type VoteInput,
 } from './votes';
 
@@ -294,4 +302,53 @@ test('the patch vote on a member: the open one, or else the latest result', () =
   assert.equal(patchVoteFor(t, [carried, lost])?.id, 'new', 'latest result');
   assert.equal(patchVoteFor(t, [carried, open, lost])?.id, 'open', 'an open vote comes first');
   assert.equal(patchVoteFor(t, [vote({ id: 'gazebo' })]), null, 'not a vote about anyone');
+});
+
+test('a removal vote names a role holder of the chapter, in the shape 9.3 gives', () => {
+  const torque = m('m-torque');
+  // Spanner, West Tail Gunner: a majority of the five-strong West board.
+  const gunner = (over: Partial<VoteInput> = {}) =>
+    input({ subjectMemberId: 'm-spanner', subjectRole: 'tail_gunner', electorate: 'chapter_board', threshold: 'majority', quorum: 3, ...over });
+  assert.equal(openVoteProblem(torque, gunner(), d, NOW), null);
+  assert.equal(openVoteProblem(m('m-spanner'), gunner(), d, NOW), 'Only that chapter’s board can do that.', 'the subject can’t open it');
+  assert.equal(openVoteProblem(m('m-smokey'), gunner(), d, NOW), 'Only that chapter’s board can do that.', 'nor can another chapter’s President');
+  assert.equal(openVoteProblem(torque, gunner({ electorate: 'chapter_patched', threshold: 'two_thirds' }), d, NOW), REMOVAL_CHAPTER_ROLE, 'wrong electorate');
+  assert.equal(openVoteProblem(torque, gunner({ threshold: 'two_thirds' }), d, NOW), REMOVAL_CHAPTER_ROLE, 'wrong threshold');
+  assert.equal(openVoteProblem(torque, gunner({ subjectMemberId: 'm-gravel', subjectRole: 'secretary', electorate: 'chapter_patched', threshold: 'two_thirds' }), d, NOW), REMOVAL_SUBJECT, 'Gravel isn’t Secretary');
+  assert.equal(openVoteProblem(torque, gunner({ subjectMemberId: 'm-crank', subjectRole: 'road_captain', electorate: 'chapter_patched', threshold: 'two_thirds' }), d, NOW), REMOVAL_SUBJECT, 'Crank holds North’s seat, not West’s');
+  assert.equal(openVoteProblem(torque, gunner({ subjectMemberId: 'm-throttle' }), d, NOW), REMOVAL_SUBJECT, 'an FNG holds no role');
+  assert.equal(openVoteProblem(torque, gunner({ subjectMemberId: null }), d, NOW), REMOVAL_NEEDS_HOLDER, 'a role needs its holder');
+  assert.equal(openVoteProblem(torque, gunner({ subjectRole: 'founder' }), d, NOW), REMOVAL_NEEDS_HOLDER, 'the honour isn’t voted on');
+  assert.equal(openVoteProblem(torque, gunner({ subjectRole: 'nec_auditor' }), d, NOW), SEAT_VOTE_IS_NATIONAL, 'national seats are the NEC’s');
+  assert.equal(
+    openVoteProblem(m('m-rusty'), input({ chapterId: null, subjectMemberId: 'm-spanner', subjectRole: 'tail_gunner', electorate: 'nec', quorum: 1 }), d, NOW),
+    NEC_SEATS_ONLY,
+    'the NEC doesn’t remove chapter roles',
+  );
+  // Diesel, West Road Captain: two-thirds of West's seven Full Members.
+  const captain = (over: Partial<VoteInput> = {}) =>
+    input({ subjectMemberId: 'm-diesel', subjectRole: 'road_captain', electorate: 'chapter_patched', threshold: 'two_thirds', quorum: 3, ...over });
+  assert.equal(openVoteProblem(torque, captain(), d, NOW), null);
+  assert.equal(electorsFor('chapter_patched', 'ch-west', d).length, 7, 'Diesel votes too');
+  assert.equal(openVoteProblem(torque, captain({ electorate: 'chapter_board', threshold: 'majority' }), d, NOW), REMOVAL_BOARD_SEAT, 'not the board alone');
+  assert.equal(openVoteProblem(torque, captain({ threshold: 'majority' }), d, NOW), REMOVAL_BOARD_SEAT, 'not a bare majority');
+  assert.equal(openVoteProblem(torque, captain({ subjectMemberId: 'm-rusty', subjectRole: 'president' }), d, NOW), null, 'the President’s seat goes the same way');
+  assert.deepEqual(removalShape('president'), { electorate: 'chapter_patched', threshold: 'two_thirds' });
+  assert.deepEqual(removalShape('tail_gunner'), { electorate: 'chapter_board', threshold: 'majority' });
+});
+
+test('the removal vote about a term: the open one, or else the latest result', () => {
+  const p7 = P.find((p) => p.id === 'p-7')!;
+  const about = (id: string, over: Partial<Vote> = {}) =>
+    vote({ id, chapterId: 'ch-west', subjectMemberId: 'm-spanner', subjectRole: 'tail_gunner', electorate: 'chapter_board', threshold: 'majority', ...over });
+  const lost = about('old', { closedAt: '2026-05-01T09:00:00.000Z', result: 'lost' });
+  const carried = about('new', { closedAt: '2026-09-01T09:00:00.000Z', result: 'carried' });
+  const open = about('open');
+  const other = about('other', { subjectRole: 'officer' });
+  const patch = vote({ id: 'patch', chapterId: 'ch-west', subjectMemberId: 'm-spanner', subjectRole: null, electorate: 'chapter_patched' });
+  assert.equal(removalVoteFor(p7, []), null);
+  assert.equal(removalVoteFor(p7, [lost, other, patch])?.id, 'old');
+  assert.equal(removalVoteFor(p7, [carried, lost])?.id, 'new', 'latest result');
+  assert.equal(removalVoteFor(p7, [carried, open, lost])?.id, 'open', 'an open vote comes first');
+  assert.equal(removalVoteFor(p7, [about('shape', { electorate: 'chapter_patched', threshold: 'two_thirds' })]), null, 'the wrong shape isn’t this vote');
 });

@@ -342,8 +342,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       await after();
     },
 
-    setMemberStatus: async (memberId, status) => {
-      ok(await supabase().rpc('set_member_status', { p_member: memberId, p_status: status }));
+    setMemberStatus: async (memberId, status, byRequest) => {
+      ok(await supabase().rpc('set_member_status', { p_member: memberId, p_status: status, p_by_request: byRequest ?? false }));
       await after();
     },
 
@@ -423,7 +423,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     endPosition: async (positionId) => {
       const position = data.positions.find((p) => p.id === positionId);
       if (!position) throw new Error('That position no longer exists.');
-      const problem = endTermProblem(visibleMe, position, data);
+      const problem = endTermProblem(visibleMe, position, data, today);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('end_position', { p_position: positionId }));
       await after();

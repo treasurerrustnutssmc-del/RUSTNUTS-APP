@@ -7,7 +7,7 @@ import { addMonths } from './profile';
 import { melbourneDate } from './rides';
 import { addDays } from './dates';
 import { termState } from './terms';
-import type { ClubData, Member, MemberStatus, NecSeatRole, Position, PositionRole } from './types';
+import type { ClubData, Member, MemberStatus, NecSeatRole, Position, PositionRole, StatusNotice } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'family' | 'member' | 'board' | 'national';
 
@@ -337,14 +337,33 @@ export function hasCarriedReinstateVote(memberId: string, data: ClubData, today:
 
 export const NEEDS_NEC_VOTE = 'Coming back to Full or Nomad needs a carried NEC vote (5.6).';
 export const NEEDS_PATCH_VOTE = 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).';
+export const SUPPORTER_NEEDS_NOTICE = 'Moving them to Supporter follows a 5.5 notice the board has decided in the last 90 days, unless it’s at their request.';
+/** How long a decided 5.5 notice stays good for a move to Supporter (inferred, as for the votes). */
+export const NOTICE_DAYS = 90;
+/** The statuses a move to Supporter is gated for: the people who'd lose something (5.5). */
+const GATED_TO_SUPPORTER: MemberStatus[] = ['fng', 'full', 'nomad'];
+
+/** The newest 5.5 notice about this member the board decided in the last 90 days, or null. */
+export function decidedNoticeFor(memberId: string, data: ClubData, today: string): StatusNotice | null {
+  const since = addDays(today, -NOTICE_DAYS);
+  return (
+    (data.statusNotices ?? [])
+      .filter((n) => n.memberId === memberId && n.outcome === 'decided' && n.closedOn !== null && n.closedOn >= since)
+      .sort((a, b) => b.closedOn!.localeCompare(a.closedOn!) || b.givenOn.localeCompare(a.givenOn))[0] ?? null
+  );
+}
 
 /**
  * Why `me` can't move `target` to `status`, or null. Mirrors the database's set_member_status.
  * An FNG reaches Full or Nomad only through a carried patch vote (4.9); anyone else coming back
  * to Full or Nomad needs a carried NEC vote (5.6), and then the NEC makes the change. Positions
- * end first when the new status can't hold them. `today` is the Melbourne date.
+ * end first when the new status can't hold them. Moving an FNG, Full Member or Nomad to Supporter
+ * follows a decided 5.5 notice unless `byRequest` records that the member asked for it. `today` is
+ * the Melbourne date.
  */
-export function statusChangeProblem(me: Member | null, target: Member, status: MemberStatus, data: ClubData, today: string): string | null {
+export function statusChangeProblem(
+  me: Member | null, target: Member, status: MemberStatus, data: ClubData, today: string, byRequest = false,
+): string | null {
   if (me?.id === target.id) return 'You can’t change your own status.';
   // Bringing an approved Supporter, Family or Legacy member back to Full or Nomad is the NEC's (5.6);
   // every other change, an applicant's approval first of all, is their chapter board's (8.2).
@@ -362,26 +381,58 @@ export function statusChangeProblem(me: Member | null, target: Member, status: M
   const held = activePositions(target.id, data.positions).filter((p) => !TITLE_ROLES.includes(p.role));
   if (!patched(status) && held.length > 0) return 'End their positions first.';
   if (status === 'nomad' && held.some((p) => SEAT_ROLES.includes(p.role))) return 'End their board and national seats first (9.1).';
+  if (status === 'supporter' && GATED_TO_SUPPORTER.includes(target.status) && !byRequest && !decidedNoticeFor(target.id, data, today)) {
+    return SUPPORTER_NEEDS_NOTICE;
+  }
   return null;
 }
 
-/** Why `me` can't end this term, or null when they can. Mirrors the database's end_position. */
-export function endTermProblem(me: Member | null, position: Position, data: ClubData): string | null {
+/** How long a carried removal vote stays good for (inferred, as for the other votes about members). */
+export const REMOVAL_VOTE_DAYS = 90;
+export const ROLE_NEEDS_VOTE = 'Ending someone’s chapter role needs a carried majority vote of the chapter board in the last 90 days (9.3).';
+export const BOARD_SEAT_NEEDS_VOTE = 'Removing a board member needs a carried two-thirds vote of the chapter’s Full Members in the last 90 days (9.3).';
+export const PRESIDENT_NEEDS_VOTE = 'Removing a President needs a carried two-thirds vote of the chapter’s Full Members in the last 90 days (9.3).';
+export const PRESIDENT_ENDED_BY = 'Only that chapter’s board or the National Chairman or Secretary can end a President’s term.';
+
+/**
+ * The chapter voted, in the last 90 days and since this term began, to remove its holder (9.3): the
+ * chapter's vote naming the holder and the role, in the shape the role takes (two-thirds of the
+ * chapter's Full Members for a board seat, a board majority otherwise). Mirrors private.has_carried_removal_vote.
+ */
+export function hasCarriedRemovalVote(position: Position, data: ClubData, today: string): boolean {
+  const since = addDays(today, -REMOVAL_VOTE_DAYS);
+  const boardSeat = BOARD_ROLES.includes(position.role);
+  return (data.votes ?? []).some(
+    (v) => v.subjectMemberId === position.memberId && v.subjectRole === position.role && v.chapterId === position.chapterId
+      && v.electorate === (boardSeat ? 'chapter_patched' : 'chapter_board') && v.threshold === (boardSeat ? 'two_thirds' : 'majority')
+      && v.closedAt !== null && v.result === 'carried'
+      && melbourneDate(v.closedAt) >= since && melbourneDate(v.closedAt) >= position.startedOn,
+  );
+}
+
+/**
+ * Why `me` can't end this term, or null when they can. Mirrors the database's end_position. Anyone
+ * steps down from their own role. Ending someone else's chapter term follows a carried removal vote
+ * (9.3), recorded by the chapter board (for a President, an NEC officer can too); national seats
+ * stay the Chairman's to end. `today` is the Melbourne date.
+ */
+export function endTermProblem(me: Member | null, position: Position, data: ClubData, today: string): string | null {
   if (!me) return 'Sign in first.';
   if (me.approval !== 'approved') return 'Only approved members can do that.';
   if (position.endedOn !== null) return 'That term has already ended.';
   if (TITLE_ROLES.includes(position.role)) return HONOUR_BY_ADMIN;
-  if (position.memberId === me.id) return 'You can’t end your own term.';
+  if (position.role === 'nec_chair') return CHAIR_BY_VOTE;
+  if (position.memberId === me.id) return null;
   if (NATIONAL_ROLES.includes(position.role) || position.chapterId === null) {
-    if (position.role === 'nec_chair') return CHAIR_BY_VOTE;
     return isChairman(me.id, data.positions) ? null : 'Only the National Chairman can end a national role.';
   }
   if (position.role === 'president') {
-    return isNecOfficer(me.id, data.positions)
-      ? null
-      : 'Only the National Chairman or Secretary can end a President’s term.';
+    if (!isBoardOf(me, position.chapterId, data.positions) && !isNecOfficer(me.id, data.positions)) return PRESIDENT_ENDED_BY;
+    return hasCarriedRemovalVote(position, data, today) ? null : PRESIDENT_NEEDS_VOTE;
   }
-  return isBoardOf(me, position.chapterId, data.positions) ? null : 'Only that chapter’s board can end this term.';
+  if (!isBoardOf(me, position.chapterId, data.positions)) return 'Only that chapter’s board can end this term.';
+  if (hasCarriedRemovalVote(position, data, today)) return null;
+  return BOARD_ROLES.includes(position.role) ? BOARD_SEAT_NEEDS_VOTE : ROLE_NEEDS_VOTE;
 }
 
 export function visibleMembers(viewer: Member | null, data: ClubData): Member[] {

@@ -601,7 +601,7 @@ const call = (c: ParityCase & Record<string, any>): string => {
     case 'decline':
       return `public.decline_member(${id('m', c.member)})`;
     case 'setStatus':
-      return `public.set_member_status(${id('m', c.member)}, ${q(c.status)})`;
+      return `public.set_member_status(${id('m', c.member)}, ${q(c.status)}, ${c.byRequest ? 'true' : 'false'})`;
     case 'removeBike':
       return `public.remove_bike(${id('b', c.bike)})`;
     case 'rsvp':

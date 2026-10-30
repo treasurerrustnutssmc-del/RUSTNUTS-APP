@@ -212,7 +212,7 @@ begin
   assert pg_temp.try_as(pg_temp.f(1), format($q$select public.set_member_status(%L, 'full')$q$, pg_temp.f(8))) = 'Coming back to Full or Nomad needs a carried NEC vote (5.6).', 'the Chairman needs the vote, not a seat';
   assert pg_temp.try_as(pg_temp.f(7), format($q$select public.set_member_status(%L, 'full')$q$, pg_temp.f(8))) = 'Only the NEC can bring someone back to Full or Nomad (5.6).', 'the Treasurer can''t';
   assert pg_temp.try_as(pg_temp.f(7), format($q$select public.set_member_status(%L, 'fng')$q$, pg_temp.f(8))) is null, 'but makes every other change';
-  assert pg_temp.try_as(pg_temp.f(7), format($q$select public.set_member_status(%L, 'supporter')$q$, pg_temp.f(8))) is null, 'and back';
+  assert pg_temp.try_as(pg_temp.f(7), format($q$select public.set_member_status(%L, 'supporter', true)$q$, pg_temp.f(8))) is null, 'and back, at their request';
 end $$;
 
 \echo 'Open chapter proposals and national contributions are board and NEC business until decided (M6)'
