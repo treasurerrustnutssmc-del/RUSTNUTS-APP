@@ -4,8 +4,8 @@
 // Section numbers refer to the club constitution (v4, Final Club Edition, 25 Oct 2026); rules marked (inferred) are
 // ones it doesn't settle.
 
-import { activePositions, NEC_OFFICER_ROLES, NEC_SEATS } from './access';
-import { BOARD_ROLES, electoratesFor } from './labels';
+import { activePositions, isNecSeat, NEC_OFFICER_ROLES } from './access';
+import { BOARD_ROLES, electoratesFor, TITLE_ROLES } from './labels';
 import { reviewsScope, runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
 import type { ClubData, Electorate, Member, MemberStatus, NecSeatRole, Position, PositionRole, Tally, Threshold, Vote, VoteResult } from './types';
@@ -18,7 +18,26 @@ export const SECRETARY_VOTE = 'A vote to appoint the National Secretary is an NE
 export const SEAT_VOTE_NEEDS_SEAT = 'Say which seat the vote is for: National Auditor or National Secretary (11.6, 11.8).';
 export const SEAT_VOTE_IS_NATIONAL = 'A vote for a national seat is the NEC’s vote about a Full Member (11.6, 11.8).';
 export const SEAT_VOTE_FULL_ONLY = 'Only a Full Member can be voted into a national seat (9.1).';
+export const NEC_SEATS_ONLY = 'The NEC votes people into the National Auditor and Secretary seats only (11.6, 11.8).';
 export const NO_CASTING_ABOUT_MEMBER = 'No casting vote on a vote about a member (10.7): a tie is lost.';
+// A removal vote (9.3): the chapter's vote about one of its role holders, in the shape the role takes.
+export const REMOVAL_NEEDS_HOLDER = 'A removal vote is the chapter’s vote about one of its own role holders (9.3).';
+export const REMOVAL_SUBJECT = 'A removal vote is about a Full Member or Nomad who holds that role in this chapter (9.3).';
+export const REMOVAL_BOARD_SEAT = 'Removing a board member is a two-thirds vote of the chapter’s Full Members at a notified, quorate meeting (9.3).';
+export const REMOVAL_CHAPTER_ROLE = 'Removing someone from a chapter role is a majority vote of the chapter board (9.3).';
+
+/**
+ * The shape a removal vote takes (9.3): two-thirds of the chapter's Full Members for a board seat,
+ * a majority of the chapter board for any other chapter role.
+ */
+export function removalShape(role: PositionRole): { electorate: Electorate; threshold: Threshold } {
+  return BOARD_ROLES.includes(role)
+    ? { electorate: 'chapter_patched', threshold: 'two_thirds' }
+    : { electorate: 'chapter_board', threshold: 'majority' };
+}
+
+/** A chapter's vote that names a role: a removal vote (9.3). National seat votes name a role too, but belong to the NEC. */
+export const isRemovalVote = (vote: Pick<Vote, 'chapterId' | 'subjectRole'>): boolean => vote.chapterId !== null && vote.subjectRole !== null;
 
 /** Seats the National Auditor can't hold at the same time (11.2, 11.8). */
 const AUDITOR_APART: PositionRole[] = ['president', 'treasurer', ...NEC_OFFICER_ROLES];
@@ -32,8 +51,8 @@ export interface VoteInput {
   chapterId: string | null;
   meetingId: string | null;
   subjectMemberId: string | null;
-  /** The national seat a vote about a Full Member is for (11.6, 11.8); null for every other vote. */
-  subjectRole: NecSeatRole | null;
+  /** The national seat an NEC vote would fill (11.6, 11.8), or the chapter role a removal vote is about (9.3); null otherwise. */
+  subjectRole: PositionRole | null;
   question: string;
   details: string | null;
   electorate: Electorate;
@@ -167,10 +186,13 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
   }
   if (!input.closesAt || !(ms(input.closesAt) > ms(now))) return 'Pick a closing time in the future.';
   if (ms(input.closesAt) > ms(now) + MAX_OPEN_DAYS * 86_400_000) return 'Votes can stay open for 60 days at most.';
-  if (input.subjectRole !== null && !NEC_SEATS.includes(input.subjectRole)) {
-    return 'The NEC votes people into the National Auditor and Secretary seats only (11.6, 11.8).';
+  // A vote that names a role: the NEC seats someone (11.6, 11.8), or a chapter removes someone (9.3).
+  const role = input.subjectRole;
+  if (role !== null && input.chapterId === null && !isNecSeat(role)) return NEC_SEATS_ONLY;
+  if (role !== null && isNecSeat(role) && (input.subjectMemberId === null || input.chapterId !== null)) return SEAT_VOTE_IS_NATIONAL;
+  if (role !== null && input.chapterId !== null && (input.subjectMemberId === null || TITLE_ROLES.includes(role) || role === 'nec_chair')) {
+    return REMOVAL_NEEDS_HOLDER;
   }
-  if (input.subjectRole !== null && (input.subjectMemberId === null || input.chapterId !== null)) return SEAT_VOTE_IS_NATIONAL;
   if (input.subjectMemberId !== null && input.chapterId === null) {
     const subject = data.members.find((x) => x.id === input.subjectMemberId);
     if (subject?.approval === 'approved' && subject.status === 'full') {
@@ -186,6 +208,16 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
     } else if (!subject || subject.approval !== 'approved' || !REINSTATABLE.includes(subject.status) || input.electorate !== 'nec' || input.threshold !== 'majority') {
       // Bringing someone back to Full or Nomad is the NEC's decision (5.6).
       return REINSTATE_VOTE;
+    }
+  } else if (input.subjectMemberId !== null && role !== null) {
+    // A removal vote (9.3): about a Full Member or Nomad who holds that role in this chapter. A board
+    // seat goes by two-thirds of the chapter's Full Members; any other chapter role by a board majority.
+    const subject = data.members.find((x) => x.id === input.subjectMemberId);
+    const holds = activePositions(input.subjectMemberId, data.positions).some((p) => p.chapterId === input.chapterId && p.role === role);
+    if (!subject || subject.approval !== 'approved' || !isVoting(subject) || !holds) return REMOVAL_SUBJECT;
+    const shape = removalShape(role);
+    if (input.electorate !== shape.electorate || input.threshold !== shape.threshold) {
+      return BOARD_ROLES.includes(role) ? REMOVAL_BOARD_SEAT : REMOVAL_CHAPTER_ROLE;
     }
   } else if (input.subjectMemberId !== null) {
     const subject = data.members.find((x) => x.id === input.subjectMemberId);
@@ -310,14 +342,25 @@ export function ruleLine(vote: Pick<Vote, 'threshold' | 'quorum' | 'electorIds' 
 }
 
 /** The latest vote of one kind about a member: the open one if there is one, else the one that closed last. */
-function subjectVoteFor(memberId: string, votes: Vote[], electorate: Electorate, threshold?: Threshold, seat?: NecSeatRole): Vote | null {
+function subjectVoteFor(memberId: string, votes: Vote[], electorate: Electorate, threshold?: Threshold, role: PositionRole | null = null): Vote | null {
   const theirs = votes.filter(
-    (v) => v.subjectMemberId === memberId && v.electorate === electorate && (!threshold || v.threshold === threshold) && (!seat || v.subjectRole === seat),
+    (v) => v.subjectMemberId === memberId && v.electorate === electorate && (!threshold || v.threshold === threshold) && (v.subjectRole ?? null) === role,
   );
-  return (
-    theirs.find((v) => v.closedAt === null) ??
-    theirs.sort((a, b) => b.closedAt!.localeCompare(a.closedAt!))[0] ??
-    null
+  return latestOf(theirs);
+}
+
+function latestOf(votes: Vote[]): Vote | null {
+  return votes.find((v) => v.closedAt === null) ?? votes.sort((a, b) => b.closedAt!.localeCompare(a.closedAt!))[0] ?? null;
+}
+
+/** The chapter's removal vote about this term (9.3): the open one, or else the latest result. */
+export function removalVoteFor(position: Position, votes: Vote[]): Vote | null {
+  const shape = removalShape(position.role);
+  return latestOf(
+    votes.filter(
+      (v) => v.subjectMemberId === position.memberId && v.subjectRole === position.role && v.chapterId === position.chapterId
+        && v.electorate === shape.electorate && v.threshold === shape.threshold,
+    ),
   );
 }
 

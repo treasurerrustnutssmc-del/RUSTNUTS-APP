@@ -2,7 +2,7 @@
 // is and hand back the club as it should be, or throw when the person isn't allowed. The
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
-import { appointProblem, endTermProblem, isBoardOf, isLearner, LEARNER_FNG, statusChangeProblem } from '../domain/access';
+import { appointProblem, decidedNoticeFor, GATED_TO_SUPPORTER, endTermProblem, isBoardOf, isLearner, LEARNER_FNG, statusChangeProblem } from '../domain/access';
 import { big4GoingProblem } from '../domain/big4';
 import { bookedStraightAway, bookProblem, cancelProblem, decideProblem, type BusInput } from '../domain/bus';
 import { cleanBriefing, readBriefingProblem, saveBriefingProblem, type BriefingInput } from '../domain/briefings';
@@ -15,8 +15,8 @@ import { rsvpProblem } from '../domain/rides';
 import type { Casting } from '../domain/votes';
 import { APPROVE_AS, NATIONAL_ROLES } from '../domain/labels';
 import type {
-  BallotChoice, BusBooking, BusPurpose, ClubData, CrewRole, Electorate, HubStaying, MeetingKind, Member, MemberStatus, NecSeatRole,
-  PlanStop, PositionRole, RideCallState, Route, RsvpAnswer, Threshold,
+  BallotChoice, BusBooking, BusPurpose, ClubData, CrewRole, Electorate, HubStaying, MeetingKind, Member, MemberStatus,
+  PlanStop, PositionRole, RideCallState, Route, RsvpAnswer, StatusChange, Threshold,
 } from '../domain/types';
 import * as business from './businessActions';
 import * as planning from './planningActions'; // Ride planning extras
@@ -166,15 +166,26 @@ export function decline(ctx: DemoCtx, memberId: string): ClubData {
   return patchMember(ctx.data, memberId, { approval: 'declined' });
 }
 
-export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus): ClubData {
+/**
+ * Changes a member's status and records the change. A move to Supporter follows a decided 5.5 notice
+ * unless `byRequest` says the member asked for it; the record keeps whichever it was.
+ */
+export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus, byRequest = false): ClubData {
   if (ctx.me?.id === memberId) throw new NotAllowedError('You can’t change your own status.');
   const target = findMember(ctx.data, memberId);
-  const problem = statusChangeProblem(ctx.me, target, status, ctx.data, ctx.today);
+  const problem = statusChangeProblem(ctx.me, target, status, ctx.data, ctx.today, byRequest);
   if (problem) throw new NotAllowedError(problem);
+  const gated = status === 'supporter' && GATED_TO_SUPPORTER.includes(target.status) && !byRequest;
+  const notice = gated ? decidedNoticeFor(memberId, ctx.data, ctx.today) : null;
+  const change: StatusChange = {
+    id: newId('sc'), memberId, chapterId: target.chapterId, fromStatus: target.status, toStatus: status, byRequest,
+    noticeId: notice?.id ?? null, changedBy: ctx.me!.id, changedOn: ctx.today, changedAt: ctx.now ?? new Date().toISOString(),
+  };
+  const recorded: ClubData = { ...ctx.data, statusChanges: [...(ctx.data.statusChanges ?? []), change] };
   if (status === 'legacy') {
-    return patchMember(ctx.data, memberId, { status, onHiatus: false, ...statusDates(target, status, ctx.today) });
+    return patchMember(recorded, memberId, { status, onHiatus: false, ...statusDates(target, status, ctx.today) });
   }
-  return withPatchInFee(ctx, memberId, patchMember(ctx.data, memberId, { status, ...statusDates(target, status, ctx.today) }));
+  return withPatchInFee(ctx, memberId, patchMember(recorded, memberId, { status, ...statusDates(target, status, ctx.today) }));
 }
 
 export function saveProfile(ctx: DemoCtx, profile: ProfileInput, priv: PrivateInput | null): ClubData {
@@ -290,7 +301,7 @@ export function appoint(ctx: DemoCtx, memberId: string, chapterId: string | null
 export function endTerm(ctx: DemoCtx, positionId: string): ClubData {
   const position = ctx.data.positions.find((p) => p.id === positionId);
   if (!position) throw new Error('That position no longer exists.');
-  const problem = endTermProblem(ctx.me, position, ctx.data);
+  const problem = endTermProblem(ctx.me, position, ctx.data, ctx.today);
   if (problem) throw new NotAllowedError(problem);
   return {
     ...ctx.data,
@@ -556,7 +567,7 @@ export type DemoAction =
   | { action: 'endTerm'; position: string }
   | { action: 'approve'; member: string; status: MemberStatus }
   | { action: 'decline'; member: string }
-  | { action: 'setStatus'; member: string; status: MemberStatus }
+  | { action: 'setStatus'; member: string; status: MemberStatus; byRequest?: boolean }
   | { action: 'removeBike'; bike: string }
   | { action: 'removeContact'; contact: string }
   | { action: 'saveBike'; bike: string | null; make: string; model: string; year: number | null }
@@ -569,7 +580,7 @@ export type DemoAction =
   | { action: 'shareMinutes'; meeting: string }
   | { action: 'saveActionItem'; chapter: string | null; meeting: string | null; title: string; owner: string }
   | {
-      action: 'openVote'; chapter: string | null; subject: string | null; role?: NecSeatRole | null; electorate: Electorate;
+      action: 'openVote'; chapter: string | null; subject: string | null; role?: PositionRole | null; electorate: Electorate;
       threshold: Threshold; secret?: boolean; quorum: number; days: number;
     }
   | { action: 'castBallot'; vote: string; choice: BallotChoice }
@@ -623,7 +634,7 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
     case 'decline':
       return decline(ctx, a.member);
     case 'setStatus':
-      return setStatus(ctx, a.member, a.status);
+      return setStatus(ctx, a.member, a.status, a.byRequest ?? false);
     case 'removeBike':
       return removeBike(ctx, a.bike);
     case 'rsvp':

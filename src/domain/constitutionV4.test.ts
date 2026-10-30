@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { appointProblem, appointWarnings, AUDITOR_NEEDS_VOTE, SECRETARY_NEEDS_VOTE, statusChangeProblem } from './access';
+import { appointProblem, appointWarnings, AUDITOR_NEEDS_VOTE, SECRETARY_NEEDS_VOTE, statusChangeProblem, SUPPORTER_NEEDS_NOTICE } from './access';
 import { continuationFeeFor } from './fees';
 import { decideApplicationProblem, fngReviewProblem } from './joining';
 import { meetingKindLabel } from './labels';
@@ -123,6 +123,9 @@ test('an FNG becomes Full only after a carried patch vote', () => {
   // A vote from an earlier trial doesn't count (5.6): the trial restarted after it.
   const old = { ...data, votes: [{ ...patchVote('fng', 'carried'), openedAt: '2025-01-10T00:00:00.000Z' }] };
   assert.equal(statusChangeProblem(sec, who(old, 'fng'), 'full', old, '2026-10-25'), NEEDS_PATCH_VOTE);
+  // A carried removal vote (9.3) has the same shape but names a role; it isn't a patch vote.
+  const removed = { ...data, votes: [{ ...patchVote('fng', 'carried'), subjectRole: 'secretary' as const }] };
+  assert.equal(statusChangeProblem(sec, who(removed, 'fng'), 'full', removed, '2026-10-25'), NEEDS_PATCH_VOTE);
 });
 
 const necVote = (memberId: string, result: Vote['result'], closedAt: string | null = '2026-10-20T00:00:00.000Z'): Vote => ({
@@ -147,6 +150,8 @@ test('coming back to Full or Nomad needs a carried NEC vote', () => {
   assert.equal(statusChangeProblem(who(carried, 'sec'), who(carried, 'sup'), 'full', carried, today), ONLY_NEC, 'not the chapter board on its own');
   assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'sup'), 'nomad', carried, today), null);
   assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'legacy'), 'full', carried, today), NEC_REINSTATES, 'the vote is about one member');
+  const seatVote = { ...data, votes: [{ ...necVote('sup', 'carried'), subjectRole: 'nec_secretary' as const }] };
+  assert.equal(statusChangeProblem(who(seatVote, 'chair'), who(seatVote, 'sup'), 'full', seatVote, today), NEC_REINSTATES, 'a vote that names a seat isn’t a reinstatement');
   // An approval goes stale after 90 days (inferred).
   assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'sup'), 'full', carried, '2027-01-18'), null);
   assert.equal(statusChangeProblem(who(carried, 'chair'), who(carried, 'sup'), 'full', carried, '2027-01-19'), NEC_REINSTATES);
@@ -200,7 +205,9 @@ test('the old status-change checks still come first', () => {
   assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'sec'), 'nomad', data, '2026-10-25'), 'You can’t change your own status.');
   assert.equal(statusChangeProblem(who(data, 'rider'), who(data, 'fng'), 'supporter', data, '2026-10-25'), 'Only that chapter’s board can change this member’s status.');
   assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'applicant'), 'fng', data, '2026-10-25'), 'Approve them first.');
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'fng'), 'supporter', data, '2026-10-25'), null);
+  // Moving an FNG to Supporter follows a decided 5.5 notice, unless it's at their request (the launch audit's L2).
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'fng'), 'supporter', data, '2026-10-25'), SUPPORTER_NEEDS_NOTICE);
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'fng'), 'supporter', data, '2026-10-25', true), null);
 });
 
 // --- C. Learner riders can't become FNGs --------------------------------------------------------

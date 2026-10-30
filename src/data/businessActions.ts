@@ -161,7 +161,8 @@ export function closeVote(ctx: DemoCtx, voteId: string, casting: Casting | null)
   const { result } = outcome(vote!, tally!, casting, ctx.data.members);
   const castingVote = casting === 'decline' ? null : casting;
   // A patch vote keeps only its result (4.9). An NEC vote on someone is an ordinary vote.
-  if (vote!.subjectMemberId !== null && vote!.electorate === 'chapter_patched') {
+  // A patch vote keeps only its result (4.9); a removal vote of the same electorate keeps its count (9.3).
+  if (vote!.subjectMemberId !== null && vote!.subjectRole === null && vote!.electorate === 'chapter_patched') {
     return patchVote(ctx.data, voteId, { closedAt: nowOf(ctx), result, castingVote, tally: null, ballots: [] });
   }
   return patchVote(ctx.data, voteId, { closedAt: nowOf(ctx), result, castingVote, tally });

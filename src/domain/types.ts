@@ -328,6 +328,8 @@ export interface ClubData extends LedgerData, AdminData, AuditData {
   big4Waivers?: Big4Waiver[];
   /** 5.5 notices: the member's own, or their chapter's for its board. Missing means none. */
   statusNotices?: StatusNotice[];
+  /** Every status change, with the 5.5 notice or the member's request behind it. Missing means none. */
+  statusChanges?: StatusChange[];
   // Rusty Bus extras: keys, odometer and running costs. Missing means none.
   busKeys?: BusKeyHandover[];
   busKm?: BusKm[];
@@ -502,10 +504,13 @@ export interface Vote {
   id: string;
   chapterId: string | null;
   meetingId: string | null;
-  /** The member a patch vote is about. */
+  /** The member a patch, reinstatement, national seat or removal vote is about. */
   subjectMemberId: string | null;
-  /** Which national seat a two-thirds NEC vote about a Full Member is for (11.6, 11.8). */
-  subjectRole: NecSeatRole | null;
+  /**
+   * The role a vote about a member names: the national seat a two-thirds NEC vote would fill (11.6,
+   * 11.8), or the chapter role its holder faces removal from (9.3). Null for every other vote.
+   */
+  subjectRole: PositionRole | null;
   question: string;
   details: string | null;
   electorate: Electorate;
@@ -1004,6 +1009,24 @@ export interface StatusNotice {
   outcomeNote: string;
   closedOn: string | null;
   closedBy: string | null;
+}
+
+/**
+ * A status change the board made, as the database records it. A move to Supporter follows a decided
+ * 5.5 notice (noticeId) unless the board recorded that the member asked for it (byRequest).
+ */
+export interface StatusChange {
+  id: string;
+  memberId: string;
+  /** The member's chapter at the time. */
+  chapterId: string;
+  fromStatus: MemberStatus;
+  toStatus: MemberStatus;
+  byRequest: boolean;
+  noticeId: string | null;
+  changedBy: string | null;
+  changedOn: string;
+  changedAt: string;
 }
 
 // Ride planning extras --------------------------------------------------------------------------

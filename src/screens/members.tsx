@@ -5,6 +5,7 @@ import {
   canManageMember,
   canSeePhone,
   canSeePrivate,
+  endTermProblem,
   pendingFor,
   reviewsChapter,
   visibleMembers,
@@ -44,6 +45,7 @@ import {
   Button,
   Card,
   Chip,
+  ConfirmButton,
   Choices,
   Field,
   Flannel,
@@ -322,6 +324,29 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
 // One member
 // ---------------------------------------------------------------------------
 
+/** Stepping down from a role is the holder's own call (9.3): one confirm per role they hold. */
+function StepDownButtons({ positions }: { positions: Position[] }) {
+  const { me, data, today, endPosition } = useClub();
+  const [error, setError] = useState<string | null>(null);
+  if (!me) return null;
+  const mine = positions.filter((p) => endTermProblem(me, p, data, today) === null);
+  if (mine.length === 0) return null;
+  return (
+    <View style={{ gap: space.sm }}>
+      {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+      {mine.map((p) => (
+        <ConfirmButton
+          key={p.id}
+          label={`Step down as ${ROLE_LABEL[p.role]}`}
+          confirmLabel={`Step down as ${ROLE_LABEL[p.role]}`}
+          kind="quiet"
+          onConfirm={() => endPosition(p.id).then(() => setError(null), (e: Error) => setError(e.message))}
+        />
+      ))}
+    </View>
+  );
+}
+
 export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDetail'>) {
   const { me, data, today } = useClub();
   const member = data.members.find((m) => m.id === route.params.memberId);
@@ -380,6 +405,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
           ) : null}
         </Stack>
         {member.bio ? <Body>{member.bio}</Body> : null}
+        {isSelf ? <StepDownButtons positions={positions} /> : null}
         {isSelf ? (
           <Button label="Edit my profile" kind="secondary" icon="create-outline" onPress={() => navigation.navigate('EditProfile')} />
         ) : null}

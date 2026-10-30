@@ -90,7 +90,7 @@ begin
     = 'Only the National Chairman or Secretary can seat a President.', 'no seating Presidents';
   assert pg_temp.try_as(aud, format('select public.end_position(%L)',
       (select id from positions where role = 'president' and ended_on is null)))
-    = 'Only the National Chairman or Secretary can end a President’s term.', 'nor ending them';
+    = 'Only that chapter’s board or the National Chairman or Secretary can end a President’s term.', 'nor ending them';
 end $$;
 
 \echo 'The Auditor reads membership and attendance records, fees and decisions, not private details'

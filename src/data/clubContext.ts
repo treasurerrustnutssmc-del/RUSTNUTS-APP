@@ -123,7 +123,8 @@ export interface ClubContextValue {
   submitApplication: (input: ApplicationInput) => Promise<void>;
   approveMember: (memberId: string, status: MemberStatus) => Promise<void>;
   declineMember: (memberId: string) => Promise<void>;
-  setMemberStatus: (memberId: string, status: MemberStatus) => Promise<void>;
+  /** `byRequest` records that a move to Supporter is at the member's own request, which takes the place of a decided 5.5 notice. */
+  setMemberStatus: (memberId: string, status: MemberStatus, byRequest?: boolean) => Promise<void>;
   /** Saves profile and (when given) private details together: both or neither. */
   saveProfile: (profile: ProfileInput, priv: PrivateInput | null) => Promise<void>;
   saveBike: (bike: BikeInput, reg: RegoInput) => Promise<void>;

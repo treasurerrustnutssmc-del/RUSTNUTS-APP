@@ -444,6 +444,15 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      status_changes: {
+        Row: {
+          id: string; member_id: string; chapter_id: string; from_status: MemberStatus; to_status: MemberStatus; by_request: boolean;
+          notice_id: string | null; changed_by: string | null; changed_on: string; changed_at: string;
+        };
+        Insert: { [_ in never]: never }; // only through set_member_status
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       // Only the columns read directly; the rest come through members_money().
       checkin_sessions: {
         Row: { id: string; meeting_type: MeetingType | null };
@@ -456,7 +465,7 @@ export type Database = {
     Functions: {
       approve_member: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       decline_member: { Args: { p_member: string }; Returns: undefined };
-      set_member_status: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
+      set_member_status: { Args: { p_member: string; p_status: MemberStatus; p_by_request?: boolean }; Returns: undefined };
       set_rsvp: { Args: { p_ride: string; p_answer: RsvpAnswer }; Returns: undefined };
       set_crew: { Args: { p_ride: string; p_member: string; p_role: CrewRole }; Returns: undefined };
       leave_crew: { Args: { p_ride: string; p_member: string }; Returns: undefined };
@@ -673,7 +682,7 @@ export type Database = {
         Args: {
           p_chapter: string | null; p_meeting: string | null; p_subject: string | null; p_question: string;
           p_details: string | null; p_electorate: Electorate; p_threshold: Threshold; p_secret: boolean; p_quorum: number;
-          p_closes_at: string; p_role?: 'nec_auditor' | 'nec_secretary';
+          p_closes_at: string; p_role?: PositionRole;
         };
         Returns: string;
       };

@@ -1,7 +1,7 @@
 // The live database's club_business() read (snake_case JSON) as the app's meetings, action items
 // and votes.
 
-import type { ActionItem, AgendaItem, BallotChoice, Electorate, Meeting, MeetingKind, NecSeatRole, Tally, Threshold, Vote, VoteResult } from '../domain/types';
+import type { ActionItem, AgendaItem, BallotChoice, Electorate, Meeting, MeetingKind, PositionRole, Tally, Threshold, Vote, VoteResult } from '../domain/types';
 
 export interface BusinessJson {
   meetings: {
@@ -16,7 +16,7 @@ export interface BusinessJson {
   }[];
   votes: {
     id: string; chapter_id: string | null; meeting_id: string | null; subject_member_id: string | null;
-    subject_role?: NecSeatRole | null; question: string;
+    subject_role?: PositionRole | null; question: string;
     details: string | null; electorate: Electorate; threshold: Threshold; secret: boolean; quorum: number;
     opened_at: string; closes_at: string; closed_at: string | null; result: VoteResult | null;
     casting_vote: 'yes' | 'no' | null; created_by: string | null; tally: Tally | null; elector_ids: string[];

@@ -165,10 +165,13 @@ do $$ begin
     if sqlerrm = 'same person appointed Officer twice' then raise; end if;
   end;
 end $$;
+-- Ending someone else's term follows a removal vote (9.3), so here Spanner steps down himself.
+select pg_temp.act_as('00000000-0000-0000-0000-000000000003');
 select public.end_position((select id from positions where member_id = '00000000-0000-0000-0000-000000000003' and role = 'officer'));
+select pg_temp.act_as('00000000-0000-0000-0000-000000000002');
 do $$ begin
   assert (select ended_by from positions where member_id = '00000000-0000-0000-0000-000000000003' and role = 'officer')
-    = '00000000-0000-0000-0000-000000000002', 'ending a term records who did it';
+    = '00000000-0000-0000-0000-000000000003', 'ending a term records who did it';
 end $$;
 rollback;
 
@@ -394,6 +397,7 @@ set local role authenticated;
 select public.approve_member('00000000-0000-0000-0000-000000000005', 'introduced');
 select public.set_member_status('00000000-0000-0000-0000-000000000005', 'fng');
 select public.appoint_position('00000000-0000-0000-0000-000000000007', (select id from chapters where slug = 'west'), 'officer');
+select pg_temp.act_as('00000000-0000-0000-0000-000000000003'); -- Spanner steps down as Tail Gunner
 select public.end_position((select id from positions where member_id = '00000000-0000-0000-0000-000000000003' and role = 'tail_gunner'));
 select pg_temp.act_as('00000000-0000-0000-0000-000000000006'); -- a new sign-up
 select public.apply_to_join((select id from chapters where slug = 'west'), 'New Person');

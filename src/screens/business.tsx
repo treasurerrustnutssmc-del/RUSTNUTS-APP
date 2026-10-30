@@ -9,9 +9,11 @@ import { businessFor, melbourneHhmm, melbourneInstant, parseTime, shortDay } fro
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import {
   BALLOT_LABEL,
+  BOARD_ROLES,
   ELECTORATE_LABEL,
   meetingKindLabel,
   RESULT_LABEL,
+  ROLE_LABEL,
   THRESHOLD_LABEL,
   electoratesFor,
   kindsFor,
@@ -29,9 +31,9 @@ import {
 } from '../domain/meetings';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
-import type { ActionItem, AgendaItem, BallotChoice, ClubData, Electorate, Meeting, MeetingKind, Member, NecSeatRole, Threshold, Vote } from '../domain/types';
-import { auditorSeat } from '../domain/access';
-import { castProblem, chairOf, defaultQuorum, electorsFor, lacksChapters, REINSTATABLE, ruleLine, TIE } from '../domain/votes';
+import type { ActionItem, AgendaItem, BallotChoice, ClubData, Electorate, Meeting, MeetingKind, Member, NecSeatRole, PositionRole, Threshold, Vote } from '../domain/types';
+import { auditorSeat, isNecSeat } from '../domain/access';
+import { castProblem, chairOf, defaultQuorum, electorsFor, isRemovalVote, lacksChapters, REINSTATABLE, removalShape, ruleLine, TIE } from '../domain/votes';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import {
@@ -754,7 +756,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
         <Row style={{ gap: 6 }}>
           <Chip label={scopeLabel(vote.chapterId, data)} tone="steel" />
           {subject ? (
-            <Chip label={vote.electorate !== 'nec' ? 'Patch vote' : vote.subjectRole ? SEAT_VOTE_LABEL[vote.subjectRole] : 'NEC vote'} tone="redOutline" />
+            <Chip label={voteKindLabel(vote)} tone="redOutline" />
           ) : null}
           {vote.secret ? <Chip label="Secret ballot" tone="bone" icon="lock-closed" /> : null}
         </Row>
@@ -794,11 +796,13 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
           {subject && vote.result === 'carried' && runs && (vote.electorate !== 'nec' || REINSTATABLE.includes(subject.status) || vote.subjectRole) ? (
             <Button
               label={
-                vote.electorate !== 'nec'
-                  ? `Record ${displayName(subject)}’s patch`
-                  : vote.subjectRole === 'nec_auditor'
-                    ? `${auditorSeat(data)?.memberId === subject.id ? 'Renew' : 'Appoint'} ${displayName(subject)} as Auditor`
-                    : vote.subjectRole === 'nec_secretary' ? `Appoint ${displayName(subject)} as Secretary` : `Bring ${displayName(subject)} back`
+                isRemovalVote(vote)
+                  ? `End ${displayName(subject)}’s ${ROLE_LABEL[vote.subjectRole!]} term`
+                  : vote.electorate !== 'nec'
+                    ? `Record ${displayName(subject)}’s patch`
+                    : vote.subjectRole === 'nec_auditor'
+                      ? `${auditorSeat(data)?.memberId === subject.id ? 'Renew' : 'Appoint'} ${displayName(subject)} as Auditor`
+                      : vote.subjectRole === 'nec_secretary' ? `Appoint ${displayName(subject)} as Secretary` : `Bring ${displayName(subject)} back`
               }
               kind="secondary"
               onPress={() => navigation.navigate('ManageMember', { memberId: subject.id })}
@@ -954,8 +958,18 @@ const QUORUM_RULE: Record<Electorate, string> = {
   nec: '51%, rounded up (11.5)',
 };
 
+/** "West", for a sentence that already says "chapter" or "board". */
+const chapterName = (chapterId: string | null, data: ClubData) => data.chapters.find((c) => c.id === chapterId)?.name ?? 'chapter';
+
 /** What the chip on a vote for a national seat says. */
 const SEAT_VOTE_LABEL: Record<NecSeatRole, string> = { nec_auditor: 'Auditor vote', nec_secretary: 'Secretary vote' };
+
+/** What the chip on a vote about a member says: patch (4.9), removal (9.3), national seat (11.6, 11.8) or NEC reinstatement (5.6). */
+function voteKindLabel(vote: Pick<Vote, 'chapterId' | 'electorate' | 'subjectRole'>): string {
+  if (isRemovalVote(vote)) return 'Removal vote';
+  if (vote.electorate !== 'nec') return 'Patch vote';
+  return vote.subjectRole && isNecSeat(vote.subjectRole) ? SEAT_VOTE_LABEL[vote.subjectRole] : 'NEC vote';
+}
 
 /** A week from today, at 7 pm Melbourne time. */
 function defaultClose(): { date: string; time: string } {
@@ -968,20 +982,26 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   const params = route.params ?? {};
   const scopes = scopesRun(me, data);
   const subject = params.subjectMemberId ? data.members.find((m) => m.id === params.subjectMemberId) : undefined;
-  // A vote about a member: the chapter's patch vote on an FNG (4.9), the NEC's on bringing someone back (5.6),
-  // or the NEC's two-thirds vote on a Full Member for a national seat: Auditor (11.8) or Secretary (11.6).
-  const seat = subject?.status === 'full' ? params.subjectRole ?? null : null;
+  // A vote about a member: the chapter's patch vote on an FNG (4.9), its removal vote on a role holder (9.3),
+  // the NEC's on bringing someone back (5.6), or the NEC's two-thirds vote on a Full Member for a national
+  // seat: Auditor (11.8) or Secretary (11.6).
+  const removal: PositionRole | null = subject && params.subjectRole && !isNecSeat(params.subjectRole) ? params.subjectRole : null;
+  const seat = subject?.status === 'full' && params.subjectRole && isNecSeat(params.subjectRole) ? params.subjectRole : null;
   const auditor = seat === 'nec_auditor';
   const secretary = seat === 'nec_secretary';
   const renewing = auditor && auditorSeat(data)?.memberId === subject!.id;
-  const reinstate = !!subject && subject.status !== 'fng' && subject.status !== 'full';
+  const reinstate = !!subject && !removal && subject.status !== 'fng' && subject.status !== 'full';
   const national = reinstate || seat !== null;
   const fixedScope = params.chapterId !== undefined || !!subject;
   const [scope, setScope] = useState<string | null>(
-    national ? null : subject ? subject.chapterId : params.chapterId !== undefined ? params.chapterId : scopes[0] ?? null,
+    national ? null : removal ? params.chapterId ?? subject!.chapterId : subject ? subject.chapterId : params.chapterId !== undefined ? params.chapterId : scopes[0] ?? null,
   );
-  const [electorate, setElectorate] = useState<Electorate>(national ? 'nec' : subject ? 'chapter_patched' : electoratesFor(scope)[0]);
-  const [threshold, setThreshold] = useState<Threshold>(seat ? 'two_thirds' : subject && !reinstate ? 'unanimous' : 'majority');
+  const [electorate, setElectorate] = useState<Electorate>(
+    national ? 'nec' : removal ? removalShape(removal).electorate : subject ? 'chapter_patched' : electoratesFor(scope)[0],
+  );
+  const [threshold, setThreshold] = useState<Threshold>(
+    seat ? 'two_thirds' : removal ? removalShape(removal).threshold : subject && !reinstate ? 'unanimous' : 'majority',
+  );
   const [question, setQuestion] = useState(
     auditor
       ? renewing
@@ -989,10 +1009,12 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
         : `Appoint ${displayName(subject!)} as National Auditor for twelve months?`
       : secretary
         ? `Appoint ${displayName(subject!)} as National Secretary?`
-        : reinstate ? `Bring ${displayName(subject)} back to Full or Nomad?` : subject ? `Patch ${displayName(subject)} as a Full member?` : '',
+        : removal
+          ? `Remove ${displayName(subject!)} as ${chapterName(params.chapterId ?? subject!.chapterId, data)} ${ROLE_LABEL[removal]}? (9.3)`
+          : reinstate ? `Bring ${displayName(subject)} back to Full or Nomad?` : subject ? `Patch ${displayName(subject)} as a Full member?` : '',
   );
   const [details, setDetails] = useState('');
-  const [secret, setSecret] = useState(!!subject && !national);
+  const [secret, setSecret] = useState(!!subject && !national && !removal);
   const size = electorsFor(electorate, scope, data).length;
   const [quorumText, setQuorumText] = useState<string | null>(null);
   const close = defaultClose();
@@ -1019,7 +1041,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
         chapterId: scope,
         meetingId: params.meetingId ?? null,
         subjectMemberId: subject?.id ?? null,
-        subjectRole: seat,
+        subjectRole: seat ?? removal,
         question,
         details: details || null,
         electorate,
@@ -1053,6 +1075,12 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
         <Notice title="NEC vote">
           {`Each chapter’s President votes for their chapter (11.2), and it passes on a majority. If it carries, the NEC can bring ${displayName(subject!)} back to Full or Nomad within 90 days (5.6).`}
         </Notice>
+      ) : removal ? (
+        <Notice title="Removal vote">
+          {BOARD_ROLES.includes(removal)
+            ? `Every Full Member of the ${scopeLabel(scope, data)} gets a ballot, and it needs at least two yes for every no (9.3). If it carries, the board can end ${displayName(subject!)}’s ${ROLE_LABEL[removal]} term within 90 days.`
+            : `The ${chapterName(scope, data)} board votes, and it passes on a majority (9.3). If it carries, the board can end ${displayName(subject!)}’s ${ROLE_LABEL[removal]} term within 90 days.`}
+        </Notice>
       ) : subject ? (
         <Notice title="Patch vote">
           {`Every Full Member of the ${scopeLabel(scope, data)} gets a secret ballot, and every one of them has to vote yes (4.9). Only the result is shown.`}
@@ -1083,11 +1111,13 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
         </>
       ) : national ? (
         <Toggle label="Secret ballot" description="Nobody, the NEC included, sees which way each President voted." value={secret} onChange={setSecret} />
+      ) : removal ? (
+        <Toggle label="Secret ballot" description="Nobody, the board included, sees who voted which way." value={secret} onChange={setSecret} />
       ) : null}
       {/* A patch vote needs every ballot anyway, so its quorum stays at the least allowed. */}
       {electorate === 'chapter_board' && size < 3 ? (
         <Small>{`This board has ${size} ${size === 1 ? 'member' : 'members'}. A board vote needs at least three (8.5).`}</Small>
-      ) : !subject ? (
+      ) : !subject || removal ? (
         <Field
           label="Quorum"
           value={quorumText ?? String(defaultQuorum(electorate, size))}

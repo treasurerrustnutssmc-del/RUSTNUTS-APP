@@ -91,6 +91,22 @@ test('a patch vote records only its result (4.9)', () => {
   assert.deepEqual(v.ballots, [], 'no ballots kept');
 });
 
+test('a removal vote of the chapter’s Full Members keeps its count; only a patch vote hides it (9.3, 4.9)', () => {
+  const opened = act.openVote(ctx('m-torque'), {
+    chapterId: 'ch-west', meetingId: null, subjectMemberId: 'm-diesel', subjectRole: 'road_captain', question: 'Remove Diesel as Road Captain? (9.3)',
+    details: null, electorate: 'chapter_patched', threshold: 'two_thirds', secret: false, quorum: 3, closesAt: '2026-10-31T02:00:00.000Z',
+  });
+  let data = opened.data;
+  const electors = data.votes!.find((v) => v.id === opened.id)!.electorIds;
+  assert.equal(electors.length, 7, 'every West Full Member, Diesel included');
+  for (const who of electors) data = act.castBallot(ctx(who, data), opened.id, who === 'm-diesel' ? 'no' : 'yes');
+  data = act.closeVote(ctx('m-torque', data), opened.id, null);
+  const v = data.votes!.find((x) => x.id === opened.id)!;
+  assert.equal(v.result, 'carried', 'six of seven');
+  assert.deepEqual(v.tally, { yes: 6, no: 1, abstain: 0 }, 'the count is kept');
+  assert.equal(v.ballots.length, 7);
+});
+
 test('an NEC vote on bringing someone back keeps its count and ballots (5.6)', () => {
   const opened = act.openVote(ctx('m-rusty'), {
     chapterId: null, meetingId: null, subjectMemberId: 'm-rooster', subjectRole: null, question: 'Bring Rooster back?', details: null,

@@ -339,5 +339,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_audit_decisions -f "$ROOT/supabase/tests/audit_decisions_test.sql"
 
+# Jeff's decisions from the launch audit (who can act: removal votes and the 5.5 gate), on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_removal_and_gate" >/dev/null
+"${PSQL[@]}" -d rustnuts_removal_and_gate -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_removal_and_gate -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_removal_and_gate -f "$ROOT/supabase/tests/removal_and_gate_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
 
