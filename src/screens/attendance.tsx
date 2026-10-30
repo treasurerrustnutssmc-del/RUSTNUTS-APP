@@ -11,7 +11,7 @@ import {
 } from '../domain/big4';
 import { clubYearLabel, clubYearOf } from '../domain/clubYear';
 import { formatAuDate } from '../domain/dates';
-import { isBoardOf } from '../domain/access';
+import { canManageMember, isBoardOf, seesBoardOf } from '../domain/access';
 import { displayName, initials } from '../domain/profile';
 import { answersClose, melbourneDate } from '../domain/rides';
 import { isShareLine, standingOf, type Standing, type StandingLine } from '../domain/standing';
@@ -104,9 +104,9 @@ const behindFirst = (s: Standing | null) => (s?.lines.some((l) => l.state === 'b
 
 export function AttendanceScreen({ route, navigation }: RootScreen<'Attendance'>) {
   const { me, data, today } = useClub();
-  const chapters = data.chapters.filter((c) => isBoardOf(me, c.id, data.positions));
+  const chapters = data.chapters.filter((c) => seesBoardOf(me, c.id, data.positions));
   const [chapterId, setChapterId] = useState(route.params?.chapterId ?? me?.chapterId ?? chapters[0]?.id ?? null);
-  if (!me || !chapterId || !isBoardOf(me, chapterId, data.positions)) {
+  if (!me || !chapterId || !seesBoardOf(me, chapterId, data.positions)) {
     return (
       <Screen>
         <Notice tone="warn" title="Board only">Attendance records are for the chapter’s board (5.5).</Notice>
@@ -146,7 +146,7 @@ export function AttendanceScreen({ route, navigation }: RootScreen<'Attendance'>
             </View>
           </Row>
           <StandingLines standing={s!} />
-          {m.id !== me.id ? (
+          {m.id !== me.id && isBoardOf(me, m.chapterId, data.positions) ? (
             <Button
               label="Give notice (5.5)"
               icon="document-text-outline"
@@ -169,7 +169,7 @@ export function BoardAttendance({ chapterId }: { chapterId: string | null }) {
   if (!me) return null;
   const inScope = (c: string | null) => chapterId === null || c === chapterId;
   const behind = data.members.filter(
-    (m) => m.approval === 'approved' && inScope(m.chapterId) && isBoardOf(me, m.chapterId, data.positions) &&
+    (m) => m.approval === 'approved' && inScope(m.chapterId) && seesBoardOf(me, m.chapterId, data.positions) &&
       (standingOf(m, data, today)?.lines.some((l) => l.state === 'behind') ?? false),
   ).length;
   const terms = data.positions
@@ -196,7 +196,7 @@ export function BoardAttendance({ chapterId }: { chapterId: string | null }) {
               title={`${m ? displayName(m) : 'Someone'} · ${ROLE_LABEL[p.role]}`}
               subtitle={`Term ${ended ? 'ended' : 'ends'} ${formatAuDate(termEndsOn(p))}. Re-elected? End it and appoint again.`}
               right={<Chip label={ended ? 'Ended' : 'Ending'} tone="warn" />}
-              onPress={m ? () => navigation.navigate('ManageMember', { memberId: m.id }) : undefined}
+              onPress={m ? () => navigation.navigate(canManageMember(me, m, data.positions) ? 'ManageMember' : 'MemberDetail', { memberId: m.id }) : undefined}
               last={i === terms.length - 1}
             />
           );
@@ -314,7 +314,7 @@ function Big4Excuses({ ride }: { ride: Ride }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (!me || ride.cancelledAt || new Date().getTime() >= answersClose(ride)) return null;
-  // Your own chapter's members, when you're on its board (national roles count, as for excuses).
+  // Your own chapter's members, when you're on its board (the board excuses them).
   const scope = data.chapters.filter((c) => c.id === me.chapterId && isBoardOf(me, c.id, data.positions));
   const lists = scope.map((c) => ({ c, ...big4Board(ride.id, c.id, data, today) })).filter((l) => l.notYet.length + l.excused.length > 0);
   if (lists.length === 0) return null;

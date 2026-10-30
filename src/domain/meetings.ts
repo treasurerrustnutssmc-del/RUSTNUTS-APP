@@ -3,7 +3,7 @@
 // database's actions (supabase/migrations/20270101000000_meetings_votes.sql) apply the same rules
 // with the same words.
 
-import { isAuditor, isBoardOf, isNational } from './access';
+import { isAuditor, isBoardOf, isNational, seesBoardOf } from './access';
 import { kindsFor } from './labels';
 import { melbourneDate } from './rides';
 import type { ActionItem, AgendaItem, ClubData, Meeting, MeetingKind, Member, Position } from './types';
@@ -39,15 +39,24 @@ function addDays(iso: string, days: number): string {
 
 const approved = (me: Member | null): me is Member => !!me && me.approval === 'approved';
 
-/** Runs a chapter (its board, or anyone on the NEC) or the whole club (the NEC). */
+/** Runs a chapter (its seated board, 8.2) or the whole club (the NEC). Mirrors private.runs_scope. */
 export function runsScope(me: Member | null, chapterId: string | null, positions: Position[]): boolean {
   if (!approved(me)) return false;
   return chapterId === null ? isNational(me.id, positions) : isBoardOf(me, chapterId, positions);
 }
 
-/** Reads a scope's private business (board and NEC meetings, draft minutes, votes): whoever runs it, or the Auditor (11.8). */
+/**
+ * Sees a scope's private business (board and NEC meetings, draft minutes, votes, draft merch): a
+ * chapter's by its board or anyone national, the club's by the NEC. Mirrors private.sees_scope.
+ */
+export function seesScope(me: Member | null, chapterId: string | null, positions: Position[]): boolean {
+  if (!approved(me)) return false;
+  return chapterId === null ? isNational(me.id, positions) : seesBoardOf(me, chapterId, positions);
+}
+
+/** Reads a scope's private business: whoever sees it, or the Auditor (11.8). Mirrors private.reviews_scope. */
 export function reviewsScope(me: Member | null, chapterId: string | null, positions: Position[]): boolean {
-  return runsScope(me, chapterId, positions) || isAuditor(me, positions);
+  return seesScope(me, chapterId, positions) || isAuditor(me, positions);
 }
 
 export function scopeRefusal(chapterId: string | null): string {

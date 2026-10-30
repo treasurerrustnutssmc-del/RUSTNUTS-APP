@@ -119,7 +119,9 @@ test('opening a vote', () => {
   assert.equal(electorsFor('chapter_board', 'ch-west', three).length, 3);
   assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 3 }), three, NOW), null, 'a board of three');
   const noBoard = { ...d, positions: P.filter((p) => p.chapterId !== 'ch-north') };
-  assert.equal(openVoteProblem(m('m-rusty'), input({ chapterId: 'ch-north', quorum: 1 }), noBoard, NOW), 'Nobody can vote in that electorate yet.');
+  assert.equal(openVoteProblem(m('m-rusty'), input({ chapterId: 'ch-north', quorum: 1 }), noBoard, NOW), 'Only that chapter’s board can do that.', 'no North seat');
+  const unpatched = { ...d, members: d.members.map((x) => (x.chapterId === 'ch-west' && x.status === 'full' ? { ...x, status: 'supporter' as const } : x)) };
+  assert.equal(openVoteProblem(m('m-torque'), input({ electorate: 'chapter_patched', quorum: 1 }), unpatched, NOW), 'Nobody can vote in that electorate yet.');
   assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 0 }), d, NOW), 'Quorum must be between 3 and 5.');
   assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 2 }), d, NOW), 'Quorum must be between 3 and 5.', 'not below the minimum');
   assert.equal(openVoteProblem(m('m-torque'), input({ quorum: 6 }), d, NOW), 'Quorum must be between 3 and 5.');

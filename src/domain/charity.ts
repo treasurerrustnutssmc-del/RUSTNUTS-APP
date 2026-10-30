@@ -3,7 +3,7 @@
 // sign_up_charity and withdraw_charity apply, in the same order with the same words.
 
 import { managesRide } from './crew';
-import { activePositions } from './access';
+import { activePositions, isApprovedMember, seesBoardOf } from './access';
 import { formatAuDate, weekday } from './dates';
 import { answersClose, endOfFirstDay, melbourneDate } from './rides';
 import { signedInProblem } from './routes';
@@ -80,9 +80,27 @@ export function mySignup(rideId: string, memberId: string, data: ClubData): Char
   return signupsFor(rideId, data).find((s) => s.memberId === memberId);
 }
 
+/**
+ * The sign-ups `me` sees: their own, all of them when they run the charity ride, and those of
+ * members whose chapter board records they see. Mirrors the charity_signups read policy.
+ */
+export function visibleSignups(me: Member | null, rideId: string, data: ClubData): CharitySignup[] {
+  if (!isApprovedMember(me)) return [];
+  const ride = data.rides.find((r) => r.id === rideId);
+  const all = !!ride && runsCharity(me, ride, data);
+  return signupsFor(rideId, data).filter((s) => {
+    if (all || s.memberId === me.id) return true;
+    const who = data.members.find((m) => m.id === s.memberId);
+    return !!who && seesBoardOf(me, who.chapterId, data.positions);
+  });
+}
+
+/** The ride's counts as the database hands them out, when it has. */
+const countsRow = (rideId: string, data: ClubData) => (data.signupCounts ?? []).find((c) => c.rideId === rideId);
+
 /** The ride's crew managers, plus anyone on the Charity Committee. Mirrors private.runs_charity. */
 export function runsCharity(me: Member | null, ride: Ride, data: ClubData): boolean {
-  if (!me || me.approval !== 'approved') return false;
+  if (!isApprovedMember(me)) return false;
   return managesRide(me, ride, data) || activePositions(me.id, data.positions).some((p) => p.role === 'charity_committee');
 }
 
@@ -120,7 +138,13 @@ export function signupsClosed(ride: Ride, charity: CharityRide, now: string, tod
 /** People on bikes for one sign-up: the rider, their pillion and their guests. */
 const onBikes = (s: Pick<CharitySignup, 'riding' | 'pillion' | 'guests'>): number => (s.riding ? 1 : 0) + (s.pillion ? 1 : 0) + s.guests;
 
+/** People on bikes signed up by everyone but `exceptId`: from the counts when the rows aren't all here. */
 function placesTaken(rideId: string, data: ClubData, exceptId: string | null): number {
+  const counts = countsRow(rideId, data);
+  if (counts) {
+    const mine = exceptId === null ? undefined : mySignup(rideId, exceptId, data);
+    return counts.charityPeople - (mine ? onBikes(mine) : 0);
+  }
   return signupsFor(rideId, data).filter((s) => s.memberId !== exceptId).reduce((n, s) => n + onBikes(s), 0);
 }
 
@@ -177,6 +201,8 @@ export interface CharityCounts {
 }
 
 export function charityCounts(rideId: string, data: ClubData): CharityCounts {
+  const c = countsRow(rideId, data);
+  if (c) return { riding: c.charityRiding, pillions: c.charityPillions, guests: c.charityGuests, helping: c.charityHelping, people: c.charityPeople };
   const counts: CharityCounts = { riding: 0, pillions: 0, guests: 0, helping: 0, people: 0 };
   for (const s of signupsFor(rideId, data)) {
     if (s.riding) counts.riding += 1;
@@ -203,8 +229,8 @@ export function signupExtras(s: CharitySignup): string {
   return `${s.pillion ? ' + pillion' : ''}${guests}`;
 }
 
-/** The sign-ups as plain text for the organisers: riders by name, then helpers by job. */
-export function charityListText(ride: Ride, data: ClubData): string {
+/** The sign-ups `me` sees as plain text for the organisers: riders by name, then helpers by job. */
+export function charityListText(me: Member | null, ride: Ride, data: ClubData): string {
   const day = melbourneDate(ride.startsAt);
   const charity = charityFor(ride.id, data);
   const counts = charityCounts(ride.id, data);
@@ -221,7 +247,7 @@ export function charityListText(ride: Ride, data: ClubData): string {
     `${plural(counts.riding, 'rider')}, ${plural(counts.pillions, 'pillion')}, ${plural(counts.guests, 'guest')}: ${counts.people} on bikes` +
       (left === null ? '' : ` (${left} place${left === 1 ? '' : 's'} left)`),
   ];
-  const signups = signupsFor(ride.id, data);
+  const signups = visibleSignups(me, ride.id, data);
   const riders = signups.filter((s) => s.riding).sort(byName);
   if (riders.length > 0) {
     lines.push('', 'Riding');

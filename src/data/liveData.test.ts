@@ -663,3 +663,25 @@ test('signed in: before the live database has the notice tables, the club still 
   assert.deepEqual(data.statusNotices, []);
   assert.deepEqual(data.big4Waivers, []);
 });
+
+test('signup_counts loads as the numbers behind each ride’s sign-ups; a database without it yet loads none', async () => {
+  const row = {
+    ride_id: 'r1', hub_riders: 4, hub_pillions: 1, hub_group: 2, hub_own: 1, hub_camping: 1, hub_day: 0, hub_group_beds: 3,
+    charity_riding: 2, charity_pillions: 1, charity_guests: 2, charity_helping: 1, charity_people: 5,
+  };
+  const base = stubClient({ chapters: [west] }) as unknown as { from: unknown; rpc: (n: string) => Promise<unknown> };
+  const withCounts = { ...base, rpc: (name: string) => (name === 'signup_counts' ? Promise.resolve({ data: [row], error: null }) : base.rpc(name)) } as never;
+  const data = await loadClub(withCounts, true);
+  assert.deepEqual(data.signupCounts, [{
+    rideId: 'r1', hubRiders: 4, hubPillions: 1, hubGroup: 2, hubOwn: 1, hubCamping: 1, hubDay: 0, hubGroupBeds: 3,
+    charityRiding: 2, charityPillions: 1, charityGuests: 2, charityHelping: 1, charityPeople: 5,
+  }]);
+  const missing = {
+    ...base,
+    rpc: (name: string) =>
+      name === 'signup_counts'
+        ? Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.signup_counts' } })
+        : base.rpc(name),
+  } as never;
+  assert.equal((await loadClub(missing, true)).signupCounts, undefined);
+});

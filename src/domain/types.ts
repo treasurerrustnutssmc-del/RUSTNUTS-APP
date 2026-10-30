@@ -294,6 +294,8 @@ export interface ClubData extends LedgerData, AdminData, AuditData {
   // Charity ride sign-ups. Missing means none.
   charityRides?: CharityRide[];
   charitySignups?: CharitySignup[];
+  /** The numbers behind each ride's sign-ups, for everyone approved. Missing means count the rows. */
+  signupCounts?: SignupCounts[];
   // Lane E: notifications
   /** The signed-in member's saved notification settings, or null for the defaults. */
   notificationPrefs?: NotificationPrefs | null;
@@ -1119,6 +1121,27 @@ export interface CharityRide {
 }
 
 /** A member's sign-up. A withdrawn one keeps its row. */
+/**
+ * A ride's hub registrations and charity sign-ups by the numbers (withdrawn ones left out), as
+ * signup_counts() hands them to members who can't see the rows themselves.
+ */
+export interface SignupCounts {
+  rideId: string;
+  hubRiders: number;
+  hubPillions: number;
+  hubGroup: number;
+  hubOwn: number;
+  hubCamping: number;
+  hubDay: number;
+  /** Group beds taken: riders staying with the group and their pillions. */
+  hubGroupBeds: number;
+  charityRiding: number;
+  charityPillions: number;
+  charityGuests: number;
+  charityHelping: number;
+  charityPeople: number;
+}
+
 export interface CharitySignup {
   rideId: string;
   memberId: string;

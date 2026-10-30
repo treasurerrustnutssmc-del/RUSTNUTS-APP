@@ -137,7 +137,9 @@ begin
   assert pg_temp.try_as(chair, format(status, gus, 'full')) is null, 'with the NEC''s yes, the NEC brings him back';
   assert pg_temp.try_as(sec, format(status, '00000000-0000-0000-0000-0000000000b1', 'nomad'))
     = 'End their board and national seats first (9.1).', 'the Treasurer can''t go Nomad with the seat';
-  assert pg_temp.try_as(chair, format(status, sec, 'supporter')) = 'End their positions first.', 'positions end first';
+  assert pg_temp.try_as(chair, format(status, sec, 'supporter'))
+    = 'Only that chapter’s board can change this member’s status.', 'the Chairman holds no West seat (8.2)';
+  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000b1', format(status, sec, 'supporter')) = 'End their positions first.', 'positions end first';
   assert pg_temp.try_as(sec, format(status, '00000000-0000-0000-0000-0000000000a5', 'fng'))
     = 'A learner permit rider can’t become an FNG yet (3.2).', 'no learner FNGs';
 end $$;

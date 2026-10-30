@@ -64,6 +64,15 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   // Charity ride sign-ups: the same, from their own two tables.
   const charityLoad = loadCharity(db);
   charityLoad.catch(() => undefined);
+  // The numbers behind every ride's sign-ups, for members who can't see the rows. A database
+  // without the function yet hands every row to everyone, so counting the rows is right there.
+  const signupCountsLoad = db.rpc('signup_counts').then(
+    (r) => {
+      if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('signup_counts:', r.error.message);
+      return r.error ? undefined : (r.data ?? []);
+    },
+    () => undefined,
+  );
   // Rusty Bus extras: keys, odometer and running costs, the same way.
   const busExtrasLoad = loadBusExtras(db);
   busExtrasLoad.catch(() => undefined);
@@ -199,6 +208,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
   const charity = await charityLoad;
+  const signupCounts = await signupCountsLoad;
   const familyRides = await familyLoad;
   const busExtras = await busExtrasLoad;
 
@@ -366,6 +376,16 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
     ...planning,
     ...charity,
+    ...(signupCounts
+      ? {
+          signupCounts: signupCounts.map((c) => ({
+            rideId: c.ride_id, hubRiders: c.hub_riders, hubPillions: c.hub_pillions, hubGroup: c.hub_group, hubOwn: c.hub_own,
+            hubCamping: c.hub_camping, hubDay: c.hub_day, hubGroupBeds: c.hub_group_beds, charityRiding: c.charity_riding,
+            charityPillions: c.charity_pillions, charityGuests: c.charity_guests, charityHelping: c.charity_helping,
+            charityPeople: c.charity_people,
+          })),
+        }
+      : {}),
     ...busExtras,
     // Stage 5: meetings and votes
     ...business,

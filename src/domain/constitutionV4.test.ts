@@ -191,7 +191,7 @@ test('positions end before someone moves to a status that can’t hold them', ()
   assert.equal(statusChangeProblem(sec, who(data, 'rider'), 'supporter', data, '2026-10-25'), 'End their positions first.');
   assert.equal(statusChangeProblem(sec, who(data, 'rider'), 'nomad', data, '2026-10-25'), null, 'Nomads keep Non-Board roles');
   assert.equal(statusChangeProblem(sec, who(data, 'tre'), 'nomad', data, '2026-10-25'), 'End their board and national seats first (9.1).');
-  assert.equal(statusChangeProblem(who(data, 'chair'), who(data, 'sec'), 'family', data, '2026-10-25'), 'End their positions first.');
+  assert.equal(statusChangeProblem(who(data, 'tre'), who(data, 'sec'), 'family', data, '2026-10-25'), 'End their positions first.');
   assert.equal(statusChangeProblem(sec, who(data, 'rider'), 'legacy', data, '2026-10-25'), 'End their positions first.');
 });
 

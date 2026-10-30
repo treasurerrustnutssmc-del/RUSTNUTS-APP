@@ -314,7 +314,8 @@ begin
   assert pg_temp.try_as(wes, format(remove, d)) = 'You can only remove your own messages.', 'someone else''s';
   assert pg_temp.try_as(cap, format(remove, a)) = 'That chat is for West chapter members.', 'the other chapter''s board';
   assert pg_temp.try_as(sec, format(remove, a)) is null, 'the chapter''s board';
-  assert pg_temp.try_as(pres, format(remove, b)) is null, 'the NEC';
+  assert pg_temp.try_as(pres, format(remove, b)) = 'You can only remove your own messages.', 'the NEC reads West''s chat but doesn''t moderate it';
+  assert pg_temp.try_as(sec, format(remove, b)) is null, 'West''s board does';
   assert pg_temp.try_as(sec, format(remove, d)) is null, 'any board member, in the whole-club chat';
   assert pg_temp.try_as(sec, format(remove, d)) = 'That message was removed.', 'twice';
   assert pg_temp.try_as(sec, format(remove, '00000000-0000-0000-0000-0000000000ff')) = 'No such message.', 'missing';

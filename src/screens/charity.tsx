@@ -7,7 +7,7 @@ import { useClub } from '../data/ClubStore';
 import {
   charityCounts, charityFor, charityListText, countsLine, DONATIONS_LATER, MAX_ABOUT, MAX_CAUSE, MAX_GUEST_NAMES, MAX_GUESTS, MAX_JOBS,
   MAX_SIGNUP_NOTES, mySignup, placesLeft, ridingNotGoing, runsCharity, saveCharityProblem, signupExtras, signupProblem, signupsClosed,
-  signupsFor, withdrawCharityProblem, type SignupInput,
+  visibleSignups, withdrawCharityProblem, type SignupInput,
 } from '../domain/charity';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import { displayName, initials, memberName } from '../domain/profile';
@@ -176,7 +176,7 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
   const closed = ride.cancelledAt !== null || signupsClosed(ride, charity, nowIso(), today);
   const counts = charityCounts(ride.id, data);
   const left = placesLeft(ride.id, data);
-  const signups = signupsFor(ride.id, data);
+  const signups = visibleSignups(me, ride.id, data);
   const riders = signups.filter((s) => s.riding);
   const canWithdraw = withdrawCharityProblem(me, ride, data, nowIso()) === null;
   // A reason the form can't help with at all: neither riding alone nor helping alone would go in.
@@ -195,7 +195,7 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
   const share = async () => {
     setShareError(null);
     try {
-      await Share.share({ message: charityListText(ride, data) });
+      await Share.share({ message: charityListText(me, ride, data) });
     } catch {
       setShareError('Couldn’t open sharing on this device.');
     }
@@ -278,20 +278,24 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
       </Stack>
 
       <Stack gap={space.sm}>
-        <SectionTitle title="Riding" action={<Text style={styles.count}>{riders.length}</Text>} />
-        {signups.length > 0 ? <Small>{`${countsLine(counts)}. ${counts.people} on bikes.`}</Small> : null}
+        <SectionTitle title="Riding" action={<Text style={styles.count}>{counts.riding}</Text>} />
+        {counts.riding + counts.helping > 0 ? <Small>{`${countsLine(counts)}. ${counts.people} on bikes.`}</Small> : null}
+        {!runs ? <Small>The organisers and the boards see who’s coming; the numbers are everyone’s.</Small> : null}
         {riders.length === 0 ? (
-          <Small>Nobody yet.</Small>
+          runs ? <Small>Nobody yet.</Small> : null
         ) : (
           <Card style={{ padding: 0, gap: 0 }}>{riders.map((s, i, list) => row(s, i, list, subtitleOf(s)))}</Card>
         )}
       </Stack>
 
+      {/* Helpers by job: the whole list for whoever runs the sign-ups; otherwise only the rows the
+          viewer can see (their own, or their chapter's as a board member), with no count to mislead. */}
       {charity.jobs.map((j) => {
         const helpers = signups.filter((s) => s.job === j);
+        if (!runs && helpers.length === 0) return null;
         return (
           <Stack key={j} gap={space.sm}>
-            <SectionTitle title={j} action={<Text style={styles.count}>{helpers.length}</Text>} />
+            <SectionTitle title={j} action={runs ? <Text style={styles.count}>{helpers.length}</Text> : undefined} />
             {helpers.length === 0 ? (
               <Small>Nobody yet.</Small>
             ) : (

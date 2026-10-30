@@ -114,9 +114,9 @@ test('the board records a record; the refusals come in order', () => {
   assert.equal(recordConductProblem(sec, input({ memberId: 'applicant' }), d, TODAY), 'Pick an approved member.');
   assert.equal(recordConductProblem(sec, input({ memberId: 'nobody' }), d, TODAY), 'Pick an approved member.');
   assert.equal(recordConductProblem(sec, input({ memberId: 'sec' }), d, TODAY), 'You can’t record one about yourself.');
-  assert.equal(recordConductProblem(who(d, 'northsec'), input(), d, TODAY), 'Only that member’s chapter board or the NEC can do that.');
-  assert.equal(recordConductProblem(who(d, 'rider'), input({ memberId: 'fng' }), d, TODAY), 'Only that member’s chapter board or the NEC can do that.');
-  assert.equal(recordConductProblem(who(d, 'chair'), input(), d, TODAY), null);
+  assert.equal(recordConductProblem(who(d, 'northsec'), input(), d, TODAY), 'Only that member’s chapter board can do that.');
+  assert.equal(recordConductProblem(who(d, 'rider'), input({ memberId: 'fng' }), d, TODAY), 'Only that member’s chapter board can do that.');
+  assert.equal(recordConductProblem(who(d, 'chair'), input(), d, TODAY), 'Only that member’s chapter board can do that.', 'no West seat');
   assert.equal(recordConductProblem(sec, input({ kind: null }), d, TODAY), 'Pick what kind of record it is.');
   assert.equal(recordConductProblem(sec, input({ summary: '   ' }), d, TODAY), 'Say what happened.');
   assert.equal(recordConductProblem(sec, input({ summary: 'x'.repeat(1001) }), d, TODAY), 'Keep what happened to 1000 characters at most.');
@@ -165,7 +165,7 @@ test('the board holds a record for an active matter, up to 7 years', () => {
   assert.equal(holdProblem(sec, 'c1', '2027-12-01', 'Grievance under 14.9', d, TODAY), null);
   assert.equal(holdProblem(sec, 'nope', '2027-12-01', 'x', d, TODAY), 'No such record.');
   assert.equal(holdProblem(who(d, 'northsec'), 'c1', '2027-12-01', 'x', d, TODAY), 'No such record.');
-  assert.equal(holdProblem(who(d, 'rider'), 'c1', '2027-12-01', 'x', d, TODAY), 'Only that member’s chapter board or the NEC can do that.');
+  assert.equal(holdProblem(who(d, 'rider'), 'c1', '2027-12-01', 'x', d, TODAY), 'Only that member’s chapter board can do that.');
   assert.equal(holdProblem(sec, 'c1', '2027-12-01', '  ', d, TODAY), 'Say which matter needs it kept.');
   assert.equal(holdProblem(sec, 'c1', '2027-12-01', 'x'.repeat(301), d, TODAY), 'Keep the reason to 300 characters at most.');
   assert.equal(holdProblem(sec, 'c1', TODAY, 'x', d, TODAY), 'Pick a date after today.');
@@ -186,8 +186,8 @@ test('nobody holds or removes a record about themselves', () => {
 test('removing a mistake: the board only', () => {
   const d = data();
   assert.equal(removeConductProblem(who(d, 'sec'), 'c1', d, TODAY), null);
-  assert.equal(removeConductProblem(who(d, 'chair'), 'c1', d, TODAY), null);
-  assert.equal(removeConductProblem(who(d, 'rider'), 'c1', d, TODAY), 'Only that member’s chapter board or the NEC can do that.');
+  assert.equal(removeConductProblem(who(d, 'chair'), 'c1', d, TODAY), 'Only that member’s chapter board can do that.');
+  assert.equal(removeConductProblem(who(d, 'rider'), 'c1', d, TODAY), 'Only that member’s chapter board can do that.');
   assert.equal(removeConductProblem(who(d, 'sec'), 'gone', d, TODAY), 'No such record.');
 });
 
@@ -220,25 +220,26 @@ test('the member or their board lodges in time, once', () => {
 
 const lodged = (over: Partial<ConductAppeal> = {}) => data([record({ appeal: appeal(over) })]);
 
-test('the board or NEC, apart from the recorder, sets up a panel of three', () => {
+test('the board, apart from the recorder, sets up a panel of three', () => {
   const d = lodged();
-  const panel = ['northsec', 'tre', 'fng'];
-  assert.equal(hearingProblem(who(d, 'chair'), 'c1', panel, '2026-11-05', d, TODAY), null);
-  assert.equal(hearingProblem(who(d, 'tre'), 'c1', ['northsec', 'chair', 'fng'], '2026-11-05', d, TODAY), null);
-  assert.equal(hearingProblem(who(d, 'sec'), 'c1', panel, '2026-11-05', d, TODAY), 'Only the board or NEC, apart from whoever recorded it, can set up the hearing.');
-  assert.equal(hearingProblem(who(d, 'rider'), 'c1', panel, '2026-11-05', d, TODAY), 'Only the board or NEC, apart from whoever recorded it, can set up the hearing.');
+  const panel = ['northsec', 'chair', 'fng'];
+  const boardOnly = 'Only the board, apart from whoever recorded it, can set up the hearing.';
+  assert.equal(hearingProblem(who(d, 'tre'), 'c1', panel, '2026-11-05', d, TODAY), null);
+  assert.equal(hearingProblem(who(d, 'sec'), 'c1', panel, '2026-11-05', d, TODAY), boardOnly, 'the recorder');
+  assert.equal(hearingProblem(who(d, 'rider'), 'c1', panel, '2026-11-05', d, TODAY), boardOnly);
+  assert.equal(hearingProblem(who(d, 'chair'), 'c1', panel, '2026-11-05', d, TODAY), boardOnly, 'the NEC holds no West seat');
   const none = data();
-  assert.equal(hearingProblem(who(none, 'chair'), 'c1', panel, '2026-11-05', none, TODAY), 'No review or appeal is lodged.');
-  assert.equal(hearingProblem(who(d, 'chair'), 'c1', ['northsec', 'tre'], '2026-11-05', d, TODAY), 'Pick three different people.');
-  assert.equal(hearingProblem(who(d, 'chair'), 'c1', ['northsec', 'tre', 'tre'], '2026-11-05', d, TODAY), 'Pick three different people.');
-  assert.equal(hearingProblem(who(d, 'chair'), 'c1', ['northsec', 'tre', 'applicant'], '2026-11-05', d, TODAY), 'Pick approved members for the panel.');
-  assert.equal(hearingProblem(who(d, 'chair'), 'c1', ['northsec', 'tre', 'legacy'], '2026-11-05', d, TODAY), 'Pick approved members for the panel.');
-  assert.equal(hearingProblem(who(d, 'chair'), 'c1', ['northsec', 'tre', 'sec'], '2026-11-05', d, TODAY), 'The panel can’t include the member or whoever recorded it.');
-  assert.equal(hearingProblem(who(d, 'chair'), 'c1', ['northsec', 'tre', 'rider'], '2026-11-05', d, TODAY), 'The panel can’t include the member or whoever recorded it.');
-  assert.equal(hearingProblem(who(d, 'chair'), 'c1', panel, '', d, TODAY), 'Pick the hearing date.');
-  assert.equal(hearingProblem(who(d, 'chair'), 'c1', panel, '2026-10-24', d, TODAY), 'Pick the hearing date.');
+  assert.equal(hearingProblem(who(none, 'tre'), 'c1', panel, '2026-11-05', none, TODAY), 'No review or appeal is lodged.');
+  assert.equal(hearingProblem(who(d, 'tre'), 'c1', ['northsec', 'chair'], '2026-11-05', d, TODAY), 'Pick three different people.');
+  assert.equal(hearingProblem(who(d, 'tre'), 'c1', ['northsec', 'chair', 'chair'], '2026-11-05', d, TODAY), 'Pick three different people.');
+  assert.equal(hearingProblem(who(d, 'tre'), 'c1', ['northsec', 'chair', 'applicant'], '2026-11-05', d, TODAY), 'Pick approved members for the panel.');
+  assert.equal(hearingProblem(who(d, 'tre'), 'c1', ['northsec', 'chair', 'legacy'], '2026-11-05', d, TODAY), 'Pick approved members for the panel.');
+  assert.equal(hearingProblem(who(d, 'tre'), 'c1', ['northsec', 'chair', 'sec'], '2026-11-05', d, TODAY), 'The panel can’t include the member or whoever recorded it.');
+  assert.equal(hearingProblem(who(d, 'tre'), 'c1', ['northsec', 'chair', 'rider'], '2026-11-05', d, TODAY), 'The panel can’t include the member or whoever recorded it.');
+  assert.equal(hearingProblem(who(d, 'tre'), 'c1', panel, '', d, TODAY), 'Pick the hearing date.');
+  assert.equal(hearingProblem(who(d, 'tre'), 'c1', panel, '2026-10-24', d, TODAY), 'Pick the hearing date.');
   const settled = lodged({ outcome: 'confirmed', decidedOn: '2026-10-27', panelIds: panel, hearingOn: '2026-10-26' });
-  assert.equal(hearingProblem(who(settled, 'chair'), 'c1', panel, '2026-11-05', settled, TODAY), 'That one is settled.');
+  assert.equal(hearingProblem(who(settled, 'tre'), 'c1', panel, '2026-11-05', settled, TODAY), 'That one is settled.');
 });
 
 test('one of the panel records the outcome on or after the hearing', () => {

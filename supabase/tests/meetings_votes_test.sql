@@ -126,8 +126,10 @@ begin
     'agenda stored trimmed, in order';
   assert (select created_by from meetings where id = board) = pg_temp.u(2), 'created by';
 
-  -- Editing keeps the scope rules: North's President can edit West's (NEC reaches every chapter); a West member can't.
-  assert pg_temp.try_as(pg_temp.u(6), format($q$select public.save_meeting(%L, %L, 'board', 'Board meeting (moved)', now() + interval '4 days', null, '[]')$q$, board, pg_temp.west())) is null, 'NEC edits';
+  -- Editing keeps the scope rules: West's board edits West's; North's President (on the NEC) reads it but doesn't; a West member can't.
+  assert pg_temp.try_as(pg_temp.u(1), format($q$select public.save_meeting(%L, %L, 'board', 'Board meeting (moved)', now() + interval '4 days', null, '[]')$q$, board, pg_temp.west())) is null, 'the board edits';
+  assert pg_temp.try_as(pg_temp.u(6), format($q$select public.save_meeting(%L, %L, 'board', 'Board meeting (moved again)', now() + interval '4 days', null, '[]')$q$, board, pg_temp.west()))
+    = 'Only that chapter’s board can do that.', 'North''s President doesn''t edit West''s';
   assert pg_temp.try_as(pg_temp.u(3), format($q$select public.save_meeting(%L, %L, 'board', 'Mine', now(), null, '[]')$q$, board, pg_temp.west()))
     = 'Only that chapter’s board can do that.', 'member edits';
 
@@ -139,6 +141,7 @@ begin
   assert jsonb_array_length(pg_temp.business_as(pg_temp.u(8))->'meetings') = 0, 'applicants see nothing';
   assert jsonb_array_length(pg_temp.business_as(pg_temp.u(2))->'meetings') = 2, 'the West board sees its own and general, not the NEC''s';
   assert jsonb_array_length(pg_temp.business_as(pg_temp.u(1))->'meetings') = 3, 'the NEC sees all three';
+  assert jsonb_array_length(pg_temp.business_as(pg_temp.u(6))->'meetings') = 3, 'North''s President too: West''s board meeting is read by every national role';
 
   -- Cancelling.
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.cancel_meeting(%L)$q$, general)) = 'That meeting has already started.', 'started';
@@ -265,6 +268,14 @@ begin
   begin
     update positions set ended_on = '2026-01-01' where member_id = pg_temp.u(6);
     assert pg_temp.try_as(pg_temp.u(1), format($q$select public.open_vote(%L, null, null, 'Q?', null, 'chapter_board', 'majority', false, 1, now() + interval '1 day')$q$, pg_temp.north()))
+      = 'Only that chapter’s board can do that.', 'the Chairman holds no North seat, so nobody opens North''s votes';
+    raise exception 'undo';
+  exception when raise_exception then null;
+  end;
+  begin
+    -- With no Full Member left in North, its President finds nobody to vote.
+    update members set status = 'supporter' where id = pg_temp.u(6);
+    assert pg_temp.try_as(pg_temp.u(6), format($q$select public.open_vote(%L, null, null, 'Q?', null, 'chapter_patched', 'majority', false, 1, now() + interval '1 day')$q$, pg_temp.north()))
       = 'Nobody can vote in that electorate yet.', 'empty electorate';
     raise exception 'undo';
   exception when raise_exception then null;

@@ -4,6 +4,7 @@ import {
   attendanceCount,
   canCheckIn,
   canRunCheckin,
+  canSeeAttendance,
   checkInProblem,
   closeProblem,
   exemptionProblem,
@@ -34,12 +35,13 @@ test('a ride belongs to its chapter, or to the whole club', () => {
   assert.equal(rideChapterId(ride('d', { category: 'supported' }), data.chapters), null);
 });
 
-test('who runs a check-in: that chapter’s board, any board for a whole-club ride, and the NEC', () => {
+test('who runs a check-in: that chapter’s board; any board or the NEC for a whole-club ride', () => {
   const data = club();
   assert.equal(canRunCheckin(who(data, 'sec'), 'west', data.positions), true);
   assert.equal(canRunCheckin(who(data, 'northsec'), 'west', data.positions), false);
   assert.equal(canRunCheckin(who(data, 'northsec'), null, data.positions), true);
-  assert.equal(canRunCheckin(who(data, 'chair'), 'west', data.positions), true);
+  assert.equal(canRunCheckin(who(data, 'chair'), 'west', data.positions), false, 'no West seat');
+  assert.equal(canRunCheckin(who(data, 'chair'), null, data.positions), true);
   assert.equal(canRunCheckin(who(data, 'rider'), null, data.positions), false);
   assert.equal(canRunCheckin(null, null, data.positions), false);
 });
@@ -149,7 +151,7 @@ test('excusing someone from a check-in (4.12, 5.3)', () => {
   const sec = who(data, 'sec');
   assert.equal(exemptionProblem(sec, 's1', 'rider', 'Work trip', data), null);
   assert.equal(exemptionProblem(sec, 's1', 'fng', null, data), null);
-  assert.equal(exemptionProblem(who(data, 'chair'), 's1', 'rider', 'Work trip', data), null);
+  assert.equal(exemptionProblem(who(data, 'chair'), 's1', 'rider', 'Work trip', data), 'Only their chapter’s board can excuse them.');
   assert.equal(exemptionProblem(sec, 'nope', 'rider', 'Work trip', data), 'That check-in no longer exists.');
   assert.equal(exemptionProblem(sec, 's1', 'nobody', 'Work trip', data), 'That member no longer exists.');
   assert.equal(exemptionProblem(who(data, 'rider'), 's1', 'fng', 'Work trip', data), 'Only their chapter’s board can excuse them.');
@@ -172,4 +174,15 @@ test('a meeting’s kind can be changed by its runners until it’s held', () =>
   assert.equal(meetingTypeProblem(sec, 's1', 'bbq' as never, data, today), 'Pick what kind of meeting it is.');
   assert.equal(meetingTypeProblem(sec, 'old', 'event', data, today), 'A meeting’s kind is set before the day it’s held (4.6).');
   assert.equal(meetingTypeProblem(sec, 's1', 'event', data, today), 'A meeting’s kind is set before the day it’s held (4.6).');
+});
+
+test('whose meeting check-ins you see: your own, your chapter’s as its board or a national role, and the Auditor’s (5.5, 11.8)', () => {
+  const data = club();
+  assert.equal(canSeeAttendance(who(data, 'rider'), who(data, 'rider'), data.positions), true, 'your own');
+  assert.equal(canSeeAttendance(who(data, 'rider'), who(data, 'fng'), data.positions), false, 'not another member’s');
+  assert.equal(canSeeAttendance(who(data, 'sec'), who(data, 'rider'), data.positions), true, 'the chapter board');
+  assert.equal(canSeeAttendance(who(data, 'northsec'), who(data, 'rider'), data.positions), false, 'not another chapter’s board');
+  assert.equal(canSeeAttendance(who(data, 'chair'), who(data, 'rider'), data.positions), true, 'the national roles');
+  assert.equal(canSeeAttendance(who(data, 'auditor'), who(data, 'rider'), data.positions), true, 'the Auditor');
+  assert.equal(canSeeAttendance(null, who(data, 'rider'), data.positions), false);
 });

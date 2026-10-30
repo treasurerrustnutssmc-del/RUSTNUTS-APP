@@ -97,7 +97,7 @@ test('the NEC publishes club-wide documents, a chapter board its own', () => {
   assert.equal(publishesDocument(me('m-torque'), null, base.positions), false);
   assert.equal(publishesDocument(me('m-torque'), 'ch-west', base.positions), true);
   assert.equal(publishesDocument(me('m-torque'), 'ch-north', base.positions), false);
-  assert.equal(publishesDocument(me('m-smokey'), 'ch-west', base.positions), true); // a President sits on the NEC
+  assert.equal(publishesDocument(me('m-smokey'), 'ch-west', base.positions), false); // North's President sits on the NEC, not West's board
   assert.equal(publishesDocument(me('m-patches'), 'ch-west', base.positions), false);
 });
 

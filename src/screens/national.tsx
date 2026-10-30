@@ -11,6 +11,7 @@ import { formatCents, parseDollars } from '../domain/fees';
 import { RESULT_LABEL } from '../domain/labels';
 import {
   boardVoteFits, CHAPTER_PARTS, necVoteFits, CONTRIBUTION_STATUS_LABEL, contributionsToDecide, PART_LABEL, PROPOSAL_STATUS_LABEL, sharesFor, STATES,
+  visibleContributions, visibleProposals,
 } from '../domain/national';
 import { displayName } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
@@ -48,8 +49,8 @@ export function NationalScreen({ navigation }: RootScreen<'National'>) {
   if (!me) return null;
   const nec = isNational(me.id, data.positions);
   const toDecide = contributionsToDecide(me, data);
-  const contributions = [...(data.contributions ?? [])].sort((a, b) => b.proposedAt.localeCompare(a.proposedAt));
-  const proposals = [...(data.chapterProposals ?? [])].sort((a, b) => b.proposedAt.localeCompare(a.proposedAt));
+  const contributions = visibleContributions(me, data).sort((a, b) => b.proposedAt.localeCompare(a.proposedAt));
+  const proposals = visibleProposals(me, data).sort((a, b) => b.proposedAt.localeCompare(a.proposedAt));
   const chapterName = (id: string) => data.chapters.find((c) => c.id === id)?.name ?? 'Chapter';
 
   return (

@@ -178,6 +178,7 @@ end $$;
 do $$
 declare
   cara constant uuid := '00000000-0000-0000-0000-0000000000c1';
+  wes constant uuid := '00000000-0000-0000-0000-0000000000c2';
   sam constant uuid := '00000000-0000-0000-0000-0000000000c3';
   nora constant uuid := '00000000-0000-0000-0000-0000000000c4';
   fran constant uuid := '00000000-0000-0000-0000-0000000000c5';
@@ -199,8 +200,10 @@ begin
 
   assert pg_temp.try_as(sam, format('select set_exemption(%L, %L, %L)', '00000000-0000-0000-0000-00000000ee02', fergus, '  Work trip ')) is null, 'excused';
   assert (select reason = 'Work trip' and granted_by = sam from attendance_exemptions where member_id = fergus), 'trimmed, with who';
-  assert pg_temp.try_as(cara, format('select set_exemption(%L, %L, %L)', '00000000-0000-0000-0000-00000000ee02', fergus, 'Injury')) is null, 'the NEC changes it';
-  assert (select reason = 'Injury' and granted_by = cara from attendance_exemptions where member_id = fergus), 'changed';
+  err := pg_temp.try_as(cara, format('select set_exemption(%L, %L, %L)', '00000000-0000-0000-0000-00000000ee02', fergus, 'Injury'));
+  assert err = 'Only their chapter’s board can excuse them.', coalesce(err, 'the Chairman excused a West member without a West seat');
+  assert pg_temp.try_as(wes, format('select set_exemption(%L, %L, %L)', '00000000-0000-0000-0000-00000000ee02', fergus, 'Injury')) is null, 'another West board member changes it';
+  assert (select reason = 'Injury' and granted_by = wes from attendance_exemptions where member_id = fergus), 'changed';
   assert pg_temp.try_as(sam, format('select set_exemption(%L, %L, %L)', '00000000-0000-0000-0000-00000000ee03', fergus, 'Bike broke down')) is null, 'excused from a ride';
 
   -- Who can see them: the member and their chapter board, not other members or other chapters.

@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import {
-  appointProblem, appointWarnings, auditorSeat, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, isChairman,
-  pendingFor,
-  renewAuditorProblem, statusChangeProblem,
+  appointProblem, appointWarnings, auditorSeat, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, holdsBoardSeat, isChairman, pendingFor, renewAuditorProblem, statusChangeProblem,
 } from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
@@ -158,6 +156,8 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   // Road Rules: who's signed, for anyone who can open that list (the NEC and the chapter boards).
   const signoffs = signoffSummary(me, data, today);
   const books = seesAnyLedger(me, data);
+  // National roles see every chapter's board; they act only where they hold a seat (8.2, 12.3).
+  const seatNames = data.chapters.filter((c) => holdsBoardSeat(me.id, c.id, data.positions)).map((c) => c.name).join(' and ');
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
@@ -165,7 +165,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
         <Chip label={national ? 'All chapters' : `${chapter?.name} chapter`} tone="redOutline" />
         <Small>
           {national
-            ? 'You sit on the NEC, so you can act for every chapter.'
+            ? `You sit on the NEC, so you see every chapter’s board records. ${seatNames ? `You act for ${seatNames}.` : 'Acting is each chapter board’s.'}`
             : `You can act for the ${chapter?.name} chapter.`}
         </Small>
       </Stack>

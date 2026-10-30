@@ -118,9 +118,11 @@ end $$;
 \echo 'Who sees attendance'
 do $$
 begin
-  assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a4', 'select count(*) from public.attendance') = '1',
-    'a member sees members, not the West applicant';
+  assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a4', 'select count(*) from public.attendance') = '0',
+    'a meeting check-in is the member''s and the board''s, not other members'' (5.5)';
+  assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a3', 'select count(*) from public.attendance') = '1', 'Rita sees her own';
   assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a1', 'select count(*) from public.attendance') = '2', 'the West board sees both';
+  assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a5', 'select count(*) from public.attendance') = '2', 'so does the Auditor (11.8)';
   assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a6', 'select count(*) from public.attendance') = '1', 'the applicant sees their own';
   assert pg_temp.value_as('00000000-0000-0000-0000-0000000000a8', 'select count(*) from public.attendance') = '0', 'a stranger sees none';
   assert pg_temp.value_as(null, 'select count(*) from public.attendance') is null, 'anon is refused';

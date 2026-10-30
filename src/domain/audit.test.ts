@@ -76,7 +76,7 @@ test('the board answers its requests, the NEC answers national ones; members nev
   assert.equal(answersRequest(who(d, 'northsec'), west, d.positions), false);
   assert.equal(answersRequest(who(d, 'sec'), nat, d.positions), false);
   assert.equal(answersRequest(who(d, 'pres'), nat, d.positions), true);
-  assert.equal(answersRequest(who(d, 'chair'), west, d.positions), true);
+  assert.equal(answersRequest(who(d, 'chair'), west, d.positions), false, 'no West seat');
   assert.equal(answersRequest(who(d, 'auditor'), west, d.positions), false);
   assert.equal(seesRequest(who(d, 'auditor'), west, d), true);
   assert.equal(seesRequest(who(d, 'npres'), west, d), true, 'the NEC sees every request');

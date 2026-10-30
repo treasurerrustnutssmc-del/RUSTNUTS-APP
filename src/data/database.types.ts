@@ -589,6 +589,14 @@ export type Database = {
         >[];
       };
       unclaimed_roster_counts: { Args: never; Returns: { chapter_id: string; status: MemberStatus; n: number }[] };
+      signup_counts: {
+        Args: never;
+        Returns: {
+          ride_id: string; hub_riders: number; hub_pillions: number; hub_group: number; hub_own: number; hub_camping: number;
+          hub_day: number; hub_group_beds: number; charity_riding: number; charity_pillions: number; charity_guests: number;
+          charity_helping: number; charity_people: number;
+        }[];
+      };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
       end_position: { Args: { p_position: string }; Returns: undefined };
       apply_to_join: {

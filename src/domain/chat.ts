@@ -2,7 +2,7 @@
 // Who can read, post, remove and react. The database's chat actions apply the same rules with
 // the same words (supabase/migrations/20261101000100_chat.sql).
 
-import { accessLevel, activePositions, isBoardOf, isNational } from './access';
+import { accessLevel, activePositions, isBoardOf, isNational, seesBoardOf } from './access';
 import { daysBetween, formatAuDate } from './dates';
 import { displayName } from './profile';
 import { lastDay, melbourneDate } from './rides';
@@ -117,7 +117,7 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
     return `That chat is for ${name} chapter members.`;
   }
   if (conv.kind === 'board') {
-    if (conv.chapterId && isBoardOf(me, conv.chapterId, data.positions)) return null;
+    if (conv.chapterId && seesBoardOf(me, conv.chapterId, data.positions)) return null;
     return `That chat is for the ${data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'chapter'} board.`;
   }
   if (conv.kind === 'nec') return isNational(me.id, data.positions) ? null : 'That chat is for the NEC.';
@@ -268,7 +268,7 @@ export function reportProblem(
 }
 
 /** Who acts on a report: whoever moderates the chat, or for a private chat (which nobody
- *  moderates) the reporter's chapter board and the NEC. */
+ *  moderates) the reporter's chapter board. Mirrors private.can_act_on_report. */
 export function canSeeReport(me: Member | null, conv: Conversation, reporter: Member | undefined, data: ClubData): boolean {
   if (conv.kind !== 'direct') return canModerate(me, conv, data);
   return !!reporter && isBoardOf(me, reporter.chapterId, data.positions);
