@@ -4,19 +4,26 @@
 // Section numbers refer to the club constitution (v4, Final Club Edition, 25 Oct 2026); rules marked (inferred) are
 // ones it doesn't settle.
 
-import { activePositions, NEC_OFFICER_ROLES } from './access';
+import { activePositions, NEC_OFFICER_ROLES, NEC_SEATS } from './access';
 import { BOARD_ROLES, electoratesFor } from './labels';
 import { reviewsScope, runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
-import type { ClubData, Electorate, Member, MemberStatus, Position, PositionRole, Tally, Threshold, Vote, VoteResult } from './types';
+import type { ClubData, Electorate, Member, MemberStatus, NecSeatRole, Position, PositionRole, Tally, Threshold, Vote, VoteResult } from './types';
 
 /** Who the NEC can vote to bring back to Full or Nomad (5.6). */
 export const REINSTATABLE: MemberStatus[] = ['supporter', 'legacy', 'family', 'introduced'];
 export const REINSTATE_VOTE = 'A reinstatement vote is an NEC majority vote on a member who isn’t Full, Nomad or an FNG (5.6).';
 export const AUDITOR_VOTE = 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President, Treasurer or NEC officer (11.8).';
+export const SECRETARY_VOTE = 'A vote to appoint the National Secretary is an NEC two-thirds vote on a Full Member who isn’t already National Chairman, Secretary or Auditor (11.6).';
+export const SEAT_VOTE_NEEDS_SEAT = 'Say which seat the vote is for: National Auditor or National Secretary (11.6, 11.8).';
+export const SEAT_VOTE_IS_NATIONAL = 'A vote for a national seat is the NEC’s vote about a Full Member (11.6, 11.8).';
+export const SEAT_VOTE_FULL_ONLY = 'Only a Full Member can be voted into a national seat (9.1).';
+export const NO_CASTING_ABOUT_MEMBER = 'No casting vote on a vote about a member (10.7): a tie is lost.';
 
 /** Seats the National Auditor can't hold at the same time (11.2, 11.8). */
 const AUDITOR_APART: PositionRole[] = ['president', 'treasurer', ...NEC_OFFICER_ROLES];
+/** Seats that rule out a vote to make someone National Secretary: they're already on the NEC, or off it as Auditor (11.6, 11.8). */
+const SECRETARY_APART: PositionRole[] = [...NEC_OFFICER_ROLES, 'nec_auditor'];
 
 /** How long a vote can stay open (inferred). */
 export const MAX_OPEN_DAYS = 60;
@@ -25,6 +32,8 @@ export interface VoteInput {
   chapterId: string | null;
   meetingId: string | null;
   subjectMemberId: string | null;
+  /** The national seat a vote about a Full Member is for (11.6, 11.8); null for every other vote. */
+  subjectRole: NecSeatRole | null;
   question: string;
   details: string | null;
   electorate: Electorate;
@@ -158,12 +167,22 @@ export function openVoteProblem(me: Member | null, input: VoteInput, data: ClubD
   }
   if (!input.closesAt || !(ms(input.closesAt) > ms(now))) return 'Pick a closing time in the future.';
   if (ms(input.closesAt) > ms(now) + MAX_OPEN_DAYS * 86_400_000) return 'Votes can stay open for 60 days at most.';
+  if (input.subjectRole !== null && !NEC_SEATS.includes(input.subjectRole)) {
+    return 'The NEC votes people into the National Auditor and Secretary seats only (11.6, 11.8).';
+  }
+  if (input.subjectRole !== null && (input.subjectMemberId === null || input.chapterId !== null)) return SEAT_VOTE_IS_NATIONAL;
   if (input.subjectMemberId !== null && input.chapterId === null) {
     const subject = data.members.find((x) => x.id === input.subjectMemberId);
     if (subject?.approval === 'approved' && subject.status === 'full') {
-      // Appointing the National Auditor: two-thirds of the NEC, never a President, Treasurer or NEC officer (11.8).
-      const apart = activePositions(subject.id, data.positions).some((p) => AUDITOR_APART.includes(p.role));
-      if (apart || input.electorate !== 'nec' || input.threshold !== 'two_thirds') return AUDITOR_VOTE;
+      // Seating a Full Member as National Auditor (11.8) or National Secretary (11.6): two-thirds of
+      // the NEC, on someone who could hold the seat.
+      if (input.subjectRole === null) return SEAT_VOTE_NEEDS_SEAT;
+      const holds = (roles: PositionRole[]) => activePositions(subject.id, data.positions).some((p) => roles.includes(p.role));
+      const notNecTwoThirds = input.electorate !== 'nec' || input.threshold !== 'two_thirds';
+      if (input.subjectRole === 'nec_auditor' && (notNecTwoThirds || holds(AUDITOR_APART))) return AUDITOR_VOTE;
+      if (input.subjectRole === 'nec_secretary' && (notNecTwoThirds || holds(SECRETARY_APART))) return SECRETARY_VOTE;
+    } else if (input.subjectRole !== null) {
+      return SEAT_VOTE_FULL_ONLY;
     } else if (!subject || subject.approval !== 'approved' || !REINSTATABLE.includes(subject.status) || input.electorate !== 'nec' || input.threshold !== 'majority') {
       // Bringing someone back to Full or Nomad is the NEC's decision (5.6).
       return REINSTATE_VOTE;
@@ -201,6 +220,37 @@ export function castProblem(me: Member | null, vote: Vote | undefined, now: stri
   return null;
 }
 
+/** How much of the club has to turn out for a national vote: voters from at least 51% of the chapters (10.6). */
+export const CHAPTERS_SHARE = 51;
+
+/**
+ * Whether a national vote has voters from at least 51% of the chapters (10.6). The chapters are the
+ * ones with someone on the vote's electoral roll, since no one else could turn out.
+ */
+export function chaptersRepresented(vote: Pick<Vote, 'electorIds' | 'votedIds'>, members: Member[]): boolean {
+  const chapterOf = new Map(members.map((m) => [m.id, m.chapterId]));
+  const onRoll = new Set(vote.electorIds.map((id) => chapterOf.get(id)).filter((c): c is string => !!c));
+  const voted = new Set(vote.votedIds.map((id) => chapterOf.get(id)).filter((c): c is string => !!c));
+  return voted.size >= Math.max(1, Math.ceil((onRoll.size * CHAPTERS_SHARE) / 100));
+}
+
+/** Whether a national vote fails its quorum for want of chapters rather than ballots (10.6). */
+export function lacksChapters(vote: Pick<Vote, 'electorate' | 'electorIds' | 'votedIds' | 'quorum' | 'tally'>, members: Member[]): boolean {
+  return vote.electorate === 'club_patched' && vote.tally !== null
+    && vote.tally.yes + vote.tally.no + vote.tally.abstain >= vote.quorum && !chaptersRepresented(vote, members);
+}
+
+/**
+ * The result a count gives, with the two rules around decide(): a national vote without voters from
+ * 51% of the chapters has no quorum (10.6), and a vote about a member gets no casting vote, so its
+ * tie is lost (10.7). The database's close_vote does the same.
+ */
+export function outcome(vote: Vote, tally: Tally, casting: Casting | null, members: Member[]): { result: VoteResult; tied: boolean } {
+  if (vote.electorate === 'club_patched' && !chaptersRepresented(vote, members)) return { result: 'no_quorum', tied: false };
+  const aboutMember = vote.subjectMemberId !== null;
+  return decide(vote.threshold, vote.quorum, tally, aboutMember ? null : casting, vote.electorIds.length);
+}
+
 /**
  * Why `me` can't close this vote. `tally` is the count when it's known (the demo, and the
  * database); the live app passes null and leaves the tie check to the database.
@@ -225,10 +275,13 @@ export function closeProblem(
     return 'Wait until it closes, or until everyone has voted.';
   }
   if (!tally) return null;
-  const { tied } = decide(vote.threshold, vote.quorum, tally, null, vote.electorIds.length);
+  const { tied } = outcome(vote, tally, null, data.members);
+  const aboutMember = vote.subjectMemberId !== null;
   const chair = chairOf(vote.chapterId, data.positions);
-  // The chair casts or declines, and a declined tie is lost (9.10).
-  if (tied && chair !== null && (casting === null || me!.id !== chair)) return TIE;
+  // No casting vote on a vote about a member: a tie is lost (10.7).
+  if (tied && aboutMember && casting !== null) return NO_CASTING_ABOUT_MEMBER;
+  // Otherwise the chair casts or declines, and a declined tie is lost (9.10).
+  if (tied && !aboutMember && chair !== null && (casting === null || me!.id !== chair)) return TIE;
   if (!tied && casting !== null) return 'There’s no tie, so no casting vote.';
   if ((casting === 'yes' || casting === 'no') && chair === null) return NO_CHAIR;
   return null;
@@ -257,8 +310,10 @@ export function ruleLine(vote: Pick<Vote, 'threshold' | 'quorum' | 'electorIds' 
 }
 
 /** The latest vote of one kind about a member: the open one if there is one, else the one that closed last. */
-function subjectVoteFor(memberId: string, votes: Vote[], electorate: Electorate, threshold?: Threshold): Vote | null {
-  const theirs = votes.filter((v) => v.subjectMemberId === memberId && v.electorate === electorate && (!threshold || v.threshold === threshold));
+function subjectVoteFor(memberId: string, votes: Vote[], electorate: Electorate, threshold?: Threshold, seat?: NecSeatRole): Vote | null {
+  const theirs = votes.filter(
+    (v) => v.subjectMemberId === memberId && v.electorate === electorate && (!threshold || v.threshold === threshold) && (!seat || v.subjectRole === seat),
+  );
   return (
     theirs.find((v) => v.closedAt === null) ??
     theirs.sort((a, b) => b.closedAt!.localeCompare(a.closedAt!))[0] ??
@@ -272,5 +327,6 @@ export const patchVoteFor = (memberId: string, votes: Vote[]) => subjectVoteFor(
 /** The NEC's vote on bringing a member back to Full or Nomad (5.6). */
 export const reinstateVoteFor = (memberId: string, votes: Vote[]) => subjectVoteFor(memberId, votes, 'nec', 'majority');
 
-/** The NEC's two-thirds vote on appointing a member National Auditor (11.8). */
-export const auditorVoteFor = (memberId: string, votes: Vote[]) => subjectVoteFor(memberId, votes, 'nec', 'two_thirds');
+/** The NEC's two-thirds vote on seating a member as National Auditor (11.8) or Secretary (11.6). */
+export const seatVoteFor = (memberId: string, votes: Vote[], seat: NecSeatRole) => subjectVoteFor(memberId, votes, 'nec', 'two_thirds', seat);
+export const auditorVoteFor = (memberId: string, votes: Vote[]) => seatVoteFor(memberId, votes, 'nec_auditor');

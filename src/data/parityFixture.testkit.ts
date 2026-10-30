@@ -303,7 +303,7 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
     })),
     actionItems: [],
     votes: fixture.votes.map((v) => ({
-      id: v.key, chapterId: v.chapter, meetingId: null, subjectMemberId: null, question: v.key, details: null,
+      id: v.key, chapterId: v.chapter, meetingId: null, subjectMemberId: null, subjectRole: null, question: v.key, details: null,
       electorate: v.electorate, threshold: v.threshold, secret: false, quorum: v.quorum, openedAt: '2025-12-01T00:00:00.000Z',
       closesAt: new Date(v.closesAt).toISOString(), closedAt: v.result ? '2026-01-01T00:00:00.000Z' : null, result: v.result ?? null,
       castingVote: null, tally: null,

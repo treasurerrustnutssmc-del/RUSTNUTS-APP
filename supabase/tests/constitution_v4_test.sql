@@ -88,8 +88,8 @@ begin
     = 'The National Auditor can’t also be a President or Treasurer (11.8).', 'a Treasurer isn''t the Auditor';
   assert pg_temp.try_as(chair, format(appoint, '00000000-0000-0000-0000-0000000000a3', null, 'nec_auditor'))
     = 'Appointing the National Auditor needs a carried two-thirds NEC vote about them in the last 90 days (11.8).', 'not without the NEC''s vote';
-  insert into votes (chapter_id, subject_member_id, question, electorate, threshold, quorum, closes_at, closed_at, result)
-  values (null, '00000000-0000-0000-0000-0000000000a3', 'Appoint Rita?', 'nec', 'two_thirds', 1, now() - interval '1 day', now() - interval '1 day', 'carried');
+  insert into votes (chapter_id, subject_member_id, subject_role, question, electorate, threshold, quorum, closes_at, closed_at, result)
+  values (null, '00000000-0000-0000-0000-0000000000a3', 'nec_auditor', 'Appoint Rita?', 'nec', 'two_thirds', 1, now() - interval '1 day', now() - interval '1 day', 'carried');
   assert pg_temp.try_as(chair, format(appoint, '00000000-0000-0000-0000-0000000000a3', null, 'nec_auditor')) is null, 'Rita audits';
   assert pg_temp.try_as(chair, format(appoint, '00000000-0000-0000-0000-0000000000a3', west, 'president'))
     = 'The National Auditor can’t also be a President or Treasurer (11.8).', 'and so can''t be President';
@@ -210,10 +210,8 @@ declare
   fy int := private.club_year_of(private.club_date());
   zed uuid := '00000000-0000-0000-0000-0000000000c1';
 begin
-  assert pg_temp.try_as(tre, format('select public.set_continuation_fee(%L, %s, 5000)', west, fy))
-    = 'The continuation fee is half the Full fee (4.11), so the app works it out.', 'not by hand';
-  assert pg_temp.try_as('00000000-0000-0000-0000-0000000000a3', format('select public.set_continuation_fee(%L, %s, 5000)', west, fy))
-    = 'Only that chapter’s board sets its fees.', 'not a member either';
+  -- The continuation fee is half the Full fee (4.11): the app works it out, and nothing sets it by hand.
+  assert not exists (select 1 from pg_proc where proname = 'set_continuation_fee'), 'not by hand';
   assert pg_temp.try_as(tre, format($q$select public.set_fee_rate(%L, %s, 'full', 25001, %L)$q$, west, fy, private.club_date() + 30)) is null, 'Full fee';
 
   insert into auth.users (id, email, email_confirmed_at) values (zed, 'zed@example.com', now());

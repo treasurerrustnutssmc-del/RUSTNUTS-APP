@@ -161,8 +161,8 @@ export function useSponsors(): SponsorsValue {
 
   return {
     ready: current.ready,
-    // Like the database: deals only for approved members.
-    sponsors: sponsorsSeenBy(current.sponsors, me),
+    // Like the database: deals only for approved members, who added a sponsor only for the board.
+    sponsors: sponsorsSeenBy(current.sponsors, me, data.positions),
     loadError: current.loadError,
     save,
     archive,

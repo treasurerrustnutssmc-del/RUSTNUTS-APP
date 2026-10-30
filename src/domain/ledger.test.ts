@@ -205,7 +205,7 @@ test('presenting a month: the Club fund’s book-keepers, once it’s over', () 
 
 test('review fixes: budget approvers, fresh votes and paying after approval', () => {
   const vote = (over: Partial<Vote>): Vote => ({
-    id: 'v-b', chapterId: 'ch-west', meetingId: null, subjectMemberId: null, question: 'Budget', details: null,
+    id: 'v-b', chapterId: 'ch-west', meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Budget', details: null,
     electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 3, openedAt: '2026-07-01T00:00:00.000Z',
     closesAt: '2026-07-08T00:00:00.000Z', closedAt: '2026-07-08T00:00:00.000Z', result: 'carried', castingVote: null,
     tally: null, electorIds: [], votedIds: [], ballots: [], createdBy: null, ...over,

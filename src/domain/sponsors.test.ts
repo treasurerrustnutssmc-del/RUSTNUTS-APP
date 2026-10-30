@@ -109,10 +109,13 @@ test('a website shows as its plain address', () => {
   assert.equal(siteLabel('https://'), 'https://');
 });
 
-test('everyone sees the sponsors; only approved members see the deals', () => {
-  const list = [sponsor({ id: 'a', deal: '10% off' })];
-  assert.equal(sponsorsSeenBy(list, plain)[0].deal, '10% off');
-  assert.equal(sponsorsSeenBy(list, pending)[0].deal, null);
-  assert.equal(sponsorsSeenBy(list, null)[0].deal, null);
-  assert.equal(sponsorsSeenBy(list, null)[0].name, 'X');
+test('everyone sees the sponsors; only approved members see the deals; only the board sees who added one', () => {
+  const list = [sponsor({ id: 'a', deal: '10% off', addedBy: 'boss' })];
+  assert.equal(sponsorsSeenBy(list, plain, positions)[0].deal, '10% off');
+  assert.equal(sponsorsSeenBy(list, pending, positions)[0].deal, null);
+  assert.equal(sponsorsSeenBy(list, null, positions)[0].deal, null);
+  assert.equal(sponsorsSeenBy(list, null, positions)[0].name, 'X');
+  assert.equal(sponsorsSeenBy(list, plain, positions)[0].addedBy, '', 'members aren’t told who added a sponsor');
+  assert.equal(sponsorsSeenBy(list, null, positions)[0].addedBy, '');
+  assert.deepEqual(sponsorsSeenBy(list, boss, positions)[0], list[0], 'the board sees it all');
 });

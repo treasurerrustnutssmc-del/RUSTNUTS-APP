@@ -9,7 +9,7 @@ import { Platform } from 'react-native';
 import { DEFAULT_PREFS, reminderDiff, reminderPlan, type Reminder } from '../domain/notifications';
 import { useClub } from './ClubStore';
 import { ensureChannels } from './notificationChannels';
-import { forgetThisDevice, registerThisDevice } from './pushDevice';
+import { registerThisDevice } from './pushDevice';
 
 const KIND = 'ride-reminder';
 
@@ -77,13 +77,10 @@ export function ReminderSync() {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, loading, loadError, unknown, isDemo]);
-  // Signed out: finish removing this phone from the club's list if a sign-out with no signal couldn't.
+  // Signed out: the next sign-in registers this phone again, for whoever that is.
   const signedOut = !me && !loading && !isDemo;
   useEffect(() => {
-    if (signedOut) {
-      registeredFor.current = null;
-      forgetThisDevice();
-    }
+    if (signedOut) registeredFor.current = null;
   }, [signedOut]);
   return null;
 }

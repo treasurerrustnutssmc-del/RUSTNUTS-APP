@@ -120,8 +120,12 @@ export function siteLabel(url: string): string {
   return host ? host.toLowerCase().replace(/^www\./, '') : url;
 }
 
-/** Anyone with the app sees the sponsors; the member deals are for approved members only. */
-export function sponsorsSeenBy(sponsors: Sponsor[], me: Member | null): Sponsor[] {
-  if (me?.approval === 'approved') return sponsors;
-  return sponsors.map((s) => (s.deal === null ? s : { ...s, deal: null }));
+/**
+ * Anyone with the app sees the sponsors; the member deals are for approved members only, and who
+ * added a sponsor is the board's business. The same as list_sponsors() in the database.
+ */
+export function sponsorsSeenBy(sponsors: Sponsor[], me: Member | null, positions: Position[]): Sponsor[] {
+  const approved = me?.approval === 'approved';
+  const board = canKeepSponsors(me, positions);
+  return sponsors.map((s) => (approved && board ? s : { ...s, deal: approved ? s.deal : null, addedBy: board ? s.addedBy : '' }));
 }

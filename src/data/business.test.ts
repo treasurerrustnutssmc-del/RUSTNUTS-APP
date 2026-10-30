@@ -60,7 +60,7 @@ test('action items: the owner ticks them off on the Melbourne date', () => {
 
 test('a secret vote: the electorate is fixed, ballots carry no voter, and the count comes at closing', () => {
   const opened = act.openVote(ctx('m-torque'), {
-    chapterId: 'ch-west', meetingId: null, subjectMemberId: null, question: ' New patch design? ', details: '',
+    chapterId: 'ch-west', meetingId: null, subjectMemberId: null, subjectRole: null, question: ' New patch design? ', details: '',
     electorate: 'chapter_board', threshold: 'two_thirds', secret: true, quorum: 3, closesAt: '2026-10-31T02:00:00.000Z',
   });
   let data = opened.data;
@@ -93,7 +93,7 @@ test('a patch vote records only its result (4.9)', () => {
 
 test('an NEC vote on bringing someone back keeps its count and ballots (5.6)', () => {
   const opened = act.openVote(ctx('m-rusty'), {
-    chapterId: null, meetingId: null, subjectMemberId: 'm-rooster', question: 'Bring Rooster back?', details: null,
+    chapterId: null, meetingId: null, subjectMemberId: 'm-rooster', subjectRole: null, question: 'Bring Rooster back?', details: null,
     electorate: 'nec', threshold: 'majority', secret: false, quorum: 1, closesAt: '2026-10-31T02:00:00.000Z',
   });
   let data = opened.data;
@@ -108,7 +108,7 @@ test('an NEC vote on bringing someone back keeps its count and ballots (5.6)', (
 
 test('a tie goes to the chair', () => {
   const opened = act.openVote(ctx('m-torque'), {
-    chapterId: 'ch-west', meetingId: null, subjectMemberId: null, question: 'Tie?', details: null,
+    chapterId: 'ch-west', meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Tie?', details: null,
     electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 4, closesAt: '2026-10-31T02:00:00.000Z',
   });
   let data = opened.data;
@@ -126,6 +126,49 @@ test('a tie goes to the chair', () => {
   assert.deepEqual(v.ballots.find((b) => b.memberId === 'm-rusty'), { memberId: 'm-rusty', choice: 'no' }, 'an open vote names its voters');
 });
 
+test('a national vote with voters from one chapter of two has no quorum (10.6)', () => {
+  const open = () => act.openVote(ctx('m-rusty'), {
+    chapterId: null, meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Spend the kitty?', details: null,
+    electorate: 'club_patched', threshold: 'majority', secret: false, quorum: 4, closesAt: '2026-10-31T02:00:00.000Z',
+  });
+  const later = '2026-10-31T03:00:00.000Z';
+  // Four West voters: over the quorum, but North stayed home.
+  let opened = open();
+  let data = opened.data;
+  for (const who of ['m-torque', 'm-rusty', 'm-diesel', 'm-gravel']) data = act.castBallot(ctx(who, data), opened.id, 'yes');
+  data = act.closeVote(ctx('m-rusty', data, later), opened.id, null);
+  let v = data.votes!.find((x) => x.id === opened.id)!;
+  assert.equal(v.result, 'no_quorum');
+  assert.deepEqual(v.tally, { yes: 4, no: 0, abstain: 0 }, 'the count is still kept');
+  // One North voter is representation enough.
+  opened = open();
+  data = opened.data;
+  for (const who of ['m-torque', 'm-rusty', 'm-diesel', 'm-jet']) data = act.castBallot(ctx(who, data), opened.id, 'yes');
+  data = act.closeVote(ctx('m-rusty', data, later), opened.id, null);
+  v = data.votes!.find((x) => x.id === opened.id)!;
+  assert.equal(v.result, 'carried');
+});
+
+test('a tie on a vote about a member is lost, with no casting vote (10.7)', () => {
+  // West gets a Vice President, so the NEC has two votes and can tie.
+  const westVp: ClubData = {
+    ...DEMO_DATA,
+    positions: [...DEMO_DATA.positions, { id: 'p-vp', memberId: 'm-gravel', chapterId: 'ch-west', role: 'vice_president', startedOn: '2026-01-01', endedOn: null }],
+  };
+  const opened = act.openVote(ctx('m-rusty', westVp), {
+    chapterId: null, meetingId: null, subjectMemberId: 'm-rooster', subjectRole: null, question: 'Bring Rooster back?', details: null,
+    electorate: 'nec', threshold: 'majority', secret: false, quorum: 2, closesAt: '2026-10-31T02:00:00.000Z',
+  });
+  let data = opened.data;
+  assert.deepEqual(data.votes!.find((x) => x.id === opened.id)!.electorIds, ['m-gravel', 'm-smokey']);
+  data = act.castBallot(ctx('m-gravel', data), opened.id, 'yes');
+  data = act.castBallot(ctx('m-smokey', data), opened.id, 'no');
+  assert.throws(() => act.closeVote(ctx('m-rusty', data), opened.id, 'yes'), /No casting vote on a vote about a member/);
+  data = act.closeVote(ctx('m-rusty', data), opened.id, null);
+  const v = data.votes!.find((x) => x.id === opened.id)!;
+  assert.deepEqual([v.result, v.castingVote], ['lost', null]);
+});
+
 test('the live business read becomes app records', () => {
   const b = toBusiness({
     meetings: [{
@@ -135,7 +178,7 @@ test('the live business read becomes app records', () => {
     }],
     action_items: [{ id: 'a1', meeting_id: 'mt1', chapter_id: 'c1', title: 'Book', owner_id: 'm2', due_on: '2026-11-20', done_on: null }],
     votes: [{
-      id: 'v1', chapter_id: null, meeting_id: null, subject_member_id: null, question: 'Q?', details: null,
+      id: 'v1', chapter_id: null, meeting_id: null, subject_member_id: null, subject_role: 'nec_auditor', question: 'Q?', details: null,
       electorate: 'club_patched', threshold: 'majority', secret: true, quorum: 3, opened_at: '2026-10-24T02:00:00+00:00',
       closes_at: '2026-10-31T02:00:00+00:00', closed_at: '2026-10-31T03:00:00+00:00', result: 'lost', casting_vote: null,
       created_by: 'm1', tally: { yes: 1, no: 2, abstain: 0 }, elector_ids: ['m1', 'm2', 'm3'], voted_ids: ['m1', 'm2', 'm3'],
@@ -148,5 +191,6 @@ test('the live business read becomes app records', () => {
   assert.equal(b.votes[0].closesAt, '2026-10-31T02:00:00.000Z');
   assert.deepEqual(b.votes[0].tally, { yes: 1, no: 2, abstain: 0 });
   assert.deepEqual(b.votes[0].electorIds, ['m1', 'm2', 'm3']);
+  assert.equal(b.votes[0].subjectRole, 'nec_auditor');
   assert.deepEqual(toBusiness(null), { meetings: [], actionItems: [], votes: [] }, 'nothing back is nothing to show');
 });

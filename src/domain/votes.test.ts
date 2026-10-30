@@ -6,14 +6,18 @@ import {
   canSeeVote,
   castProblem,
   chairOf,
+  chaptersRepresented,
   closeProblem,
   decide,
   defaultQuorum,
   electorsFor,
+  lacksChapters,
   openVoteProblem,
+  outcome,
   patchVoteFor,
   patchVoteTooEarly,
   ruleLine,
+  seatVoteFor,
   type VoteInput,
 } from './votes';
 
@@ -29,12 +33,12 @@ const NOW = '2026-10-24T02:00:00.000Z';
 const LATER = '2026-10-31T02:00:00.000Z';
 
 const input = (over: Partial<VoteInput> = {}): VoteInput => ({
-  chapterId: 'ch-west', meetingId: null, subjectMemberId: null, question: 'Buy a new gazebo?', details: null,
+  chapterId: 'ch-west', meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Buy a new gazebo?', details: null,
   electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 3, closesAt: LATER, ...over,
 });
 
 const vote = (over: Partial<Vote> = {}): Vote => ({
-  id: 'v-1', chapterId: 'ch-west', meetingId: null, subjectMemberId: null, question: 'Buy a new gazebo?', details: null,
+  id: 'v-1', chapterId: 'ch-west', meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Buy a new gazebo?', details: null,
   electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 3, openedAt: NOW, closesAt: LATER,
   closedAt: null, result: null, castingVote: null, tally: null,
   electorIds: ['m-diesel', 'm-gravel', 'm-rusty', 'm-sparks', 'm-torque'], votedIds: [], ballots: [], createdBy: 'm-torque',
@@ -131,7 +135,7 @@ test('opening a vote', () => {
 
 test('a patch vote is secret and unanimous among the chapter’s Full Members, about one of its FNGs', () => {
   const patch = (over: Partial<VoteInput> = {}) =>
-    input({ subjectMemberId: 'm-throttle', electorate: 'chapter_patched', threshold: 'unanimous', secret: true, quorum: 4, ...over });
+    input({ subjectMemberId: 'm-throttle', subjectRole: null, electorate: 'chapter_patched', threshold: 'unanimous', secret: true, quorum: 4, ...over });
   assert.equal(openVoteProblem(m('m-torque'), patch(), d, NOW), null);
   const wrongSubject = 'A patch vote is for an approved FNG of that chapter.';
   assert.equal(openVoteProblem(m('m-torque'), patch({ subjectMemberId: 'm-lefty' }), d, NOW), wrongSubject, 'North FNG');
@@ -199,6 +203,60 @@ test('closing a vote', () => {
   );
 });
 
+test('a national vote needs voters from 51% of the chapters (10.6)', () => {
+  const west = ['m-chook', 'm-diesel', 'm-gravel', 'm-rusty', 'm-spanner', 'm-sparks', 'm-torque'];
+  const everyone = electorsFor('club_patched', null, d);
+  const national = (votedIds: string[], over: Partial<Vote> = {}) =>
+    vote({ id: 'v-nat', chapterId: null, electorate: 'club_patched', quorum: 4, electorIds: everyone, votedIds, ...over });
+  const fourWest = { yes: 4, no: 0, abstain: 0 };
+  assert.equal(chaptersRepresented(national(west.slice(0, 4)), d.members), false, 'one chapter of two is not 51%');
+  assert.equal(chaptersRepresented(national([...west.slice(0, 3), 'm-jet']), d.members), true, 'one North voter is representation enough');
+  assert.equal(chaptersRepresented(national([]), d.members), false);
+  assert.deepEqual(outcome(national(west.slice(0, 4)), fourWest, null, d.members), { result: 'no_quorum', tied: false });
+  assert.deepEqual(outcome(national([...west.slice(0, 3), 'm-jet']), fourWest, null, d.members), { result: 'carried', tied: false });
+  assert.deepEqual(outcome(vote({ votedIds: west.slice(0, 4) }), fourWest, null, d.members), { result: 'carried', tied: false }, 'a chapter vote is its own business');
+  // Closing it: no tie to settle, so no casting vote, and the chair closes it as any other.
+  assert.equal(closeProblem(m('m-rusty'), national(west.slice(0, 4)), fourWest, null, d, LATER), null);
+  assert.equal(closeProblem(m('m-rusty'), national(west.slice(0, 4)), { yes: 2, no: 2, abstain: 0 }, 'yes', d, LATER), 'There’s no tie, so no casting vote.');
+  // The result screen says why.
+  const closed = national(west.slice(0, 4), { closedAt: LATER, result: 'no_quorum', tally: fourWest });
+  assert.equal(lacksChapters(closed, d.members), true);
+  assert.equal(lacksChapters({ ...closed, tally: { yes: 2, no: 0, abstain: 0 } }, d.members), false, 'too few ballots is the plain reason');
+  assert.equal(lacksChapters({ ...closed, electorate: 'chapter_patched' }, d.members), false);
+  // Three chapters: 51% means two of them.
+  const south = { id: 'ch-south', slug: 'south', name: 'South', area: 'Southern Melbourne', state: 'VIC' };
+  const d3 = { ...d, chapters: [...d.chapters, south], members: [...d.members, { ...m('m-jet'), id: 'm-sunny', chapterId: 'ch-south', fullName: 'Sunny Day', roadName: 'Sunny' }] };
+  const three = (votedIds: string[]) =>
+    vote({ id: 'v-nat3', chapterId: null, electorate: 'club_patched', quorum: 4, electorIds: electorsFor('club_patched', null, d3), votedIds });
+  assert.equal(chaptersRepresented(three(west.slice(0, 4)), d3.members), false, 'one chapter of three');
+  assert.equal(chaptersRepresented(three([...west.slice(0, 3), 'm-jet']), d3.members), true, 'two of three is 51%, rounded up');
+  assert.equal(chaptersRepresented(three([...west.slice(0, 3), 'm-sunny']), d3.members), true, 'whichever two');
+  assert.deepEqual(outcome(three(west.slice(0, 4)), fourWest, null, d3.members), { result: 'no_quorum', tied: false });
+  // An NEC vote is exempt: 10.6 is about the club's Voting Members, and the NEC has its own quorum (11.5).
+  const nec = vote({ id: 'v-nec', chapterId: null, electorate: 'nec', quorum: 1, electorIds: ['m-smokey'], votedIds: ['m-smokey'] });
+  assert.equal(chaptersRepresented(nec, d.members), true);
+  assert.deepEqual(outcome(nec, { yes: 1, no: 0, abstain: 0 }, null, d.members), { result: 'carried', tied: false }, 'an NEC vote is its own business');
+});
+
+test('no casting vote on a vote about a member: a tie is lost (10.7)', () => {
+  // West gets a Vice President, so the NEC has two votes and can tie.
+  const westVp = { ...d, positions: [...P, { id: 'p-vp', memberId: 'm-gravel', chapterId: 'ch-west', role: 'vice_president' as const, startedOn: '2026-01-01', endedOn: null }] };
+  const reinstate = vote({
+    id: 'v-back', chapterId: null, electorate: 'nec', subjectMemberId: 'm-rooster', question: 'Bring Rooster back?', quorum: 2,
+    electorIds: ['m-gravel', 'm-smokey'], votedIds: ['m-gravel', 'm-smokey'],
+  });
+  const split = { yes: 1, no: 1, abstain: 0 };
+  assert.equal(closeProblem(m('m-rusty'), reinstate, split, 'yes', westVp, NOW), 'No casting vote on a vote about a member (10.7): a tie is lost.');
+  assert.equal(closeProblem(m('m-rusty'), reinstate, split, 'decline', westVp, NOW), 'No casting vote on a vote about a member (10.7): a tie is lost.');
+  assert.equal(closeProblem(m('m-rusty'), reinstate, split, null, westVp, NOW), null, 'it closes without one');
+  assert.deepEqual(outcome(reinstate, split, 'yes', westVp.members), { result: 'lost', tied: true }, 'and a casting vote would change nothing');
+  // Ordinary national business still gets the Chairman's casting vote.
+  const tuesdays = vote({ ...reinstate, id: 'v-tue', subjectMemberId: null, question: 'Tuesdays?' });
+  assert.equal(closeProblem(m('m-rusty'), tuesdays, split, null, westVp, NOW), 'It’s a tie. The chair gives a casting vote or lets it fall.');
+  assert.equal(closeProblem(m('m-rusty'), tuesdays, split, 'yes', westVp, NOW), null);
+  assert.deepEqual(outcome(tuesdays, split, 'yes', westVp.members), { result: 'carried', tied: true });
+});
+
 test('who sees a vote', () => {
   assert.equal(canSeeVote(m('m-gravel'), vote(), P), true, 'an elector');
   assert.equal(canSeeVote(m('m-spanner'), vote(), P), false);
@@ -214,12 +272,21 @@ test('the rule line', () => {
   assert.equal(ruleLine(vote({ threshold: 'unanimous', secret: true })), 'Unanimous: all 5 must vote yes · Secret ballot');
 });
 
+test('the vote for a national seat is found by its seat', () => {
+  const seat = (id: string, subjectRole: 'nec_auditor' | 'nec_secretary') =>
+    vote({ id, chapterId: null, electorate: 'nec', threshold: 'two_thirds', subjectMemberId: 'm-spanner', subjectRole, closedAt: NOW, result: 'carried' });
+  const votes = [seat('aud', 'nec_auditor'), seat('sec', 'nec_secretary')];
+  assert.equal(seatVoteFor('m-spanner', votes, 'nec_auditor')?.id, 'aud');
+  assert.equal(seatVoteFor('m-spanner', votes, 'nec_secretary')?.id, 'sec');
+  assert.equal(seatVoteFor('m-gravel', votes, 'nec_secretary'), null);
+});
+
 test('the patch vote on a member: the open one, or else the latest result', () => {
   const t = 'm-throttle';
-  const lost = vote({ id: 'old', electorate: 'chapter_patched', subjectMemberId: t, closedAt: '2026-05-01T09:00:00.000Z', result: 'lost' });
-  const carried = vote({ id: 'new', electorate: 'chapter_patched', subjectMemberId: t, closedAt: '2026-09-01T09:00:00.000Z', result: 'carried' });
+  const lost = vote({ id: 'old', electorate: 'chapter_patched', subjectMemberId: t, subjectRole: null, closedAt: '2026-05-01T09:00:00.000Z', result: 'lost' });
+  const carried = vote({ id: 'new', electorate: 'chapter_patched', subjectMemberId: t, subjectRole: null, closedAt: '2026-09-01T09:00:00.000Z', result: 'carried' });
   const open = vote({ id: 'open', electorate: 'chapter_patched', subjectMemberId: t });
-  const other = vote({ id: 'other', electorate: 'chapter_patched', subjectMemberId: 'm-dylan' });
+  const other = vote({ id: 'other', subjectRole: null, electorate: 'chapter_patched', subjectMemberId: 'm-dylan' });
   assert.equal(patchVoteFor(t, []), null);
   assert.equal(patchVoteFor(t, [lost, other])?.id, 'old');
   assert.equal(patchVoteFor(t, [carried, lost])?.id, 'new', 'latest result');

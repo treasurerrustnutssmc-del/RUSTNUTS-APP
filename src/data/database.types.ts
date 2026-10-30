@@ -665,7 +665,7 @@ export type Database = {
         Args: {
           p_chapter: string | null; p_meeting: string | null; p_subject: string | null; p_question: string;
           p_details: string | null; p_electorate: Electorate; p_threshold: Threshold; p_secret: boolean; p_quorum: number;
-          p_closes_at: string;
+          p_closes_at: string; p_role?: 'nec_auditor' | 'nec_secretary';
         };
         Returns: string;
       };

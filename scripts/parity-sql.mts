@@ -658,7 +658,8 @@ const call = (c: ParityCase & Record<string, any>): string => {
     case 'openVote':
       return (
         `public.open_vote(${chapter(c.chapter)}, null, ${c.subject ? id('m', c.subject) : 'null'}, 'Shall we?', null, ` +
-        `${q(c.electorate)}, ${q(c.threshold)}, ${c.secret ? 'true' : 'false'}, ${c.quorum}, now() + interval '${Number(c.days) * 24} hours')`
+        `${q(c.electorate)}, ${q(c.threshold)}, ${c.secret ? 'true' : 'false'}, ${c.quorum}, now() + interval '${Number(c.days) * 24} hours', ` +
+        `${c.role ? q(c.role) : 'null'})`
       );
     case 'castBallot':
       return `public.cast_ballot(${id('v', c.vote)}, ${q(c.choice)})`;

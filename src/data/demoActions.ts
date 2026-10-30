@@ -15,22 +15,8 @@ import { rsvpProblem } from '../domain/rides';
 import type { Casting } from '../domain/votes';
 import { APPROVE_AS, NATIONAL_ROLES } from '../domain/labels';
 import type {
-  BallotChoice,
-  BusBooking,
-  BusPurpose,
-  ClubData,
-  HubStaying, // Ride planning extras
-  PlanStop, // Ride planning extras
-  RideCallState, // Ride planning extras
-  CrewRole,
-  Electorate,
-  MeetingKind,
-  Member,
-  MemberStatus,
-  PositionRole,
-  Route,
-  RsvpAnswer,
-  Threshold,
+  BallotChoice, BusBooking, BusPurpose, ClubData, CrewRole, Electorate, HubStaying, MeetingKind, Member, MemberStatus, NecSeatRole,
+  PlanStop, PositionRole, RideCallState, Route, RsvpAnswer, Threshold,
 } from '../domain/types';
 import * as business from './businessActions';
 import * as planning from './planningActions'; // Ride planning extras
@@ -583,8 +569,8 @@ export type DemoAction =
   | { action: 'shareMinutes'; meeting: string }
   | { action: 'saveActionItem'; chapter: string | null; meeting: string | null; title: string; owner: string }
   | {
-      action: 'openVote'; chapter: string | null; subject: string | null; electorate: Electorate; threshold: Threshold;
-      secret?: boolean; quorum: number; days: number;
+      action: 'openVote'; chapter: string | null; subject: string | null; role?: NecSeatRole | null; electorate: Electorate;
+      threshold: Threshold; secret?: boolean; quorum: number; days: number;
     }
   | { action: 'castBallot'; vote: string; choice: BallotChoice }
   | { action: 'closeVote'; vote: string; casting: Casting | null }
@@ -748,7 +734,7 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       }).data;
     case 'openVote':
       return business.openVote(ctx, {
-        chapterId: a.chapter, meetingId: null, subjectMemberId: a.subject, question: 'Shall we?', details: null,
+        chapterId: a.chapter, meetingId: null, subjectMemberId: a.subject, subjectRole: a.role ?? null, question: 'Shall we?', details: null,
         electorate: a.electorate, threshold: a.threshold, secret: a.secret ?? false, quorum: a.quorum,
         closesAt: new Date(Date.now() + a.days * 86_400_000).toISOString(),
       }).data;

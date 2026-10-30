@@ -3,14 +3,14 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { appointProblem, appointWarnings, AUDITOR_NEEDS_VOTE, statusChangeProblem } from './access';
+import { appointProblem, appointWarnings, AUDITOR_NEEDS_VOTE, SECRETARY_NEEDS_VOTE, statusChangeProblem } from './access';
 import { continuationFeeFor } from './fees';
 import { decideApplicationProblem, fngReviewProblem } from './joining';
 import { meetingKindLabel } from './labels';
 import { noticeWarning, saveMeetingProblem, type MeetingInput } from './meetings';
 import { club, member, who } from './stage4.testkit';
 import type { ClubData, MemberPrivate, Position, Vote } from './types';
-import { AUDITOR_VOTE, openVoteProblem, patchVoteFor, reinstateVoteFor, type VoteInput } from './votes';
+import { AUDITOR_VOTE, openVoteProblem, patchVoteFor, reinstateVoteFor, SEAT_VOTE_NEEDS_SEAT, type VoteInput } from './votes';
 
 const seat = (id: string, memberId: string, chapterId: string | null, role: Position['role'], startedOn = '2025-01-01'): Position => ({
   id, memberId, chapterId, role, startedOn, endedOn: null,
@@ -65,7 +65,10 @@ test('Nomads hold Non-Board roles only', () => {
   assert.equal(appointProblem(sec, who(data, 'nomad'), 'west', 'officer', data), null);
   assert.equal(appointProblem(sec, who(data, 'nomad'), 'west', 'road_captain', data), NO_NOMAD_SEAT);
   assert.equal(appointProblem(who(data, 'chair'), who(data, 'nomad'), null, 'nec_secretary', data), NO_NOMAD_SEAT);
-  assert.equal(appointProblem(who(data, 'chair'), who(data, 'rider'), null, 'nec_secretary', data), null);
+  // A Full Member can be, once the NEC has voted them in by two-thirds (11.6).
+  assert.equal(appointProblem(who(data, 'chair'), who(data, 'rider'), null, 'nec_secretary', data, '2026-10-25'), SECRETARY_NEEDS_VOTE);
+  const voted = { ...data, votes: [{ ...necVote('rider', 'carried'), threshold: 'two_thirds' as const, subjectRole: 'nec_secretary' as const }] };
+  assert.equal(appointProblem(who(voted, 'chair'), who(voted, 'rider'), null, 'nec_secretary', voted, '2026-10-25'), null);
 });
 
 test('the National Auditor stays apart from Presidents and Treasurers', () => {
@@ -78,7 +81,7 @@ test('the National Auditor stays apart from Presidents and Treasurers', () => {
   // carried two-thirds NEC vote about them lets the Chairman seat them (11.8).
   const free = { ...data, positions: data.positions.filter((p) => p.role !== 'nec_auditor') };
   assert.equal(appointProblem(chair, who(free, 'rider'), null, 'nec_auditor', free), AUDITOR_NEEDS_VOTE);
-  const voted = { ...free, votes: [{ ...necVote('rider', 'carried'), threshold: 'two_thirds' as const }] };
+  const voted = { ...free, votes: [{ ...necVote('rider', 'carried'), threshold: 'two_thirds' as const, subjectRole: 'nec_auditor' as const }] };
   assert.equal(appointProblem(chair, who(voted, 'rider'), null, 'nec_auditor', voted, '2026-10-25'), null);
 });
 
@@ -159,13 +162,14 @@ test('a reinstatement vote is an NEC majority vote on someone not Full, Nomad or
   const chair = who(data, 'chair');
   const now = '2026-10-25T00:00:00.000Z';
   const input: VoteInput = {
-    chapterId: null, meetingId: null, subjectMemberId: 'sup', question: 'Reinstate?', details: null,
+    chapterId: null, meetingId: null, subjectMemberId: 'sup', subjectRole: null, question: 'Reinstate?', details: null,
     electorate: 'nec', threshold: 'majority', secret: false, quorum: 1, closesAt: '2026-11-01T00:00:00.000Z',
   };
   assert.equal(openVoteProblem(chair, input, data, now), null);
   assert.equal(openVoteProblem(chair, { ...input, secret: true }, data, now), null, 'secret or not is the NEC’s call');
   assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'legacy' }, data, now), null);
-  assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'rider' }, data, now), AUDITOR_VOTE, 'a Full Member: only the Auditor vote');
+  assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'rider' }, data, now), SEAT_VOTE_NEEDS_SEAT, 'a Full Member: a vote for a national seat');
+  assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'rider', subjectRole: 'nec_auditor' }, data, now), AUDITOR_VOTE, 'by two-thirds');
   assert.equal(openVoteProblem(chair, { ...input, subjectMemberId: 'fng' }, data, now), REINSTATE_VOTE);
   assert.equal(openVoteProblem(chair, { ...input, threshold: 'unanimous' }, data, now), REINSTATE_VOTE);
   assert.equal(openVoteProblem(chair, { ...input, electorate: 'club_patched', quorum: 3 }, data, now), REINSTATE_VOTE);

@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import {
-  appointProblem, appointWarnings, auditorSeat, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, isChairman, pendingFor,
+  appointProblem, appointWarnings, auditorSeat, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, isChairman,
+  pendingFor,
   renewAuditorProblem, statusChangeProblem,
 } from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
 import { signoffSummary } from '../domain/roadRules';
 import { melbourneDate } from '../domain/rides';
-import { auditorVoteFor, nineMonthsAfter, patchVoteFor, patchVoteTooEarly, REINSTATABLE, reinstateVoteFor } from '../domain/votes';
+import { auditorVoteFor, nineMonthsAfter, patchVoteFor, patchVoteTooEarly, REINSTATABLE, reinstateVoteFor, seatVoteFor } from '../domain/votes';
 import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
 import type { Member, MemberStatus, PositionRole, Votes } from '../domain/types';
@@ -331,6 +332,16 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
     member.status === 'full' && member.approval === 'approved' && !apart && seatFree && !auditorVoteOpen && !auditorYes &&
     runsScope(me, null, data.positions);
   const canRenew = sitting && renewAuditorProblem(me, data, today) === null;
+  // The National Secretary: a two-thirds NEC vote first, then the Chairman appoints (11.6). The vote
+  // can open while a Secretary sits (their successor's); only the appointment needs the seat free.
+  const secretarySeat = data.positions.find((p) => p.role === 'nec_secretary' && p.endedOn === null) ?? null;
+  const secretaryVote = member.status === 'full' ? seatVoteFor(member.id, data.votes ?? [], 'nec_secretary') : null;
+  const secretaryVoteOpen = secretaryVote !== null && secretaryVote.closedAt === null;
+  const secretaryYes = hasCarriedSeatVote(member.id, 'nec_secretary', data, today);
+  const onNec = positions.some((p) => p.endedOn === null && (p.role === 'nec_chair' || p.role === 'nec_secretary' || p.role === 'nec_auditor'));
+  const canStartSecretaryVote =
+    member.status === 'full' && member.approval === 'approved' && !onNec && !secretaryVoteOpen && !secretaryYes &&
+    runsScope(me, null, data.positions);
 
   const run = async (fn: () => Promise<void>, ok: string) => {
     try {
@@ -470,7 +481,23 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
           <Button
             label={sitting ? 'Start NEC vote to renew as Auditor' : 'Start NEC vote for National Auditor'}
             kind="secondary"
-            onPress={() => navigation.navigate('NewVote', { subjectMemberId: member.id })}
+            onPress={() => navigation.navigate('NewVote', { subjectMemberId: member.id, subjectRole: 'nec_auditor' })}
+          />
+        ) : null}
+        {/* The National Secretary (11.6) */}
+        {!secretarySeat && secretaryYes ? <Small>The NEC voted by two-thirds to appoint them National Secretary (11.6).</Small> : null}
+        {secretaryVote ? (
+          <Button
+            label={secretaryVoteOpen ? 'See the Secretary vote' : 'See the Secretary vote result'}
+            kind="secondary"
+            onPress={() => navigation.navigate('Vote', { voteId: secretaryVote.id })}
+          />
+        ) : null}
+        {canStartSecretaryVote ? (
+          <Button
+            label="Start NEC vote for National Secretary"
+            kind="secondary"
+            onPress={() => navigation.navigate('NewVote', { subjectMemberId: member.id, subjectRole: 'nec_secretary' })}
           />
         ) : null}
         {canRenew ? (
