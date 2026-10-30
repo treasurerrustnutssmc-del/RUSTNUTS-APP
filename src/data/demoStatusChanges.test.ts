@@ -50,3 +50,13 @@ test('every other status change is recorded too, without a notice or a request',
   const twice = setStatus(ctx('sec', data), 'rider', 'supporter', true);
   assert.equal(changes(twice).length, 2, 'the record grows');
 });
+
+test('a move that isn’t gated records no notice, even when one was decided', () => {
+  const withFamily: ClubData = {
+    ...base, members: [...base.members, member('fam', { status: 'family' })], statusNotices: [notice({ id: 'n-fam', memberId: 'fam' })],
+  };
+  const moved = setStatus(ctx('sec', withFamily), 'fam', 'supporter');
+  assert.equal(who(moved, 'fam').status, 'supporter');
+  assert.equal(changes(moved)[0].noticeId, null, 'Family to Supporter isn’t a 5.5 move, so the notice isn’t on the record');
+  assert.equal(changes(moved)[0].byRequest, false);
+});

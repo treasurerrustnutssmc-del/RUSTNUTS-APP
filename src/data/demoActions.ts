@@ -2,7 +2,7 @@
 // is and hand back the club as it should be, or throw when the person isn't allowed. The
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
-import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, LEARNER_FNG, statusChangeProblem } from '../domain/access';
+import { appointProblem, decidedNoticeFor, GATED_TO_SUPPORTER, endTermProblem, isBoardOf, isLearner, LEARNER_FNG, statusChangeProblem } from '../domain/access';
 import { big4GoingProblem } from '../domain/big4';
 import { bookedStraightAway, bookProblem, cancelProblem, decideProblem, type BusInput } from '../domain/bus';
 import { cleanBriefing, readBriefingProblem, saveBriefingProblem, type BriefingInput } from '../domain/briefings';
@@ -175,7 +175,8 @@ export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus, 
   const target = findMember(ctx.data, memberId);
   const problem = statusChangeProblem(ctx.me, target, status, ctx.data, ctx.today, byRequest);
   if (problem) throw new NotAllowedError(problem);
-  const notice = status === 'supporter' && !byRequest ? decidedNoticeFor(memberId, ctx.data, ctx.today) : null;
+  const gated = status === 'supporter' && GATED_TO_SUPPORTER.includes(target.status) && !byRequest;
+  const notice = gated ? decidedNoticeFor(memberId, ctx.data, ctx.today) : null;
   const change: StatusChange = {
     id: newId('sc'), memberId, chapterId: target.chapterId, fromStatus: target.status, toStatus: status, byRequest,
     noticeId: notice?.id ?? null, changedBy: ctx.me!.id, changedOn: ctx.today, changedAt: ctx.now ?? new Date().toISOString(),

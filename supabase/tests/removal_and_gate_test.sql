@@ -144,8 +144,7 @@ begin
   assert pg_temp.try_as(pg_temp.f(1), format($q$select public.open_vote(null, null, %L, 'Remove?', null, 'nec', 'majority', false, 2, now() + interval '7 days', 'tail_gunner')$q$, pg_temp.f(10)))
     = 'The NEC votes people into the National Auditor and Secretary seats only (11.6, 11.8).', 'the NEC doesn''t remove chapter roles';
   assert pg_temp.try_as(pg_temp.f(3), pg_temp.removal(pg_temp.f(10), 'tail_gunner', 'chapter_board', 'majority', 3))
-    = 'Only West''s board can do that.' or pg_temp.try_as(pg_temp.f(3), pg_temp.removal(pg_temp.f(10), 'tail_gunner', 'chapter_board', 'majority', 3)) is not null,
-    'another chapter''s President can''t open it';
+    = 'Only that chapter’s board can do that.', 'another chapter''s President can''t open it';
   -- The right shape, carried by the board (f2, f7 and f11 now Vic has stepped down).
   v := pg_temp.value_as(pg_temp.f(7), pg_temp.removal(pg_temp.f(10), 'tail_gunner', 'chapter_board', 'majority', 3))::uuid;
   assert (select count(*) from vote_electors where vote_id = v) = 3, 'the board votes';
@@ -247,7 +246,8 @@ begin
   end loop;
   assert pg_temp.value_as(pg_temp.f(2), 'select count(*) from status_changes') = '0', 'Wes, off the board since the vote, sees none';
   assert pg_temp.try_as(null, 'select count(*) from status_changes') is not null, 'anon is refused';
-  assert pg_temp.try_as(pg_temp.f(2), format($q$insert into status_changes (member_id, from_status, to_status) values (%L, 'full', 'supporter')$q$, pg_temp.f(5))) is not null, 'no direct writes';
+  assert pg_temp.try_as(pg_temp.f(2), format($q$insert into status_changes (member_id, chapter_id, from_status, to_status) values (%L, (select id from public.chapters where slug = 'west'), 'full', 'supporter')$q$, pg_temp.f(5)))
+    = 'permission denied for table status_changes', 'no direct writes';
 end $$;
 
 \echo 'REMOVAL AND GATE CHECKS PASSED'

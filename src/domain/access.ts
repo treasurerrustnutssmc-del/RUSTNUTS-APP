@@ -314,7 +314,8 @@ export function appointWarnings(target: Member, role: PositionRole, data: ClubDa
 export function hasCarriedPatchVote(memberId: string, data: ClubData): boolean {
   const since = data.members.find((m) => m.id === memberId)?.fngStartedOn ?? null;
   return (data.votes ?? []).some(
-    (v) => v.subjectMemberId === memberId && v.electorate === 'chapter_patched' && v.closedAt !== null && v.result === 'carried' && (since === null || melbourneDate(v.openedAt) >= since),
+    (v) => v.subjectMemberId === memberId && (v.subjectRole ?? null) === null && v.electorate === 'chapter_patched' && v.closedAt !== null && v.result === 'carried'
+      && (since === null || melbourneDate(v.openedAt) >= since),
   );
 }
 
@@ -331,7 +332,8 @@ export const REINSTATE_VOTE_DAYS = 90;
 export function hasCarriedReinstateVote(memberId: string, data: ClubData, today: string): boolean {
   const since = addDays(today, -REINSTATE_VOTE_DAYS);
   return (data.votes ?? []).some(
-    (v) => v.subjectMemberId === memberId && v.electorate === 'nec' && v.threshold === 'majority' && v.closedAt !== null && v.result === 'carried' && melbourneDate(v.closedAt) >= since,
+    (v) => v.subjectMemberId === memberId && (v.subjectRole ?? null) === null && v.electorate === 'nec' && v.threshold === 'majority' && v.closedAt !== null && v.result === 'carried'
+      && melbourneDate(v.closedAt) >= since,
   );
 }
 
@@ -341,7 +343,7 @@ export const SUPPORTER_NEEDS_NOTICE = 'Moving them to Supporter follows a 5.5 no
 /** How long a decided 5.5 notice stays good for a move to Supporter (inferred, as for the votes). */
 export const NOTICE_DAYS = 90;
 /** The statuses a move to Supporter is gated for: the people who'd lose something (5.5). */
-const GATED_TO_SUPPORTER: MemberStatus[] = ['fng', 'full', 'nomad'];
+export const GATED_TO_SUPPORTER: MemberStatus[] = ['fng', 'full', 'nomad'];
 
 /** The newest 5.5 notice about this member the board decided in the last 90 days, or null. */
 export function decidedNoticeFor(memberId: string, data: ClubData, today: string): StatusNotice | null {

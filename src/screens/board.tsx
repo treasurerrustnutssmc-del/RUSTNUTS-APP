@@ -382,7 +382,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         <Choices<MemberStatus>
           options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
           value={status}
-          onChange={setStatus}
+          onChange={(s) => { setStatus(s); setByRequest(false); }}
         />
         {gatedToSupporter ? (
           <Toggle
@@ -454,7 +454,10 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         <Button
           label="Change status"
           disabled={!status || status === member.status || statusBlock !== null}
-          onPress={() => status && run(() => setMemberStatus(member.id, status, byRequest), `${displayName(member)} is now ${STATUS_LABEL[status]}.`)}
+          onPress={() => status && run(async () => {
+            await setMemberStatus(member.id, status, gatedToSupporter && byRequest);
+            setByRequest(false);
+          }, `${displayName(member)} is now ${STATUS_LABEL[status]}.`)}
         />
         {history.length ? (
           <Stack gap={2}>
