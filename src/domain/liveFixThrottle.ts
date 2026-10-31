@@ -20,11 +20,12 @@ export const NO_POSTS: FixThrottle = { inFlight: false, lastAttemptAt: null };
  * Whether this fix should be posted. The first fix of a share always goes; after that one at a
  * time and at most one every 25 seconds, counted from the attempt (a failed post isn't retried any
  * sooner than a good one). An alert or stop waiting for signal skips the wait: a post is how the
- * phone finds out signal is back and sends what's queued, and an emergency mustn't sit for 25 s.
+ * phone finds out signal is back and sends what's queued, and an emergency mustn't sit for 25 s. It
+ * still waits for a post already in flight, or a phone with no signal would start one every second.
  */
 export function shouldPostFix(t: FixThrottle, now: number, queued: boolean): boolean {
-  if (queued) return true;
   if (t.inFlight) return false;
+  if (queued) return true;
   if (t.lastAttemptAt === null) return true;
   return now - t.lastAttemptAt >= FIX_POST_GAP_MS;
 }

@@ -5,6 +5,7 @@
 //
 //   node scripts/make-demo-ride-comms-sound.mjs
 
+import { Buffer } from 'node:buffer';
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

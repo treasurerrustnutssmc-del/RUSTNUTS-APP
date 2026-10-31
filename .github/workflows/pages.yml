@@ -1,4 +1,4 @@
-# Publishes the site/ folder (the app's public privacy policy) to GitHub Pages whenever it changes
+# Publishes the site/ folder (privacy policy, support and account deletion pages) to GitHub Pages whenever it changes
 # on main. Needs Settings → Pages → Source set to "GitHub Actions" once.
 name: Privacy page
 

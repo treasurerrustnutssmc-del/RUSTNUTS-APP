@@ -25,9 +25,9 @@ test('the gap counts from the attempt, so a post that failed is retried on the s
   assert.equal(shouldPostFix(failed, T + 30_000, false), true);
 });
 
-test('a queued alert or stop is never held back by the throttle', () => {
+test('a queued alert or stop skips the gap, but still waits for the post in flight', () => {
   const posting = beforePost(NO_POSTS, T);
-  assert.equal(shouldPostFix(posting, T + 1, true), true);
+  assert.equal(shouldPostFix(posting, T + 1, true), false);
   assert.equal(shouldPostFix(afterPost(posting), T + 1, true), true);
 });
 

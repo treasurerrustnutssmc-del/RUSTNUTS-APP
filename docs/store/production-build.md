@@ -47,8 +47,8 @@ by hand, once, from a computer where you can sign in to Apple.
    (Australia)**, bundle id **au.com.rustnutssmc.app**, SKU **rustnutssmc-app**.
 3. **Scripted submits.** Once the app exists, copy its Apple ID (the number on the App Information
    page) and the team id (developer.apple.com › Membership) into `eas.json` `submit.production.ios`
-   as `ascAppId` and `appleTeamId`. Then `eas submit --profile production --platform ios` works from
-   CI the same as Android.
+   as `ascAppId` and `appleTeamId`. Then `eas submit --profile production --platform ios` works without
+   prompts from the command line, the same as the Android submit above.
 4. **Check the first ipa** before uploading it (download it from the build page):
    `unzip -l Rustnuts.ipa | grep -E 'SDWebImage.framework/PrivacyInfo|appex/PrivacyInfo'`
    should list both `Frameworks/SDWebImage.framework/PrivacyInfo.xcprivacy` and

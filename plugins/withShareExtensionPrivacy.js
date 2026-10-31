@@ -18,7 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 const plist = require('@expo/plist').default;
-const { withDangerousMod, withXcodeProject } = require('@expo/config-plugins');
+const { withDangerousMod, withXcodeProject } = require('expo/config-plugins');
 
 const TARGET_NAME = 'expo-sharing-extension';
 const FILE_NAME = 'PrivacyInfo.xcprivacy';

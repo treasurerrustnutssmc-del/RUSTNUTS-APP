@@ -78,9 +78,9 @@ async function startDemoCall(): Promise<Call> {
     throw e;
   }
   return {
-    // Muting yourself in the demo quietens the room, so the button is seen to do something.
+    // Mute only turns your own mic off, so the room stays audible; it's ducked so the tap is felt.
     setMuted: async (muted) => {
-      if (player) player.volume = muted ? 0 : 1;
+      if (player) player.volume = muted ? 0.35 : 1;
     },
     hangUp,
   };
