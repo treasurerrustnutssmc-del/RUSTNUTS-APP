@@ -8,7 +8,7 @@ import { colors, space, type } from '../theme';
 
 type Nav = NavigationProp<RootParams>;
 
-/** A row that opens the privacy policy. On Welcome, Ask to join, Pending, Me and Family Me. */
+/** A row that opens the privacy policy. On Welcome, Sign in, Ask to join, Pending, Me and Family Me. */
 export function PrivacyPolicyRow() {
   const navigation = useNavigation<Nav>();
   return (

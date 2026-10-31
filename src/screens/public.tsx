@@ -194,6 +194,7 @@ export function SignInScreen({ route }: RootScreen<'SignIn'>) {
       )}
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
+      <PrivacyPolicyRow />
 
       {isDemo ? (
         <>

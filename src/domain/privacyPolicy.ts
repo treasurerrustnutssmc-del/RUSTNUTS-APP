@@ -41,7 +41,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: 'collect',
     heading: 'What we collect',
     blocks: [
-      'Only what you or the club put into the app, and what it needs to work:',
+      'Mostly what you put into the app, plus what the club records about your membership and what the app needs to work. When the club first moves its member roster into the app, your board may load your email, mobile, emergency contact and bike registration from the club’s existing records before you sign in; you can check and change them on the Me screen.',
       {
         points: [
           'Your account: your email address, used to sign you in with a one-time code. There are no passwords.',
@@ -53,8 +53,8 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Chats: your messages, reactions, photos, videos, GIFs, voice notes and links, which members you’ve blocked, and any message you report.',
           'Money: the fees and charges the club raises for you, the payments you tell us you’ve made (amount, date, method and your reference) and the receipts the treasurer issues. The app never asks for or stores card or bank numbers of yours.',
           'Club records: where the constitution needs them, board decisions about your membership and conduct records.',
-          'Your location, only during a live ride you’ve turned on (see “Location” below).',
-          'Your phone: a push notification token so the app can send you alerts, your notification settings, and which device type you use (iPhone or Android).',
+          'Your location, speed and direction, only during a live ride you’ve turned on (see “Location” below).',
+          'Your phone: a push notification token so the app can send you alerts, your notification settings, and which device type you use (iPhone or Android). Like most online services, our servers also log the IP address and device details of each sign-in, for security.',
         ],
       },
       'We don’t collect your contacts, your browsing, advertising identifiers or anything from other apps, and there is no analytics or advertising code in the app.',
@@ -83,11 +83,11 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
       'The app’s rules decide who sees what, and the database enforces them:',
       {
         points: [
-          'Approved members see each other’s names, road names, chapter, status, bio, bikes and photos, and the chats they are part of.',
-          'Your mobile number is seen by your chapter’s board, and by other members only if you turn on “Share my mobile with members”.',
-          'Your email, licence and first aid details, bike registrations and emergency contacts are seen only by you and the boards that look after your chapter.',
-          'Your fees and payments are seen by you and your chapter’s board, including its treasurer.',
-          'Conduct records are seen by you and the board, and are deleted on the schedule the constitution sets.',
+          'Approved members see each other’s names, road names, chapter, status, bio, birthday (day and month), bikes and photos, and the chats they are part of.',
+          'Your mobile number is seen by your chapter’s board and the club’s national office-bearers, and by other members only if you turn on “Share my mobile with members”. During a live ride, the riders sharing on it can see the ride leaders’ numbers.',
+          'Your email, licence and first aid details, bike registrations and emergency contacts are seen by you, your chapter’s board and the club’s national office-bearers. If you raise an emergency or “I’m out” alert on a live ride, the ride leaders also see your mobile and emergency contacts so they can help.',
+          'Your fees and payments are seen by you, your chapter’s board (including its treasurer), the club’s national office-bearers and the club’s Auditor.',
+          'Conduct records are seen by you, the board and, if you appeal, the appeal panel. They are deleted on the schedule the constitution sets.',
           'Family accounts see the home screen, the ride calendar and their own details, but not the chats or other members’ details.',
           'Anyone who opens the app, signed in or not, sees only the club’s public information: chapters, sponsors and club links.',
         ],
@@ -98,8 +98,8 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: 'location',
     heading: 'Location',
     blocks: [
-      'The app uses your location only when you start sharing on a live ride. While it’s on, the other riders sharing on that ride can see where you are on a map, and the app can keep sharing while your screen is off. It switches itself off when you stop, when the ride ends, or at the switch-off time.',
-      'We don’t keep a history of where you’ve been. Live positions, and any alert you raise during the ride (like “I’ve stopped” or an emergency), are deleted once the ride is over.',
+      'The app uses your location only when you start sharing on a live ride. While it’s on, the other riders sharing on that ride can see where you are, how fast and which way you’re heading on a map, and the app can keep sharing while your screen is off. It switches itself off when you stop, when the ride ends, or at the switch-off time.',
+      'We don’t keep a history of where you’ve been. Only your latest position is stored, and it’s deleted when you stop sharing. Any alert you raise during the ride (like “I’ve stopped” or an emergency) keeps the place you raised it until the ride’s live window closes, two hours after the ride’s planned finish (or midnight if it has none), and is then deleted with everything else from the ride.',
       'Ride weather and maps use the ride’s route and meeting places, not your own location.',
     ],
   },
@@ -127,10 +127,10 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Google (Gmail) sends your sign-in code emails from the club’s email account.',
           'Expo delivers app updates and passes notifications to Google Firebase Cloud Messaging (Android) and Apple Push Notification service (iPhone). They see your device’s push token and the text of each notification.',
           'LiveKit carries ride comms voice between riders, live. It isn’t recorded.',
-          'Open-Meteo gives ride weather. It gets the ride’s route points and places, not who you are.',
+          'Open-Meteo gives ride weather. Your phone asks it directly, so it gets the ride’s route points and places and your phone’s internet (IP) address, but not your name or account.',
           'Google Maps (on Android) and Apple Maps (on iPhone) draw ride maps. If you tap Navigate, the route opens in your maps app, under that app’s own privacy terms.',
-          'GIPHY supplies GIFs for chats. It gets the words you search for.',
-          'Link previews: when you post a link, our server fetches the page to show its title and picture, so the website sees our server, not you.',
+          'GIPHY supplies GIFs for chats. Your phone asks it directly, so it gets the words you search for and your phone’s internet (IP) address, and GIFs in chats load from its servers. GIPHY handles that under its own privacy policy.',
+          'Link previews: when you post a link, our server fetches the page to get its title. The preview picture then loads from that website, so the website sees the internet (IP) address of each phone that shows it.',
           'Ride files you send to Garmin or another app, and things you share out of the app, go only where you choose to send them.',
         ],
       },
@@ -151,11 +151,11 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     blocks: [
       {
         points: [
-          'Live ride locations: deleted when the ride ends.',
+          'Live ride locations: deleted when you stop sharing, and anything left from the ride (including alerts) once its live window closes.',
           'Notification queue: deleted after 90 days.',
           'Conduct records: deleted on the dates the constitution sets.',
           'Financial records, receipts, meeting minutes and votes: kept as long as the club needs them for its books and the law (Australian law requires financial records to be kept for at least 5 years).',
-          'Your account and profile: for as long as you’re part of the club. When you leave, or ask us to delete your account, we remove your account, profile, contacts, bikes, messages and files, except the records the club must keep.',
+          'Your account and profile: for as long as you’re part of the club. When you ask us to delete your account, we remove your account, profile, contacts, bikes, messages and files, except the records the club must keep.',
         ],
       },
     ],
@@ -178,7 +178,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: 'children',
     heading: 'Children',
     blocks: [
-      'The app is for adults. It isn’t meant for anyone under 16, and we don’t knowingly collect information from children.',
+      'The app is for adults. It isn’t meant for anyone under 18, and we don’t knowingly collect information from children.',
     ],
   },
   {
