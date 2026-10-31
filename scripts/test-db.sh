@@ -355,5 +355,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_account_deletion -f "$ROOT/supabase/tests/account_deletion_test.sql"
 
+# Ask the club (the club AI assistant), on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_club_assistant" >/dev/null
+"${PSQL[@]}" -d rustnuts_club_assistant -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_club_assistant -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_club_assistant -f "$ROOT/supabase/tests/club_assistant_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
 
