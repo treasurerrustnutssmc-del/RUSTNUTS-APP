@@ -238,7 +238,9 @@ function Player({ ride, route }: { ride: Ride; route: Route }) {
         // The drawing the video is made from, at the video's size, off the screen.
         <View style={[styles.offscreen, capture]} aria-hidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
           <ReplayCard ref={captureRef} {...cardProps} frame={captureFrame} width={capture.width} height={capture.height} onLogoLoad={() => logoLoaded.current()} />
-          <Drawn frame={captureFrame} onDrawn={(f) => drawnRef.current?.frame === f && drawnRef.current.done()} />
+          <Drawn frame={captureFrame} onDrawn={(f) => {
+              if (drawnRef.current?.frame === f) drawnRef.current.done();
+            }} />
         </View>
       ) : null}
     </Screen>
@@ -249,7 +251,9 @@ class Stopped extends Error {}
 
 /** Says when a capture frame has been committed, so the picture taken is that frame's. */
 function Drawn({ frame, onDrawn }: { frame: ReplayFrame; onDrawn: (f: ReplayFrame) => void }) {
-  useEffect(() => onDrawn(frame), [frame, onDrawn]);
+  useEffect(() => {
+    onDrawn(frame);
+  }, [frame, onDrawn]);
   return null;
 }
 
