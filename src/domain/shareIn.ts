@@ -114,17 +114,27 @@ export function shareWaitStage(s: {
   }
 }
 
-/** Whether a waiting share is kept for later (it opens once a signed-out member signs in). */
-export const keepsShare = (stage: ShareWaitStage) => stage === 'signedOut';
+/**
+ * When a waiting share is let go. Signed out, only when they say so, since it opens once they sign
+ * in. Anyone else's can never open, so it also goes when they leave the app (an iPhone would keep
+ * it for good, and it would open by itself on approval). It isn't let go the moment it's seen: the
+ * club data on screen can be a little old, and a share made just after approval should still open.
+ */
+export const letsGoOfShare = (stage: ShareWaitStage, event: 'dismiss' | 'background') =>
+  event === 'dismiss' || stage !== 'signedOut';
 
-/** The strip shown while a share waits, or once one has been let go. */
-export function waitingShareNote(stage: ShareWaitStage): { title: string; text: string } {
+/** The strip shown while a share waits, and its button. */
+export function waitingShareNote(stage: ShareWaitStage): { title: string; text: string; action: string } {
   switch (stage) {
     case 'signedOut':
-      return { title: 'Sign in first', text: 'What you shared opens once you’re signed in as a member.' };
+      return {
+        title: 'Sign in first',
+        text: 'It opens once you sign in as a member. If it doesn’t, share it again.',
+        action: 'Don’t keep it',
+      };
     case 'notMember':
-      return { title: 'Only members can share into chats', text: 'This wasn’t kept. Share it again once you’re approved.' };
+      return { title: 'Members only', text: 'Only approved members can share into the club chats.', action: 'Got it' };
     case 'family':
-      return { title: 'Family accounts don’t have the club chats', text: 'This wasn’t kept. Only members can share into them.' };
+      return { title: 'Members only', text: 'Family accounts don’t have the club chats.', action: 'Got it' };
   }
 }

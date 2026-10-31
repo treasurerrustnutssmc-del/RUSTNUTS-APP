@@ -237,6 +237,14 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 ### Notices
 - Tinted blocks for info, OK, warning and danger, with an icon, an optional stencil title and body text. They're used for empty states and for reasons something can't be done.
 
+### Top strips
+- Full-width strips above every screen, under the notch: the refresh strip (danger tint, "Try again" in red, since it's a recovery) and the waiting-share strip. The first strip takes the top safe area, so the screens below don't pad for the notch twice.
+- **Waiting-share strip:** for anyone without "Share to the club" (signed out, asking to join, waiting for approval or declined, family) when something is shared in from another app. Steel, a hairline under it, a share icon, a one-line stencil title (`type.name`) and a small body line, aligned to the top. Its one button is quiet stencil text in muted bone, so the screen's red stays the one that matters. Screen readers are told when it appears.
+  - Signed out: "Sign in first", "It opens once you sign in as a member. If it doesn’t, share it again." and **Don’t keep it**. The share is kept, so it opens in Share to the club after sign-in.
+  - Asking to join, waiting or declined: "Members only", "Only approved members can share into the club chats." and **Got it**.
+  - Family: "Members only", "Family accounts don’t have the club chats." and **Got it**.
+  - The button lets the share go. For everyone but the signed out, it also goes when they leave the app, since it can never open.
+
 ### Crew
 - **Crew section** (ride screen, under the answers): one card with a row each for RC, TG and ATG, then each Officer. A row has a steel tile with the stencil short form, the road name (or a muted "Open") and the full role under it, and its buttons below.
   - **Buttons:** "I'll do it" on an open spot only when you hold no spot on that ride. Crew managers get Pick or Change, and "Add officer" on the open Officer row.

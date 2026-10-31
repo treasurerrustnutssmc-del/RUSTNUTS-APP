@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { itemFromPayload, keepsShare, NOTHING_TO_SHARE, sharedDraft, shareWaitStage, waitingShareNote, type SharedItem } from './shareIn';
+import { itemFromPayload, letsGoOfShare, NOTHING_TO_SHARE, sharedDraft, shareWaitStage, waitingShareNote, type SharedItem } from './shareIn';
 
 const photo = (n: number): SharedItem => ({ kind: 'image', value: `file:///p${n}.jpg`, uri: `file:///p${n}.jpg`, mimeType: 'image/jpeg', size: 1000 });
 const video: SharedItem = { kind: 'video', value: 'file:///v.mov', uri: 'file:///v.mov', mimeType: 'video/quicktime', size: 5000 };
@@ -108,34 +108,41 @@ test('members never get the strip, and nor does a screen that failed to load', (
   assert.equal(at({ level: 'pending', loadError: true }), null);
 });
 
-test('only a signed-out share is kept to open after sign-in; the rest are let go', () => {
-  assert.equal(keepsShare('signedOut'), true);
-  assert.equal(keepsShare('notMember'), false);
-  assert.equal(keepsShare('family'), false);
+test('a signed-out share is only let go when they say so; anyone else’s also goes when they leave the app', () => {
+  assert.equal(letsGoOfShare('signedOut', 'dismiss'), true);
+  assert.equal(letsGoOfShare('signedOut', 'background'), false); // it opens once they sign in
+  for (const stage of ['notMember', 'family'] as const) {
+    assert.equal(letsGoOfShare(stage, 'dismiss'), true);
+    assert.equal(letsGoOfShare(stage, 'background'), true); // it can never open, and an iPhone would keep it
+  }
 });
 
-test('the signed-out note says sign in first, and promises it opens after', () => {
+test('the signed-out strip says sign in first, without promising too much, and offers to drop it', () => {
   const note = waitingShareNote('signedOut');
   assert.equal(note.title, 'Sign in first');
-  assert.match(note.text, /opens once you’re signed in/);
+  assert.match(note.text, /once you sign in as a member/);
+  assert.match(note.text, /If it doesn’t, share it again/); // Android can lose it if the app is closed
+  assert.equal(note.action, 'Don’t keep it');
 });
 
-test('applicants and family are told it wasn’t kept, and why', () => {
+test('applicants (pending or declined) and family are told why, with no promise of approval', () => {
   const applicant = waitingShareNote('notMember');
-  assert.match(applicant.title, /[Oo]nly members/);
-  assert.match(applicant.text, /wasn’t kept/);
-  assert.match(applicant.text, /approved/);
+  assert.equal(applicant.title, 'Members only');
+  assert.match(applicant.text, /approved members/);
+  assert.doesNotMatch(applicant.text, /once you’re approved|wasn’t kept/);
   const family = waitingShareNote('family');
-  assert.match(family.title, /^Family/);
-  assert.doesNotMatch(family.title, /post/); // family have no chats at all, not read-only ones
-  assert.match(family.text, /wasn’t kept/);
+  assert.equal(family.title, 'Members only');
+  assert.match(family.text, /^Family accounts don’t have the club chats/);
+  assert.doesNotMatch(family.text, /post/); // family have no chats at all, not read-only ones
+  assert.equal(applicant.action, 'Got it');
+  assert.equal(family.action, 'Got it');
 });
 
-test('every note is a short title and a sentence, with curly apostrophes', () => {
+test('every strip has a one-line title, a sentence, and curly apostrophes', () => {
   for (const stage of ['signedOut', 'notMember', 'family'] as const) {
-    const { title, text } = waitingShareNote(stage);
-    assert.ok(title.length > 0 && title.length <= 42, `${stage} title is short`);
+    const { title, text, action } = waitingShareNote(stage);
+    assert.ok(title.length > 0 && title.length <= 14, `${stage} title fits one line at phone width`);
     assert.ok(text.endsWith('.'), `${stage} text is a sentence`);
-    assert.doesNotMatch(title + text, /'/, `${stage} uses curly apostrophes`);
+    assert.doesNotMatch(title + text + action, /'/, `${stage} uses curly apostrophes`);
   }
 });
