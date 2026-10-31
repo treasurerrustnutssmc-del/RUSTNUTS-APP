@@ -11,10 +11,13 @@
   Board notes (not shown on the page): check the email came from the address the person signs in
   with, then delete that user in Supabase (Authentication, Users, Delete user). The database's
   forget_deleted_member trigger does the rest, the same as the in-app button. Their leftover photos
-  can then be found with:
+  can then be found with (personal buckets only, and only files no post points at any more):
     select bucket_id, name from storage.objects o
-    where owner_id is not null and not exists (select 1 from auth.users u where u.id::text = o.owner_id);
-  and removed in Storage.
+    where bucket_id in ('chat-media', 'swap-media', 'build-media', 'brag-media')
+      and owner_id is not null and not exists (select 1 from auth.users u where u.id::text = o.owner_id)
+      and not exists (select 1 from public.message_media mm where mm.path = o.name or mm.poster_path = o.name)
+      and not private.swap_file_in_use(o.name) and not private.brag_file_in_use(o.name);
+  and removed in Storage. (Build thread photos: check build_updates.photos too.)
 -->
 <style>
   :root { --ink: #111010; --raised: #171515; --bone: #F4F1EA; --dim: #d8d3c7; --mute: #96928a; --red: #F2666F; --line: rgba(244,241,234,0.10); }
@@ -55,11 +58,12 @@
       <li>Your sign-in (email address)</li>
       <li>Contact details, licence and first aid dates</li>
       <li>Emergency contacts, bikes and registrations</li>
-      <li>Chat messages, reactions and photos</li>
+      <li>Chat messages and reactions</li>
       <li>Ride sign-ups, crew spots, ratings and charity sign-ups</li>
-      <li>Swap and sell listings, build threads, skills and birthday</li>
+      <li>Swap and sell listings, build threads, bragging rights nominations, skills and birthday</li>
       <li>Notification settings and phone registrations</li>
     </ul>
+    <p class="small">Nobody can open the photos from what’s deleted, and we clear the files themselves.</p>
   </section>
 
   <section>
@@ -69,6 +73,7 @@
       <li>Meeting minutes, votes and action items</li>
       <li>Attendance, status changes, notices and conduct records</li>
       <li>Board seats held in the past</li>
+      <li>Chat messages someone has reported, for the board to deal with</li>
     </ul>
     <p class="small">These show as “Former member”. An incorporated association has to keep its financial records and minutes. Your name is removed from them in the app; names typed into free text (for example minutes) aren’t changed.</p>
   </section>

@@ -69,9 +69,10 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       throw new Error('No emails go out in the demo. Pick someone below instead.');
     },
     signOut: async () => setMeId(null),
+    // Ends the way signing out does, so store review mode (which signs out to the real sign-in) works the same.
     deleteMyAccount: async () => {
       setData(act.deleteMyAccount(ctx));
-      setMeId(null);
+      await value.signOut();
     },
     refresh,
 

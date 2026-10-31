@@ -12,9 +12,9 @@ const DELETED = [
   'Your sign-in, so this email can’t open the app any more',
   'Contact details, licence and first aid dates',
   'Emergency contacts, bikes and regos',
-  'Chat messages, reactions and chat photos',
+  'Chat messages and reactions',
   'Ride sign-ups, crew spots, ratings and charity sign-ups',
-  'Swap and sell listings, build threads, skills and your birthday',
+  'Swap and sell listings, build threads, bragging rights nominations, skills and your birthday',
   'Notification settings and this phone’s alerts',
 ];
 
@@ -23,6 +23,7 @@ const KEPT = [
   'Meeting minutes, votes and action items',
   'Attendance, status changes, 5.5 notices and conduct records',
   'Board seats you held in the past',
+  'Chat messages someone has reported, for the board to deal with',
 ];
 
 function List({ items }: { items: string[] }) {
@@ -57,6 +58,7 @@ export function DeleteAccountScreen() {
       <Card>
         <H2>Deleted straight away</H2>
         <List items={DELETED} />
+        <Small>Nobody can open the photos from what’s deleted. The board clears the files themselves.</Small>
       </Card>
       <Card>
         <H2>Kept by the club, without your name</H2>

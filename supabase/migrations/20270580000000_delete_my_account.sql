@@ -20,9 +20,13 @@ alter table public.members add column if not exists account_deleted_on date;
 
 -- Forgets a member whose sign-in has gone: personal and social rows are deleted, open roles end
 -- today, and the member row becomes "Former member", declined, so it drops out of the directory,
--- approvals, counts and every member check.
-create or replace function private.forget_member(p_member uuid)
+-- approvals, counts and every member check. Their roster place (the copy of the board's sheet the
+-- app loads from) loses its phone, emergency contact, bike and seats, so coming back with the same
+-- email brings back their status but none of that, and no seat.
+create or replace function private.forget_member(p_member uuid, p_email text)
 returns void language plpgsql security definer set search_path = '' as $$
+declare
+  today constant date := private.club_date();
 begin
   delete from public.member_private where member_id = p_member;
   delete from public.bikes where member_id = p_member; -- regos go with them
@@ -31,7 +35,10 @@ begin
   delete from public.push_devices where member_id = p_member;
   delete from private.push_outbox where member_id = p_member;
   -- Chat
-  delete from public.messages where author_id = p_member; -- with their photos, reactions and reports
+  -- Their messages go, with photos and reactions, apart from any someone has reported: those stay
+  -- for the board to deal with.
+  delete from public.messages m where m.author_id = p_member
+    and not exists (select 1 from public.message_reports r where r.message_id = m.id);
   delete from public.message_reactions where member_id = p_member;
   delete from public.message_reports where reporter_id = p_member;
   delete from public.chat_reads where member_id = p_member;
@@ -55,20 +62,60 @@ begin
   delete from public.mechanic_vouches where member_id = p_member;
   delete from public.listings where seller_id = p_member;
   delete from public.build_updates where author_id = p_member;
+  delete from public.brag_nominations where nominated_by = p_member; -- with the votes on them
   delete from public.brag_votes where member_id = p_member;
+  update private.roster
+     set phone = null, emergency_name = null, emergency_relationship = null, emergency_phone = null,
+         bike_make = null, bike_model = null, bike_rego = null, roles = '{}'
+   where claimed_by = p_member or (p_email is not null and lower(trim(email)) = lower(trim(p_email)));
 
-  update public.positions set ended_on = greatest(current_date, started_on) where member_id = p_member and ended_on is null;
+  delete from public.positions where member_id = p_member and ended_on is null and started_on > today;
+  update public.positions set ended_on = today where member_id = p_member and ended_on is null;
   update public.members
      set full_name = 'Former member', road_name = null, bio = null, share_phone = false, on_hiatus = false,
-         approval = 'declined', account_deleted_on = current_date, updated_at = now()
+         approval = 'declined', account_deleted_on = today, updated_at = now()
    where id = p_member;
 end $$;
-revoke all on function private.forget_member(uuid) from public, anon, authenticated;
+revoke all on function private.forget_member(uuid, text) from public, anon, authenticated;
+
+-- A login stays valid for up to an hour after its account is deleted (another phone, say). It can't
+-- put anything personal back on a forgotten member.
+create or replace function private.refuse_forgotten()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if exists (select 1 from public.members where id = new.member_id and account_deleted_on is not null) then
+    raise exception 'This account has been deleted.';
+  end if;
+  return new;
+end $$;
+revoke all on function private.refuse_forgotten() from public, anon, authenticated;
+
+create or replace function private.refuse_forgotten_member()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if old.account_deleted_on is not null then raise exception 'This account has been deleted.'; end if;
+  return new;
+end $$;
+revoke all on function private.refuse_forgotten_member() from public, anon, authenticated;
+
+drop trigger if exists refuse_forgotten on public.members;
+create trigger refuse_forgotten before update on public.members
+  for each row execute function private.refuse_forgotten_member();
+do $$
+declare t text;
+begin
+  foreach t in array array['member_private', 'bikes', 'emergency_contacts', 'push_devices', 'notification_prefs',
+                           'member_birthdays', 'member_skills'] loop
+    execute format('drop trigger if exists refuse_forgotten on public.%I', t);
+    execute format('create trigger refuse_forgotten before insert or update on public.%I
+                      for each row execute function private.refuse_forgotten()', t);
+  end loop;
+end $$;
 
 create or replace function private.forget_deleted_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  perform private.forget_member(old.id);
+  perform private.forget_member(old.id, old.email);
   return old;
 end $$;
 revoke all on function private.forget_deleted_user() from public, anon, authenticated;

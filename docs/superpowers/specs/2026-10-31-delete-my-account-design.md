@@ -21,11 +21,13 @@ Apple (5.1.1(v)) and Google Play both require that anyone who can make an accoun
 - `public.delete_my_account()` (security definer, authenticated only): refuses when not signed in, refuses for a sitting board or national seat holder with the same message as the app, then `delete from auth.users where id = auth.uid()`.
 - An `after delete` trigger on `auth.users` runs `private.forget_member(id)`, so deleting a user from the Supabase dashboard (how the board handles a web request) does exactly the same thing. From the dashboard a seat holder isn't refused; their open positions just end that day.
 - `private.forget_member`:
-  - deletes the personal and social rows listed above;
-  - ends any open positions (`ended_on = current_date`);
+  - deletes the personal and social rows listed above, including bragging rights nominations, but keeps any chat message someone has reported (with the report) for the board;
+  - clears the phone, emergency contact, bike and seats from their `private.roster` row (matched by `claimed_by` or the sign-in email), so coming back with the same email restores their status but no seat or old details;
+  - ends any open positions on the club's date (`private.club_date()`), and deletes ones that hadn't started;
   - turns the `members` row into a tombstone: `full_name = 'Former member'`, road name, bio and phone sharing cleared, `approval = 'declined'` (so it drops out of the directory, approvals, counts and every member check), `on_hiatus = false`, and a new `account_deleted_on` date. Same id, so every kept record still joins.
 - `members.id` no longer has a foreign key to `auth.users` (it was `on delete cascade`, which either wiped club records with the member or, where the books hold `restrict`, blocked the delete outright). Nothing else relied on it: every insert into `members` takes `auth.uid()`.
 - `private.roster.claimed_by` is already `on delete set null`, so the roster place is free to claim again if they come back with the same email.
+- A login stays valid for up to an hour after deletion (another phone). Triggers refuse any update of a forgotten member row and any insert or update of their private details, bikes, emergency contacts, push devices, notification settings, birthday and skills, so it can't put anything back.
 - Files (chat, swap, build and brag photos): Supabase doesn't allow deleting storage files from SQL. Once the rows that point at them are gone nobody can read them (each bucket's read rule checks those rows). The bytes are cleared later from the dashboard; the query to find them is in the web page notes.
 
 ## The web page (Play)

@@ -313,6 +313,7 @@ export function deleteMyAccount(ctx: DemoCtx): ClubData {
       crewSwaps: d.crewSwaps?.filter((s) => s.askedBy !== id && s.askedTo !== id),
       charitySignups: notMine(d.charitySignups),
       documentSignoffs: notMine(d.documentSignoffs),
+      notificationPrefs: null,
       positions: d.positions.map((p) => (p.memberId === id && p.endedOn === null ? { ...p, endedOn: ctx.today } : p)),
     },
     id,
