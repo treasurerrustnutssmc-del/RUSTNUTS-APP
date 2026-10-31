@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
-# Publishes the checked-out commit to the EAS "preview" channel. Run by .github/workflows/preview-update.yml.
+# Publishes the checked-out commit to an EAS channel ("preview" unless CHANNEL says otherwise).
+# Run by .github/workflows/preview-update.yml, once for preview and once for production.
 #
 # Phones only take an update whose runtime fingerprint matches their build. The fingerprint hashes
 # some text files, so a build made from a Windows (CRLF) checkout has a different fingerprint from
 # CI's LF checkout. .gitattributes now gives every checkout LF, but Android builds made from CRLF
-# checkouts before that are still installed, so this also publishes from a CRLF copy whenever a
-# preview build exists with that fingerprint.
+# checkouts before that are still installed, so on the preview channel this also publishes from a
+# CRLF copy whenever a preview build exists with that fingerprint. Store builds come from CI only.
 #
 #   MESSAGE   update message (required)
+#   CHANNEL   channel and EAS environment to publish to (default preview; production for store builds)
 #   DRY_RUN=1 work out the fingerprints and which builds they reach, publish nothing
 set -euo pipefail
 shopt -s inherit_errexit
 
 : "${MESSAGE:?MESSAGE is required}"
-ENVIRONMENT=preview
-CHANNEL=preview
+CHANNEL=${CHANNEL:-preview}
+ENVIRONMENT=$CHANNEL
 
 # Kept outside the checkout: a new file in it (or a .gitignore line for one) would change the fingerprint.
 work=$(mktemp -d)
@@ -51,15 +53,17 @@ android_lf=$(runtime android lf)
 echo "Android runtime (LF checkout): $android_lf"
 
 # Windows-made builds first, while the checkout is still clean: same commit, CRLF line endings.
-checkout_with '* text=auto eol=crlf'
-android_crlf=$(runtime android crlf)
-echo "Android runtime (CRLF checkout): $android_crlf"
-if [ "$android_crlf" != "$android_lf" ] && has_build android "$android_crlf"; then
-  publish "$MESSAGE (for builds made on Windows)" --platform android
-else
-  echo "No $CHANNEL Android build made from a CRLF checkout, skipping."
+if [ "$CHANNEL" = preview ]; then
+  checkout_with '* text=auto eol=crlf'
+  android_crlf=$(runtime android crlf)
+  echo "Android runtime (CRLF checkout): $android_crlf"
+  if [ "$android_crlf" != "$android_lf" ] && has_build android "$android_crlf"; then
+    publish "$MESSAGE (for builds made on Windows)" --platform android
+  else
+    echo "No $CHANNEL Android build made from a CRLF checkout, skipping."
+  fi
+  checkout_with ''
 fi
-checkout_with ''
 
 has_build android "$android_lf" || echo "::warning::No finished $CHANNEL Android build has runtime $android_lf yet, so no Android phone gets this update until a new build is installed."
 publish "$MESSAGE"

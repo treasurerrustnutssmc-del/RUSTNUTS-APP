@@ -1,0 +1,35 @@
+# Starts a store (production) build on EAS from a clean Linux checkout, so its runtime fingerprint
+# matches what the "Preview update" workflow publishes. Builds made on Windows don't match.
+# Run it by hand from the Actions tab. Needs the EXPO_TOKEN repository secret.
+#
+# Android makes an app bundle for Google Play. iOS needs the club's Apple developer account first.
+name: Store build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Which phones
+        type: choice
+        options: [android, ios, all]
+        default: android
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      # The build itself runs on EAS; --no-wait ends this job once it's queued. The build page link
+      # is in the log. Env vars (Google Maps key) come from the EAS "production" environment.
+      - run: eas build --profile production --platform ${{ inputs.platform }} --non-interactive --no-wait
