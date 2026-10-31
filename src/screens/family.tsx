@@ -31,6 +31,7 @@ import {
 } from '../ui/primitives';
 import { ClubLinksSection } from './clubLinks';
 import { SponsorsSection } from './sponsors'; // Sponsors
+import { PrivacyPolicyRow } from './privacy'; // Privacy policy
 import { RideChip, RideRow, timeRange } from './rides';
 
 const mapsUrl = (place: string) => `https://maps.google.com/?q=${encodeURIComponent(place)}`;
@@ -241,6 +242,7 @@ export function FamilyMeScreen({ navigation }: TabScreen<'Me'>) {
           contacts are for you and your chapter’s board.
         </Small>
       </Card>
+      <PrivacyPolicyRow />
 
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
       {isDemo ? <Small style={{ textAlign: 'center' }}>Demo build: changes reset when you reload.</Small> : null}

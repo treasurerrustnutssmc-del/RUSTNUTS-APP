@@ -10,6 +10,7 @@ import { IntroProgressCard } from './fng'; // Stage 4
 import { SUPPORT_URL } from '../domain/clubLinks'; // Club links
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
+import { PrivacyPolicyRow } from './privacy'; // Privacy policy
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -93,6 +94,7 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
       <ClubLinksSection withoutSupport />
       {/* Sponsors: anyone with the app sees them */}
       <SponsorsSection />
+      <PrivacyPolicyRow />
 
       <Small style={{ textAlign: 'center' }}>Rustnuts Social Motorcycle Club Incorporated · Greater Melbourne</Small>
     </Screen>
@@ -368,6 +370,7 @@ export function JoinScreen() {
 
       {showErrors && !valid ? <Notice tone="danger" title="A few things to fix">Check the fields marked in red.</Notice> : null}
       {submitError ? <Notice tone="danger">{submitError}</Notice> : null}
+      <PrivacyPolicyRow />
       <Button label="Send my request" icon="paper-plane-outline" onPress={submit} busy={busy} />
       {!isDemo ? <Button label="Sign out" kind="quiet" onPress={() => signOut()} /> : null}
     </Screen>
@@ -453,6 +456,7 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
       ) : null}
       {/* Sponsors: anyone with the app sees them */}
       <SponsorsSection />
+      <PrivacyPolicyRow />
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
     </Screen>
   );

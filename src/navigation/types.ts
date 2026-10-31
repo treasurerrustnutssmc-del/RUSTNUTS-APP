@@ -153,6 +153,8 @@ export type RootParams = {
   DocumentSignoffs: { id: string };
   // Sponsors
   Sponsors: undefined;
+  // The privacy policy (every level, signed in or not)
+  PrivacyPolicy: undefined;
   EditSponsor: { sponsorId?: string } | undefined;
   // Invites to and from other clubs
   OtherClubs: undefined;
