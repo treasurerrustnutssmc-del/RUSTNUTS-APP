@@ -1,7 +1,9 @@
 // Things shared into the app from another app's Share button: what comes across into a chat
 // message, and what's left out. See the phone superpowers spec, section 4.
 
+import type { AccessLevel } from './access';
 import { MAX_BODY, MAX_MEDIA } from './chat';
+import type { MemberStatus } from './types';
 
 /** One shared thing, as the phone hands it over (expo-sharing's resolved payload, trimmed down). */
 export interface SharedItem {
@@ -83,4 +85,56 @@ export function itemFromPayload(p: IncomingPayload): SharedItem {
     mimeType: p.contentMimeType ?? p.mimeType ?? null,
     size: p.contentSize,
   };
+}
+
+/**
+ * Where someone is when a share arrives that the app can't take: only approved members (not family)
+ * have "Share to the club". signedOut: the share is kept and opens after sign-in. notMember (asking
+ * to join, waiting for approval, declined) and family: it can't open, so it's let go.
+ */
+export type ShareWaitStage = 'signedOut' | 'notMember' | 'family';
+
+export function shareWaitStage(s: {
+  level: AccessLevel;
+  needsApplication: boolean;
+  loadError: boolean;
+  status: MemberStatus | null;
+}): ShareWaitStage | null {
+  if (s.loadError) return null;
+  if (s.needsApplication) return 'notMember';
+  switch (s.level) {
+    case 'public':
+      return 'signedOut';
+    case 'family':
+      return 'family';
+    case 'pending':
+      return s.status === 'family' ? 'family' : 'notMember';
+    default:
+      return null; // members: "Share to the club" takes it
+  }
+}
+
+/**
+ * When a waiting share is let go. Signed out, only when they say so, since it opens once they sign
+ * in. Anyone else's can never open, so it also goes when they leave the app (an iPhone would keep
+ * it for good, and it would open by itself on approval). It isn't let go the moment it's seen: the
+ * club data on screen can be a little old, and a share made just after approval should still open.
+ */
+export const letsGoOfShare = (stage: ShareWaitStage, event: 'dismiss' | 'background') =>
+  event === 'dismiss' || stage !== 'signedOut';
+
+/** The strip shown while a share waits, and its button. */
+export function waitingShareNote(stage: ShareWaitStage): { title: string; text: string; action: string } {
+  switch (stage) {
+    case 'signedOut':
+      return {
+        title: 'Sign in first',
+        text: 'It opens once you sign in as a member. If it doesn’t, share it again.',
+        action: 'Don’t keep it',
+      };
+    case 'notMember':
+      return { title: 'Members only', text: 'Only approved members can share into the club chats.', action: 'Got it' };
+    case 'family':
+      return { title: 'Members only', text: 'Family accounts don’t have the club chats.', action: 'Got it' };
+  }
 }

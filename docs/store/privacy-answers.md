@@ -16,6 +16,10 @@ Rules used for both forms:
   "sharing". GIPHY is the exception: its API terms let it use data for its own purposes, so the GIF
   search words are declared as shared (App activity: In-app search history) on Google Play. Members seeing each other's posts is the app's purpose, which Google treats as not sharing
   ("user-initiated").
+- Ask the club sends a member's question, the chat so far and a summary of what they can already see
+  in the app to Anthropic (Claude) to answer. Anthropic works for the club as a service provider and
+  doesn't train on it. The club doesn't store the questions or answers (only a daily count per member),
+  so on Google Play it's "processed ephemerally" under Other user-generated content.
 - Ride comms voice is live and never stored, so it isn't "collected" (Apple) and is "processed
   ephemerally" (Google). Weather lookups send the ride's route (plus the phone's IP address) to Open-Meteo.
 

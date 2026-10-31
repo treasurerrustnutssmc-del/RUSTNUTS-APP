@@ -408,6 +408,24 @@ export function myRoadRulesLine(status: RoadRulesStatus): { text: string; tone: 
 }
 
 /**
+ * Home's Road Rules row, for every approved member (Legacy too: they read, they just don't sign).
+ * With nothing published it opens the illustrated draft, so there's always something to read;
+ * once the NEC publishes, it shows your sign-off line and opens the Road Rules screen. Null for
+ * anyone signed out or not approved.
+ */
+export function homeRoadRulesRow(
+  me: Member | null,
+  data: ClubData,
+  today: string,
+): { text: string; tone: 'ok' | 'warn' | 'danger' | null; opens: 'rules' | 'guide' } | null {
+  if (!me || me.approval !== 'approved') return null;
+  const current = currentRoadRules(data);
+  if (!current) return { text: 'Read the illustrated draft', tone: null, opens: 'guide' };
+  if (!asksToSign(me)) return { text: `Version ${current.number}`, tone: null, opens: 'rules' };
+  return { ...myRoadRulesLine(roadRulesStatus(me, data, today)), opens: 'rules' };
+}
+
+/**
  * The sign box's line once you've signed: "Signed on DD/MM/YYYY. Good until DD/MM/YYYY.", or
  * "Ran out DD/MM/YYYY." once it has expired. Null when no sign-off counts.
  */

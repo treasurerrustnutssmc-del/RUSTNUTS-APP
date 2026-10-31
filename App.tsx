@@ -13,11 +13,19 @@ import { colors } from './src/theme';
 import { DemoBar } from './src/ui/DemoBar';
 import { appMode, useAppMode } from './src/data/reviewMode';
 import { RefreshBanner } from './src/ui/RefreshBanner';
+// Lane E: share in
+import { useWaitingShare } from './src/data/shareIn';
+import { shareWaitStage } from './src/domain/shareIn';
+import { ShareWaitingStrip } from './src/ui/ShareWaitingStrip';
 import { useAppFonts } from './src/useAppFonts';
 
 function Shell() {
-  const { isDemo, loading, refreshError } = useClub();
+  const { isDemo, loading, refreshError, level, needsApplication, loadError, me } = useClub();
   const insets = useSafeAreaInsets();
+  // Lane E: share in. Shared in by someone without "Share to the club": say why nothing opened.
+  const share = useWaitingShare(
+    loading ? null : shareWaitStage({ level, needsApplication, loadError: loadError !== null, status: me?.status ?? null }),
+  );
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}>
@@ -26,12 +34,13 @@ function Shell() {
     );
   }
   if (!isDemo) {
-    // Same tree whether or not the refresh strip shows, so the screens never reset. While it
-    // shows, it takes the top safe area and the screens below don't pad for the notch twice.
+    // Same tree whether or not the refresh or share strip shows, so the screens never reset. While
+    // one shows, it takes the top safe area and the screens below don't pad for the notch twice.
     return (
       <View style={{ flex: 1, backgroundColor: colors.ink }}>
         <RefreshBanner />
-        <SafeAreaInsetsContext.Provider value={refreshError ? { ...insets, top: 0 } : insets}>
+        {share ? <ShareWaitingStrip {...share} padTop={!refreshError} /> : null}
+        <SafeAreaInsetsContext.Provider value={refreshError || share ? { ...insets, top: 0 } : insets}>
           <View style={{ flex: 1 }}>
             <RootNavigator />
           </View>
@@ -43,6 +52,7 @@ function Shell() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.ink }}>
       <DemoBar />
+      {share ? <ShareWaitingStrip {...share} padTop={false} /> : null}
       <SafeAreaInsetsContext.Provider value={{ ...insets, top: 0 }}>
         <View style={{ flex: 1 }}>
           <RootNavigator />

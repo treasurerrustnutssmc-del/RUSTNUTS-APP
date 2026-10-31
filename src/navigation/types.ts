@@ -31,6 +31,7 @@ export type RootParams = {
   RideDetail: { rideId: string };
   EditProfile: undefined;
   DeleteAccount: undefined; // Delete my account
+  AskClub: undefined; // Ask the club, the club assistant
   EditBike: { bikeId?: string };
   EditContact: { contactId?: string };
   ManageMember: { memberId: string };

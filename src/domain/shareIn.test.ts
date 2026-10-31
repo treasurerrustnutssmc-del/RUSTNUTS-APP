@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { itemFromPayload, NOTHING_TO_SHARE, sharedDraft, type SharedItem } from './shareIn';
+import { itemFromPayload, letsGoOfShare, NOTHING_TO_SHARE, sharedDraft, shareWaitStage, waitingShareNote, type SharedItem } from './shareIn';
 
 const photo = (n: number): SharedItem => ({ kind: 'image', value: `file:///p${n}.jpg`, uri: `file:///p${n}.jpg`, mimeType: 'image/jpeg', size: 1000 });
 const video: SharedItem = { kind: 'video', value: 'file:///v.mov', uri: 'file:///v.mov', mimeType: 'video/quicktime', size: 5000 };
@@ -88,4 +88,61 @@ test('two photos the phone saved under one name come across once, and say so', (
   const draft = sharedDraft([same, { ...same }, photo(2)]);
   assert.deepEqual(draft.media.map((m) => m.uri), ['file:///group/FullSizeRender.jpg', 'file:///p2.jpg']);
   assert.deepEqual(draft.notes, ['Two of those had the same name, so only one came across. Share the other on its own.']);
+});
+
+// Shared in before the app can take it: a strip says why nothing opened, and what happens next.
+const at = (o: Partial<Parameters<typeof shareWaitStage>[0]>) =>
+  shareWaitStage({ level: 'public', needsApplication: false, loadError: false, status: null, ...o });
+
+test('who gets the waiting-share strip: everyone without Share to the club', () => {
+  assert.equal(at({}), 'signedOut');
+  assert.equal(at({ needsApplication: true }), 'notMember');
+  assert.equal(at({ level: 'pending', status: 'introduced' }), 'notMember');
+  assert.equal(at({ level: 'pending', status: 'family' }), 'family'); // applying as family
+  assert.equal(at({ level: 'family', status: 'family' }), 'family');
+});
+
+test('members never get the strip, and nor does a screen that failed to load', () => {
+  for (const level of ['member', 'board', 'national'] as const) assert.equal(at({ level, status: 'full' }), null);
+  assert.equal(at({ loadError: true }), null);
+  assert.equal(at({ level: 'pending', loadError: true }), null);
+});
+
+test('a signed-out share is only let go when they say so; anyone else’s also goes when they leave the app', () => {
+  assert.equal(letsGoOfShare('signedOut', 'dismiss'), true);
+  assert.equal(letsGoOfShare('signedOut', 'background'), false); // it opens once they sign in
+  for (const stage of ['notMember', 'family'] as const) {
+    assert.equal(letsGoOfShare(stage, 'dismiss'), true);
+    assert.equal(letsGoOfShare(stage, 'background'), true); // it can never open, and an iPhone would keep it
+  }
+});
+
+test('the signed-out strip says sign in first, without promising too much, and offers to drop it', () => {
+  const note = waitingShareNote('signedOut');
+  assert.equal(note.title, 'Sign in first');
+  assert.match(note.text, /once you sign in as a member/);
+  assert.match(note.text, /If it doesn’t, share it again/); // Android can lose it if the app is closed
+  assert.equal(note.action, 'Don’t keep it');
+});
+
+test('applicants (pending or declined) and family are told why, with no promise of approval', () => {
+  const applicant = waitingShareNote('notMember');
+  assert.equal(applicant.title, 'Members only');
+  assert.match(applicant.text, /approved members/);
+  assert.doesNotMatch(applicant.text, /once you’re approved|wasn’t kept/);
+  const family = waitingShareNote('family');
+  assert.equal(family.title, 'Members only');
+  assert.match(family.text, /^Family accounts don’t have the club chats/);
+  assert.doesNotMatch(family.text, /post/); // family have no chats at all, not read-only ones
+  assert.equal(applicant.action, 'Got it');
+  assert.equal(family.action, 'Got it');
+});
+
+test('every strip has a one-line title, a sentence, and curly apostrophes', () => {
+  for (const stage of ['signedOut', 'notMember', 'family'] as const) {
+    const { title, text, action } = waitingShareNote(stage);
+    assert.ok(title.length > 0 && title.length <= 14, `${stage} title fits one line at phone width`);
+    assert.ok(text.endsWith('.'), `${stage} text is a sentence`);
+    assert.doesNotMatch(title + text + action, /'/, `${stage} uses curly apostrophes`);
+  }
 });

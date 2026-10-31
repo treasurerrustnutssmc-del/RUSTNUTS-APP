@@ -181,7 +181,7 @@ type Item = { key: string; kind: 'day'; label: string } | { key: string; kind: '
 const reloadedFor = new Set<string>();
 
 /** Phones only: how far the keyboard covers the screen, so the composer sits on top of it. */
-function useKeyboardHeight() {
+export function useKeyboardHeight() {
   const [height, setHeight] = useState(0);
   useEffect(() => {
     if (Platform.OS === 'web') return;

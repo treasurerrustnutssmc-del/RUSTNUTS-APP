@@ -609,6 +609,11 @@ export type Database = {
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
       end_position: { Args: { p_position: string }; Returns: undefined };
       delete_my_account: { Args: never; Returns: undefined };
+      // Ask the club (the club AI assistant)
+      assistant_status: {
+        Args: never;
+        Returns: { on: boolean; left_today: number; daily_limit: number; resting_until: string | null; spent_microusd?: number; budget_microusd?: number; questions?: number };
+      };
       apply_to_join: {
         Args: {
           p_chapter: string;

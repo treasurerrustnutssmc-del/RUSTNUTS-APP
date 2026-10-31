@@ -38,6 +38,8 @@ import { BuildsRow } from './builds';
 import { HistoryRow } from './history';
 import { BragRow } from './brag';
 import { BadgesCard } from './badges';
+import { AskClubHomeRow } from './askClub';
+import { HomeRoadRulesRow } from './roadRules';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -178,6 +180,11 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
           />
         </Card>
       ) : null}
+
+      {/* Ask the club, the club assistant */}
+      <AskClubHomeRow onOpen={() => navigation.navigate('AskClub')} />
+      {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}
+      <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />
 
       {myAlerts.map((a) => (
         <Notice key={a.label} tone={a.state === 'expired' ? 'danger' : 'warn'} title={a.label}>

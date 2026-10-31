@@ -237,6 +237,14 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 ### Notices
 - Tinted blocks for info, OK, warning and danger, with an icon, an optional stencil title and body text. They're used for empty states and for reasons something can't be done.
 
+### Top strips
+- Full-width strips above every screen, under the notch: the refresh strip (danger tint, "Try again" in red, since it's a recovery) and the waiting-share strip. The first strip takes the top safe area, so the screens below don't pad for the notch twice.
+- **Waiting-share strip:** for anyone without "Share to the club" (signed out, asking to join, waiting for approval or declined, family) when something is shared in from another app. Steel, a hairline under it, a share icon, a one-line stencil title (`type.name`) and a small body line, aligned to the top. Its one button is quiet stencil text in muted bone, so the screen's red stays the one that matters. Screen readers are told when it appears.
+  - Signed out: "Sign in first", "It opens once you sign in as a member. If it doesn’t, share it again." and **Don’t keep it**. The share is kept, so it opens in Share to the club after sign-in.
+  - Asking to join, waiting or declined: "Members only", "Only approved members can share into the club chats." and **Got it**.
+  - Family: "Members only", "Family accounts don’t have the club chats." and **Got it**.
+  - The button lets the share go. For everyone but the signed out, it also goes when they leave the app, since it can never open.
+
 ### Crew
 - **Crew section** (ride screen, under the answers): one card with a row each for RC, TG and ATG, then each Officer. A row has a steel tile with the stencil short form, the road name (or a muted "Open") and the full role under it, and its buttons below.
   - **Buttons:** "I'll do it" on an open spot only when you hold no spot on that ride. Crew managers get Pick or Change, and "Add officer" on the open Officer row.
@@ -354,3 +362,11 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - **Charity ride screen:** the ride title, the heart badge (steel) beside the cause at 19/26, chips, the about card, and the donations line in small print beside a cash icon (it says donations come later). The sign-up card: I'm riding and Bringing a pillion toggles (the pillion only while riding), a 48-square − / + stepper for guests with the number in stencil, guests' names once there are any, Helping with as choices ("Not helping" first), notes, then **Sign up** / **Save changes**. Withdraw is a secondary `ConfirmButton`. Then **Riding** (rows with "Riding + pillion + 2 guests") and one section per job with its helpers, and **Run it** (Share the list, Edit sign-ups) for the people who run it.
 - **Run sign-ups screen:** cause, about, closing day, places, and helper jobs one per line in a multiline field; **Take sign-ups** or **Save sign-ups** is the red.
 - **Who's on the lists (29 Oct 2026):** the Riding and helper lists on the charity ride screen, and the registrations list on the ride hub screen, show only to the people who run the ride and to board members for their own chapter's members; a member sees their own row. Everyone else gets the counts and one muted small line, "The organisers and the boards see who’s coming; the numbers are everyone’s." No empty "Nobody yet" for them.
+
+## Ask the club
+
+- **Home row:** a card with one row: a steel chat badge, "Ask the club" in the name stencil and "The rules, the rides and the Rusty Bus, in plain words" underneath.
+- **Screen:** fine print at the top (what it answers from, that it can be wrong, that nothing happens until Confirm), then "N questions left today" in small stencil. With nothing asked, three starter questions as rows in one card.
+- **The chat:** the member's words in filled steel on the right; the assistant's on the left in an outlined ink bubble with the skull at the bottom left, in the body face. "Thinking…" sits beside the skull and a spinner in red text colour.
+- **Cards:** a proposed action is a plain card: the heading in the title stencil (GOING, RUSTY BUS, NEW RIDE…), the day and the name lines in the name stencil, the rest in the body face. The red is CONFIRM (or the action's own words, like OPEN IN GOOGLE CALENDAR); "Not that" is quiet. A reason it can't be done is a warn notice with no Confirm; after Confirm it's an OK notice titled Done, or a warn notice and Try again.
+- **Composer:** a steel box and a red SEND, on an ink2 bar with a hairline above, which rides up with the keyboard like the chat composer.
