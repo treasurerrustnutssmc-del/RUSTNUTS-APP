@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ASSISTANT_MODEL, ASSISTANT_TOOLS, CANT_ANSWER, CANT_HELP, CUT_OFF, MAX_CHARS, MAX_OUT, MAX_TURNS, NOT_SWITCHED_ON,
+  ASSISTANT_MODEL, ASSISTANT_TOOLS, CANT_ANSWER, CANT_HELP, CUT_OFF, MAX_CHARS, MAX_OUT, MAX_TURNS, NOT_SWITCHED_ON, START_AGAIN,
   buildRequest, checkMessages, costMicroUsd, handleAskClub, type ApiMessage, type AskDeps, type Sources,
 } from '../../supabase/functions/_shared/askClub';
 
@@ -48,6 +48,13 @@ test('bad or oversized messages are refused before start', async () => {
     [{ role: 'user', content: [{ type: 'text', text: long }] }],
     [...ASK, { role: 'assistant', content: [{ type: 'text', text: 'and?' }] }],
     many,
+    // The member's side carries plain words and plain-text results only: nothing that costs more than it weighs.
+    [{ role: 'user', content: [{ type: 'text', text: 'hi', cache_control: { type: 'ephemeral' } }] }],
+    [{ role: 'user', content: [{ type: 'text', text: 42 }] }],
+    [...ASK, { role: 'assistant', content: [{ type: 'tool_use', id: 'tu_1', name: 'rsvp', input: {} }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: [{ type: 'image', source: { type: 'url', url: 'https://x' } }] }] }],
+    [...ASK, { role: 'assistant', content: [{ type: 'tool_use', id: 'tu_1', name: 'rsvp', input: {} }] },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'Done.', is_error: true }] }],
   ];
   for (const messages of bad) {
     const { d, calls } = deps();
@@ -71,7 +78,7 @@ test('request shape: model, effort, fallbacks, tools, cached system and the conv
   assert.equal(req.model, ASSISTANT_MODEL);
   assert.equal(ASSISTANT_MODEL, 'claude-opus-5-5');
   assert.equal(req.max_tokens, MAX_OUT);
-  assert.equal(MAX_OUT, 4000);
+  assert.equal(MAX_OUT, 6000);
   assert.deepEqual(req.thinking, { type: 'adaptive' });
   assert.deepEqual(req.output_config, { effort: 'medium' });
   assert.deepEqual(req.betas, ['server-side-fallback-2026-07-01']);
@@ -145,6 +152,15 @@ test('a failed Claude call is reported and nothing spent', async () => {
   const got = await handleAskClub(ENV, { messages: ASK }, d);
   assert.equal(got.status, 503);
   assert.deepEqual(got.body, { error: CANT_ANSWER });
+  assert.deepEqual(calls.spent, []);
+});
+
+test('a conversation Claude won’t take says to start a new one', async () => {
+  const bad = Object.assign(new Error('400 invalid_request_error'), { status: 400 });
+  const { d, calls } = deps({ claude: async () => { throw bad; } });
+  const got = await handleAskClub(ENV, { messages: ASK }, d);
+  assert.equal(got.status, 400);
+  assert.deepEqual(got.body, { error: START_AGAIN });
   assert.deepEqual(calls.spent, []);
 });
 

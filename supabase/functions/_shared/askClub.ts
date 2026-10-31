@@ -7,7 +7,8 @@
 // docs/superpowers/specs/2026-10-31-club-assistant-design.md
 
 export const ASSISTANT_MODEL = 'claude-opus-5-5';
-export const MAX_OUT = 4000;
+/** Thinking counts towards it, so there's room for a rule question's working as well as the answer. */
+export const MAX_OUT = 6000;
 export const MAX_TURNS = 40;
 export const MAX_CHARS = 120_000;
 
@@ -15,6 +16,7 @@ export const NOT_SWITCHED_ON = 'Ask the club isn’t switched on yet.';
 export const CANT_ANSWER = 'Ask the club can’t answer right now. Try again in a minute.';
 export const CANT_HELP = 'I can’t help with that one.';
 export const CUT_OFF = 'That’s as far as I got.';
+export const START_AGAIN = 'That chat can’t carry on. Start a new one.';
 const BAD_REQUEST = 'That question didn’t come through properly. Start a new one.';
 
 /** Millionths of a US dollar per token, Claude Opus 5.5 (cache writes 1.25×, reads 0.1×). */
@@ -186,6 +188,12 @@ export type ClaudeRequest = ReturnType<typeof buildRequest>;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
+const hasOnly = (b: Record<string, unknown>, keys: string[]) => Object.keys(b).every((k) => keys.includes(k));
+const isPlainUserBlock = (b: Record<string, unknown>) =>
+  b.type === 'text'
+    ? typeof b.text === 'string' && hasOnly(b, ['type', 'text'])
+    : b.type === 'tool_result' && typeof b.tool_use_id === 'string' && typeof b.content === 'string' && hasOnly(b, ['type', 'tool_use_id', 'content']);
+
 /** The conversation as the phone sent it, or why it can't go to Claude. */
 export function checkMessages(raw: unknown): ApiMessage[] | string {
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_TURNS) return BAD_REQUEST;
@@ -194,8 +202,9 @@ export function checkMessages(raw: unknown): ApiMessage[] | string {
     if (!isObject(m) || (m.role !== 'user' && m.role !== 'assistant') || !Array.isArray(m.content) || m.content.length === 0) return BAD_REQUEST;
     for (const b of m.content) {
       if (!isObject(b) || typeof b.type !== 'string') return BAD_REQUEST;
-      // The member's side only ever carries words and the results of their cards.
-      if (m.role === 'user' && b.type !== 'text' && b.type !== 'tool_result') return BAD_REQUEST;
+      // The member's side only ever carries plain words and the plain-text results of their cards,
+      // exactly as the phone builds them: no pictures, files or cache settings slipped in to run up the bill.
+      if (m.role === 'user' && !isPlainUserBlock(b)) return BAD_REQUEST;
     }
   }
   if (raw[0].role !== 'user' || raw[raw.length - 1].role !== 'user') return BAD_REQUEST;
@@ -238,7 +247,10 @@ export async function handleAskClub(env: { ANTHROPIC_API_KEY?: string }, body: u
   let res: ClaudeResponse;
   try {
     res = await deps.claude(buildRequest(sources, messages));
-  } catch {
+  } catch (e) {
+    // Claude turned down the conversation itself (too long, or out of shape): asking again won't help.
+    const status = (e as { status?: number })?.status;
+    if (status === 400 || status === 413) return { status: 400, body: { error: START_AGAIN } };
     return { status: 503, body: { error: CANT_ANSWER } };
   }
   // A cost that fails to record mustn't lose the answer; the Console's own limit is the backstop.

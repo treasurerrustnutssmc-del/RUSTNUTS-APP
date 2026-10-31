@@ -125,6 +125,17 @@ declare
 begin
   assert words = 'Ask the club is resting until ' || next_month || ': this month’s budget is used.', words;
 end $$;
+\echo 'The status says when it’s back, as DD/MM/YYYY'
+select pg_temp.as_member('00000000-0000-0000-0000-0000000000a2') \g /dev/null
+set role authenticated;
+do $$
+declare
+  got jsonb := public.assistant_status();
+  next_month text := to_char((date_trunc('month', private.club_date()) + interval '1 month')::date, 'DD/MM/YYYY');
+begin
+  assert got ->> 'resting_until' = next_month, got::text;
+end $$;
+reset role;
 
 \echo 'Last month’s spend doesn’t count against this month'
 update private.assistant_months set month = (date_trunc('month', private.club_date()) - interval '1 month')::date;
@@ -176,6 +187,17 @@ do $$
 declare got jsonb := public.assistant_status();
 begin
   assert not (got ->> 'on')::boolean, 'family sees it on';
+end $$;
+reset role;
+
+\echo 'A setting that isn’t a number falls back to the default instead of breaking every question'
+update private.app_settings set value = 'lots' where key = 'assistant_daily_limit';
+select pg_temp.as_member('00000000-0000-0000-0000-0000000000a2') \g /dev/null
+set role authenticated;
+do $$
+declare got jsonb := public.assistant_status();
+begin
+  assert (got ->> 'daily_limit')::int = 15, got::text;
 end $$;
 reset role;
 

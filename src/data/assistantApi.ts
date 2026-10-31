@@ -76,5 +76,8 @@ export function demoAssistant(who: { me: Member | null; data: ClubData }): Assis
 /** The assistant for this build: the scripted one in the demo, the club's in a live build. */
 export function useAssistantApi(): AssistantApi {
   const { isDemo, me, data } = useClub();
-  return useMemo(() => (isDemo ? demoAssistant({ me, data }) : liveAssistant()), [isDemo, me, data]);
+  // The live one never changes, so its status isn't fetched again each time the club data reloads.
+  const live = useMemo(() => liveAssistant(), []);
+  const demo = useMemo(() => demoAssistant({ me, data }), [me, data]);
+  return isDemo ? demo : live;
 }

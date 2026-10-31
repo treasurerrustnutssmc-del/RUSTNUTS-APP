@@ -85,11 +85,14 @@ export function AskClubScreen(_: RootScreen<'AskClub'>) {
   if (!me || !isApprovedMember(me)) return null;
   const blocked = stopped(status, history.length);
   const question = draft.trim();
-  const canSend = !thinking && !blocked && question.length > 0;
+  // A card still running holds the next question, so its result goes with it.
+  const running = items.some((i) => i.kind === 'card' && i.state === 'busy');
+  const canSend = !thinking && !running && !blocked && question.length > 0;
 
   const ask = async (words: string) => {
     const text = words.trim().slice(0, MAX_QUESTION);
-    if (!text || thinking || blocked) return;
+    if (!text || thinking || running || blocked) return;
+    const before = items;
     const now = new Date().toISOString();
     const sent = nextMessages(history, results.current, text, history.length === 0 ? buildSnapshot(me, data, chats, now) : null);
     // A card left open when the next question goes is told back as not done, so it can't be confirmed after.
@@ -107,8 +110,9 @@ export function AskClubScreen(_: RootScreen<'AskClub'>) {
         ...reply.proposals.map((p) => ({ key: key(), kind: 'card' as const, card: cardFor(p, ctx), state: 'open' as const, said: null })),
       ]);
     } catch (e) {
-      // Nothing reached the conversation: take the question back so it can be asked again.
-      setItems((all) => all.slice(0, -1));
+      // Nothing reached the conversation: take the question back so it can be asked again, and
+      // reopen any card it closed.
+      setItems(before);
       setDraft(text);
       setError((e as Error).message);
     } finally {
@@ -284,13 +288,14 @@ export function AskClubHomeRow({ onOpen }: { onOpen: () => void }) {
   const { me, isDemo } = useClub();
   const api = useAssistantApi();
   const [on, setOn] = useState(isDemo);
+  const member = isApprovedMember(me);
   useEffect(() => {
-    if (isDemo) return;
+    if (isDemo || !member) return;
     let live = true;
     api.status().then((s) => live && setOn(s.on), () => undefined);
     return () => { live = false; };
-  }, [api, isDemo]);
-  if (!isApprovedMember(me) || !on) return null;
+  }, [api, isDemo, member]);
+  if (!member || !on) return null;
   return (
     <Card style={{ padding: 0, gap: 0 }}>
       <ListRow

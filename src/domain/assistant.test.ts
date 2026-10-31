@@ -102,6 +102,10 @@ test('join and leave crew are always for the member asking', () => {
   const leave = cardFor(p('leave_crew', { ride_id: 'r-west' }), ctx('off'));
   assert.equal(leave.heading, 'OFF THE CREW');
   assert.deepEqual(leave.plan, { kind: 'leave_crew', rideId: 'r-west' });
+  // Like the ride screen's "I'll do it": someone already on the crew can't move themselves.
+  const move = cardFor(p('join_crew', { ride_id: 'r-west', role: 'assistant_tail_gunner' }), ctx('off'));
+  assert.equal(move.problem, 'You’re already on this ride’s crew as Officer. Moving between spots is for the board or ride committee.');
+  assert.equal(move.plan, null);
 });
 
 test('call_ride card, and only the people who can call a ride get Confirm', () => {

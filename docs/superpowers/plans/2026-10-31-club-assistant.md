@@ -18,8 +18,8 @@ each proposal into a card checked with the app's existing rule functions and run
 
 ## Global Constraints
 
-- Model `claude-opus-5-5`, `output_config.effort: 'medium'`, `thinking: { type: 'adaptive' }`, `max_tokens: 4000`, beta `server-side-fallback-2026-07-01` with `fallbacks: 'default'`.
-- Prices (µUS$ per token): in 4, cache write 5, cache read 0.4, out 20.
+- Model `claude-opus-5-5`, `output_config.effort: 'medium'`, `thinking: { type: 'adaptive' }`, `max_tokens: 6000` (thinking counts towards it), beta `server-side-fallback-2026-07-01` with `fallbacks: 'default'`.
+- Prices (µUS$ per token): in 4, cache write 5, cache read 0.2, out 20.
 - Limits: 40 turns, 120,000 characters per request; `assistant_daily_limit` default 15; `assistant_month_budget_microusd` default 20,000,000. Days and months in Melbourne time (`private.club_date()`).
 - Switched off unless `private.app_settings` `assistant_on` = `true` and the `ANTHROPIC_API_KEY` secret is set.
 - Who: approved non-Family members (`private.is_approved_member()`).
@@ -74,7 +74,7 @@ each proposal into a card checked with the app's existing rule functions and run
   - `interface AskReply { content: ApiBlock[]; text: string; proposals: Proposal[]; note: string | null }`
   - `handleAskClub(env: { ANTHROPIC_API_KEY?: string }, body: unknown, deps: AskDeps): Promise<{ status: number; body: AskReply | { error: string } }>` with `AskDeps = { start(): Promise<Sources>; claude(req: ClaudeRequest): Promise<ClaudeResponse>; spent(microusd: number): Promise<void> }`
 
-- [ ] **Step 1: Write failing tests**: `no key means not switched on`; `bad or oversized messages are refused before start` (non-array, first turn not user, 41 turns, 120,001 characters → 400, `start` never called); `start's refusal words come back as 403`; `request shape`: model, effort, thinking, max_tokens, betas, fallbacks, tools in `ASSISTANT_TOOLS` order, system = [brief, constitution, Road Rules] with `cache_control` on the last system block only, top-level `cache_control`, messages passed through untouched (deepEqual); `missing sources say so in the system text`; `cost maths` (1,000 in + 2,000 write + 10,000 read + 500 out = 4,000 + 10,000 + 4,000 + 10,000 = 28,000 µUS$); `reply splits text and tool_use proposals and keeps content verbatim`; `refusal gives CANT_HELP`, `max_tokens adds CUT_OFF`; `a failed Claude call is reported and nothing spent` (503, `CANT_ANSWER`, `spent` not called); `spent gets the cost after a good call`.
+- [ ] **Step 1: Write failing tests**: `no key means not switched on`; `bad or oversized messages are refused before start` (non-array, first turn not user, 41 turns, 120,001 characters → 400, `start` never called); `start's refusal words come back as 403`; `request shape`: model, effort, thinking, max_tokens, betas, fallbacks, tools in `ASSISTANT_TOOLS` order, system = [brief, constitution, Road Rules] with `cache_control` on the last system block only, top-level `cache_control`, messages passed through untouched (deepEqual); `missing sources say so in the system text`; `cost maths` (1,000 in + 2,000 write + 10,000 read + 500 out = 4,000 + 10,000 + 2,000 + 10,000 = 26,000 µUS$); `reply splits text and tool_use proposals and keeps content verbatim`; `refusal gives CANT_HELP`, `max_tokens adds CUT_OFF`; `a failed Claude call is reported and nothing spent` (503, `CANT_ANSWER`, `spent` not called); `spent gets the cost after a good call`.
 - [ ] **Step 2: Run** `npm test` — Expected: FAIL (module missing).
 - [ ] **Step 3: Implement** in `askClub.ts`. The brief is the spec's "brief" paragraph written as instructions; constitution and Road Rules wrapped as `<constitution version="v4">…</constitution>`, `<road_rules version="3">…</road_rules>`.
 - [ ] **Step 4: Run** `npm test` — Expected: PASS.

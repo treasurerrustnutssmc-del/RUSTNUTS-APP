@@ -36,7 +36,9 @@ Deno.serve(async (req) => {
       return { constitution: d.constitution ?? null, roadRules: d.road_rules ?? null };
     },
     claude: async (request) => {
-      const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 1 });
+      // One try inside the Edge Function's time limit (150 seconds on the free plan): a slow answer
+      // says try again rather than the function being cut off with nothing said.
+      const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 0 });
       return (await client.beta.messages.create(request)) as unknown as ClaudeResponse;
     },
     spent: async (microusd) => {

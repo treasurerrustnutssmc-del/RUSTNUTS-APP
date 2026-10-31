@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ApiMessage } from '../../supabase/functions/_shared/askClub';
 import { DEMO_FALLBACK, demoReply } from './assistantDemo';
-import { BEFORE, planningClub, who } from '../domain/planning.testkit';
+import { BEFORE, planningClub, ride, who } from '../domain/planning.testkit';
 
 const data = planningClub();
 const ctx = { me: who(data, 'rider'), data, now: BEFORE };
@@ -48,4 +48,15 @@ test('anything else gets the starters line, and ids stay unique along a conversa
   const history: ApiMessage[] = [...ask('Put me down for the next ride'), { role: 'assistant', content: first.content }];
   const second = demoReply([...history, { role: 'user', content: [{ type: 'tool_result', tool_use_id: first.proposals[0].id, content: 'Done.' }, { type: 'text', text: 'Book the bus' }] }], ctx);
   assert.notEqual(second.proposals[0].id, first.proposals[0].id);
+});
+
+test('on a tie the next ride is the member’s own chapter’s, whatever the chapter ids look like', () => {
+  const base = planningClub();
+  const tied = planningClub({
+    chapters: base.chapters.map((c) => ({ ...c, id: `ch-${c.slug}` })),
+    members: base.members.map((m) => ({ ...m, chapterId: `ch-${m.chapterId}` })),
+    rides: [ride('r-north', { title: 'North run', category: 'north' }), ride('r-west', { title: 'West run', category: 'west' })],
+  });
+  const r = demoReply(ask('When’s the next ride?'), { me: who(tied, 'rider'), data: tied, now: BEFORE });
+  assert.match(r.text, /West run/);
 });

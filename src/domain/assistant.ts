@@ -9,7 +9,7 @@ import { activePositions, managesChapterRides } from './access';
 import { big4GoingProblem } from './big4';
 import { BUS_NO_RIDE, BUS_PURPOSES, bookProblem, bookedStraightAway, busPurposeLabel, busStatusLabel, cancelProblem, formatDays, type BusInput } from './bus';
 import { formatKm, handKeysProblem, keyHolder, latestReading, logKmProblem, type KmInput } from './busLog';
-import { crewFor, crewProblem, leaveProblem } from './crew';
+import { crewFor, crewProblem, leaveProblem, spotOf } from './crew';
 import { addDays, formatAuDate, isRealIsoDate, weekday } from './dates';
 import { chargeBalance, chargesOf, formatCents, totalOwing } from './fees';
 import { ROLE_LABEL, STATUS_LABEL } from './labels';
@@ -228,7 +228,11 @@ export function cardFor(proposal: Proposal, ctx: CardCtx): ActionCard {
       return rideCard(proposal, ctx, (ride) => {
         const role = s('role') as CrewRole;
         if (!CREW_ROLES.includes(role)) return card(id, 'CREW', rideLines(ride), 'Pick a crew spot.', { kind: 'leave_crew', rideId: ride.id });
-        const problem = crewProblem(me, ride, me, role, data, now);
+        // Like the ride screen's "I'll do it": moving between spots is for the board or ride committee.
+        const held = spotOf(ride.id, me.id, data.crew);
+        const problem = held
+          ? `You’re already on this ride’s crew as ${ROLE_LABEL[held]}. Moving between spots is for the board or ride committee.`
+          : crewProblem(me, ride, me, role, data, now);
         return card(id, ROLE_LABEL[role].toUpperCase(), rideLines(ride), problem, { kind: 'join_crew', rideId: ride.id, role });
       });
     case 'leave_crew':

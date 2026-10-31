@@ -22,7 +22,8 @@ alter table private.assistant_months enable row level security;
 
 create or replace function private.assistant_setting(p_key text, p_default bigint)
 returns bigint language sql stable security definer set search_path = '' as $$
-  select coalesce((select nullif(trim(value), '')::bigint from private.app_settings where key = p_key), p_default);
+  -- A value that isn't a whole number is ignored, so a typo in a setting can't break every question.
+  select coalesce((select trim(value)::bigint from private.app_settings where key = p_key and trim(value) ~ '^[0-9]{1,15}$'), p_default);
 $$;
 
 create or replace function private.assistant_on()
@@ -67,7 +68,8 @@ begin
   if coalesce(asked, 0) >= daily_limit then
     raise exception 'You’ve asked % today. More tomorrow.', daily_limit;
   end if;
-  select spent_microusd into spent from private.assistant_months where month = this_month;
+  -- Locked, so questions asked at the same moment near the cap queue here rather than all slip through.
+  select spent_microusd into spent from private.assistant_months where month = this_month for update;
   if coalesce(spent, 0) >= budget then
     raise exception 'Ask the club is resting until %: this month’s budget is used.',
       to_char(private.assistant_next_month(today), 'DD/MM/YYYY');
@@ -125,7 +127,7 @@ begin
     'on', private.assistant_on(),
     'left_today', greatest(daily_limit - coalesce(asked, 0), 0),
     'daily_limit', daily_limit,
-    'resting_until', case when coalesce(spent, 0) >= budget then private.assistant_next_month(today) end);
+    'resting_until', case when coalesce(spent, 0) >= budget then to_char(private.assistant_next_month(today), 'DD/MM/YYYY') end);
   if private.is_national() then
     answer := answer || jsonb_build_object(
       'spent_microusd', coalesce(spent, 0), 'budget_microusd', budget, 'questions', coalesce(month_questions, 0));

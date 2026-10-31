@@ -27,7 +27,8 @@ const FNG_ANSWER =
 /** The next ride that hasn't finished: the soonest, and on a tie the member's own chapter's. */
 function nextRide(ctx: DemoCtx): Ride | undefined {
   const today = melbourneDate(ctx.now);
-  const own = (r: Ride) => (r.category === ctx.me.chapterId ? 0 : 1);
+  const slug = ctx.data.chapters.find((c) => c.id === ctx.me.chapterId)?.slug;
+  const own = (r: Ride) => (r.category === slug ? 0 : 1);
   return ctx.data.rides
     .filter((r) => !r.cancelledAt && lastDay(r) >= today && r.startsAt >= ctx.now)
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || own(a) - own(b) || a.id.localeCompare(b.id))[0];
