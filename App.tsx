@@ -11,6 +11,7 @@ import { RideVoiceProvider } from './src/data/rideVoice';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/theme';
 import { DemoBar } from './src/ui/DemoBar';
+import { appMode, useAppMode } from './src/data/reviewMode';
 import { RefreshBanner } from './src/ui/RefreshBanner';
 import { useAppFonts } from './src/useAppFonts';
 
@@ -56,10 +57,15 @@ const IN_PREVIEW_PAGE =
   Platform.OS === 'web' && (globalThis as { __RUSTNUTS_PREVIEW__?: boolean }).__RUSTNUTS_PREVIEW__ === true;
 const NO_INSETS = { top: 0, bottom: 0, left: 0, right: 0 };
 
+// Store review demo: read whether this phone is in it before anything live starts.
+void appMode.load();
+
 export default function App() {
   const fontsReady = useAppFonts();
-  const content = fontsReady ? (
-    <ClubProvider>
+  const mode = useAppMode();
+  // A new mode gets a fresh set of providers, so nothing of the live club lingers in the review demo.
+  const content = fontsReady && mode !== 'loading' ? (
+    <ClubProvider key={mode}>
       <ChatProvider>
         {/* Lane E: ride comms */}
         <RideVoiceProvider>

@@ -9,6 +9,7 @@ import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { RootParams, RootScreen } from '../navigation/types';
 import { IntroProgressCard } from './fng'; // Stage 4
 import { SUPPORT_URL } from '../domain/clubLinks'; // Club links
+import { isReviewerEmail } from '../domain/reviewer'; // Store review demo
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
@@ -149,7 +150,9 @@ export function SignInScreen({ route }: RootScreen<'SignIn'>) {
       <Stack gap={space.sm}>
         <H1>{joining ? 'First, your email' : 'Sign in'}</H1>
         <Body>
-          {step === 'code'
+          {step === 'code' && isReviewerEmail(email)
+            ? 'Enter the code from the store review notes.'
+            : step === 'code'
             ? `We've emailed a code to ${email.trim()}. It lasts an hour. Check your junk folder if it's not there.`
             : joining
               ? 'No passwords. Enter your email and we’ll send a code to confirm it’s you, then you can fill in your details.'
@@ -175,7 +178,7 @@ export function SignInScreen({ route }: RootScreen<'SignIn'>) {
       ) : (
         <>
           <Field
-            label="Code from the email"
+            label={isReviewerEmail(email) ? 'Review code' : 'Code from the email'}
             value={code}
             onChangeText={(v) => setCode(v.replace(/\D/g, ''))}
             placeholder="123456"

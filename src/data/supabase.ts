@@ -3,12 +3,16 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { AppState, Platform } from 'react-native';
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, USE_LIVE_DATA } from './config';
 import type { Database } from './database.types';
+import { appMode } from './reviewMode';
 
 let client: SupabaseClient<Database> | null = null;
 
 /** The club database connection. Only exists in a live build. */
 export function supabase(): SupabaseClient<Database> {
   if (!USE_LIVE_DATA) throw new Error('The live database is not set up in this build.');
+  // Store review demo: the reviewers never reach the live club, whatever a screen asks for. Anything
+  // that can run before App has read the saved mode (a background task) must await appMode.load() first.
+  if (appMode.reviewing()) throw new Error('The live database is off in the review demo.');
   if (!client) {
     client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: {

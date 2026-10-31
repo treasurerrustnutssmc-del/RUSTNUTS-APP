@@ -3,17 +3,20 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { DEMO_PERSONAS } from '../data/demoData';
+import { useAppMode } from '../data/reviewMode';
 import { colors, fonts, space } from '../theme';
 
 /** Strip across the top of the demo build: switch who you're viewing the app as. */
 export function DemoBar() {
   const { me, signInAs } = useClub();
+  const reviewing = useAppMode() === 'review'; // Store review demo
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 6 }]}>
-      <Text style={styles.tag}>Demo</Text>
+      <Text style={styles.tag}>{reviewing ? 'Review demo' : 'Demo'}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {DEMO_PERSONAS.map((p) => {
+        {/* Reviewers leave by Sign out on Me, so they aren't offered a signed-out view with no way back. */}
+        {DEMO_PERSONAS.filter((p) => !reviewing || p.memberId !== null).map((p) => {
           const active = p.memberId === (me?.id ?? null);
           return (
             <Pressable

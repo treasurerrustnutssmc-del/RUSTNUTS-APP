@@ -2,12 +2,12 @@
 // database; without them (or with EXPO_PUBLIC_FORCE_DEMO=1) it runs on made-up demo members.
 
 import React from 'react';
-import { USE_LIVE_DATA } from './config';
+import { liveDataOn } from './reviewMode';
 import { DemoClubProvider } from './DemoClubProvider';
 import { LiveClubProvider } from './LiveClubProvider';
 
 export function ClubProvider({ children }: { children: React.ReactNode }) {
-  return USE_LIVE_DATA ? <LiveClubProvider>{children}</LiveClubProvider> : <DemoClubProvider>{children}</DemoClubProvider>;
+  return liveDataOn() ? <LiveClubProvider>{children}</LiveClubProvider> : <DemoClubProvider>{children}</DemoClubProvider>;
 }
 
 export { useClub, NotAllowedError } from './clubContext';

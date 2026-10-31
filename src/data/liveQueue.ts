@@ -72,7 +72,7 @@ export interface KeyValue {
   removeItem(key: string): Promise<void>;
 }
 
-const QUEUE_KEY = 'live.queue';
+export const QUEUE_KEY = 'live.queue';
 
 /** The waiting items, kept on the phone. One change at a time, so an alert held while others are
  *  being sent is never written over. */
