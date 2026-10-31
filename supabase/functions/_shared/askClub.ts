@@ -117,7 +117,7 @@ export const ASSISTANT_TOOLS: ToolDef[] = [
     first_day: str(DAY), last_day: str(DAY),
     purpose: oneOf(['charity_ride', 'recovery', 'club_event', 'other'], 'What it’s for.'),
     ride_id: str('The ride it’s for, from the snapshot, or empty.'),
-    driver_id: str('The driver’s member id from the snapshot, or empty.'),
+    driver_id: str('The driver’s member id from the snapshot. Every booking needs a driver: ask if you don’t know who.'),
     notes: str('Anything the bus people should know, or empty.'),
   }),
   tool('cancel_bus', 'Propose cancelling a Rusty Bus booking.', { booking_id: str(ID) }),
