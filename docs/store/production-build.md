@@ -21,7 +21,7 @@
   installs.
 - **Any `app.json` change moves the Android runtime fingerprint,** which cuts the test phones off
   from over-the-air updates until a new Android build is installed. After such a merge, make a new
-  Android preview build (Store build workflow, or `eas build --profile preview --platform android`)
+  Android preview build (Store build workflow › android-preview, or `eas build --profile preview --platform android`)
   and install it on the test phones before expecting updates to land. JS-only changes don't move it.
 - **A red "ios-simulator" Store build job means the iPhone app doesn't compile.** Fix that before
   anything below; a production iOS build will fail the same way.

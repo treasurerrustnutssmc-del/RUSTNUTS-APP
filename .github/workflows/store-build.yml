@@ -5,6 +5,9 @@
 # Android makes an app bundle for Google Play. iOS needs the club's Apple developer account first.
 # ios-simulator is a test iPhone build for the iOS Simulator: it needs no Apple account, and the job
 # waits for it, so a red job means the iPhone app doesn't compile.
+# android-preview is the tester APK (preview channel) for Jeff's S25 and the test crew. Make one
+# whenever app.json or package.json changes, since that moves the runtime fingerprint and the old
+# install stops taking over-the-air updates. Install it from the EAS build page on the phone.
 name: Store build
 
 on:
@@ -13,7 +16,7 @@ on:
       platform:
         description: Which phones
         type: choice
-        options: [android, ios, all, ios-simulator]
+        options: [android, ios, all, ios-simulator, android-preview]
         default: android
 
 jobs:
@@ -39,6 +42,8 @@ jobs:
         run: |
           if [ "$PLATFORM" = ios-simulator ]; then
             eas build --profile ios-simulator --platform ios --non-interactive
+          elif [ "$PLATFORM" = android-preview ]; then
+            eas build --profile preview --platform android --non-interactive --no-wait
           else
             eas build --profile production --platform "$PLATFORM" --non-interactive --no-wait
           fi
