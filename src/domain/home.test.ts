@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { clubCounts, positionTitles, seatTitle } from './home';
-import { ROLE_LABEL } from './labels';
+import { ROLE_LABEL, ROLE_SHORT } from './labels';
 import type { Chapter, Member, Position } from './types';
 
 const chapters: Chapter[] = [
@@ -32,6 +32,11 @@ test('one seat names its own chapter, so two Treasurer seats read apart', () => 
   assert.equal(seatTitle(pos('c', 'treasurer', 'ch-west'), chapters, ROLE_LABEL), 'Treasurer (West)');
   assert.equal(seatTitle(pos('d', 'treasurer', 'ch-north'), chapters, ROLE_LABEL), 'Treasurer (North)');
   assert.equal(seatTitle(pos('b', 'nec_chair', null), chapters, ROLE_LABEL), ROLE_LABEL.nec_chair);
+});
+
+test('the short Treasurer badge reads as a word, not a cut-off one (TREAS, not TRE)', () => {
+  const titles = positionTitles([pos('c', 'treasurer', 'ch-north'), pos('d', 'treasurer', 'ch-west')], chapters, 'ch-west', ROLE_SHORT);
+  assert.deepEqual(titles.map((t) => t.text), ['TREAS (North, West)']);
 });
 
 const member = (id: string, chapterId: string, status: Member['status'], approval: Member['approval'] = 'approved'): Member => ({

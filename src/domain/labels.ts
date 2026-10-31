@@ -52,7 +52,7 @@ export const ROLE_SHORT: Record<PositionRole, string> = {
   president: 'PRES',
   vice_president: 'VP',
   secretary: 'SEC',
-  treasurer: 'TRE',
+  treasurer: 'TREAS',
   sergeant_at_arms: 'SAA',
   road_captain: 'RC',
   officer: 'O',
