@@ -15,7 +15,7 @@ import { canSeeAttendance } from '../domain/attendance';
 import { compassFor } from '../domain/compass';
 import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
-import { clubCounts, positionTitles } from '../domain/home';
+import { clubCounts, positionTitles, seatTitle } from '../domain/home';
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, ROLE_SHORT, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
@@ -337,9 +337,11 @@ function StepDownButtons({ positions }: { positions: Position[] }) {
       {mine.map((p) => (
         <ConfirmButton
           key={p.id}
-          label={`Step down as ${ROLE_LABEL[p.role]}`}
-          confirmLabel={`Step down as ${ROLE_LABEL[p.role]}`}
-          kind="quiet"
+          label={`Step down as ${seatTitle(p, data.chapters, ROLE_LABEL)}`}
+          confirmLabel="Yes, step down"
+          confirmAccessibilityLabel={`Yes, step down as ${seatTitle(p, data.chapters, ROLE_LABEL)}`}
+          kind="secondary"
+          size="small"
           onConfirm={() => endPosition(p.id).then(() => setError(null), (e: Error) => setError(e.message))}
         />
       ))}

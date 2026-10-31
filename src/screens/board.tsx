@@ -20,6 +20,7 @@ import { fngDue } from '../domain/joining';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
 import { termEndsOn, termState } from '../domain/terms';
+import { seatTitle } from '../domain/home';
 import { BoardFees } from './fees';
 import { TreasuryRow } from './treasury';
 import { BoardAdminCard } from './adminRows'; // Stage 5D
@@ -480,7 +481,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         {positions.length === 0 ? <Small>No positions held.</Small> : null}
         {positions.map((p) => (
           <View key={p.id} style={{ gap: space.sm }}>
-            <KeyValue label={ROLE_LABEL[p.role]} value={`Since ${formatLongDate(p.startedOn)}`} />
+            <KeyValue label={seatTitle(p, data.chapters, ROLE_LABEL)} value={`Since ${formatLongDate(p.startedOn)}`} />
             {termEndsOn(p) ? (
               <KeyValue
                 label="Term"
@@ -588,13 +589,20 @@ function TermActions({ position: p, member }: { position: Position; member: Memb
   if (!me) return null;
   const own = p.memberId === me.id;
   const problem = endTermProblem(me, p, data, today);
-  const role = ROLE_LABEL[p.role];
+  const role = seatTitle(p, data.chapters, ROLE_LABEL);
   const end = () => endPosition(p.id).then(() => setError(null), (e: Error) => setError(e.message));
   if (problem === null) {
     return (
       <>
         {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
-        <ConfirmButton label={own ? 'Step down' : 'End term'} confirmLabel={own ? `Step down as ${role}` : `End ${role} term`} kind="quiet" onConfirm={end} />
+        <ConfirmButton
+          label={own ? `Step down as ${role}` : `End ${role} term`}
+          confirmLabel={own ? 'Yes, step down' : 'Yes, end term'}
+          confirmAccessibilityLabel={own ? `Yes, step down as ${role}` : `Yes, end ${role} term`}
+          kind="secondary"
+          size="small"
+          onConfirm={end}
+        />
       </>
     );
   }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clubCounts, positionTitles } from './home';
+import { clubCounts, positionTitles, seatTitle } from './home';
 import { ROLE_LABEL } from './labels';
 import type { Chapter, Member, Position } from './types';
 
@@ -26,6 +26,12 @@ test('a chapter seat always names its chapter, home or not (West Pres, not just 
   const titles = positionTitles([pos('a', 'secretary', 'ch-west'), pos('b', 'treasurer', 'ch-north')], chapters, 'ch-west', ROLE_LABEL);
   assert.deepEqual(titles.map((t) => t.text), ['Secretary (West)', 'Treasurer (North)']);
   assert.deepEqual(titles.map((t) => t.key), ['a', 'b']);
+});
+
+test('one seat names its own chapter, so two Treasurer seats read apart', () => {
+  assert.equal(seatTitle(pos('c', 'treasurer', 'ch-west'), chapters, ROLE_LABEL), 'Treasurer (West)');
+  assert.equal(seatTitle(pos('d', 'treasurer', 'ch-north'), chapters, ROLE_LABEL), 'Treasurer (North)');
+  assert.equal(seatTitle(pos('b', 'nec_chair', null), chapters, ROLE_LABEL), ROLE_LABEL.nec_chair);
 });
 
 const member = (id: string, chapterId: string, status: Member['status'], approval: Member['approval'] = 'approved'): Member => ({
