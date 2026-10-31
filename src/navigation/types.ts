@@ -30,6 +30,7 @@ export type RootParams = {
   ChapterDetail: { chapterId: string };
   RideDetail: { rideId: string };
   EditProfile: undefined;
+  DeleteAccount: undefined; // Delete my account
   EditBike: { bikeId?: string };
   EditContact: { contactId?: string };
   ManageMember: { memberId: string };
@@ -61,6 +62,11 @@ export type RootParams = {
   RoadRules: { version?: number } | undefined;
   EditRoadRules: undefined;
   RoadRulesSignoffs: undefined;
+  // The illustrated Road Rules (Chris's draft): the rules one at a time, the diagrams, and one diagram to zoom.
+  RoadRulesGuide: undefined;
+  RoadRulesRule: { number: number };
+  RoadRulesDiagrams: undefined;
+  RoadRulesDiagram: { id: string };
   // The Rusty Bus. Book opened from a ride starts with that ride and its days.
   Bus: undefined;
   BusBooking: { bookingId: string };
@@ -153,6 +159,8 @@ export type RootParams = {
   DocumentSignoffs: { id: string };
   // Sponsors
   Sponsors: undefined;
+  // The privacy policy (every level, signed in or not)
+  PrivacyPolicy: undefined;
   EditSponsor: { sponsorId?: string } | undefined;
   // Invites to and from other clubs
   OtherClubs: undefined;

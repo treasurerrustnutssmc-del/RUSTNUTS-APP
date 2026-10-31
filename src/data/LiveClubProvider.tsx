@@ -258,6 +258,25 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   };
   const after = async () => reload(userId);
 
+  /** Signing out, or after deleting the account: nothing of theirs stays on the phone. */
+  const leave = async () => {
+    forget(); // Lane E: offline
+    currentUser.current = null;
+    setUserId(null); // Lane E: offline
+    setJustApplied(false);
+    const { error } = await supabase().auth.signOut();
+    // Lane E: offline. With no signal on a login that had run out, Supabase can't sign out and keeps
+    // the login, which would sign them back in next time: remove it here. (A deleted account's sign-out
+    // fails the same way.)
+    if (error) {
+      const keys = authStorageKeys(SUPABASE_URL);
+      if (Platform.OS === 'web') keys.forEach((k) => globalThis.localStorage?.removeItem(k));
+      else await AsyncStorage.multiRemove(keys).catch(() => {});
+    }
+    reload(null);
+    await clubCache.clear(); // Lane E: offline. Again, after anything that finished meanwhile.
+  };
+
   const value: ClubContextValue = {
     mode: 'live',
     isDemo: false,
@@ -300,20 +319,13 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
 
     signOut: async () => {
       await forgetThisDevice(); // Lane E: notifications. While still signed in, so the club allows it.
-      forget(); // Lane E: offline
-      currentUser.current = null;
-      setUserId(null); // Lane E: offline
-      setJustApplied(false);
-      const { error } = await supabase().auth.signOut();
-      // Lane E: offline. With no signal on a login that had run out, Supabase can't sign out and keeps
-      // the login, which would sign them back in next time: remove it here.
-      if (error) {
-        const keys = authStorageKeys(SUPABASE_URL);
-        if (Platform.OS === 'web') keys.forEach((k) => globalThis.localStorage?.removeItem(k));
-        else await AsyncStorage.multiRemove(keys).catch(() => {});
-      }
-      reload(null);
-      await clubCache.clear(); // Lane E: offline. Again, after anything that finished meanwhile.
+      await leave();
+    },
+
+    // Delete my account. The database deletes this phone's push registration with the rest.
+    deleteMyAccount: async () => {
+      ok(await supabase().rpc('delete_my_account'));
+      await leave();
     },
 
     refresh,

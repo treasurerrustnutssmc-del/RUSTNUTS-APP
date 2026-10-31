@@ -27,6 +27,7 @@ import { DocumentsMeRow } from './documents'; // Stage 5C
 import { BadgesCard } from './badges'; // Stage 7: badges
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
+import { PrivacyPolicyRow } from './privacy'; // Privacy policy
 import {
   Avatar,
   Button,
@@ -232,8 +233,11 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         {/* Lane E: live ride */}
         <Small>Live ride location sharing is always your choice, switches off after the ride, and keeps nothing.</Small>
       </Card>
+      <PrivacyPolicyRow />
 
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
+      {/* Delete my account */}
+      <Button label="Delete my account" kind="quiet" onPress={() => navigation.navigate('DeleteAccount')} />
       {isDemo ? <Small style={{ textAlign: 'center' }}>Demo build: changes reset when you reload.</Small> : null}
     </Screen>
   );

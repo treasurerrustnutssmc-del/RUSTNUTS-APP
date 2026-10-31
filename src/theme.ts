@@ -23,6 +23,8 @@ export const colors = {
   warnBg: 'rgba(233,168,58,0.12)',
   danger: '#F2666F',
   dangerBg: 'rgba(242,102,111,0.12)',
+  // The white the logo and the Road Rules diagrams sit on, as they're drawn on white.
+  logoPlate: '#FFFFFF',
 } as const;
 
 /** Ride calendar colour key, matching the website's. Each label colour is at least 4.5:1 on its chip. */

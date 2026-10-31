@@ -35,7 +35,7 @@ let bundle = scripts.map((f) => readFileSync(f, 'utf8')).join(';\n');
 
 // Assets the app actually shows. Everything else in the bundle (other icon sets) is never
 // requested on the web.
-const KEEP = [/\/assets\/assets\/(logo|flannel|member-disc(-\w+)?|skull)\./, /\/assets\/assets\/demo\//, /\/assets\/assets\/fonts\/RustnutsStencil-/, /\/Fonts\/Ionicons\./, /@react-navigation\/elements\/lib\/module\/assets\//];
+const KEEP = [/\/assets\/assets\/(logo|flannel|member-disc(-\w+)?|skull)\./, /\/assets\/assets\/demo\//, /\/assets\/assets\/road-rules\//, /\/assets\/assets\/fonts\/RustnutsStencil-/, /\/Fonts\/Ionicons\./, /@react-navigation\/elements\/lib\/module\/assets\//];
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.ttf': 'font/ttf', '.m4a': 'audio/mp4' };
 
 let inlined = 0;

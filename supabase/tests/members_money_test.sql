@@ -232,11 +232,15 @@ begin
   assert (select receipt_no from payments where id = claim) = 'W' || lpad((fy % 100)::text, 2, '0') || '-0001', 'first receipt';
   assert pg_temp.try_as(tre, format($q$select public.record_payment(%L, 15000, %L, 'cash', null)$q$, c, private.club_date())) is null, 'the rest in cash';
   assert (select max(receipt_no) from payments where charge_id = c) = 'W' || lpad((fy % 100)::text, 2, '0') || '-0002', 'second receipt';
-  -- Money records outlive the person: their account can't be deleted out from under the books.
+  -- Money records outlive the person: deleting their account leaves the books whole, against
+  -- "Former member" (Delete my account). Undone straight after, as the checks below need Rita.
   begin
     delete from auth.users where id = rita;
-    assert false, 'deleting a member with charges is refused';
-  exception when foreign_key_violation then null;
+    assert (select full_name from members where id = rita) = 'Former member';
+    assert (select count(*) from charges where member_id = rita) > 0, 'the charges stay';
+    assert (select count(*) from payments where charge_id = c) > 0, 'and the payments';
+    raise exception 'undo' using errcode = 'P0099';
+  exception when sqlstate 'P0099' then null;
   end;
   -- Nobody deals with money on their own fees.
   assert pg_temp.try_as(tre, format('select public.waive_charge(%L)', (select id from charges where member_id = tre and kind = 'annual'))) = 'Someone else with money rights has to handle your own fees.', 'no self-waive';

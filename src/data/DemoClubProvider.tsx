@@ -74,6 +74,11 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     // Signing out of the review demo goes back to the real sign-in screen.
     signOut: async () => (reviewing ? appMode.endReview() : setMeId(null)),
+    // Ends the way signing out does, so store review mode (which signs out to the real sign-in) works the same.
+    deleteMyAccount: async () => {
+      setData(act.deleteMyAccount(ctx));
+      await value.signOut();
+    },
     refresh,
 
     submitApplication: async (input) => {

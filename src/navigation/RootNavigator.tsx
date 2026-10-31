@@ -13,6 +13,7 @@ import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteSc
 import { ChatListScreen, ChatReportsScreen, ChatScreen, NewChatScreen } from '../screens/chat';
 import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
+import { DeleteAccountScreen } from '../screens/deleteAccount'; // Delete my account
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
 import { PickCrewScreen } from '../screens/pickCrew';
@@ -21,6 +22,7 @@ import { BriefingScreen, EditBriefingScreen } from '../screens/briefing';
 import { AskSwapScreen, CallRideScreen, EditHubScreen, HubScreen, PlanRideScreen } from '../screens/ridePlanning';
 import { CharityScreen, EditCharityScreen } from '../screens/charity'; // Charity ride sign-ups
 import { EditRoadRulesScreen, RoadRulesScreen, RoadRulesSignoffsScreen } from '../screens/roadRules';
+import { RoadRulesDiagramScreen, RoadRulesDiagramsScreen, RoadRulesGuideScreen, RoadRulesRuleScreen } from '../screens/roadRulesGuide';
 import { BookBusScreen, BusBookingScreen, BusScreen, ChangeBusScreen } from '../screens/bus';
 import { BusCostsScreen, BusKeysScreen } from '../screens/busLog'; // Rusty Bus extras
 // Lane E: live ride
@@ -59,6 +61,7 @@ import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../scree
 import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
+import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
 } from '../screens/invites'; // Invites to and from other clubs
@@ -224,7 +227,11 @@ export function RootNavigator() {
         {loadError ? (
           <Stack.Screen name="LoadError" component={LoadErrorScreen} options={{ headerShown: false }} />
         ) : needsApplication ? (
-          <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
+          <>
+            <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+          </>
         ) : level === 'public' ? (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
@@ -232,16 +239,19 @@ export function RootNavigator() {
             <Stack.Screen name="Join" component={JoinScreen} options={{ title: '' }} />
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
           </>
         ) : level === 'pending' ? (
           <>
             <Stack.Screen name="Pending" component={PendingScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check in' }} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             {/* Stage 5C: applicants read the Registered Rules and the Constitution (15.7) */}
             <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
             <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
           </>
         ) : level === 'family' ? (
           <>
@@ -249,11 +259,13 @@ export function RootNavigator() {
             <Stack.Screen name="Tabs" component={FamilyTabs} options={{ headerShown: false }} />
             <Stack.Screen name="RideDetail" component={FamilyRideScreen} options={{ title: 'Ride' }} getId={({ params }) => params.rideId} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
           </>
         ) : (
           <>
@@ -263,6 +275,7 @@ export function RootNavigator() {
             <Stack.Screen name="ChapterDetail" component={ChapterDetailScreen} options={{ title: 'Chapter' }} />
             <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: 'Ride' }} getId={({ params }) => params.rideId} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="ManageMember" component={ManageMemberScreen} options={{ title: 'Manage member' }} />
@@ -294,6 +307,10 @@ export function RootNavigator() {
             <Stack.Screen name="RoadRules" component={RoadRulesScreen} options={{ title: 'Road Rules' }} />
             <Stack.Screen name="EditRoadRules" component={EditRoadRulesScreen} options={{ title: 'Publish Road Rules' }} />
             <Stack.Screen name="RoadRulesSignoffs" component={RoadRulesSignoffsScreen} options={{ title: 'Who’s signed' }} />
+            <Stack.Screen name="RoadRulesGuide" component={RoadRulesGuideScreen} options={{ title: 'Road Rules' }} />
+            <Stack.Screen name="RoadRulesRule" component={RoadRulesRuleScreen} options={{ title: 'Road Rules' }} />
+            <Stack.Screen name="RoadRulesDiagrams" component={RoadRulesDiagramsScreen} options={{ title: 'Diagrams' }} />
+            <Stack.Screen name="RoadRulesDiagram" component={RoadRulesDiagramScreen} options={{ title: 'Diagram' }} />
             {/* The Rusty Bus */}
             <Stack.Screen name="Bus" component={BusScreen} options={{ title: 'Rusty Bus' }} />
             <Stack.Screen name="BusBooking" component={BusBookingScreen} options={{ title: 'Booking' }} />
@@ -402,6 +419,7 @@ export function RootNavigator() {
             <Stack.Screen name="OpenAward" component={OpenAwardScreen} options={{ title: 'Open an award' }} />
             {/* Sponsors */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen
               name="EditSponsor"
               component={EditSponsorScreen}
