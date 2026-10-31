@@ -40,6 +40,8 @@ import {
   Small,
   Toggle,
 } from '../ui/primitives';
+import { withoutReported } from '../domain/reports'; // Member content rules
+import { ReportBox } from '../ui/ReportBox';
 
 type Nav = NavigationProp<RootParams>;
 
@@ -95,10 +97,11 @@ export function WhoCanHelpRow({ last = false }: { last?: boolean }) {
 
 export function WhoCanHelpScreen({ navigation }: RootScreen<'WhoCanHelp'>) {
   const { me, data, isDemo, refresh: refreshClub } = useClub();
-  const { skills, mechanics, vouches, refresh } = useSocial();
+  const { skills, mechanics, vouches, myOpenReports, refresh } = useSocial();
   const [skill, setSkill] = useState<HelpSkill>('servicing');
   const helpers = helpersFor(me, data.members, skills, skill, data.positions);
-  const shops = listedMechanics(mechanics, vouches);
+  // Anything you've reported is out of your view until the board deals with it.
+  const shops = withoutReported(listedMechanics(mechanics, vouches), 'mechanic', myOpenReports);
   const mine = me ? skills.find((s) => s.memberId === me.id)?.skills ?? [] : [];
 
   return (
@@ -237,6 +240,7 @@ export function MechanicScreen({ route, navigation }: RootScreen<'Mechanic'>) {
           />
         </>
       ) : null}
+      {!m.archivedAt ? <ReportBox kind="mechanic" targetId={m.id} authorId={m.addedBy} /> : null}
     </Screen>
   );
 }

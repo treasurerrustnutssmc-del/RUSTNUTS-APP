@@ -21,6 +21,9 @@ import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phon
 import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { MemberChatButtons } from './chat';
+import { useSocial } from '../data/social/SocialProvider'; // Member content rules
+import { reportedByMe } from '../domain/reports';
+import { ReportBox } from '../ui/ReportBox';
 import { colors, space, type } from '../theme';
 // Stage 4
 import { canSeeFees } from '../domain/fees';
@@ -355,6 +358,7 @@ function StepDownButtons({ positions }: { positions: Position[] }) {
 
 export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDetail'>) {
   const { me, data, today } = useClub();
+  const { myOpenReports } = useSocial();
   const member = data.members.find((m) => m.id === route.params.memberId);
   if (!member || !me) {
     return (
@@ -410,7 +414,8 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
             <KeyValue label="FNG" value={`${fngMonths} months in · ${review?.atMonths}-month review ${formatLongDate(review?.date)}`} />
           ) : null}
         </Stack>
-        {member.bio ? <Body>{member.bio}</Body> : null}
+        {/* Member content rules: a profile you've reported hides its bio from you until the board deals with it */}
+        {member.bio && !reportedByMe('profile', member.id, myOpenReports) ? <Body>{member.bio}</Body> : null}
         {isSelf ? <StepDownButtons positions={positions} /> : null}
         {isSelf ? (
           <Button label="Edit my profile" kind="secondary" icon="create-outline" onPress={() => navigation.navigate('EditProfile')} />
@@ -420,6 +425,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
         ) : null}
         {/* Stage 3 (lane B): private chats and blocking */}
         <MemberChatButtons member={member} onOpenChat={(chatId) => navigation.navigate('Chat', { chatId })} />
+        {!isSelf && member.approval === 'approved' ? <ReportBox kind="profile" targetId={member.id} authorId={member.id} /> : null}
       </Card>
 
       {member.approval === 'pending' ? (

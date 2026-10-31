@@ -28,6 +28,7 @@ import { BadgesCard } from './badges'; // Stage 7: badges
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
+import { PostingRulesRow } from './postingRules'; // Club rules for chats and posts
 import {
   Avatar,
   Button,
@@ -234,6 +235,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         <Small>Live ride location sharing is always your choice, switches off after the ride, and keeps nothing.</Small>
       </Card>
       <PrivacyPolicyRow />
+      <PostingRulesRow />
 
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
       {/* Delete my account */}

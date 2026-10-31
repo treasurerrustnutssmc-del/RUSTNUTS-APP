@@ -28,6 +28,8 @@ import {
   type ListingPhoto,
 } from '../domain/social/swap';
 import type { ClubData } from '../domain/types';
+import { withoutReported } from '../domain/reports'; // Member content rules
+import { ReportBox } from '../ui/ReportBox';
 import type { RootParams, RootScreen } from '../navigation/types';
 import { asImage } from '../ui/ChatBits';
 import { colors, MAX_CONTENT_WIDTH, radius, space, type } from '../theme';
@@ -198,10 +200,11 @@ function ListingCard({ listing, sold }: { listing: Listing; sold?: boolean }) {
 
 export function SwapSellScreen({ navigation }: RootScreen<'SwapSell'>) {
   const { me, data, today, isDemo, refresh: refreshClub } = useClub();
-  const { ready, listings, refresh } = useSocial();
+  const { ready, listings, myOpenReports, refresh } = useSocial();
   const { blocks } = useChat();
   const [kind, setKind] = useState<ListingKind | null>(null);
-  const { open, sold } = listingsFor(me, data.members, listings, blocks, data.positions, today, kind);
+  // Anything you've reported is out of your view until the board deals with it.
+  const { open, sold } = listingsFor(me, data.members, withoutReported(listings, 'listing', myOpenReports), blocks, data.positions, today, kind);
   const filters: { value: ListingKind | null; label: string }[] = [{ value: null, label: 'All' }, ...LISTING_KINDS.map((k) => ({ value: k, label: kindLabel(k) }))];
 
   return (
@@ -351,6 +354,7 @@ export function ListingScreen({ route, navigation }: RootScreen<'Listing'>) {
           }
         />
       ) : null}
+      {!mine ? <ReportBox kind="listing" targetId={l.id} authorId={l.sellerId} /> : null}
     </Screen>
   );
 }

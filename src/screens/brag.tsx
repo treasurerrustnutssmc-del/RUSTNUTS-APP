@@ -51,6 +51,8 @@ import {
   SectionTitle,
   Small,
 } from '../ui/primitives';
+import { withoutReported } from '../domain/reports'; // Member content rules
+import { ReportBox } from '../ui/ReportBox';
 import { ListingPhotoBox } from './swap';
 
 type Nav = NavigationProp<RootParams>;
@@ -246,13 +248,14 @@ function NominationCard({
           }}
         />
       ) : null}
+      {!mine ? <ReportBox kind="nomination" targetId={nomination.id} authorId={nomination.nominatedBy} /> : null}
     </Card>
   );
 }
 
 export function AwardScreen({ route, navigation }: RootScreen<'Award'>) {
   const { me, data, today, isDemo } = useClub();
-  const { ready, awards, nominations, tallies, myVotes, archiveAward, refresh } = useSocial();
+  const { ready, awards, nominations, tallies, myVotes, archiveAward, myOpenReports, refresh } = useSocial();
   const [error, setError] = useState<string | null>(null);
   const shown = awards.find((a) => a.id === route.params.awardId && !a.archivedAt);
   const shownPhase = shown ? awardPhase(shown, today) : null;
@@ -276,7 +279,8 @@ export function AwardScreen({ route, navigation }: RootScreen<'Award'>) {
     );
   }
   const phase = awardPhase(award, today);
-  const list = nominations.filter((n) => n.awardId === award.id && !n.withdrawnAt);
+  // Anything you've reported is out of your view until the board deals with it.
+  const list = withoutReported(nominations.filter((n) => n.awardId === award.id && !n.withdrawnAt), 'nomination', myOpenReports);
   const ranked = phase === 'closed' ? results(list, tallies) : list.map((n) => ({ nomination: n, votes: 0, winner: false }));
   const mineCount = list.filter((n) => n.nominatedBy === me?.id).length;
   const voted = myVotes.some((v) => v.awardId === award.id);

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { pendingFor } from '../domain/access';
+import { needsPostingRules } from '../domain/postingRules';
 import { BoardScreen, ManageMemberScreen } from '../screens/board';
 import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteScreen } from '../screens/business';
 import { ChatListScreen, ChatReportsScreen, ChatScreen, NewChatScreen } from '../screens/chat';
@@ -63,6 +64,7 @@ import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../scre
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
 import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
+import { PostingRulesScreen } from '../screens/postingRules'; // Club rules for chats and posts
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
 } from '../screens/invites'; // Invites to and from other clubs
@@ -268,6 +270,14 @@ export function RootNavigator() {
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
           </>
+        ) : needsPostingRules(me) ? (
+          <>
+            {/* Club rules for chats and posts: agreed once before the tabs open (App Review 1.2) */}
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
+            <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+          </>
         ) : (
           <>
             <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
@@ -423,6 +433,7 @@ export function RootNavigator() {
             {/* Sponsors */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
             <Stack.Screen
               name="EditSponsor"
               component={EditSponsorScreen}
