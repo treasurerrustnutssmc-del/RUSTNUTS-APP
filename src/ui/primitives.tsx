@@ -245,7 +245,8 @@ export function Chip({ label, tone = 'steel', icon, active = false }: { label: s
   return (
     <View style={[styles.chip, { backgroundColor: t.bg, borderColor: t.border }, lift]}>
       {icon ? <Ionicons name={icon} size={11} color={t.fg} /> : null}
-      <Text style={[styles.chipText, { color: t.fg }]}>{label}</Text>
+      {/* Upper-cased here, not by textTransform: Android measures the lower-case text and clips the end. */}
+      <Text style={[styles.chipText, { color: t.fg }]}>{label.toUpperCase()}</Text>
     </View>
   );
 }
@@ -730,7 +731,7 @@ const styles = StyleSheet.create({
     // A long label (a chip with dates) wraps inside the chip rather than running off the card.
     maxWidth: '100%',
   },
-  chipText: { fontFamily: fonts.stencil, fontSize: 11.5, letterSpacing: 1, textTransform: 'uppercase', flexShrink: 1 },
+  chipText: { fontFamily: fonts.stencil, fontSize: 11.5, letterSpacing: 1, flexShrink: 1 },
   avatar: {
     backgroundColor: colors.red,
     alignItems: 'center',
