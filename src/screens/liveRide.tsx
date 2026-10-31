@@ -8,7 +8,7 @@ import { useClub } from '../data/ClubStore';
 import { activeRide } from '../data/liveTracker';
 import { smsUrl } from '../data/liveQueue';
 import { useLiveRide } from '../data/useLiveRide';
-import { awayText, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, offTime, splitGroups, splitWarning } from '../domain/liveRide';
+import { BACKGROUND_LOCATION_NOTICE, awayText, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, offTime, splitGroups, splitWarning } from '../domain/liveRide';
 import { initials } from '../domain/profile';
 import { riderPins } from '../domain/rideMap';
 import { routeOf } from '../domain/routes';
@@ -143,6 +143,7 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
           <H2>{ride.title}</H2>
           <Body>Share where you are with the riders on this ride, so the Road Captain and Tail Gunner can keep the group together and find you if something goes wrong.</Body>
           <Stack gap={space.xs}>
+            <Fact icon="location-outline" text={BACKGROUND_LOCATION_NOTICE} />
             <Fact icon="eye-outline" text="Only riders sharing on this ride can see you." />
             <Fact icon="time-outline" text={w ? `Switches itself off by ${offTime(w.closes, now)}.` : 'Switches itself off when the ride ends.'} />
             <Fact icon="trash-outline" text="Nothing is kept. It’s all deleted when the ride’s over." />

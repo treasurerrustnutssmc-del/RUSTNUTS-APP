@@ -8,6 +8,11 @@ import { lastDay, melbourneDate, melbourneTime } from './rides';
 import { activePositions, NEC_OFFICER_ROLES } from './access';
 import type { AlertKind, LatLng, LiveRider, Member, Position, PositionRole, Ride, RideAlert } from './types';
 
+// Shown on the live ride card before the location prompt. Google Play wants this disclosure (what's
+// collected, what for, and that it carries on in the background) before background location is asked.
+export const BACKGROUND_LOCATION_NOTICE =
+  'Rustnuts collects your location to share it with this ride, even when the app is closed or not in use, until it switches itself off.';
+
 export const LIVE_MSG = {
   signIn: 'Sign in first.',
   approved: 'Only approved members can do that.',
