@@ -73,7 +73,7 @@ export function LiveRideCard({ ride, onOpen }: { ride: Ride; onOpen: () => void 
 // The live ride screen
 // ---------------------------------------------------------------------------
 
-export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
+export function LiveRideScreen({ route, navigation }: RootScreen<'LiveRide'>) {
   const { me, data } = useClub();
   const { rideId } = route.params;
   const ride = data.rides.find((r) => r.id === rideId);
@@ -150,6 +150,8 @@ export function LiveRideScreen({ route }: RootScreen<'LiveRide'>) {
           </Stack>
           {problem ? <Notice tone="info">{problem}</Notice> : null}
           <Button label="Share my location" icon="navigate" busy={busy === 'start'} disabled={!!problem} onPress={run('start', live.start)} />
+          {/* Google Play wants a plain way to say no right beside the location disclosure. */}
+          {problem ? null : <Button label="Not now" kind="quiet" onPress={() => navigation.goBack()} />}
         </Card>
         {unsentNotice}
         {live.held > 0 ? (

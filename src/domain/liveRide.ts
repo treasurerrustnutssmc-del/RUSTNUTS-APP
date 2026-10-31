@@ -50,6 +50,15 @@ export function melbourneMidnightAfter(date: string): string {
   return iso(utcMidnight - 10 * HOUR);
 }
 
+/**
+ * Whether a "Don't allow" on location stops a share. It does everywhere except the web demo, where a
+ * browser often can't give a location and a made-up spot stands in. The review demo on a phone stops,
+ * so Google's reviewer sees what a member sees.
+ */
+export function locationDenialStops(isDemo: boolean, platform: string): boolean {
+  return !isDemo || platform !== 'web';
+}
+
 /** When live mode is open for a ride, or null for a cancelled ride. */
 export function liveWindow(ride: Ride): { opens: string; closes: string } | null {
   if (ride.cancelledAt) return null;

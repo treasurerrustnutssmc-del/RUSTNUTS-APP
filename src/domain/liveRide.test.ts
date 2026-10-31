@@ -16,6 +16,7 @@ import {
   lastSeen,
   liveProblem,
   liveWindow,
+  locationDenialStops,
   personalStop,
   resolveProblem,
   splitGroups,
@@ -209,4 +210,21 @@ test('the live ride card says location keeps being collected when the app is clo
   const notice = screen.indexOf('BACKGROUND_LOCATION_NOTICE}');
   const button = screen.indexOf('label="Share my location"');
   assert.ok(notice > 0 && notice < button, 'the notice shows above the Share my location button');
+});
+
+// Google Play also wants a way to say no on the disclosure itself, not only by backing out of the screen.
+test('the live ride card offers Not now beside Share my location, and it goes back', () => {
+  const screen = readFileSync(join(__dirname, '../screens/liveRide.tsx'), 'utf8');
+  const share = screen.indexOf('label="Share my location"');
+  const notNow = screen.indexOf('label="Not now"');
+  assert.ok(share > 0 && notNow > share, 'Not now sits under Share my location');
+  assert.match(screen.slice(notNow, notNow + 200), /navigation\.goBack\(\)/);
+});
+
+test('a "Don\'t allow" stops sharing on phones, the review demo included; only the web demo carries on', () => {
+  assert.equal(locationDenialStops(false, 'android'), true);
+  assert.equal(locationDenialStops(false, 'web'), true);
+  assert.equal(locationDenialStops(true, 'android'), true);
+  assert.equal(locationDenialStops(true, 'ios'), true);
+  assert.equal(locationDenialStops(true, 'web'), false);
 });
