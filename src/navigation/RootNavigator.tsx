@@ -60,6 +60,7 @@ import { BuildsScreen, BuildThreadScreen, PostBuildUpdateScreen } from '../scree
 import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../screens/history';
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
+import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
 } from '../screens/invites'; // Invites to and from other clubs
@@ -228,6 +229,7 @@ export function RootNavigator() {
           <>
             <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
           </>
         ) : level === 'public' ? (
           <>
@@ -236,6 +238,7 @@ export function RootNavigator() {
             <Stack.Screen name="Join" component={JoinScreen} options={{ title: '' }} />
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
           </>
         ) : level === 'pending' ? (
           <>
@@ -247,6 +250,7 @@ export function RootNavigator() {
             <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
           </>
         ) : level === 'family' ? (
           <>
@@ -260,6 +264,7 @@ export function RootNavigator() {
             <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
           </>
         ) : (
           <>
@@ -409,6 +414,7 @@ export function RootNavigator() {
             <Stack.Screen name="OpenAward" component={OpenAwardScreen} options={{ title: 'Open an award' }} />
             {/* Sponsors */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
+            <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen
               name="EditSponsor"
               component={EditSponsorScreen}

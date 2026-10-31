@@ -32,7 +32,7 @@ Apple (5.1.1(v)) and Google Play both require that anyone who can make an accoun
 
 ## The web page (Play)
 
-`docs/delete-account.html`: a plain page saying how to delete in the app, and that anyone without the app can email apps@rustnutssmc.com.au from the address they signed in with; the board deletes the user in Supabase within 30 days, which runs the same trigger. It lists what's deleted and what's kept. Chris hosts it on the club website next to the privacy policy, and its address goes in the Play listing.
+`site/delete-account.html`: a plain page saying how to delete in the app, and that anyone without the app can email apps@rustnutssmc.com.au from the address they signed in with; the board deletes the user in Supabase within 30 days, which runs the same trigger. It lists what's deleted and what's kept. Chris hosts it on the club website next to the privacy policy, and its address goes in the Play listing.
 
 ## Demo build
 
