@@ -1,0 +1,37 @@
+# Temporary diagnostic: works out which runtime fingerprint CI computes, with and without the
+# EAS "preview" environment, without publishing anything. Prints per-source hashes only.
+name: Fingerprint check
+
+on:
+  push:
+    branches: [claude/project-thread-yqpklu]
+  workflow_dispatch:
+
+jobs:
+  fingerprint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Without the EAS environment
+        run: |
+          for p in android ios; do
+            npx expo-updates runtimeversion:resolve --platform $p > fp-$p-plain.json
+            node -e "const f=require('./fp-$p-plain.json');console.log('$p plain', f.runtimeVersion);for(const s of f.fingerprintSources)console.log(' ', s.hash, s.type, s.filePath||s.id)"
+          done
+      - name: With the EAS preview environment
+        run: |
+          eas env:exec preview 'echo "GOOGLE_MAPS_ANDROID_KEY length: ${#GOOGLE_MAPS_ANDROID_KEY}"' --non-interactive || true
+          for p in android ios; do
+            eas env:exec preview "npx expo-updates runtimeversion:resolve --platform $p > fp-$p-env.json" --non-interactive
+            node -e "const f=require('./fp-$p-env.json');console.log('$p env', f.runtimeVersion);for(const s of f.fingerprintSources)console.log(' ', s.hash, s.type, s.filePath||s.id)"
+          done
+      - run: eas --version
