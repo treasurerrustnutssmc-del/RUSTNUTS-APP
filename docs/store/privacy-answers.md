@@ -50,10 +50,13 @@ management" where marked.)
 | App activity | Other user-generated content (listings, build threads, nominations, RSVPs, votes, sign-offs) | Optional | No | App functionality |
 | App activity | In-app search history (GIF search words, sent to GIPHY) | Optional | Yes (not stored by the club) | App functionality. **Shared: Yes** (GIPHY) |
 | Device or other IDs | Device or other IDs (push notification token) | Optional (only if notifications are allowed) | No | App functionality |
+| App info and performance | Crash logs (the Expo updates client sends the previous launch's fatal JS error text and a random install id when it checks for updates; no crash SDK) | Optional | No | App functionality |
+| Financial info | Purchase history (club merch orders: item, size, quantity, price, status; paid outside the app by PayID, bank or cash) | Optional (only if the member orders merch) | No | App functionality |
 
-Not collected: Contacts, Calendar, Health and fitness, Web browsing, App info and performance (no crash
-or diagnostics SDK), Purchase history, Credit info, Race/ethnicity, Political or religious beliefs,
-Sexual orientation, SMS, Emails, Music files, Installed apps.
+Not collected: Contacts, Calendar, Health and fitness, Web browsing, App info and performance
+(Diagnostics and Other app performance data; crash logs are declared above), Credit info,
+Race/ethnicity, Political or religious beliefs, Sexual orientation, SMS, Emails, Music files,
+Installed apps.
 
 ## Apple: App Privacy (App Store Connect)
 
@@ -78,10 +81,13 @@ Other Purposes: No).
 | Search History | Search History | GIF search words, sent to GIPHY. **Linked to the user: No** (GIPHY gets no account details) |
 | Identifiers | User ID | |
 | Other Data | Other Data Types | Road name, bio, birthday (day and month), bikes and registrations, licence and first aid expiry, membership records, emergency contacts (other people's details) |
+| Purchases | Purchase History | Club merch orders: item, size, quantity, price, status. Paid outside the app by PayID, bank or cash; no payment details |
+| Diagnostics | Crash Data | **Linked to the user: No.** The Expo updates client sends the previous launch's fatal JS error text and a random install id when it checks for updates. Tracking: No. Purpose: App Functionality |
 
 Not collected: Health and Fitness, Sensitive Info, Contacts (address book), Browsing History,
-Purchases, Usage Data, Diagnostics, Device ID (the push token isn't an advertising or device
-identifier), Coarse Location.
+Usage Data, Device ID (the push token isn't an advertising or device identifier), Coarse Location.
+Within Diagnostics, Performance Data and Other Diagnostic Data are not collected (only Crash Data,
+above).
 
 **Permission prompts** (already in `app.json`, matching the policy): camera, photos, microphone,
 location when in use, location always (live ride, switches off after the ride). Apple will ask why the
