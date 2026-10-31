@@ -32,7 +32,6 @@ import {
 import { ClubLinksSection } from './clubLinks';
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
-import { ShareWaitingNote } from '../ui/ShareWaitingNote'; // Lane E: share in
 import { RideChip, RideRow, timeRange } from './rides';
 
 const mapsUrl = (place: string) => `https://maps.google.com/?q=${encodeURIComponent(place)}`;
@@ -59,7 +58,6 @@ export function FamilyHomeScreen({ navigation }: TabScreen<'Home'>) {
           keep your own details up to date.
         </Body>
       </Card>
-      <ShareWaitingNote stage="family" />
 
       <SectionTitle
         title="Coming up"

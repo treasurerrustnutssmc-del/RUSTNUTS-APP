@@ -14,7 +14,7 @@ import { createVideoPlayer } from 'expo-video';
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { mediaProblem, type PickedMedia } from '../domain/chat';
-import { itemFromPayload, sharedDraft, type IncomingPayload, type SharedItem, type SharedMedia } from '../domain/shareIn';
+import { itemFromPayload, keepsShare, sharedDraft, type IncomingPayload, type SharedItem, type SharedMedia, type ShareWaitStage } from '../domain/shareIn';
 import type { RootParams } from '../navigation/types';
 
 export const SHARE_UNREADABLE = 'That couldn’t be opened. Try sharing it again.';
@@ -162,29 +162,35 @@ class Contained extends React.Component<{ children: React.ReactNode }, { failed:
 }
 
 /**
- * Whether something shared in is waiting for "Share to the club". Only signed-in members have the
- * listener above, so the screens before it (welcome, sign in, waiting for approval, family) use this
- * to say why nothing opened. It only looks: the share stays with the phone until a member's
- * listener takes it, so signing in opens it.
+ * For everyone without "Share to the club" (the listener above is only mounted for members): whether
+ * to show the waiting-share strip. A signed-out share is only looked at, so it stays with the phone
+ * and opens once they sign in. Anyone else's can never open, so it's let go as soon as it's seen
+ * (an iPhone would otherwise keep it for good), and the strip stays until dismissed.
  */
-export function useShareWaiting(): boolean {
-  const [waiting, setWaiting] = useState(false);
+export function useWaitingShare(stage: ShareWaitStage | null): { stage: ShareWaitStage; dismiss: () => void } | null {
+  // Which stage the strip was shown for, so moving on (signing in, being approved) drops it by itself.
+  const [shownFor, setShownFor] = useState<ShareWaitStage | null>(null);
   useEffect(() => {
-    if (!canReceive) return;
+    if (!canReceive || stage === null) return;
     const check = () => {
       try {
-        const { getSharedPayloads } = require('expo-sharing') as typeof Sharing; // eslint-disable-line @typescript-eslint/no-require-imports
-        setWaiting(getSharedPayloads().length > 0);
+        const sharing = require('expo-sharing') as typeof Sharing; // eslint-disable-line @typescript-eslint/no-require-imports
+        const waiting = sharing.getSharedPayloads().length > 0;
+        if (keepsShare(stage)) setShownFor(waiting ? stage : null);
+        else if (waiting) {
+          sharing.clearSharedPayloads();
+          setShownFor(stage);
+        }
       } catch {
-        setWaiting(false);
+        if (keepsShare(stage)) setShownFor(null);
       }
     };
     check();
     // A share from another app brings this one back to the front, so it's checked again then.
     const sub = AppState.addEventListener('change', (state) => state === 'active' && check());
     return () => sub.remove();
-  }, []);
-  return waiting;
+  }, [stage]);
+  return stage !== null && shownFor === stage ? { stage, dismiss: () => setShownFor(null) } : null;
 }
 
 export function IncomingShare() {

@@ -1,7 +1,9 @@
 // Things shared into the app from another app's Share button: what comes across into a chat
 // message, and what's left out. See the phone superpowers spec, section 4.
 
+import type { AccessLevel } from './access';
 import { MAX_BODY, MAX_MEDIA } from './chat';
+import type { MemberStatus } from './types';
 
 /** One shared thing, as the phone hands it over (expo-sharing's resolved payload, trimmed down). */
 export interface SharedItem {
@@ -85,22 +87,44 @@ export function itemFromPayload(p: IncomingPayload): SharedItem {
   };
 }
 
-/** Where someone is when a share arrives that the app can't take yet. */
-export type ShareWaitStage = 'signedOut' | 'applying' | 'pending' | 'family';
-
 /**
- * The note shown while a share waits. Only signed-in members get "Share to the club"; anyone else
- * would otherwise see nothing happen. A signed-out share stays with the phone and opens after
- * sign-in, so that note promises it; the others can't open it until things change.
+ * Where someone is when a share arrives that the app can't take: only approved members (not family)
+ * have "Share to the club". signedOut: the share is kept and opens after sign-in. notMember (asking
+ * to join, waiting for approval, declined) and family: it can't open, so it's let go.
  */
+export type ShareWaitStage = 'signedOut' | 'notMember' | 'family';
+
+export function shareWaitStage(s: {
+  level: AccessLevel;
+  needsApplication: boolean;
+  loadError: boolean;
+  status: MemberStatus | null;
+}): ShareWaitStage | null {
+  if (s.loadError) return null;
+  if (s.needsApplication) return 'notMember';
+  switch (s.level) {
+    case 'public':
+      return 'signedOut';
+    case 'family':
+      return 'family';
+    case 'pending':
+      return s.status === 'family' ? 'family' : 'notMember';
+    default:
+      return null; // members: "Share to the club" takes it
+  }
+}
+
+/** Whether a waiting share is kept for later (it opens once a signed-out member signs in). */
+export const keepsShare = (stage: ShareWaitStage) => stage === 'signedOut';
+
+/** The strip shown while a share waits, or once one has been let go. */
 export function waitingShareNote(stage: ShareWaitStage): { title: string; text: string } {
   switch (stage) {
     case 'signedOut':
-      return { title: 'Sign in first', text: 'What you shared opens once you’re signed in.' };
-    case 'applying':
-    case 'pending':
-      return { title: 'Chats open once you’re approved', text: 'Share it again once the club has said yes.' };
+      return { title: 'Sign in first', text: 'What you shared opens once you’re signed in as a member.' };
+    case 'notMember':
+      return { title: 'Only members can share into chats', text: 'This wasn’t kept. Share it again once you’re approved.' };
     case 'family':
-      return { title: 'Family accounts can’t post in chats', text: 'Only members can share into club chats.' };
+      return { title: 'Family accounts don’t have the club chats', text: 'This wasn’t kept. Only members can share into them.' };
   }
 }

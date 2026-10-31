@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { itemFromPayload, NOTHING_TO_SHARE, sharedDraft, waitingShareNote, type SharedItem } from './shareIn';
+import { itemFromPayload, keepsShare, NOTHING_TO_SHARE, sharedDraft, shareWaitStage, waitingShareNote, type SharedItem } from './shareIn';
 
 const photo = (n: number): SharedItem => ({ kind: 'image', value: `file:///p${n}.jpg`, uri: `file:///p${n}.jpg`, mimeType: 'image/jpeg', size: 1000 });
 const video: SharedItem = { kind: 'video', value: 'file:///v.mov', uri: 'file:///v.mov', mimeType: 'video/quicktime', size: 5000 };
@@ -90,31 +90,51 @@ test('two photos the phone saved under one name come across once, and say so', (
   assert.deepEqual(draft.notes, ['Two of those had the same name, so only one came across. Share the other on its own.']);
 });
 
-// Shared in before the app can take it: a note says why nothing opened, and what happens next.
-test('a share made while signed out says to sign in first, and that it opens after', () => {
+// Shared in before the app can take it: a strip says why nothing opened, and what happens next.
+const at = (o: Partial<Parameters<typeof shareWaitStage>[0]>) =>
+  shareWaitStage({ level: 'public', needsApplication: false, loadError: false, status: null, ...o });
+
+test('who gets the waiting-share strip: everyone without Share to the club', () => {
+  assert.equal(at({}), 'signedOut');
+  assert.equal(at({ needsApplication: true }), 'notMember');
+  assert.equal(at({ level: 'pending', status: 'introduced' }), 'notMember');
+  assert.equal(at({ level: 'pending', status: 'family' }), 'family'); // applying as family
+  assert.equal(at({ level: 'family', status: 'family' }), 'family');
+});
+
+test('members never get the strip, and nor does a screen that failed to load', () => {
+  for (const level of ['member', 'board', 'national'] as const) assert.equal(at({ level, status: 'full' }), null);
+  assert.equal(at({ loadError: true }), null);
+  assert.equal(at({ level: 'pending', loadError: true }), null);
+});
+
+test('only a signed-out share is kept to open after sign-in; the rest are let go', () => {
+  assert.equal(keepsShare('signedOut'), true);
+  assert.equal(keepsShare('notMember'), false);
+  assert.equal(keepsShare('family'), false);
+});
+
+test('the signed-out note says sign in first, and promises it opens after', () => {
   const note = waitingShareNote('signedOut');
   assert.equal(note.title, 'Sign in first');
   assert.match(note.text, /opens once you’re signed in/);
 });
 
-test('an applicant or a member waiting for approval is told chats open once the club says yes', () => {
-  for (const stage of ['applying', 'pending'] as const) {
-    const note = waitingShareNote(stage);
-    assert.match(note.title, /approved/);
-    assert.match(note.text, /club/);
-  }
+test('applicants and family are told it wasn’t kept, and why', () => {
+  const applicant = waitingShareNote('notMember');
+  assert.match(applicant.title, /[Oo]nly members/);
+  assert.match(applicant.text, /wasn’t kept/);
+  assert.match(applicant.text, /approved/);
+  const family = waitingShareNote('family');
+  assert.match(family.title, /^Family/);
+  assert.doesNotMatch(family.title, /post/); // family have no chats at all, not read-only ones
+  assert.match(family.text, /wasn’t kept/);
 });
 
-test('a family account is told only members can share into club chats', () => {
-  const note = waitingShareNote('family');
-  assert.match(note.title, /[Ff]amily/);
-  assert.match(note.text, /[Oo]nly members/);
-});
-
-test('every note is plain sentences, with no straight apostrophes', () => {
-  for (const stage of ['signedOut', 'applying', 'pending', 'family'] as const) {
+test('every note is a short title and a sentence, with curly apostrophes', () => {
+  for (const stage of ['signedOut', 'notMember', 'family'] as const) {
     const { title, text } = waitingShareNote(stage);
-    assert.ok(title.length > 0 && title.length <= 40, `${stage} title fits one line`);
+    assert.ok(title.length > 0 && title.length <= 42, `${stage} title is short`);
     assert.ok(text.endsWith('.'), `${stage} text is a sentence`);
     assert.doesNotMatch(title + text, /'/, `${stage} uses curly apostrophes`);
   }
