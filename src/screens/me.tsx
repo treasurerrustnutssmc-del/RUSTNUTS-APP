@@ -261,7 +261,7 @@ function RoadRulesRow({ onOpen }: { onOpen: () => void }) {
           last
           left={<IconBadge icon="document-text-outline" tone={needsSigning(status.state) ? 'red' : 'steel'} />}
           title={<Text style={[type.name, { color }]}>{line.text}</Text>}
-          subtitle={current ? `Version ${current.number}: read it and sign once a year` : 'The NEC publishes them here'}
+          subtitle={current ? `Version ${current.number}: read it and sign once a year` : 'Read the illustrated draft for now'}
           onPress={onOpen}
         />
       </Card>

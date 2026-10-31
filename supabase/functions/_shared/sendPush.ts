@@ -20,6 +20,9 @@ export interface ExpoMessage {
   data: Record<string, unknown>;
   priority?: 'high';
   channelId?: string;
+  /** iPhone only: a time-sensitive push breaks through Focus and the notification summary (the app's
+   *  time-sensitive entitlement allows it). Only live ride alerts earn it. */
+  interruptionLevel?: 'time-sensitive';
   /** Ours, to match tickets to outbox rows; removed before posting. */
   outboxId: number;
 }
@@ -43,12 +46,14 @@ function soundFor(kind: unknown, rev: boolean): { channelId: string; sound: stri
   return rev ? { channelId: `${base}-rev`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
 }
 
-/** One message per phone. Live ride alerts keep the urgent sound; the rest rev unless the member
- *  switched it off. All go high priority: Android holds normal ones while the phone sleeps, so a chat
- *  message could turn up many minutes late or not until the app is opened. */
+/** One message per phone. Live ride alerts keep the urgent sound and are time-sensitive on iPhone;
+ *  the rest rev unless the member switched it off. All go high priority: Android holds normal ones
+ *  while the phone sleeps, so a chat message could turn up many minutes late or not until the app
+ *  is opened. */
 export function toExpoMessages(rows: OutboxMessage[]): ExpoMessage[] {
   return rows.flatMap((r) => {
     const { channelId, sound } = soundFor(r.data.kind, r.rev ?? true);
+    const urgent = r.data.kind === 'live-alert';
     return r.tokens.map((to): ExpoMessage => ({
       to,
       title: r.title,
@@ -57,6 +62,7 @@ export function toExpoMessages(rows: OutboxMessage[]): ExpoMessage[] {
       channelId,
       data: r.data,
       priority: 'high',
+      ...(urgent ? { interruptionLevel: 'time-sensitive' as const } : {}),
       outboxId: r.id,
     }));
   });

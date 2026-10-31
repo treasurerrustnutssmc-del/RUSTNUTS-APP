@@ -27,6 +27,7 @@ import {
   RULES_UPDATED,
   goodUntil,
   myRoadRulesLine,
+  homeRoadRulesRow,
   needsSigning,
   publishProblem,
   publishesRoadRules,
@@ -577,6 +578,27 @@ test('myRoadRulesLine: the Me row', () => {
   assert.deepEqual(myRoadRulesLine(at('unsigned', null)), { text: 'Not signed', tone: 'danger' });
   assert.deepEqual(myRoadRulesLine(at('expired', '2026-09-01')), { text: 'Not signed', tone: 'danger' });
   assert.deepEqual(myRoadRulesLine(at('none', null)), { text: 'Nothing to sign yet', tone: null });
+});
+
+test('homeRoadRulesRow: the Home row, for every approved member', () => {
+  const today = '2026-10-31';
+  // Nothing published: the row still shows, and opens the illustrated draft to read.
+  assert.deepEqual(homeRoadRulesRow(rider, data(), today), { text: 'Read the illustrated draft', tone: null, opens: 'guide' });
+  // Published: your sign-off line, opening the Road Rules screen.
+  const published = data({ roadRules: [version(1)] });
+  assert.deepEqual(homeRoadRulesRow(rider, published, today), { text: 'Not signed', tone: 'danger', opens: 'rules' });
+  const signed = data({ roadRules: [version(1)], roadRulesSignoffs: [signoff('rider', 1, '2026-10-01T01:00:00.000Z')] });
+  assert.deepEqual(homeRoadRulesRow(rider, signed, today), { text: 'Signed until 01/10/2027', tone: 'ok', opens: 'rules' });
+  const due = data({ roadRules: [version(1)], roadRulesSignoffs: [signoff('rider', 1, '2025-11-11T01:00:00.000Z')] });
+  assert.deepEqual(homeRoadRulesRow(rider, due, today), { text: 'Due 11/11/2026', tone: 'warn', opens: 'rules' });
+  const expired = data({ roadRules: [version(1)], roadRulesSignoffs: [signoff('rider', 1, '2025-09-01T01:00:00.000Z')] });
+  assert.deepEqual(homeRoadRulesRow(rider, expired, today), { text: 'Not signed', tone: 'danger', opens: 'rules' });
+  // Legacy members aren't asked to sign, but can still read them.
+  const legacy = member('legacy', { status: 'legacy' });
+  assert.deepEqual(homeRoadRulesRow(legacy, published, today), { text: 'Version 1', tone: null, opens: 'rules' });
+  // Nobody signed in, or not approved: no row.
+  assert.equal(homeRoadRulesRow(null, published, today), null);
+  assert.equal(homeRoadRulesRow(pending, published, today), null);
 });
 
 test('signBoxLine: when you signed and until when, or when it ran out', () => {

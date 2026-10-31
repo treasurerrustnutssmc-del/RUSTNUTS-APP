@@ -69,5 +69,15 @@
     "check:live": "tsx scripts/check-live.mts",
     "build:privacy": "tsx scripts/build-privacy-page.mts"
   },
+  "expo": {
+    "autolinking": {
+      "ios": {
+        "buildFromSource": [
+          "expo-image",
+          "expo-image-manipulator"
+        ]
+      }
+    }
+  },
   "private": true
 }
