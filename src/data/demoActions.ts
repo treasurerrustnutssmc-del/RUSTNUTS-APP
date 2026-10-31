@@ -3,6 +3,7 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, decidedNoticeFor, GATED_TO_SUPPORTER, endTermProblem, isBoardOf, isLearner, LEARNER_FNG, statusChangeProblem } from '../domain/access';
+import { deleteAccountProblem, FORMER_MEMBER } from '../domain/account'; // Delete my account
 import { big4GoingProblem } from '../domain/big4';
 import { bookedStraightAway, bookProblem, cancelProblem, decideProblem, type BusInput } from '../domain/bus';
 import { cleanBriefing, readBriefingProblem, saveBriefingProblem, type BriefingInput } from '../domain/briefings';
@@ -282,6 +283,42 @@ export function removeContact(ctx: DemoCtx, contactId: string): ClubData {
   const c = ctx.data.emergencyContacts.find((x) => x.id === contactId);
   if (!c || c.memberId !== self.id) throw new NotAllowedError('You can only remove your own contacts.');
   return { ...ctx.data, emergencyContacts: ctx.data.emergencyContacts.filter((x) => x.id !== contactId) };
+}
+
+/**
+ * Delete my account: the member stays as a nameless "Former member" so the club's records (books,
+ * attendance, minutes, votes, past seats) still add up, and their own details and doings go. The
+ * database's private.forget_member does the same.
+ */
+export function deleteMyAccount(ctx: DemoCtx): ClubData {
+  const problem = deleteAccountProblem(ctx.me, ctx.data.positions);
+  if (problem) throw new NotAllowedError(problem);
+  const id = ctx.me!.id;
+  const d = ctx.data;
+  const notMine = <T extends { memberId: string }>(rows: T[] | undefined): T[] | undefined => rows?.filter((r) => r.memberId !== id);
+  const bikes = d.bikes.filter((b) => b.memberId !== id);
+  return patchMember(
+    {
+      ...d,
+      privates: d.privates.filter((p) => p.memberId !== id),
+      bikes,
+      registrations: d.registrations.filter((r) => bikes.some((b) => b.id === r.bikeId)),
+      emergencyContacts: d.emergencyContacts.filter((c) => c.memberId !== id),
+      rsvps: d.rsvps.filter((r) => r.memberId !== id),
+      crew: notMine(d.crew),
+      briefingReads: notMine(d.briefingReads),
+      roadRulesSignoffs: notMine(d.roadRulesSignoffs),
+      routeRatings: notMine(d.routeRatings),
+      hubRegistrations: notMine(d.hubRegistrations),
+      crewSwaps: d.crewSwaps?.filter((s) => s.askedBy !== id && s.askedTo !== id),
+      charitySignups: notMine(d.charitySignups),
+      documentSignoffs: notMine(d.documentSignoffs),
+      notificationPrefs: null,
+      positions: d.positions.map((p) => (p.memberId === id && p.endedOn === null ? { ...p, endedOn: ctx.today } : p)),
+    },
+    id,
+    { fullName: FORMER_MEMBER, roadName: null, bio: null, sharePhone: false, onHiatus: false, approval: 'declined' },
+  );
 }
 
 export function appoint(ctx: DemoCtx, memberId: string, chapterId: string | null, role: PositionRole): ClubData {

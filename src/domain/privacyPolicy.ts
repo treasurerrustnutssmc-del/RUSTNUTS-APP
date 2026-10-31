@@ -155,7 +155,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Notification queue: deleted after 90 days.',
           'Conduct records: deleted on the dates the constitution sets.',
           'Financial records, receipts, meeting minutes and votes: kept as long as the club needs them for its books and the law (Australian law requires financial records to be kept for at least 5 years).',
-          'Your account and profile: for as long as you’re part of the club. When you ask us to delete your account, we remove your account, profile, contacts, bikes, messages and files, except the records the club must keep.',
+          'Your account and profile: until you delete your account. That removes your sign-in, profile, contact details, emergency contacts, bikes, messages, ride sign-ups and listings straight away. The club keeps its books, minutes, votes, attendance, conduct records, past board seats and any message someone has reported, showing you as “Former member”, and clears your photo files.',
         ],
       },
     ],
@@ -168,7 +168,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
         points: [
           'See and fix your details: most of your information is on the Me screen, where you can change it. For anything else, ask us.',
           'Turn things off: location sharing, notifications and phone sharing are all your choice, and you can change them any time in the app or your phone settings.',
-          `Delete your account: email ${PRIVACY_EMAIL} from the email you sign in with and we’ll delete it within 30 days, apart from the records the club must keep, which we’ll tell you about.`,
+          `Delete your account: in the app, go to Me and tap Delete my account (if you hold a board or national seat, step down first). Or email ${PRIVACY_EMAIL} from the email you sign in with and we’ll delete it within 30 days. Deleting your app account doesn’t end your club membership.`,
           `Get a copy: ask at ${PRIVACY_EMAIL} and we’ll send you the information we hold about you.`,
         ],
       },

@@ -30,6 +30,7 @@ export type RootParams = {
   ChapterDetail: { chapterId: string };
   RideDetail: { rideId: string };
   EditProfile: undefined;
+  DeleteAccount: undefined; // Delete my account
   EditBike: { bikeId?: string };
   EditContact: { contactId?: string };
   ManageMember: { memberId: string };

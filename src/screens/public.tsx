@@ -5,7 +5,8 @@ import { validateApplicationBike } from '../data/clubContext';
 import { DEMO_PERSONAS } from '../data/demoData';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
-import type { RootScreen } from '../navigation/types';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import type { RootParams, RootScreen } from '../navigation/types';
 import { IntroProgressCard } from './fng'; // Stage 4
 import { SUPPORT_URL } from '../domain/clubLinks'; // Club links
 import { ClubLinksSection } from './clubLinks'; // Club links
@@ -232,6 +233,7 @@ type JoinAs = 'introduced' | 'supporter' | 'family';
 
 export function JoinScreen() {
   const { data, submitApplication, isDemo, authEmail, signOut, today } = useClub();
+  const navigation = useNavigation<NavigationProp<RootParams>>(); // Delete my account
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -374,6 +376,8 @@ export function JoinScreen() {
       <PrivacyPolicyRow />
       <Button label="Send my request" icon="paper-plane-outline" onPress={submit} busy={busy} />
       {!isDemo ? <Button label="Sign out" kind="quiet" onPress={() => signOut()} /> : null}
+      {/* Delete my account: signed in, but not asked to join yet */}
+      {!isDemo && authEmail ? <Button label="Delete my account" kind="quiet" onPress={() => navigation.navigate('DeleteAccount')} /> : null}
     </Screen>
   );
 }
@@ -459,6 +463,8 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
       <SponsorsSection />
       <PrivacyPolicyRow />
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
+      {/* Delete my account */}
+      <Button label="Delete my account" kind="quiet" onPress={() => navigation.navigate('DeleteAccount')} />
     </Screen>
   );
 }

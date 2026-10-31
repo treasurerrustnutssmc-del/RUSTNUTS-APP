@@ -13,6 +13,7 @@ import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteSc
 import { ChatListScreen, ChatReportsScreen, ChatScreen, NewChatScreen } from '../screens/chat';
 import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
+import { DeleteAccountScreen } from '../screens/deleteAccount'; // Delete my account
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
 import { PickCrewScreen } from '../screens/pickCrew';
@@ -228,6 +229,7 @@ export function RootNavigator() {
         ) : needsApplication ? (
           <>
             <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
           </>
         ) : level === 'public' ? (
@@ -243,6 +245,7 @@ export function RootNavigator() {
           <>
             <Stack.Screen name="Pending" component={PendingScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check in' }} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             {/* Stage 5C: applicants read the Registered Rules and the Constitution (15.7) */}
             <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Club documents' }} />
             <Stack.Screen name="Document" component={DocumentScreen} options={{ title: 'Document' }} />
@@ -256,6 +259,7 @@ export function RootNavigator() {
             <Stack.Screen name="Tabs" component={FamilyTabs} options={{ headerShown: false }} />
             <Stack.Screen name="RideDetail" component={FamilyRideScreen} options={{ title: 'Ride' }} getId={({ params }) => params.rideId} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="MembershipCard" component={MembershipCardScreen} options={{ title: 'Membership card' }} />
@@ -271,6 +275,7 @@ export function RootNavigator() {
             <Stack.Screen name="ChapterDetail" component={ChapterDetailScreen} options={{ title: 'Chapter' }} />
             <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: 'Ride' }} getId={({ params }) => params.rideId} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit profile' }} />
+            <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="ManageMember" component={ManageMemberScreen} options={{ title: 'Manage member' }} />

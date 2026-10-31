@@ -4,11 +4,8 @@ Drafted 31/10/2026 from the same audit as the privacy policy (`src/domain/privac
 Keep the three in step: when the app starts collecting something new, change the policy, then these.
 
 - **Privacy policy URL (both stores):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/privacy.html
-- **Account deletion web link (Google Play asks for one):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/privacy.html#choices
-  (deletion is by email to apps@rustnutssmc.com.au for now).
-- **Release blocker:** the app lets people make an account, so Apple (guideline 5.1.1(v)) and Google both
-  require a way to start account deletion inside the app. Email-only deletion will likely be rejected.
-  In-app account deletion must be built before submitting.
+- **Account deletion web link (Google Play asks for one):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/delete-account.html
+  (in the app: Me, Delete my account; without the app: email apps@rustnutssmc.com.au).
 - **Contact email:** apps@rustnutssmc.com.au
 
 Rules used for both forms:
@@ -29,7 +26,7 @@ Rules used for both forms:
 |---|---|
 | Does your app collect or share any of the required user data types? | Yes |
 | Is all of the user data collected by your app encrypted in transit? | Yes |
-| Which ways can users request that their data is deleted? | "You provide a way for users to request that their data is deleted" (by email, with the web link above). Change to "in-app" too once account deletion is built. |
+| Which ways can users request that their data is deleted? | In the app (Me, Delete my account) and on the web (the deletion link above, by email). |
 | Independent security review | No |
 | Target audience | 18 and over (not designed for children; the policy says the same) |
 
