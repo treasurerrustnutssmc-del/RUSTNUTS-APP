@@ -117,6 +117,8 @@ export interface ClubContextValue {
   sendCode: (email: string) => Promise<void>;
   verifyCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Delete my account: deletes the sign-in and the member's own details, keeps the club's records as "Former member", then signs out. */
+  deleteMyAccount: () => Promise<void>;
   refresh: () => Promise<void>;
 
   // actions

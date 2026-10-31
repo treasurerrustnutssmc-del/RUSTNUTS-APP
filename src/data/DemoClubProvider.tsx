@@ -69,6 +69,10 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       throw new Error('No emails go out in the demo. Pick someone below instead.');
     },
     signOut: async () => setMeId(null),
+    deleteMyAccount: async () => {
+      setData(act.deleteMyAccount(ctx));
+      setMeId(null);
+    },
     refresh,
 
     submitApplication: async (input) => {

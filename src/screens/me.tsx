@@ -234,6 +234,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       </Card>
 
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
+      {/* Delete my account */}
+      <Button label="Delete my account" kind="quiet" onPress={() => navigation.navigate('DeleteAccount')} />
       {isDemo ? <Small style={{ textAlign: 'center' }}>Demo build: changes reset when you reload.</Small> : null}
     </Screen>
   );

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete your Rustnuts app account</title>
+<!--
+  For the club website, next to the privacy policy. Its address goes in the Google Play listing
+  (Data safety, "Delete account URL"). Requests land in apps@rustnutssmc.com.au.
+
+  Board notes (not shown on the page): check the email came from the address the person signs in
+  with, then delete that user in Supabase (Authentication, Users, Delete user). The database's
+  forget_deleted_member trigger does the rest, the same as the in-app button. Their leftover photos
+  can then be found with:
+    select bucket_id, name from storage.objects o
+    where owner_id is not null and not exists (select 1 from auth.users u where u.id::text = o.owner_id);
+  and removed in Storage.
+-->
+<style>
+  :root { --ink: #111010; --raised: #171515; --bone: #F4F1EA; --dim: #d8d3c7; --mute: #96928a; --red: #F2666F; --line: rgba(244,241,234,0.10); }
+  body { margin: 0; background: var(--ink); color: var(--bone); font: 16px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font: 800 28px/1.2 "Arial Black", sans-serif; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 16px; }
+  h2 { font: 800 18px/1.3 "Arial Black", sans-serif; letter-spacing: 0.5px; text-transform: uppercase; margin: 0 0 8px; }
+  section { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 16px 0; }
+  ul, ol { margin: 0; padding-left: 20px; }
+  li { margin: 4px 0; color: var(--dim); }
+  a { color: var(--red); }
+  .small { color: var(--mute); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Delete your app account</h1>
+  <p>This is for the Rustnuts SMC members’ app, run by Rustnuts Social Motorcycle Club.</p>
+
+  <section>
+    <h2>In the app</h2>
+    <ol>
+      <li>Open the app and go to <strong>Me</strong> (applicants: the waiting screen).</li>
+      <li>Scroll to the bottom and tap <strong>Delete my account</strong>.</li>
+      <li>Tap <strong>Delete my account</strong>, then <strong>Yes, delete it for good</strong>.</li>
+    </ol>
+    <p class="small">If you hold a board or national seat, step down first so the club can fill it.</p>
+  </section>
+
+  <section>
+    <h2>Without the app</h2>
+    <p>Email <a href="mailto:apps@rustnutssmc.com.au?subject=Delete%20my%20app%20account">apps@rustnutssmc.com.au</a> from the email address you sign in with, and ask us to delete your app account. We’ll do it within 30 days and reply when it’s done.</p>
+  </section>
+
+  <section>
+    <h2>What’s deleted</h2>
+    <ul>
+      <li>Your sign-in (email address)</li>
+      <li>Contact details, licence and first aid dates</li>
+      <li>Emergency contacts, bikes and registrations</li>
+      <li>Chat messages, reactions and photos</li>
+      <li>Ride sign-ups, crew spots, ratings and charity sign-ups</li>
+      <li>Swap and sell listings, build threads, skills and birthday</li>
+      <li>Notification settings and phone registrations</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What the club keeps, without your name</h2>
+    <ul>
+      <li>Fees, payments and the club’s books</li>
+      <li>Meeting minutes, votes and action items</li>
+      <li>Attendance, status changes, notices and conduct records</li>
+      <li>Board seats held in the past</li>
+    </ul>
+    <p class="small">These show as “Former member”. An incorporated association has to keep its financial records and minutes. Your name is removed from them in the app; names typed into free text (for example minutes) aren’t changed.</p>
+  </section>
+
+  <section>
+    <h2>What isn’t changed</h2>
+    <p>Your club membership. Deleting the app account isn’t resigning from the club: talk to your chapter Secretary for that.</p>
+  </section>
+</main>
+</body>
+</html>
