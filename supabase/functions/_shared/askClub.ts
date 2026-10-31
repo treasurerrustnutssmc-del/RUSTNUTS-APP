@@ -173,7 +173,8 @@ export function buildRequest(sources: Sources, messages: ApiMessage[]) {
     model: ASSISTANT_MODEL,
     max_tokens: MAX_OUT,
     thinking: { type: 'adaptive' as const },
-    output_config: { effort: 'medium' as const },
+    // Low: club questions are short lookups, and members wait on a phone. It still thinks harder when a rule needs it.
+    output_config: { effort: 'low' as const },
     // If a safety check declines a request, the API retries it on a fallback model by itself.
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default' as const,
