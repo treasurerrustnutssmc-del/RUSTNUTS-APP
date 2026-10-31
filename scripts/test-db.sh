@@ -431,5 +431,6 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_cron_secret -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_cron_secret -f "$ROOT/supabase/tests/cron_secret_test.sql"
+"${PSQL[@]}" -d rustnuts_cron_secret -f "$ROOT/supabase/tests/pg_net_schema_test.sql"
 
 echo 'ALL DATABASE CHECKS PASSED'
