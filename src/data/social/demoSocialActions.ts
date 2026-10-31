@@ -75,6 +75,10 @@ import {
   type OtherClubInput,
 } from '../../domain/invites'; // Invites to and from other clubs
 import { rideChapterId } from '../../domain/attendance';
+import {
+  canActOnContentReport, REPORT_KINDS, reportContentProblem, resolveContentReportProblem,
+  type ContentReport, type OpenReportRef, type ReportKind, type ReportTarget,
+} from '../../domain/reports'; // Member content rules
 import type { ClubData, Member, Ride } from '../../domain/types';
 import type { FeedItem } from '../chat/chatContext';
 import { NotAllowedError } from '../clubContext';
@@ -103,6 +107,8 @@ export interface SocialData {
   /** Invites to and from other clubs: the clubs and every invite, ones taken off included. */
   otherClubs: OtherClub[];
   invites: ClubInvite[];
+  /** Reports on listings, build updates, nominations, workshops and profiles, dealt-with ones included. */
+  contentReports: ContentReport[];
 }
 
 export interface SocialCtx {
@@ -199,6 +205,93 @@ export function takeDownListing(ctx: SocialCtx, id: string): SocialData {
   refuse(takeDownProblem(ctx.me, id, ctx.social.listings, ctx.club.positions));
   const at = ctx.now ?? new Date().toISOString();
   return { ...ctx.social, listings: ctx.social.listings.map((l) => (l.id === id ? { ...l, takenDownAt: at } : l)) };
+}
+
+// Member content rules: reporting what members post outside the chats ---------------------------
+
+/** The thing a report is about, as the rules see it, or undefined when there's no such thing. */
+export function findReportTarget(kind: ReportKind, id: string, social: SocialData, club: ClubData): ReportTarget | undefined {
+  const lines = (...parts: (string | null | undefined)[]) => parts.filter((p) => !!p).join('\n');
+  if (kind === 'listing') {
+    const l = social.listings.find((x) => x.id === id);
+    return l && { kind, id, authorId: l.sellerId, gone: !!l.takenDownAt, snapshot: lines(l.title, l.details) };
+  }
+  if (kind === 'build_update') {
+    const u = social.buildUpdates.find((x) => x.id === id);
+    return u && { kind, id, authorId: u.authorId, gone: !!u.takenDownAt, snapshot: u.body ?? '' };
+  }
+  if (kind === 'nomination') {
+    const n = social.nominations.find((x) => x.id === id);
+    return n && { kind, id, authorId: n.nominatedBy, gone: !!n.withdrawnAt, snapshot: lines(n.title, n.story, n.reason ? `“${n.reason}”` : null) };
+  }
+  if (kind === 'mechanic') {
+    const m = social.mechanics.find((x) => x.id === id);
+    return m && { kind, id, authorId: m.addedBy ?? '', gone: !!m.archivedAt, snapshot: lines(m.name, m.speciality, m.notes) };
+  }
+  const m = club.members.find((x) => x.id === id);
+  return m && { kind, id, authorId: m.id, gone: m.approval !== 'approved', snapshot: lines(m.fullName, m.roadName, m.bio) };
+}
+
+/** Reports something; hands back the report's id. Reporting again changes the reason of an open report. */
+export function reportContent(ctx: SocialCtx, kind: string, targetId: string, reason: string): { social: SocialData; id: string } {
+  const target = (REPORT_KINDS as readonly string[]).includes(kind) ? findReportTarget(kind as ReportKind, targetId, ctx.social, ctx.club) : undefined;
+  refuse(reportContentProblem(ctx.me, kind, target, reason));
+  const me = ctx.me!;
+  const at = ctx.now ?? new Date().toISOString();
+  const clean = reason.trim() || null;
+  const open = ctx.social.contentReports.find((r) => r.kind === kind && r.targetId === targetId && r.reporterId === me.id && !r.resolvedAt);
+  if (open) {
+    const changed = { ...open, reason: clean, snapshot: target!.snapshot };
+    return { social: { ...ctx.social, contentReports: ctx.social.contentReports.map((r) => (r.id === open.id ? changed : r)) }, id: open.id };
+  }
+  const report: ContentReport = {
+    id: `cr-${ctx.social.contentReports.length + 1}-${Date.now().toString(36)}`, kind: kind as ReportKind, targetId, authorId: target!.authorId, reporterId: me.id, reason: clean,
+    snapshot: target!.snapshot, createdAt: at, resolvedAt: null, resolvedBy: null, outcome: null,
+  };
+  return { social: { ...ctx.social, contentReports: [...ctx.social.contentReports, report] }, id: report.id };
+}
+
+/** Deals with a report: takes the thing down (as the board can) or dismisses it; every open report on it closes. */
+export function resolveContentReport(ctx: SocialCtx, id: string, remove: boolean): { social: SocialData; club: ClubData } {
+  const r = ctx.social.contentReports.find((x) => x.id === id);
+  const author = r && ctx.club.members.find((m) => m.id === r.authorId);
+  refuse(resolveContentReportProblem(ctx.me, r, author, ctx.club.positions));
+  const report = r!;
+  const me = ctx.me!;
+  const at = ctx.now ?? new Date().toISOString();
+  let social = ctx.social;
+  let club = ctx.club;
+  if (remove) {
+    const t = report.targetId;
+    if (report.kind === 'listing') social = { ...social, listings: social.listings.map((l) => (l.id === t && !l.takenDownAt ? { ...l, takenDownAt: at } : l)) };
+    if (report.kind === 'build_update') social = { ...social, buildUpdates: social.buildUpdates.map((u) => (u.id === t && !u.takenDownAt ? { ...u, takenDownAt: at } : u)) };
+    if (report.kind === 'nomination') social = { ...social, nominations: social.nominations.map((n) => (n.id === t && !n.withdrawnAt ? { ...n, withdrawnAt: at } : n)) };
+    if (report.kind === 'mechanic') social = { ...social, mechanics: social.mechanics.map((m) => (m.id === t && !m.archivedAt ? { ...m, archivedAt: at } : m)) };
+    if (report.kind === 'profile') club = { ...club, members: club.members.map((m) => (m.id === t ? { ...m, bio: null } : m)) };
+  }
+  const outcome = remove ? 'removed' : 'dismissed';
+  return {
+    social: {
+      ...social,
+      contentReports: social.contentReports.map((x) =>
+        x.kind === report.kind && x.targetId === report.targetId && !x.resolvedAt ? { ...x, resolvedAt: at, resolvedBy: me.id, outcome } : x,
+      ),
+    },
+    club,
+  };
+}
+
+/** Open content reports the member can act on, newest first. */
+export function contentReportsFor(me: Member | null, social: SocialData, club: ClubData): ContentReport[] {
+  return social.contentReports
+    .filter((r) => !r.resolvedAt && canActOnContentReport(me, r, club.members.find((m) => m.id === r.authorId), club.positions))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** The member's own open content reports, as the things they hide. */
+export function myOpenContentReports(meId: string | undefined, social: SocialData): OpenReportRef[] {
+  if (!meId) return [];
+  return social.contentReports.filter((r) => r.reporterId === meId && !r.resolvedAt).map((r) => ({ kind: r.kind, targetId: r.targetId }));
 }
 
 /** Posts an update on my project bike's build; hands back its id. */
@@ -397,6 +490,9 @@ export function archiveInvite(ctx: SocialCtx, id: string): SocialData {
 /** A parity.json case, as the social action it names. */
 export type SocialAction =
   | { action: 'socialSetBirthday'; month: number | null; day: number | null }
+  // Member content rules
+  | { action: 'socialReportContent'; kind: string; target: string; reason: string; repeat?: number }
+  | { action: 'socialResolveReport'; report: string; remove: boolean }
   | { action: 'socialSetSkills'; skills: string[] }
   // The workshop's name is `workshop`: a case's `name` is the case's own.
   | ({ action: 'socialSaveMechanic'; mechanic: string | null; workshop: string } & Omit<MechanicInput, 'id' | 'name'>)
@@ -444,6 +540,10 @@ export function runSocialAction(ctx: SocialCtx, a: SocialAction): SocialData {
   switch (a.action) {
     case 'socialSetBirthday':
       return setBirthday(ctx, a.month, a.day);
+    case 'socialReportContent':
+      return reportContent(ctx, a.kind, a.target, a.repeat ? a.reason.repeat(a.repeat) : a.reason).social;
+    case 'socialResolveReport':
+      return resolveContentReport(ctx, a.report, a.remove).social;
     case 'socialSetSkills':
       return setSkills(ctx, a.skills);
     case 'socialSaveMechanic':

@@ -63,6 +63,11 @@ export interface Member {
   appliedOn: string | null;
   /** A patched member taking a break: keeps status and patch, flagged as away. */
   onHiatus: boolean;
+  /**
+   * The day they agreed to the club rules for chats and posts (src/domain/postingRules.ts), or
+   * null when they haven't yet. Left out by older fixtures, which counts as agreed.
+   */
+  postingRulesAcceptedOn?: string | null;
 }
 
 /** Contact and compliance details: the member and their chapter board only. */

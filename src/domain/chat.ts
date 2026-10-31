@@ -4,6 +4,7 @@
 
 import { accessLevel, activePositions, isBoardOf, isNational, seesBoardOf } from './access';
 import { daysBetween, formatAuDate } from './dates';
+import { postingRulesProblem } from './postingRules';
 import { displayName } from './profile';
 import { lastDay, melbourneDate } from './rides';
 import type { ClubData, Member, Ride, RsvpAnswer } from './types';
@@ -172,7 +173,9 @@ export function postProblem(
     if (!voice.durationMs || voice.durationMs < 1) return VOICE_BROKEN;
     if (voice.durationMs > MAX_VOICE_MS) return VOICE_TOO_LONG;
   }
-  return null;
+  // Last, as the message goes in: agreed to the club rules for chats and posts? (The database
+  // checks this in a trigger on the row, so it comes after everything about the content.)
+  return postingRulesProblem(me);
 }
 
 /** Can tidy other people's messages: a chapter's board in its chat and big table, the NEC in its own

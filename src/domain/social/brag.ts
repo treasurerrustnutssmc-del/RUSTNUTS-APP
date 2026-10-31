@@ -4,6 +4,7 @@
 // order.
 
 import { isRealIsoDate } from '../dates';
+import { postingRulesProblem } from '../postingRules';
 import { melbourneDate } from '../rides';
 import { signedInProblem } from '../routes';
 import type { Member, Position, Ride } from '../types';
@@ -210,7 +211,8 @@ export function nominationProblem(
     }
   }
   if (c.reason && chars(c.reason) > MAX_BRAG_REASON) return `Keep the reason to ${MAX_BRAG_REASON} characters at most.`;
-  return null;
+  // Last, as the row goes in (a database trigger): agreed to the club rules for chats and posts?
+  return postingRulesProblem(me);
 }
 
 export function withdrawProblem(

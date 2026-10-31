@@ -5,6 +5,7 @@
 import { activePositions, canSeeMember, isNational } from '../access';
 import { BOARD_ROLES } from '../labels';
 import { displayName } from '../profile';
+import { postingRulesProblem } from '../postingRules';
 import { signedInProblem } from '../routes';
 import type { Member, Position } from '../types';
 
@@ -157,7 +158,8 @@ export function mechanicProblem(me: Member | null, input: MechanicInput, mechani
     if (key === 'website' && value !== null && !/^https?:\/\//i.test(value)) return BAD_WEBSITE;
     if (value !== null && chars(value) > max) return `Keep ${words} to ${max} characters at most.`;
   }
-  return null;
+  // Last, as the row goes in (a database trigger): agreed to the club rules for chats and posts?
+  return postingRulesProblem(me);
 }
 
 export function archiveProblem(me: Member | null, id: string, mechanics: Mechanic[], positions: Position[]): string | null {
