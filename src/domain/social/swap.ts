@@ -5,6 +5,7 @@
 import { canSeeMember } from '../access';
 import type { Block } from '../chat';
 import { addDays } from '../dates';
+import { postingRulesProblem } from '../postingRules';
 import { melbourneDate } from '../rides';
 import { signedInProblem } from '../routes';
 import type { Member, Position } from '../types';
@@ -107,7 +108,8 @@ export function listingProblem(me: Member | null, input: ListingInput, listings:
     if (p.path.split('/')[0] !== self.id || usedElsewhere.has(p.path) || seen.has(p.path)) return BAD_PHOTO;
     seen.add(p.path);
   }
-  return null;
+  // Last, as the row goes in (a database trigger): agreed to the club rules for chats and posts?
+  return postingRulesProblem(me);
 }
 
 export function soldProblem(me: Member | null, id: string, listings: Listing[]): string | null {

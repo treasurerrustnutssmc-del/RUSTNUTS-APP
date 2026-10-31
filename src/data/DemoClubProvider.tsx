@@ -87,6 +87,11 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       setMeId(result.id);
     },
     approveMember: async (memberId, status) => setData(act.approve(ctx, memberId, status)),
+    // Member content rules
+    acceptPostingRules: async () => setData(act.acceptPostingRules(ctx)),
+    suspendAccess: async (memberId) => setData(act.suspendAccess(ctx, memberId)),
+    restoreAccess: async (memberId) => setData(act.restoreAccess(ctx, memberId)),
+    demoClearBio: (memberId) => setData((d) => ({ ...d, members: d.members.map((m) => (m.id === memberId ? { ...m, bio: null } : m)) })),
     declineMember: async (memberId) => setData(act.decline(ctx, memberId)),
     setMemberStatus: async (memberId, status, byRequest) => setData(act.setStatus(ctx, memberId, status, byRequest ?? false)),
     saveProfile: async (profile, priv) => setData(act.saveProfile(ctx, profile, priv)),

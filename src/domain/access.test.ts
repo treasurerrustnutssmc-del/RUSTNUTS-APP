@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoData';
-import type { Position, Vote } from './types';
+import type { Member, Position, Vote } from './types';
 import {
   accessLevel,
   appointProblem,
@@ -336,4 +336,33 @@ test('moving an FNG, Full Member or Nomad to Supporter follows a decided 5.5 not
   assert.equal(statusChangeProblem(torque, m('m-gravel'), 'supporter', decided('2026-07-31'), TODAY), null, '90 days is still in time');
   assert.equal(statusChangeProblem(torque, m('m-gravel'), 'supporter', decided('2026-07-30'), TODAY), SUPPORTER_NEEDS_NOTICE, '91 days is stale');
   assert.equal(statusChangeProblem(m('m-smokey'), m('m-gravel'), 'supporter', decided('2026-10-20'), TODAY), 'Only that chapter’s board can change this member’s status.', 'the board gate comes first');
+});
+
+// Suspending and restoring a member's app access (App Review Guideline 1.2)
+test('suspend and restore app access: the chapter board only, not yourself, and only from the right state', async () => {
+  const { suspendAccessProblem, restoreAccessProblem } = await import('./access');
+  const mk = (id: string, over: Partial<Member> = {}): Member => ({
+    id, chapterId: 'ch-west', fullName: id, roadName: null, status: 'full', approval: 'approved', joinedOn: '2024-01-01',
+    patchedOn: null, fngStartedOn: null, bio: null, sharePhone: false, appliedOn: null, onHiatus: false, ...over,
+  });
+  const sec = mk('sec');
+  const pres = mk('pres', { chapterId: 'ch-north' });
+  const target = mk('target');
+  const benched = mk('benched', { approval: 'suspended' });
+  const positions: Position[] = [
+    { id: 'p1', memberId: 'sec', chapterId: 'ch-west', role: 'secretary', startedOn: '2025-01-01', endedOn: null },
+    { id: 'p2', memberId: 'pres', chapterId: 'ch-north', role: 'president', startedOn: '2025-01-01', endedOn: null },
+  ];
+  assert.equal(suspendAccessProblem(sec, target, positions), null);
+  assert.equal(suspendAccessProblem(null, target, positions), 'Sign in first.');
+  assert.equal(suspendAccessProblem(mk('p', { approval: 'pending' }), target, positions), 'Only approved members can do that.');
+  assert.equal(suspendAccessProblem(sec, undefined, positions), 'That member no longer exists.');
+  assert.equal(suspendAccessProblem(sec, sec, positions), 'You can’t suspend your own access.');
+  assert.equal(suspendAccessProblem(pres, target, positions), 'Only that member’s chapter board can do that.');
+  assert.equal(suspendAccessProblem(mk('plain'), target, positions), 'Only that member’s chapter board can do that.');
+  assert.equal(suspendAccessProblem(sec, benched, positions), 'They’re not an approved member.');
+  assert.equal(restoreAccessProblem(sec, benched, positions), null);
+  assert.equal(restoreAccessProblem(sec, target, positions), 'Their access isn’t suspended.');
+  assert.equal(restoreAccessProblem(sec, sec, positions), 'You can’t restore your own access.');
+  assert.equal(restoreAccessProblem(pres, benched, positions), 'Only that member’s chapter board can do that.');
 });

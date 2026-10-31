@@ -11,7 +11,7 @@ import { demoSocialData } from './demoSocialData';
 import { SocialContext, type SocialContextValue } from './socialContext';
 
 export function DemoSocialProvider({ children }: { children: React.ReactNode }) {
-  const { data, me, today } = useClub();
+  const { data, me, today, demoClearBio } = useClub();
   const [social, setSocial] = useState<act.SocialData>(() => demoSocialData(today));
   const ctx = (): act.SocialCtx => ({ social, club: data, me, today });
   // Kept the same between renders, so a screen that loads on change doesn't load forever.
@@ -123,6 +123,19 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
     },
     answerInvite: async (input) => setSocial(act.answerInvite(ctx(), input)),
     archiveInvite: async (id) => setSocial(act.archiveInvite(ctx(), id)),
+    // Member content rules
+    myOpenReports: act.myOpenContentReports(me?.id, social),
+    reportContent: async (kind, targetId, reason) => setSocial(act.reportContent(ctx(), kind, targetId, reason).social),
+    contentReports: async () => act.contentReportsFor(me, social, data),
+    resolveContentReport: async (id, remove) => {
+      const result = act.resolveContentReport(ctx(), id, remove);
+      setSocial(result.social);
+      // Removing a reported profile clears the bio on the club's own data.
+      if (result.club !== data) {
+        const r = social.contentReports.find((x) => x.id === id);
+        if (r) demoClearBio?.(r.targetId);
+      }
+    },
     bragPhotoUrl: listingPhotoUrl,
     refresh: async () => {},
   };

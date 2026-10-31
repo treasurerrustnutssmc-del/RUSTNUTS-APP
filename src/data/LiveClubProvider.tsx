@@ -3,7 +3,8 @@
 // checks the same rules first only so members get a clear message without a round trip.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { accessLevel, appointProblem, endTermProblem, renewAuditorProblem } from '../domain/access';
+import { accessLevel, appointProblem, endTermProblem, renewAuditorProblem, restoreAccessProblem, suspendAccessProblem } from '../domain/access';
+import { bioProblem } from '../domain/postingRules'; // Member content rules
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
 import { bookProblem, cancelProblem, changeProblem, decideProblem } from '../domain/bus';
 // Rusty Bus extras
@@ -353,6 +354,23 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       await after();
     },
 
+    // Member content rules
+    acceptPostingRules: async () => {
+      requireUser();
+      ok(await supabase().rpc('accept_posting_rules'));
+      await after();
+    },
+    suspendAccess: async (memberId) => {
+      deny(suspendAccessProblem(visibleMe, data.members.find((m) => m.id === memberId), data.positions));
+      ok(await supabase().rpc('suspend_member_access', { p_member: memberId }));
+      await after();
+    },
+    restoreAccess: async (memberId) => {
+      deny(restoreAccessProblem(visibleMe, data.members.find((m) => m.id === memberId), data.positions));
+      ok(await supabase().rpc('restore_member_access', { p_member: memberId }));
+      await after();
+    },
+
     approveMember: async (memberId, status) => {
       ok(await supabase().rpc('approve_member', { p_member: memberId, p_status: status }));
       await after();
@@ -371,6 +389,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     saveProfile: async (profile, priv) => {
       requireUser();
       if (!profile.fullName.trim()) throw new Error('Your name can’t be blank.');
+      deny(bioProblem(me, profile.bio));
       ok(
         await supabase().rpc('save_profile', {
           p_full_name: profile.fullName.trim(),

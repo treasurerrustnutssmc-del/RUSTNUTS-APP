@@ -7,6 +7,8 @@ import { FlatList, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, u
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
+import { useSocial } from '../data/social/SocialProvider'; // Member content rules
+import { REPORT_KIND_LABEL, type ContentReport } from '../domain/reports';
 import type { Attachment, ChatSummary, ReportView, VoiceRecording } from '../data/chat/chatContext';
 import { pickMedia } from '../data/chat/media';
 import { watchChat } from '../data/viewingChat';
@@ -101,6 +103,7 @@ function UnreadBadge({ n }: { n: number }) {
 export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
   const { me, data, today } = useClub();
   const chat = useChat();
+  const social = useSocial();
   const [reportCount, setReportCount] = useState(0);
   // Someone who might join gets no private chats until they're an FNG.
   const mayMessage = !!me && me.approval === 'approved' && me.status !== 'introduced';
@@ -119,11 +122,12 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
   useFocusEffect(
     useCallback(() => {
       let live = true;
-      chat.reports().then((r) => live && setReportCount(r.length), () => undefined);
+      // Chat reports and reports of posts (listings, builds, nominations, workshops, profiles) count together.
+      Promise.all([chat.reports(), social.contentReports().catch(() => [])]).then(([a, b]) => live && setReportCount(a.length + b.length), () => undefined);
       return () => {
         live = false;
       };
-    }, [chat.reports]), // eslint-disable-line react-hooks/exhaustive-deps
+    }, [chat.reports, social.contentReports]), // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   return (
@@ -134,7 +138,7 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
             last
             left={<IconBadge icon="flag-outline" />}
             title={`Reports to look at (${reportCount})`}
-            subtitle="Messages members flagged in chats you look after."
+            subtitle="Messages and posts members have flagged for the board."
             onPress={() => navigation.navigate('ChatReports')}
           />
         </Card>
@@ -355,7 +359,17 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
             accessibilityHint="Shows reactions and what you can do with this message"
             style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs, { maxWidth: bubbleWidth }, isSelected && styles.bubbleSelected]}
           >
-            {showAuthor ? <AuthorLine member={author} data={data} /> : null}
+            {showAuthor ? (
+              <Pressable
+                disabled={!author}
+                onPress={() => author && navigation.navigate('MemberDetail', { memberId: author.id })}
+                accessibilityRole="button"
+                accessibilityLabel={author ? `${displayName(author)}’s page` : undefined}
+                accessibilityHint="Opens their page, where you can message, block or report them"
+              >
+                <AuthorLine member={author} data={data} />
+              </Pressable>
+            ) : null}
             {m.replyToId ? <ReplyQuote message={replied} author={replied ? nameOf(replied.authorId) : ''} /> : null}
             {m.media[0]?.kind === 'voice' ? (
               <VoiceNote media={m.media[0]} width={Math.min(bubbleWidth - space.md * 2, 260)} />
@@ -399,6 +413,18 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               ) : null}
               {!mine ? <ActionChip label="Report" icon="flag-outline" onPress={() => { setReporting(m.id); setReason(''); }} /> : null}
             </View>
+            {/* Member content rules: block from the message itself, not only from their page */}
+            {!mine && author && !chat.blocks.some((b) => b.blockedId === author.id) ? (
+              <ConfirmButton
+                label={`Block ${displayName(author)}`}
+                confirmLabel={`Yes, block ${displayName(author)}`}
+                kind="quiet"
+                size="small"
+                icon="eye-off-outline"
+                confirmNote="You won’t see their messages or posts, and neither of you can message the other. Only you know."
+                onConfirm={() => run(async () => { await chat.setBlock(author.id, true); setSelected(null); })}
+              />
+            ) : null}
             {removable ? (
               <ConfirmButton
                 label={mine ? 'Remove my message' : 'Remove message'}
@@ -610,12 +636,32 @@ export function NewChatScreen({ navigation }: RootScreen<'NewChat'>) {
 export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
   const { data } = useClub();
   const chat = useChat();
+  const social = useSocial();
   const [reports, setReports] = useState<ReportView[] | null>(null);
+  // Member content rules: reports of listings, build updates, nominations, workshops and profiles
+  const [posts, setPosts] = useState<ContentReport[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback(() => chat.reports().then(setReports, (e: Error) => setError(e.message)), [chat]);
+  const load = useCallback(
+    () =>
+      Promise.all([chat.reports(), social.contentReports().catch(() => [] as ContentReport[])]).then(
+        ([a, b]) => {
+          setReports(a);
+          setPosts(b);
+        },
+        (e: Error) => setError(e.message),
+      ),
+    [chat, social.contentReports], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   useEffect(() => {
     let live = true;
-    chat.reports().then((r) => live && setReports(r), (e: Error) => live && setError(e.message));
+    Promise.all([chat.reports(), social.contentReports().catch(() => [] as ContentReport[])]).then(
+      ([a, b]) => {
+        if (!live) return;
+        setReports(a);
+        setPosts(b);
+      },
+      (e: Error) => live && setError(e.message),
+    );
     return () => {
       live = false;
     };
@@ -629,11 +675,61 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
       setError((e as Error).message);
     }
   };
+  const dealPost = async (id: string, remove: boolean) => {
+    try {
+      await social.resolveContentReport(id, remove);
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  // Where Open goes for a reported post: the listing, the build, the award, the workshop or the member.
+  const openPost = (r: ContentReport): (() => void) | null => {
+    if (r.kind === 'listing') return () => navigation.navigate('Listing', { listingId: r.targetId });
+    if (r.kind === 'mechanic') return () => navigation.navigate('Mechanic', { mechanicId: r.targetId });
+    if (r.kind === 'profile') return () => navigation.navigate('MemberDetail', { memberId: r.targetId });
+    if (r.kind === 'build_update') {
+      const u = social.buildUpdates.find((x) => x.id === r.targetId);
+      return u ? () => navigation.navigate('BuildThread', { bikeId: u.bikeId }) : null;
+    }
+    const n = social.nominations.find((x) => x.id === r.targetId);
+    return n ? () => navigation.navigate('Award', { awardId: n.awardId }) : null;
+  };
+  const loaded = reports !== null && posts !== null;
   return (
     <Screen onRefresh={load}>
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      {reports === null ? <Small>Loading…</Small> : null}
-      {reports?.length === 0 ? <Notice tone="ok" title="All clear">No reports waiting.</Notice> : null}
+      {!loaded ? <Small>Loading…</Small> : null}
+      {loaded && reports.length === 0 && posts.length === 0 ? <Notice tone="ok" title="All clear">No reports waiting.</Notice> : null}
+      {posts?.map((r) => {
+        const open = openPost(r);
+        const what = r.kind === 'profile' ? 'Profile' : REPORT_KIND_LABEL[r.kind];
+        return (
+          <Card key={r.id}>
+            <Row style={{ justifyContent: 'space-between' }}>
+              <Text style={type.name}>{what}</Text>
+              <Small>{formatAuDate(melbourneDate(r.createdAt))}</Small>
+            </Row>
+            <Stack gap={4}>
+              <Small>{r.kind === 'profile' ? `${name(r.authorId)}’s profile` : `${name(r.authorId)} posted`}</Small>
+              <Body style={{ color: colors.bone }}>{r.snapshot || '(nothing)'}</Body>
+            </Stack>
+            <Small>
+              Reported by {name(r.reporterId)}
+              {r.reason ? `: “${r.reason}”` : ''}
+            </Small>
+            <ConfirmButton
+              label="Remove it"
+              confirmLabel="Yes, remove it"
+              icon="trash-outline"
+              confirmNote={r.kind === 'profile' ? 'Clears their bio. Suspending their access is under Manage member.' : 'Takes it down for everyone.'}
+              onConfirm={() => dealPost(r.id, true)}
+            />
+            <Button label="Leave it up" kind="secondary" onPress={() => dealPost(r.id, false)} />
+            {open ? <Button label={`Open the ${what.toLowerCase()}`} kind="quiet" icon="open-outline" onPress={open} /> : null}
+          </Card>
+        );
+      })}
       {reports?.map((r) => {
         const title = chat.list.find((s) => s.conversation.id === r.conversation.id)?.title ?? 'Private chat';
         return (

@@ -30,6 +30,11 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
 
   const list = useMemo(() => listFor(chat, club, me, today), [chat, club, me, today]);
   const myBlocks = useMemo(() => chat.blocks.filter((b) => b.blockerId === me?.id), [chat.blocks, me]);
+  // Member content rules: what I've reported disappears from my view until the board has looked.
+  const reportedMessageIds = useMemo(
+    () => chat.reports.filter((r) => r.reporterId === me?.id && !r.resolvedAt).map((r) => r.messageId),
+    [chat.reports, me],
+  );
 
   const open = useCallback(
     (chatId: string) => {
@@ -50,8 +55,10 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
     list,
     unreadTotal: list.reduce((sum, s) => sum + s.unread, 0),
     blocks: myBlocks,
+    reportedMessageIds,
     conversation: (chatId) => chat.conversations.find((c) => c.id === chatId),
-    messages: (chatId) => withoutBlocked(chat.messages.filter((m) => m.conversationId === chatId), chat.blocks, me?.id ?? null),
+    messages: (chatId) =>
+      withoutBlocked(chat.messages.filter((m) => m.conversationId === chatId), chat.blocks, me?.id ?? null).filter((m) => !reportedMessageIds.includes(m.id)),
     hasOlder: () => false,
     open,
     loadOlder: async () => {},

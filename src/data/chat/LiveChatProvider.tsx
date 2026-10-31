@@ -74,6 +74,8 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   const [pages, setPages] = useState<Record<string, Message[]>>({});
   const [older, setOlder] = useState<Record<string, boolean>>({});
   const [blocks, setBlocks] = useState<Block[]>([]);
+  // Member content rules: messages I've reported that the board hasn't dealt with yet.
+  const [reportedMessageIds, setReportedMessageIds] = useState<string[]>([]);
   // Chats opened from somewhere other than the list (a ride outside its week, a photo, a report).
   const [extra, setExtra] = useState<Record<string, Conversation>>({});
   const openChats = useRef(new Map<string, number>());
@@ -89,6 +91,10 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, []);
 
+  const loadMyReports = useCallback(async () => {
+    const mine = (await rpc<{ kind: string; target_id: string }[]>('my_open_reports').catch(() => [])) ?? [];
+    setReportedMessageIds(mine.filter((r) => r.kind === 'message').map((r) => r.target_id));
+  }, []);
   const loadBlocks = useCallback(async () => {
     const { data, error } = await db().from('member_blocks').select('blocker_id, blocked_id');
     if (error) throw friendlyError(error);
@@ -129,9 +135,9 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!meId) return;
     Promise.resolve()
-      .then(() => Promise.all([loadList(), loadBlocks()]))
+      .then(() => Promise.all([loadList(), loadBlocks(), loadMyReports()]))
       .catch(() => setReady(true));
-  }, [meId, loadList, loadBlocks]);
+  }, [meId, loadList, loadBlocks, loadMyReports]);
 
   // One Realtime feed for every chat this person can read; a burst of changes means one refetch.
   useEffect(() => {
@@ -276,8 +282,9 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     list,
     unreadTotal: list.reduce((sum, s) => sum + s.unread, 0),
     blocks: blocks.filter((b) => b.blockerId === meId),
+    reportedMessageIds,
     conversation,
-    messages: (chatId) => withoutBlocked(pages[chatId] ?? [], blocks, meId),
+    messages: (chatId) => withoutBlocked(pages[chatId] ?? [], blocks, meId).filter((m) => !reportedMessageIds.includes(m.id)),
     hasOlder: (chatId) => older[chatId] ?? false,
     open,
     loadOlder: async (chatId) => {
@@ -300,6 +307,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     },
     report: async (messageId, reason) => {
       await rpc('report_message', { p_message: messageId, p_reason: reason });
+      await loadMyReports();
     },
     setBlock: async (memberId, blocked) => {
       await rpc('set_block', { p_member: memberId, p_blocked: blocked });
@@ -332,7 +340,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     mediaUrl,
     linkPreview,
     refresh: async () => {
-      await Promise.all([loadList(), loadBlocks(), ...[...openChats.current.keys()].map((id) => loadPage(id))]);
+      await Promise.all([loadList(), loadBlocks(), loadMyReports(), ...[...openChats.current.keys()].map((id) => loadPage(id))]);
     },
   };
 

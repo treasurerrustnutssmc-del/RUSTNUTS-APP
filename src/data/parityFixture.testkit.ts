@@ -29,6 +29,7 @@ import { directId, runChatAction, type ChatAction, type ChatData } from './chat/
 import { LEDGER_ACTIONS, runLedgerAction, type LedgerAction } from './ledgerActions'; // Stage 5B
 import { runSocialAction, type SocialAction, type SocialData } from './social/demoSocialActions'; // Stage 7: social extras
 import type { ListingKind } from '../domain/social/swap'; // Stage 7: social extras
+import type { ReportKind } from '../domain/reports'; // Member content rules
 import type { CalendarLabel, InviteAnswer, InviteDirection } from '../domain/invites'; // Invites to and from other clubs
 import { DOCUMENT_ACTIONS, runDocumentAction, type DocumentAction } from './documentActions'; // Stage 5C
 import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'; // Stage 5D
@@ -45,6 +46,8 @@ export interface ParityCase extends Record<string, unknown> {
   without?: string[];
   /** The case starts with no Road Rules published (and so no sign-offs). */
   noRoadRules?: boolean;
+  /** The member acting hasn't agreed to the club rules for chats and posts (for this case only). */
+  rulesNotAgreed?: boolean;
 }
 
 export interface ParityFixture {
@@ -274,6 +277,8 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       sharePhone: m.sharePhone,
       appliedOn: '2024-01-01',
       onHiatus: m.onHiatus ?? false,
+      // Every approved member agreed to the club rules for chats and posts (a case's rulesNotAgreed undoes it).
+      postingRulesAcceptedOn: m.approval === 'approved' ? '2024-01-01' : null,
     })),
     privates: fixture.members
       .filter((m) => m.firstAidExpiry !== undefined)
@@ -559,7 +564,10 @@ export function caseAction(c: ParityCase): DemoAction {
 /** What the demo says to this case: null when it allows it, otherwise its refusal message. */
 export function demoAnswer(c: ParityCase): string | null {
   const today = parityToday();
-  const fixed = fixtureData(c.without ?? [], today);
+  const fixed0 = fixtureData(c.without ?? [], today);
+  const fixed = c.rulesNotAgreed
+    ? { ...fixed0, members: fixed0.members.map((m) => (m.id === c.as ? { ...m, postingRulesAcceptedOn: null } : m)) }
+    : fixed0;
   const data = c.noRoadRules ? { ...fixed, roadRules: [], roadRulesSignoffs: [] } : fixed;
   const me = data.members.find((m) => m.id === c.as) ?? null;
   try {
@@ -695,8 +703,16 @@ export function fixtureSocial(today: string = parityToday()): SocialData {
       addedAt: '2026-10-01T00:00:00.000Z', answeredBy: i.answer === 'waiting' ? null : 'rusty',
       answeredAt: i.answer === 'waiting' ? null : '2026-10-02T00:00:00.000Z', archivedAt: i.archived ? '2026-10-02T00:00:00.000Z' : null,
     })),
+    // Member content rules: reports on what members post outside the chats
+    contentReports: ((f as { contentReports?: FixtureContentReport[] }).contentReports ?? []).map((r) => ({
+      id: r.key, kind: r.kind, targetId: r.target, authorId: r.author, reporterId: r.reporter, reason: null, snapshot: 'Fixture',
+      createdAt: '2026-10-01T00:00:00.000Z', resolvedAt: r.resolved ? '2026-10-02T00:00:00.000Z' : null,
+      resolvedBy: r.resolved ? 'rusty' : null, outcome: r.resolved ? 'dismissed' : null,
+    })),
   };
 }
+
+interface FixtureContentReport { key: string; kind: ReportKind; target: string; author: string; reporter: string; resolved: boolean }
 
 // Invites to and from other clubs: every incoming invite is for 01/01/2030.
 interface FixtureOtherClub {
