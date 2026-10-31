@@ -84,3 +84,23 @@ export function itemFromPayload(p: IncomingPayload): SharedItem {
     size: p.contentSize,
   };
 }
+
+/** Where someone is when a share arrives that the app can't take yet. */
+export type ShareWaitStage = 'signedOut' | 'applying' | 'pending' | 'family';
+
+/**
+ * The note shown while a share waits. Only signed-in members get "Share to the club"; anyone else
+ * would otherwise see nothing happen. A signed-out share stays with the phone and opens after
+ * sign-in, so that note promises it; the others can't open it until things change.
+ */
+export function waitingShareNote(stage: ShareWaitStage): { title: string; text: string } {
+  switch (stage) {
+    case 'signedOut':
+      return { title: 'Sign in first', text: 'What you shared opens once you’re signed in.' };
+    case 'applying':
+    case 'pending':
+      return { title: 'Chats open once you’re approved', text: 'Share it again once the club has said yes.' };
+    case 'family':
+      return { title: 'Family accounts can’t post in chats', text: 'Only members can share into club chats.' };
+  }
+}

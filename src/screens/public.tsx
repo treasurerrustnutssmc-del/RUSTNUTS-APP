@@ -13,6 +13,7 @@ import { isReviewerEmail } from '../domain/reviewer'; // Store review demo
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
+import { ShareWaitingNote } from '../ui/ShareWaitingNote'; // Lane E: share in
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -50,6 +51,7 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
           the club.
         </Body>
       </Stack>
+      <ShareWaitingNote stage="signedOut" />
       <Stack gap={space.sm}>
         <Button label="Sign in" icon="log-in-outline" onPress={() => navigation.navigate('SignIn')} />
         <Button
@@ -159,6 +161,7 @@ export function SignInScreen({ route }: RootScreen<'SignIn'>) {
               : 'No passwords. Enter your email and we’ll send a code to sign in with.'}
         </Body>
       </Stack>
+      <ShareWaitingNote stage="signedOut" />
 
       {step === 'email' ? (
         <>
@@ -235,7 +238,7 @@ export function SignInScreen({ route }: RootScreen<'SignIn'>) {
 type JoinAs = 'introduced' | 'supporter' | 'family';
 
 export function JoinScreen() {
-  const { data, submitApplication, isDemo, authEmail, signOut, today } = useClub();
+  const { data, submitApplication, isDemo, authEmail, signOut, today, needsApplication } = useClub();
   const navigation = useNavigation<NavigationProp<RootParams>>(); // Delete my account
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -308,6 +311,7 @@ export function JoinScreen() {
           couple of meetings and a ride first.
         </Body>
       </Stack>
+      <ShareWaitingNote stage={needsApplication ? 'applying' : 'signedOut'} />
 
       <Card>
         <Field label="Full name" value={form.fullName} onChangeText={set('fullName')} autoComplete="name" error={err('fullName')} />
@@ -423,6 +427,7 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
           </Body>
         </Stack>
       )}
+      {declined ? null : <ShareWaitingNote stage="pending" />}
 
       {!declined && me.status === 'introduced' ? (
         <>

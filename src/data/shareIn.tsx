@@ -12,7 +12,7 @@ import { ImageManipulator } from 'expo-image-manipulator';
 import type * as Sharing from 'expo-sharing';
 import { createVideoPlayer } from 'expo-video';
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { mediaProblem, type PickedMedia } from '../domain/chat';
 import { itemFromPayload, sharedDraft, type IncomingPayload, type SharedItem, type SharedMedia } from '../domain/shareIn';
 import type { RootParams } from '../navigation/types';
@@ -159,6 +159,32 @@ class Contained extends React.Component<{ children: React.ReactNode }, { failed:
   render() {
     return this.state.failed ? null : this.props.children;
   }
+}
+
+/**
+ * Whether something shared in is waiting for "Share to the club". Only signed-in members have the
+ * listener above, so the screens before it (welcome, sign in, waiting for approval, family) use this
+ * to say why nothing opened. It only looks: the share stays with the phone until a member's
+ * listener takes it, so signing in opens it.
+ */
+export function useShareWaiting(): boolean {
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    if (!canReceive) return;
+    const check = () => {
+      try {
+        const { getSharedPayloads } = require('expo-sharing') as typeof Sharing; // eslint-disable-line @typescript-eslint/no-require-imports
+        setWaiting(getSharedPayloads().length > 0);
+      } catch {
+        setWaiting(false);
+      }
+    };
+    check();
+    // A share from another app brings this one back to the front, so it's checked again then.
+    const sub = AppState.addEventListener('change', (state) => state === 'active' && check());
+    return () => sub.remove();
+  }, []);
+  return waiting;
 }
 
 export function IncomingShare() {
