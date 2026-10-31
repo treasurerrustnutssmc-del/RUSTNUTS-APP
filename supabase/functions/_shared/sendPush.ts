@@ -38,8 +38,9 @@ export interface ExpoTicket {
 // Android builds from before the rev don't have the club and chat channels, and Android drops a push naming a
 // channel it doesn't have. That's safe only because no Android build can register for pushes until
 // the app has its Firebase project, and any build that adds it already has the channels.
-// The rev2 channels (the second rev sound) come with a new build: deploy this only once testers'
-// Android phones have it, or their rev pushes are dropped until they update.
+// The rev2 channels (the second rev sound) come with a new build. A phone on an older build doesn't
+// have them, so expo-notifications shows the push on its fallback channel with the plain sound until
+// the phone updates (an iPhone without the new file plays the default sound too).
 const REV_SOUND = 'v_twin_rev_2.wav';
 function soundFor(kind: unknown, rev: boolean): { channelId: string; sound: string } {
   if (kind === 'live-alert') return { channelId: 'ride-alerts', sound: 'default' };

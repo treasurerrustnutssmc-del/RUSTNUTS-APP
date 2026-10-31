@@ -26,8 +26,8 @@ export function ensureChannels(): Promise<void> {
         failed = true;
       });
     }
-    // The first rev's channels: gone from the phone's settings, so nobody picks the old sound there.
-    for (const id of RETIRED_ANDROID_CHANNELS) await Notifications.deleteNotificationChannelAsync(id).catch(() => {});
+    // The first rev's channels (once the new ones exist): gone from the phone's settings, so nobody picks the old sound there.
+    if (!failed) for (const id of RETIRED_ANDROID_CHANNELS) await Notifications.deleteNotificationChannelAsync(id).catch(() => {});
     if (failed) made = null; // try again next time
   })();
   return made;

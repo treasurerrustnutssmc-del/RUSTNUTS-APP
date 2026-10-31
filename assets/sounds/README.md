@@ -11,8 +11,8 @@ are loud and clean.
 
 Changing the sound needs new Android channel ids, because Android fixes a channel's sound once it exists:
 bump `REV` in `src/domain/notifications.ts` and the matching ids in `supabase/functions/_shared/sendPush.ts`,
-add the old ids to `RETIRED_ANDROID_CHANNELS`, use a new file name, and make a new phone build. Deploy
-send-push only once testers have that build, or their rev pushes are dropped.
+add the old ids to `RETIRED_ANDROID_CHANNELS`, use a new file name, and make a new phone build. Phones
+on an older build still get pushes, with the plain sound, until they update.
 
 To use a real bike instead, record a few seconds, trim it to under 30 seconds (iPhone's limit), save it as
 a 16-bit WAV under a new name, and follow the steps above. Live ride alerts never use it; they keep the
