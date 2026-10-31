@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { appointProblem, appointWarnings, AUDITOR_NEEDS_VOTE, SECRETARY_NEEDS_VOTE, statusChangeProblem, SUPPORTER_NEEDS_NOTICE } from './access';
+import { appointProblem, appointWarnings, AUDITOR_NEEDS_VOTE, SECRETARY_NEEDS_VOTE, statusChangeProblem, DOWNWARD_NEEDS_NOTICE } from './access';
 import { continuationFeeFor } from './fees';
 import { decideApplicationProblem, fngReviewProblem } from './joining';
 import { meetingKindLabel } from './labels';
@@ -206,7 +206,7 @@ test('the old status-change checks still come first', () => {
   assert.equal(statusChangeProblem(who(data, 'rider'), who(data, 'fng'), 'supporter', data, '2026-10-25'), 'Only that chapter’s board can change this member’s status.');
   assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'applicant'), 'fng', data, '2026-10-25'), 'Approve them first.');
   // Moving an FNG to Supporter follows a decided 5.5 notice, unless it's at their request (the launch audit's L2).
-  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'fng'), 'supporter', data, '2026-10-25'), SUPPORTER_NEEDS_NOTICE);
+  assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'fng'), 'supporter', data, '2026-10-25'), DOWNWARD_NEEDS_NOTICE);
   assert.equal(statusChangeProblem(who(data, 'sec'), who(data, 'fng'), 'supporter', data, '2026-10-25', true), null);
 });
 

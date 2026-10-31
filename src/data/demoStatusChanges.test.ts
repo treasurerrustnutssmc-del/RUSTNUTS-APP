@@ -1,10 +1,11 @@
-// The 5.5 gate on moving someone to Supporter, and the record every status change leaves (the launch
-// audit's L2). Who may do it is checked against the database by the shared parity cases.
+// The 5.5 gate on moving someone down to Supporter, Legacy or FNG, and the record every status change
+// leaves (the launch audit's L2, widened by the deep audit's F2). Who may do it is checked against the
+// database by the shared parity cases.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { club, member, who } from '../domain/stage4.testkit';
-import { SUPPORTER_NEEDS_NOTICE } from '../domain/access';
+import { DOWNWARD_NEEDS_NOTICE } from '../domain/access';
 import type { ClubData, StatusNotice } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import { setStatus, type DemoCtx } from './demoActions';
@@ -20,8 +21,12 @@ const base = club({ members: [...club().members, member('nomad', { status: 'noma
 const ctx = (id: string, data: ClubData = base): DemoCtx => ({ data, me: who(data, id), today, now });
 const changes = (data: ClubData) => data.statusChanges ?? [];
 
-test('a Full Member, FNG or Nomad moves to Supporter after a decided 5.5 notice, or at their own request', () => {
-  assert.throws(() => setStatus(ctx('sec'), 'rider', 'supporter'), (e: unknown) => e instanceof NotAllowedError && e.message === SUPPORTER_NEEDS_NOTICE);
+test('a Full Member, FNG or Nomad moves down to Supporter, Legacy or FNG after a decided 5.5 notice, or at their own request', () => {
+  assert.throws(() => setStatus(ctx('sec'), 'rider', 'supporter'), (e: unknown) => e instanceof NotAllowedError && e.message === DOWNWARD_NEEDS_NOTICE);
+  assert.throws(() => setStatus(ctx('sec'), 'rider', 'legacy'), (e: unknown) => e instanceof NotAllowedError && e.message === DOWNWARD_NEEDS_NOTICE);
+  assert.throws(() => setStatus(ctx('sec'), 'rider', 'fng'), (e: unknown) => e instanceof NotAllowedError && e.message === DOWNWARD_NEEDS_NOTICE);
+  assert.throws(() => setStatus(ctx('sec'), 'fng', 'legacy'), NotAllowedError);
+  assert.equal(who(setStatus(ctx('sec'), 'fng', 'legacy', true), 'fng').status, 'legacy', 'Legacy at their request');
   assert.throws(() => setStatus(ctx('sec'), 'fng', 'supporter'), NotAllowedError);
   assert.throws(() => setStatus(ctx('sec'), 'nomad', 'supporter'), NotAllowedError);
   const asked = setStatus(ctx('sec'), 'rider', 'supporter', true);
@@ -41,10 +46,10 @@ test('a Full Member, FNG or Nomad moves to Supporter after a decided 5.5 notice,
 });
 
 test('every other status change is recorded too, without a notice or a request', () => {
-  const data = setStatus(ctx('sec'), 'fng', 'legacy');
+  const data = setStatus(ctx('sec'), 'rider', 'nomad'); // sideways, so not gated
   assert.equal(changes(data).length, 1);
-  assert.equal(changes(data)[0].fromStatus, 'fng');
-  assert.equal(changes(data)[0].toStatus, 'legacy');
+  assert.equal(changes(data)[0].fromStatus, 'full');
+  assert.equal(changes(data)[0].toStatus, 'nomad');
   assert.equal(changes(data)[0].byRequest, false);
   assert.equal(changes(data)[0].noticeId, null);
   const twice = setStatus(ctx('sec', data), 'rider', 'supporter', true);

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useClub } from '../data/ClubStore';
 import {
-  appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, holdsBoardSeat, isBoardOf, isChairman, pendingFor, renewAuditorProblem, statusChangeProblem,
+  appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, holdsBoardSeat, isBoardOf, isChairman, isStepDown, pendingFor, renewAuditorProblem, statusChangeProblem,
 } from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
@@ -305,12 +305,12 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
     (r) => appointProblem(me, member, member.chapterId, r, data, today) === null,
   );
   const statusBlock = status && status !== member.status ? statusChangeProblem(me, member, status, data, today, byRequest) : null;
-  // Moving an FNG, Full Member or Nomad to Supporter follows a decided 5.5 notice, unless it's at their request (L2).
-  // The toggle shows only when the request is what stands between the board and the move.
-  const gatedToSupporter =
-    status === 'supporter' && ['fng', 'full', 'nomad'].includes(member.status) && isBoardOf(me, member.chapterId, data.positions)
+  // Moving an FNG, Full Member or Nomad down to Supporter, Legacy or FNG follows a decided 5.5 notice, unless it's at
+  // their request (L2). The toggle shows only when the request is what stands between the board and the move.
+  const stepDown =
+    status !== null && isStepDown(member.status, status) && isBoardOf(me, member.chapterId, data.positions)
     && statusChangeProblem(me, member, status, data, today, true) === null;
-  const decidedNotice = gatedToSupporter ? decidedNoticeFor(member.id, data, today) : null;
+  const decidedNotice = stepDown ? decidedNoticeFor(member.id, data, today) : null;
   const history = (data.statusChanges ?? []).filter((c) => c.memberId === member.id).sort((a, b) => b.changedAt.localeCompare(a.changedAt));
   const warnings = role ? appointWarnings(member, role, data, today) : [];
   const holdsNothing = member.status !== 'full' && member.status !== 'nomad';
@@ -385,16 +385,16 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
           value={status}
           onChange={(s) => { setStatus(s); setByRequest(false); }}
         />
-        {gatedToSupporter ? (
+        {stepDown && status ? (
           <Toggle
             label="At the member’s request"
-            description="They asked to step back to Supporter, so no 5.5 notice is needed. The record says so."
+            description={`They asked to step down to ${STATUS_LABEL[status]}, so no 5.5 notice is needed. The record says so.`}
             value={byRequest}
             onChange={setByRequest}
           />
         ) : null}
-        {gatedToSupporter && decidedNotice && !byRequest ? (
-          <Small>{`Their 5.5 notice was decided on ${formatAuDate(decidedNotice.closedOn!)}, so the board can move them to Supporter.`}</Small>
+        {stepDown && status && decidedNotice && !byRequest ? (
+          <Small>{`Their 5.5 notice was decided on ${formatAuDate(decidedNotice.closedOn!)}, so the board can move them to ${STATUS_LABEL[status]}.`}</Small>
         ) : null}
         {statusBlock ? (
           <Small style={{ color: colors.warn }}>{statusBlock}</Small>
@@ -456,7 +456,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
           label="Change status"
           disabled={!status || status === member.status || statusBlock !== null}
           onPress={() => status && run(async () => {
-            await setMemberStatus(member.id, status, gatedToSupporter && byRequest);
+            await setMemberStatus(member.id, status, stepDown && byRequest);
             setByRequest(false);
           }, `${displayName(member)} is now ${STATUS_LABEL[status]}.`)}
         />

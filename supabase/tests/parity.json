@@ -651,7 +651,7 @@
       "allowed": false
     },
     {
-      "name": "Board moves a member who left in good standing to Legacy",
+      "name": "Board moves a member to Legacy after a decided 5.5 notice (they left in good standing)",
       "as": "torque",
       "action": "setStatus",
       "member": "gravel",
@@ -12078,12 +12078,45 @@
       "allowed": true
     },
     {
-      "name": "Board moves a Full Member to Legacy, which isn't gated",
+      "name": "Board moves a Full Member to Legacy with no 5.5 notice",
       "as": "torque",
       "action": "setStatus",
       "member": "hal",
       "status": "legacy",
+      "allowed": false
+    },
+    {
+      "name": "Board moves a Full Member to Legacy at their own request",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "hal",
+      "status": "legacy",
+      "byRequest": true,
       "allowed": true
+    },
+    {
+      "name": "Board moves a Full Member to FNG with no 5.5 notice",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "hal",
+      "status": "fng",
+      "allowed": false
+    },
+    {
+      "name": "Board moves a Full Member to Nomad, which isn't gated",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "hal",
+      "status": "nomad",
+      "allowed": true
+    },
+    {
+      "name": "Board moves an FNG with an open notice to Legacy",
+      "as": "torque",
+      "action": "setStatus",
+      "member": "finn",
+      "status": "legacy",
+      "allowed": false
     }
   ],
   "chapters": [

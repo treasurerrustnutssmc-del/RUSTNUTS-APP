@@ -202,17 +202,20 @@ begin
   assert (select ended_on from positions where id = pg_temp.f(102)) = private.club_date(), 'ended today';
 end $$;
 
-\echo 'Moving to Supporter follows a decided 5.5 notice, unless it''s at the member''s request (L2)'
+\echo 'Moving down to Supporter, Legacy or FNG follows a decided 5.5 notice, unless it''s at the member''s request (L2, deep audit F2)'
 do $$
 declare
   set_it text := 'select public.set_member_status(%L, %L)';
   set_req text := 'select public.set_member_status(%L, %L, true)';
-  gate text := 'Moving them to Supporter follows a 5.5 notice the board has decided in the last 90 days, unless it’s at their request.';
+  gate text := 'Moving them down to Supporter, Legacy or FNG follows a 5.5 notice the board has decided in the last 90 days, unless it’s at their request.';
   n_old uuid := gen_random_uuid();
   n_new uuid := gen_random_uuid();
 begin
   assert (select count(*) from pg_proc where proname = 'set_member_status' and pronamespace = 'public'::regnamespace) = 1, 'one set_member_status';
   assert pg_temp.try_as(pg_temp.f(7), format(set_it, pg_temp.f(5), 'supporter')) = gate, 'a Full Member, no notice';
+  assert pg_temp.try_as(pg_temp.f(7), format(set_it, pg_temp.f(5), 'legacy')) = gate, 'a Full Member to Legacy, no notice';
+  assert pg_temp.try_as(pg_temp.f(7), format(set_it, pg_temp.f(5), 'fng')) = gate, 'a Full Member back to FNG, no notice';
+  assert pg_temp.try_as(pg_temp.f(7), format(set_it, pg_temp.f(13), 'legacy')) = gate, 'an FNG to Legacy, no notice';
   assert pg_temp.try_as(pg_temp.f(7), format(set_it, pg_temp.f(13), 'supporter')) = gate, 'an FNG, no notice';
   assert pg_temp.try_as(pg_temp.f(7), format(set_req, pg_temp.f(5), 'supporter')) is null, 'at Will''s request';
   assert (select status::text from members where id = pg_temp.f(5)) = 'supporter', 'Will is a Supporter';
@@ -229,6 +232,9 @@ begin
   assert pg_temp.try_as(pg_temp.f(7), format(set_it, pg_temp.f(8), 'fng')) is null, 'a Supporter becomes an FNG';
   assert (select by_request || '/' || from_status || '/' || to_status from status_changes where member_id = pg_temp.f(8)) = 'false/supporter/fng', 'recorded';
   assert pg_temp.try_as(pg_temp.f(1), format(set_it, pg_temp.f(5), 'supporter')) = 'Only that chapter’s board can change this member’s status.', 'the gate sits behind the board gate';
+  -- Legacy at the member's request is open, like Supporter, and recorded the same way.
+  assert pg_temp.try_as(pg_temp.f(7), format(set_req, pg_temp.f(13), 'legacy')) is null, 'Fay retires to Legacy at her request';
+  assert (select by_request || '/' || from_status || '/' || to_status from status_changes where member_id = pg_temp.f(13)) = 'true/fng/legacy', 'recorded as her request';
 end $$;
 
 \echo 'Status changes are read by the member, their board, the national roles and the Auditor'
@@ -242,7 +248,7 @@ begin
   -- Ann is seated as Auditor again (the admin records it), so the Auditor's read is checked.
   insert into positions (id, member_id, chapter_id, role, started_on) values (pg_temp.f(198), pg_temp.f(12), null, 'nec_auditor', private.club_date());
   foreach who in array array[pg_temp.f(7), pg_temp.f(1), pg_temp.f(3), pg_temp.f(12)] loop
-    assert pg_temp.value_as(who, 'select count(*) from status_changes') = '3', 'the board, the national roles and the Auditor see all three';
+    assert pg_temp.value_as(who, 'select count(*) from status_changes') = '4', 'the board, the national roles and the Auditor see all four';
   end loop;
   assert pg_temp.value_as(pg_temp.f(2), 'select count(*) from status_changes') = '0', 'Wes, off the board since the vote, sees none';
   assert pg_temp.try_as(null, 'select count(*) from status_changes') is not null, 'anon is refused';
