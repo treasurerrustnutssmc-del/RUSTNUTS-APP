@@ -107,7 +107,7 @@ test('every tool is strict, with every property required and nothing extra', () 
 });
 
 test('cost maths, in millionths of a US dollar at Opus 5.5 prices', () => {
-  assert.equal(costMicroUsd({ input_tokens: 1000, cache_creation_input_tokens: 2000, cache_read_input_tokens: 10000, output_tokens: 500 }), 28000);
+  assert.equal(costMicroUsd({ input_tokens: 1000, cache_creation_input_tokens: 2000, cache_read_input_tokens: 10000, output_tokens: 500 }), 26000);
   assert.equal(costMicroUsd({ input_tokens: 0, output_tokens: 0 }), 0);
   assert.equal(costMicroUsd({ input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 1 }), 1); // rounded up
 });

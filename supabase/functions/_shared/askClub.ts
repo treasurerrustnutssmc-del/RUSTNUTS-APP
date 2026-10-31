@@ -18,7 +18,7 @@ export const CUT_OFF = 'That’s as far as I got.';
 const BAD_REQUEST = 'That question didn’t come through properly. Start a new one.';
 
 /** Millionths of a US dollar per token, Claude Opus 5.5 (cache writes 1.25×, reads 0.1×). */
-const PRICE = { input: 4, cacheWrite: 5, cacheRead: 0.4, output: 20 } as const;
+const PRICE = { input: 4, cacheWrite: 5, cacheRead: 0.2, output: 20 } as const;
 
 /** One block of a message. Assistant blocks (thinking included) are passed back exactly as they came. */
 export interface ApiBlock {
