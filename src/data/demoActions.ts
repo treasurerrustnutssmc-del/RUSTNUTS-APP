@@ -2,7 +2,7 @@
 // is and hand back the club as it should be, or throw when the person isn't allowed. The
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
-import { appointProblem, decidedNoticeFor, GATED_TO_SUPPORTER, endTermProblem, isBoardOf, isLearner, LEARNER_FNG, statusChangeProblem } from '../domain/access';
+import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, isStepDown, LEARNER_FNG, statusChangeProblem } from '../domain/access';
 import { deleteAccountProblem, FORMER_MEMBER } from '../domain/account'; // Delete my account
 import { big4GoingProblem } from '../domain/big4';
 import { bookedStraightAway, bookProblem, cancelProblem, decideProblem, type BusInput } from '../domain/bus';
@@ -168,7 +168,7 @@ export function decline(ctx: DemoCtx, memberId: string): ClubData {
 }
 
 /**
- * Changes a member's status and records the change. A move to Supporter follows a decided 5.5 notice
+ * Changes a member's status and records the change. A step down to Supporter, Legacy or FNG follows a decided 5.5 notice
  * unless `byRequest` says the member asked for it; the record keeps whichever it was.
  */
 export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus, byRequest = false): ClubData {
@@ -176,7 +176,7 @@ export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus, 
   const target = findMember(ctx.data, memberId);
   const problem = statusChangeProblem(ctx.me, target, status, ctx.data, ctx.today, byRequest);
   if (problem) throw new NotAllowedError(problem);
-  const gated = status === 'supporter' && GATED_TO_SUPPORTER.includes(target.status) && !byRequest;
+  const gated = isStepDown(target.status, status) && !byRequest;
   const notice = gated ? decidedNoticeFor(memberId, ctx.data, ctx.today) : null;
   const change: StatusChange = {
     id: newId('sc'), memberId, chapterId: target.chapterId, fromStatus: target.status, toStatus: status, byRequest,

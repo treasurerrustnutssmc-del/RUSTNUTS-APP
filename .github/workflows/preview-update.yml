@@ -1,5 +1,7 @@
-# Every push to main publishes the app to the "preview" channel (the test crew's phones) and the
-# "production" channel (store installs), so phones pick up changes without a new install.
+# Every push to main publishes the app to the "preview" channel (the test crew's phones), so their
+# phones pick up changes without a new install. The "production" channel (store installs) is only
+# published by hand: Actions > Preview update > Run workflow, tick "Also publish to production". A
+# merge can't reach every member's phone unreviewed that way (deep audit, 31 Oct 2026, F5).
 # Needs the EXPO_TOKEN repository secret.
 name: Preview update
 
@@ -7,6 +9,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      production:
+        description: Also publish to production (store installs)
+        type: boolean
+        default: false
 
 # One publish at a time, so two quick merges can't ship the older one last.
 concurrency: preview-update
@@ -51,13 +58,13 @@ jobs:
         # matches the builds, and also publishes for builds made from a Windows (CRLF) checkout.
         run: scripts/preview-update.sh
       - name: Publish to store installs
-        if: env.HAS_TOKEN == 'true'
+        if: env.HAS_TOKEN == 'true' && github.event_name == 'workflow_dispatch' && inputs.production == true
         env:
           CHANNEL: production
           EXPO_PUBLIC_SUPABASE_URL: https://mfhbvsybudneimgbfjpy.supabase.co
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_SQmN9OqIfZoyxopWB_wpNA_WjzUfHkK
           EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.GIPHY_KEY }}
           MESSAGE: ${{ github.event.head_commit.message || 'Manual update' }}
-        # Same script, "production" channel and EAS environment. Until the first store build exists
-        # it only warns that no phone has that runtime yet.
+        # Same script, "production" channel and EAS environment, by hand only. Until the first store
+        # build exists it only warns that no phone has that runtime yet.
         run: scripts/preview-update.sh

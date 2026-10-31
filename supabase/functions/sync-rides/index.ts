@@ -1,9 +1,13 @@
 // sync-rides: reads the club website's calendar feeds into public.rides. Runs every 15 minutes
 // (see migration 20261024120100_ride_sync_schedule.sql) and can be run by hand. Deployed without
-// JWT checks: a call can only re-read the feeds an admin set up, nothing else.
+// JWT checks: a call can only re-read the feeds an admin set up, nothing else. With the CRON_SECRET
+// secret set, a call must carry it in an x-cron-secret header too (the scheduled calls do, through
+// private.cron_headers(); by hand, run the same net.http_post in the SQL editor; see migration
+// 20270630000000_cron_secret.sql).
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { syncAllFeeds, type Feed } from '../_shared/syncRides.ts';
+import { CRON_HEADER, cronCallAllowed } from '../_shared/cronAuth.ts';
 
 const FETCH_TIMEOUT_MS = 20_000;
 
@@ -13,7 +17,10 @@ async function fetchText(url: string): Promise<string> {
   return await res.text();
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  if (!cronCallAllowed(req.headers.get(CRON_HEADER), Deno.env.get('CRON_SECRET'))) {
+    return Response.json({ error: 'Not allowed.' }, { status: 401 });
+  }
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false },
   });
