@@ -589,6 +589,10 @@ test('homeRoadRulesRow: the Home row, for every approved member', () => {
   assert.deepEqual(homeRoadRulesRow(rider, published, today), { text: 'Not signed', tone: 'danger', opens: 'rules' });
   const signed = data({ roadRules: [version(1)], roadRulesSignoffs: [signoff('rider', 1, '2026-10-01T01:00:00.000Z')] });
   assert.deepEqual(homeRoadRulesRow(rider, signed, today), { text: 'Signed until 01/10/2027', tone: 'ok', opens: 'rules' });
+  const due = data({ roadRules: [version(1)], roadRulesSignoffs: [signoff('rider', 1, '2025-11-11T01:00:00.000Z')] });
+  assert.deepEqual(homeRoadRulesRow(rider, due, today), { text: 'Due 11/11/2026', tone: 'warn', opens: 'rules' });
+  const expired = data({ roadRules: [version(1)], roadRulesSignoffs: [signoff('rider', 1, '2025-09-01T01:00:00.000Z')] });
+  assert.deepEqual(homeRoadRulesRow(rider, expired, today), { text: 'Not signed', tone: 'danger', opens: 'rules' });
   // Legacy members aren't asked to sign, but can still read them.
   const legacy = member('legacy', { status: 'legacy' });
   assert.deepEqual(homeRoadRulesRow(legacy, published, today), { text: 'Version 1', tone: null, opens: 'rules' });

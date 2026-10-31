@@ -71,7 +71,7 @@ export function HomeRoadRulesRow({ onOpen }: { onOpen: (to: 'RoadRules' | 'RoadR
   const { me, data, today } = useClub();
   const row = homeRoadRulesRow(me, data, today);
   if (!row) return null;
-  const color = row.tone === 'warn' ? colors.warn : row.tone === 'danger' ? colors.danger : colors.boneDim;
+  const color = row.tone === 'warn' ? colors.warn : row.tone === 'danger' ? colors.danger : row.tone === 'ok' ? colors.bone : colors.boneDim;
   return (
     <Card style={{ padding: 0, gap: 0 }}>
       <ListRow
