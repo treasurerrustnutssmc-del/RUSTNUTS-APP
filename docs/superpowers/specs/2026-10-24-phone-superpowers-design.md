@@ -254,6 +254,11 @@ Self-approved 2026-10-24 once lane B's chat was on `main`. Jeff can veto.
 **On the phone (`src/data/shareIn.tsx`):**
 - `IncomingShare` is mounted inside the signed-in tabs, so a share waits until the member is signed in
   and approved.
+- Everyone else gets the waiting-share strip (31/10/2026, `useWaitingShare` and `ShareWaitingStrip`, see
+  DESIGN.md "Top strips"). A signed-out share is kept and opens after sign-in (on Android only while
+  the app stays open). An applicant's or family account's share can never open, so it's let go when
+  they tap Got it or leave the app; otherwise an iPhone keeps it for good and it opens by itself on
+  approval.
 - When resolved items arrive, it measures photos and videos (their width and height, which the upload
   needs) and opens `ShareIn` with the draft.
 - It then clears the items and refreshes, so sharing the same thing twice still works.
