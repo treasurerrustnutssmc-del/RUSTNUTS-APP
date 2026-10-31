@@ -4,7 +4,7 @@
 
 import React, { forwardRef } from 'react';
 import Svg, { Circle, G, Image as SvgImage, Polyline, Rect, Text as SvgText } from 'react-native-svg';
-import { partialLine, type ReplayFrame, type ReplayPlan } from '../domain/rideReplay';
+import { partialLine, titleLayout, type ReplayFrame, type ReplayPlan } from '../domain/rideReplay';
 import { formatKm } from '../domain/routes';
 import { projectLine } from '../domain/routeShape';
 import type { Route } from '../domain/types';
@@ -14,10 +14,7 @@ import { colors, fonts } from '../theme';
 export const VIDEO_W = 450;
 export const VIDEO_H = 800;
 
-const PANEL = { x: 20, y: 268, w: 410, h: 392 };
 const PAD = 30;
-const LOGO_W = 168;
-const LOGO_H = Math.round((LOGO_W * 765) / 1093);
 
 export interface ReplayCardProps {
   plan: ReplayPlan;
@@ -46,6 +43,7 @@ export const ReplayCard = forwardRef<Svg, ReplayCardProps>(function ReplayCard(
   { plan, frame, bounds, routeName, titleLines, date, category, stats, width, height, onLogoLoad },
   ref,
 ) {
+  const { logo, panel: PANEL, titleSize, dateSize, lineYs, dateY } = titleLayout(titleLines.length);
   const project = (line: [number, number][]) =>
     projectLine(line, bounds, PANEL.w, PANEL.h, PAD).map(([x, y]) => [x + PANEL.x, y + PANEL.y] as [number, number]);
   const full = project(plan.line);
@@ -54,31 +52,30 @@ export const ReplayCard = forwardRef<Svg, ReplayCardProps>(function ReplayCard(
   const [sx, sy] = full[0];
   const [fx, fy] = full[full.length - 1];
   const stops = project(plan.stops.map((s) => [s.lat, s.lng]));
-  const titleY = 44 + LOGO_H + 44;
   const stencil = { fontFamily: fonts.stencil };
   const stopNumber = frame.atStop ? plan.stops.indexOf(frame.atStop) + 1 : 0;
   return (
     <Svg ref={ref} width={width} height={height} viewBox={`0 0 ${VIDEO_W} ${VIDEO_H}`}>
       <Rect x={0} y={0} width={VIDEO_W} height={VIDEO_H} fill={colors.ink} />
       <SvgImage
-        x={(VIDEO_W - LOGO_W) / 2}
-        y={28}
-        width={LOGO_W}
-        height={LOGO_H}
+        x={(VIDEO_W - logo.w) / 2}
+        y={logo.y}
+        width={logo.w}
+        height={logo.h}
         href={require('../../assets/logo.png')}
         preserveAspectRatio="xMidYMid meet"
         onLoad={onLogoLoad}
       />
       {titleLines.map((line, i) => (
-        <SvgText key={i} x={VIDEO_W / 2} y={titleY + i * 34} textAnchor="middle" fontSize={30} letterSpacing={1} fill={colors.bone} {...stencil}>
+        <SvgText key={i} x={VIDEO_W / 2} y={lineYs[i]} textAnchor="middle" fontSize={titleSize} letterSpacing={1} fill={colors.bone} {...stencil}>
           {line}
         </SvgText>
       ))}
       <SvgText
         x={VIDEO_W / 2}
-        y={titleY + titleLines.length * 34 + 4}
+        y={dateY}
         textAnchor="middle"
-        fontSize={17}
+        fontSize={dateSize}
         letterSpacing={1.5}
         fill={colors.boneMute}
         {...stencil}

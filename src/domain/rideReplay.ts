@@ -210,5 +210,51 @@ export function wrapLines(text: string, maxChars: number, maxLines: number): str
       return lines;
     }
   }
-  return lines;
+  return lines.length === 2 ? evenSplit(words) : lines;
+}
+
+/** Two lines with the longer one as short as it can be (the first wins a tie). */
+function evenSplit(words: string[]): string[] {
+  let best = [words.join(' ')];
+  let longest = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const pair = [words.slice(0, i).join(' '), words.slice(i).join(' ')];
+    const n = Math.max(pair[0].length, pair[1].length);
+    if (n < longest) {
+      best = pair;
+      longest = n;
+    }
+  }
+  return best;
+}
+
+/** Where the title card's parts sit on the 450×800 card. */
+export interface TitleLayout {
+  logo: { y: number; w: number; h: number };
+  panel: { x: number; y: number; w: number; h: number };
+  titleSize: number;
+  dateSize: number;
+  /** The baseline of each title line. */
+  lineYs: number[];
+  /** The baseline of the date and chapter line. */
+  dateY: number;
+}
+
+const LOGO_W = 140;
+const LOGO = { y: 28, w: LOGO_W, h: Math.round((LOGO_W * 765) / 1093) };
+const PANEL = { x: 20, y: 268, w: 410, h: 392 };
+const TITLE_SIZE = 30;
+const TITLE_STEP = 34;
+const DATE_SIZE = 17;
+const DATE_GAP = 12;
+
+/** Stacks the title lines and the date line, centred in the gap between the logo and the map. */
+export function titleLayout(lines: number): TitleLayout {
+  const capTop = TITLE_SIZE * 0.75;
+  const height = (lines > 0 ? capTop + (lines - 1) * TITLE_STEP + DATE_GAP : 0) + DATE_SIZE;
+  const top = (LOGO.y + LOGO.h + PANEL.y - height) / 2;
+  const first = top + capTop;
+  const lineYs = Array.from({ length: lines }, (_, i) => Math.round(first + i * TITLE_STEP));
+  const dateY = Math.round(lines > 0 ? first + (lines - 1) * TITLE_STEP + DATE_GAP + DATE_SIZE : top + DATE_SIZE * 0.75);
+  return { logo: LOGO, panel: PANEL, titleSize: TITLE_SIZE, dateSize: DATE_SIZE, lineYs, dateY };
 }
