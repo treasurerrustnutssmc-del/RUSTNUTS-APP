@@ -19,6 +19,7 @@ import {
   SIGN_OUTDATED,
   currentRoadRules,
   draftProblem,
+  homeRoadRulesRow,
   openRoadRules,
   pinnedRoadRules,
   publishProblem,
@@ -63,7 +64,26 @@ import { chapterColours } from '../ui/RouteBits';
 import { IllustratedRulesCard } from './roadRulesGuide';
 
 /** What members see before the NEC has published anything. */
-const NOTHING_YET = 'The NEC hasn’t published the Road Rules in the app yet.';
+const NOTHING_YET = 'The NEC hasn’t published the version you sign yet. Read the illustrated draft above in the meantime.';
+
+/** Home: the Road Rules, one tap away for every approved member (the draft until the NEC publishes). */
+export function HomeRoadRulesRow({ onOpen }: { onOpen: (to: 'RoadRules' | 'RoadRulesGuide') => void }) {
+  const { me, data, today } = useClub();
+  const row = homeRoadRulesRow(me, data, today);
+  if (!row) return null;
+  const color = row.tone === 'warn' ? colors.warn : row.tone === 'danger' ? colors.danger : row.tone === 'ok' ? colors.bone : colors.boneDim;
+  return (
+    <Card style={{ padding: 0, gap: 0 }}>
+      <ListRow
+        last
+        left={<IconBadge icon="document-text-outline" tone={row.tone === 'danger' ? 'red' : undefined} />}
+        title="Road Rules"
+        subtitle={<Text style={[styles.homeLine, { color }]}>{row.text}</Text>}
+        onPress={() => onOpen(row.opens === 'guide' ? 'RoadRulesGuide' : 'RoadRules')}
+      />
+    </Card>
+  );
+}
 
 /** "Published 30/09/2026 by Rusty". */
 function publishedLine(v: RoadRulesVersion, data: ClubData): string {
@@ -93,11 +113,12 @@ export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRule
   if (!current || !view.version) {
     return (
       <Screen>
-        <Notice title="No Road Rules yet">{NOTHING_YET}</Notice>
+        {/* Nothing to sign yet, so the illustrated draft leads: there's always something to read. */}
+        <IllustratedRulesCard onRules={() => navigation.navigate('RoadRulesGuide')} onDiagrams={() => navigation.navigate('RoadRulesDiagrams')} />
+        <Notice title="No signed version yet">{NOTHING_YET}</Notice>
         {publisher ? (
           <Button label="Write the first version" icon="create-outline" onPress={() => navigation.navigate('EditRoadRules')} />
         ) : null}
-        <IllustratedRulesCard onRules={() => navigation.navigate('RoadRulesGuide')} onDiagrams={() => navigation.navigate('RoadRulesDiagrams')} />
       </Screen>
     );
   }
@@ -601,6 +622,7 @@ function Group({
 }
 
 const styles = StyleSheet.create({
+  homeLine: { fontFamily: fonts.stencil, fontSize: 13, lineHeight: 18, letterSpacing: 0.3 },
   published: { fontFamily: fonts.stencil, fontSize: 15, lineHeight: 20, letterSpacing: 0.4, color: colors.boneDim },
   olderLine: { gap: space.sm, rowGap: 0 },
   olderText: { ...type.body, color: colors.boneDim },
