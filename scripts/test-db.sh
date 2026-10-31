@@ -405,6 +405,15 @@ done
 "${PSQL[@]}" -d rustnuts_club_assistant -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_club_assistant -f "$ROOT/supabase/tests/club_assistant_test.sql"
 
+# The storage purge on account deletion, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_purge" >/dev/null
+"${PSQL[@]}" -d rustnuts_purge -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_purge -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_purge -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_purge -f "$ROOT/supabase/tests/storage_purge_test.sql"
+
 # Member content rules (App Store Guideline 1.2), on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_content_rules" >/dev/null
 "${PSQL[@]}" -d rustnuts_content_rules -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
@@ -414,5 +423,13 @@ done
 "${PSQL[@]}" -d rustnuts_content_rules -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_content_rules -f "$ROOT/supabase/tests/member_content_rules_test.sql"
 
-echo 'ALL DATABASE CHECKS PASSED'
+# The shared secret for the functions pg_cron calls, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_cron_secret" >/dev/null
+"${PSQL[@]}" -d rustnuts_cron_secret -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_cron_secret -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_cron_secret -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_cron_secret -f "$ROOT/supabase/tests/cron_secret_test.sql"
 
+echo 'ALL DATABASE CHECKS PASSED'

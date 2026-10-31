@@ -2,13 +2,19 @@
 // Runs every minute (see migration 20270201020000_push.sql). Deployed with verify_jwt off, like
 // sync-rides: a call can only send what the database has queued, and while the master switch
 // (private.app_settings 'push_enabled') is off the database holds everything and nothing is sent.
+// With the CRON_SECRET secret set, a call must carry it in an x-cron-secret header too (the scheduled
+// calls do, through private.cron_headers(); see migration 20270630000000_cron_secret.sql).
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { sendAll, type ExpoTicket, type OutboxMessage } from '../_shared/sendPush.ts';
+import { CRON_HEADER, cronCallAllowed } from '../_shared/cronAuth.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  if (!cronCallAllowed(req.headers.get(CRON_HEADER), Deno.env.get('CRON_SECRET'))) {
+    return Response.json({ error: 'Not allowed.' }, { status: 401 });
+  }
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false },
   });

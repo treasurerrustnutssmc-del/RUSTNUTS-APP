@@ -140,7 +140,7 @@ begin
   assert (select patched_on from members where id = hacker) is null, 'no patch date';
 end $$;
 
-\echo 'The board can move a member to Legacy when they leave in good standing'
+\echo 'The board can move a member to Legacy when they leave in good standing, at their request (5.5 gate otherwise)'
 do $$
 declare rock constant uuid := '00000000-0000-0000-0000-0000000000a1';
 declare holder constant uuid := '00000000-0000-0000-0000-0000000000a6';
@@ -174,7 +174,7 @@ begin
   reset role;
   perform set_config('request.jwt.claim.sub', wendy::text, true);
   set local role authenticated;
-  perform public.set_member_status(rock, 'legacy');
+  perform public.set_member_status(rock, 'legacy', true); -- left in good standing: at his request, so no 5.5 notice
   reset role;
   assert (select status from members where id = rock) = 'legacy', 'moved to Legacy once his term ended';
   assert not (select on_hiatus from members where id = rock), 'no longer on hiatus';

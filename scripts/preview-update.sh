@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Publishes the checked-out commit to an EAS channel ("preview" unless CHANNEL says otherwise).
-# Run by .github/workflows/preview-update.yml, once for preview and once for production.
+# Run by .github/workflows/preview-update.yml: for preview on every push to main, and for production
+# only on a manual run with 'Also publish to production' ticked.
 #
 # Phones only take an update whose runtime fingerprint matches their build. The fingerprint hashes
 # some text files, so a build made from a Windows (CRLF) checkout has a different fingerprint from

@@ -339,11 +339,17 @@ export function hasCarriedReinstateVote(memberId: string, data: ClubData, today:
 
 export const NEEDS_NEC_VOTE = 'Coming back to Full or Nomad needs a carried NEC vote (5.6).';
 export const NEEDS_PATCH_VOTE = 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).';
-export const SUPPORTER_NEEDS_NOTICE = 'Moving them to Supporter follows a 5.5 notice the board has decided in the last 90 days, unless it’s at their request.';
-/** How long a decided 5.5 notice stays good for a move to Supporter (inferred, as for the votes). */
+export const DOWNWARD_NEEDS_NOTICE = 'Moving them down to Supporter, Legacy or FNG follows a 5.5 notice the board has decided in the last 90 days, unless it’s at their request.';
+/** How long a decided 5.5 notice stays good for a step down (inferred, as for the votes). */
 export const NOTICE_DAYS = 90;
-/** The statuses a move to Supporter is gated for: the people who'd lose something (5.5). */
-export const GATED_TO_SUPPORTER: MemberStatus[] = ['fng', 'full', 'nomad'];
+/** The statuses a step down is gated from: the people who'd lose something (5.5). */
+export const GATED_FROM: MemberStatus[] = ['fng', 'full', 'nomad'];
+/** The statuses that count as a step down. Nomad is sideways (5.3), so it isn't here. */
+export const GATED_TO: MemberStatus[] = ['supporter', 'legacy', 'fng'];
+/** A move the board makes only after a decided 5.5 notice, unless the member asked for it. Mirrors set_member_status. */
+export function isStepDown(from: MemberStatus, to: MemberStatus): boolean {
+  return GATED_TO.includes(to) && GATED_FROM.includes(from) && from !== to;
+}
 
 /** The newest 5.5 notice about this member the board decided in the last 90 days, or null. */
 export function decidedNoticeFor(memberId: string, data: ClubData, today: string): StatusNotice | null {
@@ -359,8 +365,8 @@ export function decidedNoticeFor(memberId: string, data: ClubData, today: string
  * Why `me` can't move `target` to `status`, or null. Mirrors the database's set_member_status.
  * An FNG reaches Full or Nomad only through a carried patch vote (4.9); anyone else coming back
  * to Full or Nomad needs a carried NEC vote (5.6), and then the NEC makes the change. Positions
- * end first when the new status can't hold them. Moving an FNG, Full Member or Nomad to Supporter
- * follows a decided 5.5 notice unless `byRequest` records that the member asked for it. `today` is
+ * end first when the new status can't hold them. Moving an FNG, Full Member or Nomad down to Supporter,
+ * Legacy or FNG follows a decided 5.5 notice unless `byRequest` records that the member asked for it. `today` is
  * the Melbourne date.
  */
 export function statusChangeProblem(
@@ -383,9 +389,7 @@ export function statusChangeProblem(
   const held = activePositions(target.id, data.positions).filter((p) => !TITLE_ROLES.includes(p.role));
   if (!patched(status) && held.length > 0) return 'End their positions first.';
   if (status === 'nomad' && held.some((p) => SEAT_ROLES.includes(p.role))) return 'End their board and national seats first (9.1).';
-  if (status === 'supporter' && GATED_TO_SUPPORTER.includes(target.status) && !byRequest && !decidedNoticeFor(target.id, data, today)) {
-    return SUPPORTER_NEEDS_NOTICE;
-  }
+  if (isStepDown(target.status, status) && !byRequest && !decidedNoticeFor(target.id, data, today)) return DOWNWARD_NEEDS_NOTICE;
   return null;
 }
 

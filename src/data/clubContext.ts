@@ -133,7 +133,7 @@ export interface ClubContextValue {
   /** Demo only: a removed profile report clears the bio on the demo's own club data. */
   demoClearBio?: (memberId: string) => void;
   declineMember: (memberId: string) => Promise<void>;
-  /** `byRequest` records that a move to Supporter is at the member's own request, which takes the place of a decided 5.5 notice. */
+  /** `byRequest` records that a step down to Supporter, Legacy or FNG is at the member's own request, which takes the place of a decided 5.5 notice. */
   setMemberStatus: (memberId: string, status: MemberStatus, byRequest?: boolean) => Promise<void>;
   /** Saves profile and (when given) private details together: both or neither. */
   saveProfile: (profile: ProfileInput, priv: PrivateInput | null) => Promise<void>;

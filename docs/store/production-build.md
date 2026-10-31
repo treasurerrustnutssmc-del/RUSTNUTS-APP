@@ -8,9 +8,10 @@
   store builds on Windows (CRLF changes the fingerprint; see `.gitattributes`).
   - **Android** gives an app bundle (`.aab`) for Google Play.
   - **iOS** needs the club's Apple developer account first.
-- **Updates:** every merge to `main` publishes to both channels: `preview` for the test crew and
-  `production` for store installs (`scripts/preview-update.sh` with `CHANNEL=production`). A merge
-  reaches store users as well as testers, so treat main as live.
+- **Updates:** every merge to `main` publishes to the `preview` channel (the test crew). The
+  `production` channel (store installs) is published by hand: GitHub › Actions › **Preview update** ›
+  Run workflow, tick **Also publish to production** (`scripts/preview-update.sh` with
+  `CHANNEL=production`). Treat that run as a release: it reaches every member's phone within minutes.
 - **Environment:** the build and its updates read the EAS "production" environment
   (GOOGLE_MAPS_ANDROID_KEY). GIF search's GIPHY key reaches store phones with the first update.
 - **Submitting:** `eas submit --profile production --platform android` uploads to Play's internal

@@ -24,7 +24,7 @@ import {
   seesBoardOf,
   pendingFor,
   SECRETARY_NEEDS_VOTE,
-  SUPPORTER_NEEDS_NOTICE,
+  DOWNWARD_NEEDS_NOTICE,
   visibleMembers,
   withHolders,
 } from './access';
@@ -315,18 +315,23 @@ test('national roles see every chapter’s board records, and act only where the
   assert.equal(statusChangeProblem(m('m-smokey'), m('m-dylan'), 'full', d, '2026-10-29'), 'Only that chapter’s board can change this member’s status.');
 });
 
-test('moving an FNG, Full Member or Nomad to Supporter follows a decided 5.5 notice, unless it’s at their request (L2)', () => {
+test('moving an FNG, Full Member or Nomad down to Supporter, Legacy or FNG follows a decided 5.5 notice, unless it’s at their request (L2, deep audit F2)', () => {
   const torque = m('m-torque');
-  assert.equal(statusChangeProblem(torque, m('m-throttle'), 'supporter', d, TODAY), SUPPORTER_NEEDS_NOTICE, 'an FNG, no notice decided');
+  assert.equal(statusChangeProblem(torque, m('m-throttle'), 'supporter', d, TODAY), DOWNWARD_NEEDS_NOTICE, 'an FNG, no notice decided');
   assert.equal(statusChangeProblem(torque, m('m-throttle'), 'supporter', d, TODAY, true), null, 'at her request');
-  assert.equal(statusChangeProblem(torque, m('m-throttle'), 'legacy', d, TODAY), null, 'other moves aren’t gated');
-  assert.equal(statusChangeProblem(m('m-smokey'), m('m-ratchet'), 'supporter', d, TODAY), SUPPORTER_NEEDS_NOTICE, 'a Nomad');
+  assert.equal(statusChangeProblem(torque, m('m-throttle'), 'legacy', d, TODAY), DOWNWARD_NEEDS_NOTICE, 'Legacy is a step down too');
+  assert.equal(statusChangeProblem(torque, m('m-throttle'), 'legacy', d, TODAY, true), null, 'Legacy at her request');
+  assert.equal(statusChangeProblem(m('m-smokey'), m('m-ratchet'), 'supporter', d, TODAY), DOWNWARD_NEEDS_NOTICE, 'a Nomad');
   assert.equal(statusChangeProblem(torque, m('m-patches'), 'fng', d, TODAY), null, 'a Supporter becomes an FNG');
   // Gravel's open notice doesn't count; a decided one within 90 days does, an older one doesn't.
   assert.equal(statusChangeProblem(torque, m('m-gravel'), 'supporter', d, TODAY), 'End their positions first.', 'the position check still comes first');
   const noSeat = { ...d, positions: d.positions.filter((p) => p.id !== 'p-6') };
-  assert.equal(statusChangeProblem(torque, m('m-gravel'), 'supporter', noSeat, TODAY), SUPPORTER_NEEDS_NOTICE, 'the notice is still open');
+  assert.equal(statusChangeProblem(torque, m('m-gravel'), 'supporter', noSeat, TODAY), DOWNWARD_NEEDS_NOTICE, 'the notice is still open');
   assert.equal(decidedNoticeFor('m-gravel', noSeat, TODAY), null);
+  assert.equal(statusChangeProblem(torque, m('m-gravel'), 'fng', noSeat, TODAY), DOWNWARD_NEEDS_NOTICE, 'a Full Member back to FNG');
+  assert.equal(statusChangeProblem(torque, m('m-gravel'), 'legacy', noSeat, TODAY), DOWNWARD_NEEDS_NOTICE, 'a Full Member to Legacy');
+  assert.equal(statusChangeProblem(torque, m('m-gravel'), 'legacy', noSeat, TODAY, true), null, 'Legacy at his request');
+  assert.equal(statusChangeProblem(torque, m('m-gravel'), 'nomad', noSeat, TODAY), null, 'Nomad is sideways, not down');
   const decided = (closedOn: string) => ({
     ...noSeat,
     statusNotices: noSeat.statusNotices!.map((n) => ({ ...n, outcome: 'decided' as const, closedOn, closedBy: 'm-torque' })),
@@ -334,7 +339,7 @@ test('moving an FNG, Full Member or Nomad to Supporter follows a decided 5.5 not
   assert.equal(decidedNoticeFor('m-gravel', decided('2026-10-20'), TODAY)?.id, 'sn-gravel');
   assert.equal(statusChangeProblem(torque, m('m-gravel'), 'supporter', decided('2026-10-20'), TODAY), null, 'after the decided notice');
   assert.equal(statusChangeProblem(torque, m('m-gravel'), 'supporter', decided('2026-07-31'), TODAY), null, '90 days is still in time');
-  assert.equal(statusChangeProblem(torque, m('m-gravel'), 'supporter', decided('2026-07-30'), TODAY), SUPPORTER_NEEDS_NOTICE, '91 days is stale');
+  assert.equal(statusChangeProblem(torque, m('m-gravel'), 'supporter', decided('2026-07-30'), TODAY), DOWNWARD_NEEDS_NOTICE, '91 days is stale');
   assert.equal(statusChangeProblem(m('m-smokey'), m('m-gravel'), 'supporter', decided('2026-10-20'), TODAY), 'Only that chapter’s board can change this member’s status.', 'the board gate comes first');
 });
 

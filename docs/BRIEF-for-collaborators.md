@@ -319,7 +319,8 @@ proxying link-card images; Rusty Bus editing and running costs.
 
 - The four website and DNS jobs above. They unblock the store accounts, which is the critical path to
   launch.
-- Deploying Edge Functions Claude can't (`sync-rides` now; `send-push` when push goes on at launch).
+- Deploying Edge Functions Claude can't (`sync-rides` now; `send-push` when push goes on at launch;
+  `purge-files`, which deletes a departed member's files, before launch).
 - Reviewing PRs, and running the app on a real phone (Chris's phone counts towards the Stage 6 phone
   tests in the project's `build/lane-e/real-phone-tests.md`).
 - Website side: the ride calendar source, and later the "Get the app" link (after launch, not before).
