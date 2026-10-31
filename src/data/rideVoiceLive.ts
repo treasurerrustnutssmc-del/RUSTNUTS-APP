@@ -13,8 +13,11 @@ function prepare() {
   if (prepared) return;
   registerGlobals({ autoConfigureAudioSession: false });
   if (Platform.OS === 'ios') {
-    // Voice chat mode is Apple's voice processing (noise and echo); Bluetooth lets the helmet's mic in.
-    const call = { audioCategory: 'playAndRecord', audioCategoryOptions: ['allowBluetooth'], audioMode: 'voiceChat' } as const;
+    // Voice chat mode is Apple's voice processing (noise and echo); Bluetooth lets the helmet's mic
+    // in; defaultToSpeaker puts the call on the speaker, not the earpiece, when no headset is on.
+    // No mixWithOthers: a mixable session can't own Now Playing, which the headset-button mute needs.
+    const call = { audioCategory: 'playAndRecord', audioCategoryOptions: ['allowBluetooth', 'defaultToSpeaker'], audioMode: 'voiceChat' } as const;
+    // The first argument (preferSpeakerOutput) is ignored once a policy is given; the policy decides.
     setupIOSAudioManagement(true, { recording: { ...call, audioCategoryOptions: [...call.audioCategoryOptions] }, playout: { ...call, audioCategoryOptions: [...call.audioCategoryOptions] } });
   }
   prepared = true;

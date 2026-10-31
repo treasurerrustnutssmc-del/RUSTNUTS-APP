@@ -6,12 +6,17 @@
 // every 30 seconds on Android, even standing still), when the app opens, or on a timer while it's
 // running. This file must be imported at start-up (index.ts) so the background task is defined
 // before the phone wakes it.
+//
+// iPhone differences: the background task starts with "While Using" permission (the blue pill keeps
+// it going with the screen off) and "Always" is only offered, once; the location service ignores
+// timeInterval, so the phone throttles its own posts (liveFixThrottle.ts).
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { AppState, Platform } from 'react-native';
+import { FIX_POST_GAP_MS, NO_POSTS, afterPost, beforePost, shouldPostFix, type FixThrottle } from '../domain/liveFixThrottle';
 import { LIVE_MSG } from '../domain/liveRide';
 import { showWhileOpen } from '../domain/notifications';
 import { melbourneTime } from '../domain/rides';
@@ -27,8 +32,10 @@ export const LIVE_TASK = 'rustnuts-live-ride';
 const ACTIVE = 'live.active';
 const SEEN = 'live.seen';
 const UNSENT = 'live.unsent';
+const ALWAYS_ASKED = 'live.alwaysAsked';
 const CHANNEL = 'ride-alerts';
 const NATIVE = Platform.OS !== 'web';
+const IOS = Platform.OS === 'ios';
 
 interface Active {
   rideId: string;
@@ -109,7 +116,15 @@ export function noticeAlerts(state: LiveState, fix: Fix | null, meId: string): P
     for (const a of fresh) {
       const { title, body } = alertNotice(a, fix);
       await Notifications.scheduleNotificationAsync({
-        content: { title, body, sound: true, data: { kind: 'live-alert', rideId: state.rideId }, priority: Notifications.AndroidNotificationPriority.MAX },
+        // timeSensitive: on iPhone the alert breaks through Focus and the summary (the app has the entitlement).
+        content: {
+          title,
+          body,
+          sound: true,
+          data: { kind: 'live-alert', rideId: state.rideId },
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          interruptionLevel: 'timeSensitive',
+        },
         trigger: Platform.OS === 'android' ? { channelId: CHANNEL } : null,
       }).catch(() => {});
     }
@@ -143,13 +158,27 @@ export const dismissUnsent = () => AsyncStorage.removeItem(UNSENT).catch(() => {
 // Tracking
 // ---------------------------------------------------------------------------
 
+// Between fixes: whether a post is out and when the last one went. Module state, so a share the
+// phone restarts in the background begins afresh and its first fix posts straight away.
+let throttle: FixThrottle = NO_POSTS;
+
 async function handleFix(fix: Fix): Promise<void> {
   const active = await read<Active | null>(ACTIVE, null);
   if (!active) return;
+  // The switch-off check comes before the throttle, so a skipped fix still ends an overdue share.
   if (Date.now() >= new Date(active.stopsAt).getTime()) {
     await stopTracking();
     return;
   }
+  // On iPhone fixes arrive every second or so while the app is open; one post every 25 s is plenty.
+  // A skipped fix still reaches the screen so the rider's own pin keeps moving. Anything waiting
+  // for signal (an alert, a stop) goes through regardless: the post is what sends it.
+  const queued = (await heldAlerts()).length > 0;
+  if (!shouldPostFix(throttle, Date.now(), queued)) {
+    listeners.forEach((l) => l(fix, null, null));
+    return;
+  }
+  throttle = beforePost(throttle, Date.now());
   try {
     const state = await withTimeout((await backend()).update(active.rideId, fix));
     await noticeAlerts(state, fix, active.meId);
@@ -159,6 +188,8 @@ async function handleFix(fix: Fix): Promise<void> {
     // The club has stopped this rider sharing (ride cancelled, switched off, cleaned up): stop the GPS too.
     if ((e as Error).message === LIVE_MSG.notSharing) await stopTracking();
     listeners.forEach((l) => l(fix, null, e as Error));
+  } finally {
+    throttle = afterPost(throttle);
   }
 }
 
@@ -228,6 +259,44 @@ async function startWatch(): Promise<void> {
   });
 }
 
+/** Starts (or restarts) the background location task for a share that switches off at `stopsAt`. */
+async function startBackgroundTask(stopsAt: string): Promise<void> {
+  if (await Location.hasStartedLocationUpdatesAsync(LIVE_TASK)) await Location.stopLocationUpdatesAsync(LIVE_TASK);
+  await Location.startLocationUpdatesAsync(LIVE_TASK, {
+    ...OPTIONS,
+    // iOS reads deferredUpdatesInterval and not timeInterval: expo-location 58's
+    // ios/TaskConsumers/EXLocationTaskConsumer.m setOptions: passes only accuracy, distanceInterval,
+    // activityType, pausesUpdatesAutomatically and showsBackgroundLocationIndicator to the
+    // CLLocationManager, and shouldReportDeferredLocations reads deferredUpdatesInterval (and only
+    // in the background: in the foreground every fix is handed over, which the JS throttle covers).
+    ...(IOS ? { deferredUpdatesInterval: FIX_POST_GAP_MS } : {}),
+    pausesUpdatesAutomatically: false,
+    activityType: Location.ActivityType.AutomotiveNavigation,
+    showsBackgroundLocationIndicator: true,
+    foregroundService: {
+      notificationTitle: 'Sharing your location with the ride',
+      notificationBody: `Switches off at ${melbourneTime(stopsAt)}. Tap to open.`,
+      notificationColor: '#B92632',
+    },
+  });
+}
+
+/**
+ * iPhone: offers "Always" once per install, after the task is already running. Always is optional
+ * there (a task started with "While Using" keeps going behind the blue pill; Always only lets a
+ * share restart after the app is force-quit), so a refusal, a dismissed prompt or an error changes
+ * nothing, and the rider isn't asked again.
+ */
+async function offerAlwaysOnce(): Promise<void> {
+  try {
+    if (await read<boolean>(ALWAYS_ASKED, false)) return;
+    await write(ALWAYS_ASKED, true);
+    await Location.requestBackgroundPermissionsAsync();
+  } catch {
+    // Not granted, or couldn't ask: the share runs on "While Using" just the same.
+  }
+}
+
 /**
  * Starts reading the location for this ride until `stopsAt`. Says how: 'background' (keeps going
  * with the screen off), 'foreground' (only while the app is open) or 'denied' (location is off).
@@ -237,26 +306,25 @@ export async function startTracking(rideId: string, stopsAt: string, meId: strin
   if (!fg?.granted) return 'denied';
   await write(ACTIVE, { rideId, stopsAt, meId } satisfies Active);
   armOffTimer(stopsAt);
+  throttle = NO_POSTS;
 
   if (NATIVE) {
     await ensureChannels();
     await Notifications.requestPermissionsAsync().catch(() => null);
     try {
       if (await TaskManager.isAvailableAsync()) {
+        if (IOS) {
+          // Start first: iOS only needs "While Using" to start the task (expo-location 58,
+          // ios/LocationModule.swift startLocationUpdatesAsync checks the foreground permission
+          // alone). Asking for Always afterwards means nothing about that prompt can stop the share.
+          await startBackgroundTask(stopsAt);
+          await offerAlwaysOnce();
+          return 'background';
+        }
+        // Android needs "all the time" for the service to outlive the screen.
         const bg = await Location.requestBackgroundPermissionsAsync();
         if (bg.granted) {
-          if (await Location.hasStartedLocationUpdatesAsync(LIVE_TASK)) await Location.stopLocationUpdatesAsync(LIVE_TASK);
-          await Location.startLocationUpdatesAsync(LIVE_TASK, {
-            ...OPTIONS,
-            pausesUpdatesAutomatically: false,
-            activityType: Location.ActivityType.AutomotiveNavigation,
-            showsBackgroundLocationIndicator: true,
-            foregroundService: {
-              notificationTitle: 'Sharing your location with the ride',
-              notificationBody: `Switches off at ${melbourneTime(stopsAt)}. Tap to open.`,
-              notificationColor: '#B92632',
-            },
-          });
+          await startBackgroundTask(stopsAt);
           return 'background';
         }
       }
