@@ -14,6 +14,7 @@ import { ChatListScreen, ChatReportsScreen, ChatScreen, NewChatScreen } from '..
 import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { DeleteAccountScreen } from '../screens/deleteAccount'; // Delete my account
+import { AskClubScreen } from '../screens/askClub'; // Ask the club
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
 import { PickCrewScreen } from '../screens/pickCrew';
@@ -279,6 +280,8 @@ export function RootNavigator() {
             <Stack.Screen name="EditBike" component={EditBikeScreen} options={({ route }) => ({ title: route.params?.bikeId ? 'Edit bike' : 'Add a bike' })} />
             <Stack.Screen name="EditContact" component={EditContactScreen} options={({ route }) => ({ title: route.params?.contactId ? 'Emergency contact' : 'Add a contact' })} />
             <Stack.Screen name="ManageMember" component={ManageMemberScreen} options={{ title: 'Manage member' }} />
+            {/* Ask the club, the club assistant */}
+            <Stack.Screen name="AskClub" component={AskClubScreen} options={{ title: 'Ask the club' }} />
             {/* Stage 5: meetings and votes */}
             <Stack.Screen name="Business" component={BusinessScreen} options={{ title: 'Meetings and votes' }} />
             <Stack.Screen name="Meeting" component={MeetingScreen} options={{ title: 'Meeting' }} />

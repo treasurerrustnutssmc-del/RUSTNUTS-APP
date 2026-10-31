@@ -85,7 +85,9 @@ export function demoReply(messages: ApiMessage[], ctx: DemoCtx): AskReply {
     });
   }
   if (/add a ride|new ride|ride idea|plan a ride/.test(q)) {
-    const day = addDays(melbourneDate(ctx.now), 14);
+    // The first Sunday at least a fortnight away.
+    let day = addDays(melbourneDate(ctx.now), 14);
+    while (weekday(day) !== 'Sun') day = addDays(day, 1);
     const chapter = ctx.data.chapters.find((c) => c.id === ctx.me.chapterId)?.slug;
     return propose(messages, `Here’s a ride for ${weekday(day)} ${formatAuDate(day)}, leaving at 9:00 am.`, 'add_ride', {
       title: 'Sunday ride', date: day, start_time: '09:00', end_time: '', location: '', notes: '',
