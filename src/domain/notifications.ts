@@ -12,7 +12,6 @@ export function completePrefs<T extends NotificationPrefs | null | undefined>(pr
   return (prefs ? { ...DEFAULT_PREFS, ...prefs } : prefs) as T;
 }
 
-/** The Harley rev, bundled with the phone build (app.json, expo-notifications "sounds"). */
 /**
  * Whether the phone lets the app notify: on, not decided yet (the app can ask), or blocked (only the
  * phone's settings can turn it back on). Unknown until read, and always on the web.
@@ -22,7 +21,18 @@ export function phoneNotificationState(p: { granted: boolean; canAskAgain: boole
   return p.granted ? 'on' : p.canAskAgain ? 'ask' : 'blocked';
 }
 
-export const REV_SOUND = 'v_twin_rev.wav';
+/** The Harley rev, bundled with the phone build (app.json, expo-notifications "sounds"). The second
+ *  version: the first (v_twin_rev.wav) was mostly bass a phone speaker can't play, so what came out
+ *  was its hiss and crackle. */
+export const REV_SOUND = 'v_twin_rev_2.wav';
+
+/** Android fixes a channel's sound once it exists, so a new rev sound needs new channel ids. The
+ *  number goes up each time the rev changes, and the old ids join RETIRED_ANDROID_CHANNELS. */
+const REV = '-rev2';
+
+/** Channels from earlier rev sounds. The phone deletes them so they stop showing in its settings;
+ *  they are never reused, since Android would bring back the old sound. */
+export const RETIRED_ANDROID_CHANNELS = ['ride-reminders-rev', 'club-rev', 'chat-rev'];
 
 /** What a notification is: a ride reminder, news from the club, a chat message, or a live ride alert (safety). */
 export type NotificationKind = 'reminder' | 'club' | 'chat' | 'live-alert';
@@ -33,11 +43,11 @@ export type NotificationKind = 'reminder' | 'club' | 'chat' | 'live-alert';
  * emergency never sounds like a reminder.
  */
 export const ANDROID_CHANNELS: { id: string; name: string; urgent: boolean; sound: string }[] = [
-  { id: 'ride-reminders-rev', name: 'Ride reminders (Harley rev)', urgent: false, sound: REV_SOUND },
+  { id: `ride-reminders${REV}`, name: 'Ride reminders (Harley rev)', urgent: false, sound: REV_SOUND },
   { id: 'ride-reminders', name: 'Ride reminders', urgent: false, sound: 'default' },
-  { id: 'club-rev', name: 'Club news (Harley rev)', urgent: false, sound: REV_SOUND },
+  { id: `club${REV}`, name: 'Club news (Harley rev)', urgent: false, sound: REV_SOUND },
   { id: 'club', name: 'Club news', urgent: false, sound: 'default' },
-  { id: 'chat-rev', name: 'Chat messages (Harley rev)', urgent: false, sound: REV_SOUND },
+  { id: `chat${REV}`, name: 'Chat messages (Harley rev)', urgent: false, sound: REV_SOUND },
   { id: 'chat', name: 'Chat messages', urgent: false, sound: 'default' },
   { id: 'ride-alerts', name: 'Live ride alerts', urgent: true, sound: 'default' },
 ];
@@ -46,7 +56,7 @@ export const ANDROID_CHANNELS: { id: string; name: string; urgent: boolean; soun
 export function soundFor(kind: NotificationKind, revSound: boolean): { channelId: string; sound: string } {
   if (kind === 'live-alert') return { channelId: 'ride-alerts', sound: 'default' };
   const base = kind === 'reminder' ? 'ride-reminders' : kind;
-  return revSound ? { channelId: `${base}-rev`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
+  return revSound ? { channelId: `${base}${REV}`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
 }
 
 /** Where tapping a notification goes, from what it carries (pushes and the phone's own reminders). */

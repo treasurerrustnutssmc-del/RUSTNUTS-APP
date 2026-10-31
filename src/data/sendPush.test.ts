@@ -12,8 +12,8 @@ test('one message per phone, all sent high priority so a sleeping Android shows 
   const msgs = toExpoMessages([row(), row({ id: 2, title: 'EMERGENCY: Rusty needs help', data: { kind: 'live-alert', rideId: 'r2' }, tokens: ['ExponentPushToken[c]'] })]);
   assert.equal(msgs.length, 3);
   assert.deepEqual(msgs[0], {
-    to: 'ExponentPushToken[a]', title: 'Ride cancelled', body: 'West run · Sat 07/11/2026', sound: 'v_twin_rev.wav',
-    channelId: 'club-rev', data: { kind: 'ride', rideId: 'r1' }, priority: 'high', outboxId: 1,
+    to: 'ExponentPushToken[a]', title: 'Ride cancelled', body: 'West run · Sat 07/11/2026', sound: 'v_twin_rev_2.wav',
+    channelId: 'club-rev2', data: { kind: 'ride', rideId: 'r1' }, priority: 'high', outboxId: 1,
   });
   assert.equal(msgs[2].priority, 'high');
   assert.equal(msgs[2].channelId, 'ride-alerts');

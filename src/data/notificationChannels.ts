@@ -6,7 +6,7 @@
 import * as Notifications from 'expo-notifications';
 import { AndroidImportance } from 'expo-notifications';
 import { Platform } from 'react-native';
-import { ANDROID_CHANNELS } from '../domain/notifications';
+import { ANDROID_CHANNELS, RETIRED_ANDROID_CHANNELS } from '../domain/notifications';
 
 let made: Promise<void> | null = null;
 
@@ -26,6 +26,8 @@ export function ensureChannels(): Promise<void> {
         failed = true;
       });
     }
+    // The first rev's channels (once the new ones exist): gone from the phone's settings, so nobody picks the old sound there.
+    if (!failed) for (const id of RETIRED_ANDROID_CHANNELS) await Notifications.deleteNotificationChannelAsync(id).catch(() => {});
     if (failed) made = null; // try again next time
   })();
   return made;

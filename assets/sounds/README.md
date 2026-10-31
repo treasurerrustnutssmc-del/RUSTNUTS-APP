@@ -1,13 +1,21 @@
 # Notification sounds
 
-`v_twin_rev.wav` is the Harley rev: a V-twin idling, blipped and settling (2.4 s, 44.1 kHz mono).
-It's synthesised from scratch by `scripts/make-rev-sound.py` (no recording or sample was used), so
-the club owns it outright and there's no licence to track. Run the script again to rebuild it
-byte for byte.
+`v_twin_rev_2.wav` is the Harley rev: Jeff's own bike starting up, the starter catching and the first
+revs (2.6 s, 44.1 kHz 16-bit mono). It's made from his recording
+(`scripts/sound-sources/jeffs-bike-2026-11-01.m4a`, the club's own) by `bash scripts/make-rev-sound.sh`,
+which trims it, cuts the deep rumble a phone speaker can't play, evens it out and levels it.
 
-To use a real bike instead, record a few seconds, trim it to under 30 seconds (iPhone's limit),
-save it as a 16-bit WAV with this same name, and make a new phone build. Live ride alerts never use
-it; they keep the phone's urgent alarm.
+It replaced `v_twin_rev.wav` (31 Oct 2026), a synthesised rev that was mostly bass a phone speaker can't
+play, so phones only gave out its hiss and crackle.
+
+Changing the sound needs new Android channel ids, because Android fixes a channel's sound once it exists:
+bump `REV` in `src/domain/notifications.ts` and the matching ids in `supabase/functions/_shared/sendPush.ts`,
+add the old ids to `RETIRED_ANDROID_CHANNELS`, use a new file name, and make a new phone build. Phones
+on an older build still get pushes, with the plain sound, until they update.
+
+To use a different recording, record a few seconds, trim it to under 30 seconds (iPhone's limit), save it as
+a 16-bit WAV under a new name, and follow the steps above. Live ride alerts never use it; they keep the
+phone's urgent alarm.
 
 # Demo ride comms
 
