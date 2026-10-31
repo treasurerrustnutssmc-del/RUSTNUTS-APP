@@ -10,6 +10,7 @@ import {
   replayFileName,
   replayPlan,
   replayStats,
+  titleLayout,
   wrapLines,
 } from './rideReplay';
 import type { Ride, Route } from './types';
@@ -167,4 +168,19 @@ test('long titles wrap to two lines and end with an ellipsis', () => {
   assert.deepEqual(wrapLines('Supercalifragilisticexpialidocious', 10, 2), ['Supercali…']);
   assert.deepEqual(wrapLines('', 10, 2), []);
   assert.deepEqual(wrapLines('Big day out Supercalifragilistic', 11, 1), ['Big day ou…']);
+  // A title that fits on two lines is split evenly, so no word is left alone on the second.
+  assert.deepEqual(wrapLines('Twisty Training Day 2', 20, 2), ['Twisty', 'Training Day 2']);
+  assert.deepEqual(wrapLines('West Christmas run', 14, 2), ['West', 'Christmas run']);
+});
+
+test('a two-line title and its date line sit between the logo and the map', () => {
+  for (const lines of [0, 1, 2]) {
+    const l = titleLayout(lines);
+    assert.equal(l.lineYs.length, lines);
+    // The first line's capitals clear the logo, and the date line clears the map panel.
+    const top = lines > 0 ? l.lineYs[0] - l.titleSize * 0.75 : l.dateY - l.dateSize * 0.75;
+    assert.ok(top >= l.logo.y + l.logo.h + 12, `${lines} lines: ${top} hits the logo`);
+    assert.ok(l.dateY + l.dateSize * 0.25 <= l.panel.y - 12, `${lines} lines: date at ${l.dateY} hits the map`);
+    if (lines === 2) assert.ok(l.lineYs[1] - l.lineYs[0] >= l.titleSize);
+  }
 });
