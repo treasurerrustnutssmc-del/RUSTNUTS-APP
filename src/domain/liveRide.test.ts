@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  BACKGROUND_LOCATION_NOTICE,
   LIVE_MSG,
   alertProblem,
   awayText,
@@ -197,4 +198,15 @@ test('every refusal reads the same in the database', () => {
   for (const text of Object.values(LIVE_MSG)) {
     assert.ok(sql.includes(text.replace(/'/g, "''")), `the database says "${text}"`);
   }
+});
+
+// Google Play's prominent-disclosure rule: before the background location prompt, the app says it
+// collects location, for what, and that it carries on when the app is closed or not in use.
+test('the live ride card says location keeps being collected when the app is closed', () => {
+  assert.match(BACKGROUND_LOCATION_NOTICE, /location/);
+  assert.match(BACKGROUND_LOCATION_NOTICE, /even when the app is closed or not in use/);
+  const screen = readFileSync(join(__dirname, '../screens/liveRide.tsx'), 'utf8');
+  const notice = screen.indexOf('BACKGROUND_LOCATION_NOTICE}');
+  const button = screen.indexOf('label="Share my location"');
+  assert.ok(notice > 0 && notice < button, 'the notice shows above the Share my location button');
 });
