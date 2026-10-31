@@ -7,8 +7,8 @@
         "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_SQmN9OqIfZoyxopWB_wpNA_WjzUfHkK"
       }
     },
-    "preview": { "extends": "base", "distribution": "internal", "channel": "preview", "android": { "buildType": "apk" } },
-    "production": { "extends": "base", "channel": "production", "autoIncrement": true }
+    "preview": { "extends": "base", "environment": "preview", "distribution": "internal", "channel": "preview", "android": { "buildType": "apk" } },
+    "production": { "extends": "base", "environment": "production", "channel": "production", "autoIncrement": true, "android": { "buildType": "app-bundle" } }
   },
-  "submit": { "production": {} }
+  "submit": { "production": { "android": { "track": "internal", "releaseStatus": "draft" } } }
 }

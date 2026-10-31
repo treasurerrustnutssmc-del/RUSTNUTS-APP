@@ -1,5 +1,6 @@
-# Every push to main publishes the app to the "preview" channel, so the test crew's phones
-# pick up changes without a new install. Needs the EXPO_TOKEN repository secret.
+# Every push to main publishes the app to the "preview" channel (the test crew's phones) and the
+# "production" channel (store installs), so phones pick up changes without a new install.
+# Needs the EXPO_TOKEN repository secret.
 name: Preview update
 
 on:
@@ -48,4 +49,15 @@ jobs:
           MESSAGE: ${{ github.event.head_commit.message || 'Manual update' }}
         # Loads the EAS "preview" environment (GOOGLE_MAPS_ANDROID_KEY for ride maps) so the fingerprint
         # matches the builds, and also publishes for builds made from a Windows (CRLF) checkout.
+        run: scripts/preview-update.sh
+      - name: Publish to store installs
+        if: env.HAS_TOKEN == 'true'
+        env:
+          CHANNEL: production
+          EXPO_PUBLIC_SUPABASE_URL: https://mfhbvsybudneimgbfjpy.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_SQmN9OqIfZoyxopWB_wpNA_WjzUfHkK
+          EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.GIPHY_KEY }}
+          MESSAGE: ${{ github.event.head_commit.message || 'Manual update' }}
+        # Same script, "production" channel and EAS environment. Until the first store build exists
+        # it only warns that no phone has that runtime yet.
         run: scripts/preview-update.sh
