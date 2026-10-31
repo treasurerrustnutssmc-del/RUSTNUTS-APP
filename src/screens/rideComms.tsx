@@ -8,6 +8,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { useClub } from '../data/ClubStore';
 import { useRideVoice } from '../data/rideVoice';
 import { voiceRoster, voiceStatus } from '../domain/rideVoice';
+import { DEMO_COMMS_CAPTION } from '../domain/rideVoiceDemo';
 import type { RootParams } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import { Card, H2, Ionicons, Notice, Row, Small, type IconName } from '../ui/primitives';
@@ -63,7 +64,7 @@ export function RideCommsCard({ rideId, problem }: { rideId: string; problem: st
       {!on ? (
         <>
           <Small>Open mic with everyone on this ride. Nothing is recorded. Your headset’s play button may mute it too.</Small>
-          {voice.mode === 'demo' ? <Small>Demo: the other riders are made up.</Small> : null}
+          {voice.mode === 'demo' ? <Small>{DEMO_COMMS_CAPTION}</Small> : null}
           {problem ? <Notice>{problem}</Notice> : null}
           {elsewhere ? <Notice>You’re on another ride’s comms. Disconnect there first.</Notice> : null}
           <BigButton

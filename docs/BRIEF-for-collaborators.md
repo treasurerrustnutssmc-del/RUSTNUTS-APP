@@ -205,7 +205,7 @@ credentials in chat or commits)
 | Sign-in emails | Supabase custom SMTP through the treasurer Gmail (about 500 a day). Move to a proper sender on the club domain before launch |
 | Ride calendar | Google calendar "Rustnuts Rides" (the same one the website reads through Chris's Cloudflare Worker) |
 | Domain | `rustnutssmc.com.au`, DNS at Quantum Core. Chris holds the login. Website on GitHub Pages (`dysco54.github.io`) |
-| Still to make | Apple Developer and Google Play org accounts (need D-U-N-S and `apps@` email), Firebase (Android push), payments account (card fees), a weather provider, a Google Maps key |
+| Still to make | Apple Developer and Google Play org accounts (need D-U-N-S and `apps@` email), Firebase (Android push), APNs key on EAS (iPhone push; `docs/store/production-build.md`), payments account (card fees), a weather provider, a Google Maps key |
 
 Jeff pays the running costs himself.
 
@@ -298,7 +298,8 @@ Edge Functions: Claude is also blocked from deploying them. Chris, with Supabase
 - PayID details (calling the bank). This year's AGM date (1 August assumed). Fee due date (31/12/2026
   assumed).
 - Real-phone tests for Stage 6 on a development build (live ride, notifications, share-in, ride comms).
-- Accounts: D-U-N-S, Apple, Google Play, Firebase (to turn push on at launch), payments, weather, maps.
+- Accounts: D-U-N-S, Apple, Google Play, Firebase and the APNs key on EAS (to turn push on at
+  launch), payments, weather, maps.
 - Good Standing: should overdue fees stop someone voting?
 
 ### Built-in "later" list (from the v4 audit and handovers)

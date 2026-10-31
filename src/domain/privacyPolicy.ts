@@ -126,7 +126,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
         points: [
           'Supabase stores the club’s data and files. Our database is in Sydney, Australia.',
           'Google (Gmail) sends your sign-in code emails from the club’s email account.',
-          'Expo delivers app updates and passes notifications to Google Firebase Cloud Messaging (Android) and Apple Push Notification service (iPhone). They see your device’s push token and the text of each notification.',
+          'Expo delivers app updates and passes notifications to Google Firebase Cloud Messaging (Android) and Apple Push Notification service (iPhone). They see your device’s push token and the text of each notification. When the app checks for an update it also sends Expo the text of the last crash, if there was one, and a random install id; we use that to fix problems, and it isn’t tied to you or your account.',
           'LiveKit carries ride comms voice between riders, live. It isn’t recorded.',
           'Open-Meteo gives ride weather. Your phone asks it directly, so it gets the ride’s route points and places and your phone’s internet (IP) address, but not your name or account.',
           'Google Maps (on Android) and Apple Maps (on iPhone) draw ride maps. If you tap Navigate, the route opens in your maps app, under that app’s own privacy terms.',

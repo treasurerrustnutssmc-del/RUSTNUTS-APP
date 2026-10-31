@@ -29,6 +29,12 @@ test('the updated line shows the date as DD/MM/YYYY', () => {
   assert.equal(privacyUpdatedLine('2026-10-31'), 'Last updated 31/10/2026');
 });
 
+test('the policy says what the update check sends Expo (last crash text and a random install id)', () => {
+  const services = JSON.stringify(PRIVACY_SECTIONS.find((s) => s.id === 'services'));
+  assert.ok(services.includes('crash'), 'names the crash text');
+  assert.ok(services.includes('install id'), 'names the install id');
+});
+
 test('the policy names every outside service the app sends data to', () => {
   const all = JSON.stringify(PRIVACY_SECTIONS);
   for (const name of ['Supabase', 'Expo', 'Firebase', 'Apple Push', 'LiveKit', 'Open-Meteo', 'Google Maps', 'Apple Maps', 'GIPHY', 'Gmail']) {
