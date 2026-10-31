@@ -186,10 +186,10 @@ Everything in this section is in scope. Each line says where it stands today.
   `.github/workflows/preview-update.yml`, which tests, typechecks and publishes to the `preview`
   channel, so test phones pick up changes without a reinstall. A phone only takes an update whose
   runtime fingerprint matches its build, and the fingerprint hashes some text files, so line endings
-  matter: `.gitattributes` gives every checkout LF. Builds made earlier from a Windows (CRLF) checkout
-  still get updates, because `scripts/preview-update.sh` also publishes from a CRLF copy when such a
-  build exists. On a Windows clone made before `.gitattributes`, run
-  `git rm -r --cached . && git reset --hard` once before making a build.
+  matter: `.gitattributes` gives every checkout LF. Android builds made earlier from a Windows (CRLF)
+  checkout still get updates, because `scripts/preview-update.sh` also publishes from a CRLF copy when
+  such a build exists. On a Windows clone made before `.gitattributes`, commit or stash your work, then
+  run `git rm -r --cached .` and `git reset --hard` once before making a build.
 - LiveKit Cloud for ride comms voice, plus a local native module in `modules/ride-comms` (Kotlin/Swift).
 - GIPHY for GIFs (key is a GitHub Actions secret, never in the repo).
 

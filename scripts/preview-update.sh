@@ -3,13 +3,14 @@
 #
 # Phones only take an update whose runtime fingerprint matches their build. The fingerprint hashes
 # some text files, so a build made from a Windows (CRLF) checkout has a different fingerprint from
-# CI's LF checkout. .gitattributes now gives every checkout LF, but builds made from CRLF checkouts
-# before that are still installed, so this also publishes from a CRLF copy whenever a preview build
-# exists with that fingerprint.
+# CI's LF checkout. .gitattributes now gives every checkout LF, but Android builds made from CRLF
+# checkouts before that are still installed, so this also publishes from a CRLF copy whenever a
+# preview build exists with that fingerprint.
 #
 #   MESSAGE   update message (required)
 #   DRY_RUN=1 work out the fingerprints and which builds they reach, publish nothing
 set -euo pipefail
+shopt -s inherit_errexit
 
 : "${MESSAGE:?MESSAGE is required}"
 ENVIRONMENT=preview
@@ -18,9 +19,10 @@ CHANNEL=preview
 # Kept outside the checkout: a new file in it (or a .gitignore line for one) would change the fingerprint.
 work=$(mktemp -d)
 
-runtime() { # platform
-  eas env:exec "$ENVIRONMENT" "npx expo-updates runtimeversion:resolve --platform $1 > $work/runtime-$1.json" --non-interactive >/dev/null
-  node -p "require('$work/runtime-$1.json').runtimeVersion"
+runtime() { # platform, label
+  local out="$work/runtime-$1-$2.json"
+  eas env:exec "$ENVIRONMENT" "npx expo-updates runtimeversion:resolve --platform $1 > $out" --non-interactive >/dev/null || return 1
+  node -p "require('$out').runtimeVersion"
 }
 
 has_build() { # platform runtime
@@ -38,20 +40,26 @@ publish() { # message, extra eas update args...
   eas update --channel "$CHANNEL" --environment "$ENVIRONMENT" --message "$message" --non-interactive "$@"
 }
 
-android_lf=$(runtime android)
-echo "Android runtime (LF checkout): $android_lf"
-has_build android "$android_lf" || echo "::warning::No finished $CHANNEL Android build has runtime $android_lf yet, so no phone gets this update until a new build is installed."
-publish "$MESSAGE"
+checkout_with() { # attributes line, or empty for the repo's own .gitattributes
+  if [ -n "$1" ]; then printf '%s\n*.cmd -text\n' "$1" > .git/info/attributes; else rm -f .git/info/attributes; fi
+  git rm -q -r --cached .
+  git reset -q --hard
+}
+trap 'checkout_with ""' EXIT
 
-# Windows-made builds: same commit, CRLF line endings.
-printf '* text=auto eol=crlf\n*.cmd -text\n' > .git/info/attributes
-git rm -q -r --cached . && git reset -q --hard
-android_crlf=$(runtime android)
+android_lf=$(runtime android lf)
+echo "Android runtime (LF checkout): $android_lf"
+
+# Windows-made builds first, while the checkout is still clean: same commit, CRLF line endings.
+checkout_with '* text=auto eol=crlf'
+android_crlf=$(runtime android crlf)
 echo "Android runtime (CRLF checkout): $android_crlf"
 if [ "$android_crlf" != "$android_lf" ] && has_build android "$android_crlf"; then
   publish "$MESSAGE (for builds made on Windows)" --platform android
 else
   echo "No $CHANNEL Android build made from a CRLF checkout, skipping."
 fi
-rm .git/info/attributes
-git rm -q -r --cached . && git reset -q --hard
+checkout_with ''
+
+has_build android "$android_lf" || echo "::warning::No finished $CHANNEL Android build has runtime $android_lf yet, so no Android phone gets this update until a new build is installed."
+publish "$MESSAGE"
