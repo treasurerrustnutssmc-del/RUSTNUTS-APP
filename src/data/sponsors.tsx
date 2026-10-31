@@ -12,7 +12,7 @@ import { archiveSponsorProblem, sponsorProblem, sponsorsSeenBy, type Sponsor, ty
 import type { MediaSource } from './chat/chatContext';
 import { uploadName } from './chat/liveChat';
 import { NotAllowedError, useClub } from './clubContext';
-import { USE_LIVE_DATA } from './config';
+import { appMode, liveDataOn } from './reviewMode';
 import { friendlyError, supabase } from './supabase';
 import {
   DEMO_SPONSORS,
@@ -56,9 +56,11 @@ interface State {
   loadError: string | null;
 }
 
-let state: State = USE_LIVE_DATA
-  ? { forId: undefined, ready: false, sponsors: [], loadError: null }
-  : { forId: null, ready: true, sponsors: DEMO_SPONSORS, loadError: null };
+const startState = (): State =>
+  liveDataOn()
+    ? { forId: undefined, ready: false, sponsors: [], loadError: null }
+    : { forId: null, ready: true, sponsors: DEMO_SPONSORS, loadError: null };
+let state: State = startState();
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => {
   state = { ...state, ...next };
@@ -71,6 +73,12 @@ const subscribe = (l: () => void) => {
 const urls = new Map<string, { url: string; until: number }>();
 // Each load is numbered, so one that finishes after a later one can't put back an older list.
 let loads = 0;
+// Into or out of the store review demo: start again from that side's list.
+appMode.subscribe(() => {
+  loads++;
+  urls.clear();
+  set(startState());
+});
 
 async function loadLive(forId: string | null | undefined): Promise<void> {
   const mine = ++loads;
@@ -105,12 +113,12 @@ export function useSponsors(): SponsorsValue {
   const meId = me?.id ?? null;
 
   const refresh = useCallback(async () => {
-    if (!USE_LIVE_DATA) return;
+    if (!liveDataOn()) return;
     return loadLive(state.forId);
   }, []);
 
   useEffect(() => {
-    if (!USE_LIVE_DATA || state.forId === meId) return;
+    if (!liveDataOn() || state.forId === meId) return;
     set({ forId: meId, ready: false, sponsors: [], loadError: null });
     urls.clear();
     void refresh();
@@ -119,7 +127,7 @@ export function useSponsors(): SponsorsValue {
   const ctx = (): SponsorCtx => ({ me, positions: data.positions, chapterIds: data.chapters.map((c) => c.id) });
 
   const save = async (input: SponsorInput, logo: PickedMedia | null): Promise<string> => {
-    if (!USE_LIVE_DATA) {
+    if (!liveDataOn()) {
       const result = demoSaveSponsor(state.sponsors, ctx(), { ...input, logoPath: logo ? logo.uri : input.logoPath }, `demo-sponsor-${Date.now()}`);
       set({ sponsors: result.list });
       return result.id;
@@ -138,7 +146,7 @@ export function useSponsors(): SponsorsValue {
   };
 
   const archive = async (id: string): Promise<void> => {
-    if (!USE_LIVE_DATA) {
+    if (!liveDataOn()) {
       set({ sponsors: demoArchiveSponsor(state.sponsors, ctx(), id, new Date().toISOString()) });
       return;
     }
@@ -150,7 +158,7 @@ export function useSponsors(): SponsorsValue {
   };
 
   const logoUrl = useCallback(async (path: string): Promise<MediaSource> => {
-    if (!USE_LIVE_DATA) return path;
+    if (!liveDataOn()) return path;
     const kept = urls.get(path);
     if (kept && kept.until > Date.now()) return kept.url;
     const { data: signed, error } = await db().storage.from(BUCKET).createSignedUrl(path, URL_LIFE_S);

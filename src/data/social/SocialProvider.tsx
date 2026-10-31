@@ -3,12 +3,12 @@
 
 import React from 'react';
 import { useClub } from '../clubContext';
-import { USE_LIVE_DATA } from '../config';
+import { liveDataOn } from '../reviewMode';
 import { DemoSocialProvider } from './DemoSocialProvider';
 import { LiveSocialProvider } from './LiveSocialProvider';
 
 export function SocialProvider({ children }: { children: React.ReactNode }) {
-  return USE_LIVE_DATA ? <LiveSocial>{children}</LiveSocial> : <DemoSocialProvider>{children}</DemoSocialProvider>;
+  return liveDataOn() ? <LiveSocial>{children}</LiveSocial> : <DemoSocialProvider>{children}</DemoSocialProvider>;
 }
 
 // A fresh load for each person who signs in, so nothing of the last person's lingers.

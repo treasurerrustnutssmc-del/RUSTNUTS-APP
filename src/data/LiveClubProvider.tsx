@@ -76,6 +76,8 @@ import { agmDateProblem, recordAgmProblem } from '../domain/clubYear';
 import { forFamily } from './familyData'; // Family view
 import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
+import { isReviewerCode, isReviewerEmail } from '../domain/reviewer'; // Store review demo
+import { appMode } from './reviewMode';
 // Lane E: offline
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
@@ -273,6 +275,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     signInAs: () => {},
 
     sendCode: async (email) => {
+      // Store review demo: nothing goes out; the reviewers have the code in their notes.
+      if (isReviewerEmail(email)) return;
       const { error } = await supabase().auth.signInWithOtp({
         email: email.trim().toLowerCase(),
         options: { shouldCreateUser: true },
@@ -281,6 +285,11 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
 
     verifyCode: async (email, code) => {
+      if (isReviewerEmail(email)) {
+        if (!isReviewerCode(code)) throw new Error('That code isn’t right. Check the review notes for it.');
+        await appMode.startReview(); // the app swaps over to the demo club by itself
+        return;
+      }
       const { error } = await supabase().auth.verifyOtp({
         email: email.trim().toLowerCase(),
         token: code.replace(/\s/g, ''),

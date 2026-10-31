@@ -18,6 +18,7 @@ import { melbourneTime } from '../domain/rides';
 import type { LiveState } from '../domain/types';
 import type { Fix } from './liveRideBackend';
 import { liveBackend } from './liveRideSource';
+import { appMode } from './reviewMode';
 import { ensureChannels } from './notificationChannels';
 import { viewingChat } from './viewingChat';
 import { alertNotice, createAlertQueue, unseenAlerts, type QueuedAlert, type Refused } from './liveQueue';
@@ -74,6 +75,12 @@ export function withTimeout<T>(promise: Promise<T>, ms = 8_000): Promise<T> {
   });
 }
 
+// A fix can wake the app in the background before it has read whether it's in the store review demo.
+async function backend() {
+  await appMode.load();
+  return liveBackend();
+}
+
 function toFix(loc: Location.LocationObject): Fix {
   const { latitude, longitude, accuracy, heading, speed } = loc.coords;
   return {
@@ -113,8 +120,8 @@ export function noticeAlerts(state: LiveState, fix: Fix | null, meId: string): P
 }
 
 const queue = createAlertQueue(AsyncStorage, async (item) => {
-  if (item.kind === 'stop') await withTimeout(liveBackend().stop(item.rideId));
-  else await withTimeout(liveBackend().raise(item.rideId, item.kind, item.at, item.queuedAt));
+  if (item.kind === 'stop') await withTimeout((await backend()).stop(item.rideId));
+  else await withTimeout((await backend()).raise(item.rideId, item.kind, item.at, item.queuedAt));
 });
 
 /** Sends what's waiting for signal. An emergency or dropping out the club refused (say the ride
@@ -144,7 +151,7 @@ async function handleFix(fix: Fix): Promise<void> {
     return;
   }
   try {
-    const state = await withTimeout(liveBackend().update(active.rideId, fix));
+    const state = await withTimeout((await backend()).update(active.rideId, fix));
     await noticeAlerts(state, fix, active.meId);
     await flushQueue();
     listeners.forEach((l) => l(fix, state, null));

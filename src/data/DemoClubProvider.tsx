@@ -19,12 +19,16 @@ import * as ledger from './ledgerActions';
 import * as admin from './adminActions'; // Stage 5D
 import * as docs from './documentActions';
 import { forFamily } from './familyData'; // Family view
+import { REVIEWER_DEMO_MEMBER } from '../domain/reviewer'; // Store review demo
+import { appMode } from './reviewMode';
 import * as audit from './auditActions'; // National Auditor
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
   const [data, setData] = useState<ClubData>(() => ({ ...DEMO_DATA, rides: [...DEMO_DATA.rides, demoTodayRide()] }));
-  const [meId, setMeId] = useState<string | null>(null);
+  // Store review demo: the reviewers arrive signed in, as a Full member.
+  const reviewing = appMode.reviewing();
+  const [meId, setMeId] = useState<string | null>(reviewing ? REVIEWER_DEMO_MEMBER : null);
   // The routes' GPX files, by route id, apart from the club data as the database keeps them.
   const routeFiles = useRef(new Map(Object.entries(DEMO_ROUTE_GPX)));
   const today = melbourneDate(new Date().toISOString()); // the club's day, wherever the phone is
@@ -68,7 +72,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     verifyCode: async () => {
       throw new Error('No emails go out in the demo. Pick someone below instead.');
     },
-    signOut: async () => setMeId(null),
+    // Signing out of the review demo goes back to the real sign-in screen.
+    signOut: async () => (reviewing ? appMode.endReview() : setMeId(null)),
     refresh,
 
     submitApplication: async (input) => {

@@ -2,7 +2,7 @@
 // riders otherwise. The demo reads the demo club through whatever the demo provider binds here.
 
 import type { ClubData, Member } from '../domain/types';
-import { USE_LIVE_DATA } from './config';
+import { liveDataOn } from './reviewMode';
 import type { LiveRideBackend } from './liveRideBackend';
 import { liveRideApi } from './liveRideApi';
 import { createDemoLiveBackend } from './liveRideDemo';
@@ -18,7 +18,7 @@ export function bindDemoLive(view: DemoView): void {
 }
 
 export function liveBackend(): LiveRideBackend {
-  if (USE_LIVE_DATA) return liveRideApi;
+  if (liveDataOn()) return liveRideApi;
   demo ??= createDemoLiveBackend(() => demoView());
   return demo;
 }
