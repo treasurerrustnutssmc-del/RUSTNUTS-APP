@@ -3,6 +3,8 @@
 # Run it by hand from the Actions tab. Needs the EXPO_TOKEN repository secret.
 #
 # Android makes an app bundle for Google Play. iOS needs the club's Apple developer account first.
+# ios-simulator is a test iPhone build for the iOS Simulator: it needs no Apple account, and the job
+# waits for it, so a red job means the iPhone app doesn't compile.
 name: Store build
 
 on:
@@ -11,7 +13,7 @@ on:
       platform:
         description: Which phones
         type: choice
-        options: [android, ios, all]
+        options: [android, ios, all, ios-simulator]
         default: android
 
 jobs:
@@ -32,4 +34,11 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       # The build itself runs on EAS; --no-wait ends this job once it's queued. The build page link
       # is in the log. Env vars (Google Maps key) come from the EAS "production" environment.
-      - run: eas build --profile production --platform ${{ inputs.platform }} --non-interactive --no-wait
+      - env:
+          PLATFORM: ${{ inputs.platform }}
+        run: |
+          if [ "$PLATFORM" = ios-simulator ]; then
+            eas build --profile ios-simulator --platform ios --non-interactive
+          else
+            eas build --profile production --platform "$PLATFORM" --non-interactive --no-wait
+          fi

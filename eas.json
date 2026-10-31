@@ -8,7 +8,13 @@
       }
     },
     "preview": { "extends": "base", "environment": "preview", "distribution": "internal", "channel": "preview", "android": { "buildType": "apk" } },
-    "production": { "extends": "base", "environment": "production", "channel": "production", "autoIncrement": true, "android": { "buildType": "app-bundle" } }
+    "production": { "extends": "base", "environment": "production", "channel": "production", "autoIncrement": true, "android": { "buildType": "app-bundle" } },
+    "ios-simulator": { "extends": "base", "environment": "preview", "distribution": "internal", "channel": "preview", "ios": { "simulator": true } }
   },
-  "submit": { "production": { "android": { "track": "internal", "releaseStatus": "draft" } } }
+  "submit": {
+    "production": {
+      "android": { "track": "internal", "releaseStatus": "draft" },
+      "ios": { "appleId": "apps@rustnutssmc.com.au" }
+    }
+  }
 }
