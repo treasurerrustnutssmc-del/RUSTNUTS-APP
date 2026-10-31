@@ -62,6 +62,7 @@ import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Spon
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
 } from '../screens/invites'; // Invites to and from other clubs
+import { RideReplayScreen } from '../screens/rideReplay'; // Ride replay
 import { FamilyHomeScreen, FamilyMeScreen, FamilyRideScreen } from '../screens/family'; // Family view
 import { colors, fonts } from '../theme';
 import { Skull } from '../ui/primitives';
@@ -303,6 +304,8 @@ export function RootNavigator() {
             <Stack.Screen name="BusCosts" component={BusCostsScreen} options={{ title: 'Running costs' }} />
             {/* Lane E: live ride */}
             <Stack.Screen name="LiveRide" component={LiveRideScreen} options={{ title: 'Live ride' }} getId={({ params }) => params.rideId} />
+            {/* Ride replay */}
+            <Stack.Screen name="RideReplay" component={RideReplayScreen} options={{ title: 'Ride replay' }} getId={({ params }) => params.rideId} />
             {/* Stage 4: members and money */}
             <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ title: 'Check in' }} />
             <Stack.Screen name="RunCheckin" component={RunCheckinScreen} options={{ title: 'Check-in' }} />
