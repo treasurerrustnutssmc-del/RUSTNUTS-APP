@@ -32,8 +32,8 @@
     a { color: #F2666F; }
     table { width: 100%; border-collapse: collapse; margin: 12px 0; }
     th, td { text-align: left; vertical-align: top; padding: 10px 8px; border-bottom: 1px solid rgba(244,241,234,0.15); }
-    th { font-size: 17px; letter-spacing: 0.5px; }
-    td:first-child { font-family: "RustnutsStencil", "Arial Black", sans-serif; color: #F4F1EA; letter-spacing: 0.5px; white-space: nowrap; }
+    thead th { font-size: 17px; letter-spacing: 0.5px; }
+    tbody th { white-space: nowrap; letter-spacing: 0.5px; }
     footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid rgba(244,241,234,0.22); font-size: 14px; color: #96928a; }
   </style>
 </head>
@@ -75,11 +75,11 @@
           <tr><th scope="col">Tab</th><th scope="col">What’s there</th></tr>
         </thead>
         <tbody>
-          <tr><td>Home</td><td>Your welcome, today’s meeting or ride check-in, fees due, and shout-outs like birthdays</td></tr>
-          <tr><td>Chat</td><td>Club, chapter and ride chats, with photos, videos and voice notes. A red number means unread messages</td></tr>
-          <tr><td>Rides</td><td>The ride calendar month by month. Tap a ride to RSVP and see the route, briefing and weather. Also the route library, the Rusty Bus and invites from other clubs</td></tr>
-          <tr><td>Members</td><td>The club roster: road names, chapters, roles and bikes</td></tr>
-          <tr><td>Me</td><td>Your membership card, emergency contacts, garage, fees, privacy and notification settings, Road Rules, and Sign out</td></tr>
+          <tr><th scope="row">Home</th><td>Your welcome, today’s meeting or ride check-in, fees due, and shout-outs like birthdays</td></tr>
+          <tr><th scope="row">Chat</th><td>Club, chapter and ride chats, with photos, videos and voice notes. A red number means unread messages</td></tr>
+          <tr><th scope="row">Rides</th><td>The ride calendar month by month. Tap a ride to RSVP and see the route, briefing and weather. Also the route library, the Rusty Bus and invites from other clubs</td></tr>
+          <tr><th scope="row">Members</th><td>The club roster: road names, chapters, roles and bikes</td></tr>
+          <tr><th scope="row">Me</th><td>Your membership card, emergency contacts, garage, fees, privacy and notification settings, Road Rules, and Sign out</td></tr>
         </tbody>
       </table>
     </section>
@@ -87,11 +87,11 @@
     <section id="first-five-minutes">
       <h2>First five minutes</h2>
       <ul>
-        <li><strong>Add an emergency contact:</strong> Me › Emergency contacts. Only you and your chapter board see it; on ride day the Road Captain uses it if something goes wrong.</li>
+        <li><strong>Add an emergency contact:</strong> Me › Emergency contacts. You, your chapter board and the national office-bearers see it; on ride day the Road Captain uses it if something goes wrong.</li>
         <li><strong>Add your bike:</strong> Me › Garage › Add a bike.</li>
         <li><strong>Sign the Road Rules</strong> if the app asks you to.</li>
         <li><strong>RSVP to the next ride:</strong> Rides, tap the ride.</li>
-        <li><strong>Check your fees:</strong> on Home or Me › Fees. Pay by bank transfer to the details shown there.</li>
+        <li><strong>Check your fees:</strong> on Home or Me › Fees. Pay by PayID or bank transfer using the details and reference shown there, then tap <strong>I’ve paid this</strong>.</li>
       </ul>
     </section>
 
@@ -101,8 +101,8 @@
       <p><strong>Live ride</strong> lets the riders on the ride see each other, so the Road Captain and Tail Gunner can keep the group together.</p>
       <ul>
         <li>Tap <strong>Open live ride</strong>, then <strong>Share my location</strong>. When your phone asks, choose <strong>Allow all the time</strong>, so it keeps working with the phone in your pocket and the screen off.</li>
-        <li>Only riders on that ride see you. It switches itself off when the ride ends, and only your latest position is kept, deleted when you stop. Tap <strong>Stop sharing</strong> whenever you like, or <strong>Not now</strong> to skip it.</li>
-        <li>The live ride card also has <strong>Emergency</strong>, <strong>I’ve dropped out</strong>, <strong>Set regroup pin here</strong> and <strong>Call 000</strong>.</li>
+        <li>Only riders sharing on that ride can see you. It switches itself off when the ride ends, and only your latest position is kept, deleted when you stop. Tap <strong>Stop sharing</strong>, then <strong>Stop now</strong>, whenever you like, or <strong>Not now</strong> to skip it.</li>
+        <li>Once you’re in, the live ride screen also has <strong>Emergency</strong> (tap it, then <strong>Send emergency</strong>), <strong>I’ve dropped out</strong> and <strong>Call 000</strong>. Ride leaders also get <strong>Set regroup pin here</strong>.</li>
       </ul>
       <p><strong>Ride comms</strong> is hands-free voice with the other riders on the ride, and it works with the screen off. Tap <strong>Connect</strong> to join and <strong>Disconnect</strong> when you’re done.</p>
     </section>
