@@ -21,7 +21,7 @@ import { liveBackend } from './liveRideSource';
 import { appMode } from './reviewMode';
 import { ensureChannels } from './notificationChannels';
 import { viewingChat } from './viewingChat';
-import { alertNotice, createAlertQueue, unseenAlerts, type QueuedAlert, type Refused } from './liveQueue';
+import { QUEUE_KEY, alertNotice, createAlertQueue, unseenAlerts, type QueuedAlert, type Refused } from './liveQueue';
 
 export const LIVE_TASK = 'rustnuts-live-ride';
 const ACTIVE = 'live.active';
@@ -201,6 +201,12 @@ if (NATIVE) {
     },
   });
 }
+
+// Into or out of the store review demo: nothing shared or queued on one side carries over to the other.
+appMode.onSwitch(() => {
+  void stopTracking();
+  void AsyncStorage.multiRemove([QUEUE_KEY, UNSENT, SEEN]).catch(() => {});
+});
 
 // On opening the app, and each time it comes back to the front: switch off anything overdue and
 // send what's been waiting for signal (after a moment, so the sign-in has loaded).

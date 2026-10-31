@@ -15,7 +15,8 @@ export function DemoBar() {
     <View style={[styles.bar, { paddingTop: insets.top + 6 }]}>
       <Text style={styles.tag}>{reviewing ? 'Review demo' : 'Demo'}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {DEMO_PERSONAS.map((p) => {
+        {/* Reviewers leave by Sign out on Me, so they aren't offered a signed-out view with no way back. */}
+        {DEMO_PERSONAS.filter((p) => !reviewing || p.memberId !== null).map((p) => {
           const active = p.memberId === (me?.id ?? null);
           return (
             <Pressable

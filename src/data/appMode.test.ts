@@ -94,3 +94,18 @@ test('the saved mode is read once, however many ask', async () => {
   assert.equal(reads, 1);
   assert.equal(mode.reviewing(), true);
 });
+
+test('a switch is heard only when the mode really changes, not at start-up', async () => {
+  const store = memoryStore();
+  await store.setItem('app.review-mode.v1', '1');
+  const mode = createAppMode(store, true);
+  let switches = 0;
+  mode.onSwitch(() => switches++);
+  await mode.load();
+  assert.equal(switches, 0, 'reading the saved mode is not a switch');
+  await mode.startReview();
+  assert.equal(switches, 0, 'already reviewing');
+  await mode.endReview();
+  await mode.endReview();
+  assert.equal(switches, 1);
+});
