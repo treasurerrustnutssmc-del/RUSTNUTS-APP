@@ -136,3 +136,12 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 - **What they see:** three tabs. Home (a welcome, the next three rides, the club links), Rides (the calendar the website shows: when, where from, notes and the colour key, with no answers, crew, routes or briefings, and no Going button) and Me (their profile, emergency contacts for when they're on the back of a bike, a Family membership card with no disc or dues, the club links).
 - **What they don't:** the directory and phones, chats, photos, the board, meetings and votes, attendance, fees and the books, conduct, merch, documents, Road Rules sign-off, the Rusty Bus, live ride and the social extras. The database enforces it; members still see family in the directory, and can't open a private chat with them.
 - Spec: `docs/superpowers/specs/2026-10-29-family-view-design.md`.
+
+## Ask the club (31 Oct 2026)
+
+- **What:** an assistant on its own screen, opened from Home, for approved members (not Family). It answers questions about the constitution, the Road Rules, the ride calendar, the Rusty Bus and the member's own fees in plain words, citing clause numbers, and it can propose doing things: answer a ride, take or leave a crew spot, call a ride off or postponed, book or cancel the Rusty Bus, log its km or keys, post in a chat, and add a ride.
+- **Nothing happens without a tap:** every action shows as a card checked with the app's own rules, and only runs when the member taps Confirm, as the member, so the database rules hold. Money, votes, statuses, positions, conduct and deleting are left to their own screens.
+- **Adding a ride:** ride runners get a ready-filled Google Calendar entry on the Rustnuts Rides calendar to save; anyone else's ride idea goes to their chapter's Road Captain (or President) as a private message.
+- **Cost and limits:** Claude Opus 5.5 through the club's own Anthropic account, 15 questions a member a day, and a US$20 monthly budget kept by the database, after which it rests until next month. Questions and answers aren't kept by the club.
+- **Switched off until launch:** it shows on Home only once the `assistant_on` setting is true. The demo has a small scripted version that never touches the network.
+- Spec: `docs/superpowers/specs/2026-10-31-club-assistant-design.md`.
