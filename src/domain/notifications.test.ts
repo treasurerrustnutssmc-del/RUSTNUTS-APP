@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, phoneNotificationState, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, type Reminder,
+  ANDROID_CHANNELS, RETIRED_ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, phoneNotificationState, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, type Reminder,
 } from './notifications';
 import type { Ride, Rsvp } from './types';
 
@@ -15,7 +15,7 @@ const going = (rideId: string, answer: Rsvp['answer'] = 'going'): Rsvp => ({ rid
 test('a ride you’re going to: a reminder 2 hours before', () => {
   assert.deepEqual(reminderPlan([ride()], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW), [
     { id: 'ride-r-1', rideId: 'r-1', at: '2026-11-06T19:30:00.000Z', title: 'Ride in 2 hours', body: 'West breakfast run · 8:30 am · BP Ravenhall',
-      channelId: 'ride-reminders-rev', sound: 'v_twin_rev.wav' },
+      channelId: 'ride-reminders-rev2', sound: 'v_twin_rev_2.wav' },
   ]);
   assert.equal(reminderPlan([ride({ location: null })], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW)[0].body, 'West breakfast run · 8:30 am');
 });
@@ -24,7 +24,7 @@ test('an all-day ride: 7 am Melbourne time on its first day, daylight saving or 
   const allDay = ride({ allDay: true, startsAt: '2026-11-06T13:00:00.000Z', endsAt: '2026-11-08T13:00:00.000Z', title: 'Camp weekend' });
   assert.deepEqual(reminderPlan([allDay], [going('r-1')], 'm-me', DEFAULT_PREFS, NOW)[0], {
     id: 'ride-r-1', rideId: 'r-1', at: '2026-11-06T20:00:00.000Z', title: 'Ride today', body: 'Camp weekend · All day · BP Ravenhall',
-    channelId: 'ride-reminders-rev', sound: 'v_twin_rev.wav',
+    channelId: 'ride-reminders-rev2', sound: 'v_twin_rev_2.wav',
   });
   // Clocks go forward at 2 am on Sunday 4 October 2026.
   const dstDay = ride({ allDay: true, startsAt: '2026-10-03T14:00:00.000Z', endsAt: '2026-10-04T13:00:00.000Z' });
@@ -77,13 +77,13 @@ test('a ride called off or postponed gets no reminder; one back on does', () => 
 
 test('the Harley rev is on unless a member switches it off', () => {
   assert.equal(DEFAULT_PREFS.revSound, true);
-  assert.equal(REV_SOUND, 'v_twin_rev.wav');
+  assert.equal(REV_SOUND, 'v_twin_rev_2.wav');
 });
 
 test('reminders and club news rev; live ride alerts always use the urgent sound', () => {
-  assert.deepEqual(soundFor('reminder', true), { channelId: 'ride-reminders-rev', sound: 'v_twin_rev.wav' });
+  assert.deepEqual(soundFor('reminder', true), { channelId: 'ride-reminders-rev2', sound: 'v_twin_rev_2.wav' });
   assert.deepEqual(soundFor('reminder', false), { channelId: 'ride-reminders', sound: 'default' });
-  assert.deepEqual(soundFor('club', true), { channelId: 'club-rev', sound: 'v_twin_rev.wav' });
+  assert.deepEqual(soundFor('club', true), { channelId: 'club-rev2', sound: 'v_twin_rev_2.wav' });
   assert.deepEqual(soundFor('club', false), { channelId: 'club', sound: 'default' });
   assert.deepEqual(soundFor('live-alert', true), { channelId: 'ride-alerts', sound: 'default' });
   assert.deepEqual(soundFor('live-alert', false), { channelId: 'ride-alerts', sound: 'default' });
@@ -126,7 +126,7 @@ test('chat notifications are on unless a member switches them off', () => {
 });
 
 test('chat has its own channels, so a member can quiet chat in the phone’s settings and keep ride news', () => {
-  assert.deepEqual(soundFor('chat', true), { channelId: 'chat-rev', sound: REV_SOUND });
+  assert.deepEqual(soundFor('chat', true), { channelId: 'chat-rev2', sound: REV_SOUND });
   assert.deepEqual(soundFor('chat', false), { channelId: 'chat', sound: 'default' });
 });
 
@@ -154,4 +154,11 @@ test('phone notification state: on, can be asked, or blocked in the phone settin
   assert.equal(phoneNotificationState({ granted: false, canAskAgain: true }), 'ask');
   assert.equal(phoneNotificationState({ granted: false, canAskAgain: false }), 'blocked');
   assert.equal(phoneNotificationState(null), 'unknown', 'not read yet, or the web: say nothing');
+});
+
+test('the first, harsh rev channels are retired and never reused', () => {
+  // Android fixes a channel's sound once it exists, so the new rev needs new channel ids, and the
+  // old ones are deleted so phones don't list them in settings.
+  assert.deepEqual(RETIRED_ANDROID_CHANNELS, ['ride-reminders-rev', 'club-rev', 'chat-rev']);
+  for (const id of RETIRED_ANDROID_CHANNELS) assert.ok(!ANDROID_CHANNELS.some((c) => c.id === id), id);
 });

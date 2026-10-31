@@ -38,12 +38,14 @@ export interface ExpoTicket {
 // Android builds from before the rev don't have the club and chat channels, and Android drops a push naming a
 // channel it doesn't have. That's safe only because no Android build can register for pushes until
 // the app has its Firebase project, and any build that adds it already has the channels.
-const REV_SOUND = 'v_twin_rev.wav';
+// The rev2 channels (the second rev sound) come with a new build: deploy this only once testers'
+// Android phones have it, or their rev pushes are dropped until they update.
+const REV_SOUND = 'v_twin_rev_2.wav';
 function soundFor(kind: unknown, rev: boolean): { channelId: string; sound: string } {
   if (kind === 'live-alert') return { channelId: 'ride-alerts', sound: 'default' };
   // Chat has its own channels, so members can quiet chat on the phone and keep ride news.
   const base = kind === 'chat' ? 'chat' : 'club';
-  return rev ? { channelId: `${base}-rev`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
+  return rev ? { channelId: `${base}-rev2`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
 }
 
 /** One message per phone. Live ride alerts keep the urgent sound and are time-sensitive on iPhone;
