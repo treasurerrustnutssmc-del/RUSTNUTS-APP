@@ -14,7 +14,7 @@
   "submit": {
     "production": {
       "android": { "track": "internal", "releaseStatus": "draft" },
-      "ios": { "appleId": "apps@rustnutssmc.com.au" }
+      "ios": { "appleId": "apps@rustnutssmc.com.au", "appName": "Rustnuts SMC", "language": "en-AU" }
     }
   }
 }

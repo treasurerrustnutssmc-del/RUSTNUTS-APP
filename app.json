@@ -19,13 +19,17 @@
       "config": {
         "usesNonExemptEncryption": false
       },
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
+      },
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
             "NSPrivacyAccessedAPITypeReasons": [
-              "CA92.1"
+              "CA92.1",
+              "1C8F.1"
             ]
           },
           {
@@ -76,7 +80,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Rustnuts uses your photos so you can share them in club chats.",
-          "cameraPermission": "Rustnuts uses your camera so you can take photos and videos for club chats.",
+          "cameraPermission": "Rustnuts uses your camera to scan the club's check-in code at rides and meetings, and to take photos and videos for club chats.",
           "microphonePermission": "Rustnuts uses your microphone for ride comms, and to record voice notes and the sound with videos for club chats."
         }
       ],
@@ -85,6 +89,9 @@
         {
           "locationWhenInUsePermission": "Rustnuts uses your location during a live ride, so the riders you're with can find you.",
           "locationAlwaysAndWhenInUsePermission": "Rustnuts keeps sharing your location with your ride while the screen is off. It switches itself off when the ride ends.",
+          "locationAlwaysPermission": "Rustnuts keeps sharing your location with your ride while the screen is off. It switches itself off when the ride ends.",
+          "motionUsagePermission": false,
+          "locationFullAccuracyPermission": false,
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
         }
@@ -101,11 +108,12 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Scan the club’s check-in code at rides and meetings.",
-          "microphonePermission": false,
+          "cameraPermission": "Rustnuts uses your camera to scan the club's check-in code at rides and meetings, and to take photos and videos for club chats.",
+          "microphonePermission": "Rustnuts uses your microphone for ride comms, and to record voice notes and the sound with videos for club chats.",
           "recordAudioAndroid": false
         }
       ],
+      "./plugins/withShareExtensionPrivacy.js",
       [
         "expo-sharing",
         {
