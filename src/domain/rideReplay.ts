@@ -190,6 +190,7 @@ export function replayFileName(title: string): string {
 /**
  * Splits text into at most `maxLines` lines of about `maxChars` (SVG text doesn't wrap). Whatever
  * doesn't fit ends the last line with an ellipsis, and so does a word too long for a line.
+ * When everything fits on two lines, the words are split evenly between them.
  */
 export function wrapLines(text: string, maxChars: number, maxLines: number): string[] {
   const words = text.split(/\s+/).filter(Boolean);
