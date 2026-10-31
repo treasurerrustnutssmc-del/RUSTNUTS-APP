@@ -49,6 +49,8 @@ test('a bio needs the rules agreed; a blank one does not', () => {
   const notYet = member({ postingRulesAcceptedOn: null });
   assert.equal(bioProblem(notYet, 'Tail Gunner'), AGREE_FIRST);
   assert.equal(bioProblem(notYet, '  '), null);
+  // Leaving an existing bio as it was isn't a post (Family keep theirs, as they can't agree).
+  assert.equal(bioProblem({ ...notYet, bio: 'Tail Gunner' }, 'Tail Gunner'), null);
   assert.equal(bioProblem(notYet, null), null);
   assert.equal(bioProblem(member(), 'Tail Gunner'), null);
 });

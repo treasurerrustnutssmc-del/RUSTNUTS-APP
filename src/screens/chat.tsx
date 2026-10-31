@@ -123,7 +123,7 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
     useCallback(() => {
       let live = true;
       // Chat reports and reports of posts (listings, builds, nominations, workshops, profiles) count together.
-      Promise.all([chat.reports(), social.contentReports()]).then(([a, b]) => live && setReportCount(a.length + b.length), () => undefined);
+      Promise.all([chat.reports(), social.contentReports().catch(() => [])]).then(([a, b]) => live && setReportCount(a.length + b.length), () => undefined);
       return () => {
         live = false;
       };
@@ -643,7 +643,7 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(
     () =>
-      Promise.all([chat.reports(), social.contentReports()]).then(
+      Promise.all([chat.reports(), social.contentReports().catch(() => [] as ContentReport[])]).then(
         ([a, b]) => {
           setReports(a);
           setPosts(b);
@@ -654,7 +654,7 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
   );
   useEffect(() => {
     let live = true;
-    Promise.all([chat.reports(), social.contentReports()]).then(
+    Promise.all([chat.reports(), social.contentReports().catch(() => [] as ContentReport[])]).then(
       ([a, b]) => {
         if (!live) return;
         setReports(a);

@@ -13,6 +13,7 @@ import { isReviewerEmail } from '../domain/reviewer'; // Store review demo
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
+import { PostingRulesRow } from './postingRules'; // Club rules for chats and posts
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -477,6 +478,7 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
       {/* Sponsors: anyone with the app sees them */}
       <SponsorsSection />
       <PrivacyPolicyRow />
+      <PostingRulesRow />
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
       {/* Delete my account */}
       <Button label="Delete my account" kind="quiet" onPress={() => navigation.navigate('DeleteAccount')} />

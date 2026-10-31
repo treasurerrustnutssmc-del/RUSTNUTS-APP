@@ -255,6 +255,7 @@ export function RootNavigator() {
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
           </>
         ) : level === 'family' ? (
           <>
@@ -272,8 +273,9 @@ export function RootNavigator() {
           </>
         ) : needsPostingRules(me) ? (
           <>
-            {/* Club rules for chats and posts: agreed once before the tabs open (App Review 1.2) */}
-            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ headerShown: false }} />
+            {/* Club rules for chats and posts: agreed once before the tabs open (App Review 1.2). Its own
+                route name, so once they agree the stack has no screen to keep and starts on Home. */}
+            <Stack.Screen name="PostingRulesGate" component={PostingRulesScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />

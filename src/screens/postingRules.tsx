@@ -31,7 +31,7 @@ export function PostingRulesRow() {
         last
         left={<IconBadge icon="chatbubbles-outline" />}
         title={POSTING_RULES_TITLE}
-        subtitle="What you agreed to before posting"
+        subtitle="The rules every member agrees to before posting"
         onPress={() => navigation.navigate('PostingRules')}
       />
     </Card>

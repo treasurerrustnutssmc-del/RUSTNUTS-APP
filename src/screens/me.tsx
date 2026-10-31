@@ -313,7 +313,10 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
         <H2>About you</H2>
         <Field label="Full name" value={fullName} onChangeText={setFullName} autoComplete="name" />
         <Field label="Road name" value={roadName} onChangeText={setRoadName} hint="Leave blank if you don't have one yet." />
-        <Field label="A bit about you" value={bio} onChangeText={setBio} multiline placeholder="What you ride, how long you've been riding…" />
+        {/* A bio is a post, and Family don't post, so they don't get the field (their old one is kept as it was). */}
+        {me.status !== 'family' ? (
+          <Field label="A bit about you" value={bio} onChangeText={setBio} multiline placeholder="What you ride, how long you've been riding…" />
+        ) : null}
       </Card>
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>

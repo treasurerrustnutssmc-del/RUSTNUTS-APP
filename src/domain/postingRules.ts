@@ -118,8 +118,12 @@ export function needsPostingRules(me: Member | null): boolean {
   return !!me && me.approval === 'approved' && me.status !== 'family' && !hasAgreedPostingRules(me);
 }
 
-/** Why `me` can't save this bio, or null. A blank bio is fine before agreeing (a name change). */
-export function bioProblem(me: Pick<Member, 'postingRulesAcceptedOn'> | null, bio: string | null | undefined): string | null {
+/**
+ * Why `me` can't save this bio, or null. A blank bio is fine before agreeing (a name change), and
+ * so is leaving the bio as it was: the database trigger only looks at a changed, non-blank bio.
+ */
+export function bioProblem(me: Pick<Member, 'postingRulesAcceptedOn' | 'bio'> | null, bio: string | null | undefined): string | null {
   if (!bio || bio.trim() === '') return null;
+  if (me && bio === me.bio) return null;
   return postingRulesProblem(me);
 }

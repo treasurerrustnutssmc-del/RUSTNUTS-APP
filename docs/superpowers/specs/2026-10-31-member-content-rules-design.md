@@ -32,8 +32,8 @@ will look for all of it.
 - The posting functions refuse `Agree to the club rules for chats and posts first.` until the
   date is set: `send_message`, `save_listing`, `post_build_update`, `nominate`, `save_mechanic`,
   and `save_profile` when a bio is being saved (an applicant can still save their name). The app's
-  rule functions say the same, in the same place: straight after the "approved member" check
-  (after the read check for a chat message), before anything about the content itself.
+  rule functions say the same, in the same place: last, after every check on the content itself,
+  because the database applies it as a trigger when the row goes in.
 - The rules can be read again from Me (Privacy section) and from the Pending screen's footer
   links, and are published at `site/posting-rules.html` (built by `npm run build:privacy` next to
   the privacy page, same look). The same text is what the iOS thread pastes into App Store Connect
