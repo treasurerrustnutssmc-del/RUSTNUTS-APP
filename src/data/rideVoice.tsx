@@ -1,12 +1,15 @@
 // Lane E: ride comms. Holds a ride's voice call for the whole app, so it carries on while the rider
 // moves between screens, the screen is off, or they're on another app. One big Connect, one big
 // Disconnect, mute on screen or from the headset button. The demo (and the web, which can't do a
-// call) shows a made-up room so the screen can be seen.
+// call) shows a made-up room so the screen can be seen; on a phone the demo also plays sample
+// audio, so App Review hears that comms makes sound.
 
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { NativeModules, Platform } from 'react-native';
 import { displayName } from '../domain/profile';
 import { shouldHangUp, VOICE_MSG, type VoiceParticipant, type VoiceState } from '../domain/rideVoice';
+import { demoCallAudioMode } from '../domain/rideVoiceDemo';
 import { useClub } from './ClubStore';
 import { rideCommsNative } from './rideCommsNative';
 import type { Call } from './rideVoiceLive';
@@ -47,6 +50,41 @@ async function fetchToken(rideId: string): Promise<{ url: string; token: string 
 }
 
 const micRefused = (e: unknown) => /NotAllowed|permission/i.test(`${(e as Error)?.name} ${(e as Error)?.message}`);
+
+/** The web's demo call: nothing to hear, nothing to let go of. */
+const silentDemoCall: Call = { setMuted: async () => undefined, hangUp: async () => undefined };
+
+/** The phone's demo call: the bundled engine-and-radio clip on a loop, set up to keep going behind
+ *  a locked screen. Hanging up stops it, frees the player and gives the background back. */
+async function startDemoCall(): Promise<Call> {
+  await setAudioModeAsync(demoCallAudioMode('connect'));
+  let player: AudioPlayer | null = null;
+  const hangUp = async () => {
+    try {
+      player?.pause();
+      player?.remove();
+    } catch {
+      // Already gone.
+    }
+    player = null;
+    await setAudioModeAsync(demoCallAudioMode('disconnect')).catch(() => undefined);
+  };
+  try {
+    player = createAudioPlayer(require('../../assets/sounds/demo_ride_comms.wav'));
+    player.loop = true;
+    player.play();
+  } catch (e) {
+    await hangUp();
+    throw e;
+  }
+  return {
+    // Muting yourself in the demo quietens the room, so the button is seen to do something.
+    setMuted: async (muted) => {
+      if (player) player.volume = muted ? 0 : 1;
+    },
+    hangUp,
+  };
+}
 
 export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
   const { isDemo, me, data } = useClub();
@@ -92,6 +130,7 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
       setMutedState(next);
       if (mode === 'demo') {
         setPeople((ps) => ps.map((p) => (p.id === me?.id ? { ...p, muted: next, speaking: false } : p)));
+        await call.current?.setMuted(next).catch(() => undefined);
         return;
       }
       try {
@@ -137,7 +176,13 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
             ...(me ? [{ id: me.id, name: displayName(me), speaking: false, muted: false }] : []),
             ...others.map((m, i) => ({ id: m.id, name: displayName(m), speaking: i === 0, muted: i === 2 })),
           ]);
-          call.current = { setMuted: async () => undefined, hangUp: async () => undefined };
+          // The web can't play behind a locked screen anyway, so it stays silent; a phone plays the clip.
+          const demo = Platform.OS === 'web' ? silentDemoCall : await startDemoCall();
+          if (cancelled()) {
+            await demo.hangUp();
+            return;
+          }
+          call.current = demo;
         } else {
           const { joinCall, prepareMic } = require('./rideVoiceLive') as typeof import('./rideVoiceLive'); // eslint-disable-line @typescript-eslint/no-require-imports
           // The mic and the screen-off service first, while the rider's still looking at the phone.
