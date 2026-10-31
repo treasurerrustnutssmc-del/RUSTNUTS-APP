@@ -80,7 +80,7 @@ test('request shape: model, effort, fallbacks, tools, cached system and the conv
   assert.equal(req.max_tokens, MAX_OUT);
   assert.equal(MAX_OUT, 6000);
   assert.deepEqual(req.thinking, { type: 'adaptive' });
-  assert.deepEqual(req.output_config, { effort: 'medium' });
+  assert.deepEqual(req.output_config, { effort: 'low' });
   assert.deepEqual(req.betas, ['server-side-fallback-2026-07-01']);
   assert.equal(req.fallbacks, 'default');
   assert.deepEqual(req.tools, ASSISTANT_TOOLS);

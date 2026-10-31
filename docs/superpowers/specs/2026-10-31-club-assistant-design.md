@@ -55,7 +55,7 @@ phone: shows a card per action → member taps Confirm → useClub()/useChat() a
      20,000,000 = US$20, Melbourne calendar months),
    - counts the question, and returns the constitution in force and the latest Road Rules.
    Without the `ANTHROPIC_API_KEY` secret the function answers "Ask the club isn't switched on yet."
-3. It calls **Claude Opus 5.5** (`claude-opus-5-5`, effort `medium`, adaptive thinking, at most 6,000
+3. It calls **Claude Opus 5.5** (`claude-opus-5-5`, effort `low` (was `medium` until 31 Oct: the first live answer took 38 s, too slow on a phone), adaptive thinking, at most 6,000
    tokens out including its thinking, server-side refusal fallbacks on). The request, in cache order:
    - **tools**: the action tools below (fixed order, strict schemas),
    - **system**: the assistant's brief, then the constitution, then the Road Rules, cached together. The
