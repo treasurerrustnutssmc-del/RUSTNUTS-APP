@@ -20,6 +20,15 @@ test('one message per phone, all sent high priority so a sleeping Android shows 
   assert.equal(msgs[2].sound, 'default');
 });
 
+test('only live ride alerts are time-sensitive on iPhone, so they break through Focus; club news and chat stay ordinary', () => {
+  const [alert] = toExpoMessages([row({ data: { kind: 'live-alert', rideId: 'r2' }, tokens: ['t'] })]);
+  assert.equal(alert.interruptionLevel, 'time-sensitive');
+  for (const kind of ['ride', 'applicant', 'chat', undefined]) {
+    const [m] = toExpoMessages([row({ data: { kind }, tokens: ['t'] })]);
+    assert.equal('interruptionLevel' in m, false, `${kind}`);
+  }
+});
+
 test('the Harley rev follows the member’s setting, except on live ride alerts, and matches the phone’s channels', () => {
   const [off] = toExpoMessages([row({ rev: false, tokens: ['t'] })]);
   assert.deepEqual([off.channelId, off.sound], ['club', 'default']);

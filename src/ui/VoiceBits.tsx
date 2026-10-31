@@ -16,6 +16,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { VoiceRecording } from '../data/chat/chatContext';
 import { useRideVoice } from '../data/rideVoice';
 import { MAX_VOICE_MS, VOICE_BROKEN, type MessageMedia } from '../domain/chat';
+import { voiceNoteAudioMode } from '../domain/rideVoiceDemo';
 import { colors, fonts, radius, space } from '../theme';
 import { useMediaSource } from './ChatBits';
 import { Ionicons } from './primitives';
@@ -68,6 +69,14 @@ export function VoiceRecorderBar({
   const live = useRef(true);
   const lastMs = useRef(0);
   const busy = useRef(false); // two quick taps on send make one voice note
+  // On a ride call (demo or real) the call's audio must keep going behind a locked screen, so the
+  // recorder's audio settings keep background playback on. Read through a ref, so the clean-up
+  // sees the state at the moment the bar goes, not when it appeared.
+  const onCall = useOnRideCall();
+  const onCallNow = useRef(onCall);
+  useEffect(() => {
+    onCallNow.current = onCall;
+  }, [onCall]);
   // At the limit the recorder stops by itself, and the bar waits to be sent or thrown away. A
   // recording that failed (the phone's own error) can't be sent.
   const recorder = useAudioRecorder(VOICE_PRESET, (status) => {
@@ -86,7 +95,7 @@ export function VoiceRecorderBar({
       try {
         const allowed = await requestRecordingPermissionsAsync();
         if (!allowed.granted) throw new Error(MIC_OFF);
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await setAudioModeAsync(voiceNoteAudioMode(true, onCallNow.current));
         await recorder.prepareToRecordAsync();
         // Binned while the microphone was opening: start and stop at once, so the browser lets go of it.
         recorder.record({ forDuration: MAX_VOICE_MS / 1000 });
@@ -101,7 +110,7 @@ export function VoiceRecorderBar({
       // Playback goes back to the speaker.
       ready.finally(() => {
         recorder.stop().catch(() => undefined);
-        setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => undefined);
+        setAudioModeAsync(voiceNoteAudioMode(false, onCallNow.current)).catch(() => undefined);
       });
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
