@@ -3,7 +3,8 @@
 // alerts (and a stop) raised with no signal until they can be sent.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LIVE_MSG } from '../domain/liveRide';
+import { Platform } from 'react-native';
+import { LIVE_MSG, locationDenialStops } from '../domain/liveRide';
 import type { AlertKind, LatLng, LiveState } from '../domain/types';
 import { useClub } from './ClubStore';
 import type { Fix } from './liveRideBackend';
@@ -183,7 +184,7 @@ export function useLiveRide(rideId: string) {
     try {
       const until = await withTimeout(liveBackend().start(rideId));
       const tracking = await startTracking(rideId, until, meId).catch(() => 'denied' as const);
-      if (tracking === 'denied' && !isDemo) {
+      if (tracking === 'denied' && locationDenialStops(isDemo, Platform.OS)) {
         await withTimeout(liveBackend().stop(rideId)).catch(holdStop);
         setError('Location is off for Rustnuts. Turn it on in Settings to share.');
         return;
