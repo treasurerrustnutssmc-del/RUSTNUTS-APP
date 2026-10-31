@@ -7,6 +7,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# One publish at a time, so two quick merges can't ship the older one last.
+concurrency: preview-update
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -42,6 +45,7 @@ jobs:
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_SQmN9OqIfZoyxopWB_wpNA_WjzUfHkK
           # GIPHY's app key for GIF search, from the GIPHY_KEY repository secret. Unset means no GIF button.
           EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.GIPHY_KEY }}
-        # --environment loads the EAS project's own variables (GOOGLE_MAPS_ANDROID_KEY for ride maps),
-        # so an update's config, and its fingerprint, match the builds made with the same variables.
-        run: eas update --channel preview --environment preview --message "${{ github.event.head_commit.message || 'Manual update' }}" --non-interactive
+          MESSAGE: ${{ github.event.head_commit.message || 'Manual update' }}
+        # Loads the EAS "preview" environment (GOOGLE_MAPS_ANDROID_KEY for ride maps) so the fingerprint
+        # matches the builds, and also publishes for builds made from a Windows (CRLF) checkout.
+        run: scripts/preview-update.sh
