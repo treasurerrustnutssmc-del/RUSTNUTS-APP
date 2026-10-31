@@ -28,6 +28,11 @@ export function positionTitles(
   });
 }
 
+/** One seat's title, naming its chapter when it has one ("Treasurer (West)"), for buttons that act on that seat alone. */
+export function seatTitle(position: Position, chapters: Chapter[], labels: Record<PositionRole, string>): string {
+  return positionTitles([position], chapters, '', labels)[0].text;
+}
+
 /** Members of the club for the counts: Legacy have left and Family have no Club rights. */
 const COUNTED = (s: MemberStatus) => s !== 'legacy' && s !== 'family';
 

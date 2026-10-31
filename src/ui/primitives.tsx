@@ -291,6 +291,7 @@ export function Avatar({ text, size = 44 }: { text: string; size?: number }) {
 // ---------------------------------------------------------------------------
 
 type ButtonKind = 'primary' | 'secondary' | 'danger' | 'quiet';
+type ButtonSize = 'regular' | 'small';
 
 export function Button({
   label,
@@ -299,6 +300,7 @@ export function Button({
   icon,
   disabled,
   busy,
+  size = 'regular',
   style,
   accessibilityLabel,
 }: {
@@ -308,6 +310,8 @@ export function Button({
   icon?: IconName;
   disabled?: boolean;
   busy?: boolean;
+  /** Small: a compact button that sits at the start of its line, for a minor act on one item (a step-down under a seat). */
+  size?: ButtonSize;
   style?: StyleProp<ViewStyle>;
   /** When the label alone wouldn't say what it acts on, such as "Take off" beside a name. */
   accessibilityLabel?: string;
@@ -321,16 +325,18 @@ export function Button({
       aria-disabled={!!disabled}
       aria-busy={!!busy}
       onPress={disabled || busy ? undefined : onPress}
+      hitSlop={size === 'small' ? 4 : undefined}
       style={({ pressed, hovered, focused }: { pressed: boolean; hovered?: boolean; focused?: boolean }) => [
         styles.button,
+        size === 'small' && styles.buttonSmall,
         { backgroundColor: pressed || hovered ? k.bgActive : k.bg, borderColor: k.border },
         focused && styles.focusRing,
         disabled && styles.disabled,
         style,
       ]}
     >
-      {busy ? <ActivityIndicator color={k.fg} /> : icon ? <Ionicons name={icon} size={18} color={k.fg} /> : null}
-      <Text style={[styles.buttonText, { color: k.fg }]}>{label}</Text>
+      {busy ? <ActivityIndicator color={k.fg} /> : icon ? <Ionicons name={icon} size={size === 'small' ? 16 : 18} color={k.fg} /> : null}
+      <Text style={[styles.buttonText, size === 'small' && styles.buttonTextSmall, { color: k.fg }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -353,11 +359,16 @@ export function ConfirmButton({
   accessibilityLabel,
   confirmNote,
   disabled,
+  size,
+  confirmAccessibilityLabel,
 }: {
   label: string;
   confirmLabel: string;
+  /** For the confirm step, when its short label ("Yes, step down") wouldn't say which item it acts on. */
+  confirmAccessibilityLabel?: string;
   onConfirm: () => void;
   kind?: ButtonKind;
+  size?: ButtonSize;
   icon?: IconName;
   style?: StyleProp<ViewStyle>;
   /** For the first button, when its label alone wouldn't say what it acts on. */
@@ -376,6 +387,7 @@ export function ConfirmButton({
         kind={kind}
         icon={icon}
         disabled={disabled}
+        size={size}
         onPress={() => setArmed(true)}
         style={style}
         accessibilityLabel={accessibilityLabel}
@@ -384,8 +396,8 @@ export function ConfirmButton({
   }
   const confirm = (
     <Row style={[{ gap: space.sm }, confirmNote ? null : style]}>
-      <Button label={confirmLabel} kind="danger" onPress={() => { setArmed(false); onConfirm(); }} style={{ flex: 1 }} />
-      <Button label="Cancel" kind="quiet" onPress={() => setArmed(false)} />
+      <Button label={confirmLabel} kind="danger" size={size} accessibilityLabel={confirmAccessibilityLabel} onPress={() => { setArmed(false); onConfirm(); }} style={size === 'small' ? { flexShrink: 1 } : { flex: 1 }} />
+      <Button label="Cancel" kind="quiet" size={size} onPress={() => setArmed(false)} />
     </Row>
   );
   if (!confirmNote) return confirm;
@@ -730,6 +742,7 @@ const styles = StyleSheet.create({
   button: {
     minHeight: 48,
     paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
     borderRadius: radius.sm,
     borderWidth: 1,
     flexDirection: 'row',
@@ -737,7 +750,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: space.sm,
   },
-  buttonText: { fontFamily: fonts.stencil, fontSize: 16, letterSpacing: 1.2, textTransform: 'uppercase' },
+  // Small still clears a 48 touch target with its hitSlop on phones, and 44 without it.
+  buttonSmall: { minHeight: 44, paddingHorizontal: space.md, alignSelf: 'flex-start', maxWidth: '100%' },
+  // Centred and shrinkable, so a label that has to wrap stays in the middle of its button.
+  buttonText: { fontFamily: fonts.stencil, fontSize: 16, letterSpacing: 1.2, textTransform: 'uppercase', textAlign: 'center', flexShrink: 1 },
+  buttonTextSmall: { fontSize: 13, letterSpacing: 0.8 },
   focusRing: { outlineColor: colors.redText, outlineWidth: 2, outlineStyle: 'solid' } as ViewStyle,
   disabled: { opacity: 0.45 },
   field: { gap: 6 },

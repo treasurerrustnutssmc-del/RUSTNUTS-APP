@@ -20,6 +20,7 @@ import type { RootParams, RootScreen } from '../navigation/types';
 import { ChapterNotices } from './notices'; // the 5.5 notice
 import { ROLE_LABEL } from '../domain/labels';
 import { termEndsOn, termState } from '../domain/terms';
+import { seatTitle } from '../domain/home';
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -193,7 +194,7 @@ export function BoardAttendance({ chapterId }: { chapterId: string | null }) {
             <ListRow
               key={p.id}
               left={<IconBadge icon="hourglass-outline" />}
-              title={`${m ? displayName(m) : 'Someone'} · ${ROLE_LABEL[p.role]}`}
+              title={`${m ? displayName(m) : 'Someone'} · ${seatTitle(p, data.chapters, ROLE_LABEL)}`}
               subtitle={`Term ${ended ? 'ended' : 'ends'} ${formatAuDate(termEndsOn(p))}. Re-elected? End it and appoint again.`}
               right={<Chip label={ended ? 'Ended' : 'Ending'} tone="warn" />}
               onPress={m ? () => navigation.navigate(canManageMember(me, m, data.positions) ? 'ManageMember' : 'MemberDetail', { memberId: m.id }) : undefined}
