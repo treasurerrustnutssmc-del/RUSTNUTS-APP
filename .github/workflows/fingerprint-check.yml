@@ -21,25 +21,10 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-      - name: Without the EAS environment
+      - name: Dry run of the preview update
+        env:
+          MESSAGE: Dry run
+          DRY_RUN: '1'
         run: |
-          for p in android ios; do
-            npx expo-updates runtimeversion:resolve --platform $p > fp-$p-plain.json
-            node -e "const f=require('./fp-$p-plain.json');console.log('$p plain', f.runtimeVersion);for(const s of f.fingerprintSources)console.log(' ', s.hash, s.type, s.filePath||s.id)"
-          done
-      - name: With the EAS preview environment
-        run: |
-          eas env:exec preview 'echo "GOOGLE_MAPS_ANDROID_KEY length: ${#GOOGLE_MAPS_ANDROID_KEY}"' --non-interactive || true
-          for p in android ios; do
-            eas env:exec preview "npx expo-updates runtimeversion:resolve --platform $p > fp-$p-env.json" --non-interactive
-            node -e "const f=require('./fp-$p-env.json');console.log('$p env', f.runtimeVersion);for(const s of f.fingerprintSources)console.log(' ', s.hash, s.type, s.filePath||s.id)"
-          done
-      - name: With a Windows-style (CRLF) checkout and the preview environment
-        run: |
-          git config core.autocrlf true
-          git rm -q --cached -r . && git reset -q --hard
-          file .gitignore google-services.json
-          for p in android ios; do
-            eas env:exec preview "npx expo-updates runtimeversion:resolve --platform $p > fp-$p-crlf.json" --non-interactive
-            node -e "const f=require('./fp-$p-crlf.json');console.log('$p crlf', f.runtimeVersion);for(const s of f.fingerprintSources)if(s.type!=='package')console.log(' ', s.hash, s.type, s.filePath||s.id)"
-          done
+          scripts/preview-update.sh
+          git status --short | head
