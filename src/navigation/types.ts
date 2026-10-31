@@ -61,6 +61,11 @@ export type RootParams = {
   RoadRules: { version?: number } | undefined;
   EditRoadRules: undefined;
   RoadRulesSignoffs: undefined;
+  // The illustrated Road Rules (Chris's draft): the rules one at a time, the diagrams, and one diagram to zoom.
+  RoadRulesGuide: undefined;
+  RoadRulesRule: { number: number };
+  RoadRulesDiagrams: undefined;
+  RoadRulesDiagram: { id: string };
   // The Rusty Bus. Book opened from a ride starts with that ride and its days.
   Bus: undefined;
   BusBooking: { bookingId: string };

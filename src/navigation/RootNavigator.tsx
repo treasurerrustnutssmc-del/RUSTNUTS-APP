@@ -21,6 +21,7 @@ import { BriefingScreen, EditBriefingScreen } from '../screens/briefing';
 import { AskSwapScreen, CallRideScreen, EditHubScreen, HubScreen, PlanRideScreen } from '../screens/ridePlanning';
 import { CharityScreen, EditCharityScreen } from '../screens/charity'; // Charity ride sign-ups
 import { EditRoadRulesScreen, RoadRulesScreen, RoadRulesSignoffsScreen } from '../screens/roadRules';
+import { RoadRulesDiagramScreen, RoadRulesDiagramsScreen, RoadRulesGuideScreen, RoadRulesRuleScreen } from '../screens/roadRulesGuide';
 import { BookBusScreen, BusBookingScreen, BusScreen, ChangeBusScreen } from '../screens/bus';
 import { BusCostsScreen, BusKeysScreen } from '../screens/busLog'; // Rusty Bus extras
 // Lane E: live ride
@@ -294,6 +295,10 @@ export function RootNavigator() {
             <Stack.Screen name="RoadRules" component={RoadRulesScreen} options={{ title: 'Road Rules' }} />
             <Stack.Screen name="EditRoadRules" component={EditRoadRulesScreen} options={{ title: 'Publish Road Rules' }} />
             <Stack.Screen name="RoadRulesSignoffs" component={RoadRulesSignoffsScreen} options={{ title: 'Who’s signed' }} />
+            <Stack.Screen name="RoadRulesGuide" component={RoadRulesGuideScreen} options={{ title: 'Road Rules' }} />
+            <Stack.Screen name="RoadRulesRule" component={RoadRulesRuleScreen} options={{ title: 'Road Rules' }} />
+            <Stack.Screen name="RoadRulesDiagrams" component={RoadRulesDiagramsScreen} options={{ title: 'Diagrams' }} />
+            <Stack.Screen name="RoadRulesDiagram" component={RoadRulesDiagramScreen} options={{ title: 'Diagram' }} />
             {/* The Rusty Bus */}
             <Stack.Screen name="Bus" component={BusScreen} options={{ title: 'Rusty Bus' }} />
             <Stack.Screen name="BusBooking" component={BusBookingScreen} options={{ title: 'Booking' }} />
