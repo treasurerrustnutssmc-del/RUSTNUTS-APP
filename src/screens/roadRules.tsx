@@ -60,6 +60,7 @@ import {
   Toggle,
 } from '../ui/primitives';
 import { chapterColours } from '../ui/RouteBits';
+import { IllustratedRulesCard } from './roadRulesGuide';
 
 /** What members see before the NEC has published anything. */
 const NOTHING_YET = 'The NEC hasn’t published the Road Rules in the app yet.';
@@ -96,6 +97,7 @@ export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRule
         {publisher ? (
           <Button label="Write the first version" icon="create-outline" onPress={() => navigation.navigate('EditRoadRules')} />
         ) : null}
+        <IllustratedRulesCard onRules={() => navigation.navigate('RoadRulesGuide')} onDiagrams={() => navigation.navigate('RoadRulesDiagrams')} />
       </Screen>
     );
   }
@@ -162,6 +164,10 @@ export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRule
       <RulesText body={shown.body} />
 
       {older ? null : <SignBox key={shown.number} version={shown} newer={newer} onReadNewer={readNewer} />}
+
+      {older ? null : (
+        <IllustratedRulesCard onRules={() => navigation.navigate('RoadRulesGuide')} onDiagrams={() => navigation.navigate('RoadRulesDiagrams')} />
+      )}
 
       {!older && (publisher || seesSignoffs) ? (
         <Stack gap={space.sm}>
