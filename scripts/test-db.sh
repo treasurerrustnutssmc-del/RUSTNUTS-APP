@@ -363,5 +363,12 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_club_assistant -f "$ROOT/supabase/tests/club_assistant_test.sql"
 
-echo 'ALL DATABASE CHECKS PASSED'
+# The storage purge on account deletion, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_purge" >/dev/null
+"${PSQL[@]}" -d rustnuts_purge -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_purge -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_purge -f "$ROOT/supabase/tests/storage_purge_test.sql"
 
+echo 'ALL DATABASE CHECKS PASSED'

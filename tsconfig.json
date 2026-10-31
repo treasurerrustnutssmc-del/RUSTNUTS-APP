@@ -14,6 +14,7 @@
     "supabase/functions/link-preview",
     "supabase/functions/send-push",
     "supabase/functions/ride-voice-token",
-    "supabase/functions/ask-club"
+    "supabase/functions/ask-club",
+    "supabase/functions/purge-files"
   ]
 }
