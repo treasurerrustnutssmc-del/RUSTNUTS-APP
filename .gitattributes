@@ -2,4 +2,4 @@
 # text files (.gitignore, google-services.json, modules/ride-comms), so a CRLF checkout fingerprints
 # differently and a build made from it never receives the updates CI publishes from an LF checkout.
 * text=auto eol=lf
-*.cmd text eol=crlf
+*.cmd -text

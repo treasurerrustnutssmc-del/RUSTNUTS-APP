@@ -44,7 +44,7 @@ has_build android "$android_lf" || echo "::warning::No finished $CHANNEL Android
 publish "$MESSAGE"
 
 # Windows-made builds: same commit, CRLF line endings.
-printf '* text=auto eol=crlf\n*.cmd text eol=crlf\n' > .git/info/attributes
+printf '* text=auto eol=crlf\n*.cmd -text\n' > .git/info/attributes
 git rm -q -r --cached . && git reset -q --hard
 android_crlf=$(runtime android)
 echo "Android runtime (CRLF checkout): $android_crlf"
