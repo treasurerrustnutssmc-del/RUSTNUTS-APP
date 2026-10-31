@@ -204,6 +204,13 @@ export function RoadRulesDiagramScreen({ route, navigation }: RootScreen<'RoadRu
   const { prev, next } = neighbours(d.id);
   const go = (id: DiagramId) => navigation.replace('RoadRulesDiagram', { id });
   const rule = ruleByNumber(d.rule);
+  // Back to the rule when the viewer was opened from it, so the stack doesn't gain a second copy.
+  const toRule = (n: number) => {
+    const { routes, index } = navigation.getState();
+    const before = routes[index - 1];
+    if (before?.name === 'RoadRulesRule' && (before.params as { number?: number } | undefined)?.number === n) navigation.goBack();
+    else navigation.navigate('RoadRulesRule', { number: n });
+  };
 
   return (
     <View style={styles.viewer}>
@@ -212,7 +219,7 @@ export function RoadRulesDiagramScreen({ route, navigation }: RootScreen<'RoadRu
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={`Read Rule ${rule.number}, ${rule.title}`}
-            onPress={() => navigation.navigate('RoadRulesRule', { number: rule.number })}
+            onPress={() => toRule(rule.number)}
             style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [styles.ruleLink, (pressed || hovered) && { backgroundColor: colors.steel }]}
           >
             <Text style={[styles.kicker, styles.kickerLink]}>{`Rule ${rule.number} · ${rule.title}`}</Text>
