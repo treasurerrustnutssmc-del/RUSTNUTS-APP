@@ -158,6 +158,14 @@
       "approval": "approved",
       "sharePhone": false,
       "fngStartedOn": "2025-01-01"
+    },
+    {
+      "key": "benched",
+      "chapter": "west",
+      "name": "Barry Benched",
+      "status": "full",
+      "approval": "suspended",
+      "sharePhone": false
     }
   ],
   "positions": [
@@ -12117,6 +12125,439 @@
       "member": "finn",
       "status": "legacy",
       "allowed": false
+    },
+    {
+      "name": "Agreeing to the club rules for chats and posts",
+      "as": "finn",
+      "action": "agreePostingRules",
+      "allowed": true
+    },
+    {
+      "name": "Agreeing again keeps the first date",
+      "as": "spanner",
+      "action": "agreePostingRules",
+      "allowed": true
+    },
+    {
+      "name": "An applicant can't agree yet",
+      "as": "dylan",
+      "action": "agreePostingRules",
+      "allowed": false
+    },
+    {
+      "name": "Nobody signed in can't agree",
+      "as": null,
+      "action": "agreePostingRules",
+      "allowed": false
+    },
+    {
+      "name": "A message before agreeing to the club rules",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "G’day",
+      "rulesNotAgreed": true,
+      "allowed": false
+    },
+    {
+      "name": "An empty message before agreeing: the content comes first",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "club",
+      "body": "  ",
+      "rulesNotAgreed": true,
+      "allowed": false
+    },
+    {
+      "name": "A listing before agreeing to the club rules",
+      "as": "finn",
+      "action": "socialSaveListing",
+      "listing": null,
+      "kind": "sell",
+      "title": "Tank bag",
+      "price": 60,
+      "details": "",
+      "photos": [],
+      "rulesNotAgreed": true,
+      "allowed": false
+    },
+    {
+      "name": "A build update before agreeing to the club rules",
+      "as": "gravel",
+      "action": "socialPostBuildUpdate",
+      "bike": "gravel-project",
+      "body": "Carbs off.",
+      "photos": [],
+      "rulesNotAgreed": true,
+      "allowed": false
+    },
+    {
+      "name": "A nomination before agreeing to the club rules",
+      "as": "spanner",
+      "action": "socialNominate",
+      "award": "rides-empty",
+      "ride": "past-club",
+      "title": "",
+      "photo": null,
+      "story": "",
+      "reason": "Best day out",
+      "rulesNotAgreed": true,
+      "allowed": false
+    },
+    {
+      "name": "A workshop before agreeing to the club rules",
+      "as": "finn",
+      "action": "socialSaveMechanic",
+      "mechanic": null,
+      "workshop": "Bob’s Bikes",
+      "suburb": "",
+      "phone": "",
+      "website": "",
+      "speciality": "",
+      "notes": "",
+      "rulesNotAgreed": true,
+      "allowed": false
+    },
+    {
+      "name": "A member reports someone else's listing",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "listing",
+      "target": "gravels-panniers",
+      "reason": "Not on",
+      "allowed": true
+    },
+    {
+      "name": "Reporting the same listing again changes the reason",
+      "as": "spanner",
+      "action": "socialReportContent",
+      "kind": "listing",
+      "target": "gravels-panniers",
+      "reason": "Still not on",
+      "allowed": true
+    },
+    {
+      "name": "A member reports a build update",
+      "as": "spanner",
+      "action": "socialReportContent",
+      "kind": "build_update",
+      "target": "gravel-carbs",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "A member reports a nomination",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "nomination",
+      "target": "gravel-story",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "A member reports a workshop entry",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "mechanic",
+      "target": "gravels-shop",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "A member reports another member's profile",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "profile",
+      "target": "gravel",
+      "reason": "",
+      "allowed": true
+    },
+    {
+      "name": "Nobody signed in can't report",
+      "as": null,
+      "action": "socialReportContent",
+      "kind": "listing",
+      "target": "gravels-panniers",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "An applicant can't report",
+      "as": "dylan",
+      "action": "socialReportContent",
+      "kind": "listing",
+      "target": "gravels-panniers",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report has to say what it's about",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "photo",
+      "target": "gravels-panniers",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report on a listing that isn't there",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "listing",
+      "target": null,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report on a member who isn't there",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "profile",
+      "target": null,
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report on a taken-down build update",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "build_update",
+      "target": "gravel-old",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report on a withdrawn nomination",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "nomination",
+      "target": "gravel-withdrawn",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report on a workshop that's off the list",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "mechanic",
+      "target": "closed-shop",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report on a suspended member's profile",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "profile",
+      "target": "benched",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A member can't report their own listing",
+      "as": "gravel",
+      "action": "socialReportContent",
+      "kind": "listing",
+      "target": "gravels-panniers",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A member can't report their own profile",
+      "as": "gravel",
+      "action": "socialReportContent",
+      "kind": "profile",
+      "target": "gravel",
+      "reason": "",
+      "allowed": false
+    },
+    {
+      "name": "A report with too long a reason",
+      "as": "finn",
+      "action": "socialReportContent",
+      "kind": "listing",
+      "target": "gravels-panniers",
+      "reason": "x",
+      "repeat": 501,
+      "allowed": false
+    },
+    {
+      "name": "The chapter board removes a reported listing",
+      "as": "torque",
+      "action": "socialResolveReport",
+      "report": "panniers-open",
+      "remove": true,
+      "allowed": true
+    },
+    {
+      "name": "Another chapter's board leaves a reported listing up",
+      "as": "crank",
+      "action": "socialResolveReport",
+      "report": "panniers-open",
+      "remove": false,
+      "allowed": true
+    },
+    {
+      "name": "The NEC Chairman deals with a reported listing",
+      "as": "chair",
+      "action": "socialResolveReport",
+      "report": "panniers-open",
+      "remove": true,
+      "allowed": true
+    },
+    {
+      "name": "A plain member can't deal with a report",
+      "as": "finn",
+      "action": "socialResolveReport",
+      "report": "panniers-open",
+      "remove": true,
+      "allowed": false
+    },
+    {
+      "name": "The reporter can't deal with their own report",
+      "as": "spanner",
+      "action": "socialResolveReport",
+      "report": "panniers-open",
+      "remove": false,
+      "allowed": false
+    },
+    {
+      "name": "A report that isn't there",
+      "as": "torque",
+      "action": "socialResolveReport",
+      "report": "no-such",
+      "remove": true,
+      "allowed": false
+    },
+    {
+      "name": "A report already dealt with",
+      "as": "torque",
+      "action": "socialResolveReport",
+      "report": "panniers-done",
+      "remove": true,
+      "allowed": false
+    },
+    {
+      "name": "A profile report goes to that member's chapter board",
+      "as": "torque",
+      "action": "socialResolveReport",
+      "report": "rusty-profile",
+      "remove": true,
+      "allowed": true
+    },
+    {
+      "name": "Another chapter's board can't deal with a profile report",
+      "as": "crank",
+      "action": "socialResolveReport",
+      "report": "rusty-profile",
+      "remove": true,
+      "allowed": false
+    },
+    {
+      "name": "The NEC Chairman can't deal with a chapter's profile report",
+      "as": "chair",
+      "action": "socialResolveReport",
+      "report": "rusty-profile",
+      "remove": false,
+      "allowed": false
+    },
+    {
+      "name": "The chapter board suspends a member's app access",
+      "as": "torque",
+      "action": "suspendAccess",
+      "member": "gravel",
+      "allowed": true
+    },
+    {
+      "name": "The President suspends a member's app access",
+      "as": "rusty",
+      "action": "suspendAccess",
+      "member": "gravel",
+      "allowed": true
+    },
+    {
+      "name": "Another chapter's board can't suspend",
+      "as": "crank",
+      "action": "suspendAccess",
+      "member": "gravel",
+      "allowed": false
+    },
+    {
+      "name": "The NEC Chairman can't suspend a chapter's member",
+      "as": "chair",
+      "action": "suspendAccess",
+      "member": "gravel",
+      "allowed": false
+    },
+    {
+      "name": "A plain member can't suspend",
+      "as": "finn",
+      "action": "suspendAccess",
+      "member": "gravel",
+      "allowed": false
+    },
+    {
+      "name": "A board member can't suspend themselves",
+      "as": "torque",
+      "action": "suspendAccess",
+      "member": "torque",
+      "allowed": false
+    },
+    {
+      "name": "Suspending someone already suspended",
+      "as": "torque",
+      "action": "suspendAccess",
+      "member": "benched",
+      "allowed": false
+    },
+    {
+      "name": "Suspending an applicant",
+      "as": "torque",
+      "action": "suspendAccess",
+      "member": "dylan",
+      "allowed": false
+    },
+    {
+      "name": "Suspending nobody",
+      "as": "torque",
+      "action": "suspendAccess",
+      "member": "no-one",
+      "allowed": false
+    },
+    {
+      "name": "Nobody signed in can't suspend",
+      "as": null,
+      "action": "suspendAccess",
+      "member": "gravel",
+      "allowed": false
+    },
+    {
+      "name": "The chapter board restores a suspended member's access",
+      "as": "torque",
+      "action": "restoreAccess",
+      "member": "benched",
+      "allowed": true
+    },
+    {
+      "name": "Restoring someone who isn't suspended",
+      "as": "torque",
+      "action": "restoreAccess",
+      "member": "gravel",
+      "allowed": false
+    },
+    {
+      "name": "Another chapter's board can't restore",
+      "as": "crank",
+      "action": "restoreAccess",
+      "member": "benched",
+      "allowed": false
+    },
+    {
+      "name": "A board member can't restore themselves",
+      "as": "torque",
+      "action": "restoreAccess",
+      "member": "torque",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -13754,6 +14195,32 @@
       "litres": 50,
       "loggedBy": "gravel",
       "struck": true
+    }
+  ],
+  "contentReports": [
+    {
+      "key": "panniers-open",
+      "kind": "listing",
+      "target": "gravels-panniers",
+      "author": "gravel",
+      "reporter": "spanner",
+      "resolved": false
+    },
+    {
+      "key": "panniers-done",
+      "kind": "listing",
+      "target": "gravels-panniers",
+      "author": "gravel",
+      "reporter": "torque",
+      "resolved": true
+    },
+    {
+      "key": "rusty-profile",
+      "kind": "profile",
+      "target": "rusty",
+      "author": "rusty",
+      "reporter": "spanner",
+      "resolved": false
     }
   ]
 }

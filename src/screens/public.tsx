@@ -13,6 +13,7 @@ import { isReviewerEmail } from '../domain/reviewer'; // Store review demo
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
+import { PostingRulesRow } from './postingRules'; // Club rules for chats and posts
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -399,6 +400,8 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const declined = me.approval === 'declined';
+  // Member content rules: the chapter board paused their access
+  const suspended = me.approval === 'suspended';
   const priv = data.privates.find((p) => p.memberId === me.id);
 
   return (
@@ -406,7 +409,15 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
       <Flannel style={{ alignItems: 'center' }}>
         <Logo width={180} />
       </Flannel>
-      {declined ? (
+      {suspended ? (
+        <Stack gap={space.sm}>
+          <H1>Your app access is suspended</H1>
+          <Body>
+            The {chapter?.name} chapter board has paused your access to the club’s chats, posts and records. Talk to
+            your chapter board about what happens next.
+          </Body>
+        </Stack>
+      ) : declined ? (
         <Stack gap={space.sm}>
           <H1>Request not approved</H1>
           <Body>
@@ -424,33 +435,35 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
         </Stack>
       )}
 
-      {!declined && me.status === 'introduced' ? (
+      {!declined && !suspended && me.status === 'introduced' ? (
         <>
           <IntroProgressCard member={me} self />
           <Button label="Check in" kind="secondary" icon="scan" onPress={() => navigation.navigate('CheckIn')} />
         </>
       ) : null}
 
-      <Card>
-        <Label>What you sent</Label>
-        <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
-          <Avatar text={initials(me)} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={type.name}>{me.fullName}{me.roadName ? ` · ${me.roadName}` : ''}</Text>
-            <Small>
-              {chapter?.name} chapter · joining as {me.status === 'introduced' ? 'a rider' : STATUS_LABEL[me.status].toLowerCase()}
-            </Small>
-            {priv?.introducedBy ? <Small>Introduced by {priv.introducedBy}</Small> : null}
-          </View>
-        </Row>
-      </Card>
+      {!suspended ? (
+        <Card>
+          <Label>What you sent</Label>
+          <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>
+            <Avatar text={initials(me)} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={type.name}>{me.fullName}{me.roadName ? ` · ${me.roadName}` : ''}</Text>
+              <Small>
+                {chapter?.name} chapter · joining as {me.status === 'introduced' ? 'a rider' : STATUS_LABEL[me.status].toLowerCase()}
+              </Small>
+              {priv?.introducedBy ? <Small>Introduced by {priv.introducedBy}</Small> : null}
+            </View>
+          </Row>
+        </Card>
+      ) : null}
 
       {/* Stage 5C: the Registered Rules and the Constitution are free to applicants (15.7) */}
-      {!declined ? (
+      {!declined && !suspended ? (
         <Button label="Read the Constitution" kind="secondary" icon="library-outline" onPress={() => navigation.navigate('Documents')} />
       ) : null}
 
-      {!declined && !isDemo ? (
+      {!declined && !suspended && !isDemo ? (
         <Button
           label="Check again"
           icon="refresh"
@@ -465,6 +478,7 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
       {/* Sponsors: anyone with the app sees them */}
       <SponsorsSection />
       <PrivacyPolicyRow />
+      <PostingRulesRow />
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
       {/* Delete my account */}
       <Button label="Delete my account" kind="quiet" onPress={() => navigation.navigate('DeleteAccount')} />

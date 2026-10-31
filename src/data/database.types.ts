@@ -174,6 +174,7 @@ export type Database = {
           id: string;
           joined_on: string | null;
           on_hiatus: boolean;
+          posting_rules_accepted_on: string | null;
           patched_on: string | null;
           road_name: string | null;
           share_phone: boolean;
@@ -466,6 +467,10 @@ export type Database = {
       approve_member: { Args: { p_member: string; p_status: MemberStatus }; Returns: undefined };
       decline_member: { Args: { p_member: string }; Returns: undefined };
       set_member_status: { Args: { p_member: string; p_status: MemberStatus; p_by_request?: boolean }; Returns: undefined };
+      // Member content rules (App Store Guideline 1.2)
+      accept_posting_rules: { Args: never; Returns: string };
+      suspend_member_access: { Args: { p_member: string }; Returns: undefined };
+      restore_member_access: { Args: { p_member: string }; Returns: undefined };
       set_rsvp: { Args: { p_ride: string; p_answer: RsvpAnswer }; Returns: undefined };
       set_crew: { Args: { p_ride: string; p_member: string; p_role: CrewRole }; Returns: undefined };
       leave_crew: { Args: { p_ride: string; p_member: string }; Returns: undefined };

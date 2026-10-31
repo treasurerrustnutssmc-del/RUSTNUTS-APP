@@ -80,6 +80,15 @@ export function demoSocialData(today: string): SocialData {
     honours: DEMO_HONOURS,
     ...demoBragging(today),
     ...demoInvites(today),
+    // One open report, so a board persona sees "Reports to look at" straight away (the reviewer
+    // opens as Spanner, who didn't make it, so Spanner still sees the listing).
+    contentReports: [
+      {
+        id: 'cr-1', kind: 'listing', targetId: 'listing-2', authorId: 'm-chook', reporterId: 'm-gravel',
+        reason: 'He’s had a go at me over this before. Not on.', snapshot: 'Heated grips for a tank bag\nOxford heated grips, barely used. After a magnetic tank bag.',
+        createdAt: `${addDays(today, -1)}T22:00:00.000Z`, resolvedAt: null, resolvedBy: null, outcome: null,
+      },
+    ],
   };
 }
 

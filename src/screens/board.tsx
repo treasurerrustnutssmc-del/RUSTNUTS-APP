@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useClub } from '../data/ClubStore';
 import {
-  appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, holdsBoardSeat, isBoardOf, isChairman, isStepDown, pendingFor, renewAuditorProblem, statusChangeProblem,
+  appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, holdsBoardSeat, isBoardOf, isChairman, isStepDown, pendingFor, renewAuditorProblem, restoreAccessProblem, statusChangeProblem, suspendAccessProblem,
 } from '../domain/access';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
@@ -291,7 +291,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
 // ---------------------------------------------------------------------------
 
 export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMember'>) {
-  const { me, data, today, setMemberStatus, appoint, renewAuditor } = useClub();
+  const { me, data, today, setMemberStatus, appoint, renewAuditor, suspendAccess, restoreAccess } = useClub();
   const member = data.members.find((m) => m.id === route.params.memberId);
   const [status, setStatus] = useState<MemberStatus | null>(member?.status ?? null);
   const [byRequest, setByRequest] = useState(false);
@@ -573,6 +573,37 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
           </Small>
         )}
       </Card>
+
+      {/* Member content rules: the chapter board can pause a member's app access on the spot */}
+      {suspendAccessProblem(me, member, data.positions) === null ? (
+        <Card>
+          <H2>App access</H2>
+          <Small>
+            Suspending cuts {displayName(member)} off from the chats, posts, directory and records at once, until the board
+            restores it. It doesn’t change their membership: record the conduct and follow the constitution separately.
+          </Small>
+          <ConfirmButton
+            label="Suspend app access"
+            confirmLabel="Yes, suspend their access"
+            icon="hand-left-outline"
+            confirmNote="They’ll see a note that their chapter board has paused their access. Nothing they posted is removed by this."
+            onConfirm={() => run(() => suspendAccess(member.id), `${displayName(member)}’s app access is suspended.`)}
+          />
+        </Card>
+      ) : null}
+      {restoreAccessProblem(me, member, data.positions) === null ? (
+        <Card>
+          <H2>App access</H2>
+          <Notice tone="warn">Their app access is suspended. They see only a note to talk to the chapter board.</Notice>
+          <ConfirmButton
+            label="Restore app access"
+            confirmLabel="Yes, restore their access"
+            kind="secondary"
+            icon="hand-right-outline"
+            onConfirm={() => run(() => restoreAccess(member.id), `${displayName(member)}’s app access is back.`)}
+          />
+        </Card>
+      ) : null}
     </Screen>
   );
 }

@@ -124,6 +124,14 @@ export interface ClubContextValue {
   // actions
   submitApplication: (input: ApplicationInput) => Promise<void>;
   approveMember: (memberId: string, status: MemberStatus) => Promise<void>;
+  // Member content rules (App Store Guideline 1.2)
+  /** Records that I agree to the club rules for chats and posts (src/domain/postingRules.ts). */
+  acceptPostingRules: () => Promise<void>;
+  /** The chapter board pauses a member's app access (approval 'suspended'), or gives it back. */
+  suspendAccess: (memberId: string) => Promise<void>;
+  restoreAccess: (memberId: string) => Promise<void>;
+  /** Demo only: a removed profile report clears the bio on the demo's own club data. */
+  demoClearBio?: (memberId: string) => void;
   declineMember: (memberId: string) => Promise<void>;
   /** `byRequest` records that a step down to Supporter, Legacy or FNG is at the member's own request, which takes the place of a decided 5.5 notice. */
   setMemberStatus: (memberId: string, status: MemberStatus, byRequest?: boolean) => Promise<void>;

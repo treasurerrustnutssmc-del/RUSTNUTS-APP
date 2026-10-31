@@ -1,14 +1,30 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA as demoData } from '../demoData';
-import { archiveMechanic, saveMechanic, setBirthday, setSkills, vouchMechanic, type SocialCtx } from './demoSocialActions';
+import { archiveMechanic, saveListing, saveMechanic, setBirthday, setSkills, vouchMechanic, type SocialCtx } from './demoSocialActions';
 import { demoSocialData } from './demoSocialData';
 
-const ctxAs = (memberId: string): SocialCtx => ({
-  social: demoSocialData('2026-10-27'),
-  club: demoData,
-  me: demoData.members.find((m) => m.id === memberId) ?? null,
-  today: '2026-10-27',
+// Everyone here has agreed to the club rules for chats and posts (Spanner, the store reviewer's
+// persona, hasn't in the demo itself: that gate has its own test below).
+const ctxAs = (memberId: string): SocialCtx => {
+  const m = demoData.members.find((x) => x.id === memberId);
+  return {
+    social: demoSocialData('2026-10-27'),
+    club: demoData,
+    me: m ? { ...m, postingRulesAcceptedOn: m.postingRulesAcceptedOn ?? '2026-10-01' } : null,
+    today: '2026-10-27',
+  };
+};
+
+test('the store reviewer’s persona meets the club rules gate first, and the gate uses the database’s words', () => {
+  const spanner = demoData.members.find((m) => m.id === 'm-spanner')!;
+  assert.equal(spanner.postingRulesAcceptedOn, null);
+  const gated: SocialCtx = { ...ctxAs('m-spanner'), me: spanner, now: '2026-10-27T02:00:00Z' };
+  const listing = { id: null, kind: 'sell' as const, title: 'Tank bag', priceDollars: 60, details: '', photos: [] };
+  assert.throws(() => saveListing(gated, listing), /Agree to the club rules for chats and posts first\./);
+  // Vouching for a workshop isn't a post, so it isn't gated.
+  assert.ok(vouchMechanic(gated, 'mech-4', true).vouches.some((v) => v.memberId === 'm-spanner' && v.mechanicId === 'mech-4'));
+  assert.equal(demoData.members.filter((m) => m.approval === 'approved' && m.postingRulesAcceptedOn === null).length, 1);
 });
 
 test('the demo has a birthday today and one later this week', () => {

@@ -84,8 +84,10 @@ export interface ChatContextValue {
   unreadTotal: number;
   /** The members I've blocked. */
   blocks: Block[];
+  /** Messages I've reported that the board hasn't dealt with yet: hidden from me (member content rules). */
+  reportedMessageIds: string[];
   conversation: (chatId: string) => Conversation | undefined;
-  /** What's loaded of a chat, oldest first, without anyone I've blocked. */
+  /** What's loaded of a chat, oldest first, without anyone I've blocked or anything I've reported. */
   messages: (chatId: string) => Message[];
   hasOlder: (chatId: string) => boolean;
   /** Loads the newest page, marks the chat read and keeps it fresh until the returned close runs. */

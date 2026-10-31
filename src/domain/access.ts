@@ -456,3 +456,34 @@ export function withHolders(positions: Position[], members: Member[]): { positio
     return member ? [{ position, member }] : [];
   });
 }
+
+// Suspending a member's app access (App Review Guideline 1.2: a way to eject an abusive member in
+// one step). approval = 'suspended' already locks them out of everything members-only, because
+// every check asks for 'approved'. Mirrors public.suspend_member_access / restore_member_access.
+export const NOT_MEMBER_BOARD = 'Only that member’s chapter board can do that.';
+export const SUSPEND_SELF = 'You can’t suspend your own access.';
+export const RESTORE_SELF = 'You can’t restore your own access.';
+export const NOT_APPROVED_TARGET = 'They’re not an approved member.';
+export const NOT_SUSPENDED = 'Their access isn’t suspended.';
+
+/** Why `me` can't suspend `target`'s app access, or null. */
+export function suspendAccessProblem(me: Member | null, target: Member | undefined, positions: Position[]): string | null {
+  if (!me) return 'Sign in first.';
+  if (!isApprovedMember(me)) return 'Only approved members can do that.';
+  if (!target) return 'That member no longer exists.';
+  if (target.id === me.id) return SUSPEND_SELF;
+  if (!isBoardOf(me, target.chapterId, positions)) return NOT_MEMBER_BOARD;
+  if (target.approval !== 'approved') return NOT_APPROVED_TARGET;
+  return null;
+}
+
+/** Why `me` can't restore `target`'s app access, or null. */
+export function restoreAccessProblem(me: Member | null, target: Member | undefined, positions: Position[]): string | null {
+  if (!me) return 'Sign in first.';
+  if (!isApprovedMember(me)) return 'Only approved members can do that.';
+  if (!target) return 'That member no longer exists.';
+  if (target.id === me.id) return RESTORE_SELF;
+  if (!isBoardOf(me, target.chapterId, positions)) return NOT_MEMBER_BOARD;
+  if (target.approval !== 'suspended') return NOT_SUSPENDED;
+  return null;
+}

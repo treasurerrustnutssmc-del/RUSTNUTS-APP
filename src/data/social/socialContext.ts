@@ -10,6 +10,7 @@ import type { HistoryEntry, HistoryInput, Honour, HonourInput } from '../../doma
 import type { Award, AwardInput, Nomination, NominationInput, Tally, Vote } from '../../domain/social/brag';
 import type { AnswerInput, ClubInvite, InviteInInput, InviteOutInput, OtherClub, OtherClubInput } from '../../domain/invites';
 import type { PickedMedia } from '../../domain/chat';
+import type { ContentReport, OpenReportRef, ReportKind } from '../../domain/reports'; // Member content rules
 import type { Ride, RideRoute } from '../../domain/types';
 import type { FeedItem, MediaSource } from '../chat/chatContext';
 
@@ -93,6 +94,14 @@ export interface SocialContextValue {
   inviteClub: (input: InviteOutInput) => Promise<string>;
   answerInvite: (input: AnswerInput) => Promise<void>;
   archiveInvite: (id: string) => Promise<void>;
+  // Member content rules: reporting what members post outside the chats
+  /** Things I've reported that the board hasn't dealt with yet (hidden from me). */
+  myOpenReports: OpenReportRef[];
+  reportContent: (kind: ReportKind, targetId: string, reason: string) => Promise<void>;
+  /** Open reports I can act on, newest first. */
+  contentReports: () => Promise<ContentReport[]>;
+  /** Deals with a report: remove takes the thing down, otherwise it stays up. Every open report on it closes. */
+  resolveContentReport: (id: string, remove: boolean) => Promise<void>;
   refresh: () => Promise<void>;
 }
 

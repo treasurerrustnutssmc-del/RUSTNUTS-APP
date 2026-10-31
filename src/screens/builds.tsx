@@ -17,6 +17,8 @@ import type { Bike, ClubData } from '../domain/types';
 import type { RootParams, RootScreen } from '../navigation/types';
 import { colors, MAX_CONTENT_WIDTH, radius, space, type } from '../theme';
 import { Body, Button, Card, ConfirmButton, Field, H2, IconBadge, Ionicons, ListRow, Notice, Screen, SectionTitle, Small } from '../ui/primitives';
+import { withoutReported } from '../domain/reports'; // Member content rules
+import { ReportBox } from '../ui/ReportBox';
 import { ListingPhotoBox } from './swap';
 
 type Nav = NavigationProp<RootParams>;
@@ -165,13 +167,14 @@ function UpdateCard({ update, onError }: { update: BuildUpdate; onError: (messag
           onConfirm={() => takeDownBuildUpdate(update.id).catch((e) => onError((e as Error).message))}
         />
       ) : null}
+      <ReportBox kind="build_update" targetId={update.id} authorId={update.authorId} />
     </Card>
   );
 }
 
 export function BuildThreadScreen({ route, navigation }: RootScreen<'BuildThread'>) {
   const { me, data } = useClub();
-  const { ready, buildUpdates } = useSocial();
+  const { ready, buildUpdates, myOpenReports } = useSocial();
   const chat = useChat();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -193,7 +196,8 @@ export function BuildThreadScreen({ route, navigation }: RootScreen<'BuildThread
       </Screen>
     );
   }
-  const updates = build?.updates ?? [];
+  // Anything you've reported is out of your view until the board deals with it.
+  const updates = withoutReported(build?.updates ?? [], 'build_update', myOpenReports);
   const message = () => {
     if (busy) return;
     setError(null);

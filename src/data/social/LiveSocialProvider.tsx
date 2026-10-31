@@ -102,6 +102,18 @@ import {
   type OtherClubRow,
 } from './liveSocial';
 import { SocialContext, type SocialContextValue } from './socialContext';
+import { reportContentProblem, type ContentReport, type OpenReportRef, type ReportKind } from '../../domain/reports'; // Member content rules
+import { findReportTarget } from './demoSocialActions';
+
+/** A content report as content_reports() hands it over. */
+interface ContentReportJson {
+  id: string; kind: ReportKind; target_id: string; author_id: string | null; reporter_id: string; reason: string | null;
+  snapshot: string; created_at: string;
+}
+const toContentReport = (r: ContentReportJson): ContentReport => ({
+  id: r.id, kind: r.kind, targetId: r.target_id, authorId: r.author_id ?? '', reporterId: r.reporter_id, reason: r.reason,
+  snapshot: r.snapshot, createdAt: r.created_at, resolvedAt: null, resolvedBy: null, outcome: null,
+});
 
 // The social tables and actions aren't in the generated types, so they go through an untyped client.
 const db = () => supabase() as unknown as SupabaseClient;
@@ -142,6 +154,12 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
   const [pastRideRoutes, setPastRideRoutes] = useState<RideRoute[]>([]);
   const [otherClubs, setOtherClubs] = useState<OtherClub[]>([]);
   const [invites, setInvites] = useState<ClubInvite[]>([]);
+  // Member content rules: what I've reported that the board hasn't dealt with yet.
+  const [myOpenReports, setMyOpenReports] = useState<OpenReportRef[]>([]);
+  const loadMyReports = useCallback(async () => {
+    const mine = ((await call('my_open_reports', {}).catch(() => [])) ?? []) as { kind: string; target_id: string }[];
+    setMyOpenReports(mine.filter((r) => r.kind !== 'message').map((r) => ({ kind: r.kind as ReportKind, targetId: r.target_id })));
+  }, []);
   const allRideRoutes = useMemo(() => mergeRideRoutes(pastRideRoutes, club.rideRoutes ?? []), [pastRideRoutes, club.rideRoutes]);
   // Signed addresses, by bucket and path.
   const urls = useRef(new Map<string, { url: Promise<string>; until: number }>());
@@ -201,8 +219,9 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     if (!bv.error) setMyVotes(toVotes((bv.data ?? []) as BragVoteRow[]));
     if (!rr.error) setPastRideRoutes(toRideRoutes(rr.data ?? []));
     if (!bt.error) setTallies(toTallies((bt.data ?? []) as { nomination_id: string; votes: number }[]));
+    await loadMyReports();
     setReady(true);
-  }, [approved]);
+  }, [approved, loadMyReports]);
 
   // Kept the same between renders, so a screen that loads on change doesn't load forever.
   const photosOnThisDay = useCallback(async () => {
@@ -440,6 +459,21 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
       refuse(archiveInviteProblem(me, id, invites, club));
       await call('archive_invite', { p_id: id });
       await load().catch(() => undefined);
+    },
+    // Member content rules
+    myOpenReports,
+    reportContent: async (kind, targetId, reason) => {
+      refuse(reportContentProblem(me, kind, findReportTarget(kind, targetId, { listings, buildUpdates, nominations, mechanics }, club), reason));
+      await call('report_content', { p_kind: kind, p_target: targetId, p_reason: reason });
+      await loadMyReports();
+    },
+    contentReports: async () => {
+      if (!approved) return [];
+      return (((await call('content_reports', {})) ?? []) as ContentReportJson[]).map(toContentReport);
+    },
+    resolveContentReport: async (id, remove) => {
+      await call('resolve_content_report', { p_report: id, p_remove: remove });
+      await load();
     },
     refresh: load,
   };

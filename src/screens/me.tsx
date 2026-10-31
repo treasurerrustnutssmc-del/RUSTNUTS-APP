@@ -28,6 +28,7 @@ import { BadgesCard } from './badges'; // Stage 7: badges
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
+import { PostingRulesRow } from './postingRules'; // Club rules for chats and posts
 import {
   Avatar,
   Button,
@@ -234,6 +235,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         <Small>Live ride location sharing is always your choice, switches off after the ride, and keeps nothing.</Small>
       </Card>
       <PrivacyPolicyRow />
+      <PostingRulesRow />
 
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
       {/* Delete my account */}
@@ -311,7 +313,10 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
         <H2>About you</H2>
         <Field label="Full name" value={fullName} onChangeText={setFullName} autoComplete="name" />
         <Field label="Road name" value={roadName} onChangeText={setRoadName} hint="Leave blank if you don't have one yet." />
-        <Field label="A bit about you" value={bio} onChangeText={setBio} multiline placeholder="What you ride, how long you've been riding…" />
+        {/* A bio is a post, and Family don't post, so they don't get the field (their old one is kept as it was). */}
+        {me.status !== 'family' ? (
+          <Field label="A bit about you" value={bio} onChangeText={setBio} multiline placeholder="What you ride, how long you've been riding…" />
+        ) : null}
       </Card>
       <Card>
         <Row style={{ justifyContent: 'space-between' }}>

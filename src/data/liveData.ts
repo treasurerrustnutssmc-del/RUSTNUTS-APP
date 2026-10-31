@@ -256,6 +256,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       sharePhone: m.share_phone,
       appliedOn: m.applied_on,
       onHiatus: m.on_hiatus,
+      postingRulesAcceptedOn: m.posting_rules_accepted_on ?? null,
     })),
     privates: privateRows,
     bikes: (bikes.data ?? []).map((b) => ({

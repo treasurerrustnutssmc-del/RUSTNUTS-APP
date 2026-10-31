@@ -3,6 +3,7 @@
 // same order.
 
 import type { Block } from '../chat';
+import { postingRulesProblem } from '../postingRules';
 import { signedInProblem } from '../routes';
 import type { Bike, Member, Position } from '../types';
 import { isAnyBoard } from './help';
@@ -72,7 +73,8 @@ export function buildPostProblem(me: Member | null, p: BuildPost, bikes: Bike[],
     if (photo.path.split('/')[0] !== self.id || used.has(photo.path) || seen.has(photo.path)) return BAD_BUILD_PHOTO;
     seen.add(photo.path);
   }
-  return null;
+  // Last, as the row goes in (a database trigger): agreed to the club rules for chats and posts?
+  return postingRulesProblem(me);
 }
 
 export function buildTakeDownProblem(me: Member | null, id: string, updates: BuildUpdate[], positions: Position[]): string | null {

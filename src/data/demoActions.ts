@@ -2,7 +2,8 @@
 // is and hand back the club as it should be, or throw when the person isn't allowed. The
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
-import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, isStepDown, LEARNER_FNG, statusChangeProblem } from '../domain/access';
+import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, isStepDown, LEARNER_FNG, restoreAccessProblem, statusChangeProblem, suspendAccessProblem } from '../domain/access';
+import { bioProblem } from '../domain/postingRules'; // Member content rules
 import { deleteAccountProblem, FORMER_MEMBER } from '../domain/account'; // Delete my account
 import { big4GoingProblem } from '../domain/big4';
 import { bookedStraightAway, bookProblem, cancelProblem, decideProblem, type BusInput } from '../domain/bus';
@@ -158,6 +159,30 @@ export function approve(ctx: DemoCtx, memberId: string, status: MemberStatus): C
   });
 }
 
+// Member content rules (App Store Guideline 1.2) -------------------------------------------------
+
+/** Records today as the day I agreed to the club rules for chats and posts (a second tap keeps the first date). */
+export function acceptPostingRules(ctx: DemoCtx): ClubData {
+  const me = requireMe(ctx);
+  if (me.approval !== 'approved' || me.status === 'family') throw new NotAllowedError('Only approved members can do that.');
+  return patchMember(ctx.data, me.id, { postingRulesAcceptedOn: me.postingRulesAcceptedOn ?? ctx.today });
+}
+
+/** Suspends a member's app access: approval becomes 'suspended', which locks them out of everything members-only. */
+export function suspendAccess(ctx: DemoCtx, memberId: string): ClubData {
+  const target = ctx.data.members.find((m) => m.id === memberId);
+  const problem = suspendAccessProblem(ctx.me, target, ctx.data.positions);
+  if (problem) throw new NotAllowedError(problem);
+  return patchMember(ctx.data, memberId, { approval: 'suspended' });
+}
+
+export function restoreAccess(ctx: DemoCtx, memberId: string): ClubData {
+  const target = ctx.data.members.find((m) => m.id === memberId);
+  const problem = restoreAccessProblem(ctx.me, target, ctx.data.positions);
+  if (problem) throw new NotAllowedError(problem);
+  return patchMember(ctx.data, memberId, { approval: 'approved' });
+}
+
 export function decline(ctx: DemoCtx, memberId: string): ClubData {
   const target = findMember(ctx.data, memberId);
   if (!isBoardOf(ctx.me, target.chapterId, ctx.data.positions)) {
@@ -192,6 +217,9 @@ export function setStatus(ctx: DemoCtx, memberId: string, status: MemberStatus, 
 export function saveProfile(ctx: DemoCtx, profile: ProfileInput, priv: PrivateInput | null): ClubData {
   const self = requireMe(ctx);
   if (!profile.fullName.trim()) throw new Error('Your name can’t be blank.');
+  // A bio is a post: agreed to the club rules for chats and posts? (A database trigger, so it comes last.)
+  const rules = bioProblem(self, profile.bio);
+  if (rules) throw new NotAllowedError(rules);
   let data = patchMember(ctx.data, self.id, {
     fullName: profile.fullName.trim(),
     roadName: profile.roadName?.trim() || null,
@@ -605,6 +633,10 @@ export type DemoAction =
   | { action: 'approve'; member: string; status: MemberStatus }
   | { action: 'decline'; member: string }
   | { action: 'setStatus'; member: string; status: MemberStatus; byRequest?: boolean }
+  // Member content rules
+  | { action: 'agreePostingRules' }
+  | { action: 'suspendAccess'; member: string }
+  | { action: 'restoreAccess'; member: string }
   | { action: 'removeBike'; bike: string }
   | { action: 'removeContact'; contact: string }
   | { action: 'saveBike'; bike: string | null; make: string; model: string; year: number | null }
@@ -670,6 +702,12 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return approve(ctx, a.member, a.status);
     case 'decline':
       return decline(ctx, a.member);
+    case 'agreePostingRules':
+      return acceptPostingRules(ctx);
+    case 'suspendAccess':
+      return suspendAccess(ctx, a.member);
+    case 'restoreAccess':
+      return restoreAccess(ctx, a.member);
     case 'setStatus':
       return setStatus(ctx, a.member, a.status, a.byRequest ?? false);
     case 'removeBike':

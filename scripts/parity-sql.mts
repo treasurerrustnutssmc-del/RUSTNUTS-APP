@@ -18,6 +18,7 @@ import {
 import { DOCS_AT } from '../src/data/parityFixture.testkit'; // Stage 5C
 import { ADMIN_AT, ADMIN_PLAN } from '../src/data/parityFixture.testkit'; // Stage 5D
 import { CASE_PLAN } from '../src/data/adminActions'; // Stage 5D
+import { REPORT_KINDS } from '../src/domain/reports'; // Member content rules
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const id = (kind: string, key: string) => `md5(${q(`${kind}:${key}`)})::uuid`;
@@ -290,6 +291,14 @@ for (const [a, b] of fx.directs ?? []) {
 }
 for (const b of fx.blocks ?? []) {
   sql(`insert into public.member_blocks (blocker_id, blocked_id) values (${id('m', b.blocker)}, ${id('m', b.blocked)});`);
+}
+// Member content rules: reports on what members post outside the chats
+for (const r of (fx as { contentReports?: { key: string; kind: string; target: string; author: string; reporter: string; resolved: boolean }[] }).contentReports ?? []) {
+  sql(
+    `insert into public.content_reports (id, kind, target_id, author_id, reporter_id, snapshot, resolved_at, outcome) values (` +
+      `${id('cr', r.key)}, ${q(r.kind)}, ${id(r.kind === 'listing' ? 'listing' : r.kind === 'build_update' ? 'build' : r.kind === 'nomination' ? 'nom' : r.kind === 'mechanic' ? 'mech' : 'm', r.target)}, ` +
+      `${id('m', r.author)}, ${id('m', r.reporter)}, 'Fixture', ${r.resolved ? "'2026-10-02T00:00:00Z'" : 'null'}, ${r.resolved ? "'dismissed'" : 'null'});`,
+  );
 }
 for (const m of fx.messages ?? []) {
   sql(
@@ -701,6 +710,21 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.report_message(${id('msg', c.message)}, ${text(c.reason, c.repeat)})`;
     case 'chatBlock':
       return `public.set_block(${id('m', c.member)}, ${c.blocked})`;
+    // Member content rules (App Store Guideline 1.2)
+    case 'agreePostingRules':
+      return 'public.accept_posting_rules()';
+    case 'suspendAccess':
+      return `public.suspend_member_access(${id('m', c.member)})`;
+    case 'restoreAccess':
+      return `public.restore_member_access(${id('m', c.member)})`;
+    case 'socialReportContent': {
+      const kind = String(c.kind);
+      const prefix = kind === 'listing' ? 'listing' : kind === 'build_update' ? 'build' : kind === 'nomination' ? 'nom' : kind === 'mechanic' ? 'mech' : 'm';
+      const target = c.target === null ? 'gen_random_uuid()' : (REPORT_KINDS as readonly string[]).includes(kind) ? id(prefix, String(c.target)) : id('m', String(c.target));
+      return `public.report_content(${q(kind)}, ${target}, ${text(c.reason, c.repeat)})`;
+    }
+    case 'socialResolveReport':
+      return `public.resolve_content_report(${id('cr', c.report)}, ${c.remove})`;
     // Stage 7: social extras
     case 'socialSetBirthday':
       return `public.set_birthday(${c.month ?? 'null'}, ${c.day ?? 'null'})`;
@@ -1147,6 +1171,10 @@ for (const c of fx.cases) {
     // Nothing published yet, for this case only (rolled back with it).
     sql('delete from public.road_rules_signoffs;');
     sql('delete from public.road_rules_versions;');
+  }
+  if (c.rulesNotAgreed && c.as) {
+    // Hasn't agreed to the club rules for chats and posts, for this case only (rolled back with it).
+    sql(`update public.members set posting_rules_accepted_on = null where id = ${id('m', c.as)};`);
   }
   sql(`select set_config('parity.chat', coalesce(${c.chat ? chatId(String(c.chat)) : 'null'}::text, ''), true);`);
   // No one signed in (as: null): an empty claim, so auth.uid() is null.
