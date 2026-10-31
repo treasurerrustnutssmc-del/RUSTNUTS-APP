@@ -4,7 +4,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect } from 'react';
-import { AccessibilityInfo, Pressable, Text, View } from 'react-native';
+import { AccessibilityInfo, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { waitingShareNote, type ShareWaitStage } from '../domain/shareIn';
 import { colors, fonts, space, type } from '../theme';
@@ -16,7 +16,9 @@ export function ShareWaitingStrip({ stage, dismiss, padTop }: { stage: ShareWait
   // It turns up as the app comes to the front, so screen readers are told once they've finished
   // reading out the screen (queued on iPhone; Android reads it in turn anyway).
   useEffect(() => {
-    AccessibilityInfo.announceForAccessibilityWithOptions(`${title}. ${text}`, { queue: true });
+    const message = `${title}. ${text}`;
+    if (Platform.OS === 'ios') AccessibilityInfo.announceForAccessibilityWithOptions(message, { queue: true });
+    else AccessibilityInfo.announceForAccessibility(message); // the web has no queued version
   }, [title, text]);
   return (
     <View
