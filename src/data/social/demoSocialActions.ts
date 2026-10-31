@@ -210,7 +210,12 @@ export function takeDownListing(ctx: SocialCtx, id: string): SocialData {
 // Member content rules: reporting what members post outside the chats ---------------------------
 
 /** The thing a report is about, as the rules see it, or undefined when there's no such thing. */
-export function findReportTarget(kind: ReportKind, id: string, social: SocialData, club: ClubData): ReportTarget | undefined {
+export function findReportTarget(
+  kind: ReportKind,
+  id: string,
+  social: Pick<SocialData, 'listings' | 'buildUpdates' | 'nominations' | 'mechanics'>,
+  club: Pick<ClubData, 'members'>,
+): ReportTarget | undefined {
   const lines = (...parts: (string | null | undefined)[]) => parts.filter((p) => !!p).join('\n');
   if (kind === 'listing') {
     const l = social.listings.find((x) => x.id === id);

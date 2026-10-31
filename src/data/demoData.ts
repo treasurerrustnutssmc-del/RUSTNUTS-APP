@@ -15,6 +15,9 @@ import { V4_CONSTITUTION } from './demoConstitution';
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
   roadName: null,
   approval: 'approved',
+  // Everyone in the demo has agreed to the club rules for chats and posts, except Spanner (the
+  // reviewer's persona), who is shown them first.
+  postingRulesAcceptedOn: m.id === 'm-spanner' ? null : '2026-10-01',
   joinedOn: null,
   patchedOn: null,
   fngStartedOn: null,
