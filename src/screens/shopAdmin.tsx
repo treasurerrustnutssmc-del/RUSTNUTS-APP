@@ -21,11 +21,12 @@ import { ShopOrderRow } from './shop';
 const num = { fontVariant: ['tabular-nums' as const] };
 const DONE_SHOWN = 20;
 
-function OrderList({ title, note, orders, onOpen }: { title: string; note?: string; orders: ShopOrder[]; onOpen: (o: ShopOrder) => void }) {
+function OrderList({ title, note, orders, onOpen, of }: { title: string; note?: string; orders: ShopOrder[]; onOpen: (o: ShopOrder) => void; of?: number }) {
   if (orders.length === 0) return null;
+  const count = of !== undefined && of > orders.length ? `${orders.length} of ${of}` : String(orders.length);
   return (
     <>
-      <SectionTitle title={title} action={<Text style={styles.count}>{orders.length}</Text>} />
+      <SectionTitle title={title} action={<Text style={styles.count}>{count}</Text>} />
       {note ? <Small>{note}</Small> : null}
       <Card style={{ padding: 0, gap: 0 }}>
         {orders.map((o, i) => <ShopOrderRow key={o.id} order={o} showBuyer last={i === orders.length - 1} onPress={() => onOpen(o)} />)}
@@ -61,7 +62,7 @@ export function ShopAdminScreen({ navigation }: RootScreen<'ShopAdmin'>) {
       <OrderList title="Not sent to Make" note="Saved in the app, but Make hasn’t taken them. Open one to send it again." orders={q.held} onOpen={open} />
       <OrderList title="Waiting for payment" note="Invoice emailed. A treasurer marks it paid when the money lands." orders={q.awaitingPayment} onOpen={open} />
       <OrderList title="Paid, to post or hand over" orders={q.toHandOver} onOpen={open} />
-      <OrderList title="Done" orders={q.done.slice(0, DONE_SHOWN)} onOpen={open} />
+      <OrderList title="Done" orders={q.done.slice(0, DONE_SHOWN)} of={q.done.length} onOpen={open} />
 
       {runs ? (
         <>
@@ -122,6 +123,7 @@ function ShopRunners() {
     const m = data.members.find((x) => x.id === id);
     return m ? displayName(m) : 'A former member';
   };
+  // Whom the rule allows (nameShopRunnerProblem: approved, not Legacy), less the family view, which has no shop to run.
   const choices = data.members.filter(
     (m) => m.approval === 'approved' && m.status !== 'legacy' && m.status !== 'family' && !runners.some((r) => r.memberId === m.id),
   );
@@ -350,13 +352,16 @@ function ShippingState({ state }: { state: string }) {
   const { busy, msg, run } = useRun();
   const save = () =>
     run('save', async () => {
+      let changed = false;
       for (const [method, text] of [['standard', standard], ['express', express]] as [ShippingMethod, string][]) {
-        if (!text.trim()) continue;
+        if (!text.trim()) continue; // a blank leaves the row as it is (there's no clearing one; set it to 0 instead)
         const cents = parseDollars(text);
         if (cents === null) throw new Error('Enter a shipping cost from $0 to $1,000.');
         if (cents === cost(method)) continue;
         await setShopShipping({ state, method, cents });
+        changed = true;
       }
+      if (!changed) throw new Error('Nothing to save.');
     }, `${state} saved.`);
   return (
     <Card>
@@ -390,7 +395,7 @@ export function ShopShippingScreen() {
         <H1>Shipping costs</H1>
         <Small>
           A copy of the shipping table in Make, so the cart can show a total. Make works out the invoice from its own table, so change both
-          together. A state left blank shows “On the invoice” at checkout.
+          together. A state left blank shows “On the invoice” at checkout; a row can’t be cleared once set, so enter 0 for free shipping.
         </Small>
       </Stack>
       <Label>Dollars per order</Label>

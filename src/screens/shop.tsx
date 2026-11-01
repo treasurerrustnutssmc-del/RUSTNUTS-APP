@@ -11,8 +11,8 @@ import { formatAuDate } from '../domain/dates';
 import { formatCents, parseDollars } from '../domain/fees';
 import { melbourneDate } from '../domain/rides';
 import {
-  STATES, STATUS_LABEL, cartSubtotal, designProblem, handedOverStatus, orderTotalCents, orderableDesigns, runsShop, shippingCents, shopOrderRef,
-  signedInProblem, type DeliveryInput,
+  STATES, STATUS_LABEL, cartSubtotal, designProblem, handedOverStatus, orderTotalCents, orderableDesigns, runsShop, seesShopOrder, shippingCents,
+  shopOrderRef, signedInProblem, type DeliveryInput,
 } from '../domain/shop';
 import { keepsBooks } from '../domain/ledger';
 import { seesShopAdmin, shopQueues } from '../domain/shopAdmin';
@@ -454,7 +454,7 @@ function HowToPayShop({ order }: { order: ShopOrder }) {
 
 export function ShopOrderScreen({ route }: RootScreen<'ShopOrder'>) {
   const { me, data, today, cancelShopOrder, payShopOrder, handOverShopOrder, resendShopOrder } = useClub();
-  const order = (data.shopOrders ?? []).find((o) => o.id === route.params.orderId);
+  const order = (data.shopOrders ?? []).find((o) => o.id === route.params.orderId && seesShopOrder(me, o, data));
   const { busy, msg, run: runAny } = useRun();
   const [last, setLast] = useState('');
   const run = (key: string, fn: () => Promise<unknown>, ok?: string) => {
@@ -580,17 +580,20 @@ export function ShopOrderScreen({ route }: RootScreen<'ShopOrder'>) {
               hint="The app’s total is filled in. Change it if the invoice or the transfer differs."
               error={amount.trim() && cents === null ? 'Enter an amount, like 82 or 82.50.' : null}
             />
-            <ActionWithReason
+            <ConfirmButton
               label="Mark paid"
               icon="cash-outline"
-              busy={busy === 'pay'}
-              reason={fail('pay')}
-              onPress={() => run('pay', async () => {
+              kind="primary"
+              confirmLabel={`Yes, ${cents === null ? 'paid' : `${formatCents(cents)} received`}`}
+              confirmNote="This writes a line in the Club fund’s books; only voiding the entry undoes it."
+              onConfirm={() => run('pay', async () => {
                 if (cents === null) throw new Error('Enter the amount received.');
                 if (!paidOn.iso) throw new Error('Pick the day it was paid.');
                 await payShopOrder(order.id, paidOn.iso, cents);
               }, 'Paid, and in the Club fund’s books.')}
             />
+            {busy === 'pay' ? <Small>Recording…</Small> : null}
+            {fail('pay') ? <Notice tone="danger">{fail('pay')}</Notice> : null}
           </Card>
         </>
       ) : null}
