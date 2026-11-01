@@ -8,6 +8,7 @@
 //   GET  /documents  the Constitution as the library shows it (public.public_documents), for the site's page
 //   GET  /news      club news the board posted for the website (public.public_site_news): newest five, nothing personal
 //   POST /visit     one page view for the counter (public.site_visit): the page path only, 204 whatever happens
+//   GET  /photos    club photos picked for the website (public.public_site_photos): signed links, captions, nothing personal
 // The check words are the app's (src/domain/enquiries.ts, src/domain/websiteSignups.ts); tests keep them the same.
 
 export const ALLOWED_ORIGINS = ['https://www.rustnutssmc.com.au', 'https://rustnutssmc.com.au'];
@@ -29,6 +30,8 @@ export const CHARITY_CACHE = 'public, max-age=300';
 export const DOCUMENTS_CACHE = 'public, max-age=3600';
 /** A taken-down notice should leave the home page within a few minutes. */
 export const NEWS_CACHE = 'public, max-age=300';
+/** The photo list changes rarely; signed links last an hour (LOGO_URL_LIFE_S), so a cached page never shows a dead photo. */
+export const PHOTOS_CACHE = 'public, max-age=900';
 export const SIGNUP_WORDS = {
   notOnWebsite: 'This ride isn’t taking sign-ups from the website.',
   closed: 'Sign-ups have closed.',
@@ -112,6 +115,17 @@ export interface PublicNews {
   created_at: string;
 }
 
+/** One photo as public_site_photos() returns it (src/domain/sitePhotos.ts PublicSitePhoto). */
+export interface PublicSitePhotoRow {
+  id: string;
+  bucket: string;
+  path: string;
+  width: number;
+  height: number;
+  caption: string | null;
+  taken_at: string;
+}
+
 export interface CleanSignup {
   ride: string;
   name: string;
@@ -151,6 +165,10 @@ export interface SiteApiDeps {
   listNews: () => Promise<PublicNews[]>;
   /** public.site_visit(page) with the service role. */
   countVisit: (page: string) => Promise<void>;
+  /** public.public_site_photos() as anon. */
+  listPhotos: () => Promise<PublicSitePhotoRow[]>;
+  /** A signed URL for a photo in the chat-media or site-media bucket, or null when it won't sign. */
+  signPhoto: (bucket: string, path: string) => Promise<string | null>;
 }
 
 export interface SiteRequest {
@@ -318,6 +336,26 @@ export async function handleSiteApi(req: SiteRequest, deps: SiteApiDeps): Promis
     } catch {
       return reply(503, { error: 'Club news is not available just now.' }, { 'cache-control': 'no-store' });
     }
+  }
+
+  if (path === '/photos') {
+    if (req.method !== 'GET') return reply(405, { error: 'GET the photos.' });
+    let rows: PublicSitePhotoRow[];
+    try {
+      rows = await deps.listPhotos();
+    } catch {
+      return reply(503, { error: 'The club photos are not available just now.' }, { 'cache-control': 'no-store' });
+    }
+    const signed = await Promise.all(rows.map(async (p) => ({
+      id: p.id,
+      url: await deps.signPhoto(p.bucket, p.path).catch(() => null),
+      width: p.width,
+      height: p.height,
+      caption: p.caption,
+      taken_at: p.taken_at,
+    })));
+    // A photo that won't sign just isn't shown; the rest still are.
+    return reply(200, { photos: signed.filter((p) => p.url !== null) }, { 'cache-control': PHOTOS_CACHE });
   }
 
   if (path === '/visit') {

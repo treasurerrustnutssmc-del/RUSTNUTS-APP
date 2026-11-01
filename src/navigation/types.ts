@@ -105,6 +105,9 @@ export type RootParams = {
   Photos: undefined;
   RideWall: { rideId: string };
   MediaViewer: { items: FeedItem[]; index: number };
+  // Website-and-app task 23: club photos on the website
+  WebsitePhotos: undefined;
+  PickWebsitePhoto: undefined;
   // Stage 7: social extras
   Birthday: undefined;
   OnThisDay: undefined;

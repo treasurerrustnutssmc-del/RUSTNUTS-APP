@@ -91,7 +91,7 @@ Refusal orders:
   - `public.site_photo_crew (member_id pk, added_by, added_at, removed_at, removed_by)`; RLS select for approved members (so the app knows who the editors are); writes only through `set_site_photo_crew(p_member, p_on)`.
   - `public.site_photos` as above; RLS select: editors see all, everyone sees their own; writes only through `pick_site_photo(p_media, p_caption, p_consent)`, `upload_site_photo(p_path, p_width, p_height, p_caption, p_consent)`, `answer_site_photo(p_id, p_yes)`, `remove_site_photo(p_id)`.
   - `private.is_site_photo_editor()`, `private.manages_site_photo_crew()`.
-  - bucket `site-media` (private, 10 MB, image/jpeg|png|webp|heic); upload into `<my id>/…` for editors; read for editors and the file's owner; delete own files not on the list.
+  - bucket `site-media` (private, 10 MB, image/jpeg|png|webp (the app re-encodes HEIC to JPEG before upload)); upload into `<my id>/…` for editors; read for editors and the file's owner; delete own files not on the list.
   - `list_site_photos()`: editors get every row (live first, then waiting, declined, removed, newest first); others get their own rows. Returns jsonb with the poster's and picker's ids (names come from the member list the app already has).
   - `public_site_photos()`: anon and authenticated, the public rule, returns bucket+path (site-api signs them).
   - A push to the poster when a pick lands `waiting`, through `private.push_outbox` like the chat push (dedupe key `site-photo:<id>`), held by the master switch like every push.
@@ -128,3 +128,9 @@ Home ask card, and the site strip and page with a mock feed, and an independent 
 
 Videos on the website, albums or chapters on the site, photo editing or cropping, showing who
 took the photo, Facebook or Instagram posting, a count of photo views. Any of these is a new task.
+
+## Review notes (2 Nov 2026)
+
+- A chat message removed the app's way keeps its row with `removed_at` set, so a trigger on `messages` takes its photos down at the same time; a deleted media row cascades.
+- An upload's path is `<member id>/<random>.jpg`, so a signed link carries the uploader's member id. It is an opaque id, never a name, and the bucket policies depend on that folder; accepted.
+- The pick screen offers the newest 60 club photos (one page of the Photos wall). Older ones can be uploaded from the phone instead.

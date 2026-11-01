@@ -18,6 +18,7 @@ import type { RootScreen } from '../navigation/types';
 import { colors, fonts, MAX_CONTENT_WIDTH, rideColors, space, type } from '../theme';
 import { asImage, MediaTile, useMediaSource } from '../ui/ChatBits';
 import { Button, Card, Choices, Ionicons, ListRow, Notice, Screen, Small } from '../ui/primitives';
+import { WebsitePhotosRow } from './sitePhotos';
 
 const COLUMNS = 3;
 const GAP = 3;
@@ -121,6 +122,7 @@ export function PhotosScreen({ navigation }: RootScreen<'Photos'>) {
 
   return (
     <Screen onRefresh={load}>
+      <WebsitePhotosRow onOpen={() => navigation.navigate('WebsitePhotos')} />
       <Choices
         options={[
           { value: 'latest', label: 'Latest' },

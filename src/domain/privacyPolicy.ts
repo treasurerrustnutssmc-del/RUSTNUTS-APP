@@ -15,7 +15,7 @@ export const PRIVACY_URL = 'https://www.rustnutssmc.com.au/app/privacy.html';
 export const PRIVACY_EMAIL = 'apps@rustnutssmc.com.au';
 
 /** ISO date the policy last changed. */
-export const PRIVACY_UPDATED_ON = '2026-11-01';
+export const PRIVACY_UPDATED_ON = '2026-11-02';
 
 /** A paragraph, or a list of points. */
 export type PrivacyBlock = string | { points: string[] };
@@ -94,6 +94,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Your fees and payments are seen by you, your chapter’s board (including its treasurer), the club’s national office-bearers and the club’s Auditor.',
           'Conduct records are seen by you, the board and, if you appeal, the appeal panel. They are deleted on the schedule the constitution sets.',
           'Family accounts see the home screen, the ride calendar and their own details, but not the chats or other members’ details.',
+          'Photos the Social Media Officer or their crew pick for the club website are shown to the public, only with the OK of the member who posted them. The website shows no names, and you can take your photo down any time.',
           'Anyone who opens the app, signed in or not, sees only the club’s public information: chapters, sponsors and club links.',
         ],
       },
