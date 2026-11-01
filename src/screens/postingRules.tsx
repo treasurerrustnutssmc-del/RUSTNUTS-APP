@@ -19,6 +19,7 @@ import type { RootParams } from '../navigation/types';
 import { colors, space, type } from '../theme';
 import { Body, Button, Card, H1, H2, IconBadge, ListRow, Notice, Row, Screen, Small, Stack } from '../ui/primitives';
 import { PrivacyPolicyRow } from './privacy';
+import { openLink } from '../ui/openLink';
 
 type Nav = NavigationProp<RootParams>;
 
@@ -111,7 +112,7 @@ export function PostingRulesScreen() {
           kind="secondary"
           onPress={() => Linking.openURL(`mailto:${POSTING_RULES_EMAIL}`).catch(() => {})}
         />
-        <Button label="Open it on the web" icon="open-outline" kind="quiet" onPress={() => Linking.openURL(POSTING_RULES_URL).catch(() => {})} />
+        <Button label="Open it on the web" icon="open-outline" kind="quiet" onPress={() => openLink(POSTING_RULES_URL).catch(() => {})} />
         <Small style={{ textAlign: 'center' }}>{POSTING_RULES_EMAIL}</Small>
       </Stack>
       {gate ? (

@@ -2,7 +2,7 @@
 // "Your answer" so riders see it before they say Going. Open-Meteo, asked by the phone.
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { NOT_ANSWERING, demoSource, liveSource, rideForecast, type RideForecast } from '../data/weather';
 import { formatAuDate, weekday } from '../domain/dates';
@@ -12,6 +12,7 @@ import type { Ride } from '../domain/types';
 import type { WeatherSummary } from '../domain/weather';
 import { colors, fonts, space, type } from '../theme';
 import { Body, Button, Card, Ionicons, Notice, Row, SectionTitle, Small, Stack, type IconName } from '../ui/primitives';
+import { openLink } from '../ui/openLink';
 
 const OPEN_METEO = 'https://open-meteo.com/';
 
@@ -138,7 +139,7 @@ function Forecast({ state }: { state: Extract<RideForecast, { kind: 'ready' }> }
             accessibilityLabel="Forecast by Open-Meteo, open their site"
             hitSlop={{ left: 4, right: 12 }}
             style={styles.creditLink}
-            onPress={() => Linking.openURL(OPEN_METEO).catch(() => {})}
+            onPress={() => openLink(OPEN_METEO).catch(() => {})}
           >
             <Small style={styles.credit}>Open-Meteo</Small>
           </Pressable>

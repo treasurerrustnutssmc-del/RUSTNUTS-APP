@@ -4,6 +4,7 @@ import { SUPPORT_URL } from '../domain/clubLinks';
 import { SUPPORT_GROUPS, smsUrl, telUrl, type SupportLine } from '../domain/supportLines';
 import { colors, space, type } from '../theme';
 import { Body, Button, Card, H1, Notice, Row, Screen, SectionTitle, Small, Stack } from '../ui/primitives';
+import { openLink } from '../ui/openLink';
 
 type Open = (url: string, number: string) => void;
 
@@ -76,7 +77,7 @@ export function SupportScreen() {
       <SectionTitle title="More help" />
       <Card>
         <Small>Legal help, TAC claims, rider training, ambulance cover, money and gambling help are on the club website’s Support page.</Small>
-        <Button label="Support page on the website" icon="open-outline" kind="secondary" onPress={() => Linking.openURL(SUPPORT_URL).catch(() => {})} />
+        <Button label="Support page on the website" icon="open-outline" kind="secondary" onPress={() => openLink(SUPPORT_URL).catch(() => {})} />
       </Card>
       <Small style={{ textAlign: 'center' }}>
         Shared in good faith; these services aren’t run by the club and aren’t a substitute for professional advice. Check details with each service.

@@ -5,6 +5,7 @@ import type { RootParams } from '../navigation/types';
 import { PRIVACY_EMAIL, PRIVACY_INTRO, PRIVACY_SECTIONS, PRIVACY_URL, privacyUpdatedLine } from '../domain/privacyPolicy';
 import { Body, Button, Card, H2, IconBadge, ListRow, Row, Screen, Small, Stack } from '../ui/primitives';
 import { colors, space, type } from '../theme';
+import { openLink } from '../ui/openLink';
 
 type Nav = NavigationProp<RootParams>;
 
@@ -60,7 +61,7 @@ export function PrivacyPolicyScreen() {
           kind="secondary"
           onPress={() => Linking.openURL(`mailto:${PRIVACY_EMAIL}`).catch(() => {})}
         />
-        <Button label="Open it on the web" icon="open-outline" kind="quiet" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} />
+        <Button label="Open it on the web" icon="open-outline" kind="quiet" onPress={() => openLink(PRIVACY_URL).catch(() => {})} />
         <Small style={{ textAlign: 'center' }}>{PRIVACY_EMAIL}</Small>
       </Stack>
     </Screen>

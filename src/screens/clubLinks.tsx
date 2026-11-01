@@ -1,13 +1,14 @@
 import React from 'react';
-import { Linking } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { RootParams } from '../navigation/types';
 import { CLUB_LINK_GROUPS } from '../domain/clubLinks';
 import { Card, IconBadge, ListRow, SectionTitle, type IconName } from '../ui/primitives';
+import { openLink } from '../ui/openLink';
 
 /**
- * The club website, shop, podcast and socials. Each row opens outside the app, except Support,
- * which opens the in-app crisis lines so they work offline and when the website is down.
+ * The club website, shop, podcast and socials. The website and shop open in a browser sheet inside
+ * the app (close it to come back); the podcast and socials open in their own apps. Support
+ * opens the in-app crisis lines so they work offline and when the website is down.
  * The welcome screen already has its own Support card, so it passes withoutSupport.
  */
 export function ClubLinksSection({ withoutSupport = false }: { withoutSupport?: boolean }) {
@@ -29,7 +30,7 @@ export function ClubLinksSection({ withoutSupport = false }: { withoutSupport?: 
                 left={<IconBadge icon={link.icon as IconName} />}
                 title={link.label}
                 subtitle={link.detail}
-                onPress={() => (link.id === 'support' ? navigation.navigate('Support') : Linking.openURL(link.url).catch(() => {}))}
+                onPress={() => (link.id === 'support' ? navigation.navigate('Support') : openLink(link.url).catch(() => {}))}
               />
             ))}
           </Card>

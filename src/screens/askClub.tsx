@@ -4,7 +4,7 @@
 // Spec: docs/superpowers/specs/2026-10-31-club-assistant-design.md ("The screen")
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MAX_TURNS, type ApiMessage } from '../../supabase/functions/_shared/askClub';
 import { useAssistantApi, type AssistantStatus } from '../data/assistantApi';
@@ -18,6 +18,7 @@ import type { RootScreen } from '../navigation/types';
 import { colors, MAX_CONTENT_WIDTH, radius, space, type } from '../theme';
 import { Body, Button, Card, H2, IconBadge, ListRow, Notice, Row, Skull, Small } from '../ui/primitives';
 import { useKeyboardHeight } from './chat';
+import { openLink } from '../ui/openLink';
 
 const FINE_PRINT =
   'Answers come from the constitution, the Road Rules and what you can see in the app. It can get things wrong: check anything that matters. Nothing happens until you tap Confirm.';
@@ -129,7 +130,7 @@ export function AskClubScreen(_: RootScreen<'AskClub'>) {
     if (!plan || item.state === 'busy') return;
     setCard(item.key, 'busy', null);
     try {
-      const line = await runAction(plan, { club, chat, me, data, openUrl: (url) => Linking.openURL(url) });
+      const line = await runAction(plan, { club, chat, me, data, openUrl: (url) => openLink(url) });
       results.current[item.card.id] = line;
       setCard(item.key, 'done', doneForMember(plan, line));
     } catch (e) {

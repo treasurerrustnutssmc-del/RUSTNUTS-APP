@@ -42,6 +42,7 @@ import {
 } from '../ui/primitives';
 import { withoutReported } from '../domain/reports'; // Member content rules
 import { ReportBox } from '../ui/ReportBox';
+import { openLink } from '../ui/openLink';
 
 type Nav = NavigationProp<RootParams>;
 
@@ -210,7 +211,7 @@ export function MechanicScreen({ route, navigation }: RootScreen<'Mechanic'>) {
       {m.phone ? (
         <Button label={`Call ${m.phone}`} icon="call-outline" onPress={() => Linking.openURL(`tel:${m.phone!.replace(/[^\d+]/g, '')}`)} />
       ) : null}
-      {site ? <Button label="Open their website" kind="secondary" icon="open-outline" onPress={() => Linking.openURL(site)} /> : null}
+      {site ? <Button label="Open their website" kind="secondary" icon="open-outline" onPress={() => openLink(site).catch(() => {})} /> : null}
 
       {!m.archivedAt ? (
         <Card>
