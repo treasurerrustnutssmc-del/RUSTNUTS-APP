@@ -20,6 +20,7 @@ import { fngDue } from '../domain/joining';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
 import { WebsiteEnquiries } from './enquiries';
+import { WebsiteNews } from './siteNews'; // club news for the website
 import { AppFeedbackSection } from './feedback'; // Feedback & issues
 import { termEndsOn, termState } from '../domain/terms';
 import { seatTitle } from '../domain/home';
@@ -221,6 +222,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
 
       {/* People who asked through the club website's Ride With Us form */}
       <WebsiteEnquiries onDone={setDone} />
+      <WebsiteNews onDone={setDone} />
       <AppFeedbackSection onDone={setDone} />
 
       <SectionTitle title="Needs attention" action={<Small>{alerts.length}</Small>} />
