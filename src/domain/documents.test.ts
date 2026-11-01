@@ -7,7 +7,7 @@ import {
   LABEL_EMPTY, LABEL_TOO_LONG, libraryGroups, markReviewedProblem, NO_CYCLE, NO_DOCUMENT, NO_VERSION, NOT_ASKED, NOT_IN_FORCE, NOTHING_IN_FORCE,
   NO_SIGN_OFF, PICK_BODY, PUBLISH_CONFLICT, publishesDocument, publishVersionProblem, readsDocument, recordApprovalProblem, REVIEW_CYCLE,
   reviewDueOn, reviewState, shownVersion, signDocumentProblem, signoffBase, signStatus, askedToSignDocument, TITLE_EMPTY, TITLE_TOO_LONG,
-  versionState, stateLabel, reviewLine, reviewsDue, type ApprovalInput, type DocumentInput, type VersionInput,
+  versionState, stateLabel, reviewLine, reviewsDue, publicDocuments, type ApprovalInput, type DocumentInput, type VersionInput,
 } from './documents';
 import type { ClubData, ClubDocument, DocumentSignoff, DocumentVersion } from './types';
 
@@ -317,4 +317,29 @@ test('state and review lines for the screens', () => {
   assert.equal(reviewLine(FORM, base, TODAY), null);
   assert.equal(reviewsDue(me('m-rusty'), base, TODAY), 1);
   assert.equal(reviewsDue(me('m-torque'), base, TODAY), 0);
+});
+
+test('the website feed carries the Constitution\'s shown version and nothing else from the library', () => {
+  const rules = doc({ id: 'd-rules', kind: 'registered_rules', title: 'Registered Rules' });
+  const policy = doc({ id: 'd-pol', kind: 'policy', title: 'Patch policy' });
+  const data: ClubData = {
+    ...DEMO_DATA,
+    documents: [rules, CONST, policy],
+    documentVersions: [
+      ver({ documentId: 'd-rules', number: 1, label: 'r1', body: '# Rules' }),
+      ver({ documentId: 'd-const', number: 1, label: 'v3', body: '# Current', approvingBody: 'full_members', approvedOn: '2025-01-01', commencesOn: '2025-01-01' }),
+      ver({ documentId: 'd-const', number: 2, label: 'v4', body: '# Awaiting', approvingBody: null, approvedOn: null, commencesOn: null }),
+      ver({ documentId: 'd-pol', number: 1, label: 'p1', body: '# Policy' }),
+    ],
+  };
+  assert.deepEqual(publicDocuments(data, TODAY), [{
+    kind: 'constitution', title: 'Constitution', label: 'v3', approvingBody: 'full_members', approvedOn: '2025-01-01',
+    commencesOn: '2025-01-01', publishedAt: '2026-01-05T00:00:00.000Z', body: '# Current',
+  }]);
+  // Nothing in force yet (the live v4 today): the newest version, approval facts empty.
+  const awaiting = { ...data, documentVersions: data.documentVersions!.map((v) => (v.documentId === 'd-const' ? { ...v, approvingBody: null, approvedOn: null, commencesOn: null } : v)) };
+  assert.deepEqual(publicDocuments(awaiting, TODAY).map((d) => [d.label, d.approvedOn]), [['v4', null]]);
+  // Live data before the text is loaded, or no Constitution at all: nothing, no error.
+  assert.deepEqual(publicDocuments({ ...data, documentVersions: data.documentVersions!.map((v) => ({ ...v, body: null })) }, TODAY), []);
+  assert.deepEqual(publicDocuments({ ...data, documents: [rules, policy] }, TODAY), []);
 });

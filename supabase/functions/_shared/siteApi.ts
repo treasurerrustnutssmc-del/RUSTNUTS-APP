@@ -5,6 +5,7 @@
 //   POST /enquiry   a "Ride With Us" join enquiry, checked here and again in the database
 //   GET  /charity-rides   charity rides taking sign-ups from the website (public.public_charity_rides)
 //   POST /charity-signup  a sign-up for one of them, checked here and again in the database
+//   GET  /documents  the Constitution as the library shows it (public.public_documents), for the site's page
 // The check words are the app's (src/domain/enquiries.ts, src/domain/websiteSignups.ts); tests keep them the same.
 
 export const ALLOWED_ORIGINS = ['https://www.rustnutssmc.com.au', 'https://rustnutssmc.com.au'];
@@ -22,6 +23,8 @@ export const ENQUIRY_WORDS = {
   tooMany: 'Too many enquiries just now. Try again later, or email the club.',
 } as const;
 export const CHARITY_CACHE = 'public, max-age=300';
+/** The Constitution changes rarely and weighs 90 KB: an hour. */
+export const DOCUMENTS_CACHE = 'public, max-age=3600';
 export const SIGNUP_WORDS = {
   notOnWebsite: 'This ride isn’t taking sign-ups from the website.',
   closed: 'Sign-ups have closed.',
@@ -76,6 +79,17 @@ export interface PublicCharityRide {
   open: boolean;
 }
 
+export interface PublicDocument {
+  kind: string;
+  title: string;
+  label: string;
+  approving_body: string | null;
+  approved_on: string | null;
+  commences_on: string | null;
+  published_at: string;
+  body: string;
+}
+
 export interface CleanSignup {
   ride: string;
   name: string;
@@ -109,6 +123,8 @@ export interface SiteApiDeps {
   listCharityRides: () => Promise<PublicCharityRide[]>;
   /** public.website_signup(...) with the service role: the database's refusal, or null when kept. */
   websiteSignup: (signup: CleanSignup) => Promise<string | null>;
+  /** public.public_documents() as anon. */
+  listDocuments: () => Promise<PublicDocument[]>;
 }
 
 export interface SiteRequest {
@@ -257,6 +273,15 @@ export async function handleSiteApi(req: SiteRequest, deps: SiteApiDeps): Promis
       return reply(200, { rides: await deps.listCharityRides() }, { 'cache-control': CHARITY_CACHE });
     } catch {
       return reply(503, { error: 'The charity ride list is not available just now.' }, { 'cache-control': 'no-store' });
+    }
+  }
+
+  if (path === '/documents') {
+    if (req.method !== 'GET') return reply(405, { error: 'GET the documents.' });
+    try {
+      return reply(200, { documents: await deps.listDocuments() }, { 'cache-control': DOCUMENTS_CACHE });
+    } catch {
+      return reply(503, { error: 'The club documents are not available just now.' }, { 'cache-control': 'no-store' });
     }
   }
 

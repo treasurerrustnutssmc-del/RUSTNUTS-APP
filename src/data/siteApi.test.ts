@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   ALLOWED_ORIGINS,
   CHARITY_CACHE,
+  DOCUMENTS_CACHE,
   ENQUIRY_WORDS,
   SIGNUP_WORDS,
   SPONSORS_CACHE,
@@ -33,6 +34,7 @@ function deps(over: Partial<SiteApiDeps> = {}) {
     listRides: async () => [],
     listCharityRides: async () => [],
     websiteSignup: async (w) => { calls.signups.push(w); return null; },
+    listDocuments: async () => [],
     ...over,
   };
   return { d, calls };
@@ -186,6 +188,27 @@ test('GET /charity-rides: the public list straight through, cached five minutes;
   assert.equal(b.status, 503);
   assert.equal(b.headers['cache-control'], 'no-store');
   assert.equal((await handleSiteApi({ method: 'POST', path: '/charity-rides', origin: ORIGIN, body: {} }, d)).status, 405);
+});
+
+test('GET /documents: the Constitution straight through, cached an hour; 503 no-store when down', async () => {
+  const documents = [{
+    kind: 'constitution', title: 'Constitution', label: 'v4', approving_body: null, approved_on: null, commences_on: null,
+    published_at: '2026-10-25T03:00:00+00:00', body: '# CLUB-APPROVED FINAL EDITION\n\nText.',
+  }];
+  const { d } = deps({ listDocuments: async () => documents });
+  const r = await handleSiteApi({ method: 'GET', path: '/documents', origin: ORIGIN, body: null }, d);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { documents });
+  assert.equal(r.headers['cache-control'], DOCUMENTS_CACHE);
+  assert.equal(r.headers['access-control-allow-origin'], ORIGIN);
+  const down = deps({ listDocuments: async () => { throw new Error('boom'); } });
+  const b = await handleSiteApi({ method: 'GET', path: '/documents', origin: ORIGIN, body: null }, down.d);
+  assert.equal(b.status, 503);
+  assert.equal(b.headers['cache-control'], 'no-store');
+  assert.equal((await handleSiteApi({ method: 'POST', path: '/documents', origin: ORIGIN, body: {} }, d)).status, 405);
+  const elsewhere = await handleSiteApi({ method: 'GET', path: '/documents', origin: 'https://evil.example', body: null }, d);
+  assert.equal(elsewhere.status, 200);
+  assert.equal(elsewhere.headers['access-control-allow-origin'], undefined, 'no CORS for other sites');
 });
 
 test('POST /charity-signup: cleaned and stored, then a thank-you', async () => {
