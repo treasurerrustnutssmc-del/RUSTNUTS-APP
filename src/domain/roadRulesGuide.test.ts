@@ -6,6 +6,7 @@ import {
   diagramById,
   diagramLabel,
   figureNumber,
+  adoptionInput,
   guideStatus,
   neighbours,
   ruleByNumber,
@@ -139,4 +140,12 @@ test('before adoption the illustrated set is labelled a draft; after, the illust
   assert.equal(adopted.line, '30/10/2026');
   assert.ok(!/draft/i.test(`${adopted.chip} ${adopted.section} ${adopted.line} ${adopted.noteTitle} ${adopted.note}`));
   assert.match(adopted.note, /written Road Rules are the ones you sign/);
+});
+
+test('one-press adoption publishes the written rules as a fresh version with a short note', () => {
+  const input = adoptionInput();
+  assert.equal(input.body, writtenRulesText());
+  assert.equal(input.fresh, true);
+  assert.equal(input.changes, 'Adopted by the NEC: the club’s Road Rules, from the illustrated set of 30/10/2026.');
+  assert.equal(draftProblem(input), null);
 });
