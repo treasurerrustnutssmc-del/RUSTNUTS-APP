@@ -15,7 +15,10 @@ same counter tallies "Get the app" taps (page `get-the-app`). No third party.
 
 - A page is a site path: `/`, `/charity.html`, `/app/privacy.html` … `^/[a-z0-9/._-]*$`, at most
   80 characters; `/index.html` and `` count as `/`. Anything else is dropped silently.
-- At most 200 distinct pages per day are kept (a flood of made-up paths stops at 200).
+- At most 200 distinct pages per day are kept (a flood of made-up paths stops at 200), and a page
+  stops counting at 10,000 views a day. The numbers are a guide for the board, not an audit: the
+  ping can be sent by anything that can reach the internet, so a determined script can inflate a
+  page's count up to that ceiling.
 - The feed for the board: the last 30 days, day + page + hits. Board = `private.is_any_board()`.
 - The website pings with `navigator.sendBeacon` (or `fetch keepalive`), never waits, never throws.
 

@@ -29,8 +29,10 @@ begin
      and (select count(*) from public.site_visits v where v.day = v_day) >= 200 then
     return;
   end if;
+  -- A page stops counting at 10,000 views a day: enough for any real day, and a ceiling on what a
+  -- script looping on the ping can do to the numbers (they are a guide for the board, not an audit).
   insert into public.site_visits (day, page, hits) values (v_day, v_page, 1)
-  on conflict (day, page) do update set hits = public.site_visits.hits + 1;
+  on conflict (day, page) do update set hits = least(public.site_visits.hits + 1, 10000);
 end;
 $$;
 revoke all on function public.site_visit(text) from public, anon, authenticated;

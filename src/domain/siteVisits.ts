@@ -9,6 +9,8 @@ export const VISIT_PAGE_MAX = 80;
 /** How many different pages a day may have before new ones are dropped (a flood of made-up paths). */
 export const VISIT_PAGES_PER_DAY = 200;
 export const VISIT_DAYS = 30;
+/** A page stops counting at this many views a day: a guide for the board, not an audit. */
+export const VISIT_HITS_PER_DAY = 10_000;
 
 const PAGE = /^\/[a-z0-9/._-]*$/;
 

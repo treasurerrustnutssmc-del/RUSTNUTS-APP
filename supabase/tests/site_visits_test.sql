@@ -79,7 +79,7 @@ begin
   assert pg_temp.try_service('select public.site_visit(''/'')') is null, 'home';
   assert pg_temp.try_service('select public.site_visit(''/index.html'')') is null, 'index = home';
   assert pg_temp.try_service('select public.site_visit('''')') is null, 'blank = home';
-  assert pg_temp.try_service('select public.site_visit(''get-the-app'')') is null, 'no leading slash is added';
+  assert pg_temp.try_service('select public.site_visit(''get-the-app'')') is null, 'a missing leading slash is added';
   assert pg_temp.try_service('select public.site_visit(''/Charity.html'')') is null, 'upper case: dropped quietly';
   assert pg_temp.try_service('select public.site_visit(''/x?y=1'')') is null, 'query: dropped quietly';
   assert pg_temp.try_service('select public.site_visit(''/' || repeat('a', 80) || ''')') is null, 'too long: dropped quietly';
@@ -93,6 +93,9 @@ begin
   assert (select count(*) from site_visits) = 200, 'a day stops at 200 pages: ' || (select count(*) from site_visits);
   assert pg_temp.try_service('select public.site_visit(''/'')') is null, 'a page already there still counts';
   assert (select hits from site_visits where page = '/') = 4, 'home counted four';
+  update site_visits set hits = 10000 where page = '/';
+  assert pg_temp.try_service('select public.site_visit(''/'')') is null, 'the ceiling is quiet too';
+  assert (select hits from site_visits where page = '/') = 10000, 'a page stops at 10,000 a day';
 end $$;
 
 \o
@@ -103,11 +106,13 @@ declare
   wes constant uuid := '00000000-0000-0000-0000-000000000aa1';
   nell constant uuid := '00000000-0000-0000-0000-000000000aa2';
   paul constant uuid := '00000000-0000-0000-0000-000000000aa3';
+  today constant date := (now() at time zone 'Australia/Melbourne')::date;
 begin
   delete from site_visits;
+  -- Days are Melbourne days, like the counter's (the test server's clock is UTC).
   insert into site_visits (day, page, hits) values
-    (current_date, '/', 40), (current_date, '/charity.html', 5),
-    (current_date - 29, '/', 10), (current_date - 30, '/', 100);
+    (today, '/', 40), (today, '/charity.html', 5),
+    (today - 29, '/', 10), (today - 30, '/', 100);
   assert pg_temp.try_as(null, 'select * from public.site_visit_summary()') like 'permission denied%', 'anon';
   assert pg_temp.try_as(paul, 'select * from public.site_visit_summary()') = 'Only approved members can do that.', 'pending';
   assert pg_temp.try_as(nell, 'select * from public.site_visit_summary()') = 'Only the board can see website visits.', 'no seat';
