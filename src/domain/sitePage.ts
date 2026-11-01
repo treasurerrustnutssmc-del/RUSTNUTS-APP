@@ -16,6 +16,10 @@
 export const SITE_ORIGIN = 'https://www.rustnutssmc.com.au';
 export const APP_PAGES = ['privacy', 'posting-rules', 'support', 'guide', 'delete-account'] as const;
 export type AppPageSlug = (typeof APP_PAGES)[number];
+/** Pages that name the stores (the welcome guide's "Get the app"), so they stay off the website until launch. */
+export const HELD_UNTIL_LAUNCH: readonly AppPageSlug[] = ['guide'];
+/** The pages the website carries now. */
+export const SITE_PAGES: readonly AppPageSlug[] = APP_PAGES.filter((p) => !HELD_UNTIL_LAUNCH.includes(p));
 
 /** The club-domain address of one app page. */
 export const sitePageUrl = (slug: AppPageSlug): string => `${SITE_ORIGIN}/app/${slug}.html`;
@@ -39,6 +43,7 @@ export interface PageParts {
   body: string;
 }
 
+/** Keep the `<main>`, `<header>`, `<h1>`, `<footer>` and description tags bare (no attributes): that is what this reads. */
 const unescape = (s: string): string =>
   s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 const esc = (s: string): string =>
@@ -59,15 +64,15 @@ export function extractPage(html: string): PageParts {
   return { title, description, heading, updated: updated ? unescape(updated) : null, body: body.replace(/^\s*\n/, '').replace(/\s+$/, '\n') };
 }
 
-/** True when the page names an app store: not allowed on the club site before launch. */
+/** True when the page names an app store, by link or by name: not allowed on the club site before launch. */
 export function mentionsStores(html: string): boolean {
-  return /apps\.apple\.com|play\.google\.com|itunes\.apple\.com/i.test(html);
+  return /apps\.apple\.com|play\.google\.com|itunes\.apple\.com|app store|google play|play store|testflight|in the stores/i.test(html);
 }
 
 /** The page in the club website's clothes: its header, nav, fonts and footer, served at /app/<slug>.html. */
 export function renderSitePage(slug: AppPageSlug, page: PageParts): string {
   const url = sitePageUrl(slug);
-  const footer = FOOTER_LINKS.map((l) => (l.slug === slug ? `<span>${esc(l.label)}</span>` : `<a href="${l.slug}.html">${esc(l.label)}</a>`)).join(' · ');
+  const footer = FOOTER_LINKS.filter((l) => !HELD_UNTIL_LAUNCH.includes(l.slug)).map((l) => (l.slug === slug ? `<span>${esc(l.label)}</span>` : `<a href="${l.slug}.html">${esc(l.label)}</a>`)).join(' · ');
   return `<!DOCTYPE html>
 <html lang="en-AU">
 <head>

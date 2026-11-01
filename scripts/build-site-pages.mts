@@ -1,4 +1,5 @@
-// Writes the app's public pages twice: into site/ (GitHub Pages, the old addresses, each saying where
+// Writes the app's public pages twice (the welcome guide only once: it names the stores, so it stays
+// off the website until launch): into site/ (GitHub Pages, the old addresses, each saying where
 // it now lives) and, dressed in the club website's shell, into the website repo's app/ folder
 // (www.rustnutssmc.com.au/app/…). The privacy policy and posting rules are rendered from code; the
 // support, welcome guide and delete-account pages are hand-written in site/. Run after changing any
@@ -12,7 +13,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderPrivacyPage } from '../src/domain/privacyPage';
 import { renderPostingRulesPage } from '../src/domain/postingRulesPage';
-import { APP_PAGES, extractPage, mentionsStores, renderSitePage } from '../src/domain/sitePage';
+import { HELD_UNTIL_LAUNCH, SITE_PAGES, extractPage, mentionsStores, renderSitePage } from '../src/domain/sitePage';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const site = join(root, 'site');
@@ -34,9 +35,9 @@ if (!existsSync(join(siteRepo, 'styles.css'))) {
 }
 const out = join(siteRepo, 'app');
 mkdirSync(out, { recursive: true });
-for (const slug of APP_PAGES) {
+for (const slug of SITE_PAGES) {
   const html = renderSitePage(slug, extractPage(readFileSync(join(site, `${slug}.html`), 'utf8')));
   if (mentionsStores(html)) throw new Error(`${slug}: names an app store, which the website must not before launch`);
   writeFileSync(join(out, `${slug}.html`), html);
 }
-console.log(`Wrote ${APP_PAGES.length} pages into ${out}`);
+console.log(`Wrote ${SITE_PAGES.length} pages into ${out}; held until launch: ${HELD_UNTIL_LAUNCH.join(', ')}`);

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { renderPostingRulesPage } from './postingRulesPage';
 import { POSTING_RULES_EMAIL, POSTING_RULES_SECTIONS, POSTING_RULES_URL, postingRulesUpdatedLine } from './postingRules';
 
-test('the public rules page is built from the same text as the app (run npm run build:privacy after a change)', () => {
+test('the public rules page is built from the same text as the app (run npm run build:site after a change)', () => {
   const onDisk = readFileSync(join(__dirname, '../../site/posting-rules.html'), 'utf8');
   assert.equal(onDisk, renderPostingRulesPage());
 });

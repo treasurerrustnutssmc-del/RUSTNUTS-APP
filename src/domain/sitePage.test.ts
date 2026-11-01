@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderPolicyPage } from './policyPage';
-import { APP_PAGES, extractPage, mentionsStores, renderSitePage, sitePageUrl } from './sitePage';
+import { APP_PAGES, HELD_UNTIL_LAUNCH, SITE_PAGES, extractPage, mentionsStores, renderSitePage, sitePageUrl } from './sitePage';
 
 const sample = `<!doctype html>
 <html lang="en-AU">
@@ -61,6 +61,7 @@ test('the club-domain page wears the site shell, keeps the words, and links to t
   assert.ok(html.includes('Last updated 01/11/2026'));
   assert.ok(html.includes('<section id="a">'));
   assert.ok(html.includes('href="support.html"') && html.includes('href="delete-account.html"'), 'footer links between the app pages');
+  assert.ok(!html.includes('guide.html'), 'the welcome guide is held back until launch, so nothing links to it');
   assert.ok(!html.includes('logo.png'));
   assert.ok(!mentionsStores(html), 'nothing about the stores before launch');
 });
@@ -68,7 +69,9 @@ test('the club-domain page wears the site shell, keeps the words, and links to t
 test('the store check catches store links', () => {
   assert.ok(mentionsStores('<a href="https://apps.apple.com/x">a</a>'));
   assert.ok(mentionsStores('see play.google.com/store'));
-  assert.ok(!mentionsStores('Google Play link in your invite'));
+  assert.ok(mentionsStores('tap the Google Play link in your invite'), 'by name too');
+  assert.ok(mentionsStores('searching the App Store'));
+  assert.ok(!mentionsStores('Open the app and go to Me'));
 });
 
 test('the old GitHub Pages copy says where the page now lives and points its canonical there', () => {
@@ -82,11 +85,22 @@ test('the old GitHub Pages copy says where the page now lives and points its can
   assert.ok(!plain.includes('now lives at'));
 });
 
-test('every app page in site/ comes apart cleanly and mentions no store', () => {
+test('every app page in site/ comes apart cleanly; the ones on the website mention no store', () => {
   for (const slug of APP_PAGES) {
     const html = readFileSync(join(__dirname, `../../site/${slug}.html`), 'utf8');
     const page = extractPage(html);
     assert.ok(page.title && page.heading && page.body.trim(), slug);
-    assert.ok(!mentionsStores(renderSitePage(slug, page)), slug);
+    assert.equal(mentionsStores(renderSitePage(slug, page)), HELD_UNTIL_LAUNCH.includes(slug), slug);
   }
+  assert.deepEqual([...SITE_PAGES], ['privacy', 'posting-rules', 'support', 'delete-account']);
+});
+
+test('the website clone beside this one carries the same pages (run npm run build:site after a change)', (t) => {
+  const siteDir = join(__dirname, '../../../rustnutssmc/app');
+  if (!existsSync(siteDir)) return t.skip('no website clone beside the app');
+  for (const slug of SITE_PAGES) {
+    const page = extractPage(readFileSync(join(__dirname, `../../site/${slug}.html`), 'utf8'));
+    assert.equal(readFileSync(join(siteDir, `${slug}.html`), 'utf8'), renderSitePage(slug, page), `${slug}: the website copy is stale`);
+  }
+  for (const slug of HELD_UNTIL_LAUNCH) assert.ok(!existsSync(join(siteDir, `${slug}.html`)), `${slug} is held until launch`);
 });
