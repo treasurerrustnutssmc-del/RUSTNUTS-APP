@@ -10,6 +10,9 @@ alter table public.rides
   add column if not exists created_by uuid references public.members (id) on delete set null,
   add column if not exists updated_by uuid references public.members (id) on delete set null,
   add column if not exists updated_at timestamptz;
+-- Covering indexes for the two member keys, so a member's deletion (on delete set null) never scans rides.
+create index if not exists rides_created_by on public.rides (created_by);
+create index if not exists rides_updated_by on public.rides (updated_by);
 
 -- The managesRide rule (crew.ts) asked of a category: North and West need that chapter's board or
 -- ride committee (or the NEC); the rest take any board seat, ride committee seat or the NEC.
