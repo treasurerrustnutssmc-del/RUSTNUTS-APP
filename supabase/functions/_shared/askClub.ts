@@ -187,7 +187,7 @@ export function buildRequest(sources: Sources, messages: ApiMessage[]) {
 }
 export type ClaudeRequest = ReturnType<typeof buildRequest>;
 
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+export const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 const hasOnly = (b: Record<string, unknown>, keys: string[]) => Object.keys(b).every((k) => keys.includes(k));
 const isPlainUserBlock = (b: Record<string, unknown>) =>

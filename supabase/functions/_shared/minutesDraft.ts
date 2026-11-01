@@ -6,7 +6,7 @@
 // Shared by the Edge Function (Deno) and the app's tests (Node), so it imports nothing.
 // Spec: docs/superpowers/specs/2026-11-01-otter-minutes-design.md
 
-import { CANT_ANSWER, CANT_HELP, NOT_SWITCHED_ON, costMicroUsd, type ClaudeResponse } from './askClub.ts';
+import { CANT_ANSWER, CANT_HELP, NOT_SWITCHED_ON, costMicroUsd, isObject, type ClaudeResponse } from './askClub.ts';
 
 export const MINUTES_MODEL = 'claude-opus-5-5';
 // Minutes for a long meeting run to a few thousand words; this keeps the answer inside the function's time limit.
@@ -168,7 +168,6 @@ export function buildMinutesRequest(context: MinutesContext, transcript: string)
 }
 export type MinutesRequest = ReturnType<typeof buildMinutesRequest>;
 
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 function transcriptProblem(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw.trim()) return 'Pick the Otter transcript or paste it in.';

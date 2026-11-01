@@ -4,7 +4,7 @@
 // hands back the newest messages; nothing here is stored. Shared by the Edge Function (Deno) and
 // the app's tests (Node). Spec: docs/superpowers/specs/2026-11-01-catch-me-up-design.md
 
-import { CANT_ANSWER, CANT_HELP, NOT_SWITCHED_ON, costMicroUsd, type ClaudeResponse } from './askClub.ts';
+import { CANT_ANSWER, CANT_HELP, NOT_SWITCHED_ON, costMicroUsd, isObject, type ClaudeResponse } from './askClub.ts';
 
 export const CATCHUP_MODEL = 'claude-opus-5-5';
 const MIN = 8;
@@ -86,7 +86,6 @@ export function buildCatchUpRequest(context: CatchUpContext) {
 }
 export type CatchUpRequest = ReturnType<typeof buildCatchUpRequest>;
 
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 export async function handleCatchUp(env: { ANTHROPIC_API_KEY?: string }, body: unknown, deps: CatchUpDeps): Promise<CatchUpAnswer> {
   if (!env.ANTHROPIC_API_KEY) return { status: 503, body: { error: NOT_SWITCHED_ON } };
