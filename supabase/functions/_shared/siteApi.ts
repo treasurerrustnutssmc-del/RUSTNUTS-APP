@@ -7,6 +7,7 @@
 //   POST /charity-signup  a sign-up for one of them, checked here and again in the database
 //   GET  /documents  the Constitution as the library shows it (public.public_documents), for the site's page
 //   GET  /news      club news the board posted for the website (public.public_site_news): newest five, nothing personal
+//   POST /visit     one page view for the counter (public.site_visit): the page path only, 204 whatever happens
 // The check words are the app's (src/domain/enquiries.ts, src/domain/websiteSignups.ts); tests keep them the same.
 
 export const ALLOWED_ORIGINS = ['https://www.rustnutssmc.com.au', 'https://rustnutssmc.com.au'];
@@ -44,6 +45,15 @@ export const SIGNUP_WORDS = {
   full: 'The ride’s full.',
 } as const;
 const CHAPTERS = ['west', 'north', 'either'];
+const VISIT_PAGE = /^\/[a-z0-9/._-]*$/;
+/** The page as counted (src/domain/siteVisits.ts cleanVisitPage): a lower-case site path, "/" for home, else null. */
+export function cleanVisitPage(raw: string): string | null {
+  let page = raw.trim();
+  if (page === '' || page === '/index.html') return '/';
+  if (!page.startsWith('/')) page = `/${page}`;
+  if (page.length > 80 || !VISIT_PAGE.test(page)) return null;
+  return page;
+}
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export interface SponsorRow {
@@ -139,6 +149,8 @@ export interface SiteApiDeps {
   listDocuments: () => Promise<PublicDocument[]>;
   /** public.public_site_news() as anon. */
   listNews: () => Promise<PublicNews[]>;
+  /** public.site_visit(page) with the service role. */
+  countVisit: (page: string) => Promise<void>;
 }
 
 export interface SiteRequest {
@@ -306,6 +318,16 @@ export async function handleSiteApi(req: SiteRequest, deps: SiteApiDeps): Promis
     } catch {
       return reply(503, { error: 'Club news is not available just now.' }, { 'cache-control': 'no-store' });
     }
+  }
+
+  if (path === '/visit') {
+    if (req.method !== 'POST') return reply(405, { error: 'POST a page view.' });
+    if (req.origin && !ALLOWED_ORIGINS.includes(req.origin)) return reply(403, { error: 'Page views come from the club website.' });
+    const b = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    const page = cleanVisitPage(str(b.page));
+    // Never an error to the page: a bad path or a database hiccup just isn't counted.
+    if (page) await deps.countVisit(page).catch(() => undefined);
+    return { status: 204, body: null, headers: { ...corsFor(req.origin), 'cache-control': 'no-store' } };
   }
 
   if (path === '/charity-signup') {

@@ -5,6 +5,7 @@ import {
   CHARITY_CACHE,
   DOCUMENTS_CACHE,
   NEWS_CACHE,
+  cleanVisitPage,
   ENQUIRY_WORDS,
   SIGNUP_WORDS,
   SPONSORS_CACHE,
@@ -24,7 +25,7 @@ import {
 const ORIGIN = 'https://www.rustnutssmc.com.au';
 
 function deps(over: Partial<SiteApiDeps> = {}) {
-  const calls: { enquiries: unknown[]; signed: string[]; signups: unknown[] } = { enquiries: [], signed: [], signups: [] };
+  const calls: { enquiries: unknown[]; signed: string[]; signups: unknown[]; visits: string[] } = { enquiries: [], signed: [], signups: [], visits: [] };
   const d: SiteApiDeps = {
     listSponsors: async () => [
       { id: 's1', name: 'Dead Set Safety', blurb: 'Hi-vis and gear', url: 'https://deadset.example', deal: '10% off', logo_path: 'u/a.png' },
@@ -37,6 +38,7 @@ function deps(over: Partial<SiteApiDeps> = {}) {
     websiteSignup: async (w) => { calls.signups.push(w); return null; },
     listDocuments: async () => [],
     listNews: async () => [],
+    countVisit: async (page) => { calls.visits.push(page); },
     ...over,
   };
   return { d, calls };
@@ -226,6 +228,30 @@ test('GET /news: the board’s notices straight through, cached five minutes; 50
   assert.equal(b.status, 503);
   assert.equal(b.headers['cache-control'], 'no-store');
   assert.equal((await handleSiteApi({ method: 'POST', path: '/news', origin: ORIGIN, body: {} }, d)).status, 405);
+});
+
+test('POST /visit: counts a clean page path, drops the rest, never errors to the page', async () => {
+  const { d, calls } = deps();
+  const r = await handleSiteApi({ method: 'POST', path: '/visit', origin: ORIGIN, body: { page: '/index.html' } }, d);
+  assert.equal(r.status, 204);
+  assert.equal(r.headers['cache-control'], 'no-store');
+  assert.equal(r.headers['access-control-allow-origin'], ORIGIN);
+  await handleSiteApi({ method: 'POST', path: '/visit', origin: ORIGIN, body: { page: '/charity.html' } }, d);
+  await handleSiteApi({ method: 'POST', path: '/visit', origin: ORIGIN, body: { page: '/Nope?x=1' } }, d);
+  await handleSiteApi({ method: 'POST', path: '/visit', origin: ORIGIN, body: 'junk' }, d);
+  assert.deepEqual(calls.visits, ['/', '/charity.html', '/'], 'no page at all counts as the home page');
+  const down = deps({ countVisit: async () => { throw new Error('boom'); } });
+  assert.equal((await handleSiteApi({ method: 'POST', path: '/visit', origin: ORIGIN, body: { page: '/' } }, down.d)).status, 204);
+  assert.equal((await handleSiteApi({ method: 'GET', path: '/visit', origin: ORIGIN, body: null }, d)).status, 405);
+  assert.equal((await handleSiteApi({ method: 'POST', path: '/visit', origin: 'https://evil.example', body: { page: '/' } }, d)).status, 403);
+  assert.equal(calls.visits.length, 3, 'nothing counted from elsewhere');
+});
+
+test('the visit page rule is the same in the app and the function', async () => {
+  const app = await import('../domain/siteVisits');
+  for (const raw of ['/', '', '/index.html', 'get-the-app', '/app/privacy.html', '/Charity.html', '/a b', '/x?y=1', '/' + 'a'.repeat(80), 'https://evil.example/']) {
+    assert.equal(cleanVisitPage(raw), app.cleanVisitPage(raw), raw);
+  }
 });
 
 test('POST /charity-signup: cleaned and stored, then a thank-you', async () => {
