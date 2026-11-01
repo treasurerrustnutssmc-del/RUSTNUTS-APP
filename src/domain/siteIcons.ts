@@ -12,7 +12,7 @@ export const SITE_ICONS: readonly SiteIcon[] = [
   { file: 'apple-touch-icon.png', size: 180, kind: 'png' },
 ];
 
-/** Where the rendered set lives in the app repo. */
+/** Where the rendered set lives in the app repo, beside source.sha256 (the icon.png it came from). */
 export const SITE_ICONS_DIR = 'assets/site-icons';
 
 /** Width and height of a PNG from its header, or null when the bytes are not a PNG. */
@@ -34,8 +34,7 @@ export function icoSizes(bytes: Uint8Array): number[] | null {
   for (let i = 0; i < count; i++) {
     const w = bytes[6 + i * 16];
     const h = bytes[7 + i * 16];
-    if (w !== h) return null;
-    sizes.push(w === 0 ? 256 : w);
+    sizes.push(w === h ? (w === 0 ? 256 : w) : -1); // -1: a frame that is not square
   }
   return sizes;
 }

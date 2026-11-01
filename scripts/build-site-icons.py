@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Render the website's tab and home-screen icons from the app's own icon.
 
-Source: assets/icon.png (the skull mascot on black, the app's store icon).
+Source: assets/icon.png (the skull mascot on black, the app's own icon).
 Output: assets/site-icons/{favicon.ico, favicon-16x16.png, favicon-32x32.png, apple-touch-icon.png},
 which `npm run build:site` copies into the website clone. Sizes mirror src/domain/siteIcons.ts.
-Needs Pillow (pip install pillow). Run again after assets/icon.png changes.
+Needs Pillow (pip install pillow). Run `npm run build:site-icons` again after assets/icon.png changes;
+source.sha256 records which icon.png the set came from, and siteIcons.test.ts fails when it differs.
 """
+import hashlib
 from pathlib import Path
 from PIL import Image
 
@@ -24,8 +26,9 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for name, size in PNGS.items():
         square(size).save(OUT / name, optimize=True)
-    base = square(max(ICO_SIZES))
-    base.save(OUT / "favicon.ico", sizes=[(s, s) for s in ICO_SIZES])
+    frames = [square(s) for s in ICO_SIZES]  # each frame straight from the 1024px source, not a re-shrink
+    frames[-1].save(OUT / "favicon.ico", append_images=frames[:-1], sizes=[(s, s) for s in ICO_SIZES])
+    (OUT / "source.sha256").write_text(hashlib.sha256(SRC.read_bytes()).hexdigest() + "\n")
     print(f"Wrote {len(PNGS) + 1} icons into {OUT}")
 
 

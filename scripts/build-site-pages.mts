@@ -47,7 +47,7 @@ copyFileSync(join(root, 'assets/fonts/RustnutsStencil-Regular.ttf'), join(siteRe
 copyFileSync(join(root, 'assets/fonts/OFL.txt'), join(siteRepo, 'fonts/OFL.txt'));
 console.log(`Wrote the brand block into ${stylesPath}`);
 
-// 2a''. The icons: the app's skull icon as the site's favicon and touch icon (rendered by scripts/build-site-icons.py).
+// 2b. The icons: the app's skull icon as the site's favicon and touch icon (rendered by scripts/build-site-icons.py).
 for (const icon of SITE_ICONS) copyFileSync(join(root, SITE_ICONS_DIR, icon.file), join(siteRepo, icon.file));
 console.log(`Wrote ${SITE_ICONS.length} icon files into ${siteRepo}`);
 // 2a'. One list of club links: the app's club links into the home page's podcast and socials blocks.

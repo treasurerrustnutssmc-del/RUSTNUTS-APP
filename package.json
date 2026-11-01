@@ -69,7 +69,8 @@
     "lint": "expo lint",
     "check:live": "tsx scripts/check-live.mts",
     "build:privacy": "tsx scripts/build-site-pages.mts",
-    "build:site": "tsx scripts/build-site-pages.mts"
+    "build:site": "tsx scripts/build-site-pages.mts",
+    "build:site-icons": "python3 scripts/build-site-icons.py"
   },
   "expo": {
     "autolinking": {

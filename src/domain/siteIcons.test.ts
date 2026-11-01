@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { siteRepoPath } from './brandCss';
@@ -52,6 +53,12 @@ test('the rendered set in assets/site-icons fits every slot (run scripts/build-s
     assert.ok(existsSync(p), `${p} is missing`);
     assert.equal(siteIconProblem(icon, readFileSync(p)), null);
   }
+});
+
+test('the rendered set came from the current assets/icon.png (run npm run build:site-icons after an icon change)', () => {
+  const recorded = readFileSync(join(root, SITE_ICONS_DIR, 'source.sha256'), 'utf8').trim();
+  const actual = createHash('sha256').update(readFileSync(join(root, 'assets/icon.png'))).digest('hex');
+  assert.equal(recorded, actual, 'assets/site-icons was rendered from a different icon.png');
 });
 
 test('the website clone beside this one ships the same icon files (run npm run build:site after an icon change)', (t) => {
