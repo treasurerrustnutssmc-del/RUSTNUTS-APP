@@ -1,11 +1,12 @@
 // site-api: the club website's one door into the app. Deployed with JWT checks OFF (the website has
-// no sign-in): GET /site-api/sponsors gives the public sponsor list, POST /site-api/enquiry takes a
+// no sign-in): GET /site-api/sponsors gives the public sponsor list, GET /site-api/rides the public
+// ride list, POST /site-api/enquiry takes a
 // "Ride With Us" join enquiry. Everything it does is decided in ../_shared/siteApi.ts, which
 // `npm test` checks; the database checks the enquiry again (public.site_enquiry) and keeps the
 // spam limits. Only the club website's origins get CORS headers.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
-import { handleSiteApi, LOGO_URL_LIFE_S, type SponsorRow } from '../_shared/siteApi.ts';
+import { handleSiteApi, LOGO_URL_LIFE_S, type PublicRide, type SponsorRow } from '../_shared/siteApi.ts';
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -29,6 +30,11 @@ Deno.serve(async (req) => {
         const r = await asAnon.rpc('list_sponsors');
         if (r.error) throw new Error(r.error.message);
         return (r.data ?? []) as SponsorRow[];
+      },
+      listRides: async () => {
+        const r = await asAnon.rpc('public_rides');
+        if (r.error) throw new Error(r.error.message);
+        return (r.data ?? []) as PublicRide[];
       },
       signLogo: async (logoPath) => {
         const r = await admin.storage.from('sponsor-logos').createSignedUrl(logoPath, LOGO_URL_LIFE_S);

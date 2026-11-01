@@ -22,6 +22,7 @@ function deps(over: Partial<SiteApiDeps> = {}) {
     ],
     signLogo: async (path) => { calls.signed.push(path); return `https://x.supabase.co/signed/${path}`; },
     enquire: async (e) => { calls.enquiries.push(e); return null; },
+    listRides: async () => [],
     ...over,
   };
   return { d, calls };
@@ -130,4 +131,21 @@ test('POST /enquiry: the database limits come back as 429, anything else as a 50
   const b = await handleSiteApi({ method: 'POST', path: '/enquiry', origin: ORIGIN, body: { name: 'Sam', email: 'sam@example.com', chapter: 'west', about: '' } }, broken.d);
   assert.equal(b.status, 503);
   assert.ok(String((b.body as { error: string }).error).includes('rustnutssmc@outlook.com'));
+});
+
+test('GET /rides: the public ride list straight through, cached a quarter hour', async () => {
+  const rides = [
+    { id: 'r1', title: 'West Sunday Run', starts_at: '2026-11-08T22:00:00+00:00', ends_at: null, all_day: false, category: 'west', location: 'Bacchus Marsh', notes: 'Meet 9am', cancelled_at: null },
+  ];
+  const { d } = deps({ listRides: async () => rides });
+  const r = await handleSiteApi({ method: 'GET', path: '/rides', origin: ORIGIN, body: null }, d);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { rides });
+  assert.equal(r.headers['cache-control'], SPONSORS_CACHE);
+  const post = await handleSiteApi({ method: 'POST', path: '/rides', origin: ORIGIN, body: {} }, d);
+  assert.equal(post.status, 405);
+  const { d: broken } = deps({ listRides: async () => { throw new Error('boom'); } });
+  const down = await handleSiteApi({ method: 'GET', path: '/rides', origin: ORIGIN, body: null }, broken);
+  assert.equal(down.status, 503);
+  assert.equal(down.headers['cache-control'], 'no-store');
 });

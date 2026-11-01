@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CLUB_LINK_GROUPS, SUPPORT_URL } from './clubLinks';
+import { CLUB_LINK_GROUPS, DISCORD_INVITE_URL, DISCORD_SHOP_URL, SUPPORT_URL } from './clubLinks';
 
 const all = CLUB_LINK_GROUPS.flatMap((g) => g.links);
 
@@ -18,13 +18,17 @@ test('every link is https and none appears twice', () => {
   assert.equal(new Set(all.map((l) => l.label)).size, all.length);
 });
 
-test('the club group has the website, the shop and the Support page', () => {
+test('the club group has the website, both merch shops and the Support page', () => {
   const club = CLUB_LINK_GROUPS[0].links.map((l) => l.url);
   assert.deepEqual(club, [
     'https://www.rustnutssmc.com.au/',
+    DISCORD_SHOP_URL,
     'https://www.rustnutssmc.com.au/shop.html',
     SUPPORT_URL,
   ]);
+  // Members' designs are gated in the club Discord's #merch-shop; public designs stay on the website.
+  assert.match(DISCORD_SHOP_URL, /^https:\/\/discord\.com\/channels\/\d+\/\d+$/);
+  assert.equal(DISCORD_INVITE_URL, 'https://discord.gg/D8NpBNqqVj');
   assert.equal(SUPPORT_URL, 'https://www.rustnutssmc.com.au/resources.html');
 });
 
@@ -41,6 +45,7 @@ test('socials cover both chapters on Facebook, the club Instagram and the Linktr
   assert.ok(urls.includes('https://www.facebook.com/RustnutsSMCNorthernChapter/'));
   assert.ok(urls.includes('https://www.instagram.com/rustnuts_social2019/'));
   assert.ok(urls.includes('https://linktr.ee/rustnutssmc'));
+  assert.ok(urls.includes(DISCORD_INVITE_URL));
 });
 
 test('every link has its own id, and Support is the one the welcome screen leaves out', () => {

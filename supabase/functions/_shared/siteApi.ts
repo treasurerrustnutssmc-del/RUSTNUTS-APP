@@ -1,6 +1,7 @@
 // The club website's one door into the app, without the network or the database (both are passed
 // in), so `npm test` runs exactly what the site-api Edge Function runs.
 //   GET  /sponsors  the public sponsor list (no member deals), logos as signed URLs
+//   GET  /rides     the public ride list (public.public_rides: no RSVPs, no member data)
 //   POST /enquiry   a "Ride With Us" join enquiry, checked here and again in the database
 // The check words are the app's (src/domain/enquiries.ts); a test keeps them the same.
 
@@ -30,6 +31,18 @@ export interface SponsorRow {
   logo_path: string | null;
 }
 
+export interface PublicRide {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  category: string;
+  location: string | null;
+  notes: string | null;
+  cancelled_at: string | null;
+}
+
 export interface CleanEnquiry {
   name: string;
   email: string;
@@ -40,6 +53,8 @@ export interface CleanEnquiry {
 export interface SiteApiDeps {
   /** public.list_sponsors() as anon. */
   listSponsors: () => Promise<SponsorRow[]>;
+  /** public.public_rides() as anon. */
+  listRides: () => Promise<PublicRide[]>;
   /** A signed URL for a logo in the sponsor-logos bucket, or null when it won't sign. */
   signLogo: (path: string) => Promise<string | null>;
   /** public.site_enquiry(...) with the service role: the database's refusal, or null when kept. */
@@ -109,6 +124,15 @@ export async function handleSiteApi(req: SiteRequest, deps: SiteApiDeps): Promis
       logo: s.logo_path ? await deps.signLogo(s.logo_path).catch(() => null) : null,
     })));
     return reply(200, { sponsors }, { 'cache-control': SPONSORS_CACHE });
+  }
+
+  if (path === '/rides') {
+    if (req.method !== 'GET') return reply(405, { error: 'GET the rides.' });
+    try {
+      return reply(200, { rides: await deps.listRides() }, { 'cache-control': SPONSORS_CACHE });
+    } catch {
+      return reply(503, { error: 'The ride list is not available just now.' }, { 'cache-control': 'no-store' });
+    }
   }
 
   if (path === '/enquiry') {
