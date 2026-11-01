@@ -19,6 +19,7 @@ import { colors, fonts, space, type } from '../theme';
 import { fngDue } from '../domain/joining';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
+import { WebsiteEnquiries } from './enquiries';
 import { termEndsOn, termState } from '../domain/terms';
 import { seatTitle } from '../domain/home';
 import { BoardFees } from './fees';
@@ -216,6 +217,9 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
       ) : (
         pending.map((a) => <ApplicantCard key={a.id} applicant={a} onDone={setDone} />)
       )}
+
+      {/* People who asked through the club website's Ride With Us form */}
+      <WebsiteEnquiries onDone={setDone} />
 
       <SectionTitle title="Needs attention" action={<Small>{alerts.length}</Small>} />
       <Card style={{ padding: 0, gap: 0 }}>
