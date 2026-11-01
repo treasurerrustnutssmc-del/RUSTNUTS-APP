@@ -34,7 +34,7 @@ test('adding merges the same garment, size and colour, and counts items', () => 
     { garmentId: 'g1', size: 'L', colour: 'Black', qty: 3 },
     { garmentId: 'cap', size: null, colour: null, qty: 1 },
   ]);
-  assert.equal(three.cart.clientRef, ref);
+  assert.notEqual(three.cart.clientRef, ref, 'a changed cart is a new order');
   assert.equal(cartCount(three.cart), 4);
 });
 
@@ -64,5 +64,6 @@ test('changing a quantity keeps it 1 to 10; removing drops the line', () => {
   assert.equal(setCartQty(cart, 0, 0).lines[0].qty, 1);
   assert.equal(setCartQty(cart, 0, 12).lines[0].qty, 10);
   assert.deepEqual(removeFromCart(cart, 0).lines, [{ garmentId: 'cap', size: null, colour: null, qty: 1 }]);
-  assert.equal(removeFromCart(cart, 0).clientRef, ref);
+  assert.notEqual(removeFromCart(cart, 0).clientRef, ref);
+  assert.notEqual(setCartQty(cart, 0, 5).clientRef, ref);
 });

@@ -3,7 +3,7 @@
 // Spec: docs/superpowers/specs/2026-11-01-in-app-merch-ordering-design.md (piece 3, member screens).
 
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useShopCart } from '../data/shopCartStore';
@@ -229,7 +229,11 @@ export function ShopCartScreen({ navigation }: RootScreen<'ShopCart'>) {
   if (!me) return null;
   const garment = (id: string) => (data.shopGarments ?? []).find((g) => g.id === id);
   const design = (id: string | undefined) => (data.shopDesigns ?? []).find((d) => d.id === id);
-  const gone = cart.lines.some((l) => !garment(l.garmentId)?.onSale);
+  const gone = cart.lines.some((l) => {
+    const g = garment(l.garmentId);
+    const d = design(g?.designId);
+    return !g?.onSale || !d || designProblem(me, d, data) !== null;
+  });
   return (
     <Screen>
       <H1>Your cart</H1>
@@ -277,8 +281,10 @@ export function ShopCartScreen({ navigation }: RootScreen<'ShopCart'>) {
 // ---------------------------------------------------------------------------
 
 export function ShopCheckoutScreen({ navigation }: RootScreen<'ShopCheckout'>) {
-  const { me, data, placeShopOrder } = useClub();
+  const { me, data, placeShopOrder, refresh } = useClub();
   const { cart, sent } = useShopCart(me?.id ?? null);
+  // A send whose answer was lost may still have landed: once the orders reload and it's there, go to it.
+  const landed = me ? (data.shopOrders ?? []).find((o) => o.memberId === me.id && o.clientRef === cart.clientRef) : undefined;
   const mine = me ? (data.privates ?? []).find((p) => p.memberId === me.id) : undefined;
   const saved = !!mine?.street;
   const [email, setEmail] = useState(mine?.email ?? '');
@@ -291,6 +297,12 @@ export function ShopCheckoutScreen({ navigation }: RootScreen<'ShopCheckout'>) {
   const [method, setMethod] = useState<ShippingMethod>('standard');
   const [saveAddress, setSaveAddress] = useState(true);
   const { busy, msg, run } = useRun();
+  useEffect(() => {
+    if (!landed || busy) return;
+    sent();
+    navigation.popToTop();
+    navigation.navigate('ShopOrder', { orderId: landed.id });
+  }, [landed, busy, sent, navigation]);
   if (!me) return null;
   if (cart.lines.length === 0) {
     return (
@@ -313,13 +325,21 @@ export function ShopCheckoutScreen({ navigation }: RootScreen<'ShopCheckout'>) {
 
   const send = () =>
     run('send', async () => {
-      const r = await placeShopOrder({
-        clientRef: cart.clientRef, lines: cart.lines, email, phone, delivery, street, suburb, state: state ?? '', postcode,
-        shippingMethod: delivery === 'ship' ? method : null, saveAddress: delivery === 'ship' && (!saved || addressChanged) && saveAddress,
-      });
+      const ref = cart.clientRef;
+      let r: Awaited<ReturnType<typeof placeShopOrder>>;
+      try {
+        r = await placeShopOrder({
+          clientRef: ref, lines: cart.lines, email, phone, delivery, street, suburb, state: state ?? '', postcode,
+          shippingMethod: delivery === 'ship' ? method : null, saveAddress: delivery === 'ship' && (!saved || addressChanged) && saveAddress,
+        });
+      } catch (e) {
+        refresh().catch(() => {}); // it may have landed anyway (see above)
+        throw e;
+      }
       sent();
       navigation.popToTop();
-      navigation.navigate('ShopOrder', { orderId: r.orderId, justSent: r.status === 'held' ? 'held' : 'sent' });
+      const fresh = r.status === 'sent' || r.status === 'held';
+      navigation.navigate('ShopOrder', fresh ? { orderId: r.orderId, justSent: r.status as 'sent' | 'held' } : { orderId: r.orderId });
     });
 
   return (
@@ -362,7 +382,7 @@ export function ShopCheckoutScreen({ navigation }: RootScreen<'ShopCheckout'>) {
               onChange={setMethod}
             />
             {!saved || addressChanged ? (
-              <Toggle label="Save for next time" description="Kept on your profile. Only you and the board see it." value={saveAddress} onChange={setSaveAddress} />
+              <Toggle label="Save for next time" description="Kept on your profile. Seen by you, your chapter’s board and the national office-bearers." value={saveAddress} onChange={setSaveAddress} />
             ) : null}
           </Stack>
         ) : (
@@ -401,22 +421,12 @@ export function ShopCheckoutScreen({ navigation }: RootScreen<'ShopCheckout'>) {
 // One order
 // ---------------------------------------------------------------------------
 
-/** The club's bank details for a shop order. The reference is the order number on the invoice. */
+/** How to pay a shop order. The invoice carries the club's account (the Club fund's), so the app doesn't repeat one. */
 function HowToPayShop({ order }: { order: ShopOrder }) {
-  const { me, data } = useClub();
-  const d = (data.paymentDetails ?? []).find((x) => x.chapterId === me?.chapterId) ?? (data.paymentDetails ?? []).find((x) => !!x.bsb);
   return (
     <Card>
       <H2>How to pay</H2>
-      {d?.bsb ? (
-        <View style={{ gap: 2 }}>
-          <Label>Bank transfer</Label>
-          <Body strong selectable>{`BSB ${d.bsb} · Account ${d.accountNo ?? ''}`}</Body>
-          {d.payidName ? <Small>{`Account name ${d.payidName}`}</Small> : null}
-        </View>
-      ) : (
-        <Small>The bank details are on your invoice.</Small>
-      )}
+      <Body>Bank transfer to the account on your invoice.</Body>
       <View style={{ gap: 2 }}>
         <Label>Put this in the description</Label>
         <Body>The order number on your invoice (it starts RSMC#).</Body>

@@ -40,12 +40,17 @@ export function addToCart(cart: Cart, line: CartLine, data: ClubData): { cart: C
   const lines = mergeLines([...cart.lines, line]);
   if (lines.length > MAX_LINES) return { problem: TOO_MANY_LINES };
   if (lines.some((l) => l.qty > MAX_LINE_QTY)) return { problem: QTY };
-  return { cart: { ...cart, lines } };
+  return { cart: { ...cart, lines, clientRef: newClientRef() } };
 }
 
+/**
+ * Changing the cart makes it a new order (a new client reference): a resend of an order that did land
+ * would otherwise come back as the first order, without the change.
+ */
 export const setCartQty = (cart: Cart, index: number, qty: number): Cart => ({
   ...cart,
+  clientRef: newClientRef(),
   lines: cart.lines.map((l, i) => (i === index ? { ...l, qty: Math.min(MAX_LINE_QTY, Math.max(1, Math.round(qty))) } : l)),
 });
 
-export const removeFromCart = (cart: Cart, index: number): Cart => ({ ...cart, lines: cart.lines.filter((_, i) => i !== index) });
+export const removeFromCart = (cart: Cart, index: number): Cart => ({ ...cart, clientRef: newClientRef(), lines: cart.lines.filter((_, i) => i !== index) });

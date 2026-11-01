@@ -225,7 +225,14 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const familyRides = await familyLoad;
   const busExtras = await busExtrasLoad;
   const [catalogue, shopOrders] = await shopLoad;
-  const { address: _address, runsShop: _runsShop, ...shop } = toShop(catalogue, shopOrders);
+  const { address: _address, runsShop: _runsShop, ...shop } = (() => {
+    try {
+      return toShop(catalogue, shopOrders);
+    } catch (e) {
+      console.warn('club shop:', (e as Error).message);
+      return toShop(null, null);
+    }
+  })();
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
