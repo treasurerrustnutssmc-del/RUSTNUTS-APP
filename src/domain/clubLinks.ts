@@ -31,18 +31,26 @@ export const DISCORD_SHOP_URL = 'https://discord.com/channels/144317073844495986
 export const PUBLIC_SHOP_URL = 'https://www.rustnutssmc.com.au/shop.html';
 
 /**
- * Merch on the Me screen. Two stores: members' designs in the Discord #merch-shop (/buy with the
+ * The Merch tab. Two stores: members' designs in the Discord #merch-shop (/buy with the
  * club bot, gated by Discord roles), public designs on the website. A member who isn't in the
  * club Discord yet gets the permanent invite, since the channel link can't open for them.
  */
+const DISCORD_SHOP_LINK: ClubLink = {
+  id: 'discord-shop',
+  label: 'Members’ merch shop',
+  detail: 'Member designs, order with /buy in the club Discord',
+  url: DISCORD_SHOP_URL,
+  icon: 'shirt-outline',
+};
+const PUBLIC_SHOP_LINK: ClubLink = {
+  id: 'shop',
+  label: 'Public merch shop',
+  detail: 'Supporter designs on the website, pay by bank transfer',
+  url: PUBLIC_SHOP_URL,
+  icon: 'storefront-outline',
+};
 export const MERCH_SHOP_LINKS: ClubLink[] = [
-  {
-    id: 'discord-shop',
-    label: 'Members’ merch shop',
-    detail: 'Member designs, order with /buy in the club Discord',
-    url: DISCORD_SHOP_URL,
-    icon: 'shirt-outline',
-  },
+  DISCORD_SHOP_LINK,
   {
     id: 'discord-join',
     label: 'Not in the club Discord yet?',
@@ -50,37 +58,19 @@ export const MERCH_SHOP_LINKS: ClubLink[] = [
     url: DISCORD_INVITE_URL,
     icon: 'enter-outline',
   },
-  {
-    id: 'shop',
-    label: 'Public merch shop',
-    detail: 'Supporter designs on the website, pay by bank transfer',
-    url: PUBLIC_SHOP_URL,
-    icon: 'storefront-outline',
-  },
+  PUBLIC_SHOP_LINK,
 ];
 
-/** The club-links rows that Me already shows under Club gear. */
-export const SHOP_LINK_IDS: ReadonlySet<string> = new Set(['discord-shop', 'shop']);
+/** The club-links rows the Merch tab carries, so the Me screen's club links leave them out. */
+export const SHOP_LINK_IDS: ReadonlySet<string> = new Set([DISCORD_SHOP_LINK.id, PUBLIC_SHOP_LINK.id]);
 
 export const CLUB_LINK_GROUPS: ClubLinkGroup[] = [
   {
     title: 'The club online',
     links: [
       { id: 'website', label: 'Club website', detail: 'rustnutssmc.com.au', url: 'https://www.rustnutssmc.com.au/', icon: 'globe-outline' },
-      {
-        id: 'discord-shop',
-        label: 'Members’ merch shop',
-        detail: 'Member designs, in the club Discord (Full members)',
-        url: DISCORD_SHOP_URL,
-        icon: 'shirt-outline',
-      },
-      {
-        id: 'shop',
-        label: 'Public merch shop',
-        detail: 'Supporter designs on the website, pay by bank transfer',
-        url: PUBLIC_SHOP_URL,
-        icon: 'storefront-outline',
-      },
+      DISCORD_SHOP_LINK,
+      PUBLIC_SHOP_LINK,
       { id: 'support', label: 'Support and resources', detail: '24/7 crisis lines, in the app', url: SUPPORT_URL, icon: 'heart-outline' },
     ],
   },

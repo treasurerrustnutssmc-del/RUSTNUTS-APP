@@ -126,7 +126,6 @@ export function MerchScreen() {
               onSale.map((it, i) => <ItemRow key={it.id} item={it} last={i === onSale.length - 1} onPress={() => openItem(it)} />)
             )}
           </Card>
-
         </>
       ) : null}
 

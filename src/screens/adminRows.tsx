@@ -56,13 +56,13 @@ export function BoardAdminCard() {
 }
 
 /** The two club stores: members' designs in the Discord #merch-shop, public designs on the website. */
-export function MerchShopRows({ last = true }: { last?: boolean }) {
+export function MerchShopRows() {
   return (
     <>
       {MERCH_SHOP_LINKS.map((link, i) => (
         <ListRow
           key={link.id}
-          last={last && i === MERCH_SHOP_LINKS.length - 1}
+          last={i === MERCH_SHOP_LINKS.length - 1}
           left={<IconBadge icon={link.icon as IconName} />}
           title={link.label}
           subtitle={link.detail}

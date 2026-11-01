@@ -62,11 +62,11 @@ test('every icon is a real Ionicons name', async () => {
   for (const l of everyIcon) assert.ok(l.icon in glyphs, `${l.label}: ${l.icon}`);
 });
 
-test('Merch on Me: the members shop in Discord first, then joining the Discord, then the public website shop', () => {
+test('Merch tab: the members shop in Discord first, then joining the Discord, then the public website shop', () => {
   assert.deepEqual(MERCH_SHOP_LINKS.map((l) => l.url), [DISCORD_SHOP_URL, DISCORD_INVITE_URL, PUBLIC_SHOP_URL]);
   assert.equal(PUBLIC_SHOP_URL, 'https://www.rustnutssmc.com.au/shop.html');
   for (const l of MERCH_SHOP_LINKS) assert.match(l.url, /^https:\/\//, l.label);
-  // Me already shows these under Club gear, so its club links leave the two shop rows out.
+  // The Merch tab carries these two, so Me's club links leave them out.
   assert.deepEqual([...SHOP_LINK_IDS].sort(), ['discord-shop', 'shop']);
   const club = CLUB_LINK_GROUPS[0].links.filter((l) => SHOP_LINK_IDS.has(l.id)).map((l) => l.url);
   assert.deepEqual(club, [DISCORD_SHOP_URL, PUBLIC_SHOP_URL]);

@@ -205,7 +205,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
           />
         ) : null}
       </Card>
-      {/* Stage 5D: merch and your conduct records */}
+      {/* Stage 5D: your conduct records (merch has its own tab) */}
       <MeAdminSection />
       {/* The National Auditor */}
       <MeAuditSection />
