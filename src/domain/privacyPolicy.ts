@@ -59,7 +59,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Your phone: a push notification token so the app can send you alerts, your notification settings, and which device type you use (iPhone or Android). Like most online services, our servers also log the IP address and device details of each sign-in, for security.',
         ],
       },
-      'We don’t collect your contacts, your browsing, advertising identifiers or anything from other apps, and there is no analytics or advertising code in the app.',
+      'We don’t collect your contacts, your browsing, advertising identifiers or anything from other apps, and there is no analytics or advertising code in the app. The club website (rustnutssmc.com.au) counts page views per day per page so the board knows which pages get read: the count keeps no cookies, no addresses, no device details and nothing about who, and it skips browsers that ask not to be tracked. (The ping passes through the same servers as the app, whose short-lived request logs are covered below under “Services that help run the app”.)',
     ],
   },
   {

@@ -196,6 +196,7 @@ ${appPage ? `  <p class="app-pages">${footer}</p>\n` : ''}</section>
     panel.querySelectorAll('a').forEach(a=>a.addEventListener('click', closeMenu));
   })();
 </script>
+<script type="module">import { recordVisit } from './site-api.js'; recordVisit();</script>
 </body>
 </html>
 `;

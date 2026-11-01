@@ -68,6 +68,10 @@ Deno.serve(async (req) => {
         if (r.error) throw new Error(r.error.message);
         return (r.data ?? []) as PublicNews[];
       },
+      countVisit: async (page) => {
+        const r = await admin.rpc('site_visit', { p_page: page });
+        if (r.error) throw new Error(r.error.message);
+      },
     },
   );
   if (out.status === 204) return new Response(null, { status: 204, headers: out.headers });
