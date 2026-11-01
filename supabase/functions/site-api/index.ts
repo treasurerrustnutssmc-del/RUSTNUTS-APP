@@ -8,7 +8,7 @@
 // spam limits. Only the club website's origins get CORS headers.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
-import { handleSiteApi, LOGO_URL_LIFE_S, type PublicCharityRide, type PublicDocument, type PublicRide, type SponsorRow } from '../_shared/siteApi.ts';
+import { handleSiteApi, LOGO_URL_LIFE_S, type PublicCharityRide, type PublicDocument, type PublicNews, type PublicRide, type SponsorRow } from '../_shared/siteApi.ts';
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -62,6 +62,11 @@ Deno.serve(async (req) => {
         const r = await asAnon.rpc('public_documents');
         if (r.error) throw new Error(r.error.message);
         return (r.data ?? []) as PublicDocument[];
+      },
+      listNews: async () => {
+        const r = await asAnon.rpc('public_site_news');
+        if (r.error) throw new Error(r.error.message);
+        return (r.data ?? []) as PublicNews[];
       },
     },
   );

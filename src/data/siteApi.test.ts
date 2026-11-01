@@ -4,6 +4,7 @@ import {
   ALLOWED_ORIGINS,
   CHARITY_CACHE,
   DOCUMENTS_CACHE,
+  NEWS_CACHE,
   ENQUIRY_WORDS,
   SIGNUP_WORDS,
   SPONSORS_CACHE,
@@ -35,6 +36,7 @@ function deps(over: Partial<SiteApiDeps> = {}) {
     listCharityRides: async () => [],
     websiteSignup: async (w) => { calls.signups.push(w); return null; },
     listDocuments: async () => [],
+    listNews: async () => [],
     ...over,
   };
   return { d, calls };
@@ -209,6 +211,21 @@ test('GET /documents: the Constitution straight through, cached an hour; 503 no-
   const elsewhere = await handleSiteApi({ method: 'GET', path: '/documents', origin: 'https://evil.example', body: null }, d);
   assert.equal(elsewhere.status, 200);
   assert.equal(elsewhere.headers['access-control-allow-origin'], undefined, 'no CORS for other sites');
+});
+
+test('GET /news: the board’s notices straight through, cached five minutes; 503 no-store when down', async () => {
+  const news = [{ id: 'n1', title: 'Toy run', body: 'Sunday 7 December.', link: 'https://www.rustnutssmc.com.au/charity.html', created_at: '2026-11-01T03:00:00+00:00' }];
+  const { d } = deps({ listNews: async () => news });
+  const r = await handleSiteApi({ method: 'GET', path: '/news', origin: ORIGIN, body: null }, d);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { news });
+  assert.equal(r.headers['cache-control'], NEWS_CACHE);
+  assert.equal(r.headers['access-control-allow-origin'], ORIGIN);
+  const down = deps({ listNews: async () => { throw new Error('boom'); } });
+  const b = await handleSiteApi({ method: 'GET', path: '/news', origin: ORIGIN, body: null }, down.d);
+  assert.equal(b.status, 503);
+  assert.equal(b.headers['cache-control'], 'no-store');
+  assert.equal((await handleSiteApi({ method: 'POST', path: '/news', origin: ORIGIN, body: {} }, d)).status, 405);
 });
 
 test('POST /charity-signup: cleaned and stored, then a thank-you', async () => {

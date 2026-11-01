@@ -6,6 +6,7 @@
 //   GET  /charity-rides   charity rides taking sign-ups from the website (public.public_charity_rides)
 //   POST /charity-signup  a sign-up for one of them, checked here and again in the database
 //   GET  /documents  the Constitution as the library shows it (public.public_documents), for the site's page
+//   GET  /news      club news the board posted for the website (public.public_site_news): newest five, nothing personal
 // The check words are the app's (src/domain/enquiries.ts, src/domain/websiteSignups.ts); tests keep them the same.
 
 export const ALLOWED_ORIGINS = ['https://www.rustnutssmc.com.au', 'https://rustnutssmc.com.au'];
@@ -25,6 +26,8 @@ export const ENQUIRY_WORDS = {
 export const CHARITY_CACHE = 'public, max-age=300';
 /** The Constitution changes rarely and weighs 90 KB: an hour. */
 export const DOCUMENTS_CACHE = 'public, max-age=3600';
+/** A taken-down notice should leave the home page within a few minutes. */
+export const NEWS_CACHE = 'public, max-age=300';
 export const SIGNUP_WORDS = {
   notOnWebsite: 'This ride isn’t taking sign-ups from the website.',
   closed: 'Sign-ups have closed.',
@@ -90,6 +93,15 @@ export interface PublicDocument {
   body: string;
 }
 
+/** One notice as public_site_news() returns it (src/domain/siteNews.ts PublicNews). */
+export interface PublicNews {
+  id: string;
+  title: string;
+  body: string;
+  link: string | null;
+  created_at: string;
+}
+
 export interface CleanSignup {
   ride: string;
   name: string;
@@ -125,6 +137,8 @@ export interface SiteApiDeps {
   websiteSignup: (signup: CleanSignup) => Promise<string | null>;
   /** public.public_documents() as anon. */
   listDocuments: () => Promise<PublicDocument[]>;
+  /** public.public_site_news() as anon. */
+  listNews: () => Promise<PublicNews[]>;
 }
 
 export interface SiteRequest {
@@ -282,6 +296,15 @@ export async function handleSiteApi(req: SiteRequest, deps: SiteApiDeps): Promis
       return reply(200, { documents: await deps.listDocuments() }, { 'cache-control': DOCUMENTS_CACHE });
     } catch {
       return reply(503, { error: 'The club documents are not available just now.' }, { 'cache-control': 'no-store' });
+    }
+  }
+
+  if (path === '/news') {
+    if (req.method !== 'GET') return reply(405, { error: 'GET the news.' });
+    try {
+      return reply(200, { news: await deps.listNews() }, { 'cache-control': NEWS_CACHE });
+    } catch {
+      return reply(503, { error: 'Club news is not available just now.' }, { 'cache-control': 'no-store' });
     }
   }
 

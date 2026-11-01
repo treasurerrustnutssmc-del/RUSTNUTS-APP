@@ -493,6 +493,14 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_public_documents -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_public_documents -f "$ROOT/supabase/tests/public_documents_test.sql"
+# Club news for the website (site-api), on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_site_news" >/dev/null
+"${PSQL[@]}" -d rustnuts_site_news -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_site_news -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_site_news -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_site_news -f "$ROOT/supabase/tests/site_news_test.sql"
 # App feedback and issues, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_app_feedback" >/dev/null
 "${PSQL[@]}" -d rustnuts_app_feedback -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
