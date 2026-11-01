@@ -622,7 +622,7 @@ export type Database = {
           ride_id: string; hub_riders: number; hub_pillions: number; hub_group: number; hub_own: number; hub_camping: number;
           hub_day: number; hub_group_beds: number; charity_riding: number; charity_pillions: number; charity_guests: number;
           charity_helping: number; charity_people: number;
-          website_riding?: number; website_pillions?: number; website_guests?: number; website_helping?: number; website_people?: number;
+          website_riding?: number; website_pillions?: number; website_guests?: number; website_helping?: number; website_people?: number; website_signups?: number;
         }[];
       };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };

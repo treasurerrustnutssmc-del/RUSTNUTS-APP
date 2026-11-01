@@ -1198,6 +1198,8 @@ export interface SignupCounts {
   websiteHelping: number;
   /** Everyone on bikes who signed up from the website. */
   websitePeople: number;
+  /** Rows: one person each, riding, helping or both. */
+  websiteSignups: number;
 }
 
 export interface CharitySignup {

@@ -676,7 +676,7 @@ test('signup_counts loads as the numbers behind each ride’s sign-ups; a databa
   assert.deepEqual(data.signupCounts, [{
     rideId: 'r1', hubRiders: 4, hubPillions: 1, hubGroup: 2, hubOwn: 1, hubCamping: 1, hubDay: 0, hubGroupBeds: 3,
     charityRiding: 2, charityPillions: 1, charityGuests: 2, charityHelping: 1, charityPeople: 5,
-    websiteRiding: 1, websitePillions: 0, websiteGuests: 1, websiteHelping: 1, websitePeople: 2,
+    websiteRiding: 1, websitePillions: 0, websiteGuests: 1, websiteHelping: 1, websitePeople: 2, websiteSignups: 0,
   }]);
   const missing = {
     ...base,

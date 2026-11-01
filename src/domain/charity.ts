@@ -221,16 +221,27 @@ export function charityCounts(rideId: string, data: ClubData): CharityCounts {
 }
 
 /** The website's numbers for a ride, the same way (from the counts row, else the rows the organisers see). */
-export function websiteCounts(rideId: string, data: ClubData): CharityCounts {
+export interface WebsiteCounts extends CharityCounts {
+  /** Sign-ups: one person each, riding, helping or both. */
+  signups: number;
+}
+
+export function websiteCounts(rideId: string, data: ClubData): WebsiteCounts {
   const c = countsRow(rideId, data);
-  if (c) return { riding: c.websiteRiding, pillions: c.websitePillions, guests: c.websiteGuests, helping: c.websiteHelping, people: c.websitePeople };
-  const counts: CharityCounts = { riding: 0, pillions: 0, guests: 0, helping: 0, people: 0 };
+  if (c) {
+    return {
+      riding: c.websiteRiding, pillions: c.websitePillions, guests: c.websiteGuests, helping: c.websiteHelping, people: c.websitePeople,
+      signups: c.websiteSignups,
+    };
+  }
+  const counts: WebsiteCounts = { riding: 0, pillions: 0, guests: 0, helping: 0, people: 0, signups: 0 };
   for (const w of (data.websiteSignups ?? []).filter((x) => x.rideId === rideId)) {
     if (w.riding) counts.riding += 1;
     if (w.pillion) counts.pillions += 1;
     counts.guests += w.guests;
     if (w.job !== null) counts.helping += 1;
     counts.people += onBikes(w);
+    counts.signups += 1;
   }
   return counts;
 }
@@ -238,8 +249,8 @@ export function websiteCounts(rideId: string, data: ClubData): CharityCounts {
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** "8 riding · 2 pillions · 3 guests · 4 helping · 5 from the website", leaving out the zeros past riding. */
-export function countsLine(c: CharityCounts, site?: CharityCounts): string {
-  const fromSite = site ? site.riding + site.helping : 0;
+export function countsLine(c: CharityCounts, site?: WebsiteCounts): string {
+  const fromSite = site ? site.signups : 0;
   return [`${c.riding} riding`, c.pillions ? plural(c.pillions, 'pillion') : null, c.guests ? plural(c.guests, 'guest') : null, c.helping ? `${c.helping} helping` : null,
     fromSite ? `${fromSite} from the website` : null]
     .filter(Boolean)

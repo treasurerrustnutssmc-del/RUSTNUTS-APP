@@ -336,7 +336,7 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
         );
       })}
 
-      {runs && charity.website ? (
+      {runs && (charity.website || fromSite.length > 0) ? (
         <Stack gap={space.sm}>
           <SectionTitle title="From the website" action={<Text style={styles.count}>{fromSite.length}</Text>} />
           <Small>People who signed up on rustnutssmc.com.au. Only the organisers see their details.</Small>

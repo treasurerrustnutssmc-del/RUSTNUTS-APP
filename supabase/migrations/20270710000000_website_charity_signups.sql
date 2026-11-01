@@ -288,7 +288,7 @@ create function public.signup_counts()
 returns table (
   ride_id uuid, hub_riders int, hub_pillions int, hub_group int, hub_own int, hub_camping int, hub_day int, hub_group_beds int,
   charity_riding int, charity_pillions int, charity_guests int, charity_helping int, charity_people int,
-  website_riding int, website_pillions int, website_guests int, website_helping int, website_people int
+  website_riding int, website_pillions int, website_guests int, website_helping int, website_people int, website_signups int
 )
 language sql stable security definer set search_path = '' as $$
   with hubs as (
@@ -315,14 +315,16 @@ language sql stable security definer set search_path = '' as $$
       count(*) filter (where w.pillion)::int as pillions,
       coalesce(sum(w.guests), 0)::int as guests,
       count(*) filter (where w.job is not null)::int as helping,
-      coalesce(sum((case when w.riding then 1 else 0 end) + (case when w.pillion then 1 else 0 end) + w.guests), 0)::int as people
+      coalesce(sum((case when w.riding then 1 else 0 end) + (case when w.pillion then 1 else 0 end) + w.guests), 0)::int as people,
+      count(*)::int as signups
     from public.website_signups w group by w.ride_id
   )
   select coalesce(h.ride_id, c.ride_id, s.ride_id),
     coalesce(h.riders, 0), coalesce(h.pillions, 0), coalesce(h.grp, 0), coalesce(h.own, 0), coalesce(h.camping, 0), coalesce(h.day, 0),
     coalesce(h.group_beds, 0),
     coalesce(c.riding, 0), coalesce(c.pillions, 0), coalesce(c.guests, 0), coalesce(c.helping, 0), coalesce(c.people, 0),
-    coalesce(s.riding, 0), coalesce(s.pillions, 0), coalesce(s.guests, 0), coalesce(s.helping, 0), coalesce(s.people, 0)
+    coalesce(s.riding, 0), coalesce(s.pillions, 0), coalesce(s.guests, 0), coalesce(s.helping, 0), coalesce(s.people, 0),
+    coalesce(s.signups, 0)
   from hubs h
   full join charity c on c.ride_id = h.ride_id
   full join site s on s.ride_id = coalesce(h.ride_id, c.ride_id)

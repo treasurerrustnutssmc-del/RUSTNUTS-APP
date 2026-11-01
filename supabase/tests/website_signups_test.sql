@@ -188,7 +188,7 @@ begin
   select * into r from public.signup_counts() where ride_id = kids::uuid;
   reset role;
   perform set_config('request.jwt.claim.sub', '', true);
-  assert r.charity_people = 2 and r.website_riding = 1 and r.website_pillions = 1 and r.website_guests = 0 and r.website_helping = 1 and r.website_people = 2,
+  assert r.charity_people = 2 and r.website_riding = 1 and r.website_pillions = 1 and r.website_guests = 0 and r.website_helping = 1 and r.website_people = 2 and r.website_signups = 2,
     format('the counts: %s', r);
 
   -- Closed: the closing day has passed.
