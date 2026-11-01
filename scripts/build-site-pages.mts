@@ -1,4 +1,4 @@
-// Writes the club website's brand block (the app's theme as CSS variables, between the markers in
+// Writes the club website's brand block and club links (the app's theme as CSS variables, between the markers in
 // its styles.css) and the same font file, then the app's public pages twice (the welcome guide only once: it names the stores, so it stays
 // off the website until launch): into site/ (GitHub Pages, the old addresses, each saying where
 // it now lives) and, dressed in the club website's shell, into the website repo's app/ folder
@@ -18,6 +18,7 @@ import { DIAGRAMS } from '../src/domain/roadRulesGuide';
 import { ROAD_RULES_IMAGE_DIR, renderRoadRulesPage } from '../src/domain/roadRulesPage';
 import { HELD_UNTIL_LAUNCH, SITE_PAGES, extractPage, mentionsStores, renderSitePage } from '../src/domain/sitePage';
 import { brandCss, replaceBrandBlock, siteRepoPath } from '../src/domain/brandCss';
+import { replaceSiteLinks } from '../src/domain/siteLinks';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const site = join(root, 'site');
@@ -44,6 +45,10 @@ mkdirSync(join(siteRepo, 'fonts'), { recursive: true });
 copyFileSync(join(root, 'assets/fonts/RustnutsStencil-Regular.ttf'), join(siteRepo, 'fonts/RustnutsStencil-Regular.ttf'));
 copyFileSync(join(root, 'assets/fonts/OFL.txt'), join(siteRepo, 'fonts/OFL.txt'));
 console.log(`Wrote the brand block into ${stylesPath}`);
+// 2a'. One list of club links: the app's club links into the home page's podcast and socials blocks.
+const indexPath = join(siteRepo, 'index.html');
+writeFileSync(indexPath, replaceSiteLinks(readFileSync(indexPath, 'utf8')));
+console.log(`Wrote the club links into ${indexPath}`);
 
 // 2b. The app's public pages.
 const out = join(siteRepo, 'app');
