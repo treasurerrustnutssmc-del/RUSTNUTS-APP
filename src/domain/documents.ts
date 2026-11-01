@@ -363,6 +363,42 @@ export function reviewState(doc: ClubDocument, data: ClubData, today: string): R
 }
 
 // ---------------------------------------------------------------------------
+// The club website
+// ---------------------------------------------------------------------------
+
+/** One row of the website's feed (public.public_documents): the Constitution, as the site shows it. */
+export interface PublicDocument {
+  kind: DocumentKind;
+  title: string;
+  label: string;
+  approvingBody: ApprovingBody | null;
+  approvedOn: string | null;
+  commencesOn: string | null;
+  publishedAt: string;
+  body: string;
+}
+
+/**
+ * What the club website shows of the library: the Constitution's shown version (in force today, or
+ * the newest when none has commenced) and nothing else. Mirrors public.public_documents(), which
+ * the site-api Edge Function serves as anon. The Road Rules are not here: their text stays with
+ * members, and the public illustrated set is app code.
+ */
+export function publicDocuments(data: ClubData, today: string): PublicDocument[] {
+  return (data.documents ?? [])
+    .filter((d) => d.kind === 'constitution')
+    .flatMap((d) => {
+      const v = shownVersion(d, data, today);
+      // A null body is live data before the text is loaded (the database's body is never null).
+      if (!v || v.body === null) return [];
+      return [{
+        kind: d.kind, title: d.title, label: v.label, approvingBody: v.approvingBody, approvedOn: v.approvedOn,
+        commencesOn: v.commencesOn, publishedAt: v.publishedAt, body: v.body,
+      }];
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Reading on a phone
 // ---------------------------------------------------------------------------
 
