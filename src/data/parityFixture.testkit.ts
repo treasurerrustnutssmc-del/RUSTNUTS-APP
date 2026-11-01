@@ -13,6 +13,7 @@ import type {
   ConductKind, MerchStatus, OrderStatus, // Stage 5D
   Big4Ground, NoticeAbout, NoticeOutcome, // Big 4 RSVP rules and the 5.5 notice
   BusCostKind, // Rusty Bus extras
+  ShippingMethod, ShopDelivery, ShopEligibility, ShopOrderStatus, // The club shop
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
 // Stage 4
@@ -36,6 +37,7 @@ import { ADMIN_ACTIONS, runAdminAction, type AdminAction } from './adminActions'
 import { sharesFor } from '../domain/national'; // Stage 5D
 import { AUDIT_ACTIONS, runAuditAction, type AuditAction } from './auditActions'; // National Auditor
 import { BUS_EXTRAS_ACTIONS, runBusExtrasAction, type BusExtrasAction } from './busExtrasActions'; // Rusty Bus extras
+import { SHOP_ACTIONS, runShopAction, type ShopAction } from './shopActions'; // The club shop
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -153,6 +155,8 @@ export interface ParityFixture {
   documentSignoffs?: { version: string; member: string }[];
   /** Stage 5D: dates are days from today; everything else was made at ADMIN_AT. */
   admin?: AdminFixture;
+  /** The club shop: catalogue, runners and orders (made at SHOP_AT, or today when `today`). */
+  shop?: ShopFixture;
   /** Big 4 RSVP rules and the 5.5 notice. Notice dates are days from today. */
   big4Rsvp?: {
     big4Rides: { ride: string; chapter: string | null }[];
@@ -172,6 +176,20 @@ export interface AdminFixture {
   contributions: { key: string; totalCents: number; decided: { chapter: string; yes: boolean; vote: string }[] }[];
   chapterProposals: { key: string; name: string; founders: string[]; president: string; saa: string; proposedBy: string }[];
 }
+
+export interface ShopFixture {
+  designs: { key: string; name: string; eligibility: ShopEligibility; onSale?: boolean }[];
+  garments: { key: string; design: string; name: string; priceCents: number; sizes: string[]; colours: string[]; onSale?: boolean }[];
+  shipping: { state: string; method: ShippingMethod; cents: number }[];
+  runners: string[];
+  /** Every fixture order is one Member Tee (M, Black); `today` puts it on today's date (the daily limit). */
+  orders: { key: string; member: string; status: ShopOrderStatus; delivery: ShopDelivery; today?: boolean }[];
+}
+
+/** When the fixture's shop orders were placed (unless `today`). */
+export const SHOP_AT = '2026-10-20T00:00:00.000Z';
+/** The Melbourne morning of `today`, as an instant. */
+export const shopTodayAt = (today: string): string => `${today}T01:00:00.000Z`;
 
 /** When the fixture's Stage 5D items, orders, contributions and proposals were made: before its votes closed. */
 export const ADMIN_AT = '2025-11-15T00:00:00.000Z';
@@ -339,7 +357,7 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  return withBusExtras(withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today)), today), today);
+  return withShop(withBusExtras(withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today)), today), today), today);
 }
 
 /** When the fixture's Big 4s, 5.4 excuses and 5.5 notices were made. */
@@ -406,6 +424,53 @@ function withPlanning(data: ClubData): ClubData {
       id: s.key, rideId: s.ride, askedBy: s.askedBy, role: s.role, askedTo: s.askedTo, theirRole: s.theirRole, note: '', state: s.state,
       askedAt: PLANNED_AT, answeredAt: s.state === 'asked' ? null : PLANNED_AT,
     })),
+  };
+}
+
+// The club shop: catalogue, runners and orders. Every member has their fixture email saved, as the
+// database does (member_private), so an order with no email typed goes to it.
+function withShop(data: ClubData, today: string): ClubData {
+  const s = fixture.shop;
+  if (!s) return data;
+  const privates = data.members.map((m) => ({
+    ...(data.privates.find((p) => p.memberId === m.id) ?? {
+      memberId: m.id, phone: null, licenceClass: null, licenceExpiry: null, firstAidExpiry: null, introducedBy: null, applicationNote: null,
+    }),
+    email: `${m.id}@example.com`,
+  }));
+  const tee = s.garments.find((g) => g.key === 'member-tee')!;
+  const teeDesign = s.designs.find((d) => d.key === tee.design)!;
+  return {
+    ...data,
+    privates,
+    shopDesigns: s.designs.map((d, i) => ({
+      id: d.key, name: d.name, eligibility: d.eligibility, blurb: '', sort: i, onSale: d.onSale ?? true, updatedBy: null, updatedAt: SHOP_AT,
+    })),
+    shopGarments: s.garments.map((g, i) => ({
+      id: g.key, designId: g.design, name: g.name, priceCents: g.priceCents, sizes: g.sizes, colours: g.colours, sort: i, onSale: g.onSale ?? true,
+    })),
+    shopShipping: s.shipping.map((r) => ({ ...r })),
+    shopRunners: s.runners.map((m) => ({ memberId: m, namedBy: null, namedOn: '2026-10-01' })),
+    shopOrders: s.orders.map((o) => {
+      const buyer = data.members.find((m) => m.id === o.member)!;
+      const ship = o.delivery === 'ship';
+      const at = o.today ? shopTodayAt(today) : SHOP_AT;
+      return {
+        id: o.key, memberId: o.member, clientRef: o.key, buyerName: buyer.fullName, roadName: buyer.roadName, email: `${o.member}@example.com`,
+        phone: null, delivery: o.delivery, street: ship ? '1 Main St' : null, suburb: ship ? 'Sunshine' : null, state: ship ? 'VIC' : null,
+        postcode: ship ? '3020' : null, shippingMethod: ship ? 'standard' : null, subtotalCents: tee.priceCents,
+        shippingCents: ship ? s.shipping.find((r) => r.state === 'VIC' && r.method === 'standard')?.cents ?? 0 : 0,
+        status: o.status, makeSentAt: o.status === 'held' ? null : at, makeError: o.status === 'held' ? 'HTTP 500' : null,
+        paidOn: o.status === 'paid' || o.status === 'posted' || o.status === 'collected' ? melbourneDate(at) : null,
+        paidCents: o.status === 'paid' || o.status === 'posted' || o.status === 'collected' ? tee.priceCents : null,
+        ledgerEntryId: null, handedOverOn: o.status === 'posted' || o.status === 'collected' ? melbourneDate(at) : null,
+        cancelledAt: o.status === 'cancelled' ? at : null, cancelledBy: o.status === 'cancelled' ? o.member : null, orderedAt: at,
+        lines: [{
+          id: `${o.key}-line`, orderId: o.key, garmentId: tee.key, designName: teeDesign.name, garmentName: tee.name, size: 'M', colour: 'Black',
+          qty: 1, unitCents: tee.priceCents,
+        }],
+      };
+    }),
   };
 }
 
@@ -594,6 +659,10 @@ export function demoAnswer(c: ParityCase): string | null {
     }
     if (BUS_EXTRAS_ACTIONS.has(String(c.action))) {
       runBusExtrasAction({ data, me, today }, resolveCase(c, today) as unknown as BusExtrasAction);
+      return null;
+    }
+    if (SHOP_ACTIONS.has(String(c.action))) {
+      runShopAction({ data, me, today }, resolveCase(c, today) as unknown as ShopAction);
       return null;
     }
     if (DOCUMENT_ACTIONS.has(String(c.action))) {

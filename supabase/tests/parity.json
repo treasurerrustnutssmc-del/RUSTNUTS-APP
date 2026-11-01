@@ -12558,6 +12558,1405 @@
       "action": "restoreAccess",
       "member": "torque",
       "allowed": false
+    },
+    {
+      "name": "Shop: a Full member orders to collect",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a Full member orders shipped",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "ship",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "VIC",
+      "postcode": "3020",
+      "method": "standard",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a Nomad orders the Member design",
+      "as": "hal",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": true
+    },
+    {
+      "name": "Shop: an FNG orders the Member design",
+      "as": "finn",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: an FNG orders the Family design",
+      "as": "finn",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "family-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: an FNG orders R U OK",
+      "as": "finn",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "ruok-tee",
+          "qty": 2
+        }
+      ],
+      "delivery": "collect",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a Legacy member orders",
+      "as": "hacker",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "ruok-tee",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: someone not yet approved orders",
+      "as": "dylan",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: nobody signed in orders",
+      "as": null,
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a design off sale",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "retired-cap",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a garment off sale",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "old-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: an empty cart",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: eleven lines",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "S",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-tee",
+          "size": "L",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "S",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "S",
+          "colour": "Grey",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "M",
+          "colour": "Grey",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "L",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "L",
+          "colour": "Grey",
+          "qty": 1
+        },
+        {
+          "garment": "family-tee",
+          "size": "S",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "family-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: ten lines",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "S",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-tee",
+          "size": "L",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "S",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "S",
+          "colour": "Grey",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "M",
+          "colour": "Grey",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "L",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-hoodie",
+          "size": "L",
+          "colour": "Grey",
+          "qty": 1
+        },
+        {
+          "garment": "family-tee",
+          "size": "S",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": true
+    },
+    {
+      "name": "Shop: the same line twice merges",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        },
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 9
+        }
+      ],
+      "delivery": "collect",
+      "allowed": true
+    },
+    {
+      "name": "Shop: eleven of one line",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 11
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: none of one line",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 0
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a size it doesn't come in",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "XL",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: no size",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a colour it doesn't come in",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Pink",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: no colour",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a size on a one-size garment",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "ruok-tee",
+          "size": "M",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: an email typed for this order",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "email": "other@example.com",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a bad email",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "email": "nope",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a long phone number",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "phone": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a phone number",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "phone": "0400 000 000",
+      "allowed": true
+    },
+    {
+      "name": "Shop: shipped with no street",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "ship",
+      "street": " ",
+      "suburb": "Sunshine",
+      "state": "VIC",
+      "postcode": "3020",
+      "method": "standard",
+      "allowed": false
+    },
+    {
+      "name": "Shop: shipped with a long suburb",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "ship",
+      "street": "1 Main St",
+      "suburb": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "state": "VIC",
+      "postcode": "3020",
+      "method": "standard",
+      "allowed": false
+    },
+    {
+      "name": "Shop: shipped to no such state",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "ship",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "Victoria",
+      "postcode": "3020",
+      "method": "standard",
+      "allowed": false
+    },
+    {
+      "name": "Shop: shipped with a lower-case state",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "ship",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "vic",
+      "postcode": "3020",
+      "method": "standard",
+      "allowed": true
+    },
+    {
+      "name": "Shop: shipped with a short postcode",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "ship",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "VIC",
+      "postcode": "302",
+      "method": "standard",
+      "allowed": false
+    },
+    {
+      "name": "Shop: shipped with no method",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "ship",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "VIC",
+      "postcode": "3020",
+      "method": null,
+      "allowed": false
+    },
+    {
+      "name": "Shop: shipped express",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "ship",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "VIC",
+      "postcode": "3020",
+      "method": "express",
+      "allowed": true
+    },
+    {
+      "name": "Shop: shipped and the address saved",
+      "as": "gravel",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "saveAddress": true,
+      "delivery": "ship",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "VIC",
+      "postcode": "3020",
+      "method": "standard",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a sixth order today",
+      "as": "jet",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "allowed": false
+    },
+    {
+      "name": "Shop: the same cart sent again",
+      "as": "jet",
+      "action": "shopOrder",
+      "lines": [
+        {
+          "garment": "member-tee",
+          "size": "M",
+          "colour": "Black",
+          "qty": 1
+        }
+      ],
+      "delivery": "collect",
+      "clientRef": "jet-1",
+      "allowed": true
+    },
+    {
+      "name": "Shop: the NEC Chair marks an order paid",
+      "as": "chair",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paidDays": 0,
+      "cents": 5700,
+      "allowed": true
+    },
+    {
+      "name": "Shop: the NEC Secretary marks an order paid for less",
+      "as": "lou",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paidDays": 0,
+      "cents": 100,
+      "allowed": true
+    },
+    {
+      "name": "Shop: a President marks an order paid",
+      "as": "rusty",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paidDays": 0,
+      "cents": 5700,
+      "allowed": false
+    },
+    {
+      "name": "Shop: a shop runner marks an order paid",
+      "as": "spanner",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paidDays": 0,
+      "cents": 5700,
+      "allowed": false
+    },
+    {
+      "name": "Shop: the Auditor marks an order paid",
+      "as": "kim",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paidDays": 0,
+      "cents": 5700,
+      "allowed": false
+    },
+    {
+      "name": "Shop: the buyer marks their order paid",
+      "as": "gravel",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paidDays": 0,
+      "cents": 5700,
+      "allowed": false
+    },
+    {
+      "name": "Shop: a held order marked paid",
+      "as": "chair",
+      "action": "shopPay",
+      "order": "held-ash",
+      "paidDays": 0,
+      "cents": 5700,
+      "allowed": false
+    },
+    {
+      "name": "Shop: a paid order marked paid again",
+      "as": "chair",
+      "action": "shopPay",
+      "order": "paid-torque",
+      "paidDays": 0,
+      "cents": 5700,
+      "allowed": false
+    },
+    {
+      "name": "Shop: the Chair marks their own order paid",
+      "as": "chair",
+      "action": "shopPay",
+      "order": "sent-chair",
+      "paidDays": 0,
+      "cents": 5700,
+      "allowed": false
+    },
+    {
+      "name": "Shop: paid tomorrow",
+      "as": "chair",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paidDays": 1,
+      "cents": 5700,
+      "allowed": false
+    },
+    {
+      "name": "Shop: paid before it was ordered",
+      "as": "chair",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paid": "2026-10-19",
+      "cents": 5700,
+      "allowed": false
+    },
+    {
+      "name": "Shop: paid the day it was ordered",
+      "as": "chair",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paid": "2026-10-20",
+      "cents": 5700,
+      "allowed": true
+    },
+    {
+      "name": "Shop: paid nothing",
+      "as": "chair",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paidDays": 0,
+      "cents": 0,
+      "allowed": false
+    },
+    {
+      "name": "Shop: paid too much",
+      "as": "chair",
+      "action": "shopPay",
+      "order": "sent-gravel",
+      "paidDays": 0,
+      "cents": 1000001,
+      "allowed": false
+    },
+    {
+      "name": "Shop: a President marks a paid order posted",
+      "as": "rusty",
+      "action": "shopHandOver",
+      "order": "paid-torque",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a shop runner marks a paid order collected",
+      "as": "spanner",
+      "action": "shopHandOver",
+      "order": "paid-hal",
+      "allowed": true
+    },
+    {
+      "name": "Shop: the NEC Secretary marks a paid order posted",
+      "as": "lou",
+      "action": "shopHandOver",
+      "order": "paid-torque",
+      "allowed": true
+    },
+    {
+      "name": "Shop: the Auditor marks an order posted",
+      "as": "kim",
+      "action": "shopHandOver",
+      "order": "paid-torque",
+      "allowed": false
+    },
+    {
+      "name": "Shop: the buyer marks their own order posted",
+      "as": "torque",
+      "action": "shopHandOver",
+      "order": "paid-torque",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a member marks someone else's order posted",
+      "as": "gravel",
+      "action": "shopHandOver",
+      "order": "paid-torque",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a sent order marked posted",
+      "as": "rusty",
+      "action": "shopHandOver",
+      "order": "sent-gravel",
+      "allowed": false
+    },
+    {
+      "name": "Shop: the buyer cancels a sent order",
+      "as": "gravel",
+      "action": "shopCancel",
+      "order": "sent-gravel",
+      "allowed": true
+    },
+    {
+      "name": "Shop: the buyer cancels a held order",
+      "as": "ash",
+      "action": "shopCancel",
+      "order": "held-ash",
+      "allowed": true
+    },
+    {
+      "name": "Shop: the buyer cancels a paid order",
+      "as": "torque",
+      "action": "shopCancel",
+      "order": "paid-torque",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a President cancels a sent order",
+      "as": "rusty",
+      "action": "shopCancel",
+      "order": "sent-gravel",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a shop runner cancels a paid order",
+      "as": "spanner",
+      "action": "shopCancel",
+      "order": "paid-torque",
+      "allowed": false
+    },
+    {
+      "name": "Shop: the Auditor cancels an order",
+      "as": "kim",
+      "action": "shopCancel",
+      "order": "sent-gravel",
+      "allowed": false
+    },
+    {
+      "name": "Shop: another member cancels an order",
+      "as": "hal",
+      "action": "shopCancel",
+      "order": "sent-gravel",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a posted order cancelled",
+      "as": "rusty",
+      "action": "shopCancel",
+      "order": "posted-rhys",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a President resends a held order",
+      "as": "rusty",
+      "action": "shopResend",
+      "order": "held-ash",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a shop runner resends a held order",
+      "as": "spanner",
+      "action": "shopResend",
+      "order": "held-ash",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a sent order resent",
+      "as": "rusty",
+      "action": "shopResend",
+      "order": "sent-gravel",
+      "allowed": false
+    },
+    {
+      "name": "Shop: the buyer resends their held order",
+      "as": "ash",
+      "action": "shopResend",
+      "order": "held-ash",
+      "allowed": false
+    },
+    {
+      "name": "Shop: another member resends a held order",
+      "as": "gravel",
+      "action": "shopResend",
+      "order": "held-ash",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a President adds a design",
+      "as": "rusty",
+      "action": "shopSetDesign",
+      "designName": "Supporter",
+      "eligibility": "any",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a shop runner edits a design",
+      "as": "spanner",
+      "action": "shopSetDesign",
+      "design": "member",
+      "designName": "Member (patched)",
+      "eligibility": "patched",
+      "blurb": "Full and Nomad only.",
+      "sort": 1,
+      "onSale": true,
+      "allowed": true
+    },
+    {
+      "name": "Shop: the NEC Chair takes a design off sale",
+      "as": "chair",
+      "action": "shopSetDesign",
+      "design": "ruok",
+      "designName": "R U OK",
+      "eligibility": "any",
+      "onSale": false,
+      "allowed": true
+    },
+    {
+      "name": "Shop: a member adds a design",
+      "as": "gravel",
+      "action": "shopSetDesign",
+      "designName": "Mine",
+      "eligibility": "any",
+      "allowed": false
+    },
+    {
+      "name": "Shop: the Auditor adds a design",
+      "as": "kim",
+      "action": "shopSetDesign",
+      "designName": "Audit",
+      "eligibility": "any",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a chapter secretary adds a design",
+      "as": "torque",
+      "action": "shopSetDesign",
+      "designName": "West",
+      "eligibility": "any",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a design that isn't there",
+      "as": "rusty",
+      "action": "shopSetDesign",
+      "design": "nope",
+      "designName": "Ghost",
+      "eligibility": "any",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a design with no name",
+      "as": "rusty",
+      "action": "shopSetDesign",
+      "designName": " ",
+      "eligibility": "any",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a design with a long name",
+      "as": "rusty",
+      "action": "shopSetDesign",
+      "designName": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "eligibility": "any",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a design for nobody in particular",
+      "as": "rusty",
+      "action": "shopSetDesign",
+      "designName": "Odd",
+      "eligibility": "vip",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a design with a long blurb",
+      "as": "rusty",
+      "action": "shopSetDesign",
+      "designName": "Odd",
+      "eligibility": "any",
+      "blurb": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a President adds a garment",
+      "as": "rusty",
+      "action": "shopSetGarment",
+      "design": "member",
+      "garmentName": "Cap",
+      "priceCents": 2500,
+      "sizes": [],
+      "colours": [
+        "Black"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "Shop: a shop runner edits a garment",
+      "as": "spanner",
+      "action": "shopSetGarment",
+      "garment": "member-tee",
+      "design": "member",
+      "garmentName": "Tee",
+      "priceCents": 4800,
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "colours": [
+        "Black",
+        "White"
+      ],
+      "allowed": true
+    },
+    {
+      "name": "Shop: a member adds a garment",
+      "as": "gravel",
+      "action": "shopSetGarment",
+      "design": "member",
+      "garmentName": "Cap",
+      "priceCents": 2500,
+      "sizes": [],
+      "colours": [],
+      "allowed": false
+    },
+    {
+      "name": "Shop: a garment under no such design",
+      "as": "rusty",
+      "action": "shopSetGarment",
+      "design": "nope",
+      "garmentName": "Cap",
+      "priceCents": 2500,
+      "sizes": [],
+      "colours": [],
+      "allowed": false
+    },
+    {
+      "name": "Shop: a garment under the wrong design",
+      "as": "rusty",
+      "action": "shopSetGarment",
+      "garment": "family-tee",
+      "design": "member",
+      "garmentName": "Tee",
+      "priceCents": 4000,
+      "sizes": [
+        "M"
+      ],
+      "colours": [
+        "Black"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "Shop: a garment with no name",
+      "as": "rusty",
+      "action": "shopSetGarment",
+      "design": "member",
+      "garmentName": "",
+      "priceCents": 2500,
+      "sizes": [],
+      "colours": [],
+      "allowed": false
+    },
+    {
+      "name": "Shop: a garment priced at nothing",
+      "as": "rusty",
+      "action": "shopSetGarment",
+      "design": "member",
+      "garmentName": "Cap",
+      "priceCents": 0,
+      "sizes": [],
+      "colours": [],
+      "allowed": false
+    },
+    {
+      "name": "Shop: a garment priced over $1,000",
+      "as": "rusty",
+      "action": "shopSetGarment",
+      "design": "member",
+      "garmentName": "Cap",
+      "priceCents": 100001,
+      "sizes": [],
+      "colours": [],
+      "allowed": false
+    },
+    {
+      "name": "Shop: a garment with a repeated size",
+      "as": "rusty",
+      "action": "shopSetGarment",
+      "design": "member",
+      "garmentName": "Cap",
+      "priceCents": 2500,
+      "sizes": [
+        "M",
+        " M "
+      ],
+      "colours": [],
+      "allowed": false
+    },
+    {
+      "name": "Shop: a garment with a long colour",
+      "as": "rusty",
+      "action": "shopSetGarment",
+      "design": "member",
+      "garmentName": "Cap",
+      "priceCents": 2500,
+      "sizes": [],
+      "colours": [
+        "xxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "allowed": false
+    },
+    {
+      "name": "Shop: a President sets a shipping cost",
+      "as": "rusty",
+      "action": "shopSetShipping",
+      "state": "NSW",
+      "method": "standard",
+      "cents": 1500,
+      "allowed": true
+    },
+    {
+      "name": "Shop: a shop runner changes a shipping cost",
+      "as": "spanner",
+      "action": "shopSetShipping",
+      "state": "vic",
+      "method": "express",
+      "cents": 2000,
+      "allowed": true
+    },
+    {
+      "name": "Shop: a member sets a shipping cost",
+      "as": "gravel",
+      "action": "shopSetShipping",
+      "state": "NSW",
+      "method": "standard",
+      "cents": 1500,
+      "allowed": false
+    },
+    {
+      "name": "Shop: shipping to no such state",
+      "as": "rusty",
+      "action": "shopSetShipping",
+      "state": "NZ",
+      "method": "standard",
+      "cents": 1500,
+      "allowed": false
+    },
+    {
+      "name": "Shop: shipping by no such method",
+      "as": "rusty",
+      "action": "shopSetShipping",
+      "state": "NSW",
+      "method": "drone",
+      "cents": 1500,
+      "allowed": false
+    },
+    {
+      "name": "Shop: a shipping cost below nothing",
+      "as": "rusty",
+      "action": "shopSetShipping",
+      "state": "NSW",
+      "method": "standard",
+      "cents": -1,
+      "allowed": false
+    },
+    {
+      "name": "Shop: free shipping",
+      "as": "rusty",
+      "action": "shopSetShipping",
+      "state": "NSW",
+      "method": "standard",
+      "cents": 0,
+      "allowed": true
+    },
+    {
+      "name": "Shop: a President names a shop runner",
+      "as": "rusty",
+      "action": "shopNameRunner",
+      "member": "hal",
+      "allowed": true
+    },
+    {
+      "name": "Shop: the NEC Chair names a shop runner",
+      "as": "chair",
+      "action": "shopNameRunner",
+      "member": "hal",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a shop runner names a shop runner",
+      "as": "spanner",
+      "action": "shopNameRunner",
+      "member": "hal",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a chapter secretary names a shop runner",
+      "as": "torque",
+      "action": "shopNameRunner",
+      "member": "hal",
+      "allowed": false
+    },
+    {
+      "name": "Shop: the Auditor names a shop runner",
+      "as": "kim",
+      "action": "shopNameRunner",
+      "member": "hal",
+      "allowed": false
+    },
+    {
+      "name": "Shop: naming someone already a shop runner",
+      "as": "rusty",
+      "action": "shopNameRunner",
+      "member": "spanner",
+      "allowed": false
+    },
+    {
+      "name": "Shop: naming someone not approved",
+      "as": "rusty",
+      "action": "shopNameRunner",
+      "member": "dylan",
+      "allowed": false
+    },
+    {
+      "name": "Shop: naming a Legacy member",
+      "as": "rusty",
+      "action": "shopNameRunner",
+      "member": "hacker",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a President unnames a shop runner",
+      "as": "rusty",
+      "action": "shopUnnameRunner",
+      "member": "spanner",
+      "allowed": true
+    },
+    {
+      "name": "Shop: unnaming someone who isn't one",
+      "as": "rusty",
+      "action": "shopUnnameRunner",
+      "member": "hal",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a shop runner unnames themselves",
+      "as": "spanner",
+      "action": "shopUnnameRunner",
+      "member": "spanner",
+      "allowed": false
+    },
+    {
+      "name": "Shop: a member saves a delivery address",
+      "as": "gravel",
+      "action": "shopSaveAddress",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "VIC",
+      "postcode": "3020",
+      "allowed": true
+    },
+    {
+      "name": "Shop: an FNG saves a delivery address",
+      "as": "finn",
+      "action": "shopSaveAddress",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "vic",
+      "postcode": "3020",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a member clears their delivery address",
+      "as": "gravel",
+      "action": "shopSaveAddress",
+      "street": "",
+      "suburb": "",
+      "state": "",
+      "postcode": "",
+      "allowed": true
+    },
+    {
+      "name": "Shop: a half address",
+      "as": "gravel",
+      "action": "shopSaveAddress",
+      "street": "1 Main St",
+      "suburb": "",
+      "state": "VIC",
+      "postcode": "3020",
+      "allowed": false
+    },
+    {
+      "name": "Shop: an address in no such state",
+      "as": "gravel",
+      "action": "shopSaveAddress",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "Vic.",
+      "postcode": "3020",
+      "allowed": false
+    },
+    {
+      "name": "Shop: an address with a short postcode",
+      "as": "gravel",
+      "action": "shopSaveAddress",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "VIC",
+      "postcode": "302",
+      "allowed": false
+    },
+    {
+      "name": "Shop: someone not yet approved saves an address",
+      "as": "dylan",
+      "action": "shopSaveAddress",
+      "street": "1 Main St",
+      "suburb": "Sunshine",
+      "state": "VIC",
+      "postcode": "3020",
+      "allowed": false
     }
   ],
   "chapters": [
@@ -14222,5 +15621,194 @@
       "reporter": "spanner",
       "resolved": false
     }
-  ]
+  ],
+  "shop": {
+    "designs": [
+      {
+        "key": "member",
+        "name": "Member",
+        "eligibility": "patched"
+      },
+      {
+        "key": "family",
+        "name": "Family",
+        "eligibility": "family"
+      },
+      {
+        "key": "ruok",
+        "name": "R U OK",
+        "eligibility": "any"
+      },
+      {
+        "key": "retired",
+        "name": "Retired",
+        "eligibility": "any",
+        "onSale": false
+      }
+    ],
+    "garments": [
+      {
+        "key": "member-tee",
+        "design": "member",
+        "name": "Tee",
+        "priceCents": 4500,
+        "sizes": [
+          "S",
+          "M",
+          "L"
+        ],
+        "colours": [
+          "Black"
+        ]
+      },
+      {
+        "key": "member-hoodie",
+        "design": "member",
+        "name": "Hoodie",
+        "priceCents": 7500,
+        "sizes": [
+          "S",
+          "M",
+          "L"
+        ],
+        "colours": [
+          "Black",
+          "Grey"
+        ]
+      },
+      {
+        "key": "family-tee",
+        "design": "family",
+        "name": "Tee",
+        "priceCents": 4000,
+        "sizes": [
+          "S",
+          "M",
+          "L"
+        ],
+        "colours": [
+          "Black"
+        ]
+      },
+      {
+        "key": "ruok-tee",
+        "design": "ruok",
+        "name": "Tee",
+        "priceCents": 4000,
+        "sizes": [],
+        "colours": []
+      },
+      {
+        "key": "old-tee",
+        "design": "ruok",
+        "name": "Old tee",
+        "priceCents": 3000,
+        "sizes": [
+          "M"
+        ],
+        "colours": [
+          "Black"
+        ],
+        "onSale": false
+      },
+      {
+        "key": "retired-cap",
+        "design": "retired",
+        "name": "Cap",
+        "priceCents": 2500,
+        "sizes": [],
+        "colours": [
+          "Black"
+        ]
+      }
+    ],
+    "shipping": [
+      {
+        "state": "VIC",
+        "method": "standard",
+        "cents": 1200
+      },
+      {
+        "state": "VIC",
+        "method": "express",
+        "cents": 1800
+      }
+    ],
+    "runners": [
+      "spanner"
+    ],
+    "orders": [
+      {
+        "key": "sent-gravel",
+        "member": "gravel",
+        "status": "sent",
+        "delivery": "ship"
+      },
+      {
+        "key": "held-ash",
+        "member": "ash",
+        "status": "held",
+        "delivery": "collect"
+      },
+      {
+        "key": "paid-torque",
+        "member": "torque",
+        "status": "paid",
+        "delivery": "ship"
+      },
+      {
+        "key": "paid-hal",
+        "member": "hal",
+        "status": "paid",
+        "delivery": "collect"
+      },
+      {
+        "key": "sent-chair",
+        "member": "chair",
+        "status": "sent",
+        "delivery": "collect"
+      },
+      {
+        "key": "posted-rhys",
+        "member": "rhys",
+        "status": "posted",
+        "delivery": "ship"
+      },
+      {
+        "key": "jet-1",
+        "member": "jet",
+        "status": "sent",
+        "delivery": "collect",
+        "today": true
+      },
+      {
+        "key": "jet-2",
+        "member": "jet",
+        "status": "sent",
+        "delivery": "collect",
+        "today": true
+      },
+      {
+        "key": "jet-3",
+        "member": "jet",
+        "status": "cancelled",
+        "delivery": "collect",
+        "today": true
+      },
+      {
+        "key": "jet-4",
+        "member": "jet",
+        "status": "sent",
+        "delivery": "collect",
+        "today": true
+      },
+      {
+        "key": "jet-5",
+        "member": "jet",
+        "status": "held",
+        "delivery": "collect",
+        "today": true
+      }
+    ]
+  }
 }
