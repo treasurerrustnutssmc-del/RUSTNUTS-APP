@@ -105,6 +105,7 @@ export function OtterMinutesScreen({ route, navigation }: RootScreen<'OtterMinut
         </Stack>
         <Card>
           <Small>{HOW_TO}</Small>
+          <Button label="How it works" kind="quiet" icon="help-circle-outline" onPress={() => navigation.navigate('OtterGuide')} />
           <Button label="Pick the file" icon="document-text-outline" kind="secondary" onPress={pick} disabled={busy} />
           <Field
             label="Or paste it"
