@@ -36,6 +36,7 @@ import { IntroProgressCard } from './fng';
 import { ChaptersNationalRow } from './adminRows'; // Stage 5D
 import { HomeOnThisDayCard, HomeShoutoutsCard } from './social';
 import { HomeNewsCard } from './siteNews'; // club news, as on the website
+import { HomePhotoAskCard } from './sitePhotos'; // photos of mine wanted for the website
 import { WhoCanHelpRow } from './help';
 import { SwapRow } from './swap';
 import { BuildsRow } from './builds';
@@ -139,6 +140,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       {/* Stage 4: today's check-in and what you owe */}
       <HomeCheckinCard />
       <HomeFeesCard />
+      {/* A photo of mine someone wants on the club website: an ask, so it sits above the news */}
+      <HomePhotoAskCard />
       {/* Stage 7: birthdays and patch anniversaries this week */}
       <HomeShoutoutsCard />
       <HomeOnThisDayCard />
