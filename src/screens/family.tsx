@@ -31,6 +31,7 @@ import {
 } from '../ui/primitives';
 import { ClubLinksSection } from './clubLinks';
 import { SponsorsSection } from './sponsors'; // Sponsors
+import { FeedbackRow } from './feedback'; // Feedback & issues
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
 import { RideChip, RideRow, timeRange } from './rides';
 
@@ -234,6 +235,7 @@ export function FamilyMeScreen({ navigation }: TabScreen<'Me'>) {
       <ClubLinksSection />
       {/* Sponsors: anyone with the app sees them */}
       <SponsorsSection />
+      <FeedbackRow />
 
       <SectionTitle title="Privacy" />
       <Card>
