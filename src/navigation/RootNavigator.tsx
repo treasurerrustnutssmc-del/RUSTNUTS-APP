@@ -109,6 +109,7 @@ const TAB_ICONS: Record<keyof TabParams, [IconName, IconName]> = {
   Members: ['people', 'people-outline'],
   Rides: ['calendar', 'calendar-outline'],
   Board: ['shield', 'shield-outline'],
+  Shop: ['shirt', 'shirt-outline'],
   Me: ['person-circle', 'person-circle-outline'],
 };
 
@@ -121,7 +122,7 @@ function MainTabs() {
   const { width } = useWindowDimensions();
   // Each tab's label gets the tab's width less the bar's own 5pt padding each side; "Members", the
   // widest label, is about 5 times the font size wide in the club stencil (5.2 leaves a margin).
-  const labelSize = Math.min(11.5, Math.floor(((width / (isBoard ? 6 : 5) - 10) / 5.2) * 2) / 2);
+  const labelSize = Math.min(11.5, Math.floor(((width / (isBoard ? 7 : 6) - 10) / 5.2) * 2) / 2);
   return (
     <>
       {/* Lane E: share in */}
@@ -142,7 +143,7 @@ function MainTabs() {
               ? `Board, ${waiting} waiting`
               : route.name === 'Chats'
                 ? unreadTotal > 0 ? `Chat, ${unreadTotal} unread` : 'Chat'
-                : route.name,
+                : route.name === 'Shop' ? 'Merch' : route.name,
           tabBarStyle: {
             backgroundColor: colors.ink2,
             borderTopColor: colors.line,
@@ -153,7 +154,7 @@ function MainTabs() {
           tabBarHideOnKeyboard: true, // otherwise Android lifts the tab bar on top of the keyboard
           tabBarActiveTintColor: colors.redText,
           tabBarInactiveTintColor: colors.boneMute,
-          // Six tabs on a narrow phone can't fit "Members" at full size, so every label gets the same
+          // Six or seven tabs on a narrow phone can't fit "Members" at full size, so every label gets the same
           // size worked out from the tab width (labelSize above). The stock label is used: Android's
           // adjustsFontSizeToFit sized short labels too narrow and clipped "Chat" to "Cha". No letter
           // spacing either (Android leaves it out of the width), and no font scaling, so the size holds.
@@ -184,6 +185,7 @@ function MainTabs() {
             options={{ tabBarBadge: waiting > 0 ? waiting : undefined, tabBarBadgeStyle: { backgroundColor: colors.redBright } }}
           />
         ) : null}
+        <Tabs.Screen name="Shop" component={MerchScreen} options={{ title: 'Merch' }} />
         <Tabs.Screen name="Me" component={MeScreen} />
       </Tabs.Navigator>
     </>
@@ -386,7 +388,6 @@ export function RootNavigator() {
             <Stack.Screen name="Conduct" component={ConductScreen} options={{ title: 'Conduct records' }} />
             <Stack.Screen name="ConductRecord" component={ConductRecordScreen} options={{ title: 'Record' }} />
             <Stack.Screen name="RecordConduct" component={RecordConductScreen} options={{ title: 'Record a decision' }} />
-            <Stack.Screen name="Merch" component={MerchScreen} options={{ title: 'Merch' }} />
             <Stack.Screen name="MerchItem" component={MerchItemScreen} options={{ title: 'Merch' }} />
             <Stack.Screen name="MerchOrder" component={MerchOrderScreen} options={{ title: 'Order' }} />
             <Stack.Screen name="ProposeMerch" component={ProposeMerchScreen} options={{ title: 'Put up an item' }} />
