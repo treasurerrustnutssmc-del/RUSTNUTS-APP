@@ -42,6 +42,8 @@ export interface RideJson {
   notes: string | null;
   category: RideCategory;
   cancelled_at: string | null;
+  source?: 'feed' | 'app';
+  website?: boolean;
 }
 
 export interface ChatJson {
@@ -106,6 +108,8 @@ export function toRide(r: RideJson): Ride {
     id: r.id, title: r.title, startsAt: instant(r.starts_at), endsAt: r.ends_at ? instant(r.ends_at) : null,
     allDay: r.all_day, location: r.location, notes: r.notes, category: r.category,
     cancelledAt: r.cancelled_at ? instant(r.cancelled_at) : null,
+    // The chat feed carries the ride columns only; the source and website switch aren't needed there.
+    source: r.source ?? 'feed', website: r.website ?? true,
   };
 }
 

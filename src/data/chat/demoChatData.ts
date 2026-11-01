@@ -29,6 +29,7 @@ export const DEMO_PAST_RIDES: Ride[] = [
   {
     id: 'r-past-1', title: 'Spring run to Lorne', startsAt: '2026-10-10T22:00:00.000Z', endsAt: '2026-10-11T06:00:00.000Z',
     allDay: false, location: 'Caltex Laverton North', notes: 'Great Ocean Road, fish and chips at Lorne.', category: 'club', cancelledAt: null,
+    source: 'feed', website: true,
   },
 ];
 

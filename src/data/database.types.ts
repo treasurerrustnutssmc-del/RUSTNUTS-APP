@@ -221,8 +221,12 @@ export type Database = {
           starts_at: string;
           synced_at: string;
           title: string;
+          website: boolean;
+          created_by: string | null;
+          updated_by: string | null;
+          updated_at: string | null;
         };
-        Insert: { [_ in never]: never }; // only the calendar sync writes rides
+        Insert: { [_ in never]: never }; // the calendar sync and save_ride write rides
         Update: { [_ in never]: never };
         Relationships: [];
       };

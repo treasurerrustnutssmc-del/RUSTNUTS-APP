@@ -312,22 +312,23 @@ export const DEMO_DATA: ClubData = {
   // Made-up rides, spread over the website's five colours. Times are Melbourne local, as instants.
   rides: [
     { id: 'r-1', title: 'West breakfast run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: '2026-11-08T01:00:00.000Z', allDay: false,
-      location: 'Caltex Laverton North', notes: 'KSU 8:30. Breakfast at Daylesford, home by lunch.', category: 'west', cancelledAt: null },
+      location: 'Caltex Laverton North', notes: 'KSU 8:30. Breakfast at Daylesford, home by lunch.', category: 'west', cancelledAt: null, source: 'feed', website: true },
     // About a week out (9 am Melbourne in summer time, 8 am in winter), so it always needs crew soon.
     { id: 'r-2', title: 'North coffee and curves', startsAt: daysFromNow(6, '22:00:00.000Z'), endsAt: daysFromNow(7, '03:00:00.000Z'), allDay: false,
-      location: 'Kilmore Bakery', notes: 'Up through Pyalong and back via Lancefield.', category: 'north', cancelledAt: null },
+      location: 'Kilmore Bakery', notes: 'Up through Pyalong and back via Lancefield.', category: 'north', cancelledAt: null, source: 'feed', website: true },
     { id: 'r-3', title: 'Toy Run (Non-Nuts)', startsAt: '2026-11-28T23:00:00.000Z', endsAt: null, allDay: false,
-      location: 'Werribee Racecourse', notes: 'Another club’s charity run. Bring a wrapped toy.', category: 'non_nuts', cancelledAt: null },
+      location: 'Werribee Racecourse', notes: 'Another club’s charity run. Bring a wrapped toy.', category: 'non_nuts', cancelledAt: null, source: 'feed', website: true },
     { id: 'r-4', title: 'Rustnuts Christmas ride', startsAt: '2026-12-05T23:00:00.000Z', endsAt: '2026-12-06T06:00:00.000Z', allDay: false,
-      location: 'Clubhouse, Williams Landing', notes: 'Both chapters. Lunch and the Kris Kringle after.', category: 'club', cancelledAt: null },
+      location: 'Clubhouse, Williams Landing', notes: 'Both chapters. Lunch and the Kris Kringle after.', category: 'club', cancelledAt: null,
+      source: 'app', website: true },
     { id: 'r-5', title: 'West twisties', startsAt: '2026-12-12T22:00:00.000Z', endsAt: null, allDay: false,
-      location: 'Bacchus Marsh McDonald’s', notes: null, category: 'west', cancelledAt: '2026-12-01T00:00:00.000Z' },
+      location: 'Bacchus Marsh McDonald’s', notes: null, category: 'west', cancelledAt: '2026-12-01T00:00:00.000Z', source: 'feed', website: true },
     { id: 'r-6', title: 'Ride for Kids (supported)', startsAt: '2027-01-16T23:00:00.000Z', endsAt: null, allDay: false,
-      location: 'Geelong Waterfront', notes: 'Supporting a mate’s club. Rusty Bus on recovery.', category: 'supported', cancelledAt: null },
+      location: 'Geelong Waterfront', notes: 'Supporting a mate’s club. Rusty Bus on recovery.', category: 'supported', cancelledAt: null, source: 'feed', website: true },
     { id: 'r-7', title: 'Big 4: Phillip Island weekend', startsAt: '2027-01-29T13:00:00.000Z', endsAt: '2027-01-31T13:00:00.000Z', allDay: true,
-      location: 'Phillip Island', notes: 'Two nights. Book your own room.', category: 'club', cancelledAt: null },
+      location: 'Phillip Island', notes: 'Two nights. Book your own room.', category: 'club', cancelledAt: null, source: 'feed', website: true },
     { id: 'r-8', title: 'North night ride', startsAt: '2027-02-13T08:00:00.000Z', endsAt: null, allDay: false,
-      location: 'Wallan servo', notes: null, category: 'north', cancelledAt: null },
+      location: 'Wallan servo', notes: null, category: 'north', cancelledAt: null, source: 'feed', website: true },
   ],
   rsvps: [
     { rideId: 'r-1', memberId: 'm-rusty', answer: 'going', updatedAt: '2026-10-20T08:00:00.000Z' },
@@ -514,6 +515,8 @@ export function demoTodayRide(now: Date = new Date()): Ride {
     notes: 'A made-up ride for trying out live ride mode.',
     category: 'west',
     cancelledAt: null,
+    source: 'feed',
+    website: true,
   };
 }
 // ---------------------------------------------------------------------------
@@ -676,7 +679,7 @@ const noBusDecision = { decidedBy: null, decidedAt: null, declineReason: '', can
 const movedDay = [16, 19].map((n) => addDays(s4Today, n)).find((d) => d < addDays(charityDay, -1) || d > charityDay)!;
 const pinkRibbon = {
   title: 'West Pink Ribbon ride', endsAt: null, allDay: false, location: 'Caltex Laverton North',
-  notes: 'Raising money for breast cancer research. Wear something pink.', category: 'west' as const,
+  notes: 'Raising money for breast cancer research. Wear something pink.', category: 'west' as const, source: 'feed' as const, website: true,
 };
 DEMO_DATA.rides.push(
   // 22:30 and 23:00 UTC the day before: 9:30 and 10 am Melbourne in summer time, 8:30 and 9 in winter.
@@ -1020,7 +1023,7 @@ DEMO_DATA.documentSignoffs = [
 // ---------------------------------------------------------------------------
 
 const big4Past = { id: 'r-big4-past', title: 'Big 4: Great Ocean Road', startsAt: at(ago(42), '22:00:00'), endsAt: null, allDay: false,
-  location: 'Torquay', notes: 'Down the coast and back.', category: 'club' as const, cancelledAt: null };
+  location: 'Torquay', notes: 'Down the coast and back.', category: 'club' as const, cancelledAt: null, source: 'feed' as const, website: true };
 Object.assign(DEMO_DATA, {
   rides: [...DEMO_DATA.rides, big4Past],
   big4Rides: [
@@ -1063,11 +1066,11 @@ Object.assign(DEMO_DATA, {
 
 DEMO_DATA.rides.push(
   { id: 'r-brag-1', title: 'Grampians loop', startsAt: at(ago(70), '21:30:00'), endsAt: null, allDay: false,
-    location: 'Halls Gap', notes: 'Up through the gaps and back for tea.', category: 'club', cancelledAt: null },
+    location: 'Halls Gap', notes: 'Up through the gaps and back for tea.', category: 'club', cancelledAt: null, source: 'feed', website: true },
   { id: 'r-brag-2', title: 'Cape Otway run', startsAt: at(ago(100), '21:30:00'), endsAt: null, allDay: false,
-    location: 'Apollo Bay', notes: null, category: 'west', cancelledAt: null },
+    location: 'Apollo Bay', notes: null, category: 'west', cancelledAt: null, source: 'feed', website: true },
   { id: 'r-brag-3', title: 'High Country weekend', startsAt: at(ago(20), '21:00:00'), endsAt: null, allDay: false,
-    location: 'Mansfield', notes: 'Two nights. Bring layers.', category: 'club', cancelledAt: null },
+    location: 'Mansfield', notes: 'Two nights. Bring layers.', category: 'club', cancelledAt: null, source: 'feed', website: true },
 );
 
 // ---------------------------------------------------------------------------
@@ -1091,7 +1094,7 @@ DEMO_DATA.rides.push(
     const trip = i === 5 ? 'rt-murray' : i === 12 ? 'rt-coorong' : null;
     pastRides.push({
       id, title: big ? (i === 3 ? 'Big 4: Summer send-off' : 'Big 4: Winter warmer') : trip === 'rt-murray' ? 'Murray run' : trip === 'rt-coorong' ? 'Coorong and back' : titles[i % titles.length],
-      startsAt: at(day, '22:00:00'), endsAt: null, allDay: false, location: 'Laverton North', notes: null,
+      startsAt: at(day, '22:00:00'), endsAt: null, allDay: false, location: 'Laverton North', notes: null, source: 'feed', website: true,
       category: i % 3 === 0 ? 'club' : 'west', cancelledAt: null,
     });
     const chapterId = i % 3 === 0 ? null : 'ch-west';

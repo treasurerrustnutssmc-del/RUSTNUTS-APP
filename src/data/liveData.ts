@@ -321,6 +321,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       notes: r.notes,
       category: r.category,
       cancelledAt: r.cancelled_at ? instant(r.cancelled_at) : null,
+      // family_rides returns the ride columns only; Family can't run rides, so the defaults are harmless.
+      source: (r as { source?: 'feed' | 'app' }).source ?? 'feed',
+      website: (r as { website?: boolean }).website ?? true,
     })),
     rsvps: (calendar.data?.rsvps ?? []).map((r) => ({
       rideId: r.ride_id,
