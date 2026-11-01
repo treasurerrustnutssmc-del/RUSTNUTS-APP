@@ -4,7 +4,7 @@
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import type { MediaSource } from '../data/chat/chatContext';
 import { PickProblem, pickMedia } from '../data/chat/media';
 import { useClub } from '../data/ClubStore';
@@ -41,6 +41,7 @@ import {
   SectionTitle,
   Small,
 } from '../ui/primitives';
+import { openLink } from '../ui/openLink';
 
 type Nav = NavigationProp<RootParams>;
 
@@ -147,7 +148,7 @@ function SponsorCard({ sponsor, keeper }: { sponsor: Sponsor; keeper: boolean })
               accessibilityLabel={`Visit ${sponsor.name}’s website`}
               onPress={() => {
                 setLinkError(false);
-                Linking.openURL(sponsor.url as string).catch(() => setLinkError(true));
+                openLink(sponsor.url as string).catch(() => setLinkError(true));
               }}
               style={{ flexShrink: 1 }}
             />

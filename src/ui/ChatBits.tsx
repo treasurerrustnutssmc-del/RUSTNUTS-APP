@@ -4,7 +4,7 @@
 
 import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GIPHY_KEY } from '../data/config';
 import type { Attachment, FeedItem, GifPick, LinkPreview, MediaSource } from '../data/chat/chatContext';
 import { useChat } from '../data/chat/chatContext';
@@ -16,6 +16,7 @@ import { displayName } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import { Ionicons, RoleChip, Small, StatusChip, type IconName } from './primitives';
+import { openLink } from './openLink';
 
 /** A picture's address once it's ready (signed addresses come from the database a moment later). */
 export function useMediaSource(path: string | null): MediaSource | null {
@@ -122,7 +123,7 @@ export function LinkCard({ url }: { url: string }) {
     <Pressable
       accessibilityRole="link"
       accessibilityLabel={`${preview.site}: ${preview.title ?? url}`}
-      onPress={() => Linking.openURL(url)}
+      onPress={() => openLink(url).catch(() => {})}
       style={({ pressed }) => [styles.linkCard, pressed && { backgroundColor: colors.steelHi }]}
     >
       {preview.image ? <Image source={{ uri: preview.image }} style={styles.linkImage} contentFit="cover" /> : null}
@@ -141,7 +142,7 @@ export function MessageText({ body }: { body: string }) {
     <Text style={styles.body} selectable>
       {findLinks(body).map((part, i) =>
         part.url ? (
-          <Text key={i} style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(part.url!)}>
+          <Text key={i} style={styles.link} accessibilityRole="link" onPress={() => openLink(part.url!).catch(() => {})}>
             {part.text}
           </Text>
         ) : (

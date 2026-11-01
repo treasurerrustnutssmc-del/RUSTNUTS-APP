@@ -1,6 +1,7 @@
 /**
  * The club's own places online, as listed on rustnutssmc.com.au (checked 28/10/2026).
- * The website and its shop stay where they are; the app links out to them.
+ * The website and its shop stay where they are; the app opens them in its own browser sheet
+ * (see inAppBrowser.ts).
  */
 
 export interface ClubLink {
