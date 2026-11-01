@@ -3,9 +3,11 @@
 
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
+import { useCatchUpApi } from '../data/catchUpApi';
+import { catchUpCount } from '../domain/catchUp';
 import { useChat } from '../data/chat/ChatProvider';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
 import { REPORT_KIND_LABEL, type ContentReport } from '../domain/reports';
@@ -201,8 +203,9 @@ export function useKeyboardHeight() {
 
 export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const { chatId } = route.params;
-  const { me, data, today, refresh } = useClub();
+  const { me, data, today, refresh, isDemo } = useClub();
   const chat = useChat();
+  const catchUpApi = useCatchUpApi();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
   const { width: screenWidth } = useWindowDimensions();
@@ -226,6 +229,18 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const [reported, setReported] = useState<string | null>(null);
   const input = useRef<React.ComponentRef<typeof TextInput>>(null);
   const sendingNow = useRef(false); // two quick taps land before the state catches up
+  // Catch me up. The chat is marked read as soon as it's on screen, so how many were new is taken
+  // when it opens (or when the chat list first arrives, opened from a notification) and kept while
+  // it's open. The demo counts other people's messages so it can be tried.
+  const [unreadAtOpen, setUnreadAtOpen] = useState<number | null>(() =>
+    isDemo ? messages.filter((m) => m.authorId !== me?.id && !m.removedAt).length : (summary?.unread ?? null),
+  );
+  if (unreadAtOpen === null && summary) setUnreadAtOpen(summary.unread);
+  const catchCount = catchUpCount(unreadAtOpen ?? 0, isDemo);
+  const [catching, setCatching] = useState(false);
+  const [caught, setCaught] = useState<{ summary: string; count: number } | null>(null);
+  const [catchError, setCatchError] = useState<string | null>(null);
+  const catchingNow = useRef(false);
 
   // Only the chat on screen is marked read; one under the photo viewer or a member's page isn't.
   useFocusEffect(
@@ -278,6 +293,21 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
       await job();
     } catch (e) {
       setError((e as Error).message);
+    }
+  };
+
+  const catchUp = async () => {
+    if (!catchCount || catchingNow.current) return;
+    catchingNow.current = true;
+    setCatching(true);
+    setCatchError(null);
+    try {
+      setCaught(await catchUpApi.catchUp(chatId, catchCount, messages));
+    } catch (e) {
+      setCatchError((e as Error).message);
+    } finally {
+      catchingNow.current = false;
+      setCatching(false);
     }
   };
 
@@ -465,6 +495,36 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
             <Small numberOfLines={2} style={{ flex: 1, color: colors.boneDim }}>
               {nameOf(pinned.authorId)}: {pinned.body || mediaSummary(pinned.media.length, pinned.media.some((x) => x.kind === 'voice')) || 'Photo'}
             </Small>
+          </View>
+        ) : null}
+        {caught ? (
+          <View style={styles.catchCard} accessibilityLiveRegion="polite">
+            <Text style={styles.catchHeading}>Catch-up</Text>
+            <ScrollView style={styles.catchScroll}>
+              <Body selectable>{caught.summary}</Body>
+            </ScrollView>
+            <Small>{`From the last ${caught.count} messages. It can get things wrong: check the chat for anything that matters.`}</Small>
+            <Button label="Close" kind="secondary" size="small" icon="close" onPress={() => setCaught(null)} />
+          </View>
+        ) : catchCount ? (
+          <View>
+            <Pressable
+              onPress={catchUp}
+              disabled={catching}
+              style={({ pressed }) => [styles.catchBar, pressed && { opacity: 0.8 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`Catch me up on ${unreadAtOpen} new messages`}
+              accessibilityState={{ busy: catching }}
+            >
+              {catching ? <ActivityIndicator color={colors.bone} size="small" /> : <Ionicons name="sparkles-outline" size={18} color={colors.bone} />}
+              <Text style={styles.catchBarText}>{catching ? `Reading ${catchCount} messages…` : `Catch me up · ${unreadAtOpen} new`}</Text>
+              {catching ? null : <Ionicons name="chevron-forward" size={18} color={colors.boneDim} />}
+            </Pressable>
+            {catchError ? (
+              <Pressable onPress={() => setCatchError(null)} style={styles.catchError} accessibilityRole="button" accessibilityHint="Closes this note">
+                <Notice tone="danger">{catchError}</Notice>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
         <FlatList
@@ -789,6 +849,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.ink2,
   },
   banner: { paddingHorizontal: space.lg, paddingBottom: space.sm },
+  catchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48, paddingHorizontal: space.lg,
+    borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.steelHi,
+  },
+  catchBarText: { flex: 1, fontFamily: fonts.stencil, fontSize: 15, letterSpacing: 0.6, color: colors.bone, textTransform: 'uppercase' },
+  catchError: { paddingHorizontal: space.lg, paddingTop: space.sm },
+  catchCard: {
+    gap: space.sm, padding: space.lg, borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.ink2,
+  },
+  catchHeading: { fontFamily: fonts.stencil, fontSize: 18, letterSpacing: 0.8, color: colors.bone, textTransform: 'uppercase' },
+  catchScroll: { maxHeight: 280 },
   composerWrap: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.ink2 },
   replyBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: space.lg, paddingRight: space.sm, paddingTop: space.sm },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, paddingHorizontal: space.sm, paddingTop: space.sm },

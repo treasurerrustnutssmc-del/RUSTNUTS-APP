@@ -3,10 +3,15 @@
 // each action on a card for the member to confirm. Deployed with verify_jwt on. Needs the Edge
 // Function secret ANTHROPIC_API_KEY (the club's Anthropic Console key); without it, it answers
 // "not switched on". The rules live in ../_shared/askClub.ts.
+// The same function drafts meeting minutes from an Otter transcript ({ mode: 'minutes' }, rules in
+// ../_shared/minutesDraft.ts) and sums up missed chat ({ mode: 'catchup' }, ../_shared/catchUp.ts),
+// so all three share the key, the budget and one deploy.
 
 import Anthropic from 'npm:@anthropic-ai/sdk@1.3.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { handleAskClub, type ClaudeResponse, type Sources } from '../_shared/askClub.ts';
+import { handleCatchUp, type CatchUpContext } from '../_shared/catchUp.ts';
+import { handleMinutesDraft, type MinutesContext } from '../_shared/minutesDraft.ts';
 
 // The web build calls from the browser, which asks first (OPTIONS) and needs these headers back.
 const CORS = {
@@ -28,6 +33,41 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   });
   const body = await req.json().catch(() => ({}));
+  const spent = async (microusd: number) => {
+    const r = await admin.rpc('assistant_spent', { p_microusd: microusd });
+    if (r.error) console.error('assistant_spent', r.error.message);
+  };
+  // One try inside the Edge Function's time limit (150 seconds on the free plan): a slow answer
+  // says try again rather than the function being cut off with nothing said.
+  const claude = async (request: unknown) => {
+    const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 0 });
+    // deno-lint-ignore no-explicit-any
+    return (await client.beta.messages.create(request as any)) as unknown as ClaudeResponse;
+  };
+  if ((body as { mode?: unknown })?.mode === 'minutes') {
+    const drafted = await handleMinutesDraft({ ANTHROPIC_API_KEY: apiKey }, body, {
+      start: async (meetingId): Promise<MinutesContext> => {
+        const r = await asMember.rpc('minutes_draft_start', { p_meeting: meetingId });
+        if (r.error) throw new Error(r.error.message);
+        return r.data as MinutesContext;
+      },
+      claude,
+      spent,
+    });
+    return Response.json(drafted.body, { status: drafted.status, headers: CORS });
+  }
+  if ((body as { mode?: unknown })?.mode === 'catchup') {
+    const caught = await handleCatchUp({ ANTHROPIC_API_KEY: apiKey }, body, {
+      start: async (chatId, count): Promise<CatchUpContext> => {
+        const r = await asMember.rpc('catchup_start', { p_chat: chatId, p_count: count });
+        if (r.error) throw new Error(r.error.message);
+        return r.data as CatchUpContext;
+      },
+      claude,
+      spent,
+    });
+    return Response.json(caught.body, { status: caught.status, headers: CORS });
+  }
   const answer = await handleAskClub({ ANTHROPIC_API_KEY: apiKey }, body, {
     start: async (): Promise<Sources> => {
       const r = await asMember.rpc('assistant_start');
@@ -35,16 +75,8 @@ Deno.serve(async (req) => {
       const d = r.data as { constitution: Sources['constitution']; road_rules: Sources['roadRules'] };
       return { constitution: d.constitution ?? null, roadRules: d.road_rules ?? null };
     },
-    claude: async (request) => {
-      // One try inside the Edge Function's time limit (150 seconds on the free plan): a slow answer
-      // says try again rather than the function being cut off with nothing said.
-      const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 0 });
-      return (await client.beta.messages.create(request)) as unknown as ClaudeResponse;
-    },
-    spent: async (microusd) => {
-      const r = await admin.rpc('assistant_spent', { p_microusd: microusd });
-      if (r.error) console.error('assistant_spent', r.error.message);
-    },
+    claude,
+    spent,
   });
   return Response.json(answer.body, { status: answer.status, headers: CORS });
 });

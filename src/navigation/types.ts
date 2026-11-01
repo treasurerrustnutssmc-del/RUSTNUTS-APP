@@ -38,6 +38,7 @@ export type RootParams = {
   // Stage 5: meetings and votes
   Business: undefined;
   Meeting: { meetingId: string };
+  OtterMinutes: { meetingId: string }; // Draft from Otter: minutes from a meeting's transcript
   EditMeeting: { meetingId?: string; chapterId?: string | null } | undefined;
   Vote: { voteId: string };
   NewVote: { chapterId?: string | null; meetingId?: string; subjectMemberId?: string; subjectRole?: PositionRole } | undefined;

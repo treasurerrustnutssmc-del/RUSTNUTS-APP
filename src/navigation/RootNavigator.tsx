@@ -16,6 +16,7 @@ import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/phot
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { DeleteAccountScreen } from '../screens/deleteAccount'; // Delete my account
 import { AskClubScreen } from '../screens/askClub'; // Ask the club
+import { OtterMinutesScreen } from '../screens/otterMinutes'; // Draft from Otter
 import { ChapterDetailScreen, ChaptersScreen, HomeScreen, MemberDetailScreen, MembersScreen } from '../screens/members';
 import { RideDetailScreen, RidesScreen } from '../screens/rides';
 import { PickCrewScreen } from '../screens/pickCrew';
@@ -297,6 +298,7 @@ export function RootNavigator() {
             {/* Stage 5: meetings and votes */}
             <Stack.Screen name="Business" component={BusinessScreen} options={{ title: 'Meetings and votes' }} />
             <Stack.Screen name="Meeting" component={MeetingScreen} options={{ title: 'Meeting' }} />
+            <Stack.Screen name="OtterMinutes" component={OtterMinutesScreen} options={{ title: 'Draft from Otter' }} />
             <Stack.Screen name="EditMeeting" component={EditMeetingScreen} options={({ route }) => ({ title: route.params?.meetingId ? 'Edit meeting' : 'Call a meeting' })} />
             <Stack.Screen name="Vote" component={VoteScreen} options={{ title: 'Vote' }} />
             <Stack.Screen name="NewVote" component={NewVoteScreen} options={{ title: 'New vote' }} />

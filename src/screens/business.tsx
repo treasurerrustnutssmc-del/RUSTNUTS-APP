@@ -366,6 +366,12 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
   const [saved, setSaved] = useState(false);
   const minutesAction = useAction();
   const cancelAction = useAction();
+  // Minutes saved from elsewhere (Draft from Otter) replace whatever was half-typed here.
+  const [seenMinutes, setSeenMinutes] = useState(meeting?.minutes);
+  if (meeting?.minutes !== seenMinutes) {
+    setSeenMinutes(meeting?.minutes);
+    setDraft(null);
+  }
   if (!meeting || !me) {
     return (
       <Screen>
@@ -472,6 +478,14 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
             {saved && draft === null ? <Small style={{ color: colors.ok }}>Saved.</Small> : null}
             <ErrorNotice error={minutesAction.error} />
             <Button label="Save draft" kind="secondary" busy={minutesAction.busy} disabled={draft === null} onPress={save} />
+            {started ? (
+              <Button
+                label="Draft from Otter"
+                kind="secondary"
+                icon="mic-outline"
+                onPress={() => navigation.navigate('OtterMinutes', { meetingId: meeting.id })}
+              />
+            ) : null}
             {started ? (
               approveBlock ? (
                 <Small>{approveBlock === 'Write the minutes first.' ? 'Write the minutes, then share the draft and confirm them here.' : approveBlock}</Small>
