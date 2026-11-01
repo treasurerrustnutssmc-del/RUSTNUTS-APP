@@ -26,6 +26,7 @@ import {
   unknownAuthors,
   type Message,
 } from '../domain/chat';
+import { pickReadable } from '../domain/contrast';
 import { formatAuDate } from '../domain/dates';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
@@ -417,7 +418,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
             ) : null}
             {m.body ? <MessageText body={m.body} /> : null}
             {firstLink ? <LinkCard url={firstLink} /> : null}
-            {last || isSelected ? <Text style={[styles.time, mine && { textAlign: 'right' }]}>{melbourneTime(m.createdAt)}</Text> : null}
+            {last || isSelected ? <Text style={[styles.time, mine && { textAlign: 'right', color: MINE_META_COLOR }]}>{melbourneTime(m.createdAt)}</Text> : null}
           </Pressable>
         </View>
         <View style={[styles.under, mine ? { alignItems: 'flex-end' } : { paddingLeft: conv.kind !== 'direct' ? 40 : 0 }]}>
@@ -822,6 +823,9 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
   );
 }
 
+// Your own bubble is steelHi, where the quiet bone is only 3.99:1; this steps up to the next colour that reads.
+const MINE_META_COLOR = pickReadable([colors.boneMute, colors.boneDim], colors.steelHi);
+
 const styles = StyleSheet.create({
   listTime: { ...type.small, fontFamily: fonts.stencil, fontSize: 12 },
   unread: {
@@ -840,7 +844,7 @@ const styles = StyleSheet.create({
   bubbleMine: { backgroundColor: colors.steelHi },
   bubbleSelected: { borderWidth: 1, borderColor: colors.bone },
   removed: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed' },
-  time: { ...type.small, fontSize: 12 },
+  time: { ...type.small },
   under: { marginTop: 4 },
   actions: { gap: space.sm, marginTop: space.sm, marginBottom: space.sm },
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
