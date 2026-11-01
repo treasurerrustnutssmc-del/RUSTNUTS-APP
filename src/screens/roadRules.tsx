@@ -36,6 +36,7 @@ import {
   signoffStart,
   signoffSummary,
 } from '../domain/roadRules';
+import { GUIDE, writtenRulesText } from '../domain/roadRulesGuide';
 import { melbourneDate } from '../domain/rides';
 import { routeChapterName } from '../domain/routes';
 import type { ClubData, Member, RoadRulesVersion } from '../domain/types';
@@ -378,6 +379,7 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
   // The version the editor opened on (0: none), so a publish never lands on someone else's newer one.
   const [seen] = useState(() => currentRoadRules(data)?.number ?? 0);
   const [body, setBody] = useState(() => currentRoadRules(data)?.body ?? '');
+  const [written] = useState(writtenRulesText);
   // An empty first version isn't an error until you've started typing.
   const [touched, setTouched] = useState(false);
   const [changes, setChanges] = useState('');
@@ -430,9 +432,24 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
       <Stack gap={space.sm}>
         <Body>
           {first
-            ? 'This is the first version. Everyone will be asked to sign it.'
+            ? 'This is the first version: publishing it adopts the Road Rules. Everyone will be asked to sign it.'
             : `This becomes version ${next}. Versions are never edited or removed: a correction is a new version.`}
         </Body>
+        {/* The illustrated set's written rules, word for word, so adopting them is one press. Offered
+            only before anything is typed, so a stray tap never wipes the NEC's own edits. */}
+        {body.trim() === written.trim() ? (
+          <Small>{`This is the written text of the illustrated Road Rules (${formatAuDate(GUIDE.date)}), word for word.`}</Small>
+        ) : !touched ? (
+          <Button
+            label="Fill in the illustrated set’s written rules"
+            icon="reader-outline"
+            kind="secondary"
+            onPress={() => {
+              setBody(written);
+              setTouched(true);
+            }}
+          />
+        ) : null}
       </Stack>
 
       <Stack gap={space.xs}>
@@ -491,7 +508,7 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
             confirmNote={
               everyone
                 ? first
-                  ? 'Everyone will be asked to sign it.'
+                  ? 'Everyone will be asked to sign it, and until they do they can’t say Going to a ride.'
                   : 'Everyone will be asked to sign again.'
                 : 'Sign-offs carry over: nobody is asked to sign again.'
             }

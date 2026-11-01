@@ -1,7 +1,10 @@
-// The illustrated Road Rules: Chris's draft of 30 October 2026, built into the app as he wrote it.
+// The illustrated Road Rules: Chris's set of 30 October 2026, built into the app as he wrote it.
 // It comes as two documents: the condensed rules with every diagram in place, and the diagrams on
-// their own (read with the written rules). The club hasn't adopted it yet, so it isn't a version
-// anyone signs: the signed text is still the NEC's published one (roadRules.ts).
+// their own (read with the written rules). The club adopts it when the NEC publishes its words as a
+// Road Rules version (writtenRulesText), which is what members sign (roadRules.ts). Members see
+// both; the public sees only the diagrams (roadRulesPage.ts, on the club website).
+
+import { formatAuDate } from "./dates";
 
 export type DiagramId =
   | "roles"
@@ -733,4 +736,64 @@ export function ruleNeighbours(n: number): {
     prev: ruleByNumber(n - 1) ? n - 1 : null,
     next: ruleByNumber(n + 1) ? n + 1 : null,
   };
+}
+
+/**
+ * The written rules, in the Road Rules' text format (`# ` headings, `- ` bullets, paragraphs), for
+ * the NEC to publish as the version members sign. Every word of the condensed rules in order; each
+ * diagram becomes a line naming its figure in the illustrated Road Rules.
+ */
+export function writtenRulesText(): string {
+  const lines: string[] = [];
+  for (const r of GUIDE_RULES) {
+    lines.push(`# ${r.number}. ${r.title}`, "");
+    for (const b of r.blocks) {
+      if (b.kind === "diagram") {
+        const d = diagramById(b.id);
+        if (d) lines.push(`Figure ${figureNumber(d.id)}: ${d.caption} (in the illustrated Road Rules).`, "");
+      } else if (b.kind === "bullet") {
+        lines.push(`- ${b.text}`);
+      } else {
+        // Paragraphs and subheadings each stand alone.
+        if (lines[lines.length - 1] !== "") lines.push("");
+        lines.push(b.text, "");
+      }
+    }
+    if (lines[lines.length - 1] !== "") lines.push("");
+  }
+  return lines.join("\n").trim() + "\n";
+}
+
+export interface GuideStatus {
+  /** The chip beside the illustrated set's title. */
+  chip: string;
+  tone: "warn" | "ok";
+  /** "Draft · 30/10/2026", or just the date once adopted. */
+  line: string;
+  /** The Road Rules screen's heading over the way in. */
+  section: string;
+  noteTitle: string;
+  note: string;
+}
+
+/** How the illustrated set is labelled: a draft until the NEC publishes a version, then the illustrated version. */
+export function guideStatus(adopted: boolean): GuideStatus {
+  const date = formatAuDate(GUIDE.date);
+  return adopted
+    ? {
+        chip: "Adopted",
+        tone: "ok",
+        line: date,
+        section: "Illustrated version",
+        noteTitle: "The illustrated version",
+        note: "The Road Rules with Chris’s diagrams, to help you picture them. The written Road Rules are the ones you sign.",
+      }
+    : {
+        chip: GUIDE.status,
+        tone: "warn",
+        line: `Draft · ${date}`,
+        section: "Illustrated draft",
+        noteTitle: "Draft for review",
+        note: "Chris’s illustrated draft, for review. Until the club adopts it, the Road Rules you sign are the NEC’s published version.",
+      };
 }

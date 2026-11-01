@@ -21,8 +21,12 @@ export const HELD_UNTIL_LAUNCH: readonly AppPageSlug[] = ['guide'];
 /** The pages the website carries now. */
 export const SITE_PAGES: readonly AppPageSlug[] = APP_PAGES.filter((p) => !HELD_UNTIL_LAUNCH.includes(p));
 
-/** The club-domain address of one app page. */
-export const sitePageUrl = (slug: AppPageSlug): string => `${SITE_ORIGIN}/app/${slug}.html`;
+/** Every page the build writes into the website's app/ folder: the app pages and the illustrated Road Rules. */
+export type SitePageSlug = AppPageSlug | 'road-rules';
+
+/** The club-domain address of one page. */
+export const sitePageUrl = (slug: SitePageSlug): string => `${SITE_ORIGIN}/app/${slug}.html`;
+const isAppPage = (slug: SitePageSlug): slug is AppPageSlug => (APP_PAGES as readonly string[]).includes(slug);
 
 /** The links in the footer of every app page. */
 const FOOTER_LINKS: { slug: AppPageSlug; label: string }[] = [
@@ -69,16 +73,23 @@ export function mentionsStores(html: string): boolean {
   return /apps\.apple\.com|play\.google\.com|itunes\.apple\.com|app store|google play|play store|testflight|in the stores/i.test(html);
 }
 
+/** The diagrams' frames on the Road Rules page. */
+const ROAD_RULES_CSS = `  .rr-figure{margin:28px 0}
+  .rr-figure img{display:block;width:100%;height:auto;border-radius:6px;background:#fff}
+  .rr-figure figcaption{font-family:var(--stencil);color:var(--bone);letter-spacing:0.04em;margin-top:10px}
+`;
+
 /** The page in the club website's clothes: its header, nav, fonts and footer, served at /app/<slug>.html. */
-export function renderSitePage(slug: AppPageSlug, page: PageParts): string {
+export function renderSitePage(slug: SitePageSlug, page: PageParts): string {
   const url = sitePageUrl(slug);
+  const appPage = isAppPage(slug);
   const footer = FOOTER_LINKS.filter((l) => !HELD_UNTIL_LAUNCH.includes(l.slug)).map((l) => (l.slug === slug ? `<span>${esc(l.label)}</span>` : `<a href="${l.slug}.html">${esc(l.label)}</a>`)).join(' · ');
   return `<!DOCTYPE html>
 <html lang="en-AU">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<!-- Generated from the Rustnuts app repo (site/${slug}.html) by \`npm run build:site\`. Change the words there, not here. -->
+<!-- Generated from the Rustnuts app repo (${appPage ? `site/${slug}.html` : 'src/domain/roadRulesPage.ts'}) by \`npm run build:site\`. Change the words there, not here. -->
 <title>${esc(page.title)} | Rustnuts SMC</title>
 <meta name="description" content="${esc(page.description)}" />
 <link rel="canonical" href="${url}" />
@@ -124,7 +135,7 @@ export function renderSitePage(slug: AppPageSlug, page: PageParts): string {
   .app-pages{max-width:760px;margin:40px auto 0;padding-top:18px;border-top:1px solid rgba(255,255,255,0.1);color:var(--bone-mute);font-size:0.9rem;text-align:center}
   .app-pages a{color:var(--bone-dim);text-decoration:none;border-bottom:1px solid transparent}
   .app-pages a:hover{color:var(--red-text);border-bottom-color:var(--red-text)}
-</style>
+${appPage ? '' : ROAD_RULES_CSS}</style>
 </head>
 <body>
 
@@ -152,15 +163,14 @@ export function renderSitePage(slug: AppPageSlug, page: PageParts): string {
 </nav>
 
 <section class="app-hero">
-  <p class="eyebrow" style="color:var(--red-text);font-weight:800;letter-spacing:0.25em;text-transform:uppercase;font-size:0.75rem;margin-bottom:12px">The members’ app</p>
+  <p class="eyebrow" style="color:var(--red-text);font-weight:800;letter-spacing:0.25em;text-transform:uppercase;font-size:0.75rem;margin-bottom:12px">${appPage ? 'The members’ app' : 'The rulebook'}</p>
   <h1 class="display">${esc(page.heading)}</h1>
 ${page.updated ? `  <p class="updated">${esc(page.updated)}</p>\n` : ''}</section>
 
 <section class="app-page">
   <div class="wrap">
 ${page.body}  </div>
-  <p class="app-pages">${footer}</p>
-</section>
+${appPage ? `  <p class="app-pages">${footer}</p>\n` : ''}</section>
 
 <footer>
   <p class="motto">Rust Till Dust</p>

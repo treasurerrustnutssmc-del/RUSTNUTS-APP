@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderPolicyPage } from './policyPage';
+import { DIAGRAMS } from './roadRulesGuide';
+import { ROAD_RULES_IMAGE_DIR, renderRoadRulesPage } from './roadRulesPage';
 import { APP_PAGES, HELD_UNTIL_LAUNCH, SITE_PAGES, extractPage, mentionsStores, renderSitePage, sitePageUrl } from './sitePage';
 
 const sample = `<!doctype html>
@@ -103,4 +105,8 @@ test('the website clone beside this one carries the same pages (run npm run buil
     assert.equal(readFileSync(join(siteDir, `${slug}.html`), 'utf8'), renderSitePage(slug, page), `${slug}: the website copy is stale`);
   }
   for (const slug of HELD_UNTIL_LAUNCH) assert.ok(!existsSync(join(siteDir, `${slug}.html`)), `${slug} is held until launch`);
+  assert.equal(readFileSync(join(siteDir, 'road-rules.html'), 'utf8'), renderSitePage('road-rules', renderRoadRulesPage()), 'road-rules: the website copy is stale');
+  for (const d of DIAGRAMS) {
+    assert.ok(readFileSync(join(siteDir, ROAD_RULES_IMAGE_DIR, `${d.id}.png`)).equals(readFileSync(join(__dirname, `../../assets/road-rules/${d.id}.png`))), `${d.id}.png: the website copy is stale`);
+  }
 });

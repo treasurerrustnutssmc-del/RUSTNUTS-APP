@@ -1,7 +1,7 @@
 // Writes the app's public pages twice (the welcome guide only once: it names the stores, so it stays
 // off the website until launch): into site/ (GitHub Pages, the old addresses, each saying where
 // it now lives) and, dressed in the club website's shell, into the website repo's app/ folder
-// (www.rustnutssmc.com.au/app/…). The privacy policy and posting rules are rendered from code; the
+// (www.rustnutssmc.com.au/app/…), plus the public illustrated Road Rules (diagrams only). The privacy policy and posting rules are rendered from code; the
 // support, welcome guide and delete-account pages are hand-written in site/. Run after changing any
 // of them, then commit both repos:
 //
@@ -13,6 +13,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderPrivacyPage } from '../src/domain/privacyPage';
 import { renderPostingRulesPage } from '../src/domain/postingRulesPage';
+import { DIAGRAMS } from '../src/domain/roadRulesGuide';
+import { ROAD_RULES_IMAGE_DIR, renderRoadRulesPage } from '../src/domain/roadRulesPage';
 import { HELD_UNTIL_LAUNCH, SITE_PAGES, extractPage, mentionsStores, renderSitePage } from '../src/domain/sitePage';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -40,4 +42,10 @@ for (const slug of SITE_PAGES) {
   if (mentionsStores(html)) throw new Error(`${slug}: names an app store, which the website must not before launch`);
   writeFileSync(join(out, `${slug}.html`), html);
 }
-console.log(`Wrote ${SITE_PAGES.length} pages into ${out}; held until launch: ${HELD_UNTIL_LAUNCH.join(', ')}`);
+// The Road Rules' public face: Chris's diagrams only, never the written rules members sign.
+const roadRules = renderSitePage('road-rules', renderRoadRulesPage());
+if (mentionsStores(roadRules)) throw new Error('road-rules: names an app store, which the website must not before launch');
+writeFileSync(join(out, 'road-rules.html'), roadRules);
+mkdirSync(join(out, ROAD_RULES_IMAGE_DIR), { recursive: true });
+for (const d of DIAGRAMS) copyFileSync(join(root, 'assets/road-rules', `${d.id}.png`), join(out, ROAD_RULES_IMAGE_DIR, `${d.id}.png`));
+console.log(`Wrote ${SITE_PAGES.length} pages and the illustrated Road Rules into ${out}; held until launch: ${HELD_UNTIL_LAUNCH.join(', ')}`);

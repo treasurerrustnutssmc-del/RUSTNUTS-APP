@@ -1,4 +1,4 @@
-// The illustrated Road Rules: Chris's draft (30 October 2026), as he sent it in two documents. The
+// The illustrated Road Rules: Chris's set (30 October 2026), as he sent it in two documents. The
 // condensed rules read one rule at a time with their diagrams in place, the diagrams on their own
 // read as a gallery, and any diagram opens full screen to zoom in, since a phone shows a whole
 // A4 diagram too small to read.
@@ -7,12 +7,13 @@ import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { formatAuDate } from '../domain/dates';
+import { useClub } from '../data/ClubStore';
+import { currentRoadRules } from '../domain/roadRules';
 import {
   DIAGRAMS,
-  GUIDE,
   GUIDE_RULES,
   diagramById,
+  guideStatus,
   diagramLabel,
   figureNumber,
   neighbours,
@@ -26,11 +27,14 @@ import { colors, fonts, radius, space, type } from '../theme';
 import { Button, Card, Chip, Choices, H1, IconBadge, ListRow, Notice, Row, Screen, SectionTitle, Small, Stack } from '../ui/primitives';
 import { DIAGRAM_IMAGES } from '../ui/roadRulesDiagrams';
 
-/** Said wherever the draft shows, so nobody mistakes it for the version they sign. */
-const DRAFT_NOTE = 'Chris’s illustrated draft, for review. Until the club adopts it, the Road Rules you sign are the NEC’s published version.';
-
-/** "Draft · 30/10/2026". */
-const draftLine = `Draft · ${formatAuDate(GUIDE.date)}`;
+/**
+ * How the set is labelled: a draft until the NEC publishes the Road Rules (the club adopting them),
+ * then the illustrated version. Said wherever it shows, so nobody mistakes it for what they sign.
+ */
+function useGuideStatus() {
+  const { data } = useClub();
+  return guideStatus(!!currentRoadRules(data));
+}
 
 const countLine = (n: number): string => (n === 1 ? '1 diagram' : `${n} diagrams`);
 
@@ -39,16 +43,17 @@ const countLine = (n: number): string => (n === 1 ? '1 diagram' : `${n} diagrams
 // ---------------------------------------------------------------------------
 
 export function RoadRulesGuideScreen({ navigation }: RootScreen<'RoadRulesGuide'>) {
+  const status = useGuideStatus();
   return (
     <Screen>
       <Stack gap={space.sm}>
         <H1>Illustrated Road Rules</H1>
         <Row style={styles.metaRow}>
-          <Text style={styles.meta}>{draftLine}</Text>
-          <Chip label={GUIDE.status} tone="warn" />
+          <Text style={styles.meta}>{status.line}</Text>
+          <Chip label={status.chip} tone={status.tone} />
         </Row>
       </Stack>
-      <Notice title="Draft for review">{DRAFT_NOTE}</Notice>
+      <Notice title={status.noteTitle}>{status.note}</Notice>
 
       <Button
         label={`See all ${DIAGRAMS.length} diagrams`}
@@ -84,6 +89,7 @@ export function RoadRulesGuideScreen({ navigation }: RootScreen<'RoadRulesGuide'
 // ---------------------------------------------------------------------------
 
 export function RoadRulesRuleScreen({ route, navigation }: RootScreen<'RoadRulesRule'>) {
+  const status = useGuideStatus();
   const rule = ruleByNumber(route.params.number);
   if (!rule) {
     return (
@@ -99,7 +105,7 @@ export function RoadRulesRuleScreen({ route, navigation }: RootScreen<'RoadRules
       <Stack gap={space.xs}>
         <Text style={styles.kicker}>{`Rule ${rule.number} of ${GUIDE_RULES.length}`}</Text>
         <H1>{rule.title}</H1>
-        <Text style={styles.meta}>{`Illustrated Road Rules · ${draftLine}`}</Text>
+        <Text style={styles.meta}>{`Illustrated Road Rules · ${status.line}`}</Text>
       </Stack>
 
       <Card style={styles.text}>
@@ -155,13 +161,14 @@ export function RoadRulesRuleScreen({ route, navigation }: RootScreen<'RoadRules
 // ---------------------------------------------------------------------------
 
 export function RoadRulesDiagramsScreen({ navigation }: RootScreen<'RoadRulesDiagrams'>) {
+  const status = useGuideStatus();
   return (
     <Screen>
       <Stack gap={space.sm}>
         <H1>Road Rules diagrams</H1>
         <Row style={styles.metaRow}>
-          <Text style={styles.meta}>{draftLine}</Text>
-          <Chip label={GUIDE.status} tone="warn" />
+          <Text style={styles.meta}>{status.line}</Text>
+          <Chip label={status.chip} tone={status.tone} />
         </Row>
         <Small>Read them with the written rules. Tap a diagram to zoom in.</Small>
       </Stack>
@@ -303,23 +310,24 @@ function StepButtons({
   );
 }
 
-/** For the Road Rules screen: the way into the illustrated draft. */
+/** For the Road Rules screen: the way into the illustrated set. */
 export function IllustratedRulesCard({ onRules, onDiagrams }: { onRules: () => void; onDiagrams: () => void }) {
+  const status = useGuideStatus();
   return (
     <Stack gap={space.sm}>
-      <SectionTitle title="Illustrated draft" />
+      <SectionTitle title={status.section} />
       <Card style={{ padding: 0, gap: 0 }}>
         <ListRow
           left={<IconBadge icon="reader-outline" />}
           title="Illustrated Road Rules"
-          subtitle={<Text style={styles.rowMeta}>{`${GUIDE_RULES.length} rules with diagrams · ${draftLine}`}</Text>}
+          subtitle={<Text style={styles.rowMeta}>{`${GUIDE_RULES.length} rules with diagrams · ${status.line}`}</Text>}
           onPress={onRules}
         />
         <ListRow
           last
           left={<IconBadge icon="images-outline" />}
           title="Road Rules diagrams"
-          subtitle={<Text style={styles.rowMeta}>{`${DIAGRAMS.length} diagrams · ${GUIDE.status}`}</Text>}
+          subtitle={<Text style={styles.rowMeta}>{`${DIAGRAMS.length} diagrams · ${status.chip}`}</Text>}
           onPress={onDiagrams}
         />
       </Card>
