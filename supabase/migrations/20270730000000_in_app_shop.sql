@@ -292,8 +292,10 @@ declare
   new_id uuid;
 begin
   if p_client_ref is null then raise exception 'Add something first.'; end if;
+  -- One order at a time per member: the repeat check and the daily count both sit under this lock.
+  perform pg_advisory_xact_lock(hashtext('shop_order:' || me::text));
   select * into existing from public.shop_orders where member_id = me and client_ref = p_client_ref;
-  if found then return private.shop_order_json(existing); end if;
+  if found then return private.shop_order_json(existing) || jsonb_build_object('created', false); end if;
   select m.status::text as status, m.full_name, m.road_name, mp.email as saved_email into my
   from public.members m left join public.member_private mp on mp.member_id = m.id where m.id = me;
   if my.status = 'legacy' then raise exception 'Legacy members can’t order merch.'; end if;
@@ -302,12 +304,14 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object('garment_id', x.garment_id, 'size', x.size, 'colour', x.colour, 'qty', x.qty) order by x.first), '[]'::jsonb)
   into merged
   from (
-    select e->>'garment_id' as garment_id, e->>'size' as size, e->>'colour' as colour, sum((e->>'qty')::numeric) as qty, min(i) as first
+    select e->>'garment_id' as garment_id, e->>'size' as size, e->>'colour' as colour,
+      sum(case when jsonb_typeof(e->'qty') = 'number' then (e->>'qty')::numeric end) as qty, min(i) as first
     from jsonb_array_elements(p_lines) with ordinality as t(e, i)
     group by 1, 2, 3
   ) x;
   if jsonb_array_length(merged) > 10 then raise exception 'Up to 10 lines an order.'; end if;
-  for l in select e->>'garment_id' as garment_id, e->>'size' as size, e->>'colour' as colour, (e->>'qty')::numeric as qty
+  for l in select e->>'garment_id' as garment_id, e->>'size' as size, e->>'colour' as colour,
+                  case when jsonb_typeof(e->'qty') = 'number' then (e->>'qty')::numeric end as qty
            from jsonb_array_elements(merged) e loop
     g := null; d := null;
     select sg.* into g from public.shop_garments sg where sg.id::text = l.garment_id;
@@ -339,7 +343,6 @@ begin
     raise exception 'Pick ship or collect.';
   end if;
   -- Five orders a member a day, counted in Melbourne.
-  perform pg_advisory_xact_lock(hashtext('shop_order:' || me::text));
   if (select count(*) from public.shop_orders where member_id = me and private.club_date(ordered_at) = private.club_date()) >= 5 then
     raise exception 'That’s enough orders for one day. Try again tomorrow.';
   end if;
@@ -362,7 +365,8 @@ begin
     end if;
   end if;
   select * into existing from public.shop_orders where id = new_id;
-  return private.shop_order_json(existing);
+  -- created: true tells the shop-order function this call made the order, so only it posts to Make.
+  return private.shop_order_json(existing) || jsonb_build_object('created', true);
 end;
 $$;
 
@@ -645,9 +649,10 @@ begin
   delete from public.build_updates where author_id = p_member;
   delete from public.brag_nominations where nominated_by = p_member; -- with the votes on them
   delete from public.brag_votes where member_id = p_member;
-  -- The club shop: the orders stay for the books, without the address and phone.
+  -- The club shop: the orders stay for the books, without the name, email, address and phone.
   delete from public.shop_runners where member_id = p_member;
-  update public.shop_orders set street = null, suburb = null, state = null, postcode = null, phone = null where member_id = p_member;
+  update public.shop_orders set buyer_name = 'Former member', road_name = null, email = '', phone = null,
+         street = null, suburb = null, state = null, postcode = null where member_id = p_member;
   update private.roster
      set phone = null, emergency_name = null, emergency_relationship = null, emergency_phone = null,
          bike_make = null, bike_model = null, bike_rego = null, roles = '{}'

@@ -4,7 +4,7 @@
 import {
   SHOP_CODE, cancelShopOrderProblem, cartSubtotal, cleanList, handOverShopOrderProblem, handedOverStatus, mergeLines,
   nameShopRunnerProblem, orderEmail, payShopOrderProblem, placeShopOrderProblem, resendShopOrderProblem, saveDeliveryAddressProblem,
-  setShopDesignProblem, setShopGarmentProblem, setShopShippingProblem, shippingCents, shopLedgerDescription, unnameShopRunnerProblem,
+  setShopDesignProblem, setShopGarmentProblem, setShopShippingProblem, shippingCents, shopLedgerDescription, sortedLines, unnameShopRunnerProblem,
   type AddressInput, type DesignInput, type GarmentInput, type PlaceOrderInput, type ShippingInput,
 } from '../domain/shop';
 import type { ClubData, LedgerEntry, ShippingMethod, ShopDelivery, ShopEligibility, ShopOrder } from '../domain/types';
@@ -42,14 +42,14 @@ export function placeShopOrder(ctx: DemoCtx, input: PlaceOrderInput): { data: Cl
     subtotalCents: cartSubtotal(lines, ctx.data), shippingCents: shippingCents(input, ctx.data),
     status: 'sent', makeSentAt: now, makeError: null, paidOn: null, paidCents: null, ledgerEntryId: null, handedOverOn: null,
     cancelledAt: null, cancelledBy: null, orderedAt: now,
-    lines: lines.map((l) => {
+    lines: sortedLines(lines.map((l) => {
       const garment = (ctx.data.shopGarments ?? []).find((g) => g.id === l.garmentId)!;
       const design = (ctx.data.shopDesigns ?? []).find((d) => d.id === garment.designId)!;
       return {
         id: newId('sl'), orderId: id, garmentId: garment.id, designName: design.name, garmentName: garment.name,
         size: l.size, colour: l.colour, qty: l.qty, unitCents: garment.priceCents,
       };
-    }),
+    })),
   };
   let data: ClubData = { ...ctx.data, shopOrders: [...(ctx.data.shopOrders ?? []), order] };
   if (ship && input.saveAddress) data = saveDeliveryAddress({ ...ctx, data }, input);
@@ -60,10 +60,9 @@ export function placeShopOrder(ctx: DemoCtx, input: PlaceOrderInput): { data: Cl
 export function payShopOrder(ctx: DemoCtx, id: string, paidOn: string, cents: number): { data: ClubData; id: string } {
   refuse(payShopOrderProblem(ctx.me, id, paidOn, cents, ctx.data, ctx.today));
   const order = (ctx.data.shopOrders ?? []).find((o) => o.id === id)!;
-  const buyer = ctx.data.members.find((m) => m.id === order.memberId);
   const now = nowOf(ctx);
   const entry: LedgerEntry = {
-    id: newId('le'), chapterId: null, code: SHOP_CODE, description: shopLedgerDescription(order, buyer?.roadName ?? buyer?.fullName ?? 'Member'),
+    id: newId('le'), chapterId: null, code: SHOP_CODE, description: shopLedgerDescription(order, order.roadName ?? order.buyerName),
     amountCents: cents, receivedOn: paidOn, entryOn: paidOn, payeeMemberId: null, payeeName: null, paymentId: null,
     state: 'paid', recordedBy: ctx.me!.id, recordedAt: now, updatedAt: now, voidReason: null, voidedBy: null, approvals: [],
   };

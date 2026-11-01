@@ -9,7 +9,7 @@ import { isApprovedMember } from './access';
 import { melbourneDate } from './rides';
 import { isIsoDate } from './conduct';
 import type {
-  ClubData, Member, Position, ShippingMethod, ShopDelivery, ShopDesign, ShopEligibility, ShopOrder, ShopOrderStatus,
+  ClubData, Member, Position, ShippingMethod, ShopDelivery, ShopDesign, ShopEligibility, ShopOrder, ShopOrderLine, ShopOrderStatus,
 } from './types';
 
 export const SHOP_CODE = 'CR-005';
@@ -433,8 +433,14 @@ export const orderTotalCents = (o: Pick<ShopOrder, 'subtotalCents' | 'shippingCe
 export const shopOrderRef = (o: Pick<ShopOrder, 'id'>): string => o.id.slice(0, 8).toUpperCase();
 
 /** The CR-005 ledger line a paid order makes. Mirrors the SQL in pay_shop_order. */
+const text = (a: string | null, b: string | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? -1 : 1);
+
+/** Lines in the database's order (design, garment, size, colour; blanks last), as shop_order_json returns them. */
+export const sortedLines = <T extends Pick<ShopOrderLine, 'designName' | 'garmentName' | 'size' | 'colour'>>(lines: T[]): T[] =>
+  [...lines].sort((a, b) => text(a.designName, b.designName) || text(a.garmentName, b.garmentName) || text(a.size, b.size) || text(a.colour, b.colour));
+
 export function shopLedgerDescription(order: ShopOrder, buyer: string): string {
-  const items = order.lines
+  const items = sortedLines(order.lines)
     .map((l) => {
       const opts = [l.size, l.colour].filter((x): x is string => !!x);
       return `${l.designName} ${l.garmentName}${opts.length ? ` (${opts.join(', ')})` : ''} ×${l.qty}`;

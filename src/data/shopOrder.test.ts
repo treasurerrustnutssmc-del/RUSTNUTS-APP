@@ -9,7 +9,7 @@ const ORDER: OrderRow = {
   id: 'a1b2c3d4-0000-4000-8000-000000000001', member_id: 'm1', client_ref: '11111111-1111-4111-8111-111111111111',
   buyer_name: 'Chris Dyson', road_name: 'Dysco', email: 'chris@example.com', phone: '0400 000 000', delivery: 'ship',
   street: '1 Main St', suburb: 'Sunshine', state: 'VIC', postcode: '3020', shipping_method: 'standard', subtotal_cents: 16500,
-  shipping_cents: 1200, status: 'held', make_sent_at: null, make_error: null,
+  shipping_cents: 1200, status: 'held', make_sent_at: null, make_error: null, created: true,
   lines: [
     { id: 'l1', order_id: 'o', garment_id: 'g1', design_name: 'Member', garment_name: 'Hoodie', size: 'L', colour: 'Grey', qty: 1, unit_cents: 7500 },
     { id: 'l2', order_id: 'o', garment_id: 'g2', design_name: 'Member', garment_name: 'Tee', size: 'M', colour: 'Black', qty: 2, unit_cents: 4500 },
@@ -104,6 +104,14 @@ test('a repeat clientRef already sent comes straight back, not posted twice', as
   assert.equal(calls.sent.length, 0);
 });
 
+test('a repeat clientRef still held (the first call is mid-flight) is not posted again', async () => {
+  const { d, calls } = deps({ placeOrder: async () => ({ ...ORDER, created: false }) });
+  const got = await handleShopOrder(ENV, CART, d);
+  assert.deepEqual(got, { status: 200, body: { orderId: ORDER.id, status: 'held', message: HELD_MESSAGE } });
+  assert.equal(calls.post.length, 0);
+  assert.equal(calls.sent.length, 0);
+});
+
 test('Make saying no keeps the order held with the reason (weak spot 1 fixed)', async () => {
   const { d, calls } = deps({ post: async () => ({ ok: false, status: 500, text: 'Scenario is inactive' }) });
   const got = await handleShopOrder(ENV, CART, d);
@@ -139,7 +147,7 @@ test('a resend goes through resend_shop_order (the database checks who and what)
 
 test('a body that is not a cart or a resend is refused before the database', async () => {
   const { d, calls } = deps();
-  for (const body of [null, {}, { lines: [] }, { clientRef: 'not-a-uuid', lines: [], delivery: 'collect' }, 'text']) {
+  for (const body of [null, {}, { lines: [] }, { clientRef: 'not-a-uuid', lines: [], delivery: 'collect' }, 'text', { ...CART, lines: [null] }]) {
     assert.deepEqual(await handleShopOrder(ENV, body, d), { status: 400, body: { error: START_AGAIN } });
   }
   assert.equal(calls.place.length, 0);

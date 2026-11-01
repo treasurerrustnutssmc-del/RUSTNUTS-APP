@@ -350,6 +350,6 @@ test('the ledger line and the order reference', () => {
     lines: [line(), line({ id: 'l2', garmentName: 'Hoodie', size: 'L', colour: null, qty: 2, unitCents: 7500 })],
   });
   assert.equal(shopOrderRef(o), '0B6A9F1E');
-  assert.equal(shopLedgerDescription(o, 'Dysco'), 'Shop order 0B6A9F1E: Member Tee (M, Black) ×1, Member Hoodie (L) ×2 for Dysco');
+  assert.equal(shopLedgerDescription(o, 'Dysco'), 'Shop order 0B6A9F1E: Member Hoodie (L) ×2, Member Tee (M, Black) ×1 for Dysco', 'lines in the database’s order');
   assert.equal(orderTotalCents(o), 4500 + 1200);
 });

@@ -142,6 +142,10 @@ select pg_temp.json_as(:'nell', format(
     jsonb_build_object('garment_id', (select id from ids where name = 'tee'), 'size', 'M', 'colour', 'Black', 'qty', 2),
     jsonb_build_object('garment_id', (select id from ids where name = 'tee'), 'size', 'M', 'colour', 'Black', 'qty', 1)))) as o;
 select pg_temp.check((select o->>'status' from placed) = 'held', 'a new order is held until Make takes it');
+select pg_temp.check((select (o->>'created')::boolean from placed), 'and says it was just created');
+select pg_temp.check(pg_temp.try_as(:'nell', format($$select public.place_shop_order(%L, %L::jsonb, '', '', 'collect', '', '', '', '', null, false)$$,
+  gen_random_uuid(), jsonb_build_array(jsonb_build_object('garment_id', (select id from ids where name = 'tee'), 'size', 'M', 'colour', 'Black', 'qty', 'two'))))
+  = 'Order 1 to 10 of each.', 'a quantity that is not a number');
 select pg_temp.check((select (o->>'subtotal_cents')::int from placed) = 7500 + 3 * 4500, 'the subtotal uses the catalogue prices');
 select pg_temp.check((select (o->>'shipping_cents')::int from placed) = 1200, 'shipping from the table');
 select pg_temp.check((select jsonb_array_length(o->'lines') from placed) = 2, 'the same line twice merged');
@@ -156,6 +160,8 @@ select pg_temp.check((pg_temp.json_as(:'nell', 'select public.merch_catalogue()'
 select pg_temp.check(
   (pg_temp.json_as(:'nell', format($$select public.place_shop_order(%L, '[]'::jsonb, '', '', 'collect', '', '', '', '', null, false)$$,
     (select id from ids where name = 'ref1')))->>'id') = (select o->>'id' from placed), 'a repeat clientRef returns the first order');
+select pg_temp.check(not (pg_temp.json_as(:'nell', format($$select public.place_shop_order(%L, '[]'::jsonb, '', '', 'collect', '', '', '', '', null, false)$$,
+    (select id from ids where name = 'ref1')))->>'created')::boolean, 'and says it was not created this time');
 select pg_temp.check((select count(*) from shop_orders) = 1, 'and makes no second order');
 
 -- Only the service role moves held to sent.
@@ -252,8 +258,10 @@ select pg_temp.check(pg_temp.try_as(:'nell', $$select public.save_delivery_addre
 do $$ begin perform private.forget_member('00000000-0000-0000-0000-00000000a0a4', 'nell@example.com'); end $$;
 select pg_temp.check((select count(*) from member_private where member_id = :'nell'::uuid) = 0, 'member_private (with the address) is gone');
 select pg_temp.check((select count(*) from shop_orders where member_id = :'nell'::uuid) = 1
-  and (select street from shop_orders where member_id = :'nell'::uuid) is null and (select phone from shop_orders where member_id = :'nell'::uuid) is null,
-  'the order stays, without address or phone');
+  and (select street from shop_orders where member_id = :'nell'::uuid) is null and (select phone from shop_orders where member_id = :'nell'::uuid) is null
+  and (select email from shop_orders where member_id = :'nell'::uuid) = '' and (select buyer_name from shop_orders where member_id = :'nell'::uuid) = 'Former member'
+  and (select road_name from shop_orders where member_id = :'nell'::uuid) is null,
+  'the order stays, without name, email, address or phone');
 select pg_temp.check((select count(*) from ledger_entries where code = 'CR-005') = 1, 'the books keep the line');
 do $$ begin perform private.forget_member('00000000-0000-0000-0000-00000000a0a8', 'chris@example.com'); end $$;
 select pg_temp.check((select count(*) from shop_runners) = 0, 'a deleted account is no longer a shop runner');

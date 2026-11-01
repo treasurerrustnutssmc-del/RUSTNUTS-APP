@@ -51,6 +51,8 @@ export interface OrderRow {
   make_sent_at: string | null;
   make_error: string | null;
   lines: OrderLineRow[];
+  /** From place_shop_order: true when this call made the order; false when the clientRef was seen before. */
+  created?: boolean;
 }
 
 /** What the phone sends: a cart to place, or a held order to send again. */
@@ -150,7 +152,8 @@ export interface Answer {
 }
 
 const isPlace = (b: unknown): b is PlaceBody =>
-  !!b && typeof b === 'object' && typeof (b as PlaceBody).clientRef === 'string' && Array.isArray((b as PlaceBody).lines);
+  !!b && typeof b === 'object' && typeof (b as PlaceBody).clientRef === 'string' && Array.isArray((b as PlaceBody).lines)
+  && (b as PlaceBody).lines.every((l) => !!l && typeof l === 'object');
 const isResend = (b: unknown): b is ResendBody => !!b && typeof b === 'object' && typeof (b as ResendBody).resend === 'string';
 
 /** Posts a held order to Make and records the outcome. Never throws: a failure keeps the order held. */
@@ -176,12 +179,14 @@ async function send(order: OrderRow, env: ShopOrderEnv, deps: ShopOrderDeps): Pr
 }
 
 /**
- * The whole function. A cart: place_shop_order (the database decides), then send if it is held
- * (a repeat clientRef already sent comes straight back). A resend: resend_shop_order (shop runners,
- * held only), then send. Refusals come back as 400 with the database's words.
+ * The whole function. A cart: place_shop_order (the database decides), then send only when this call
+ * made the order (a repeat clientRef comes straight back as it stands, so a double tap or a retry
+ * while Make is still answering never posts twice). A resend: resend_shop_order (shop runners, held
+ * only), then send. Refusals come back as 400 with the database's words.
  */
 export async function handleShopOrder(env: ShopOrderEnv, body: unknown, deps: ShopOrderDeps): Promise<Answer> {
   let order: OrderRow;
+  let fresh = true;
   try {
     if (isResend(body)) {
       if (!UUID.test(body.resend)) return { status: 400, body: { error: 'No such order.' } };
@@ -189,6 +194,7 @@ export async function handleShopOrder(env: ShopOrderEnv, body: unknown, deps: Sh
     } else if (isPlace(body)) {
       if (!UUID.test(body.clientRef)) return { status: 400, body: { error: START_AGAIN } };
       order = await deps.placeOrder(body);
+      fresh = order.created === true;
     } else {
       return { status: 400, body: { error: START_AGAIN } };
     }
@@ -196,5 +202,6 @@ export async function handleShopOrder(env: ShopOrderEnv, body: unknown, deps: Sh
     return { status: 400, body: { error: (e as Error).message || SEND_AGAIN } };
   }
   if (order.status !== 'held') return { status: 200, body: { orderId: order.id, status: order.status } };
+  if (!fresh) return { status: 200, body: { orderId: order.id, status: 'held', message: HELD_MESSAGE } };
   return send(order, env, deps);
 }
