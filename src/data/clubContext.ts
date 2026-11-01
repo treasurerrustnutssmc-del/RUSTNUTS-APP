@@ -275,6 +275,8 @@ export interface ClubContextValue {
   /** Signs you up to ride or help, or changes your sign-up. */
   signUpCharity: (rideId: string, input: SignupInput) => Promise<void>;
   withdrawCharity: (rideId: string) => Promise<void>;
+  /** Removes a sign-up that came from the club website (the ride's organisers). */
+  removeWebsiteSignup: (id: string) => Promise<void>;
   /** Asks someone to take your crew spot (or trade); resolves to the ask's id. */
   askSwap: (rideId: string, toId: string, note: string) => Promise<string>;
   /** The person asked says yes or no. */

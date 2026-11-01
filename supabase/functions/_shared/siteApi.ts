@@ -3,7 +3,9 @@
 //   GET  /sponsors  the public sponsor list (no member deals), logos as signed URLs
 //   GET  /rides     the public ride list (public.public_rides: no RSVPs, no member data)
 //   POST /enquiry   a "Ride With Us" join enquiry, checked here and again in the database
-// The check words are the app's (src/domain/enquiries.ts); a test keeps them the same.
+//   GET  /charity-rides   charity rides taking sign-ups from the website (public.public_charity_rides)
+//   POST /charity-signup  a sign-up for one of them, checked here and again in the database
+// The check words are the app's (src/domain/enquiries.ts, src/domain/websiteSignups.ts); tests keep them the same.
 
 export const ALLOWED_ORIGINS = ['https://www.rustnutssmc.com.au', 'https://rustnutssmc.com.au'];
 export const SPONSORS_CACHE = 'public, max-age=900';
@@ -18,6 +20,22 @@ export const ENQUIRY_WORDS = {
   noChapter: 'Pick a chapter: West, North or either.',
   longAbout: 'Keep it to 600 characters.',
   tooMany: 'Too many enquiries just now. Try again later, or email the club.',
+} as const;
+export const CHARITY_CACHE = 'public, max-age=300';
+export const SIGNUP_WORDS = {
+  notOnWebsite: 'This ride isn’t taking sign-ups from the website.',
+  closed: 'Sign-ups have closed.',
+  noName: 'Tell us your name.',
+  longName: 'Keep your name to 80 characters.',
+  badEmail: 'That email address does not look right.',
+  longPhone: 'Keep the phone number to 30 characters.',
+  nothingPicked: 'Say you’re riding, or pick a job to help with.',
+  pillionNeedsRider: 'A pillion needs a rider: say you’re riding too.',
+  guests: 'Guests: 0 to 10.',
+  jobNotListed: 'That job isn’t on the list.',
+  tooLong: 'Keep it short: 200 characters for guests’ names, 200 for notes.',
+  tooMany: 'Too many sign-ups just now. Try again later, or email the club.',
+  full: 'The ride’s full.',
 } as const;
 const CHAPTERS = ['west', 'north', 'either'];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -43,6 +61,34 @@ export interface PublicRide {
   cancelled_at: string | null;
 }
 
+export interface PublicCharityRide {
+  ride_id: string;
+  title: string;
+  starts_at: string;
+  all_day: boolean;
+  location: string | null;
+  cause: string;
+  about: string | null;
+  closes_on: string | null;
+  jobs: string[];
+  places: number | null;
+  places_left: number | null;
+  open: boolean;
+}
+
+export interface CleanSignup {
+  ride: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  riding: boolean;
+  pillion: boolean;
+  guests: number;
+  guest_names: string | null;
+  job: string | null;
+  notes: string | null;
+}
+
 export interface CleanEnquiry {
   name: string;
   email: string;
@@ -59,6 +105,10 @@ export interface SiteApiDeps {
   signLogo: (path: string) => Promise<string | null>;
   /** public.site_enquiry(...) with the service role: the database's refusal, or null when kept. */
   enquire: (enquiry: CleanEnquiry) => Promise<string | null>;
+  /** public.public_charity_rides() as anon. */
+  listCharityRides: () => Promise<PublicCharityRide[]>;
+  /** public.website_signup(...) with the service role: the database's refusal, or null when kept. */
+  websiteSignup: (signup: CleanSignup) => Promise<string | null>;
 }
 
 export interface SiteRequest {
@@ -96,6 +146,42 @@ export function enquiryProblem(input: { name: string; email: string; chapter: st
   if (email.length > 200 || !EMAIL.test(email)) return ENQUIRY_WORDS.badEmail;
   if (!CHAPTERS.includes(input.chapter)) return ENQUIRY_WORDS.noChapter;
   if (input.about.trim().length > 600) return ENQUIRY_WORDS.longAbout;
+  return null;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface SignupForm {
+  ride: string;
+  name: string;
+  email: string;
+  phone: string;
+  riding: boolean;
+  pillion: boolean;
+  guests: number;
+  guestNames: string;
+  job: string;
+  notes: string;
+}
+
+/**
+ * Why a website sign-up form can't be sent on, or null, in the database's order and words. The
+ * ride itself (does it take website sign-ups, is it closed, is the job on its list, is it full) is
+ * the database's to judge, so here it's the form alone; a job is checked against the list there.
+ */
+export function signupProblem(f: SignupForm): string | null {
+  if (!UUID.test(f.ride)) return SIGNUP_WORDS.notOnWebsite;
+  const name = f.name.trim();
+  if (!name) return SIGNUP_WORDS.noName;
+  if (name.length > 80) return SIGNUP_WORDS.longName;
+  const email = f.email.trim();
+  if (email.length > 200 || !EMAIL.test(email)) return SIGNUP_WORDS.badEmail;
+  if (f.phone.trim().length > 30) return SIGNUP_WORDS.longPhone;
+  const job = f.job.trim();
+  if (!f.riding && !job) return SIGNUP_WORDS.nothingPicked;
+  if (!f.riding && f.pillion) return SIGNUP_WORDS.pillionNeedsRider;
+  if (!Number.isInteger(f.guests) || f.guests < 0 || f.guests > 10) return SIGNUP_WORDS.guests;
+  if (f.guestNames.trim().length > 200 || f.notes.trim().length > 200) return SIGNUP_WORDS.tooLong;
   return null;
 }
 
@@ -161,6 +247,45 @@ export async function handleSiteApi(req: SiteRequest, deps: SiteApiDeps): Promis
     if (refusal === ENQUIRY_WORDS.tooMany) return reply(429, { error: refusal });
     if (refusal && (Object.values(ENQUIRY_WORDS) as string[]).includes(refusal)) return reply(400, { error: refusal });
     // Anything else the database said (a grant, a constraint) isn't for the public.
+    if (refusal) return reply(503, { error: `Something went wrong on our side. Email the club at ${CLUB_EMAIL}.` });
+    return reply(200, { ok: true });
+  }
+
+  if (path === '/charity-rides') {
+    if (req.method !== 'GET') return reply(405, { error: 'GET the charity rides.' });
+    try {
+      return reply(200, { rides: await deps.listCharityRides() }, { 'cache-control': CHARITY_CACHE });
+    } catch {
+      return reply(503, { error: 'The charity ride list is not available just now.' }, { 'cache-control': 'no-store' });
+    }
+  }
+
+  if (path === '/charity-signup') {
+    if (req.method !== 'POST') return reply(405, { error: 'POST a sign-up.' });
+    if (req.origin && !ALLOWED_ORIGINS.includes(req.origin)) return reply(403, { error: 'Sign-ups come from the club website.' });
+    const b = (req.body && typeof req.body === 'object' ? req.body : {}) as Record<string, unknown>;
+    if (str(b.website).trim()) return reply(200, { ok: true });
+    const form: SignupForm = {
+      ride: str(b.ride), name: str(b.name), email: str(b.email), phone: str(b.phone),
+      riding: b.riding === true, pillion: b.pillion === true, guests: typeof b.guests === 'number' ? b.guests : Number.NaN,
+      guestNames: str(b.guestNames), job: str(b.job), notes: str(b.notes),
+    };
+    const problem = signupProblem(form);
+    if (problem) return reply(400, { error: problem });
+    const orNull = (v: string) => (v.trim() ? v.trim() : null);
+    const clean: CleanSignup = {
+      ride: form.ride, name: form.name.trim(), email: form.email.trim().toLowerCase(), phone: orNull(form.phone),
+      riding: form.riding, pillion: form.riding && form.pillion, guests: form.guests, guest_names: orNull(form.guestNames),
+      job: orNull(form.job), notes: orNull(form.notes),
+    };
+    let refusal: string | null;
+    try {
+      refusal = await deps.websiteSignup(clean);
+    } catch {
+      return reply(503, { error: `Something went wrong on our side. Email the club at ${CLUB_EMAIL}.` });
+    }
+    if (refusal === SIGNUP_WORDS.tooMany) return reply(429, { error: refusal });
+    if (refusal && (Object.values(SIGNUP_WORDS) as string[]).includes(refusal)) return reply(400, { error: refusal });
     if (refusal) return reply(503, { error: `Something went wrong on our side. Email the club at ${CLUB_EMAIL}.` });
     return reply(200, { ok: true });
   }

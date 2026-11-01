@@ -668,6 +668,7 @@ test('signup_counts loads as the numbers behind each ride’s sign-ups; a databa
   const row = {
     ride_id: 'r1', hub_riders: 4, hub_pillions: 1, hub_group: 2, hub_own: 1, hub_camping: 1, hub_day: 0, hub_group_beds: 3,
     charity_riding: 2, charity_pillions: 1, charity_guests: 2, charity_helping: 1, charity_people: 5,
+    website_riding: 1, website_pillions: 0, website_guests: 1, website_helping: 1, website_people: 2,
   };
   const base = stubClient({ chapters: [west] }) as unknown as { from: unknown; rpc: (n: string) => Promise<unknown> };
   const withCounts = { ...base, rpc: (name: string) => (name === 'signup_counts' ? Promise.resolve({ data: [row], error: null }) : base.rpc(name)) } as never;
@@ -675,6 +676,7 @@ test('signup_counts loads as the numbers behind each ride’s sign-ups; a databa
   assert.deepEqual(data.signupCounts, [{
     rideId: 'r1', hubRiders: 4, hubPillions: 1, hubGroup: 2, hubOwn: 1, hubCamping: 1, hubDay: 0, hubGroupBeds: 3,
     charityRiding: 2, charityPillions: 1, charityGuests: 2, charityHelping: 1, charityPeople: 5,
+    websiteRiding: 1, websitePillions: 0, websiteGuests: 1, websiteHelping: 1, websitePeople: 2,
   }]);
   const missing = {
     ...base,

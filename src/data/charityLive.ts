@@ -12,25 +12,31 @@ const instant = (ts: string) => new Date(ts).toISOString();
 /** PostgREST's and Postgres's "no such table" codes. */
 const MISSING_TABLE = ['PGRST205', '42P01'];
 
-type Charity = Required<Pick<ClubData, 'charityRides' | 'charitySignups'>>;
+type Charity = Required<Pick<ClubData, 'charityRides' | 'charitySignups' | 'websiteSignups'>>;
 
 export async function loadCharity(db: SupabaseClient<Database>): Promise<Charity> {
-  const [rides, signups] = await Promise.all([
+  const [rides, signups, site] = await Promise.all([
     allRows((a, b) => db.from('charity_rides').select('*').order('ride_id').range(a, b)),
     allRows((a, b) => db.from('charity_signups').select('*').order('ride_id').order('member_id').range(a, b)),
+    // Website sign-ups: only the rows the organisers may see come back (row-level security).
+    allRows((a, b) => db.from('website_signups').select('*').order('ride_id').order('name').range(a, b)),
   ]);
-  for (const r of [rides, signups]) {
+  for (const r of [rides, signups, site]) {
     if (r.error && !MISSING_TABLE.includes(r.error.code ?? '')) throw new Error(r.error.message ?? 'Couldn’t load the club data.');
   }
   // Blank texts are stored as null.
   return {
     charityRides: (rides.data ?? []).map((c) => ({
       rideId: c.ride_id, cause: c.cause, about: c.about ?? '', closesOn: c.closes_on, places: c.places, jobs: c.jobs ?? [],
-      updatedBy: c.updated_by, updatedAt: instant(c.updated_at),
+      website: c.website ?? false, updatedBy: c.updated_by, updatedAt: instant(c.updated_at),
     })),
     charitySignups: (signups.data ?? []).map((s) => ({
       rideId: s.ride_id, memberId: s.member_id, riding: s.riding, pillion: s.pillion, guests: s.guests, guestNames: s.guest_names ?? '',
       job: s.job, notes: s.notes ?? '', signedAt: instant(s.signed_at), withdrawnAt: s.withdrawn_at ? instant(s.withdrawn_at) : null,
+    })),
+    websiteSignups: (site.data ?? []).map((w) => ({
+      id: w.id, rideId: w.ride_id, name: w.name, email: w.email, phone: w.phone ?? '', riding: w.riding, pillion: w.pillion, guests: w.guests,
+      guestNames: w.guest_names ?? '', job: w.job, notes: w.notes ?? '', createdAt: instant(w.created_at), updatedAt: instant(w.updated_at),
     })),
   };
 }
@@ -39,7 +45,7 @@ const textOrNull = (s: string) => s.trim() || null;
 
 export const saveCharityArgs = (rideId: string, input: CharityInput) => ({
   p_ride: rideId, p_cause: input.cause.trim(), p_about: textOrNull(input.about), p_closes_on: input.closesOn, p_places: input.places,
-  p_jobs: cleanJobs(input.jobs),
+  p_jobs: cleanJobs(input.jobs), p_website: input.website ?? false,
 });
 
 export const signUpCharityArgs = (rideId: string, input: SignupInput) => ({

@@ -688,7 +688,7 @@ export type DemoAction =
   | { action: 'answerSwap'; swap: string; yes: boolean }
   | { action: 'withdrawSwap'; swap: string }
   // Charity ride sign-ups. `repeat` writes the about, or the notes, out that many times, for the limits.
-  | { action: 'saveCharity'; ride: string; cause: string; about: string; closesOn: string | null; places: number | null; jobs: string[]; repeat?: number }
+  | { action: 'saveCharity'; ride: string; cause: string; about: string; closesOn: string | null; places: number | null; jobs: string[]; website?: boolean; repeat?: number }
   | { action: 'signUpCharity'; ride: string; riding: boolean; pillion: boolean; guests: number; guestNames: string; job: string | null; notes: string; repeat?: number }
   | { action: 'withdrawCharity'; ride: string };
 
@@ -776,7 +776,7 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return planning.withdrawSwap(ctx, a.swap);
     // Charity ride sign-ups
     case 'saveCharity':
-      return charity.saveCharity(ctx, a.ride, { cause: a.cause, about: a.about.repeat(a.repeat ?? 1), closesOn: a.closesOn, places: a.places, jobs: a.jobs });
+      return charity.saveCharity(ctx, a.ride, { cause: a.cause, about: a.about.repeat(a.repeat ?? 1), closesOn: a.closesOn, places: a.places, jobs: a.jobs, website: a.website });
     case 'signUpCharity':
       return charity.signUpCharity(ctx, a.ride, {
         riding: a.riding, pillion: a.pillion, guests: a.guests, guestNames: a.guestNames, job: a.job, notes: a.notes.repeat(a.repeat ?? 1),

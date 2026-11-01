@@ -5,6 +5,7 @@
 import {
   cleanJob, cleanJobs, saveCharityProblem, signupProblem, withdrawCharityProblem, type CharityInput, type SignupInput,
 } from '../domain/charity';
+import { removeWebsiteSignupProblem } from '../domain/websiteSignups';
 import type { ClubData } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
@@ -24,9 +25,15 @@ export function saveCharity(ctx: DemoCtx, rideId: string, input: CharityInput): 
     ...ctx.data,
     charityRides: [...others, {
       rideId, cause: input.cause.trim(), about: input.about.trim(), closesOn: input.closesOn, places: input.places,
-      jobs: cleanJobs(input.jobs), updatedBy: ctx.me!.id, updatedAt: now,
+      jobs: cleanJobs(input.jobs), website: input.website ?? false, updatedBy: ctx.me!.id, updatedAt: now,
     }],
   };
+}
+
+/** Removes a sign-up that came from the club website (the ride's organisers). Mirrors public.remove_website_signup. */
+export function removeWebsiteSignup(ctx: DemoCtx, id: string): ClubData {
+  refuse(removeWebsiteSignupProblem(ctx.me, (ctx.data.websiteSignups ?? []).find((w) => w.id === id), ctx.data, nowOf(ctx)));
+  return { ...ctx.data, websiteSignups: (ctx.data.websiteSignups ?? []).filter((w) => w.id !== id) };
 }
 
 /** Signs you up, changes your sign-up, or brings back a withdrawn one. Mirrors public.sign_up_charity. */

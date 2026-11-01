@@ -1,12 +1,13 @@
 // site-api: the club website's one door into the app. Deployed with JWT checks OFF (the website has
 // no sign-in): GET /site-api/sponsors gives the public sponsor list, GET /site-api/rides the public
 // ride list, POST /site-api/enquiry takes a
-// "Ride With Us" join enquiry. Everything it does is decided in ../_shared/siteApi.ts, which
+// "Ride With Us" join enquiry, GET /site-api/charity-rides the charity rides taking website sign-ups
+// and POST /site-api/charity-signup one such sign-up. Everything it does is decided in ../_shared/siteApi.ts, which
 // `npm test` checks; the database checks the enquiry again (public.site_enquiry) and keeps the
 // spam limits. Only the club website's origins get CORS headers.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
-import { handleSiteApi, LOGO_URL_LIFE_S, type PublicRide, type SponsorRow } from '../_shared/siteApi.ts';
+import { handleSiteApi, LOGO_URL_LIFE_S, type PublicCharityRide, type PublicRide, type SponsorRow } from '../_shared/siteApi.ts';
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -42,6 +43,18 @@ Deno.serve(async (req) => {
       },
       enquire: async (e) => {
         const r = await admin.rpc('site_enquiry', { p_name: e.name, p_email: e.email, p_chapter: e.chapter, p_about: e.about });
+        return r.error ? r.error.message : null;
+      },
+      listCharityRides: async () => {
+        const r = await asAnon.rpc('public_charity_rides');
+        if (r.error) throw new Error(r.error.message);
+        return (r.data ?? []) as PublicCharityRide[];
+      },
+      websiteSignup: async (s) => {
+        const r = await admin.rpc('website_signup', {
+          p_ride: s.ride, p_name: s.name, p_email: s.email, p_phone: s.phone, p_riding: s.riding, p_pillion: s.pillion,
+          p_guests: s.guests, p_guest_names: s.guest_names, p_job: s.job, p_notes: s.notes,
+        });
         return r.error ? r.error.message : null;
       },
     },
