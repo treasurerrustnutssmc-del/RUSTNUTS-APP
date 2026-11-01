@@ -88,6 +88,7 @@ test('publicNews: newest five live notices under 60 days, with nothing personal'
   const list: SiteNews[] = [
     notice({ id: 'old', createdAt: '2026-09-01T00:00:00Z' }),
     notice({ id: 'edge', createdAt: new Date(now.getTime() - NEWS_DAYS * 86400000).toISOString() }),
+    notice({ id: 'inside', createdAt: new Date(now.getTime() - NEWS_DAYS * 86400000 + 60000).toISOString() }),
     notice({ id: 'gone', createdAt: '2026-10-30T00:00:00Z', removedAt: '2026-10-31T00:00:00Z' }),
     ...[1, 2, 3, 4, 5, 6].map((i) => notice({ id: `n${i}`, createdAt: `2026-10-${10 + i}T00:00:00Z`, link: i === 1 ? 'https://x.y' : null })),
   ];
@@ -95,6 +96,8 @@ test('publicNews: newest five live notices under 60 days, with nothing personal'
   assert.deepEqual(shown.map((n) => n.id), ['n6', 'n5', 'n4', 'n3', 'n2']);
   assert.deepEqual(Object.keys(shown[0]).sort(), ['body', 'created_at', 'id', 'link', 'title']);
   assert.equal(publicNews([notice({ id: 'fresh', createdAt: '2026-11-01T00:00:00Z' })], now).length, 1);
+  const edges = publicNews(list.filter((n) => ['old', 'edge', 'inside', 'gone'].includes(n.id)), now);
+  assert.deepEqual(edges.map((n) => n.id), ['inside'], 'a minute inside 60 days counts; exactly 60 days and older do not');
 });
 
 test('boardNewsOrder: live newest first, then taken down', () => {

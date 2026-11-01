@@ -1,10 +1,11 @@
-// Club news for the website, for the Board screen: the demo's two samples held in memory, or the
-// live database (public.list_site_news, board only). One list for the whole app, loaded afresh
-// whenever someone else signs in. Built on the website-enquiries store.
+// Club news for the website: the board's list on the Board screen (public.list_site_news, board
+// only) and the public list every member sees on Home (public.public_site_news, the same five the
+// website shows). The demo's two samples held in memory, or the live database. One list each for
+// the whole app, loaded afresh whenever someone else signs in. Built on the website-enquiries store.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { boardNewsOrder, cleanNews, newsProblem, removeNewsProblem, type NewsInput, type SiteNews } from '../domain/siteNews';
+import { boardNewsOrder, cleanNews, newsProblem, publicNews, removeNewsProblem, type NewsInput, type PublicNews, type SiteNews } from '../domain/siteNews';
 import { isAnyBoard } from '../domain/social/help';
 import { NotAllowedError, useClub } from './clubContext';
 import { appMode, liveDataOn } from './reviewMode';
@@ -99,7 +100,7 @@ export function useSiteNews(): SiteNewsValue {
     }
     const { error } = await db().rpc('post_site_news', { p_title: clean.title, p_body: clean.body, p_link: clean.link ?? '' });
     if (error) throw friendlyError(error);
-    await refresh().catch(() => undefined);
+    await Promise.all([refresh(), loadPublic()]).catch(() => undefined);
   }, [me, data.positions, refresh]);
 
   const remove = useCallback(async (id: string) => {
@@ -112,7 +113,7 @@ export function useSiteNews(): SiteNewsValue {
     }
     const { error } = await db().rpc('remove_site_news', { p_id: id });
     if (error) throw friendlyError(error);
-    await refresh().catch(() => undefined);
+    await Promise.all([refresh(), loadPublic()]).catch(() => undefined);
   }, [me, data.positions, refresh]);
 
   return {
@@ -123,4 +124,59 @@ export function useSiteNews(): SiteNewsValue {
     remove,
     refresh,
   };
+}
+
+// ---- The public list, for Home: what the website shows, for every member.
+
+interface PublicState {
+  /** Who it was loaded for, so a sign-in change reloads. */
+  forId: string | null | undefined;
+  ready: boolean;
+  news: PublicNews[];
+}
+const startPublic = (): PublicState => (liveDataOn() ? { forId: undefined, ready: false, news: [] } : { forId: null, ready: true, news: [] });
+let publicState: PublicState = startPublic();
+const publicListeners = new Set<() => void>();
+const setPublic = (next: Partial<PublicState>) => {
+  publicState = { ...publicState, ...next };
+  publicListeners.forEach((l) => l());
+};
+const subscribePublic = (l: () => void) => {
+  publicListeners.add(l);
+  return () => publicListeners.delete(l);
+};
+let publicLoads = 0;
+appMode.subscribe(() => {
+  publicLoads++;
+  publicState = startPublic();
+  publicListeners.forEach((l) => l());
+});
+
+/** Reloads the public list. A failure leaves the last list in place: Home just shows nothing new. */
+async function loadPublic(): Promise<void> {
+  const mine = ++publicLoads;
+  const forId = publicState.forId;
+  const { data, error } = await db().rpc('public_site_news');
+  if (mine !== publicLoads || publicState.forId !== forId) return;
+  setPublic({ ready: true, news: error ? publicState.news : ((data ?? []) as PublicNews[]) });
+}
+
+/** The notices every member sees on Home: the same five the website shows, in the same order. */
+export function useClubNews(): { ready: boolean; news: PublicNews[] } {
+  const { me } = useClub();
+  const current = useSyncExternalStore(subscribePublic, () => publicState);
+  const board = useSyncExternalStore(subscribe, () => state);
+  const forId = me?.id ?? null;
+
+  useEffect(() => {
+    if (!liveDataOn() || publicState.forId === forId) return;
+    setPublic({ forId, ready: false, news: [] });
+    void loadPublic();
+  }, [forId]);
+
+  if (!liveDataOn()) {
+    // The demo: the board's list through the website rule, so a demo post shows up on Home too.
+    return { ready: true, news: publicNews(board.news, new Date()) };
+  }
+  return { ready: current.ready, news: current.news };
 }

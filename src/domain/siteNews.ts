@@ -92,7 +92,7 @@ export function boardNewsOrder(list: SiteNews[]): SiteNews[] {
     const aLive = a.removedAt === null ? 0 : 1;
     const bLive = b.removedAt === null ? 0 : 1;
     if (aLive !== bLive) return aLive - bLive;
-    return b.createdAt.localeCompare(a.createdAt);
+    return b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id);
   });
 }
 

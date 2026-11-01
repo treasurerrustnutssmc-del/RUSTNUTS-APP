@@ -35,6 +35,7 @@ import { IntroProgressCard } from './fng';
 // Stage 7: social extras
 import { ChaptersNationalRow } from './adminRows'; // Stage 5D
 import { HomeOnThisDayCard, HomeShoutoutsCard } from './social';
+import { HomeNewsCard } from './siteNews'; // club news, as on the website
 import { WhoCanHelpRow } from './help';
 import { SwapRow } from './swap';
 import { BuildsRow } from './builds';
@@ -141,6 +142,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       {/* Stage 7: birthdays and patch anniversaries this week */}
       <HomeShoutoutsCard />
       <HomeOnThisDayCard />
+      <HomeNewsCard />
 
       {isBoard && (pending.length > 0 || boardAlerts.length > 0) ? (
         <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>

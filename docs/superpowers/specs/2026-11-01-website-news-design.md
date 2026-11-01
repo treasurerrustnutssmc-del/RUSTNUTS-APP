@@ -15,9 +15,9 @@ in the app and it appears on the club website's home page.
 - **Posting:** anyone with a board seat (chapter board or national seat; `private.is_any_board()`,
   the same gate as website enquiries). Section "Club news for the website" on the Board screen,
   under Website enquiries.
-- **Reading in the app:** the board sees the current list in that section. Members do not see a
-  news feed in the app; club conversation is the app chat (Jeff's "app only" decision). The feed
-  is for the public website.
+- **Reading in the app:** the board sees the current list in that section. Every member also
+  sees a "Club news" card on Home (Jeff's tap, 1 Nov 12:42Z): the same five notices the website
+  shows, read through `public_site_news()`. Club conversation stays the app chat.
 - **Website:** a "Club news" strip on the home page, between Causes and Sponsors, hidden until
   the feed arrives and when it is empty. No page of its own, no news archive.
 
@@ -33,7 +33,7 @@ in the app and it appears on the club website's home page.
 
 Public rule: the website shows the **newest five** notices that are not taken down and are
 **less than 60 days old**. Older ones drop off on their own, so nobody has to remember to tidy.
-The Board screen says so: "Shows on the website for 60 days, or until you take it down."
+The Board screen says so: "The newest 5 show for 60 days, or until you take them down."
 Nothing personal leaves the database: the feed returns id, title, body, link, created_at only.
 
 ## Words (identical in app, database and website)
@@ -64,7 +64,8 @@ Refusal order for taking down: signed in → approved → board → exists → n
 - `src/data/siteNews.tsx` + `siteNewsData.ts`: hook `useSiteNews()` on the enquiries pattern
   (demo: two sample notices in memory; live: the RPCs).
 - `src/screens/siteNews.tsx`: `WebsiteNews({ onDone })` on the Board screen: the form (title,
-  body, link), the list with a `ConfirmButton` "Take down".
+  body, link), the list with a `ConfirmButton` "Take down"; `HomeNewsCard` on Home for everyone
+  (`useClubNews()`, hidden when there is nothing).
 - `supabase/functions/_shared/siteApi.ts`: `GET /news` → `{ news: [...] }`, cache
   `public, max-age=300`; 503 `no-store` when the database refuses (so the site stays quiet until
   the SQL is live). `site-api/index.ts`: `listNews: () => asAnon.rpc('public_site_news')`.
@@ -91,5 +92,4 @@ independent review of the diff.
 
 ## Out of scope
 
-Pictures, scheduling, an in-app news feed for members, push notifications about news, an
-archive page. Any of these is a new task on the list.
+Pictures, scheduling, push notifications about news, an archive page. Any of these is a new task on the list.

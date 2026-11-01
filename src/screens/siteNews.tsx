@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { useSiteNews } from '../data/siteNews';
+import { useClubNews, useSiteNews } from '../data/siteNews';
 import { formatAuDate } from '../domain/dates';
 import { melbourneDate } from '../domain/rides';
-import { NEWS_BODY_MAX, NEWS_DAYS, NEWS_LINK_MAX, NEWS_SHOWN, NEWS_TITLE_MAX, type SiteNews } from '../domain/siteNews';
+import { NEWS_BODY_MAX, NEWS_DAYS, NEWS_LINK_MAX, NEWS_SHOWN, NEWS_TITLE_MAX, type PublicNews, type SiteNews } from '../domain/siteNews';
 import { isAnyBoard } from '../domain/social/help';
 import { openLink } from '../ui/openLink';
-import { Body, Button, Card, Chip, ConfirmButton, Field, KeyValue, Notice, Row, SectionTitle, Small, Stack } from '../ui/primitives';
-import { space, type } from '../theme';
+import { Body, Button, Card, Chip, ConfirmButton, Field, H2, KeyValue, Notice, Row, SectionTitle, Small, Stack } from '../ui/primitives';
+import { colors, space, type } from '../theme';
 
 /**
  * "Club news for the website" on the Board screen: the board writes a short notice and the club
@@ -141,5 +141,42 @@ function NewsCard({ notice, onDone, remove }: { notice: SiteNews; onDone: (msg: 
         </>
       )}
     </Card>
+  );
+}
+
+/** Club news on Home, for every member: the same notices the website shows. Nothing when there are none. */
+export function HomeNewsCard() {
+  const { news } = useClubNews();
+  if (news.length === 0) return null;
+  return (
+    <Card style={{ padding: 0, gap: 0 }}>
+      <View style={{ padding: space.lg, paddingBottom: space.sm }}>
+        <H2>Club news</H2>
+      </View>
+      {news.map((n, i) => (
+        <HomeNewsRow key={n.id} notice={n} last={i === news.length - 1} />
+      ))}
+    </Card>
+  );
+}
+
+function HomeNewsRow({ notice, last }: { notice: PublicNews; last: boolean }) {
+  return (
+    <View style={{ paddingHorizontal: space.lg, paddingVertical: space.md, gap: 4, borderBottomWidth: last ? 0 : 1, borderBottomColor: colors.line }}>
+      <Text style={type.name}>{notice.title}</Text>
+      <Small>{formatAuDate(melbourneDate(notice.created_at))}</Small>
+      <Body>{notice.body}</Body>
+      {notice.link ? (
+        <Button
+          label="More"
+          kind="quiet"
+          size="small"
+          icon="open-outline"
+          style={{ alignSelf: 'flex-start' }}
+          onPress={() => openLink(notice.link!).catch(() => {})}
+          accessibilityLabel={`Open the link for ${notice.title}`}
+        />
+      ) : null}
+    </View>
   );
 }
