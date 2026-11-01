@@ -8,12 +8,14 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useShopCart } from '../data/shopCartStore';
 import { formatAuDate } from '../domain/dates';
-import { formatCents } from '../domain/fees';
+import { formatCents, parseDollars } from '../domain/fees';
 import { melbourneDate } from '../domain/rides';
 import {
-  STATES, STATUS_LABEL, cartSubtotal, designProblem, orderTotalCents, orderableDesigns, shippingCents, shopOrderRef, signedInProblem,
-  type DeliveryInput,
+  STATES, STATUS_LABEL, cartSubtotal, designProblem, handedOverStatus, orderTotalCents, orderableDesigns, runsShop, seesShopOrder, shippingCents,
+  shopOrderRef, signedInProblem, type DeliveryInput,
 } from '../domain/shop';
+import { keepsBooks } from '../domain/ledger';
+import { seesShopAdmin, shopQueues } from '../domain/shopAdmin';
 import { cartCount } from '../domain/shopCart';
 import type { ClubData, ShippingMethod, ShopDelivery, ShopGarment, ShopOrder, ShopOrderLine, ShopOrderStatus } from '../domain/types';
 import type { RootParams, RootScreen } from '../navigation/types';
@@ -22,7 +24,7 @@ import {
   Body, Button, Card, Chip, Choices, ConfirmButton, Field, H1, H2, IconBadge, Label, ListRow, Notice, Row, Screen, SectionTitle, Small, Stack,
   Toggle,
 } from '../ui/primitives';
-import { ActionWithReason, Fact, QtyStepper, styles, useRun } from './adminBits';
+import { ActionWithReason, DateField, Fact, QtyStepper, styles, useDate, useRun } from './adminBits';
 
 type Tone = 'ok' | 'warn' | 'danger' | 'steel' | 'bone';
 export const SHOP_TONE: Record<ShopOrderStatus, Tone> = {
@@ -90,12 +92,26 @@ export function ClubShopSection() {
   const designs = orderableDesigns(me, data).filter((d) => garmentsOf(data, d.id).length > 0);
   const mine = myShopOrders(me, data);
   const count = cartCount(cart);
-  if (designs.length === 0 && mine.length === 0 && count === 0) return null;
+  const admin = seesShopAdmin(me, data);
+  if (designs.length === 0 && mine.length === 0 && count === 0 && !admin) return null;
+  const q = admin ? shopQueues(data.shopOrders ?? []) : null;
+  const toAct = q ? q.held.length + q.awaitingPayment.length + q.toHandOver.length : 0;
 
   return (
     <>
       <SectionTitle title="Club shop" />
       <Small>Order here and the invoice comes by email. Pay by bank transfer.</Small>
+      {admin ? (
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            last
+            left={<IconBadge icon="storefront-outline" tone="red" />}
+            title="Run the club shop"
+            subtitle={<Text style={styles.meta}>{toAct > 0 ? `${toAct} open ${toAct === 1 ? 'order' : 'orders'}` : runsShop(me, data) ? 'Orders, catalogue and shipping' : 'Orders to mark paid'}</Text>}
+            onPress={() => navigation.navigate('ShopAdmin')}
+          />
+        </Card>
+      ) : null}
       <Card style={{ padding: 0, gap: 0 }}>
         {designs.length === 0 ? (
           <View style={{ padding: space.lg }}>
@@ -437,9 +453,16 @@ function HowToPayShop({ order }: { order: ShopOrder }) {
 }
 
 export function ShopOrderScreen({ route }: RootScreen<'ShopOrder'>) {
-  const { me, data, cancelShopOrder } = useClub();
-  const order = (data.shopOrders ?? []).find((o) => o.id === route.params.orderId);
-  const { busy, msg, run } = useRun();
+  const { me, data, today, cancelShopOrder, payShopOrder, handOverShopOrder, resendShopOrder } = useClub();
+  const order = (data.shopOrders ?? []).find((o) => o.id === route.params.orderId && seesShopOrder(me, o, data));
+  const { busy, msg, run: runAny } = useRun();
+  const [last, setLast] = useState('');
+  const run = (key: string, fn: () => Promise<unknown>, ok?: string) => {
+    setLast(key);
+    return runAny(key, fn, ok);
+  };
+  const paidOn = useDate(today);
+  const [amount, setAmount] = useState(order ? (orderTotalCents(order) / 100).toFixed(2) : '');
   if (!me || !order) {
     return (
       <Screen>
@@ -449,8 +472,12 @@ export function ShopOrderScreen({ route }: RootScreen<'ShopOrder'>) {
   }
   const mine = order.memberId === me.id;
   const justSent = mine ? route.params.justSent : undefined;
-  const fail = msg?.tone === 'danger' ? msg.text : null;
-  const canCancel = mine && (order.status === 'held' || order.status === 'sent');
+  const failed = msg?.tone === 'danger' ? msg.text : null;
+  const fail = (key: string) => (last === key ? failed : null);
+  const runs = runsShop(me, data);
+  const keeper = keepsBooks(me, null, data.positions);
+  const canCancel = (mine && (order.status === 'held' || order.status === 'sent')) || (runs && !mine && (order.status === 'held' || order.status === 'sent'));
+  const cents = parseDollars(amount);
 
   return (
     <Screen>
@@ -520,6 +547,68 @@ export function ShopOrderScreen({ route }: RootScreen<'ShopOrder'>) {
 
       {mine && order.status === 'sent' ? <HowToPayShop order={order} /> : null}
 
+      {order.status === 'held' && runs ? (
+        <>
+          <SectionTitle title="Not sent to Make" />
+          <Card>
+            <Small>{order.makeError ? `Last try: ${order.makeError}` : 'Make hasn’t taken this order yet.'}</Small>
+            <ActionWithReason
+              label="Send to Make again"
+              icon="refresh"
+              busy={busy === 'resend'}
+              reason={fail('resend')}
+              onPress={() => run('resend', async () => {
+                const status = await resendShopOrder(order.id);
+                if (status === 'held') throw new Error('Make still didn’t take it. Try again later.');
+              }, 'Sent. Make is emailing the invoice.')}
+            />
+          </Card>
+        </>
+      ) : null}
+
+      {order.status === 'sent' && keeper && !mine ? (
+        <>
+          <SectionTitle title="Money in" />
+          <Card>
+            <Small>Marking it paid adds a Merchandise sales line (CR-005) to the Club fund for the amount received.</Small>
+            <DateField label="Paid on" date={paidOn} />
+            <Field
+              label="Amount received"
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              hint="The app’s total is filled in. Change it if the invoice or the transfer differs."
+              error={amount.trim() && cents === null ? 'Enter an amount, like 82 or 82.50.' : null}
+            />
+            <ConfirmButton
+              label="Mark paid"
+              icon="cash-outline"
+              kind="primary"
+              confirmLabel={`Yes, ${cents === null ? 'paid' : `${formatCents(cents)} received`}`}
+              confirmNote="This writes a line in the Club fund’s books; only voiding the entry undoes it."
+              onConfirm={() => run('pay', async () => {
+                if (cents === null) throw new Error('Enter the amount received.');
+                if (!paidOn.iso) throw new Error('Pick the day it was paid.');
+                await payShopOrder(order.id, paidOn.iso, cents);
+              }, 'Paid, and in the Club fund’s books.')}
+            />
+            {busy === 'pay' ? <Small>Recording…</Small> : null}
+            {fail('pay') ? <Notice tone="danger">{fail('pay')}</Notice> : null}
+          </Card>
+        </>
+      ) : null}
+      {order.status === 'sent' && keeper && mine ? <Small>Someone else records your own payment.</Small> : null}
+
+      {order.status === 'paid' && runs ? (
+        <ActionWithReason
+          label={handedOverStatus(order) === 'posted' ? 'Mark posted' : 'Mark collected'}
+          icon={handedOverStatus(order) === 'posted' ? 'cube-outline' : 'bag-check-outline'}
+          busy={busy === 'hand'}
+          reason={fail('hand')}
+          onPress={() => run('hand', () => handOverShopOrder(order.id), handedOverStatus(order) === 'posted' ? 'Marked posted.' : 'Marked collected.')}
+        />
+      ) : null}
+
       {msg?.tone === 'ok' ? <Notice tone="ok">{msg.text}</Notice> : null}
 
       {canCancel ? (
@@ -528,11 +617,15 @@ export function ShopOrderScreen({ route }: RootScreen<'ShopOrder'>) {
             label="Cancel order"
             confirmLabel="Yes, cancel it"
             kind="secondary"
-            confirmNote={order.status === 'sent' ? 'Your invoice has already been emailed. Reply to that email to tell the shop it’s cancelled.' : undefined}
-            onConfirm={() => run('cancel', () => cancelShopOrder(order.id), 'Cancelled. If your invoice came, reply to it to tell the shop.')}
+            confirmNote={
+              order.status !== 'sent' ? undefined
+                : mine ? 'Your invoice has already been emailed. Reply to that email to tell the shop it’s cancelled.'
+                  : 'Their invoice has already been emailed. Let them know it’s cancelled.'
+            }
+            onConfirm={() => run('cancel', () => cancelShopOrder(order.id), mine ? 'Cancelled. If your invoice came, reply to it to tell the shop.' : 'Cancelled.')}
           />
           {busy === 'cancel' ? <Small>Cancelling…</Small> : null}
-          {fail ? <Notice tone="danger">{fail}</Notice> : null}
+          {fail('cancel') ? <Notice tone="danger">{fail('cancel')}</Notice> : null}
         </Stack>
       ) : null}
 

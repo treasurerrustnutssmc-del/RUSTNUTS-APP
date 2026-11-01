@@ -57,6 +57,7 @@ import { FngReviewScreen } from '../screens/fng';
 import { ConductRecordScreen, ConductScreen, RecordConductScreen } from '../screens/conduct';
 import { MerchItemScreen, MerchOrderScreen, MerchScreen, ProposeMerchScreen } from '../screens/merch';
 import { ShopCartScreen, ShopCheckoutScreen, ShopDesignScreen, ShopOrderScreen } from '../screens/shop'; // The club shop
+import { ShopAdminScreen, ShopDesignEditScreen, ShopGarmentEditScreen, ShopShippingScreen } from '../screens/shopAdmin'; // The club shop
 import { ChapterProposalScreen, ContributionScreen, NationalScreen, ProposeChapterScreen, ProposeContributionScreen } from '../screens/national';
 import { AuditRecordsScreen, AuditReportScreen, AuditRequestScreen, AuditScreen, NewAuditRequestScreen } from '../screens/audit';
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
@@ -396,6 +397,18 @@ export function RootNavigator() {
             <Stack.Screen name="ShopCart" component={ShopCartScreen} options={{ title: 'Cart' }} />
             <Stack.Screen name="ShopCheckout" component={ShopCheckoutScreen} options={{ title: 'Checkout' }} />
             <Stack.Screen name="ShopOrder" component={ShopOrderScreen} options={{ title: 'Shop order' }} />
+            <Stack.Screen name="ShopAdmin" component={ShopAdminScreen} options={{ title: 'Club shop' }} />
+            <Stack.Screen
+              name="ShopDesignEdit"
+              component={ShopDesignEditScreen}
+              options={({ route }) => ({ title: route.params?.designId ? 'Design' : 'Add a design' })}
+            />
+            <Stack.Screen
+              name="ShopGarmentEdit"
+              component={ShopGarmentEditScreen}
+              options={({ route }) => ({ title: route.params?.garmentId ? 'Garment' : 'Add a garment' })}
+            />
+            <Stack.Screen name="ShopShipping" component={ShopShippingScreen} options={{ title: 'Shipping' }} />
             <Stack.Screen name="National" component={NationalScreen} options={{ title: 'National' }} />
             <Stack.Screen name="Contribution" component={ContributionScreen} options={{ title: 'Contribution' }} />
             <Stack.Screen name="ProposeContribution" component={ProposeContributionScreen} options={{ title: 'Ask the chapters' }} />

@@ -147,6 +147,12 @@ export type RootParams = {
   ShopCart: undefined;
   ShopCheckout: undefined;
   ShopOrder: { orderId: string; justSent?: 'sent' | 'held' };
+  ShopAdmin: undefined;
+  /** No designId: a new design. */
+  ShopDesignEdit: { designId?: string };
+  /** No garmentId: a new garment for the design. */
+  ShopGarmentEdit: { designId: string; garmentId?: string };
+  ShopShipping: undefined;
   National: undefined;
   Contribution: { contributionId: string };
   ProposeContribution: undefined;

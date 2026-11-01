@@ -287,6 +287,29 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     cancelShopOrder: async (id) => keep(shop.cancelShopOrder(fresh(), id)),
     saveDeliveryAddress: async (address) => keep(shop.saveDeliveryAddress(fresh(), address)),
+    payShopOrder: async (id, paidOn, cents) => {
+      const r = shop.payShopOrder(fresh(), id, paidOn, cents);
+      keep(r.data);
+      return r.id;
+    },
+    handOverShopOrder: async (id) => keep(shop.handOverShopOrder(fresh(), id)),
+    resendShopOrder: async (id) => {
+      keep(shop.resendShopOrder(fresh(), id));
+      return 'sent';
+    },
+    setShopDesign: async (input) => {
+      const r = shop.setShopDesign(fresh(), input);
+      keep(r.data);
+      return r.id;
+    },
+    setShopGarment: async (input) => {
+      const r = shop.setShopGarment(fresh(), input);
+      keep(r.data);
+      return r.id;
+    },
+    setShopShipping: async (input) => keep(shop.setShopShipping(fresh(), input)),
+    nameShopRunner: async (memberId) => keep(shop.nameShopRunner(fresh(), memberId)),
+    unnameShopRunner: async (memberId) => keep(shop.unnameShopRunner(fresh(), memberId)),
     proposeContribution: async (input) => {
       const result = admin.proposeContribution(ctx, input);
       setData(result.data);
