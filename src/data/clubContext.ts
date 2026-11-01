@@ -47,7 +47,7 @@ import type { ConductInput } from '../domain/conduct';
 import type { MerchInput, OrderInput } from '../domain/merch';
 import type { ChapterInput, ContributionInput } from '../domain/national';
 import type { ReportInput, RequestInput } from '../domain/audit'; // National Auditor
-import type { AddressInput, PlaceOrderInput } from '../domain/shop'; // The club shop
+import type { AddressInput, DesignInput, GarmentInput, PlaceOrderInput, ShippingInput } from '../domain/shop'; // The club shop
 
 export class NotAllowedError extends Error {}
 
@@ -338,6 +338,19 @@ export interface ClubContextValue {
   cancelShopOrder: (orderId: string) => Promise<void>;
   /** The member's own saved delivery address: all four parts, or all empty to clear it. */
   saveDeliveryAddress: (address: AddressInput) => Promise<void>;
+  /** A books-keeper marks a sent order paid for the amount received; one CR-005 line in the Club fund. Resolves to the entry's id. */
+  payShopOrder: (orderId: string, paidOn: string, cents: number) => Promise<string>;
+  /** The shop marks a paid order posted (shipped) or collected (collect). */
+  handOverShopOrder: (orderId: string) => Promise<void>;
+  /** The shop sends a held order to Make again. Resolves to where it stands now. */
+  resendShopOrder: (orderId: string) => Promise<ShopOrderStatus>;
+  /** Adds (id null) or changes a design. Resolves to its id. */
+  setShopDesign: (input: DesignInput) => Promise<string>;
+  /** Adds (id null) or changes a garment. Resolves to its id. */
+  setShopGarment: (input: GarmentInput) => Promise<string>;
+  setShopShipping: (input: ShippingInput) => Promise<void>;
+  nameShopRunner: (memberId: string) => Promise<void>;
+  unnameShopRunner: (memberId: string) => Promise<void>;
   /** The NEC asks the chapters for a national contribution, split by voting members. Resolves to its id. */
   proposeContribution: (input: ContributionInput) => Promise<string>;
   /** Puts a chapter board's carried or lost vote against the contribution. */

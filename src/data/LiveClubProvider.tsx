@@ -1269,6 +1269,63 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       }));
       await after();
     },
+    payShopOrder: async (id, paidOn, cents) => {
+      deny(shop.payShopOrderProblem(visibleMe, id, paidOn, cents, data, today));
+      const r = ok(await supabase().rpc('pay_shop_order', { p_order: id, p_paid_on: paidOn, p_cents: cents }));
+      await after();
+      return r.data as string;
+    },
+    handOverShopOrder: async (id) => {
+      deny(shop.handOverShopOrderProblem(visibleMe, id, data));
+      ok(await supabase().rpc('hand_over_shop_order', { p_order: id }));
+      await after();
+    },
+    resendShopOrder: async (id) => {
+      deny(shop.resendShopOrderProblem(visibleMe, id, data));
+      let result: Awaited<ReturnType<ReturnType<typeof supabase>['functions']['invoke']>>;
+      try {
+        result = await supabase().functions.invoke('shop-order', { body: { resend: id } });
+      } catch (e) {
+        throw new Error(await shopFunctionWords(e));
+      }
+      if (result.error) throw new Error(await shopFunctionWords(result.error));
+      await after();
+      const status = (result.data as { status?: string } | null)?.status;
+      return status && status in shop.STATUS_LABEL ? (status as keyof typeof shop.STATUS_LABEL) : 'held';
+    },
+    setShopDesign: async (input) => {
+      deny(shop.setShopDesignProblem(visibleMe, input, data));
+      const r = ok(await supabase().rpc('set_shop_design', {
+        p_id: input.id, p_name: input.name.trim(), p_eligibility: input.eligibility, p_blurb: input.blurb.trim(), p_sort: input.sort,
+        p_on_sale: input.onSale,
+      }));
+      await after();
+      return r.data as string;
+    },
+    setShopGarment: async (input) => {
+      deny(shop.setShopGarmentProblem(visibleMe, input, data));
+      const r = ok(await supabase().rpc('set_shop_garment', {
+        p_id: input.id, p_design: input.designId, p_name: input.name.trim(), p_price_cents: input.priceCents,
+        p_sizes: shop.cleanList(input.sizes), p_colours: shop.cleanList(input.colours), p_sort: input.sort, p_on_sale: input.onSale,
+      }));
+      await after();
+      return r.data as string;
+    },
+    setShopShipping: async (input) => {
+      deny(shop.setShopShippingProblem(visibleMe, input, data));
+      ok(await supabase().rpc('set_shop_shipping', { p_state: input.state.trim().toUpperCase(), p_method: input.method, p_cents: input.cents }));
+      await after();
+    },
+    nameShopRunner: async (memberId) => {
+      deny(shop.nameShopRunnerProblem(visibleMe, memberId, data));
+      ok(await supabase().rpc('name_shop_runner', { p_member: memberId }));
+      await after();
+    },
+    unnameShopRunner: async (memberId) => {
+      deny(shop.unnameShopRunnerProblem(visibleMe, memberId, data));
+      ok(await supabase().rpc('unname_shop_runner', { p_member: memberId }));
+      await after();
+    },
     proposeContribution: async (input) => {
       deny(national.proposeContributionProblem(visibleMe, input, data));
       const r = ok(
