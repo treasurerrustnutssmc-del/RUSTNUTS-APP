@@ -39,6 +39,7 @@ export type RootParams = {
   Business: undefined;
   Meeting: { meetingId: string };
   OtterMinutes: { meetingId: string }; // Draft from Otter: minutes from a meeting's transcript
+  OtterGuide: undefined; // the secretary's guide to Draft from Otter
   EditMeeting: { meetingId?: string; chapterId?: string | null } | undefined;
   Vote: { voteId: string };
   NewVote: { chapterId?: string | null; meetingId?: string; subjectMemberId?: string; subjectRole?: PositionRole } | undefined;
