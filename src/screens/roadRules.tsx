@@ -36,7 +36,7 @@ import {
   signoffStart,
   signoffSummary,
 } from '../domain/roadRules';
-import { writtenRulesText } from '../domain/roadRulesGuide';
+import { GUIDE, writtenRulesText } from '../domain/roadRulesGuide';
 import { melbourneDate } from '../domain/rides';
 import { routeChapterName } from '../domain/routes';
 import type { ClubData, Member, RoadRulesVersion } from '../domain/types';
@@ -435,8 +435,11 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
             ? 'This is the first version: publishing it adopts the Road Rules. Everyone will be asked to sign it.'
             : `This becomes version ${next}. Versions are never edited or removed: a correction is a new version.`}
         </Body>
-        {/* The illustrated set's written rules, word for word, so adopting them is one press. */}
-        {body.trim() !== written.trim() ? (
+        {/* The illustrated set's written rules, word for word, so adopting them is one press. Offered
+            only before anything is typed, so a stray tap never wipes the NEC's own edits. */}
+        {body.trim() === written.trim() ? (
+          <Small>{`This is the written text of the illustrated Road Rules (${formatAuDate(GUIDE.date)}), word for word.`}</Small>
+        ) : !touched ? (
           <Button
             label="Fill in the illustrated set’s written rules"
             icon="reader-outline"
@@ -446,9 +449,7 @@ export function EditRoadRulesScreen({ navigation }: RootScreen<'EditRoadRules'>)
               setTouched(true);
             }}
           />
-        ) : (
-          <Small>{'This is the written text of the illustrated Road Rules (30/10/2026), word for word.'}</Small>
-        )}
+        ) : null}
       </Stack>
 
       <Stack gap={space.xs}>
