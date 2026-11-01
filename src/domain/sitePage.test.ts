@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderPolicyPage } from './policyPage';
+import { siteRepoPath } from './brandCss';
 import { APP_PAGES, HELD_UNTIL_LAUNCH, SITE_PAGES, extractPage, mentionsStores, renderSitePage, sitePageUrl } from './sitePage';
 
 const sample = `<!doctype html>
@@ -96,7 +97,7 @@ test('every app page in site/ comes apart cleanly; the ones on the website menti
 });
 
 test('the website clone beside this one carries the same pages (run npm run build:site after a change)', (t) => {
-  const siteDir = join(__dirname, '../../../rustnutssmc/app');
+  const siteDir = join(siteRepoPath(join(__dirname, '../..')), 'app');
   if (!existsSync(siteDir)) return t.skip('no website clone beside the app');
   for (const slug of SITE_PAGES) {
     const page = extractPage(readFileSync(join(__dirname, `../../site/${slug}.html`), 'utf8'));
