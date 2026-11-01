@@ -29,6 +29,8 @@ export interface PolicyPage {
   sections: PolicySection[];
   /** The contact address, turned into a mail link wherever it appears. */
   email: string;
+  /** The club-domain address this copy has moved to: the page says so under its heading. */
+  movedTo?: string;
 }
 
 function esc(s: string): string {
@@ -49,6 +51,12 @@ function section(s: PolicySection, email: string): string {
     )
     .join('\n');
   return `    <section id="${esc(s.id)}">\n      <h2>${esc(s.heading)}</h2>\n${body}\n    </section>`;
+}
+
+/** "This page now lives at www.rustnutssmc.com.au/app/….": shown on the old GitHub Pages copies. */
+export function movedNote(url: string | undefined): string {
+  if (!url) return '';
+  return `      <p class="moved">This page now lives at <a href="${esc(url)}">${esc(url.replace(/^https?:\/\//, ''))}</a>.</p>\n`;
 }
 
 export function renderPolicyPage(page: PolicyPage): string {
@@ -73,6 +81,7 @@ export function renderPolicyPage(page: PolicyPage): string {
     h1 { font-size: 30px; margin: 16px 0 4px; }
     h2 { font-size: 21px; margin: 36px 0 8px; }
     .updated { font-family: "RustnutsStencil", "Arial Black", sans-serif; color: #96928a; letter-spacing: 0.5px; margin: 0; }
+    .moved { font-size: 14px; color: #96928a; margin: 12px 0 0; }
     .intro { font-size: 17px; color: #F4F1EA; }
     ul { padding-left: 20px; }
     li { margin: 6px 0; }
@@ -87,7 +96,7 @@ export function renderPolicyPage(page: PolicyPage): string {
       <img src="logo.png" alt="Rustnuts Social Motorcycle Club, est. 2019">
       <h1>${esc(page.heading)}</h1>
       <p class="updated">${esc(page.updatedLine)}</p>
-    </header>
+${movedNote(page.movedTo)}    </header>
     <p class="intro">${text(page.intro, email)}</p>
 ${page.sections.map((s) => section(s, email)).join('\n')}
     <footer>Rustnuts Social Motorcycle Club Incorporated · Victoria, Australia · ${text(email, email)}</footer>

@@ -3,10 +3,11 @@
 Drafted 31/10/2026 from the same audit as the privacy policy (`src/domain/privacyPolicy.ts`).
 Keep the three in step: when the app starts collecting something new, change the policy, then these.
 
-- **Privacy policy URL (both stores):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/privacy.html
-- **Support URL (both stores):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/support.html
-- **Account deletion web link (Google Play asks for one):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/delete-account.html
+- **Privacy policy URL (both stores):** https://www.rustnutssmc.com.au/app/privacy.html
+- **Support URL (both stores):** https://www.rustnutssmc.com.au/app/support.html
+- **Account deletion web link (Google Play asks for one):** https://www.rustnutssmc.com.au/app/delete-account.html
   (in the app: Me, Delete my account; without the app: email apps@rustnutssmc.com.au).
+- The old GitHub Pages addresses (treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/…) stay up and point to these.
 - **Contact email:** apps@rustnutssmc.com.au
 
 Rules used for both forms:

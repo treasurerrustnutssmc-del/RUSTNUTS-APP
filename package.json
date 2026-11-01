@@ -68,7 +68,8 @@
     "build:preview": "node scripts/build-preview.mjs",
     "lint": "expo lint",
     "check:live": "tsx scripts/check-live.mts",
-    "build:privacy": "tsx scripts/build-privacy-page.mts"
+    "build:privacy": "tsx scripts/build-site-pages.mts",
+    "build:site": "tsx scripts/build-site-pages.mts"
   },
   "expo": {
     "autolinking": {

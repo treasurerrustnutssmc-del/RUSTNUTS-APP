@@ -24,5 +24,6 @@ export function renderPostingRulesPage(sections: RulesSection[] = POSTING_RULES_
     intro: POSTING_RULES_INTRO,
     sections,
     email: POSTING_RULES_EMAIL,
+    movedTo: POSTING_RULES_URL,
   });
 }

@@ -14,7 +14,8 @@
 import type { Member } from './types';
 
 /** Where the rules live on the web. */
-export const POSTING_RULES_URL = 'https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/posting-rules.html';
+/** On the club website; the old GitHub Pages copy stays up and points here. */
+export const POSTING_RULES_URL = 'https://www.rustnutssmc.com.au/app/posting-rules.html';
 
 export const POSTING_RULES_EMAIL = 'apps@rustnutssmc.com.au';
 
