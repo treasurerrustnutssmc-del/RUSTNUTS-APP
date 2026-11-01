@@ -1,4 +1,5 @@
-// Writes the app's public pages twice (the welcome guide only once: it names the stores, so it stays
+// Writes the club website's brand block (the app's theme as CSS variables, between the markers in
+// its styles.css) and the same font file, then the app's public pages twice (the welcome guide only once: it names the stores, so it stays
 // off the website until launch): into site/ (GitHub Pages, the old addresses, each saying where
 // it now lives) and, dressed in the club website's shell, into the website repo's app/ folder
 // (www.rustnutssmc.com.au/app/…), plus the public illustrated Road Rules (diagrams only). The privacy policy and posting rules are rendered from code; the
@@ -6,7 +7,7 @@
 // of them, then commit both repos:
 //
 //   npm run build:site            # website clone at ../rustnutssmc
-//   npm run build:site -- /path   # another clone
+//   npm run build:site -- /path   # another clone (or SITE_REPO=/path, which the parity tests honour too)
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -16,6 +17,7 @@ import { renderPostingRulesPage } from '../src/domain/postingRulesPage';
 import { DIAGRAMS } from '../src/domain/roadRulesGuide';
 import { ROAD_RULES_IMAGE_DIR, renderRoadRulesPage } from '../src/domain/roadRulesPage';
 import { HELD_UNTIL_LAUNCH, SITE_PAGES, extractPage, mentionsStores, renderSitePage } from '../src/domain/sitePage';
+import { brandCss, replaceBrandBlock, siteRepoPath } from '../src/domain/brandCss';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const site = join(root, 'site');
@@ -30,11 +32,20 @@ copyFileSync(join(root, 'assets/fonts/OFL.txt'), join(site, 'OFL.txt'));
 console.log('Wrote site/privacy.html and site/posting-rules.html');
 
 // 2. The club-domain copies, when the website clone is beside this one (or given as the argument).
-const siteRepo = resolve(process.argv[2] ?? join(root, '..', 'rustnutssmc'));
+const siteRepo = resolve(process.argv[2] ?? siteRepoPath(root));
 if (!existsSync(join(siteRepo, 'styles.css'))) {
   console.log(`No website clone at ${siteRepo}: skipped the www.rustnutssmc.com.au/app/ pages.`);
   process.exit(0);
 }
+// 2a. The brand: the theme's colours and fonts into styles.css, and the font file the app ships.
+const stylesPath = join(siteRepo, 'styles.css');
+writeFileSync(stylesPath, replaceBrandBlock(readFileSync(stylesPath, 'utf8'), brandCss()));
+mkdirSync(join(siteRepo, 'fonts'), { recursive: true });
+copyFileSync(join(root, 'assets/fonts/RustnutsStencil-Regular.ttf'), join(siteRepo, 'fonts/RustnutsStencil-Regular.ttf'));
+copyFileSync(join(root, 'assets/fonts/OFL.txt'), join(siteRepo, 'fonts/OFL.txt'));
+console.log(`Wrote the brand block into ${stylesPath}`);
+
+// 2b. The app's public pages.
 const out = join(siteRepo, 'app');
 mkdirSync(out, { recursive: true });
 for (const slug of SITE_PAGES) {

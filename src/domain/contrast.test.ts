@@ -1,15 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import test from 'node:test';
 
+import { colors } from '../brand';
 import { contrastRatio, pickReadable } from './contrast';
 
-// src/theme.ts imports react-native, which plain Node can't load, so the palette is read from its text.
-const themeSource = readFileSync(join(__dirname, '../theme.ts'), 'utf8');
-const colorsBlock = themeSource.split('export const colors')[1].split('} as const')[0];
-const palette: Record<string, string> = {};
-for (const [, name, hex] of colorsBlock.matchAll(/^\s*(\w+):\s*'(#[0-9a-fA-F]{6})'/gm)) palette[name] = hex;
+// The palette lives in src/brand.ts (nothing React Native in it), which theme.ts re-exports.
+const palette: Record<string, string> = Object.fromEntries(Object.entries(colors).filter(([, v]) => /^#[0-9a-fA-F]{6}$/.test(v)));
 
 test('contrast ratio: black on white is 21, the same colour is 1, and order does not matter', () => {
   assert.equal(Math.round(contrastRatio('#000000', '#ffffff') * 100) / 100, 21);
@@ -17,9 +13,9 @@ test('contrast ratio: black on white is 21, the same colour is 1, and order does
   assert.equal(contrastRatio('#111010', '#F4F1EA'), contrastRatio('#F4F1EA', '#111010'));
 });
 
-test('the palette is read from theme.ts', () => {
+test('the palette is read from brand.ts', () => {
   for (const name of ['ink', 'ink2', 'steel', 'steelHi', 'bone', 'boneDim', 'boneMute', 'redText']) {
-    assert.ok(palette[name], `${name} should be in theme.ts`);
+    assert.ok(palette[name], `${name} should be in brand.ts`);
   }
 });
 
