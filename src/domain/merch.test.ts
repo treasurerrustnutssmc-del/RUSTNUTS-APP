@@ -11,6 +11,7 @@ import {
   ordersToAct,
   payOrderProblem,
   proposeMerchProblem,
+  showsAppMerch,
   visibleItems,
   visibleOrders,
   type MerchInput,
@@ -165,4 +166,20 @@ test('who sees orders, and what the board has to act on', () => {
   assert.deepEqual(ordersToAct(who(d, 'sec'), d).map((o) => o.id).sort(), ['o1', 'p']);
   assert.deepEqual(ordersToAct(who(d, 'tre'), d).map((o) => o.id).sort(), ['a', 'o1', 'p']);
   assert.equal(orderTotal(order()), 7000);
+});
+
+test('the Merch tab only shows in-app gear when there is something to buy or an order of your own', () => {
+  // With nothing on sale in the app, members just see the two shops (Discord and website).
+  const empty = data([], []);
+  assert.equal(showsAppMerch(who(empty, 'rider'), empty), false);
+  assert.equal(showsAppMerch(who(empty, 'sec'), empty), false, 'the board gets in-app gear through its own put-up rights, not this');
+  const proposed = data([item({ status: 'proposed' })], []);
+  assert.equal(showsAppMerch(who(proposed, 'sec'), proposed), false);
+  assert.equal(showsAppMerch(who(proposed, 'rider'), proposed), false);
+  const onSale = data([item()], []);
+  assert.equal(showsAppMerch(who(onSale, 'rider'), onSale), true);
+  const closedWithOrder = data([item({ status: 'closed' })], [order({ status: 'handed_over' })]);
+  assert.equal(showsAppMerch(who(closedWithOrder, 'rider'), closedWithOrder), true);
+  assert.equal(showsAppMerch(who(closedWithOrder, 'fng'), closedWithOrder), false);
+  assert.equal(showsAppMerch(null, onSale), false);
 });

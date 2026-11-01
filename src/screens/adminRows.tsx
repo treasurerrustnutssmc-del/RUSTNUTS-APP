@@ -4,10 +4,12 @@ import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React from 'react';
 import { useClub } from '../data/ClubStore';
 import { appealOpen, conductFor, recordsConductFor, visibleConduct } from '../domain/conduct';
+import { MERCH_SHOP_LINKS } from '../domain/clubLinks';
 import { ordersToAct, visibleItems } from '../domain/merch';
 import { contributionsToDecide, visibleProposals } from '../domain/national';
 import type { RootParams } from '../navigation/types';
-import { Card, IconBadge, ListRow, SectionTitle } from '../ui/primitives';
+import { Card, IconBadge, ListRow, SectionTitle, type IconName } from '../ui/primitives';
+import { openLink } from '../ui/openLink';
 
 type Nav = NavigationProp<RootParams>;
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -40,7 +42,7 @@ export function BoardAdminCard() {
         left={<IconBadge icon="shirt-outline" tone={orders > 0 ? 'red' : 'steel'} />}
         title="Merch"
         subtitle={merchNotes.length > 0 ? merchNotes.join(' · ') : 'Club gear, orders and approvals'}
-        onPress={() => navigation.navigate('Merch')}
+        onPress={() => navigation.navigate('Tabs', { screen: 'Shop' })}
       />
       <ListRow
         last
@@ -53,34 +55,42 @@ export function BoardAdminCard() {
   );
 }
 
-/** Me screen: Merch for everyone, and their own records when there are any. */
+/** The two club stores: members' designs in the Discord #merch-shop, public designs on the website. */
+export function MerchShopRows({ last = true }: { last?: boolean }) {
+  return (
+    <>
+      {MERCH_SHOP_LINKS.map((link, i) => (
+        <ListRow
+          key={link.id}
+          last={last && i === MERCH_SHOP_LINKS.length - 1}
+          left={<IconBadge icon={link.icon as IconName} />}
+          title={link.label}
+          subtitle={link.detail}
+          onPress={() => openLink(link.url).catch(() => {})}
+        />
+      ))}
+    </>
+  );
+}
+
+/** Me screen: your own conduct records, when there are any. Merch has its own tab. */
 export function MeAdminSection() {
   const { me, data, today } = useClub();
   const navigation = useNavigation<Nav>();
   if (!me || me.approval !== 'approved') return null;
   const mine = conductFor(me.id, me, data, today);
-  const myOrders = (data.merchOrders ?? []).filter((o) => o.memberId === me.id && (o.status === 'approved' || o.status === 'waiting'));
-  const toPay = myOrders.filter((o) => o.status === 'approved').length;
+  if (mine.length === 0) return null;
   return (
     <>
-      <SectionTitle title={mine.length > 0 ? 'Club gear and records' : 'Club gear'} />
+      <SectionTitle title="Your records" />
       <Card style={{ padding: 0, gap: 0 }}>
         <ListRow
-          last={mine.length === 0}
-          left={<IconBadge icon="shirt-outline" tone={toPay > 0 ? 'red' : 'steel'} />}
-          title="Merch"
-          subtitle={toPay > 0 ? `${count(toPay, 'order')} to pay` : myOrders.length > 0 ? `${count(myOrders.length, 'order')} waiting` : 'Tees, hoodies and patches'}
-          onPress={() => navigation.navigate('Merch')}
+          last
+          left={<IconBadge icon="document-text-outline" />}
+          title="Your records"
+          subtitle={mine.some(appealOpen) ? 'Review or appeal open' : `${count(mine.length, 'record')} · you can ask for a review`}
+          onPress={() => navigation.navigate('Conduct', { mine: true })}
         />
-        {mine.length > 0 ? (
-          <ListRow
-            last
-            left={<IconBadge icon="document-text-outline" />}
-            title="Your records"
-            subtitle={mine.some(appealOpen) ? 'Review or appeal open' : `${count(mine.length, 'record')} · you can ask for a review`}
-            onPress={() => navigation.navigate('Conduct', { mine: true })}
-          />
-        ) : null}
       </Card>
     </>
   );

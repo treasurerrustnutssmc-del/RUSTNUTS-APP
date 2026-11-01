@@ -27,6 +27,41 @@ export const DISCORD_INVITE_URL = 'https://discord.gg/D8NpBNqqVj';
 /** #merch-shop on the club Discord, where Full members order member designs with the club bot (/buy). */
 export const DISCORD_SHOP_URL = 'https://discord.com/channels/1443170738444959865/1566372842394751067';
 
+/** The public merch shop on the club website: supporter designs anyone can buy. */
+export const PUBLIC_SHOP_URL = 'https://www.rustnutssmc.com.au/shop.html';
+
+/**
+ * Merch on the Me screen. Two stores: members' designs in the Discord #merch-shop (/buy with the
+ * club bot, gated by Discord roles), public designs on the website. A member who isn't in the
+ * club Discord yet gets the permanent invite, since the channel link can't open for them.
+ */
+export const MERCH_SHOP_LINKS: ClubLink[] = [
+  {
+    id: 'discord-shop',
+    label: 'Members’ merch shop',
+    detail: 'Member designs, order with /buy in the club Discord',
+    url: DISCORD_SHOP_URL,
+    icon: 'shirt-outline',
+  },
+  {
+    id: 'discord-join',
+    label: 'Not in the club Discord yet?',
+    detail: 'Join it first, then open the members’ shop',
+    url: DISCORD_INVITE_URL,
+    icon: 'enter-outline',
+  },
+  {
+    id: 'shop',
+    label: 'Public merch shop',
+    detail: 'Supporter designs on the website, pay by bank transfer',
+    url: PUBLIC_SHOP_URL,
+    icon: 'storefront-outline',
+  },
+];
+
+/** The club-links rows that Me already shows under Club gear. */
+export const SHOP_LINK_IDS: ReadonlySet<string> = new Set(['discord-shop', 'shop']);
+
 export const CLUB_LINK_GROUPS: ClubLinkGroup[] = [
   {
     title: 'The club online',
@@ -43,7 +78,7 @@ export const CLUB_LINK_GROUPS: ClubLinkGroup[] = [
         id: 'shop',
         label: 'Public merch shop',
         detail: 'Supporter designs on the website, pay by bank transfer',
-        url: 'https://www.rustnutssmc.com.au/shop.html',
+        url: PUBLIC_SHOP_URL,
         icon: 'storefront-outline',
       },
       { id: 'support', label: 'Support and resources', detail: '24/7 crisis lines, in the app', url: SUPPORT_URL, icon: 'heart-outline' },

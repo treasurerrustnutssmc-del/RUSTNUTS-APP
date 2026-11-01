@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CLUB_LINK_GROUPS, DISCORD_INVITE_URL, DISCORD_SHOP_URL, SUPPORT_URL } from './clubLinks';
+import { CLUB_LINK_GROUPS, DISCORD_INVITE_URL, DISCORD_SHOP_URL, MERCH_SHOP_LINKS, PUBLIC_SHOP_URL, SUPPORT_URL, SHOP_LINK_IDS } from './clubLinks';
 
 const all = CLUB_LINK_GROUPS.flatMap((g) => g.links);
+const everyIcon = [...all, ...MERCH_SHOP_LINKS];
 
 test('the club links come in three groups: the club, the podcast and socials', () => {
   assert.deepEqual(
@@ -23,7 +24,7 @@ test('the club group has the website, both merch shops and the Support page', ()
   assert.deepEqual(club, [
     'https://www.rustnutssmc.com.au/',
     DISCORD_SHOP_URL,
-    'https://www.rustnutssmc.com.au/shop.html',
+    PUBLIC_SHOP_URL,
     SUPPORT_URL,
   ]);
   // Members' designs are gated in the club Discord's #merch-shop; public designs stay on the website.
@@ -58,5 +59,15 @@ test('every icon is a real Ionicons name', async () => {
   const glyphs = JSON.parse(
     readFileSync('node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json', 'utf8'),
   ) as Record<string, number>;
-  for (const l of all) assert.ok(l.icon in glyphs, `${l.label}: ${l.icon}`);
+  for (const l of everyIcon) assert.ok(l.icon in glyphs, `${l.label}: ${l.icon}`);
+});
+
+test('Merch on Me: the members shop in Discord first, then joining the Discord, then the public website shop', () => {
+  assert.deepEqual(MERCH_SHOP_LINKS.map((l) => l.url), [DISCORD_SHOP_URL, DISCORD_INVITE_URL, PUBLIC_SHOP_URL]);
+  assert.equal(PUBLIC_SHOP_URL, 'https://www.rustnutssmc.com.au/shop.html');
+  for (const l of MERCH_SHOP_LINKS) assert.match(l.url, /^https:\/\//, l.label);
+  // Me already shows these under Club gear, so its club links leave the two shop rows out.
+  assert.deepEqual([...SHOP_LINK_IDS].sort(), ['discord-shop', 'shop']);
+  const club = CLUB_LINK_GROUPS[0].links.filter((l) => SHOP_LINK_IDS.has(l.id)).map((l) => l.url);
+  assert.deepEqual(club, [DISCORD_SHOP_URL, PUBLIC_SHOP_URL]);
 });

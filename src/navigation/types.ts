@@ -11,6 +11,7 @@ export type TabParams = {
   Members: undefined;
   Rides: undefined;
   Board: undefined;
+  Shop: undefined; // labelled Merch: the Discord members' shop, the website shop and in-app gear
   Me: undefined;
 };
 
@@ -138,7 +139,6 @@ export type RootParams = {
   Conduct: { mine?: boolean } | undefined;
   ConductRecord: { recordId: string };
   RecordConduct: { memberId?: string } | undefined;
-  Merch: undefined;
   MerchItem: { itemId: string };
   MerchOrder: { orderId: string };
   ProposeMerch: undefined;

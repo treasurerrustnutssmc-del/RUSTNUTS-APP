@@ -81,6 +81,17 @@ export function seesOrder(me: Member | null, order: MerchOrder, data: ClubData):
 export const visibleOrders = (me: Member | null, data: ClubData): MerchOrder[] =>
   (data.merchOrders ?? []).filter((o) => seesOrder(me, o, data));
 
+/**
+ * Whether the Merch tab shows the app's own gear to a member. Only when something is on sale in
+ * the app or they have an order there; otherwise members just see the Discord and website shops.
+ * The people who run merch always see it (they can put items up).
+ */
+export function showsAppMerch(me: Member | null, data: ClubData): boolean {
+  if (!me || me.approval !== 'approved') return false;
+  if (visibleItems(me, data).some((i) => i.status === 'on_sale')) return true;
+  return (data.merchOrders ?? []).some((o) => o.memberId === me.id);
+}
+
 const itemOf = (order: MerchOrder, data: ClubData) => (data.merchItems ?? []).find((i) => i.id === order.itemId)!;
 
 /** Orders waiting on this person: a yes or no and a hand-over for the board, a payment for book-keepers. */

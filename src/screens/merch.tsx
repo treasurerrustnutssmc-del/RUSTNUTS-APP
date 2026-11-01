@@ -1,6 +1,7 @@
 // Merch (15.1, 13.1): boards put up club gear, someone else on the board says yes, members order
 // with sizes, and payment by PayID, bank or cash lands in the books as Merchandise sales. No cards.
 
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
@@ -9,18 +10,19 @@ import { formatCents, parseDollars } from '../domain/fees';
 import { fundName, keepsBooks } from '../domain/ledger';
 import { runsScope } from '../domain/meetings';
 import {
-  decideMerchProblem, ITEM_STATUS_LABEL, MAX_QTY, ORDER_STATUS_LABEL, orderTotal, ordersToAct, visibleItems, visibleOrders,
+  decideMerchProblem, showsAppMerch, ITEM_STATUS_LABEL, MAX_QTY, ORDER_STATUS_LABEL, orderTotal, ordersToAct, visibleItems, visibleOrders,
 } from '../domain/merch';
 import { melbourneDate } from '../domain/rides';
 import { displayName } from '../domain/profile';
 import type { MerchItem, MerchOrder, MerchStatus, OrderStatus } from '../domain/types';
-import type { RootScreen } from '../navigation/types';
+import type { RootParams, RootScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
 import {
   Body, Button, Card, Chip, Choices, ConfirmButton, Field, H1, H2, IconBadge, Ionicons, Label, ListRow, Notice, Row, Screen,
   SectionTitle, Small, Stack, Toggle,
 } from '../ui/primitives';
 import { ActionWithReason, DateField, Fact, styles, useDate, useRun } from './adminBits';
+import { MerchShopRows } from './adminRows';
 
 type Tone = 'ok' | 'warn' | 'danger' | 'steel' | 'bone';
 const ITEM_TONE: Record<MerchStatus, Tone> = { proposed: 'warn', on_sale: 'ok', declined: 'danger', closed: 'steel' };
@@ -73,7 +75,12 @@ function OrderRow({ order, last, onPress, showBuyer }: { order: MerchOrder; last
 // The shop
 // ---------------------------------------------------------------------------
 
-export function MerchScreen({ navigation }: RootScreen<'Merch'>) {
+/**
+ * The Merch tab (and the Board's Merch screen): the two club stores first, then gear the board
+ * sells in the app, which members only see when something is on sale or they have an order.
+ */
+export function MerchScreen() {
+  const navigation = useNavigation<NavigationProp<RootParams>>();
   const { me, data } = useClub();
   if (!me) return null;
   const items = visibleItems(me, data);
@@ -91,8 +98,11 @@ export function MerchScreen({ navigation }: RootScreen<'Merch'>) {
     <Screen>
       <Stack gap={space.xs}>
         <H1>Merch</H1>
-        <Small>Pay by PayID, bank transfer or cash once the board says yes. No cards.</Small>
+        <Small>Members’ designs are in the club Discord, public ones on the website.</Small>
       </Stack>
+      <Card style={{ padding: 0, gap: 0 }}>
+        <MerchShopRows />
+      </Card>
 
       {toAct.length > 0 ? (
         <>
@@ -103,16 +113,22 @@ export function MerchScreen({ navigation }: RootScreen<'Merch'>) {
         </>
       ) : null}
 
-      <SectionTitle title="On sale" />
-      <Card style={{ padding: 0, gap: 0 }}>
-        {onSale.length === 0 ? (
-          <View style={{ padding: space.lg }}>
-            <Small>Nothing on sale right now.</Small>
-          </View>
-        ) : (
-          onSale.map((it, i) => <ItemRow key={it.id} item={it} last={i === onSale.length - 1} onPress={() => openItem(it)} />)
-        )}
-      </Card>
+      {showsAppMerch(me, data) || canPropose ? (
+        <>
+          <SectionTitle title="On sale in the app" />
+          <Small>Board-run gear. Pay by PayID, bank transfer or cash once the board says yes. No cards.</Small>
+          <Card style={{ padding: 0, gap: 0 }}>
+            {onSale.length === 0 ? (
+              <View style={{ padding: space.lg }}>
+                <Small>Nothing on sale right now.</Small>
+              </View>
+            ) : (
+              onSale.map((it, i) => <ItemRow key={it.id} item={it} last={i === onSale.length - 1} onPress={() => openItem(it)} />)
+            )}
+          </Card>
+
+        </>
+      ) : null}
 
       {mine.length > 0 ? (
         <>
