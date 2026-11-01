@@ -3,7 +3,7 @@
 // before Use this draft saves it through the meeting's usual actions.
 // Spec: docs/superpowers/specs/2026-11-01-otter-minutes-design.md ("The screen")
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useMinutesApi, type DraftResult } from '../data/minutesApi';
@@ -46,6 +46,9 @@ export function OtterMinutesScreen({ route, navigation }: RootScreen<'OtterMinut
   const [minutes, setMinutes] = useState('');
   const [present, setPresent] = useState<Set<string>>(new Set());
   const [keep, setKeep] = useState<Set<number>>(new Set());
+  // One save at a time, and a retry after a part-save doesn't add the same action item twice.
+  const running = useRef(false);
+  const savedActions = useRef<Set<string>>(new Set());
 
   const now = new Date().toISOString();
   const blocked = draftMinutesProblem(me, meeting, data, now);
@@ -148,16 +151,25 @@ export function OtterMinutesScreen({ route, navigation }: RootScreen<'OtterMinut
 
   const use = async () => {
     if (!plan.minutes) return setError('The minutes are empty.');
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setError(null);
     try {
       await saveMinutes(meeting.id, plan.minutes);
       if (plan.sessionId) for (const id of plan.markPresent) await markAttendance(plan.sessionId, id, true);
-      for (const item of plan.actionItems) await saveActionItem(item);
+      for (const item of plan.actionItems) {
+        const key = `${item.ownerId}|${item.title}|${item.dueOn ?? ''}`;
+        if (savedActions.current.has(key)) continue;
+        await saveActionItem(item);
+        savedActions.current.add(key);
+      }
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
+    } finally {
+      running.current = false;
     }
   };
   const replacing = !!meeting.minutes?.trim();
@@ -242,7 +254,7 @@ export function OtterMinutesScreen({ route, navigation }: RootScreen<'OtterMinut
         {error ? <Notice tone="danger">{error}</Notice> : null}
       </View>
       {replacing ? (
-        <ConfirmButton label="Use this draft" confirmLabel="Replace the draft minutes" kind="primary" icon="checkmark" onConfirm={use} />
+        <ConfirmButton label="Use this draft" confirmLabel="Replace the draft minutes" kind="primary" icon="checkmark" disabled={busy} onConfirm={use} />
       ) : (
         <Button label="Use this draft" icon="checkmark" busy={busy} onPress={use} />
       )}

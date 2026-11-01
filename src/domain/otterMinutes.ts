@@ -62,6 +62,9 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const list = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.filter(isObject) : []);
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** A YYYY-MM-DD that's a real day (not 30/02), else null. */
+const realDay = (v: unknown): string | null =>
+  typeof v === 'string' && ISO_DAY.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v ? v : null;
 
 /**
  * The draft as it came back, checked against the people that were sent: an id that wasn't sent is
@@ -93,16 +96,17 @@ export function cleanDraft(raw: unknown, peopleIds: Set<string>): MinutesDraft |
         title: text(a.title),
         ownerId: known(a.ownerId),
         ownerHeard: text(a.ownerHeard),
-        dueOn: typeof a.dueOn === 'string' && ISO_DAY.test(a.dueOn) ? a.dueOn : null,
+        dueOn: realDay(a.dueOn),
       }))
       .filter((a) => a.title),
     checkThese: (Array.isArray(raw.checkThese) ? raw.checkThese : []).map(text).filter(Boolean),
   };
 }
 
-/** The meeting check-in that day for that chapter, which ticks go to; none for a whole-club meeting. */
+/** The meeting check-in that day for that chapter, which ticks go to; none for a board or whole-club meeting. */
 export function attendanceSessionFor(meeting: Meeting, data: ClubData): CheckinSession | null {
-  if (meeting.chapterId === null) return null;
+  // Attendance counts members' chapter meetings (5.2); a board meeting that day isn't one of them.
+  if (meeting.chapterId === null || meeting.kind === 'board' || meeting.kind === 'nec') return null;
   const day = melbourneDate(meeting.startsAt);
   return (data.checkinSessions ?? []).find((s) => s.kind === 'meeting' && s.chapterId === meeting.chapterId && s.heldOn === day) ?? null;
 }

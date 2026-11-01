@@ -2,7 +2,8 @@
 -- club's AI. The ask-club Edge Function calls minutes_draft_start() as the member before drafting
 -- and assistant_spent() with the service role after, so drafts come out of the Ask the club month.
 -- Nothing about the transcript or the draft is kept here: only how many times each meeting has been
--- drafted (at most 5), so nobody can run the bill up.
+-- drafted (at most 5), and each draft counts as one of the member's Ask the club questions for the
+-- day, so nobody can run the bill up.
 -- Spec: docs/superpowers/specs/2026-11-01-otter-minutes-design.md
 
 create table if not exists private.minutes_drafts (
@@ -20,6 +21,8 @@ declare
   this_month constant date := date_trunc('month', private.club_date())::date;
   budget constant bigint := private.assistant_setting('assistant_month_budget_microusd', 20000000);
   max_drafts constant int := 5;
+  daily_limit constant bigint := private.assistant_setting('assistant_daily_limit', 15);
+  asked int;
   m public.meetings%rowtype;
   done int;
   spent bigint;
@@ -48,20 +51,29 @@ begin
     raise exception 'Ask the club isn’t switched on yet.';
   end if;
 
-  select drafts into done from private.minutes_drafts where meeting_id = p_meeting for update;
-  if coalesce(done, 0) >= max_drafts then
+  -- Counted first and checked after, so drafts asked for at the same moment queue on the row
+  -- rather than all slipping through; a refusal rolls its own count back.
+  insert into private.minutes_drafts as d (meeting_id, drafts) values (p_meeting, 1)
+  on conflict (meeting_id) do update set drafts = d.drafts + 1
+  returning drafts into done;
+  if done > max_drafts then
     raise exception 'This meeting has been drafted % times. Finish it by hand.', max_drafts;
   end if;
-  select spent_microusd into spent from private.assistant_months where month = this_month for update;
-  if coalesce(spent, 0) >= budget then
+  -- Each draft is also one of the member's Ask the club questions for the day.
+  delete from private.assistant_days where day < private.club_date() - 1;
+  insert into private.assistant_days as a (member_id, day, questions) values (auth.uid(), private.club_date(), 1)
+  on conflict (member_id, day) do update set questions = a.questions + 1
+  returning questions into asked;
+  if asked > daily_limit then
+    raise exception 'You’ve asked % today. More tomorrow.', daily_limit;
+  end if;
+  insert into private.assistant_months as mo (month, questions) values (this_month, 1)
+  on conflict (month) do update set questions = mo.questions + 1
+  returning spent_microusd into spent;
+  if spent >= budget then
     raise exception 'Ask the club is resting until %: this month’s budget is used.',
       to_char(private.assistant_next_month(private.club_date()), 'DD/MM/YYYY');
   end if;
-
-  insert into private.minutes_drafts as d (meeting_id, drafts) values (p_meeting, 1)
-  on conflict (meeting_id) do update set drafts = d.drafts + 1;
-  insert into private.assistant_months as mo (month, questions) values (this_month, 1)
-  on conflict (month) do update set questions = mo.questions + 1;
 
   select jsonb_build_object(
     'id', m.id, 'title', m.title, 'kind', m.kind, 'startsAt', m.starts_at, 'location', m.location,
@@ -83,7 +95,9 @@ begin
   into board
   from public.positions p join public.members x on x.id = p.member_id
   where p.ended_on is null and p.started_on <= private.club_date()
-    and p.chapter_id is not distinct from m.chapter_id;
+    and (p.chapter_id is not distinct from m.chapter_id
+         -- The NEC is the national roles plus the chapter Presidents (11.2).
+         or (m.chapter_id is null and p.role = 'president'));
 
   return jsonb_build_object('meeting', meeting, 'people', people, 'board', board);
 end;

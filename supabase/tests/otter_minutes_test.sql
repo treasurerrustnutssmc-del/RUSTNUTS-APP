@@ -129,6 +129,16 @@ begin
   assert pg_temp.start_error('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000e1') = 'This meeting has been drafted 5 times. Finish it by hand.';
 end $$;
 
+\echo 'Each draft is one of the member’s Ask the club questions for the day'
+do $$
+begin
+  assert (select questions from private.assistant_days where member_id = '00000000-0000-0000-0000-0000000000b1' and day = private.club_date()) = 1;
+  update private.assistant_days set questions = 15 where member_id = '00000000-0000-0000-0000-0000000000b7';
+  assert pg_temp.start_error('00000000-0000-0000-0000-0000000000b7', '00000000-0000-0000-0000-0000000000e5') = 'You’ve asked 15 today. More tomorrow.';
+  assert (select drafts from private.minutes_drafts where meeting_id = '00000000-0000-0000-0000-0000000000e5') = 1, 'a refused draft rolls its count back';
+  update private.assistant_days set questions = 0 where member_id = '00000000-0000-0000-0000-0000000000b7';
+end $$;
+
 \echo 'Not once the month’s budget is used'
 do $$
 begin

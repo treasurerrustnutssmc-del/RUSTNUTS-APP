@@ -68,7 +68,7 @@ test('the request: Opus 5.5, low effort, the strict draft schema, the meeting an
   assert.deepEqual(req.output_config.format, { type: 'json_schema', schema: DRAFT_SCHEMA });
   assert.equal(req.fallbacks, 'default');
   assert.ok(!('tool_choice' in req), 'forced tool use 400s on Opus 5.5');
-  assert.equal(req.max_tokens, 16_000);
+  assert.equal(req.max_tokens, 10_000);
   const content = req.messages[0].content;
   assert.equal(req.messages.length, 1);
   assert.match(content[0].text, /"Torque"/);
@@ -109,6 +109,12 @@ test('a refusal, a cut-off or unreadable JSON says so, and still records the cos
   const { d } = deps({ claude: async () => ({ content: [{ type: 'text', text: 'not json' }], stop_reason: 'end_turn', usage: USAGE }) });
   const got = await handleMinutesDraft(ENV, { mode: 'minutes', meetingId: 'mt-1', transcript: TRANSCRIPT }, d);
   assert.deepEqual(got, { status: 502, body: { error: 'The draft didn’t come back properly. Try again.' } });
+});
+
+test('Claude turning the request down itself isn’t a try-again', async () => {
+  const { d } = deps({ claude: async () => { throw Object.assign(new Error('prompt is too long'), { status: 400 }); } });
+  const got = await handleMinutesDraft(ENV, { mode: 'minutes', meetingId: 'mt-1', transcript: TRANSCRIPT }, d);
+  assert.deepEqual(got, { status: 400, body: { error: 'That meeting was too long to draft in one go. Split the transcript in two.' } });
 });
 
 test('Anthropic down: try again', async () => {

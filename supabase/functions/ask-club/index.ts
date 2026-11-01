@@ -4,11 +4,13 @@
 // Function secret ANTHROPIC_API_KEY (the club's Anthropic Console key); without it, it answers
 // "not switched on". The rules live in ../_shared/askClub.ts.
 // The same function drafts meeting minutes from an Otter transcript ({ mode: 'minutes' }, rules in
-// ../_shared/minutesDraft.ts), so both share the key, the budget and one deploy.
+// ../_shared/minutesDraft.ts) and sums up missed chat ({ mode: 'catchup' }, ../_shared/catchUp.ts),
+// so all three share the key, the budget and one deploy.
 
 import Anthropic from 'npm:@anthropic-ai/sdk@1.3.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { handleAskClub, type ClaudeResponse, type Sources } from '../_shared/askClub.ts';
+import { handleCatchUp, type CatchUpContext } from '../_shared/catchUp.ts';
 import { handleMinutesDraft, type MinutesContext } from '../_shared/minutesDraft.ts';
 
 // The web build calls from the browser, which asks first (OPTIONS) and needs these headers back.
@@ -53,6 +55,18 @@ Deno.serve(async (req) => {
       spent,
     });
     return Response.json(drafted.body, { status: drafted.status, headers: CORS });
+  }
+  if ((body as { mode?: unknown })?.mode === 'catchup') {
+    const caught = await handleCatchUp({ ANTHROPIC_API_KEY: apiKey }, body, {
+      start: async (chatId, count): Promise<CatchUpContext> => {
+        const r = await asMember.rpc('catchup_start', { p_chat: chatId, p_count: count });
+        if (r.error) throw new Error(r.error.message);
+        return r.data as CatchUpContext;
+      },
+      claude,
+      spent,
+    });
+    return Response.json(caught.body, { status: caught.status, headers: CORS });
   }
   const answer = await handleAskClub({ ANTHROPIC_API_KEY: apiKey }, body, {
     start: async (): Promise<Sources> => {

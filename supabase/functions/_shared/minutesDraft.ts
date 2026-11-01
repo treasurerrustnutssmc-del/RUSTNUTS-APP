@@ -9,7 +9,8 @@
 import { CANT_ANSWER, CANT_HELP, NOT_SWITCHED_ON, costMicroUsd, type ClaudeResponse } from './askClub.ts';
 
 export const MINUTES_MODEL = 'claude-opus-5-5';
-export const MINUTES_MAX_OUT = 16_000;
+// Minutes for a long meeting run to a few thousand words; this keeps the answer inside the function's time limit.
+export const MINUTES_MAX_OUT = 10_000;
 export const TRANSCRIPT_LIMITS = { min: 200, max: 200_000 } as const;
 
 export interface MinutesPerson {
@@ -193,7 +194,10 @@ export async function handleMinutesDraft(env: { ANTHROPIC_API_KEY?: string }, bo
   let res: ClaudeResponse;
   try {
     res = await deps.claude(buildMinutesRequest(context, (b.transcript as string).trim()));
-  } catch {
+  } catch (e) {
+    // Claude turned the request down itself (too long, or out of shape): trying again won't help.
+    const status = (e as { status?: number })?.status;
+    if (status === 400 || status === 413) return { status: 400, body: { error: TOO_LONG } };
     return { status: 503, body: { error: CANT_ANSWER } };
   }
   // A cost that fails to record mustn't lose the draft; the Console's own limit is the backstop.

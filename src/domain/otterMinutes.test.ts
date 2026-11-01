@@ -87,6 +87,7 @@ test('the draft is cleaned: unknown people unmatched, repeats dropped, bad dates
       actionItems: [
         { title: 'Book the hall', ownerId: 'rider', ownerHeard: 'Rider', dueOn: '2026-11-10' },
         { title: 'Fix the banner', ownerId: 'ghost', ownerHeard: 'Ghost', dueOn: '10/11/2026' },
+        { title: 'Order patches', ownerId: 'rider', ownerHeard: 'Rider', dueOn: '2026-02-30' },
         { title: '  ', ownerId: 'rider', ownerHeard: 'Rider', dueOn: null },
       ],
       checkThese: ['The vote count on the BBQ motion isn’t clear.', '  '],
@@ -101,6 +102,7 @@ test('the draft is cleaned: unknown people unmatched, repeats dropped, bad dates
   assert.deepEqual(draft.actionItems, [
     { title: 'Book the hall', ownerId: 'rider', ownerHeard: 'Rider', dueOn: '2026-11-10' },
     { title: 'Fix the banner', ownerId: null, ownerHeard: 'Ghost', dueOn: null },
+    { title: 'Order patches', ownerId: 'rider', ownerHeard: 'Rider', dueOn: null },
   ]);
   assert.deepEqual(draft.checkThese, ['The vote count on the BBQ motion isn’t clear.']);
 });
@@ -123,6 +125,9 @@ test('attendance goes to that chapter’s meeting check-in on the meeting’s Me
   const right = session('cs-right');
   assert.equal(attendanceSessionFor(m, withMeeting(m, { checkinSessions: [ride, north, otherDay] })), null);
   assert.equal(attendanceSessionFor(m, withMeeting(m, { checkinSessions: [ride, north, otherDay, right] }))?.id, 'cs-right');
+  // A board meeting the same day isn't a meeting attendance counts.
+  const board = meeting({ kind: 'board' });
+  assert.equal(attendanceSessionFor(board, withMeeting(board, { checkinSessions: [right] })), null);
   // A whole-club meeting has no chapter check-in.
   const whole = meeting({ chapterId: null, kind: 'nec' });
   assert.equal(attendanceSessionFor(whole, withMeeting(whole, { checkinSessions: [right] })), null);

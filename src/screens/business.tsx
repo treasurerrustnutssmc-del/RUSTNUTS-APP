@@ -366,6 +366,12 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
   const [saved, setSaved] = useState(false);
   const minutesAction = useAction();
   const cancelAction = useAction();
+  // Minutes saved from elsewhere (Draft from Otter) replace whatever was half-typed here.
+  const [seenMinutes, setSeenMinutes] = useState(meeting?.minutes);
+  if (meeting?.minutes !== seenMinutes) {
+    setSeenMinutes(meeting?.minutes);
+    setDraft(null);
+  }
   if (!meeting || !me) {
     return (
       <Screen>
