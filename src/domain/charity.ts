@@ -39,6 +39,8 @@ export const NOT_SIGNED_UP = 'You’re not signed up.';
 export const DONATIONS_LATER = 'Donations come later, once the app can take payments. Give on the day for now.';
 
 export interface CharityInput {
+  /** Take sign-ups from the club website too (off unless ticked). */
+  website?: boolean;
   cause: string;
   about: string;
   closesOn: string | null;
@@ -119,7 +121,10 @@ export function saveCharityProblem(me: Member | null, ride: Ride | undefined, in
   if (jobs.length > MAX_JOBS || jobs.some((j) => [...j].length > MAX_JOB)) return JOBS_LIMITS;
   if (new Set(jobs.map((j) => j.toLowerCase())).size !== jobs.length) return JOBS_REPEATED;
   // A job stays while someone's signed up for it (the first such job, in the old list's order).
-  const held = new Set(signupsFor(ride.id, data).map((s) => s.job).filter((j): j is string => j !== null));
+  const held = new Set([
+    ...signupsFor(ride.id, data).map((s) => s.job),
+    ...(data.websiteSignups ?? []).filter((w) => w.rideId === ride.id).map((w) => w.job),
+  ].filter((j): j is string => j !== null));
   const dropped = (charityFor(ride.id, data)?.jobs ?? []).find((j) => held.has(j) && !jobs.includes(j));
   if (dropped) return JOB_IN_USE(dropped);
   // A closing day already set can stay; a new one runs from today to the ride day.
@@ -143,9 +148,10 @@ function placesTaken(rideId: string, data: ClubData, exceptId: string | null): n
   const counts = countsRow(rideId, data);
   if (counts) {
     const mine = exceptId === null ? undefined : mySignup(rideId, exceptId, data);
-    return counts.charityPeople - (mine ? onBikes(mine) : 0);
+    return counts.charityPeople + counts.websitePeople - (mine ? onBikes(mine) : 0);
   }
-  return signupsFor(rideId, data).filter((s) => s.memberId !== exceptId).reduce((n, s) => n + onBikes(s), 0);
+  return signupsFor(rideId, data).filter((s) => s.memberId !== exceptId).reduce((n, s) => n + onBikes(s), 0)
+    + (data.websiteSignups ?? []).filter((w) => w.rideId === rideId).reduce((n, w) => n + onBikes(w), 0);
 }
 
 /** Places still free, or null when the ride has no limit. */
@@ -214,17 +220,45 @@ export function charityCounts(rideId: string, data: ClubData): CharityCounts {
   return counts;
 }
 
+/** The website's numbers for a ride, the same way (from the counts row, else the rows the organisers see). */
+export interface WebsiteCounts extends CharityCounts {
+  /** Sign-ups: one person each, riding, helping or both. */
+  signups: number;
+}
+
+export function websiteCounts(rideId: string, data: ClubData): WebsiteCounts {
+  const c = countsRow(rideId, data);
+  if (c) {
+    return {
+      riding: c.websiteRiding, pillions: c.websitePillions, guests: c.websiteGuests, helping: c.websiteHelping, people: c.websitePeople,
+      signups: c.websiteSignups,
+    };
+  }
+  const counts: WebsiteCounts = { riding: 0, pillions: 0, guests: 0, helping: 0, people: 0, signups: 0 };
+  for (const w of (data.websiteSignups ?? []).filter((x) => x.rideId === rideId)) {
+    if (w.riding) counts.riding += 1;
+    if (w.pillion) counts.pillions += 1;
+    counts.guests += w.guests;
+    if (w.job !== null) counts.helping += 1;
+    counts.people += onBikes(w);
+    counts.signups += 1;
+  }
+  return counts;
+}
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-/** "8 riding · 2 pillions · 3 guests · 4 helping", leaving out the zeros past riding. */
-export function countsLine(c: CharityCounts): string {
-  return [`${c.riding} riding`, c.pillions ? plural(c.pillions, 'pillion') : null, c.guests ? plural(c.guests, 'guest') : null, c.helping ? `${c.helping} helping` : null]
+/** "8 riding · 2 pillions · 3 guests · 4 helping · 5 from the website", leaving out the zeros past riding. */
+export function countsLine(c: CharityCounts, site?: WebsiteCounts): string {
+  const fromSite = site ? site.signups : 0;
+  return [`${c.riding} riding`, c.pillions ? plural(c.pillions, 'pillion') : null, c.guests ? plural(c.guests, 'guest') : null, c.helping ? `${c.helping} helping` : null,
+    fromSite ? `${fromSite} from the website` : null]
     .filter(Boolean)
     .join(' · ');
 }
 
 /** One sign-up's extras: "+ pillion + 2 guests (Bec and Joe)". */
-export function signupExtras(s: CharitySignup): string {
+export function signupExtras(s: Pick<CharitySignup, 'pillion' | 'guests' | 'guestNames'>): string {
   const guests = s.guests ? ` + ${plural(s.guests, 'guest')}${s.guestNames ? ` (${s.guestNames})` : ''}` : '';
   return `${s.pillion ? ' + pillion' : ''}${guests}`;
 }
@@ -233,7 +267,12 @@ export function signupExtras(s: CharitySignup): string {
 export function charityListText(me: Member | null, ride: Ride, data: ClubData): string {
   const day = melbourneDate(ride.startsAt);
   const charity = charityFor(ride.id, data);
-  const counts = charityCounts(ride.id, data);
+  const members = charityCounts(ride.id, data);
+  const site = websiteCounts(ride.id, data);
+  const counts: CharityCounts = {
+    riding: members.riding + site.riding, pillions: members.pillions + site.pillions, guests: members.guests + site.guests,
+    helping: members.helping + site.helping, people: members.people + site.people,
+  };
   const left = placesLeft(ride.id, data);
   const name = (id: string) => {
     const m = data.members.find((x) => x.id === id);
@@ -259,6 +298,15 @@ export function charityListText(me: Member | null, ride: Ride, data: ClubData): 
     if (helpers.length === 0) continue;
     lines.push('', job);
     for (const s of helpers) lines.push(`- ${name(s.memberId)}${s.riding ? '' : signupExtras(s)}${notes(s)}`);
+  }
+  // People who signed up on the club website (only the organisers have these rows).
+  const site_ = (data.websiteSignups ?? []).filter((w) => w.rideId === ride.id).sort((a, b) => a.name.localeCompare(b.name));
+  if (site_.length > 0) {
+    lines.push('', 'From the website');
+    for (const w of site_) {
+      const what = w.riding ? `riding${signupExtras(w)}${w.job ? `, also ${w.job}` : ''}` : w.job ?? '';
+      lines.push(`- ${w.name} (${w.phone || w.email}): ${what}${w.notes ? `: ${w.notes}` : ''}`);
+    }
   }
   return lines.join('\n');
 }

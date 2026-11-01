@@ -472,8 +472,13 @@ export const DEMO_DATA: ClubData = {
     {
       rideId: 'r-6', cause: 'Royal Children’s Hospital Good Friday Appeal',
       about: 'Gold coin at the gate, BBQ after. The Rusty Bus carries the toys and anyone’s bike that gives up.',
-      closesOn: null, places: 60, jobs: ['BBQ', 'Marshal', 'Collection bucket', 'Rusty Bus'], updatedBy: 'm-torque', updatedAt: '2026-10-20T08:00:00.000Z',
+      closesOn: null, places: 60, jobs: ['BBQ', 'Marshal', 'Collection bucket', 'Rusty Bus'], website: true, updatedBy: 'm-torque', updatedAt: '2026-10-20T08:00:00.000Z',
     },
+  ],
+  // People who signed up on the club website (not in the app); the ride's organisers see them.
+  websiteSignups: [
+    { id: 'w-1', rideId: 'r-6', name: 'Sam Rider', email: 'sam.rider@example.com', phone: '0400 000 001', riding: true, pillion: true, guests: 0, guestNames: '', job: null, notes: 'Coming from Geelong', createdAt: '2026-10-23T03:00:00.000Z', updatedAt: '2026-10-23T03:00:00.000Z' },
+    { id: 'w-2', rideId: 'r-6', name: 'Kim Nguyen', email: 'kim.n@example.com', phone: '', riding: false, pillion: false, guests: 0, guestNames: '', job: 'BBQ', notes: '', createdAt: '2026-10-24T05:30:00.000Z', updatedAt: '2026-10-24T05:30:00.000Z' },
   ],
   charitySignups: [
     { rideId: 'r-6', memberId: 'm-diesel', riding: true, pillion: true, guests: 1, guestNames: 'Mate from work', job: null, notes: '', signedAt: '2026-10-20T09:00:00.000Z', withdrawnAt: null },

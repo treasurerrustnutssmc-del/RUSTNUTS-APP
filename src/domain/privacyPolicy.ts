@@ -54,6 +54,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Money: the fees and charges the club raises for you, the payments you tell us you’ve made (amount, date, method and your reference) and the receipts the treasurer issues. The app never asks for or stores card or bank numbers of yours.',
           'Club records: where the constitution needs them, board decisions about your membership and conduct records.',
           'Your location, speed and direction, only during a live ride you’ve turned on (see “Location” below).',
+          'Forms on the club website (rustnutssmc.com.au): if you send a join enquiry, your name, email, chapter and note go to that chapter’s board; if you sign up for a charity ride, your name, email, phone and answers go only to the people running that ride and are deleted with it. Neither form needs an account.',
           'Your phone: a push notification token so the app can send you alerts, your notification settings, and which device type you use (iPhone or Android). Like most online services, our servers also log the IP address and device details of each sign-in, for security.',
         ],
       },

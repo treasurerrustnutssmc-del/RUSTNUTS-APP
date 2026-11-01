@@ -299,6 +299,8 @@ export interface ClubData extends LedgerData, AdminData, AuditData {
   // Charity ride sign-ups. Missing means none.
   charityRides?: CharityRide[];
   charitySignups?: CharitySignup[];
+  /** Sign-ups from the club website, for the people who run each ride. */
+  websiteSignups?: WebsiteSignup[];
   /** The numbers behind each ride's sign-ups, for everyone approved. Missing means count the rows. */
   signupCounts?: SignupCounts[];
   // Lane E: notifications
@@ -1132,6 +1134,26 @@ export interface CrewSwap {
 // Charity ride sign-ups
 
 /** A ride raising money for a cause, taking sign-ups for riders, guests and helpers. No payments yet. */
+/** A charity ride sign-up from the club website (someone not in the app), seen by the ride's organisers. */
+export interface WebsiteSignup {
+  id: string;
+  rideId: string;
+  name: string;
+  email: string;
+  /** Empty when none. */
+  phone: string;
+  riding: boolean;
+  pillion: boolean;
+  guests: number;
+  /** Empty when none. */
+  guestNames: string;
+  job: string | null;
+  /** Empty when none. */
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CharityRide {
   rideId: string;
   /** Who the ride is raising money for. */
@@ -1144,6 +1166,8 @@ export interface CharityRide {
   places: number | null;
   /** Helper jobs people can pick, in order. */
   jobs: string[];
+  /** Taking sign-ups from the club website too. */
+  website: boolean;
   updatedBy: string | null;
   updatedAt: string;
 }
@@ -1168,6 +1192,14 @@ export interface SignupCounts {
   charityGuests: number;
   charityHelping: number;
   charityPeople: number;
+  websiteRiding: number;
+  websitePillions: number;
+  websiteGuests: number;
+  websiteHelping: number;
+  /** Everyone on bikes who signed up from the website. */
+  websitePeople: number;
+  /** Rows: one person each, riding, helping or both. */
+  websiteSignups: number;
 }
 
 export interface CharitySignup {

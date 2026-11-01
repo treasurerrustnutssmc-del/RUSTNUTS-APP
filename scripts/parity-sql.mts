@@ -889,7 +889,7 @@ const planningCall = (c: ParityCase & Record<string, any>): string | null => {
     case 'saveCharity':
       return (
         `public.save_charity(${id('r', c.ride)}, ${q(c.cause)}, ${text(c.about, c.repeat)}, ${date(c.closesOn ?? null)}, ` +
-        `${c.places ?? 'null'}, ${textArray(c.jobs)})`
+        `${c.places ?? 'null'}, ${textArray(c.jobs)}, ${c.website ?? false})`
       );
     case 'signUpCharity':
       return (

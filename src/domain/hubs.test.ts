@@ -121,6 +121,7 @@ test('the numbers come from the database’s counts when they’re here; your ow
   const counts = {
     rideId: 'r-club', hubRiders: 4, hubPillions: 1, hubGroup: 2, hubOwn: 1, hubCamping: 1, hubDay: 0, hubGroupBeds: 3,
     charityRiding: 0, charityPillions: 0, charityGuests: 0, charityHelping: 0, charityPeople: 0,
+    websiteRiding: 0, websitePillions: 0, websiteGuests: 0, websiteHelping: 0, websitePeople: 0, websiteSignups: 0,
   };
   const data = planningClub({ rideHubs: [hub({ beds: 4 })], hubRegistrations: [reg('rider', { pillion: true })], signupCounts: [counts] });
   assert.deepEqual(hubCounts('r-club', data), { riders: 4, pillions: 1, group: 2, own: 1, camping: 1, day: 0 });

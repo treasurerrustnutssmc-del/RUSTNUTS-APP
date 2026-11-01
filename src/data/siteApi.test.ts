@@ -2,11 +2,19 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ALLOWED_ORIGINS,
+  CHARITY_CACHE,
   ENQUIRY_WORDS,
+  SIGNUP_WORDS,
   SPONSORS_CACHE,
   handleSiteApi,
   type SiteApiDeps,
 } from '../../supabase/functions/_shared/siteApi';
+import {
+  BAD_SIGNUP_EMAIL, LONG_SIGNUP_NAME, LONG_SIGNUP_PHONE, NOT_ON_WEBSITE, NO_SIGNUP_NAME, TOO_MANY_SIGNUPS,
+} from '../domain/websiteSignups';
+import {
+  GUESTS_LIMITS, JOB_NOT_LISTED, NOTHING_PICKED, PILLION_NEEDS_RIDER, RIDE_FULL, SIGNUP_TOO_LONG, SIGNUPS_CLOSED,
+} from '../domain/charity';
 import {
   BAD_ENQUIRY_EMAIL, LONG_ENQUIRY_ABOUT, LONG_ENQUIRY_NAME, NO_ENQUIRY_CHAPTER, NO_ENQUIRY_NAME, TOO_MANY_ENQUIRIES,
 } from '../domain/enquiries';
@@ -14,7 +22,7 @@ import {
 const ORIGIN = 'https://www.rustnutssmc.com.au';
 
 function deps(over: Partial<SiteApiDeps> = {}) {
-  const calls: { enquiries: unknown[]; signed: string[] } = { enquiries: [], signed: [] };
+  const calls: { enquiries: unknown[]; signed: string[]; signups: unknown[] } = { enquiries: [], signed: [], signups: [] };
   const d: SiteApiDeps = {
     listSponsors: async () => [
       { id: 's1', name: 'Dead Set Safety', blurb: 'Hi-vis and gear', url: 'https://deadset.example', deal: '10% off', logo_path: 'u/a.png' },
@@ -23,6 +31,8 @@ function deps(over: Partial<SiteApiDeps> = {}) {
     signLogo: async (path) => { calls.signed.push(path); return `https://x.supabase.co/signed/${path}`; },
     enquire: async (e) => { calls.enquiries.push(e); return null; },
     listRides: async () => [],
+    listCharityRides: async () => [],
+    websiteSignup: async (w) => { calls.signups.push(w); return null; },
     ...over,
   };
   return { d, calls };
@@ -148,4 +158,81 @@ test('GET /rides: the public ride list straight through, cached a quarter hour',
   const down = await handleSiteApi({ method: 'GET', path: '/rides', origin: ORIGIN, body: null }, broken);
   assert.equal(down.status, 503);
   assert.equal(down.headers['cache-control'], 'no-store');
+});
+
+const RIDE = '00000000-0000-0000-0000-00000000dd01';
+const signup = { ride: RIDE, name: 'Sam Rider', email: 'sam@example.com', phone: '', riding: true, pillion: false, guests: 0, guestNames: '', job: '', notes: '' };
+
+test('the sign-up words are the app’s', () => {
+  assert.deepEqual(SIGNUP_WORDS, {
+    notOnWebsite: NOT_ON_WEBSITE, closed: SIGNUPS_CLOSED, noName: NO_SIGNUP_NAME, longName: LONG_SIGNUP_NAME, badEmail: BAD_SIGNUP_EMAIL,
+    longPhone: LONG_SIGNUP_PHONE, nothingPicked: NOTHING_PICKED, pillionNeedsRider: PILLION_NEEDS_RIDER, guests: GUESTS_LIMITS,
+    jobNotListed: JOB_NOT_LISTED, tooLong: SIGNUP_TOO_LONG, tooMany: TOO_MANY_SIGNUPS, full: RIDE_FULL,
+  });
+});
+
+test('GET /charity-rides: the public list straight through, cached five minutes; 503 no-store when down', async () => {
+  const rides = [{
+    ride_id: RIDE, title: 'Ride for Kids', starts_at: '2026-11-15T22:00:00+00:00', all_day: false, location: 'Sunbury BP',
+    cause: 'RCH', about: null, closes_on: null, jobs: ['BBQ'], places: 40, places_left: 12, open: true,
+  }];
+  const { d } = deps({ listCharityRides: async () => rides });
+  const r = await handleSiteApi({ method: 'GET', path: '/charity-rides', origin: ORIGIN, body: null }, d);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { rides });
+  assert.equal(r.headers['cache-control'], CHARITY_CACHE);
+  const down = deps({ listCharityRides: async () => { throw new Error('boom'); } });
+  const b = await handleSiteApi({ method: 'GET', path: '/charity-rides', origin: ORIGIN, body: null }, down.d);
+  assert.equal(b.status, 503);
+  assert.equal(b.headers['cache-control'], 'no-store');
+  assert.equal((await handleSiteApi({ method: 'POST', path: '/charity-rides', origin: ORIGIN, body: {} }, d)).status, 405);
+});
+
+test('POST /charity-signup: cleaned and stored, then a thank-you', async () => {
+  const { d, calls } = deps();
+  const r = await handleSiteApi({
+    method: 'POST', path: '/charity-signup', origin: ORIGIN,
+    body: { ...signup, name: ' Sam Rider ', email: ' Sam@Example.com ', phone: ' 0400 000 000 ', guests: 2, guestNames: ' Bec and Joe ', job: ' BBQ ', notes: '  ', website: '' },
+  }, d);
+  assert.deepEqual([r.status, r.body], [200, { ok: true }]);
+  assert.deepEqual(calls.signups, [{
+    ride: RIDE, name: 'Sam Rider', email: 'sam@example.com', phone: '0400 000 000', riding: true, pillion: false, guests: 2,
+    guest_names: 'Bec and Joe', job: 'BBQ', notes: null,
+  }]);
+});
+
+test('POST /charity-signup: the checks in order, as 400s with the app words', async () => {
+  const { d, calls } = deps();
+  const post = (body: unknown) => handleSiteApi({ method: 'POST', path: '/charity-signup', origin: ORIGIN, body }, d).then((r) => [r.status, r.body]);
+  assert.deepEqual(await post({ ...signup, ride: 'nope' }), [400, { error: NOT_ON_WEBSITE }]);
+  assert.deepEqual(await post({ ...signup, name: ' ' }), [400, { error: NO_SIGNUP_NAME }]);
+  assert.deepEqual(await post({ ...signup, name: 'x'.repeat(81) }), [400, { error: LONG_SIGNUP_NAME }]);
+  assert.deepEqual(await post({ ...signup, email: 'sam@example' }), [400, { error: BAD_SIGNUP_EMAIL }]);
+  assert.deepEqual(await post({ ...signup, phone: '1'.repeat(31) }), [400, { error: LONG_SIGNUP_PHONE }]);
+  assert.deepEqual(await post({ ...signup, riding: false }), [400, { error: NOTHING_PICKED }]);
+  assert.deepEqual(await post({ ...signup, riding: false, pillion: true, job: 'BBQ' }), [400, { error: PILLION_NEEDS_RIDER }]);
+  assert.deepEqual(await post({ ...signup, guests: 11 }), [400, { error: GUESTS_LIMITS }]);
+  assert.deepEqual(await post({ ...signup, guests: '2' }), [400, { error: GUESTS_LIMITS }], 'a guests string is not a number');
+  assert.deepEqual(await post({ ...signup, notes: 'x'.repeat(201) }), [400, { error: SIGNUP_TOO_LONG }]);
+  assert.deepEqual(await post('not an object'), [400, { error: NOT_ON_WEBSITE }]);
+  assert.equal(calls.signups.length, 0);
+});
+
+test('POST /charity-signup: honeypot, other origins, and what the database says', async () => {
+  const { d, calls } = deps();
+  const bot = await handleSiteApi({ method: 'POST', path: '/charity-signup', origin: ORIGIN, body: { ...signup, website: 'x' } }, d);
+  assert.deepEqual([bot.status, bot.body], [200, { ok: true }]);
+  const elsewhere = await handleSiteApi({ method: 'POST', path: '/charity-signup', origin: 'https://evil.example', body: signup }, d);
+  assert.equal(elsewhere.status, 403);
+  assert.equal(calls.signups.length, 0);
+  const full = deps({ websiteSignup: async () => RIDE_FULL });
+  assert.deepEqual(await handleSiteApi({ method: 'POST', path: '/charity-signup', origin: ORIGIN, body: signup }, full.d).then((r) => [r.status, r.body]), [400, { error: RIDE_FULL }]);
+  const closed = deps({ websiteSignup: async () => SIGNUPS_CLOSED });
+  assert.deepEqual(await handleSiteApi({ method: 'POST', path: '/charity-signup', origin: ORIGIN, body: signup }, closed.d).then((r) => [r.status, r.body]), [400, { error: SIGNUPS_CLOSED }]);
+  const busy = deps({ websiteSignup: async () => TOO_MANY_SIGNUPS });
+  assert.deepEqual(await handleSiteApi({ method: 'POST', path: '/charity-signup', origin: ORIGIN, body: signup }, busy.d).then((r) => [r.status, r.body]), [429, { error: TOO_MANY_SIGNUPS }]);
+  const odd = deps({ websiteSignup: async () => 'permission denied for table website_signups' });
+  const o = await handleSiteApi({ method: 'POST', path: '/charity-signup', origin: ORIGIN, body: signup }, odd.d);
+  assert.equal(o.status, 503);
+  assert.ok(String((o.body as { error: string }).error).includes('rustnutssmc@outlook.com'));
 });

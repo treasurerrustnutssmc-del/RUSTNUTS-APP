@@ -7,12 +7,13 @@ import { useClub } from '../data/ClubStore';
 import {
   charityCounts, charityFor, charityListText, countsLine, DONATIONS_LATER, MAX_ABOUT, MAX_CAUSE, MAX_GUEST_NAMES, MAX_GUESTS, MAX_JOBS,
   MAX_SIGNUP_NOTES, mySignup, placesLeft, ridingNotGoing, runsCharity, saveCharityProblem, signupExtras, signupProblem, signupsClosed,
-  visibleSignups, withdrawCharityProblem, type SignupInput,
+  visibleSignups, websiteCounts, withdrawCharityProblem, type SignupInput,
 } from '../domain/charity';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import { displayName, initials, memberName } from '../domain/profile';
 import { endOfFirstDay } from '../domain/rides';
-import type { CharitySignup, ClubData, Member, Ride } from '../domain/types';
+import { removeWebsiteSignupProblem, websiteContact, websiteSignupsFor } from '../domain/websiteSignups';
+import type { CharitySignup, ClubData, Member, Ride, WebsiteSignup } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import {
@@ -85,7 +86,7 @@ export function CharitySection({ ride, me, data, today, onOpen, onEdit }: {
             <Text style={type.name}>{charity.cause}</Text>
           </View>
         </Row>
-        <Text style={styles.countsLine}>{countsLine(counts)}</Text>
+        <Text style={styles.countsLine}>{countsLine(counts, websiteCounts(ride.id, data))}</Text>
         <Row style={{ gap: 6 }}>
           {mine ? <Chip label={mine.riding ? 'You’re riding' : `You’re on ${mine.job}`} tone="ok" icon="checkmark" /> : null}
           {closed ? <Chip label="Closed" tone="steel" /> : charity.closesOn ? <Chip label={`Closes ${formatAuDate(charity.closesOn)}`} tone="warn" /> : null}
@@ -139,6 +140,30 @@ function Stepper({ label, value, max, onChange }: { label: string; value: number
 const subtitleOf = (s: CharitySignup) =>
   [s.riding ? `Riding${signupExtras(s)}` : `Helping${signupExtras(s)}`, s.riding && s.job ? `also ${s.job}` : null].filter(Boolean).join(' · ');
 
+/** One website sign-up for the organisers: who, how to reach them, what they're doing, and Remove. */
+function WebsiteRow({ signup: w, last, canRemove, busy, onRemove }: {
+  signup: WebsiteSignup; last: boolean; canRemove: boolean; busy: boolean; onRemove: () => void;
+}) {
+  const doing = [w.riding ? `Riding${signupExtras(w)}` : 'Helping', w.job ? (w.riding ? `also ${w.job}` : w.job) : null].filter(Boolean).join(' · ');
+  return (
+    <View style={[styles.webRow, !last && styles.webRowLine]}>
+      <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+        <Avatar text={initials({ roadName: null, fullName: w.name })} size={40} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={type.name}>{w.name}</Text>
+          <Small selectable>{websiteContact(w)}</Small>
+          <Small>{doing}</Small>
+          {w.guests > 0 && w.guestNames ? <Small>{`Guests: ${w.guestNames}`}</Small> : null}
+          {w.notes ? <Small>{w.notes}</Small> : null}
+        </View>
+      </Row>
+      {canRemove ? (
+        <ConfirmButton label="Remove" confirmLabel="Yes, remove" kind="secondary" size="small" disabled={busy} onConfirm={onRemove} />
+      ) : null}
+    </View>
+  );
+}
+
 /** The sheet starts again from your saved sign-up whenever it changes (here or on another phone). */
 export function CharityScreen(props: RootScreen<'Charity'>) {
   const { me, data } = useClub();
@@ -147,7 +172,7 @@ export function CharityScreen(props: RootScreen<'Charity'>) {
 }
 
 function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
-  const { me, data, today, signUpCharity, withdrawCharity } = useClub();
+  const { me, data, today, signUpCharity, withdrawCharity, removeWebsiteSignup } = useClub();
   const ride = data.rides.find((r) => r.id === nav.params.rideId);
   const charity = ride ? charityFor(ride.id, data) : undefined;
   const mine = ride && me ? mySignup(ride.id, me.id, data) : undefined;
@@ -160,6 +185,7 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
   const [notes, setNotes] = useState(mine?.notes ?? '');
   const { busy, error, setError, run } = useAction();
   const withdrawing = useAction();
+  const removing = useAction();
   const [shareError, setShareError] = useState<string | null>(null);
 
   if (!ride || !me || !charity) {
@@ -177,6 +203,8 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
   const counts = charityCounts(ride.id, data);
   const left = placesLeft(ride.id, data);
   const signups = visibleSignups(me, ride.id, data);
+  const site = websiteCounts(ride.id, data);
+  const fromSite = runs ? websiteSignupsFor(ride.id, data) : [];
   const riders = signups.filter((s) => s.riding);
   const canWithdraw = withdrawCharityProblem(me, ride, data, nowIso()) === null;
   // A reason the form can't help with at all: neither riding alone nor helping alone would go in.
@@ -229,6 +257,7 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
           {closed ? <Chip label="Closed" tone="steel" /> : charity.closesOn ? <Chip label={`Closes ${formatAuDate(charity.closesOn)}`} tone="warn" /> : null}
           {left !== null ? <Chip label={placesText(left)} tone={left === 0 ? 'warn' : 'steel'} /> : null}
           <Chip label="Open to all members" tone="steel" />
+          {charity.website ? <Chip label="On the website" tone="steel" icon="globe-outline" /> : null}
         </Row>
       </Stack>
 
@@ -279,7 +308,7 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
 
       <Stack gap={space.sm}>
         <SectionTitle title="Riding" action={<Text style={styles.count}>{counts.riding}</Text>} />
-        {counts.riding + counts.helping > 0 ? <Small>{`${countsLine(counts)}. ${counts.people} on bikes.`}</Small> : null}
+        {counts.riding + counts.helping > 0 ? <Small>{`${countsLine(counts, site)}. ${counts.people} on bikes.`}</Small> : null}
         {!runs ? <Small>The organisers and the boards see who’s coming; the numbers are everyone’s.</Small> : null}
         {riders.length === 0 ? (
           runs ? <Small>Nobody yet.</Small> : null
@@ -306,6 +335,30 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
           </Stack>
         );
       })}
+
+      {runs && (charity.website || fromSite.length > 0) ? (
+        <Stack gap={space.sm}>
+          <SectionTitle title="From the website" action={<Text style={styles.count}>{fromSite.length}</Text>} />
+          <Small>People who signed up on rustnutssmc.com.au. Only the organisers see their details.</Small>
+          {fromSite.length === 0 ? (
+            <Small>Nobody yet.</Small>
+          ) : (
+            <Card style={{ padding: 0, gap: 0 }}>
+              {fromSite.map((w, i) => (
+                <WebsiteRow
+                  key={w.id}
+                  signup={w}
+                  last={i === fromSite.length - 1}
+                  canRemove={removeWebsiteSignupProblem(me, w, data, nowIso()) === null}
+                  busy={removing.busy}
+                  onRemove={() => removing.run(() => removeWebsiteSignup(w.id))}
+                />
+              ))}
+            </Card>
+          )}
+          <ErrorLine error={removing.error} />
+        </Stack>
+      ) : null}
 
       {runs ? (
         <Stack gap={space.sm}>
@@ -334,6 +387,7 @@ export function EditCharityScreen({ route: nav, navigation }: RootScreen<'EditCh
   const [closesText, setClosesText] = useState(formatAuDate(charity?.closesOn ?? null));
   const [places, setPlaces] = useState(charity?.places ? String(charity.places) : '');
   const [jobsText, setJobsText] = useState((charity?.jobs ?? []).join('\n'));
+  const [website, setWebsite] = useState(charity?.website ?? false);
   const { busy, error, setError, run } = useAction();
   if (!ride || !me) {
     return (
@@ -347,7 +401,7 @@ export function EditCharityScreen({ route: nav, navigation }: RootScreen<'EditCh
   const closesError = closesTyped.length >= 10 && !closesOn ? 'Use DD/MM/YYYY, like 01/03/2027.' : null;
   const placesTyped = places.trim();
   const placesNumber = placesTyped ? (/^\d+$/.test(placesTyped) ? Number(placesTyped) : Number.NaN) : null;
-  const input = { cause, about, closesOn, places: placesNumber, jobs: jobsText.split('\n') };
+  const input = { cause, about, closesOn, places: placesNumber, jobs: jobsText.split('\n'), website };
   const set = <T,>(fn: (v: T) => void) => (v: T) => { setError(null); fn(v); };
   const save = () =>
     run(async () => {
@@ -386,6 +440,12 @@ export function EditCharityScreen({ route: nav, navigation }: RootScreen<'EditCh
           placeholder={'BBQ\nMarshal\nCollection bucket'}
           hint={`Optional. One per line, up to ${MAX_JOBS}. A job stays while someone’s on it.`}
         />
+        <Toggle
+          label="Take sign-ups from the website"
+          description="Shows the ride, the cause and the jobs on rustnutssmc.com.au so friends and other clubs can sign up. Their details go only to the organisers."
+          value={website}
+          onChange={set(setWebsite)}
+        />
       </Card>
       <ErrorLine error={error} />
       <Button label={charity ? 'Save sign-ups' : 'Take sign-ups'} icon="checkmark" busy={busy} onPress={save} />
@@ -406,5 +466,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  webRow: { paddingHorizontal: space.md, paddingVertical: space.sm, gap: space.sm },
+  webRowLine: { borderBottomWidth: 1, borderBottomColor: colors.line },
   stepValue: { fontFamily: fonts.stencil, fontSize: 22, minWidth: 36, textAlign: 'center', color: colors.bone },
 });

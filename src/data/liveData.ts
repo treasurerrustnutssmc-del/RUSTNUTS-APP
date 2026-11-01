@@ -385,6 +385,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
             hubCamping: c.hub_camping, hubDay: c.hub_day, hubGroupBeds: c.hub_group_beds, charityRiding: c.charity_riding,
             charityPillions: c.charity_pillions, charityGuests: c.charity_guests, charityHelping: c.charity_helping,
             charityPeople: c.charity_people,
+            // A database from before website sign-ups has no website columns: none, then.
+            websiteRiding: c.website_riding ?? 0, websitePillions: c.website_pillions ?? 0, websiteGuests: c.website_guests ?? 0,
+            websiteHelping: c.website_helping ?? 0, websitePeople: c.website_people ?? 0, websiteSignups: c.website_signups ?? 0,
           })),
         }
       : {}),

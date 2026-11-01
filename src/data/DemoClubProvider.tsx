@@ -208,6 +208,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     saveCharity: async (rideId, input) => keep(charity.saveCharity(fresh(), rideId, input)),
     signUpCharity: async (rideId, input) => keep(charity.signUpCharity(fresh(), rideId, input)),
     withdrawCharity: async (rideId) => keep(charity.withdrawCharity(fresh(), rideId)),
+    removeWebsiteSignup: async (id) => keep(charity.removeWebsiteSignup(fresh(), id)),
     askSwap: async (rideId, toId, note) => {
       const result = planning.askSwap(fresh(), rideId, toId, note);
       keep(result.data);

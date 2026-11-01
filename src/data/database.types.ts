@@ -388,7 +388,7 @@ export type Database = {
       charity_rides: {
         Row: {
           ride_id: string; cause: string; about: string | null; closes_on: string | null; places: number | null; jobs: string[];
-          updated_by: string | null; updated_at: string;
+          website: boolean; updated_by: string | null; updated_at: string;
         };
         Insert: { [_ in never]: never };
         Update: { [_ in never]: never };
@@ -400,6 +400,15 @@ export type Database = {
           job: string | null; notes: string | null; signed_at: string; withdrawn_at: string | null;
         };
         Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      website_signups: {
+        Row: {
+          id: string; ride_id: string; name: string; email: string; phone: string | null; riding: boolean; pillion: boolean; guests: number;
+          guest_names: string | null; job: string | null; notes: string | null; created_at: string; updated_at: string;
+        };
+        Insert: { [_ in never]: never }; // only through website_signup (the website's door, service role)
         Update: { [_ in never]: never };
         Relationships: [];
       };
@@ -562,9 +571,13 @@ export type Database = {
       withdraw_hub: { Args: { p_ride: string }; Returns: undefined };
       // Charity ride sign-ups
       save_charity: {
-        Args: { p_ride: string; p_cause: string; p_about: string | null; p_closes_on: string | null; p_places: number | null; p_jobs: string[] };
+        Args: {
+          p_ride: string; p_cause: string; p_about: string | null; p_closes_on: string | null; p_places: number | null; p_jobs: string[];
+          p_website: boolean;
+        };
         Returns: undefined;
       };
+      remove_website_signup: { Args: { p_id: string }; Returns: undefined };
       sign_up_charity: {
         Args: {
           p_ride: string; p_riding: boolean; p_pillion: boolean; p_guests: number; p_guest_names: string | null; p_job: string | null;
@@ -609,6 +622,7 @@ export type Database = {
           ride_id: string; hub_riders: number; hub_pillions: number; hub_group: number; hub_own: number; hub_camping: number;
           hub_day: number; hub_group_beds: number; charity_riding: number; charity_pillions: number; charity_guests: number;
           charity_helping: number; charity_people: number;
+          website_riding?: number; website_pillions?: number; website_guests?: number; website_helping?: number; website_people?: number; website_signups?: number;
         }[];
       };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
