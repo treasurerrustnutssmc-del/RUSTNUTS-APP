@@ -31,6 +31,8 @@ function club(over: Partial<ClubData> = {}): ClubData {
       ride('r-app-west', { source: 'app', category: 'west', startsAt: '2026-11-21T22:00:00.000Z' }),
       ride('r-app-off', { source: 'app', category: 'club', startsAt: '2026-11-22T22:00:00.000Z', cancelledAt: '2026-10-30T00:00:00.000Z' }),
       ride('r-app-past', { source: 'app', category: 'club', startsAt: '2026-10-20T22:00:00.000Z' }),
+      // Under way: started yesterday, ends tomorrow (a Big 4 weekend).
+      ride('r-app-running', { source: 'app', category: 'club', startsAt: '2026-10-30T22:00:00.000Z', endsAt: '2026-11-02T06:00:00.000Z' }),
     ],
     ...over,
   };
@@ -103,6 +105,10 @@ test('changing a ride: only an app ride, before it is over, by someone who manag
   // A change may move the start into the past of today, but not before today.
   assert.equal(saveRideProblem(sec, find(data, 'r-app'), input({ category: 'club', startsAt: '2026-10-31T12:00:00.000Z' }), data, NOW), RIDE_PAST);
   assert.equal(saveRideProblem(sec, find(data, 'r-app'), input({ category: 'club', website: false }), data, NOW), null);
+  // A ride under way keeps its start and can still change; moving its start to yesterday can't.
+  const running = find(data, 'r-app-running')!;
+  assert.equal(saveRideProblem(sec, running, input({ category: 'club', startsAt: running.startsAt, endsAt: running.endsAt, title: 'Big 4 weekend, day two' }), data, NOW), null);
+  assert.equal(saveRideProblem(sec, running, input({ category: 'club', startsAt: '2026-10-30T20:00:00.000Z', endsAt: running.endsAt }), data, NOW), RIDE_PAST);
   assert.equal(saveRideProblem(rc2, find(data, 'r-app-west'), input({ category: 'club' }), data, NOW), null);
   // A called-off app ride can still be edited (it comes back with Put it back on).
   assert.equal(saveRideProblem(sec, find(data, 'r-app-off'), input({ category: 'club' }), data, NOW), null);

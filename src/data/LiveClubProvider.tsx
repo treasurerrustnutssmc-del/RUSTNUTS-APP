@@ -38,7 +38,7 @@ import {
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { melbourneDate, rsvpProblem } from '../domain/rides';
 import { NO_TRACK, readGpx, type GpxSummary } from '../domain/gpx';
-import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem } from '../domain/routes';
+import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { castProblem, closeProblem as closeVoteProblem, openVoteProblem } from '../domain/votes';
 import type { ClubData, NotificationPrefs } from '../domain/types'; // NotificationPrefs: Lane E
 import {
@@ -961,11 +961,13 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     // Rides made in the app
     saveRide: async (input, id) => {
       const existing = id === undefined ? undefined : data.rides.find((r) => r.id === id);
+      deny(signedInProblem(visibleMe));
       if (id !== undefined && !existing) throw new NotAllowedError(RIDE_GONE);
       deny(saveRideProblem(visibleMe, existing, input, data, new Date().toISOString()));
       const result = ok(await supabase().rpc('save_ride', saveRideArgs(input, id ?? null)));
       await after();
-      return result.data ?? id ?? '';
+      if (!result.data) throw new Error('The ride wasn’t saved. Try again.');
+      return result.data;
     },
     setRideCalledOff: async (id, off) => {
       const ride = data.rides.find((r) => r.id === id);

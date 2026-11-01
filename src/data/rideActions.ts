@@ -2,7 +2,8 @@
 // database (src/domain/newRide.ts; checked by src/data/parity.test.ts). Kept beside demoActions.ts,
 // which calls into these for the parity cases.
 
-import { callOffProblem, cleanRideInput, putBackProblem, saveRideProblem, type RideInput } from '../domain/newRide';
+import { callOffProblem, cleanRideInput, putBackProblem, RIDE_GONE, saveRideProblem, type RideInput } from '../domain/newRide';
+import { signedInProblem } from '../domain/routes';
 import type { ClubData, Ride } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
@@ -19,7 +20,8 @@ function refuse(problem: string | null): void {
 export function saveRide(ctx: DemoCtx, raw: RideInput, id?: string): { data: ClubData; id: string } {
   const now = nowOf(ctx);
   const existing = id === undefined ? undefined : ctx.data.rides.find((r) => r.id === id);
-  if (id !== undefined && !existing) throw new NotAllowedError('No such ride.');
+  refuse(signedInProblem(ctx.me));
+  if (id !== undefined && !existing) throw new NotAllowedError(RIDE_GONE);
   refuse(saveRideProblem(ctx.me, existing, raw, ctx.data, now));
   const input = cleanRideInput(raw);
   const fields = {

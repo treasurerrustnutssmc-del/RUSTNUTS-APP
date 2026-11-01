@@ -49,7 +49,8 @@ begin
   if me is null then raise exception 'Sign in first.'; end if;
   if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
   if p_id is not null then
-    select * into existing from public.rides where id = p_id for no key update;
+    -- No lock yet: the checks below refuse most callers, and the update itself locks the row.
+    select * into existing from public.rides where id = p_id;
     if not found then raise exception 'No such ride.'; end if;
     if existing.source <> 'app' then raise exception 'This ride comes from the club calendar; change it there.'; end if;
     -- A ride is history once its last Melbourne day has passed (a calendar's all-day end is the midnight after).
@@ -59,6 +60,7 @@ begin
       else existing.ends_at end);
     if last_day < private.club_date() then raise exception 'That ride is history; it can’t change now.'; end if;
   end if;
+  if p_category is null then raise exception 'Pick a chapter or colour.'; end if;
   if not private.manages_chapter_rides(null) then
     raise exception 'Only the board, ride committee or NEC can make and change rides.';
   end if;
@@ -70,7 +72,10 @@ begin
     raise exception 'Give the ride a title (3 to 80 characters).';
   end if;
   if p_starts_at is null then raise exception 'Pick a start date and time.'; end if;
-  if private.club_date(p_starts_at) < private.club_date() then raise exception 'A ride starts today or later.'; end if;
+  -- A new ride, or a moved start, lands today or later; a ride already under way keeps its start.
+  if (p_id is null or p_starts_at is distinct from existing.starts_at) and private.club_date(p_starts_at) < private.club_date() then
+    raise exception 'A ride starts today or later.';
+  end if;
   if p_ends_at is not null then
     if (p_all_day and private.club_date(p_ends_at) < private.club_date(p_starts_at))
        or (not p_all_day and p_ends_at <= p_starts_at) then
@@ -119,6 +124,7 @@ begin
   if not private.manages_ride_category(existing.category) then
     raise exception 'Only that chapter’s board or ride committee can run its rides.';
   end if;
+  if p_off is null then raise exception 'That ride isn’t called off.'; end if;
   if p_off and existing.cancelled_at is not null then raise exception 'That ride is already called off.'; end if;
   if not p_off and existing.cancelled_at is null then raise exception 'That ride isn’t called off.'; end if;
   update public.rides

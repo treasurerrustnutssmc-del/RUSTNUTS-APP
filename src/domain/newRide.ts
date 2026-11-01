@@ -18,6 +18,7 @@ export const MAX_RIDE_NOTES = 1000;
 export const NOT_RIDE_MANAGER = 'Only the board, ride committee or NEC can make and change rides.';
 export const NOT_CHAPTER_RIDE_MANAGER = 'Only that chapter’s board or ride committee can run its rides.';
 export const RIDE_TITLE = 'Give the ride a title (3 to 80 characters).';
+export const RIDE_CATEGORY = 'Pick a chapter or colour.';
 export const RIDE_START = 'Pick a start date and time.';
 export const RIDE_PAST = 'A ride starts today or later.';
 export const RIDE_END = 'The end comes after the start.';
@@ -103,11 +104,14 @@ export function saveRideProblem(
     if (isOver(existing, now)) return RIDE_OVER;
   }
   const input = cleanRideInput(raw);
+  if (!RIDE_CATEGORIES.includes(input.category)) return RIDE_CATEGORY;
   const manager = managerProblem(me, existing ? [existing.category, input.category] : [input.category], data);
   if (manager) return manager;
   if (input.title.length < MIN_RIDE_TITLE || input.title.length > MAX_RIDE_TITLE) return RIDE_TITLE;
   if (!validInstant(input.startsAt)) return RIDE_START;
-  if (melbourneDate(input.startsAt) < melbourneDate(now)) return RIDE_PAST;
+  // A new ride, or a moved start, lands today or later; a ride already under way keeps its start.
+  const moved = !existing || new Date(input.startsAt).getTime() !== new Date(existing.startsAt).getTime();
+  if (moved && melbourneDate(input.startsAt) < melbourneDate(now)) return RIDE_PAST;
   if (input.endsAt !== null) {
     if (!validInstant(input.endsAt)) return RIDE_END;
     if (input.allDay) {

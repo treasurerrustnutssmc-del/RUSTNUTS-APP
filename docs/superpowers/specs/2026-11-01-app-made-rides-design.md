@@ -54,8 +54,8 @@ Rules:
 
 For a ride made in the app with the website switch on: **title, start and end, all day, category and
 location**. Notes stay with members (`notes` comes back null in the feed). A ride with the switch off,
-or called off after never having been on the site, is not listed. A ride that was on the site and is
-then called off shows as cancelled, the same as a calendar cancellation does today, so people who
+is not listed. A ride with the switch on that is called off shows as cancelled (even if it was called
+off minutes after it was made: the feed can't know whether the site fetched it), the same as a calendar cancellation does today, so people who
 saw it learn it's off. Calendar rides are unchanged: still title, when, category, location and notes.
 
 The website needs no change: `/rides` keeps the same shape and `rideToEvent` already handles a null
@@ -78,8 +78,8 @@ The website needs no change: `/rides` keeps the same shape and `rideToEvent` alr
 - RIDE_NOT_OFF "That ride isn't called off."
 
 Refusal order for saving: signed in → approved → exists (when changing) → app ride → not over →
-allowed for the ride's category (and, when changing, the new one) → title → start → not past (new
-rides only) → end → location → notes.
+category given → allowed for the ride's category (and, when changing, the new one) → title → start →
+not past (a new ride, or a start that moved; a ride under way keeps its start) → end → location → notes.
 Refusal order for calling off / putting back: signed in → approved → exists → app ride → not started
 → allowed → not already off / is off.
 

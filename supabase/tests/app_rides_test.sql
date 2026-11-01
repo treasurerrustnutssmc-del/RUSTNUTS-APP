@@ -41,7 +41,8 @@ insert into rides (id, source, starts_at, ends_at, all_day, title, location, not
   ('00000000-0000-0000-0000-00000000ad02', 'app', now() + interval '10 days', null, false, 'West app run', 'Melton', 'Members only', 'west', null),
   ('00000000-0000-0000-0000-00000000ad03', 'app', now() - interval '3 days', null, false, 'Old app run', null, null, 'club', null),
   ('00000000-0000-0000-0000-00000000ad04', 'app', now() + interval '12 days', null, false, 'Called off run', null, null, 'club', now()),
-  ('00000000-0000-0000-0000-00000000ad05', 'app', now() + interval '14 days', null, false, 'Quiet club night', null, 'Not for the site', 'club', null);
+  ('00000000-0000-0000-0000-00000000ad05', 'app', now() + interval '14 days', null, false, 'Quiet club night', null, 'Not for the site', 'club', null),
+  ('00000000-0000-0000-0000-00000000ad06', 'app', now() - interval '1 day', now() + interval '1 day', false, 'Weekend under way', null, null, 'club', null);
 update rides set website = false where id = '00000000-0000-0000-0000-00000000ad05';
 
 -- Runs a statement as a signed-in user (anon when who is null) and returns its error, or null.
@@ -151,6 +152,7 @@ declare
   west constant uuid := '00000000-0000-0000-0000-00000000ad02';
   old constant uuid := '00000000-0000-0000-0000-00000000ad03';
   off constant uuid := '00000000-0000-0000-0000-00000000ad04';
+  running constant uuid := '00000000-0000-0000-0000-00000000ad06';
   gone constant uuid := '00000000-0000-0000-0000-000000000000';
   soon timestamptz := now() + interval '20 days';
   r rides%rowtype;
@@ -174,6 +176,13 @@ begin
   assert r.title = 'West app run moved' and r.category = 'club' and r.ends_at = soon + interval '3 hours' and r.notes = 'New notes'
     and r.website = false and r.updated_by = rc and r.created_by is null, 'the change landed';
   assert pg_temp.try_as(wes, pg_temp.save_sql(off, 'Called off run', soon, null, false, 'club', null, '', true)) is null, 'a called-off app ride can still change';
+  -- A ride under way keeps its start and can still change; moving its start to yesterday can't.
+  assert pg_temp.try_as(wes, pg_temp.save_sql(running, 'Weekend under way, day two', (select starts_at from rides where id = running),
+    (select ends_at from rides where id = running), false, 'club', null, '', true)) is null, 'a ride under way can change';
+  assert pg_temp.try_as(wes, pg_temp.save_sql(running, 'Weekend under way', now() - interval '2 days',
+    (select ends_at from rides where id = running), false, 'club', null, '', true)) = 'A ride starts today or later.', 'but not move its start back';
+  assert pg_temp.try_as(wes, format('select public.save_ride(null, %L, %L::timestamptz, null, false, null, null, null, true)', 'No colour', soon))
+    = 'Pick a chapter or colour.', 'no category';
   assert pg_temp.try_as(wes, 'update rides set title = ''x'' where id = ''' || west || '''') like 'permission denied%', 'no direct update';
 end $$;
 
@@ -204,6 +213,7 @@ begin
   assert pg_temp.try_as(rc, pg_temp.off_sql(west, true)) is null, 'called off';
   assert (select cancelled_at from rides where id = west) is not null, 'cancelled_at set';
   assert pg_temp.try_as(rc, pg_temp.off_sql(west, true)) = 'That ride is already called off.', 'already off';
+  assert pg_temp.try_as(wes, format('select public.set_ride_called_off(%L::uuid, null)', off)) = 'That ride isn’t called off.', 'a null switch does nothing';
   assert pg_temp.try_as(wes, pg_temp.off_sql(off, false)) is null, 'put back on';
   assert (select cancelled_at from rides where id = off) is null, 'cancelled_at cleared';
 end $$;
