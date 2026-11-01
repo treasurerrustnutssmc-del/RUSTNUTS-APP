@@ -28,8 +28,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # The PC web version at /RUSTNUTS-APP/pc-d672883cc4ca/ (unlinked, behind the roster sign-in).
+      # The PC web version at /RUSTNUTS-APP/pc-d672883cc4ca/ (unlinked, behind the roster sign-in). If the app
+      # fails to build, the static pages above still publish (without the PC version) rather than being held up.
       - run: scripts/web-preview.sh pc-d672883cc4ca
+        continue-on-error: true
+        env:
+          # GIPHY's app key for GIF search, as in preview-update.yml. Unset means no GIF button.
+          EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.GIPHY_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

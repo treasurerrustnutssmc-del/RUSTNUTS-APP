@@ -1,0 +1,2 @@
+# The PC web version is built by the Pages workflow (scripts/web-preview.sh); never commit a local build.
+/pc-*/
