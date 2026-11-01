@@ -473,6 +473,14 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
             <ErrorNotice error={minutesAction.error} />
             <Button label="Save draft" kind="secondary" busy={minutesAction.busy} disabled={draft === null} onPress={save} />
             {started ? (
+              <Button
+                label="Draft from Otter"
+                kind="secondary"
+                icon="mic-outline"
+                onPress={() => navigation.navigate('OtterMinutes', { meetingId: meeting.id })}
+              />
+            ) : null}
+            {started ? (
               approveBlock ? (
                 <Small>{approveBlock === 'Write the minutes first.' ? 'Write the minutes, then share the draft and confirm them here.' : approveBlock}</Small>
               ) : (

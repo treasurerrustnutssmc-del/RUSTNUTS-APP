@@ -20,6 +20,10 @@ Rules used for both forms:
   in the app to Anthropic (Claude) to answer. Anthropic works for the club as a service provider and
   doesn't train on it. The club doesn't store the questions or answers (only a daily count per member),
   so on Google Play it's "processed ephemerally" under Other user-generated content.
+- Draft from Otter sends a meeting's transcript (pasted or picked from the secretary's Otter.ai export),
+  the agenda and the names of members who could have been there to Anthropic to draft minutes. The club
+  keeps only the minutes the board saves (already declared with meeting minutes), not the transcript, so
+  it's the same "processed ephemerally" line. No audio leaves Otter.
 - Ride comms voice is live and never stored, so it isn't "collected" (Apple) and is "processed
   ephemerally" (Google). Weather lookups send the ride's route (plus the phone's IP address) to Open-Meteo.
 

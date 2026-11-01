@@ -405,6 +405,15 @@ done
 "${PSQL[@]}" -d rustnuts_club_assistant -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_club_assistant -f "$ROOT/supabase/tests/club_assistant_test.sql"
 
+# Draft from Otter (meeting minutes from a transcript), on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_otter_minutes" >/dev/null
+"${PSQL[@]}" -d rustnuts_otter_minutes -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_otter_minutes -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_otter_minutes -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_otter_minutes -f "$ROOT/supabase/tests/otter_minutes_test.sql"
+
 # The storage purge on account deletion, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_purge" >/dev/null
 "${PSQL[@]}" -d rustnuts_purge -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null

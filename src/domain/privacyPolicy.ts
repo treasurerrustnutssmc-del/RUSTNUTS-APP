@@ -14,7 +14,7 @@ export const PRIVACY_URL = 'https://treasurerrustnutssmc-del.github.io/RUSTNUTS-
 export const PRIVACY_EMAIL = 'apps@rustnutssmc.com.au';
 
 /** ISO date the policy last changed. */
-export const PRIVACY_UPDATED_ON = '2026-10-31';
+export const PRIVACY_UPDATED_ON = '2026-11-01';
 
 /** A paragraph, or a list of points. */
 export type PrivacyBlock = string | { points: string[] };
@@ -133,6 +133,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'GIPHY supplies GIFs for chats. Your phone asks it directly, so it gets the words you search for and your phone’s internet (IP) address, and GIFs in chats load from its servers. GIPHY handles that under its own privacy policy.',
           'Link previews: when you post a link, our server fetches the page to get its title. The preview picture then loads from that website, so the website sees the internet (IP) address of each phone that shows it.',
           'Anthropic (Claude) answers Ask the club. When you ask it something, your question, the chat so far and a summary of what you can already see in the app (the ride calendar, the Rusty Bus, your own fees, members’ names and roles, and the chats you can post in) go to Anthropic to answer. Anthropic doesn’t train its models on them and handles them under its commercial privacy terms. Nothing is done in the app until you tap Confirm.',
+          'Anthropic also drafts meeting minutes when a board member uses Draft from Otter: the meeting’s transcript (what was said, as the secretary’s Otter.ai account wrote it down), the agenda and the names of members who could have been there go to Anthropic to write a draft, under the same terms. The board member checks the draft before anything is saved.',
           'Ride files you send to Garmin or another app, and things you share out of the app, go only where you choose to send them.',
         ],
       },
@@ -155,7 +156,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
         points: [
           'Live ride locations: deleted when you stop sharing, and anything left from the ride (including alerts) once its live window closes.',
           'Notification queue: deleted after 90 days.',
-          'Ask the club: the club doesn’t keep your questions or the answers. They stay on your phone for that chat only. The club keeps a count of how many questions each member asks a day (cleared after two days) and what each month costs.',
+          'Ask the club: the club doesn’t keep your questions or the answers. They stay on your phone for that chat only. The club keeps a count of how many questions each member asks a day (cleared after two days) and what each month costs. Draft from Otter: the club doesn’t keep the transcript, only the minutes the board saves, and a count of how many times each meeting was drafted.',
           'Conduct records: deleted on the dates the constitution sets.',
           'Financial records, receipts, meeting minutes and votes: kept as long as the club needs them for its books and the law (Australian law requires financial records to be kept for at least 5 years).',
           'Your account and profile: until you delete your account. That removes your sign-in, profile, contact details, emergency contacts, bikes, messages, ride sign-ups and listings straight away. The club keeps its books, minutes, votes, attendance, conduct records, past board seats and any message someone has reported, showing you as “Former member”, and clears your photo files.',

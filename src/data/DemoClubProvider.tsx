@@ -39,8 +39,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   const shown = useMemo(() => (level === 'family' && me ? forFamily(data, me) : data), [level, me, data]);
   useEffect(() => bindDemoLive(() => ({ data, me })), [data, me]);
   const ctx: act.DemoCtx = { data, me, today };
-  // Saving the minutes and then sharing or confirming them happens in one press, so the second
-  // step has to build on the first, not on what was rendered.
+  // Some presses do several steps (save the minutes then share or confirm them; Draft from Otter's
+  // minutes, ticks and action items), so each step has to build on the last, not on what was rendered.
   const latest = useRef(data);
   useEffect(() => {
     latest.current = data;
@@ -113,7 +113,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     saveMinutes: async (id, text) => keep(business.saveMinutes(fresh(), id, text)),
     shareMinutes: async (id) => keep(business.shareMinutes(fresh(), id)),
     approveMinutes: async (id) => keep(business.approveMinutes(fresh(), id)),
-    saveActionItem: async (input) => setData(business.saveActionItem(ctx, input).data),
+    saveActionItem: async (input) => keep(business.saveActionItem(fresh(), input).data),
     setActionDone: async (id, done) => setData(business.setActionDone(ctx, id, done)),
     openVote: async (input) => {
       const result = business.openVote(ctx, input);
@@ -134,7 +134,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       setData(result.data);
       return result.id;
     },
-    markAttendance: async (sessionId, memberId, present) => setData(s4.markAttendance(ctx, sessionId, memberId, present)),
+    markAttendance: async (sessionId, memberId, present) => keep(s4.markAttendance(fresh(), sessionId, memberId, present)),
     closeCheckin: async (sessionId) => setData(s4.closeCheckin(ctx, sessionId)),
     designateBig4: async (rideId, chapterId) => setData(attendanceRules.designateBig4(ctx, rideId, chapterId)),
     undesignateBig4: async (rideId) => setData(attendanceRules.undesignateBig4(ctx, rideId)),
