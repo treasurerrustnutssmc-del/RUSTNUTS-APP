@@ -90,9 +90,9 @@ for (const c of fx.contacts) {
 
 for (const r of fx.rides) {
   sql(
-    `insert into public.rides (id, source, starts_at, title, category, cancelled_at) values (` +
-      `${id('r', r.key)}, 'app', ${q(r.startsAt)}::timestamptz, ${q(r.title)}, ${q(r.category)}, ` +
-      `${r.cancelled ? "'2026-01-01T00:00:00Z'" : 'null'});`,
+    `insert into public.rides (id, source, starts_at, title, category, cancelled_at, website) values (` +
+      `${id('r', r.key)}, ${q(r.source ?? 'app')}, ${q(r.startsAt)}::timestamptz, ${q(r.title)}, ${q(r.category)}, ` +
+      `${r.cancelled ? "'2026-01-01T00:00:00Z'" : 'null'}, true);`,
   );
 }
 
@@ -139,9 +139,9 @@ if (s4) {
   }
   for (const r of s4.rides) {
     sql(
-      `insert into public.rides (id, source, starts_at, title, category, cancelled_at) values (` +
-        `${id('r', r.key)}, 'app', ${q(r.startsAt)}::timestamptz, ${q(r.title)}, ${q(r.category)}, ` +
-        `${r.cancelled ? "'2026-01-01T00:00:00Z'" : 'null'});`,
+      `insert into public.rides (id, source, starts_at, title, category, cancelled_at, website) values (` +
+        `${id('r', r.key)}, ${q(r.source ?? 'app')}, ${q(r.startsAt)}::timestamptz, ${q(r.title)}, ${q(r.category)}, ` +
+        `${r.cancelled ? "'2026-01-01T00:00:00Z'" : 'null'}, true);`,
     );
   }
   for (const x of s4.sessions) {
@@ -945,6 +945,19 @@ const planningCall = (c: ParityCase & Record<string, any>): string | null => {
       );
     case 'withdrawCharity':
       return `public.withdraw_charity(${id('r', c.ride)})`;
+    // Rides made in the app
+    case 'saveRide': {
+      const n = c.repeat ?? 1;
+      const field = c.repeatField ?? 'title';
+      const rep = (f: string, v: string | null) => (v === null ? 'null' : q(field === f ? v.repeat(n) : v));
+      const ts = (v: string | null) => (v === null ? 'null::timestamptz' : `${q(v)}::timestamptz`);
+      return (
+        `public.save_ride(${c.ride === null ? 'null::uuid' : id('r', c.ride)}, ${rep('title', c.title)}, ${ts(c.startsAt)}, ${ts(c.endsAt)}, ` +
+        `${c.allDay}, ${q(c.category)}, ${rep('location', c.location)}, ${rep('notes', c.notes)}, ${c.website})`
+      );
+    }
+    case 'setRideCalledOff':
+      return `public.set_ride_called_off(${id('r', c.ride)}, ${c.off})`;
     default:
       return null;
   }

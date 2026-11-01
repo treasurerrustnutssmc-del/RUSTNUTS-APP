@@ -18,11 +18,12 @@ import type { Casting } from '../domain/votes';
 import { APPROVE_AS, NATIONAL_ROLES } from '../domain/labels';
 import type {
   BallotChoice, BusBooking, BusPurpose, ClubData, CrewRole, Electorate, HubStaying, MeetingKind, Member, MemberStatus,
-  PlanStop, PositionRole, RideCallState, Route, RsvpAnswer, StatusChange, Threshold,
+  PlanStop, PositionRole, RideCallState, RideCategory, Route, RsvpAnswer, StatusChange, Threshold,
 } from '../domain/types';
 import * as business from './businessActions';
 import * as planning from './planningActions'; // Ride planning extras
 import * as charity from './charityActions'; // Charity ride sign-ups
+import * as rides from './rideActions'; // Rides made in the app
 import {
   NotAllowedError,
   validateApplicationBike,
@@ -688,6 +689,10 @@ export type DemoAction =
   | { action: 'answerSwap'; swap: string; yes: boolean }
   | { action: 'withdrawSwap'; swap: string }
   // Charity ride sign-ups. `repeat` writes the about, or the notes, out that many times, for the limits.
+  // Rides made in the app. `ride` null makes a ride; `repeat` writes the title, place or notes out that many times, for the limits.
+  | { action: 'saveRide'; ride: string | null; title: string; startsAt: string | null; endsAt: string | null; allDay: boolean; category: RideCategory;
+      location: string | null; notes: string; website: boolean; repeat?: number; repeatField?: 'title' | 'location' | 'notes' }
+  | { action: 'setRideCalledOff'; ride: string; off: boolean }
   | { action: 'saveCharity'; ride: string; cause: string; about: string; closesOn: string | null; places: number | null; jobs: string[]; website?: boolean; repeat?: number }
   | { action: 'signUpCharity'; ride: string; riding: boolean; pillion: boolean; guests: number; guestNames: string; job: string | null; notes: string; repeat?: number }
   | { action: 'withdrawCharity'; ride: string };
@@ -775,6 +780,17 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
     case 'withdrawSwap':
       return planning.withdrawSwap(ctx, a.swap);
     // Charity ride sign-ups
+    case 'saveRide': {
+      const n = a.repeat ?? 1;
+      const field = a.repeatField ?? 'title';
+      const input = {
+        title: field === 'title' ? a.title.repeat(n) : a.title, startsAt: a.startsAt ?? '', endsAt: a.endsAt, allDay: a.allDay, category: a.category,
+        location: field === 'location' ? (a.location ?? '').repeat(n) : a.location, notes: field === 'notes' ? a.notes.repeat(n) : a.notes, website: a.website,
+      };
+      return rides.saveRide(ctx, input, a.ride ?? undefined).data;
+    }
+    case 'setRideCalledOff':
+      return rides.setRideCalledOff(ctx, a.ride, a.off);
     case 'saveCharity':
       return charity.saveCharity(ctx, a.ride, { cause: a.cause, about: a.about.repeat(a.repeat ?? 1), closesOn: a.closesOn, places: a.places, jobs: a.jobs, website: a.website });
     case 'signUpCharity':
