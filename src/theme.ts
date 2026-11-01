@@ -2,49 +2,13 @@
 // ink background, bone text, the club red, Rustnuts Stencil for headings.
 
 import { Platform } from 'react-native';
+import { colors, webFonts } from './brand';
 
-export const colors = {
-  ink: '#111010',
-  ink2: '#171515',
-  steel: '#2a2a2c',
-  steelHi: '#353437',
-  line: 'rgba(244,241,234,0.10)',
-  lineStrong: 'rgba(244,241,234,0.22)',
-  bone: '#F4F1EA',
-  boneDim: '#d8d3c7',
-  boneMute: '#96928a',
-  red: '#8C1C24',
-  redBright: '#B92632',
-  redText: '#F2666F',
-  // states (separate from the brand red)
-  ok: '#7BC48F',
-  okBg: 'rgba(123,196,143,0.12)',
-  warn: '#E9A83A',
-  warnBg: 'rgba(233,168,58,0.12)',
-  danger: '#F2666F',
-  dangerBg: 'rgba(242,102,111,0.12)',
-  // The white the logo and the Road Rules diagrams sit on, as they're drawn on white.
-  logoPlate: '#FFFFFF',
-} as const;
-
-/** Ride calendar colour key, matching the website's. Each label colour is at least 4.5:1 on its chip. */
-export const rideColors = {
-  north: { bg: '#2B64A8', fg: '#FFFFFF' },
-  west: { bg: '#8C1C24', fg: '#F4F1EA' },
-  club: { bg: '#F4F1EA', fg: '#111010' },
-  supported: { bg: '#2A7048', fg: '#FFFFFF' },
-  non_nuts: { bg: '#55555A', fg: '#FFFFFF' },
-} as const;
+export { colors, rideColors } from './brand';
 
 export const fonts = {
-  stencil: Platform.select({
-    web: '"RustnutsStencil", "Arial Black", "Helvetica Neue", sans-serif',
-    default: 'RustnutsStencil',
-  }),
-  body: Platform.select({
-    web: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-    default: undefined,
-  }),
+  stencil: Platform.select({ web: webFonts.stencil, default: 'RustnutsStencil' }),
+  body: Platform.select({ web: webFonts.body, default: undefined }),
 } as const;
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
