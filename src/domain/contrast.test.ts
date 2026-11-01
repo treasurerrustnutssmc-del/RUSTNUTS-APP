@@ -24,7 +24,7 @@ test('the palette is read from theme.ts', () => {
 });
 
 test('every text colour passes 4.5:1 on the surfaces it is used on', () => {
-  const pairs: Array<[text: string, surface: string]> = [
+  const pairs: [text: string, surface: string][] = [
     ['bone', 'ink'], ['bone', 'ink2'], ['bone', 'steel'], ['bone', 'steelHi'],
     ['boneDim', 'ink'], ['boneDim', 'ink2'], ['boneDim', 'steel'], ['boneDim', 'steelHi'],
     ['boneMute', 'ink'], ['boneMute', 'ink2'], ['boneMute', 'steel'],
