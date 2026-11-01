@@ -6,11 +6,14 @@ import {
   diagramById,
   diagramLabel,
   figureNumber,
+  guideStatus,
   neighbours,
   ruleByNumber,
   ruleNeighbours,
   rulesWithDiagram,
+  writtenRulesText,
 } from './roadRulesGuide';
+import { MAX_RULES_TEXT, draftProblem, rulesBlocks } from './roadRules';
 
 test('Chris’s diagrams-only document: 17 diagrams, each once, in his order', () => {
   assert.equal(DIAGRAMS.length, 17);
@@ -91,4 +94,49 @@ test('previous and next rule', () => {
   assert.equal(ruleByNumber(19), undefined);
   assert.deepEqual(ruleNeighbours(1), { prev: null, next: 2 });
   assert.deepEqual(ruleNeighbours(18), { prev: 17, next: null });
+});
+
+// Adoption: the NEC publishes the written rules as a Road Rules version, which members sign. The
+// illustrated guide stays beside it for members; only its diagrams go public.
+
+
+test('the written rules: every rule as a heading, every word in order, each diagram named by figure', () => {
+  const text = writtenRulesText();
+  const blocks = rulesBlocks(text);
+  const expected: string[] = [];
+  for (const r of GUIDE_RULES) {
+    expected.push(`heading:${r.number}. ${r.title}`);
+    for (const b of r.blocks) {
+      if (b.kind === 'diagram') {
+        const d = diagramById(b.id)!;
+        expected.push(`para:Figure ${figureNumber(d.id)}: ${d.caption} (in the illustrated Road Rules).`);
+      } else expected.push(`${b.kind === 'bullet' ? 'bullet' : 'para'}:${b.text}`);
+    }
+  }
+  assert.deepEqual(blocks.map((b) => `${b.kind}:${b.text}`), expected);
+  assert.equal(blocks.filter((b) => b.kind === 'heading').length, 18);
+});
+
+test('the written rules fit one Road Rules version and publish as they are', () => {
+  const text = writtenRulesText();
+  assert.ok([...text.trim()].length <= MAX_RULES_TEXT);
+  assert.equal(draftProblem({ body: text, changes: '', fresh: true }), null);
+  assert.ok(!text.includes('.png'));
+});
+
+test('before adoption the illustrated set is labelled a draft; after, the illustrated version', () => {
+  const draft = guideStatus(false);
+  assert.equal(draft.chip, 'Club adoption pending');
+  assert.equal(draft.tone, 'warn');
+  assert.equal(draft.section, 'Illustrated draft');
+  assert.match(draft.line, /^Draft · 30\/10\/2026$/);
+  assert.match(draft.note, /Until the club adopts it/);
+
+  const adopted = guideStatus(true);
+  assert.equal(adopted.chip, 'Adopted');
+  assert.equal(adopted.tone, 'ok');
+  assert.equal(adopted.section, 'Illustrated version');
+  assert.equal(adopted.line, '30/10/2026');
+  assert.ok(!/draft/i.test(`${adopted.chip} ${adopted.section} ${adopted.line} ${adopted.noteTitle} ${adopted.note}`));
+  assert.match(adopted.note, /written Road Rules are the ones you sign/);
 });
