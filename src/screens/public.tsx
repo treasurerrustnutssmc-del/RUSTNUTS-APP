@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AppState, Linking, Text, View } from 'react-native';
+import { AppState, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { validateApplicationBike } from '../data/clubContext';
 import { DEMO_PERSONAS } from '../data/demoData';
@@ -8,7 +8,6 @@ import { displayName, initials } from '../domain/profile';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { RootParams, RootScreen } from '../navigation/types';
 import { IntroProgressCard } from './fng'; // Stage 4
-import { SUPPORT_URL } from '../domain/clubLinks'; // Club links
 import { isReviewerEmail } from '../domain/reviewer'; // Store review demo
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
@@ -81,15 +80,15 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
           <View style={{ flex: 1, gap: 4 }}>
             <Body strong>No one rides alone</Body>
             <Small>
-              Lifeline is there 24/7 on 13 11 14. Mental health, legal and rider support is on our Support page.
+              Lifeline is there 24/7 on 13 11 14. Every 24/7 support line is one tap away in Support.
             </Small>
           </View>
         </Row>
         <Button
           label="Support and resources"
           kind="secondary"
-          icon="open-outline"
-          onPress={() => Linking.openURL(SUPPORT_URL).catch(() => {})}
+          icon="heart-outline"
+          onPress={() => navigation.navigate('Support')}
         />
       </Card>
 

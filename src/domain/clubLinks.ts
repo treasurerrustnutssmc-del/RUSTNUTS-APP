@@ -32,7 +32,7 @@ export const CLUB_LINK_GROUPS: ClubLinkGroup[] = [
         url: 'https://www.rustnutssmc.com.au/shop.html',
         icon: 'shirt-outline',
       },
-      { id: 'support', label: 'Support and resources', detail: 'Mental health, legal and rider help', url: SUPPORT_URL, icon: 'heart-outline' },
+      { id: 'support', label: 'Support and resources', detail: '24/7 crisis lines, in the app', url: SUPPORT_URL, icon: 'heart-outline' },
     ],
   },
   {
