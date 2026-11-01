@@ -9,7 +9,8 @@
  */
 
 /** Where the policy lives on the web (the address given to Apple and Google). */
-export const PRIVACY_URL = 'https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/privacy.html';
+/** On the club website; the old GitHub Pages copy (treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/privacy.html) stays up and points here. */
+export const PRIVACY_URL = 'https://www.rustnutssmc.com.au/app/privacy.html';
 
 export const PRIVACY_EMAIL = 'apps@rustnutssmc.com.au';
 

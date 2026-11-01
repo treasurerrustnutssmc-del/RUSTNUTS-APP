@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { renderPrivacyPage } from './privacyPage';
 import { PRIVACY_EMAIL, PRIVACY_SECTIONS, PRIVACY_URL, privacyUpdatedLine } from './privacyPolicy';
 
-test('the public page is built from the same text as the app (run npm run build:privacy after a change)', () => {
+test('the public page is built from the same text as the app (run npm run build:site after a change)', () => {
   const onDisk = readFileSync(join(__dirname, '../../site/privacy.html'), 'utf8');
   assert.equal(onDisk, renderPrivacyPage());
 });

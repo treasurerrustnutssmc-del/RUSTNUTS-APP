@@ -23,5 +23,6 @@ export function renderPrivacyPage(sections: PrivacySection[] = PRIVACY_SECTIONS)
     intro: PRIVACY_INTRO,
     sections,
     email: PRIVACY_EMAIL,
+    movedTo: PRIVACY_URL,
   });
 }

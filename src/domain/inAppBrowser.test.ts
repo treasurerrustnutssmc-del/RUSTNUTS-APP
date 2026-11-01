@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { PRIVACY_URL } from './privacyPolicy';
 import { opensInApp } from './inAppBrowser';
 import { CLUB_LINK_GROUPS, SUPPORT_URL } from './clubLinks';
 
@@ -13,7 +14,7 @@ test('the club website, its shop and its support page open inside the app', () =
 });
 
 test("the app's own public pages and other plain websites open inside the app too", () => {
-  assert.equal(opensInApp('https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/privacy.html'), true);
+  assert.equal(opensInApp(PRIVACY_URL), true);
   assert.equal(opensInApp('https://deadsetsafety.com.au/'), true);
   assert.equal(opensInApp('http://example.org/page'), true);
 });
