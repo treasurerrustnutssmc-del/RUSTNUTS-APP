@@ -164,6 +164,8 @@ export type RootParams = {
   Sponsors: undefined;
   // The privacy policy (every level, signed in or not)
   PrivacyPolicy: undefined;
+  // The 24/7 crisis and support lines (every level, signed in or not; works offline)
+  Support: undefined;
   // The club rules for chats and posts (the gate before the tabs, then a page off Me)
   PostingRules: undefined;
   PostingRulesGate: undefined;

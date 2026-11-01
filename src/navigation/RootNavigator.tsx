@@ -67,6 +67,7 @@ import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '..
 import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
 import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
 import { PostingRulesScreen } from '../screens/postingRules'; // Club rules for chats and posts
+import { SupportScreen } from '../screens/support'; // Crisis and support lines, inside the app
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
 } from '../screens/invites'; // Invites to and from other clubs
@@ -236,6 +237,7 @@ export function RootNavigator() {
             <Stack.Screen name="Join" component={JoinScreen} options={{ title: 'Ask to join' }} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+            <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
           </>
         ) : level === 'public' ? (
           <>
@@ -245,6 +247,7 @@ export function RootNavigator() {
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+            <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
           </>
         ) : level === 'pending' ? (
           <>
@@ -257,6 +260,7 @@ export function RootNavigator() {
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+            <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
             <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
           </>
         ) : level === 'family' ? (
@@ -272,6 +276,7 @@ export function RootNavigator() {
             {/* Sponsors: anyone with the app sees them */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+            <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
           </>
         ) : needsPostingRules(me) ? (
           <>
@@ -279,6 +284,7 @@ export function RootNavigator() {
                 route name, so once they agree the stack has no screen to keep and starts on Home. */}
             <Stack.Screen name="PostingRulesGate" component={PostingRulesScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+            <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
             <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} options={{ title: 'Delete account' }} />
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
           </>
@@ -439,6 +445,7 @@ export function RootNavigator() {
             {/* Sponsors */}
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
+            <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
             <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
             <Stack.Screen
               name="EditSponsor"
