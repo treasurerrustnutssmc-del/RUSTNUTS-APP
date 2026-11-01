@@ -1,7 +1,8 @@
 /**
- * The club's own places online, as listed on rustnutssmc.com.au (checked 28/10/2026).
- * The website and its shop stay where they are; the app opens them in its own browser sheet
- * (see inAppBrowser.ts).
+ * The club's own places online, as listed on rustnutssmc.com.au (checked 28/10/2026) plus the club
+ * Discord (01/11/2026). The website and its shop stay where they are; the app opens them in its
+ * own browser sheet (see inAppBrowser.ts). Members' merch is ordered in the Discord #merch-shop
+ * (gated by Discord roles), public merch on the website shop.
  */
 
 export interface ClubLink {
@@ -21,17 +22,29 @@ export interface ClubLinkGroup {
 
 export const SUPPORT_URL = 'https://www.rustnutssmc.com.au/resources.html';
 
+/** The club's Discord server: a permanent invite (never expires) that lands in #welcome-and-rules. */
+export const DISCORD_INVITE_URL = 'https://discord.gg/D8NpBNqqVj';
+/** #merch-shop on the club Discord, where Full members order member designs with the club bot (/buy). */
+export const DISCORD_SHOP_URL = 'https://discord.com/channels/1443170738444959865/1566372842394751067';
+
 export const CLUB_LINK_GROUPS: ClubLinkGroup[] = [
   {
     title: 'The club online',
     links: [
       { id: 'website', label: 'Club website', detail: 'rustnutssmc.com.au', url: 'https://www.rustnutssmc.com.au/', icon: 'globe-outline' },
       {
-        id: 'shop',
-        label: 'Merch shop',
-        detail: 'Order on the form, pay by bank transfer',
-        url: 'https://www.rustnutssmc.com.au/shop.html',
+        id: 'discord-shop',
+        label: 'Members’ merch shop',
+        detail: 'Member designs, in the club Discord (Full members)',
+        url: DISCORD_SHOP_URL,
         icon: 'shirt-outline',
+      },
+      {
+        id: 'shop',
+        label: 'Public merch shop',
+        detail: 'Supporter designs on the website, pay by bank transfer',
+        url: 'https://www.rustnutssmc.com.au/shop.html',
+        icon: 'storefront-outline',
       },
       { id: 'support', label: 'Support and resources', detail: '24/7 crisis lines, in the app', url: SUPPORT_URL, icon: 'heart-outline' },
     ],
@@ -70,6 +83,7 @@ export const CLUB_LINK_GROUPS: ClubLinkGroup[] = [
         icon: 'logo-facebook',
       },
       { id: 'club-instagram', label: 'Club Instagram', detail: '@rustnuts_social2019', url: 'https://www.instagram.com/rustnuts_social2019/', icon: 'logo-instagram' },
+      { id: 'discord', label: 'Club Discord', detail: 'Chat, votes and the members’ merch shop', url: DISCORD_INVITE_URL, icon: 'chatbubbles-outline' },
       { id: 'linktree', label: 'Linktree', detail: 'Every club link in one place', url: 'https://linktr.ee/rustnutssmc', icon: 'link-outline' },
     ],
   },

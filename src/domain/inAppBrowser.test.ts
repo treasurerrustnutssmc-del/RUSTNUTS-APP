@@ -19,7 +19,7 @@ test("the app's own public pages and other plain websites open inside the app to
 });
 
 test('places with their own phone app still open in that app', () => {
-  for (const id of ['podcast-spotify', 'podcast-youtube', 'podcast-facebook', 'podcast-instagram', 'west-facebook', 'club-instagram']) {
+  for (const id of ['podcast-spotify', 'podcast-youtube', 'podcast-facebook', 'podcast-instagram', 'west-facebook', 'club-instagram', 'discord-shop', 'discord']) {
     assert.equal(opensInApp(link(id)), false, id);
   }
   assert.equal(opensInApp('https://m.facebook.com/x'), false);
