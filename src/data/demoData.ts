@@ -1112,3 +1112,53 @@ DEMO_DATA.rides.push(
     attendance: [...(DEMO_DATA.attendance ?? []), ...pastAttendance],
   } satisfies Partial<ClubData>);
 }
+
+// ---------------------------------------------------------------------------
+// The club shop (in-app merch ordering). Made-up demo designs, garments and prices: the real
+// catalogue is loaded into the live database from Chris's Discord shop. Spanner has one order sent
+// (waiting for the treasurer) and Torque one paid and posted, so every screen has something to show.
+// ---------------------------------------------------------------------------
+
+const TEE_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+const shopAt = at(ago(3));
+Object.assign(DEMO_DATA, {
+  shopDesigns: [
+    { id: 'sd-member', name: 'Member', eligibility: 'patched', blurb: 'The club patch design. For Full and Nomad members.', sort: 1, onSale: true, updatedBy: 'm-rusty', updatedAt: shopAt },
+    { id: 'sd-family', name: 'Family', eligibility: 'family', blurb: 'For our families, and the patched members who ride with them.', sort: 2, onSale: true, updatedBy: 'm-rusty', updatedAt: shopAt },
+    { id: 'sd-better', name: 'Better with you', eligibility: 'any', blurb: 'Better with you. Wear it, start a conversation.', sort: 3, onSale: true, updatedBy: 'm-rusty', updatedAt: shopAt },
+    { id: 'sd-ruok', name: 'R U OK', eligibility: 'any', blurb: 'Supporting R U OK? Ask the question.', sort: 4, onSale: true, updatedBy: 'm-rusty', updatedAt: shopAt },
+  ],
+  shopGarments: [
+    { id: 'sg-member-hoodie', designId: 'sd-member', name: 'Hoodie', priceCents: 6500, sizes: TEE_SIZES, colours: ['Black'], sort: 1, onSale: true },
+    { id: 'sg-member-tee', designId: 'sd-member', name: 'Tee', priceCents: 3500, sizes: TEE_SIZES, colours: ['Black', 'Charcoal'], sort: 2, onSale: true },
+    { id: 'sg-member-cap', designId: 'sd-member', name: 'Cap', priceCents: 3000, sizes: [], colours: [], sort: 3, onSale: true },
+    { id: 'sg-family-tee', designId: 'sd-family', name: 'Tee', priceCents: 3500, sizes: ['XS', ...TEE_SIZES], colours: ['Black'], sort: 1, onSale: true },
+    { id: 'sg-better-tee', designId: 'sd-better', name: 'Tee', priceCents: 3500, sizes: TEE_SIZES, colours: ['Black', 'White'], sort: 1, onSale: true },
+    { id: 'sg-ruok-tee', designId: 'sd-ruok', name: 'Tee', priceCents: 3500, sizes: TEE_SIZES, colours: ['Yellow'], sort: 1, onSale: true },
+  ],
+  shopShipping: ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'].flatMap((state) => [
+    { state, method: 'standard' as const, cents: state === 'VIC' ? 1200 : 1500 },
+    { state, method: 'express' as const, cents: state === 'VIC' ? 1800 : 2400 },
+  ]),
+  shopRunners: [],
+  shopOrders: [
+    {
+      id: '5a7e0c21-4d2b-4e8a-9c1f-2b6d8e4a0001', memberId: 'm-spanner', clientRef: '00000000-0000-4000-8000-000000000001', buyerName: 'Mick Doherty',
+      roadName: 'Spanner', email: 'spanner@example.com', phone: null, delivery: 'collect', street: null, suburb: null, state: null,
+      postcode: null, shippingMethod: null, subtotalCents: 6500, shippingCents: 0, status: 'sent', makeSentAt: at(ago(2)), makeError: null,
+      paidOn: null, paidCents: null, ledgerEntryId: null, handedOverOn: null, cancelledAt: null, cancelledBy: null, orderedAt: at(ago(2)),
+      lines: [{ id: 'sl-demo-1', orderId: '5a7e0c21-4d2b-4e8a-9c1f-2b6d8e4a0001', garmentId: 'sg-member-hoodie', designName: 'Member', garmentName: 'Hoodie', size: 'XL', colour: 'Black', qty: 1, unitCents: 6500 }],
+    },
+    {
+      id: '7c3b9f40-1e6a-4b2d-8f5c-3a9e1d7b0002', memberId: 'm-torque', clientRef: '00000000-0000-4000-8000-000000000002', buyerName: 'Tania Walsh',
+      roadName: 'Torque', email: 'torque@example.com', phone: '0423 555 214', delivery: 'ship', street: '14 Gear St', suburb: 'Footscray',
+      state: 'VIC', postcode: '3011', shippingMethod: 'standard', subtotalCents: 7000, shippingCents: 1200, status: 'posted',
+      makeSentAt: at(ago(20)), makeError: null, paidOn: ago(18), paidCents: 8200, ledgerEntryId: null, handedOverOn: ago(15),
+      cancelledAt: null, cancelledBy: null, orderedAt: at(ago(20)),
+      lines: [
+        { id: 'sl-demo-2', orderId: '7c3b9f40-1e6a-4b2d-8f5c-3a9e1d7b0002', garmentId: 'sg-better-tee', designName: 'Better with you', garmentName: 'Tee', size: 'M', colour: 'Black', qty: 1, unitCents: 3500 },
+        { id: 'sl-demo-3', orderId: '7c3b9f40-1e6a-4b2d-8f5c-3a9e1d7b0002', garmentId: 'sg-ruok-tee', designName: 'R U OK', garmentName: 'Tee', size: 'M', colour: 'Yellow', qty: 1, unitCents: 3500 },
+      ],
+    },
+  ],
+} satisfies Partial<ClubData>);

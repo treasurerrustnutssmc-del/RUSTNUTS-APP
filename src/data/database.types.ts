@@ -7,6 +7,7 @@ import type {
 import type { BusinessJson } from './businessLive';
 import type { LedgerJson, MeetingReportJson } from './ledgerLive'; // Stage 5B
 import type { AdminJson } from './adminLive'; // Stage 5D
+import type { CatalogueJson, OrderJson } from './shopLive'; // The club shop
 import type { AuditJson } from './auditLive'; // National Auditor
 import type { DocumentsJson } from './documentsLive'; // Stage 5C
 
@@ -151,6 +152,11 @@ export type Database = {
           member_id: string;
           phone: string | null;
           updated_at: string;
+          // The club shop: the saved delivery address (missing before the shop's SQL).
+          street?: string | null;
+          suburb?: string | null;
+          state?: string | null;
+          postcode?: string | null;
         };
         Insert: { member_id: string };
         Update: {
@@ -718,6 +724,27 @@ export type Database = {
       meeting_reports: { Args: never; Returns: MeetingReportJson[] };
       // Stage 5D: board and admin
       club_admin: { Args: never; Returns: AdminJson };
+      // The club shop (in-app merch ordering)
+      merch_catalogue: { Args: never; Returns: CatalogueJson };
+      shop_orders: { Args: never; Returns: OrderJson[] };
+      cancel_shop_order: { Args: { p_order: string }; Returns: undefined };
+      save_delivery_address: { Args: { p_street: string; p_suburb: string; p_state: string; p_postcode: string }; Returns: undefined };
+      pay_shop_order: { Args: { p_order: string; p_paid_on: string; p_cents: number }; Returns: string };
+      hand_over_shop_order: { Args: { p_order: string }; Returns: undefined };
+      set_shop_design: {
+        Args: { p_id: string | null; p_name: string; p_eligibility: string; p_blurb: string; p_sort: number; p_on_sale: boolean };
+        Returns: string;
+      };
+      set_shop_garment: {
+        Args: {
+          p_id: string | null; p_design: string; p_name: string; p_price_cents: number; p_sizes: string[]; p_colours: string[]; p_sort: number;
+          p_on_sale: boolean;
+        };
+        Returns: string;
+      };
+      set_shop_shipping: { Args: { p_state: string; p_method: string; p_cents: number }; Returns: undefined };
+      name_shop_runner: { Args: { p_member: string }; Returns: undefined };
+      unname_shop_runner: { Args: { p_member: string }; Returns: undefined };
       record_conduct: {
         Args: {
           p_member: string; p_kind: string | null; p_summary: string; p_rule: string; p_decided: string | null;

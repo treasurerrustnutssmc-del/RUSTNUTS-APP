@@ -100,6 +100,12 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 - **Photos:** a club-wide photo feed (never private chats) and a ride wall for each ride, built from the photos posted in its chat.
 - **Ride comms** (open-mic voice while riding, big connect and disconnect buttons) is Stage 6, not this stage.
 
+## The club shop (in-app merch ordering, 1 Nov 2026)
+
+- **Why:** members order club gear (Member, Family, Better with you, R U OK) from the Merch tab instead of only through Discord `/buy`. Both feed Chris's Make.com pipeline, which numbers the order (RSMC#…) and emails a pro forma invoice with the club's bank details; Chris fulfils it. Spec: `docs/superpowers/specs/2026-11-01-in-app-merch-ordering-design.md`.
+- **Who orders what:** Member = Full and Nomad; Family = Family members plus Full and Nomad; the rest any approved member; Legacy nothing. Family-view accounts don't see the shop yet.
+- **For a member:** **Club shop** at the top of the Merch tab lists the designs they may order (from the lowest price). A design shows its garments with sizes, colours and how many; **Add to cart** keeps up to 10 lines. **Checkout** takes the email and mobile for the invoice, then **Ship to me** (address prefilled from their profile, "Save for next time") or **Collect at the next club meeting**, with the items, shipping from the app's table and "Your invoice is the final word on the total." **Send order** sends it; if Make doesn't answer, the order is kept and the shop sends it on. **Your shop orders** lists their orders with status (Held, Sent, Paid, Posted, Collected, Cancelled); an order shows its lines, delivery, total and, while it waits for payment, the club's bank details with the invoice's order number as the reference. They can cancel while it's Held or Sent, and reply to the invoice email to tell the shop. Bank transfer only. Discord orders don't show in the app.
+
 ## Stage 7: social extras
 
 - **Why:** the small reasons to open the app on a day with no ride. Design in `docs/superpowers/specs/2026-10-27-social-extras-design.md`, built one piece at a time.

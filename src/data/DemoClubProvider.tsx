@@ -22,6 +22,7 @@ import { forFamily } from './familyData'; // Family view
 import { REVIEWER_DEMO_MEMBER } from '../domain/reviewer'; // Store review demo
 import { appMode } from './reviewMode';
 import * as audit from './auditActions'; // National Auditor
+import * as shop from './shopActions'; // The club shop
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
@@ -278,6 +279,14 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     handOver: async (id) => setData(admin.handOver(ctx, id)),
     cancelOrder: async (id) => setData(admin.cancelOrder(ctx, id)),
+    // The club shop. The demo has no Make: an order is sent the moment it's placed.
+    placeShopOrder: async (input) => {
+      const r = shop.placeShopOrder(fresh(), input);
+      keep(r.data);
+      return { orderId: r.id, status: (r.data.shopOrders ?? []).find((o) => o.id === r.id)?.status ?? 'sent' };
+    },
+    cancelShopOrder: async (id) => keep(shop.cancelShopOrder(fresh(), id)),
+    saveDeliveryAddress: async (address) => keep(shop.saveDeliveryAddress(fresh(), address)),
     proposeContribution: async (input) => {
       const result = admin.proposeContribution(ctx, input);
       setData(result.data);

@@ -7,7 +7,7 @@ import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import { displayName } from '../domain/profile';
 import type { Member } from '../domain/types';
 import { colors, fonts, radius, space, type } from '../theme';
-import { Button, Field, Ionicons, Label, Notice, Small, Stack, type IconName } from '../ui/primitives';
+import { Button, Field, Ionicons, Label, Notice, Row, Small, Stack, type IconName } from '../ui/primitives';
 
 export type Msg = { tone: 'ok' | 'danger'; text: string } | null;
 
@@ -183,6 +183,36 @@ export function useRun() {
   };
   return { busy, msg, setMsg, run };
 }
+
+/** One fewer / one more, 1 to `max`. The club shop's design and cart screens use it too. */
+export function QtyStepper({ qty, onChange, max = 10, label = 'How many' }: { qty: number; onChange: (n: number) => void; max?: number; label?: string | null }) {
+  const step = (icon: 'remove' | 'add', label: string, to: number, disabled: boolean) => (
+    <Pressable
+      onPress={() => onChange(to)}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => ({
+        width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 4, borderWidth: 1,
+        borderColor: colors.lineStrong, backgroundColor: pressed ? colors.steel : 'transparent', opacity: disabled ? 0.45 : 1,
+      })}
+    >
+      <Ionicons name={icon} size={20} color={colors.bone} />
+    </Pressable>
+  );
+  return (
+    <View style={{ gap: 6 }}>
+      {label ? <Label>{label}</Label> : null}
+      <Row style={{ gap: space.md }}>
+        {step('remove', 'One fewer', qty - 1, qty <= 1)}
+        <Text style={[type.h2, { fontVariant: ['tabular-nums'], minWidth: 32, textAlign: 'center' }]} accessibilityLiveRegion="polite">{qty}</Text>
+        {step('add', 'One more', qty + 1, qty >= max)}
+      </Row>
+    </View>
+  );
+}
+
 
 export const styles = StyleSheet.create({
   radio: {

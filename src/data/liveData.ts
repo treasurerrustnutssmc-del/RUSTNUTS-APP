@@ -13,6 +13,7 @@ import { loadCharity } from './charityLive'; // Charity ride sign-ups
 import { loadBusExtras } from './busExtrasLive'; // Rusty Bus extras
 import { toAdmin } from './adminLive'; // Stage 5D
 import { toAudit } from './auditLive'; // National Auditor
+import { toShop } from './shopLive'; // The club shop
 import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
 import { EMPTY_DATA } from './clubContext';
 import type { Database, MembersMoneyRows } from './database.types';
@@ -84,6 +85,17 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     },
     () => [],
   );
+  // The club shop: the catalogue and the orders this person may see. Nothing rather than blocking
+  // the app (also before the live database has the shop).
+  const shopRead = <T,>(name: 'merch_catalogue' | 'shop_orders') =>
+    db.rpc(name).then(
+      (r) => {
+        if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn(`${name}:`, r.error.message);
+        return r.error ? null : (r.data as T);
+      },
+      () => null,
+    );
+  const shopLoad = Promise.all([shopRead<Parameters<typeof toShop>[0]>('merch_catalogue'), shopRead<Parameters<typeof toShop>[1]>('shop_orders')]);
   // Family view: Family get the rides here (ride_calendar() is empty for them). Nothing for anyone
   // else, and nothing rather than blocking the app until the database has it.
   const familyLoad = db.rpc('family_rides').then(
@@ -212,6 +224,8 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const signupCounts = await signupCountsLoad;
   const familyRides = await familyLoad;
   const busExtras = await busExtrasLoad;
+  const [catalogue, shopOrders] = await shopLoad;
+  const { address: _address, runsShop: _runsShop, ...shop } = toShop(catalogue, shopOrders);
 
   const privateRows: MemberPrivate[] = (privates.data ?? []).map((p) => ({
     memberId: p.member_id,
@@ -222,6 +236,11 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     firstAidExpiry: p.first_aid_expiry,
     introducedBy: p.introduced_by,
     applicationNote: p.application_note,
+    // The club shop: the saved delivery address
+    street: p.street ?? null,
+    suburb: p.suburb ?? null,
+    state: p.state ?? null,
+    postcode: p.postcode ?? null,
   }));
   // Members who share their number with the club: phone only, nothing else private.
   for (const ph of phones.data ?? []) {
@@ -392,6 +411,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
         }
       : {}),
     ...busExtras,
+    ...shop, // The club shop
     // Stage 5: meetings and votes
     ...business,
     ...ledger,

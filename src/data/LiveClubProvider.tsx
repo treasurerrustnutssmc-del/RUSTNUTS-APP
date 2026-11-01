@@ -104,6 +104,8 @@ import * as conduct from '../domain/conduct';
 import * as merch from '../domain/merch';
 import * as national from '../domain/national';
 import * as audit from '../domain/audit'; // National Auditor
+import * as shop from '../domain/shop'; // The club shop
+import { placeOrderBody, shopFunctionWords } from './shopLive'; // The club shop
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -1236,6 +1238,35 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     cancelOrder: async (id) => {
       deny(merch.cancelOrderProblem(visibleMe, id, data));
       ok(await supabase().rpc('cancel_merch_order', { p_order: id }));
+      await after();
+    },
+    // The club shop. Ordering goes through the shop-order Edge Function, which saves the order as
+    // the member (the database decides) and sends it to Make; the rest are plain database actions.
+    placeShopOrder: async (input) => {
+      deny(shop.placeShopOrderProblem(visibleMe, input, data, today));
+      let result: Awaited<ReturnType<ReturnType<typeof supabase>['functions']['invoke']>>;
+      try {
+        result = await supabase().functions.invoke('shop-order', { body: placeOrderBody(input) });
+      } catch (e) {
+        throw new Error(await shopFunctionWords(e));
+      }
+      if (result.error) throw new Error(await shopFunctionWords(result.error));
+      const body = result.data as { orderId?: string; status?: string } | null;
+      await after();
+      if (!body?.orderId) throw new Error('The order couldn’t be sent right now. Your cart is kept; try again in a minute.');
+      const status = body.status && body.status in shop.STATUS_LABEL ? (body.status as keyof typeof shop.STATUS_LABEL) : 'sent';
+      return { orderId: body.orderId, status };
+    },
+    cancelShopOrder: async (id) => {
+      deny(shop.cancelShopOrderProblem(visibleMe, id, data));
+      ok(await supabase().rpc('cancel_shop_order', { p_order: id }));
+      await after();
+    },
+    saveDeliveryAddress: async (a) => {
+      deny(shop.saveDeliveryAddressProblem(visibleMe, a));
+      ok(await supabase().rpc('save_delivery_address', {
+        p_street: a.street.trim(), p_suburb: a.suburb.trim(), p_state: a.state.trim().toUpperCase(), p_postcode: a.postcode.trim(),
+      }));
       await after();
     },
     proposeContribution: async (input) => {
