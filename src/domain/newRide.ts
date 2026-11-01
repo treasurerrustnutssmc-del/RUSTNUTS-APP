@@ -3,6 +3,8 @@
 // same words, in the same order. Spec: docs/superpowers/specs/2026-11-01-app-made-rides-design.md.
 
 import { isNational, managesChapterRides } from './access';
+import { melbourneInstant } from './business';
+import { addDays } from './dates';
 import { RIDE_CATEGORIES } from './labels';
 import { lastDay, melbourneDate } from './rides';
 import { signedInProblem } from './routes';
@@ -143,4 +145,37 @@ export function putBackProblem(me: Member | null, ride: Ride | undefined, data: 
   if (shared) return shared;
   if (!ride?.cancelledAt) return RIDE_NOT_OFF;
   return null;
+}
+
+// --- The form's dates and times -------------------------------------------------------------------
+
+export const DATE_HINT = 'Use DD/MM/YYYY, like 14/11/2026.';
+export const TIME_HINT = 'Use a 24-hour time, like 09:30.';
+
+/** A typed 24-hour time as "HH:MM", or null when it isn't one. */
+export function readRideTime(text: string): string | null {
+  const t = text.trim();
+  const m = /^(\d{1,2}):(\d\d)$/.exec(t);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return `${String(h).padStart(2, '0')}:${m[2]}`;
+}
+
+/** The instant a ride starts: Melbourne midnight for an all-day ride, else the typed time on the day. Null when either can't be read. */
+export function rideStart(dateIso: string | null, hhmm: string | null, allDay: boolean): string | null {
+  if (!dateIso) return null;
+  if (allDay) return melbourneInstant(dateIso, '00:00');
+  return hhmm ? melbourneInstant(dateIso, hhmm) : null;
+}
+
+/**
+ * The instant a ride ends. An all-day ride ends at the Melbourne midnight after its last day, the way
+ * the calendar stores it (so `lastDay` gives the day back); a timed ride ends at the typed time.
+ */
+export function rideEnd(dateIso: string | null, hhmm: string | null, allDay: boolean): string | null {
+  if (!dateIso) return null;
+  if (allDay) return melbourneInstant(addDays(dateIso, 1), '00:00');
+  return hhmm ? melbourneInstant(dateIso, hhmm) : null;
 }

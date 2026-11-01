@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   CALENDAR_RIDE, callOffProblem, cleanRideInput, isAppRide, managesCategory, MAX_RIDE_LOCATION, MAX_RIDE_NOTES, MAX_RIDE_TITLE,
   NOT_CHAPTER_RIDE_MANAGER, NOT_RIDE_MANAGER, putBackProblem, RIDE_ALREADY_OFF, RIDE_END, RIDE_GONE, RIDE_LOCATION, RIDE_NOT_OFF,
-  RIDE_NOTES, RIDE_OVER, RIDE_PAST, RIDE_START, RIDE_TITLE, saveRideProblem, type RideInput,
+  RIDE_NOTES, RIDE_OVER, RIDE_PAST, RIDE_START, RIDE_TITLE, readRideTime, rideEnd, rideStart, saveRideProblem, type RideInput,
 } from './newRide';
 import { member, planningClub, ride, who } from './planning.testkit';
 import type { ClubData } from './types';
@@ -122,4 +122,20 @@ test('calling off and putting back', () => {
   assert.equal(putBackProblem(sec, find(data, 'r-app'), data, NOW), RIDE_NOT_OFF);
   assert.equal(putBackProblem(sec, find(data, 'r-off'), data, NOW), CALENDAR_RIDE);
   assert.equal(putBackProblem(sec, find(data, 'r-app-off'), data, NOW), null);
+});
+
+test('the form’s times: 24-hour only, Melbourne instants, an all-day end is the midnight after its last day', () => {
+  assert.equal(readRideTime('9:30'), '09:30');
+  assert.equal(readRideTime('23:59'), '23:59');
+  assert.equal(readRideTime('24:00'), null);
+  assert.equal(readRideTime('09:60'), null);
+  assert.equal(readRideTime(''), null);
+  // 14 Nov 2026 is summer time (UTC+11).
+  assert.equal(rideStart('2026-11-14', '09:30', false), '2026-11-13T22:30:00.000Z');
+  assert.equal(rideStart('2026-11-14', null, false), null);
+  assert.equal(rideStart('2026-11-14', null, true), '2026-11-13T13:00:00.000Z');
+  assert.equal(rideStart(null, '09:30', false), null);
+  assert.equal(rideEnd('2026-11-14', '13:00', false), '2026-11-14T02:00:00.000Z');
+  assert.equal(rideEnd('2026-11-15', null, true), '2026-11-15T13:00:00.000Z');
+  assert.equal(rideEnd(null, null, true), null);
 });
