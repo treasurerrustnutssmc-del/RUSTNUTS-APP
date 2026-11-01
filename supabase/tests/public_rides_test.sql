@@ -1,5 +1,5 @@
 -- Checks the website's public ride list (public_rides): anon reads it, it carries no member
--- data, notes only for calendar rides, and the window the website asks for.
+-- data, only rides from the public calendars, and the window the website asks for.
 -- Run with: npm run test:db
 
 \set ON_ERROR_STOP 1
@@ -33,18 +33,17 @@ declare
   rows jsonb := pg_temp.as_anon('select * from public.public_rides()');
   r jsonb;
 begin
-  if jsonb_array_length(rows) <> 3 then
-    raise exception 'anon should see the three rides in the window, saw %', rows;
+  if jsonb_array_length(rows) <> 2 then
+    raise exception 'anon should see the two calendar rides in the window, saw %', rows;
   end if;
   r := rows -> 0;
   if r ->> 'title' <> 'West Sunday Run' or r ->> 'notes' <> 'Meet 9am, Label: West' or r ->> 'location' <> 'Bacchus Marsh' then
     raise exception 'calendar ride should carry its notes and location: %', r;
   end if;
-  r := rows -> 1;
-  if r ->> 'title' <> 'Planning night' or (r ->> 'notes') is not null then
-    raise exception 'an app-made ride keeps its notes to members: %', r;
+  if rows::text like '%Planning night%' or rows::text like '%Roger%' then
+    raise exception 'a ride made in the app is not public at all: %', rows;
   end if;
-  r := rows -> 2;
+  r := rows -> 1;
   if (r ->> 'cancelled_at') is null then
     raise exception 'a cancelled ride still shows, with cancelled_at: %', r;
   end if;
