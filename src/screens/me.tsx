@@ -27,6 +27,7 @@ import { DocumentsMeRow } from './documents'; // Stage 5C
 import { BadgesCard } from './badges'; // Stage 7: badges
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
+import { FeedbackRow } from './feedback'; // Feedback & issues
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
 import { PostingRulesRow } from './postingRules'; // Club rules for chats and posts
 import {
@@ -216,6 +217,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       <ClubLinksSection />
       {/* Sponsors: who backs the club, and member deals */}
       <SponsorsSection />
+      {/* Feedback & issues: tell the club what's wrong with the app */}
+      <FeedbackRow />
 
       <SectionTitle title="Privacy" />
       <Card>
