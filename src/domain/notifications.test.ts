@@ -137,6 +137,8 @@ test('tapping a notification opens what it’s about', () => {
   assert.deepEqual(notificationTarget({ kind: 'live-alert', rideId: 'r1' }), { screen: 'LiveRide', params: { rideId: 'r1' } });
   assert.equal(notificationTarget({ kind: 'chat' }), null, 'no chat named');
   assert.equal(notificationTarget({ kind: 'chat', chatId: 7 }), null, 'not an id');
+  assert.deepEqual(notificationTarget({ kind: 'feedback', feedbackId: 'f1' }), { screen: 'Feedback', params: undefined }, 'a reply: your reports');
+  assert.deepEqual(notificationTarget({ kind: 'feedback-sent', feedbackId: 'f1' }), { screen: 'Tabs', params: { screen: 'Board' } }, 'a new one: the Board screen');
   assert.equal(notificationTarget({ kind: 'applicant' }), null, 'nothing particular to open');
   assert.equal(notificationTarget(undefined), null);
 });

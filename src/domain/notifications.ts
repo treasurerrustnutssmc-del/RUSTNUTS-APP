@@ -63,7 +63,9 @@ export function soundFor(kind: NotificationKind, revSound: boolean): { channelId
 export type NotificationTarget =
   | { screen: 'Chat'; params: { chatId: string } }
   | { screen: 'RideDetail'; params: { rideId: string } }
-  | { screen: 'LiveRide'; params: { rideId: string } };
+  | { screen: 'LiveRide'; params: { rideId: string } }
+  | { screen: 'Feedback'; params: undefined }
+  | { screen: 'Tabs'; params: { screen: 'Board' } };
 
 export function notificationTarget(data: Record<string, unknown> | null | undefined): NotificationTarget | null {
   const id = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null);
@@ -77,6 +79,12 @@ export function notificationTarget(data: Record<string, unknown> | null | undefi
       return rideId ? { screen: 'RideDetail', params: { rideId } } : null;
     case 'live-alert':
       return rideId ? { screen: 'LiveRide', params: { rideId } } : null;
+    case 'feedback':
+      // A reply to (or the closing of) your own report: your reports.
+      return { screen: 'Feedback', params: undefined };
+    case 'feedback-sent':
+      // A new report, for the keepers: the Board screen's App feedback section.
+      return { screen: 'Tabs', params: { screen: 'Board' } };
     default:
       return null;
   }

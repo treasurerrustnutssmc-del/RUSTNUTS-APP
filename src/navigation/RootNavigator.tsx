@@ -67,6 +67,7 @@ import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '..
 import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
 import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
 import { PostingRulesScreen } from '../screens/postingRules'; // Club rules for chats and posts
+import { FeedbackScreen } from '../screens/feedback'; // Feedback & issues
 import { SupportScreen } from '../screens/support'; // Crisis and support lines, inside the app
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
@@ -277,6 +278,7 @@ export function RootNavigator() {
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
+            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback & issues' }} />
           </>
         ) : needsPostingRules(me) ? (
           <>
@@ -447,6 +449,7 @@ export function RootNavigator() {
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
             <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
+            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback & issues' }} />
             <Stack.Screen
               name="EditSponsor"
               component={EditSponsorScreen}

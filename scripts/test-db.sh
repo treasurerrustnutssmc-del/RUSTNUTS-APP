@@ -485,5 +485,13 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_website_signups -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_website_signups -f "$ROOT/supabase/tests/website_signups_test.sql"
+# App feedback and issues, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_app_feedback" >/dev/null
+"${PSQL[@]}" -d rustnuts_app_feedback -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_app_feedback -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_app_feedback -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_app_feedback -f "$ROOT/supabase/tests/app_feedback_test.sql"
 
 echo 'ALL DATABASE CHECKS PASSED'

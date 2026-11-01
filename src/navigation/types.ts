@@ -168,6 +168,7 @@ export type RootParams = {
   Support: undefined;
   // The club rules for chats and posts (the gate before the tabs, then a page off Me)
   PostingRules: undefined;
+  Feedback: undefined;
   PostingRulesGate: undefined;
   EditSponsor: { sponsorId?: string } | undefined;
   // Invites to and from other clubs
