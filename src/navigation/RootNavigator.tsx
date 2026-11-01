@@ -56,6 +56,7 @@ import { FngReviewScreen } from '../screens/fng';
 // Stage 5D: conduct records, merch, national contributions and new chapters
 import { ConductRecordScreen, ConductScreen, RecordConductScreen } from '../screens/conduct';
 import { MerchItemScreen, MerchOrderScreen, MerchScreen, ProposeMerchScreen } from '../screens/merch';
+import { ShopCartScreen, ShopCheckoutScreen, ShopDesignScreen, ShopOrderScreen } from '../screens/shop'; // The club shop
 import { ChapterProposalScreen, ContributionScreen, NationalScreen, ProposeChapterScreen, ProposeContributionScreen } from '../screens/national';
 import { AuditRecordsScreen, AuditReportScreen, AuditRequestScreen, AuditScreen, NewAuditRequestScreen } from '../screens/audit';
 import { BirthdayScreen, OnThisDayScreen } from '../screens/social';
@@ -391,6 +392,10 @@ export function RootNavigator() {
             <Stack.Screen name="MerchItem" component={MerchItemScreen} options={{ title: 'Merch' }} />
             <Stack.Screen name="MerchOrder" component={MerchOrderScreen} options={{ title: 'Order' }} />
             <Stack.Screen name="ProposeMerch" component={ProposeMerchScreen} options={{ title: 'Put up an item' }} />
+            <Stack.Screen name="ShopDesign" component={ShopDesignScreen} options={{ title: 'Club shop' }} />
+            <Stack.Screen name="ShopCart" component={ShopCartScreen} options={{ title: 'Cart' }} />
+            <Stack.Screen name="ShopCheckout" component={ShopCheckoutScreen} options={{ title: 'Checkout' }} />
+            <Stack.Screen name="ShopOrder" component={ShopOrderScreen} options={{ title: 'Shop order' }} />
             <Stack.Screen name="National" component={NationalScreen} options={{ title: 'National' }} />
             <Stack.Screen name="Contribution" component={ContributionScreen} options={{ title: 'Contribution' }} />
             <Stack.Screen name="ProposeContribution" component={ProposeContributionScreen} options={{ title: 'Ask the chapters' }} />

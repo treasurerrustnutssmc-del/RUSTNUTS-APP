@@ -3,14 +3,14 @@
 
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { formatAuDate } from '../domain/dates';
 import { formatCents, parseDollars } from '../domain/fees';
 import { fundName, keepsBooks } from '../domain/ledger';
 import { runsScope } from '../domain/meetings';
 import {
-  decideMerchProblem, showsAppMerch, ITEM_STATUS_LABEL, MAX_QTY, ORDER_STATUS_LABEL, orderTotal, ordersToAct, visibleItems, visibleOrders,
+  decideMerchProblem, showsAppMerch, ITEM_STATUS_LABEL, ORDER_STATUS_LABEL, orderTotal, ordersToAct, visibleItems, visibleOrders,
 } from '../domain/merch';
 import { melbourneDate } from '../domain/rides';
 import { displayName } from '../domain/profile';
@@ -18,11 +18,12 @@ import type { MerchItem, MerchOrder, MerchStatus, OrderStatus } from '../domain/
 import type { RootParams, RootScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
 import {
-  Body, Button, Card, Chip, Choices, ConfirmButton, Field, H1, H2, IconBadge, Ionicons, Label, ListRow, Notice, Row, Screen,
+  Body, Button, Card, Chip, Choices, ConfirmButton, Field, H1, H2, IconBadge, Label, ListRow, Notice, Row, Screen,
   SectionTitle, Small, Stack, Toggle,
 } from '../ui/primitives';
-import { ActionWithReason, DateField, Fact, styles, useDate, useRun } from './adminBits';
+import { ActionWithReason, DateField, Fact, QtyStepper, styles, useDate, useRun } from './adminBits';
 import { MerchShopRows } from './adminRows';
+import { ClubShopSection } from './shop'; // The club shop
 
 type Tone = 'ok' | 'warn' | 'danger' | 'steel' | 'bone';
 const ITEM_TONE: Record<MerchStatus, Tone> = { proposed: 'warn', on_sale: 'ok', declined: 'danger', closed: 'steel' };
@@ -98,8 +99,9 @@ export function MerchScreen() {
     <Screen>
       <Stack gap={space.xs}>
         <H1>Merch</H1>
-        <Small>Members’ designs are in the club Discord, public ones on the website.</Small>
+        <Small>Members’ designs are here and in the club Discord, public ones on the website.</Small>
       </Stack>
+      <ClubShopSection />
       <Card style={{ padding: 0, gap: 0 }}>
         <MerchShopRows />
       </Card>
@@ -164,34 +166,6 @@ export function MerchScreen() {
 // ---------------------------------------------------------------------------
 // One item
 // ---------------------------------------------------------------------------
-
-function QtyStepper({ qty, onChange }: { qty: number; onChange: (n: number) => void }) {
-  const step = (icon: 'remove' | 'add', label: string, to: number, disabled: boolean) => (
-    <Pressable
-      onPress={() => onChange(to)}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      style={({ pressed }) => ({
-        width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 4, borderWidth: 1,
-        borderColor: colors.lineStrong, backgroundColor: pressed ? colors.steel : 'transparent', opacity: disabled ? 0.45 : 1,
-      })}
-    >
-      <Ionicons name={icon} size={20} color={colors.bone} />
-    </Pressable>
-  );
-  return (
-    <View style={{ gap: 6 }}>
-      <Label>How many</Label>
-      <Row style={{ gap: space.md }}>
-        {step('remove', 'One fewer', qty - 1, qty <= 1)}
-        <Text style={[type.h2, num, { minWidth: 32, textAlign: 'center' }]} accessibilityLiveRegion="polite">{qty}</Text>
-        {step('add', 'One more', qty + 1, qty >= MAX_QTY)}
-      </Row>
-    </View>
-  );
-}
 
 export function MerchItemScreen({ route, navigation }: RootScreen<'MerchItem'>) {
   const { me, data, orderMerch, decideMerch, closeMerch } = useClub();

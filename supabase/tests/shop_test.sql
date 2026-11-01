@@ -167,7 +167,7 @@ select pg_temp.check((select count(*) from shop_orders) = 1, 'and makes no secon
 -- Only the service role moves held to sent.
 select pg_temp.check(pg_temp.try_as(:'nell', format($$select public.shop_order_sent(%L, true, null)$$, (select o->>'id' from placed))) like 'permission denied%',
   'a member cannot mark an order sent');
-select pg_temp.check(pg_temp.try_as(:'jeff', format($$select public.pay_shop_order(%L, current_date, 21000)$$, (select o->>'id' from placed)))
+select pg_temp.check(pg_temp.try_as(:'jeff', format($$select public.pay_shop_order(%L, private.club_date(), 21000)$$, (select o->>'id' from placed)))
   = 'Mark it paid once it has been sent to Make.', 'a held order cannot be paid');
 do $$ declare oid uuid := (select (o->>'id')::uuid from placed); begin
   set local role service_role;
@@ -199,9 +199,9 @@ select pg_temp.check(pg_temp.try_as(:'finn', format($$select public.cancel_shop_
   'an order you cannot see does not exist for you');
 
 -- The treasurer marks it paid for what landed: one CR-005 line in the Club fund.
-select pg_temp.check(pg_temp.try_as(:'rog', format($$select public.pay_shop_order(%L, current_date, 21000)$$, (select o->>'id' from placed)))
+select pg_temp.check(pg_temp.try_as(:'rog', format($$select public.pay_shop_order(%L, private.club_date(), 21000)$$, (select o->>'id' from placed)))
   = 'Only that fund’s treasurer, or the National Chairman or Secretary, keeps its books.', 'a President does not keep the books');
-select pg_temp.check(pg_temp.try_as(:'jeff', format($$select public.pay_shop_order(%L, current_date, 22200)$$, (select o->>'id' from placed))) is null,
+select pg_temp.check(pg_temp.try_as(:'jeff', format($$select public.pay_shop_order(%L, private.club_date(), 22200)$$, (select o->>'id' from placed))) is null,
   'the treasurer marks it paid');
 select pg_temp.check((select status from shop_orders) = 'paid' and (select paid_cents from shop_orders) = 22200, 'paid, for the amount received');
 select pg_temp.check((select count(*) from ledger_entries where code = 'CR-005' and chapter_id is null and amount_cents = 22200 and state = 'paid') = 1,

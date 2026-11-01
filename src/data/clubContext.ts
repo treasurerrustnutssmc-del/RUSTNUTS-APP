@@ -35,6 +35,7 @@ import type {
   RideCallState, // Ride planning extras
   PositionRole,
   RsvpAnswer,
+  ShopOrderStatus,
   Votes,
 } from '../domain/types';
 // Stage 4
@@ -46,6 +47,7 @@ import type { ConductInput } from '../domain/conduct';
 import type { MerchInput, OrderInput } from '../domain/merch';
 import type { ChapterInput, ContributionInput } from '../domain/national';
 import type { ReportInput, RequestInput } from '../domain/audit'; // National Auditor
+import type { AddressInput, PlaceOrderInput } from '../domain/shop'; // The club shop
 
 export class NotAllowedError extends Error {}
 
@@ -326,6 +328,16 @@ export interface ClubContextValue {
   payOrder: (orderId: string, paidOn: string) => Promise<string>;
   handOver: (orderId: string) => Promise<void>;
   cancelOrder: (orderId: string) => Promise<void>;
+  // The club shop (in-app merch ordering, into Chris's Make pipeline)
+  /**
+   * Sends the cart. Resolves to the order and where it stands: `sent` (Make has it; the invoice is on
+   * its way) or `held` (kept in the app; the shop sends it on). A repeat clientRef gets the first order.
+   */
+  placeShopOrder: (input: PlaceOrderInput) => Promise<{ orderId: string; status: ShopOrderStatus }>;
+  /** The buyer while it's held or sent, or the shop before it's paid. */
+  cancelShopOrder: (orderId: string) => Promise<void>;
+  /** The member's own saved delivery address: all four parts, or all empty to clear it. */
+  saveDeliveryAddress: (address: AddressInput) => Promise<void>;
   /** The NEC asks the chapters for a national contribution, split by voting members. Resolves to its id. */
   proposeContribution: (input: ContributionInput) => Promise<string>;
   /** Puts a chapter board's carried or lost vote against the contribution. */

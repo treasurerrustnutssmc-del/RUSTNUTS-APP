@@ -142,6 +142,11 @@ export type RootParams = {
   MerchItem: { itemId: string };
   MerchOrder: { orderId: string };
   ProposeMerch: undefined;
+  // The club shop (in-app merch ordering). justSent: the order was just placed, and where it went.
+  ShopDesign: { designId: string };
+  ShopCart: undefined;
+  ShopCheckout: undefined;
+  ShopOrder: { orderId: string; justSent?: 'sent' | 'held' };
   National: undefined;
   Contribution: { contributionId: string };
   ProposeContribution: undefined;
