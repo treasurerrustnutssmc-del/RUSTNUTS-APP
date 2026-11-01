@@ -305,12 +305,13 @@ do $$
 declare w record;
 begin
   select * into w from private.live_window(row(
+    -- The row's columns in table order; the last four are the app-made ride columns (website, created_by, updated_by, updated_at).
     gen_random_uuid(), 'app', null, null, timestamptz '2027-01-28 13:00:00+00', timestamptz '2027-01-31 13:00:00+00', true,
-    'Big 4', null, null, 'club', null, now())::public.rides);
+    'Big 4', null, null, 'club', null, now(), true, null, null, null)::public.rides);
   assert w.opens = timestamptz '2027-01-28 13:00:00+00' and w.closes = timestamptz '2027-01-31 13:00:00+00', 'three days';
   select * into w from private.live_window(row(
     gen_random_uuid(), 'app', null, null, timestamptz '2025-10-04 23:00:00+00', null, false,
-    'DST day', null, null, 'club', null, now())::public.rides);
+    'DST day', null, null, 'club', null, now(), true, null, null, null)::public.rides);
   assert w.closes = timestamptz '2025-10-05 13:00:00+00', 'no end: midnight AEDT on the changeover day';
 end $$;
 

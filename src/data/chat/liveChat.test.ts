@@ -67,7 +67,7 @@ test('a voice note uploads as the type it was recorded in', () => {
 test('a ride from the database', () => {
   assert.deepEqual(toRide({ ...rideRow, cancelled_at: '2026-11-01T00:00:00+00:00' }), {
     id: 'r1', title: 'Coffee run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: null, allDay: false, location: 'Laverton', notes: null,
-    category: 'west', cancelledAt: '2026-11-01T00:00:00.000Z',
+    category: 'west', cancelledAt: '2026-11-01T00:00:00.000Z', source: 'feed', website: true,
   });
 });
 

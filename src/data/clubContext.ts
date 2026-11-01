@@ -8,6 +8,7 @@ import type { RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
 import type { HubInput, RegisterInput } from '../domain/hubs'; // Ride planning extras
 import type { CharityInput, SignupInput } from '../domain/charity'; // Charity ride sign-ups
+import type { RideInput } from '../domain/newRide'; // Rides made in the app
 import type { CostInput, KmInput } from '../domain/busLog'; // Rusty Bus extras
 import type { ActionItemInput, MeetingInput } from '../domain/meetings';
 import type { Casting, VoteInput } from '../domain/votes';
@@ -271,6 +272,11 @@ export interface ClubContextValue {
   /** Registers you for a ride's hub, or changes your registration. */
   registerHub: (rideId: string, input: RegisterInput) => Promise<void>;
   withdrawHub: (rideId: string) => Promise<void>;
+  // Rides made in the app
+  /** Makes a ride (no id) or changes a ride made in the app; resolves to the ride's id. */
+  saveRide: (input: RideInput, id?: string) => Promise<string>;
+  /** Calls an app ride off (off true) or puts it back on. */
+  setRideCalledOff: (id: string, off: boolean) => Promise<void>;
   // Charity ride sign-ups
   /** Makes a ride a charity ride, or changes its sign-ups (its crew managers and the Charity Committee). */
   saveCharity: (rideId: string, input: CharityInput) => Promise<void>;

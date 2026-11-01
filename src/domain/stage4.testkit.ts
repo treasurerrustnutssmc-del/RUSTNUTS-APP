@@ -15,7 +15,7 @@ const seat = (id: string, memberId: string, chapterId: string | null, role: Posi
 
 export const ride = (id: string, over: Partial<Ride> = {}): Ride => ({
   id, title: 'Coffee run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: null, allDay: false, location: null,
-  notes: null, category: 'west', cancelledAt: null, ...over,
+  notes: null, category: 'west', cancelledAt: null, source: 'feed', website: true, ...over,
 });
 
 export const session = (id: string, over: Partial<CheckinSession> = {}): CheckinSession => ({

@@ -16,7 +16,13 @@ insert into rides (id, source, starts_at, ends_at, all_day, title, location, not
   ('00000000-0000-0000-0000-00000000cc04', 'feed', now() - interval '2 years', null, false,
    'Ancient history', null, null, 'club', null),
   ('00000000-0000-0000-0000-00000000cc05', 'feed', now() + interval '3 years', null, false,
-   'Far future', null, null, 'club', null);
+   'Far future', null, null, 'club', null),
+  ('00000000-0000-0000-0000-00000000cc06', 'app', now() + interval '28 days', null, false,
+   'Open day ride', 'Clubhouse', 'Members: bring the banner', 'club', null),
+  ('00000000-0000-0000-0000-00000000cc07', 'app', now() + interval '35 days', null, false,
+   'Was on the site', null, null, 'west', now());
+-- The planning night is for members only; the other two app rides have the website switch on.
+update rides set website = false where id = '00000000-0000-0000-0000-00000000cc02';
 
 create function pg_temp.as_anon(q text) returns jsonb language plpgsql as $$
 declare out jsonb;
@@ -33,15 +39,23 @@ declare
   rows jsonb := pg_temp.as_anon('select * from public.public_rides()');
   r jsonb;
 begin
-  if jsonb_array_length(rows) <> 2 then
-    raise exception 'anon should see the two calendar rides in the window, saw %', rows;
+  if jsonb_array_length(rows) <> 4 then
+    raise exception 'anon should see the two calendar rides in the window and the two app rides with the switch on, saw %', rows;
   end if;
   r := rows -> 0;
   if r ->> 'title' <> 'West Sunday Run' or r ->> 'notes' <> 'Meet 9am, Label: West' or r ->> 'location' <> 'Bacchus Marsh' then
     raise exception 'calendar ride should carry its notes and location: %', r;
   end if;
   if rows::text like '%Planning night%' or rows::text like '%Roger%' then
-    raise exception 'a ride made in the app is not public at all: %', rows;
+    raise exception 'an app ride with the website switch off is not public: %', rows;
+  end if;
+  r := rows -> 2;
+  if r ->> 'title' <> 'Open day ride' or r ->> 'location' <> 'Clubhouse' or (r ->> 'notes') is not null then
+    raise exception 'an app ride with the switch on shows title, when and place, never its notes: %', r;
+  end if;
+  r := rows -> 3;
+  if r ->> 'title' <> 'Was on the site' or (r ->> 'cancelled_at') is null then
+    raise exception 'an app ride called off after being on the site shows as cancelled: %', r;
   end if;
   r := rows -> 1;
   if (r ->> 'cancelled_at') is null then

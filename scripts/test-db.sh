@@ -469,6 +469,15 @@ done
 "${PSQL[@]}" -d rustnuts_public_rides -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_public_rides -f "$ROOT/supabase/tests/public_rides_test.sql"
 
+# Rides made in the app (save_ride, set_ride_called_off), on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_app_rides" >/dev/null
+"${PSQL[@]}" -d rustnuts_app_rides -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_app_rides -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_app_rides -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_app_rides -f "$ROOT/supabase/tests/app_rides_test.sql"
+
 # The performance advisor's shape of the schema (deep audit F4), on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_performance" >/dev/null
 "${PSQL[@]}" -d rustnuts_performance -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null

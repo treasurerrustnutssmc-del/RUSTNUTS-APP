@@ -217,6 +217,8 @@ export interface BragRideRow {
   notes: string | null;
   category: RideCategory;
   cancelled_at: string | null;
+  source?: 'feed' | 'app';
+  website?: boolean;
 }
 
 const instant = (ts: string) => new Date(ts).toISOString();
@@ -225,6 +227,7 @@ export const toBragRides = (rows: BragRideRow[]): Ride[] =>
   rows.map((r) => ({
     id: r.id, title: r.title, startsAt: instant(r.starts_at), endsAt: r.ends_at ? instant(r.ends_at) : null, allDay: r.all_day,
     location: r.location, notes: r.notes, category: r.category, cancelledAt: r.cancelled_at ? instant(r.cancelled_at) : null,
+    source: r.source ?? 'feed', website: r.website ?? true,
   }));
 
 /** The window of rides the ride awards need: their years, a day either side for Melbourne time. Null when there are none. */

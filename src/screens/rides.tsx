@@ -1,5 +1,6 @@
 // The ride calendar: the club website's rides by month, filtered by colour, and one ride with
-// Going / Maybe / Can't make it, its route and its crew. Rides come from the calendar sync; nobody edits them here.
+// Going / Maybe / Can't make it, its route and its crew. Rides come from the calendar sync, or are made in the
+// app by the people who run them (src/screens/editRide.tsx); only app rides change here.
 
 import React, { useId, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -33,6 +34,7 @@ import { ShareRideButton } from './shareRide';
 import { HubSection, RideCallBanner, RidePlanSection, SwapSection } from './ridePlanning'; // Ride planning extras
 import { CharitySection } from './charity'; // Charity ride sign-ups
 import { isCharityRide } from '../domain/charity'; // Charity ride sign-ups
+import { callOffProblem, isAppRide, managesAnyCategory, putBackProblem, RIDE_OVER, saveRideProblem } from '../domain/newRide'; // Rides made in the app
 // Stage 3 (lane B): ride chat and wall
 import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
@@ -115,6 +117,15 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
       {/* Family view: no route library or Rusty Bus for Family */}
       {me.approval === 'approved' && !isFamily(me) ? (
         <Card style={{ padding: 0, gap: 0 }}>
+          {/* Rides made in the app: for the people who run them */}
+          {managesAnyCategory(me, data) ? (
+            <ListRow
+              left={<IconBadge icon="add-circle-outline" tone="red" />}
+              title="New ride"
+              subtitle={<Text style={styles.metaTime}>Put a ride on, for members and the website</Text>}
+              onPress={() => navigation.navigate('EditRide')}
+            />
+          ) : null}
           <ListRow
             left={<IconBadge icon="map-outline" />}
             title="Route library"
@@ -168,7 +179,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
 
       {months.length === 0 ? (
         <Notice title="No rides coming up.">
-          {anyComing ? 'Turn on more colours above to see other rides.' : 'New rides show up here once they’re on the club calendar.'}
+          {anyComing ? 'Turn on more colours above to see other rides.' : 'New rides show up here once they’re on the club calendar or made in the app.'}
         </Notice>
       ) : null}
 
@@ -299,9 +310,12 @@ export function RideRow({
 const ANSWERS: RsvpAnswer[] = ['going', 'maybe', 'no'];
 
 export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>) {
-  const { me, data, today, setRsvp } = useClub();
+  const { me, data, today, setRsvp, setRideCalledOff } = useClub();
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Rides made in the app: calling off and putting back on
+  const [offBusy, setOffBusy] = useState(false);
+  const [offError, setOffError] = useState<string | null>(null);
   // The Going gate prompt's sentence, which the turned-off Going points to. Unique per screen,
   // since the web keeps earlier screens mounted.
   const signToGoId = useId();
@@ -368,6 +382,25 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
     }
   };
 
+  // Rides made in the app: who ran it, and the manager's controls while it can still change.
+  const appRide = isAppRide(ride);
+  const nowIso = new Date().toISOString();
+  const mayChange = appRide && saveRideProblem(me, ride, { ...ride, notes: ride.notes ?? '' }, data, nowIso) === null;
+  const mayCallOff = appRide && callOffProblem(me, ride, data, nowIso) === null;
+  const mayPutBack = appRide && putBackProblem(me, ride, data, nowIso) === null;
+  const rideOver = appRide && managesRide(me, ride, data) && lastDay(ride) < today;
+  const switchOff = async (off: boolean) => {
+    setOffError(null);
+    setOffBusy(true);
+    try {
+      await setRideCalledOff(ride.id, off);
+    } catch (e) {
+      setOffError((e as Error).message);
+    } finally {
+      setOffBusy(false);
+    }
+  };
+
   const location = ride.location;
   const openMap = () => {
     if (location) Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(location)}`).catch(() => {});
@@ -424,6 +457,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
           ) : null}
         </Row>
         <H1 style={cancelled ? styles.struck : undefined}>{ride.title}</H1>
+        <Small>{appRide ? (ride.website ? 'Made in the app · on the website' : 'Made in the app · members only') : 'From the club calendar'}</Small>
         <Stack gap={space.sm}>
           <Row style={styles.fact}>
             <Ionicons name="calendar-outline" size={18} color={colors.boneMute} />
@@ -450,6 +484,20 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
           ) : null}
         </Stack>
         {ride.notes ? <Body selectable>{ride.notes}</Body> : null}
+        {/* Rides made in the app: Change, Call it off, Put it back on */}
+        {mayChange || mayCallOff || mayPutBack ? (
+          <Row style={{ gap: space.sm, flexWrap: 'wrap' }}>
+            {mayChange ? <Button label="Change" icon="create-outline" kind="secondary" size="small" onPress={() => navigation.navigate('EditRide', { rideId: ride.id })} /> : null}
+            {mayCallOff ? (
+              <ConfirmButton label="Call it off" confirmLabel="Yes, call it off" size="small" disabled={offBusy} onConfirm={() => switchOff(true)} />
+            ) : null}
+            {mayPutBack ? (
+              <ConfirmButton label="Put it back on" confirmLabel="Yes, it’s on" kind="secondary" size="small" disabled={offBusy} onConfirm={() => switchOff(false)} />
+            ) : null}
+          </Row>
+        ) : null}
+        {rideOver ? <Small>{RIDE_OVER}</Small> : null}
+        {offError ? <Notice tone="danger">{offError}</Notice> : null}
         {booksBus ? (
           <Pressable
             accessibilityRole="link"

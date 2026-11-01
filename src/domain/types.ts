@@ -137,6 +137,10 @@ export interface Ride {
   notes: string | null;
   category: RideCategory;
   cancelledAt: string | null;
+  /** Where the ride came from: the club's Google calendar, or made in the app. */
+  source: 'feed' | 'app';
+  /** For an app ride, whether the website lists it (title, when, chapter, meeting place only). */
+  website: boolean;
 }
 
 export interface Rsvp {

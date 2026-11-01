@@ -167,7 +167,7 @@ test('signed in: the calendar loads in one piece, with when every feed last sync
     stubClient({
       chapters: [west],
       ride_calendar: {
-        rides: [ride('r1'), ride('r2', { cancelled_at: '2026-10-24T10:15:00+00:00', all_day: true })],
+        rides: [ride('r1'), ride('r2', { cancelled_at: '2026-10-24T10:15:00+00:00', all_day: true }), ride('r3', { source: 'app', website: false })],
         rsvps: [{ ride_id: 'r1', member_id: 'm1', answer: 'going', updated_at: '2026-10-24T11:00:00+00:00' }],
         synced_at: '2026-10-24T09:45:00+00:00',
       },
@@ -176,10 +176,13 @@ test('signed in: the calendar loads in one piece, with when every feed last sync
   );
   assert.deepEqual(data.rides[0], {
     id: 'r1', title: 'Coffee run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: null, allDay: false,
-    location: 'Laverton', notes: null, category: 'west', cancelledAt: null,
+    location: 'Laverton', notes: null, category: 'west', cancelledAt: null, source: 'feed', website: true,
   });
   assert.equal(data.rides[1].allDay, true);
   assert.equal(data.rides[1].cancelledAt, '2026-10-24T10:15:00.000Z');
+  // A ride made in the app keeps its source and website switch.
+  assert.equal(data.rides[2].source, 'app');
+  assert.equal(data.rides[2].website, false);
   assert.deepEqual(data.rsvps, [{ rideId: 'r1', memberId: 'm1', answer: 'going', updatedAt: '2026-10-24T11:00:00.000Z' }]);
   assert.equal(data.ridesSyncedAt, '2026-10-24T09:45:00.000Z', 'the oldest feed, from the database');
 });

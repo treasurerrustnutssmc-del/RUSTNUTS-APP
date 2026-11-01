@@ -66,7 +66,7 @@ export interface ParityFixture {
   positions: { key: string; member: string; chapter: string | null; role: PositionRole; startedOn: string; endedOn: string | null }[];
   bikes: { key: string; member: string; make: string; model: string; year: number; project?: boolean }[];
   contacts: { key: string; member: string; name: string; relationship: string; phone: string }[];
-  rides: { key: string; title: string; startsAt: string; category: RideCategory; cancelled: boolean }[];
+  rides: { key: string; title: string; startsAt: string; category: RideCategory; cancelled: boolean; source?: 'feed' | 'app' }[];
   // Stage 5: meetings and votes
   meetings: { key: string; chapter: string | null; kind: MeetingKind; title: string; startsAt: string; minutes: string | null; approved: boolean }[];
   votes: {
@@ -239,7 +239,7 @@ export const BUS_ACTIONS = new Set(['bookBus', 'decideBus', 'cancelBus']);
 export interface Stage4Fixture {
   members: { key: string; chapter: string; name: string; status: MemberStatus; approval: Member['approval']; fngStartMonths?: number }[];
   positions: { key: string; member: string; chapter: string | null; role: PositionRole }[];
-  rides: { key: string; title: string; startsAt: string; category: RideCategory; cancelled: boolean }[];
+  rides: { key: string; title: string; startsAt: string; category: RideCategory; cancelled: boolean; source?: 'feed' | 'app' }[];
   sessions: { key: string; kind: CheckinKind; chapter: string | null; ride: string | null; title: string; heldOnDays: number; code: string; closed: boolean }[];
   attendance: { session: string; member: string }[];
   rates: { chapter: string; fyOffset: number; status: MemberStatus; amountCents: number; dueOnDays: number }[];
@@ -314,9 +314,10 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
     positions: fixture.positions
       .filter((p) => !without.includes(p.key))
       .map((p) => ({ id: p.key, memberId: p.member, chapterId: p.chapter, role: p.role, startedOn: p.startedOn, endedOn: p.endedOn })),
+    // Fixture rides are made in the app unless the fixture says they came from the calendar (parity-sql.mts inserts them the same way).
     rides: fixture.rides.map((r) => ({
       id: r.key, title: r.title, startsAt: r.startsAt, endsAt: null, allDay: false, location: null, notes: null,
-      category: r.category, cancelledAt: r.cancelled ? '2026-01-01T00:00:00.000Z' : null,
+      category: r.category, cancelledAt: r.cancelled ? '2026-01-01T00:00:00.000Z' : null, source: r.source ?? 'app', website: true,
     })),
     // Stage 5: meetings and votes
     meetings: fixture.meetings.map((x) => ({
@@ -579,7 +580,7 @@ function withStage4(data: ClubData, today: string): ClubData {
       ...data.rides,
       ...s4.rides.map((r) => ({
         id: r.key, title: r.title, startsAt: r.startsAt, endsAt: null, allDay: false, location: null, notes: null,
-        category: r.category, cancelledAt: r.cancelled ? '2026-01-01T00:00:00.000Z' : null,
+        category: r.category, cancelledAt: r.cancelled ? '2026-01-01T00:00:00.000Z' : null, source: r.source ?? ('app' as const), website: true,
       })),
     ],
     checkinSessions: s4.sessions.map((x) => ({

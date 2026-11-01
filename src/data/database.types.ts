@@ -221,8 +221,12 @@ export type Database = {
           starts_at: string;
           synced_at: string;
           title: string;
+          website: boolean;
+          created_by: string | null;
+          updated_by: string | null;
+          updated_at: string | null;
         };
-        Insert: { [_ in never]: never }; // only the calendar sync writes rides
+        Insert: { [_ in never]: never }; // the calendar sync and save_ride write rides
         Update: { [_ in never]: never };
         Relationships: [];
       };
@@ -576,6 +580,15 @@ export type Database = {
       };
       withdraw_hub: { Args: { p_ride: string }; Returns: undefined };
       // Charity ride sign-ups
+      /** Rides made in the app: makes one (p_id null) or changes one; resolves to the ride's id. */
+      save_ride: {
+        Args: {
+          p_id: string | null; p_title: string; p_starts_at: string; p_ends_at: string | null; p_all_day: boolean;
+          p_category: RideCategory; p_location: string | null; p_notes: string | null; p_website: boolean;
+        };
+        Returns: string;
+      };
+      set_ride_called_off: { Args: { p_id: string; p_off: boolean }; Returns: undefined };
       save_charity: {
         Args: {
           p_ride: string; p_cause: string; p_about: string | null; p_closes_on: string | null; p_places: number | null; p_jobs: string[];

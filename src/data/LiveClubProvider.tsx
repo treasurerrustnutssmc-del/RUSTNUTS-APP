@@ -15,6 +15,8 @@ import { rangeProblem } from '../domain/fuel';
 import { registerProblem, saveHubProblem, withdrawHubProblem } from '../domain/hubs';
 import { saveCharityProblem, signupProblem, withdrawCharityProblem } from '../domain/charity'; // Charity ride sign-ups
 import { saveCharityArgs, signUpCharityArgs } from './charityLive'; // Charity ride sign-ups
+import { callOffProblem, putBackProblem, RIDE_GONE, saveRideProblem } from '../domain/newRide'; // Rides made in the app
+import { saveRideArgs, setRideCalledOffArgs } from './rideLive'; // Rides made in the app
 import { removeWebsiteSignupProblem } from '../domain/websiteSignups';
 import { rateProblem } from '../domain/ratings';
 import { callProblem } from '../domain/rideCalls';
@@ -36,7 +38,7 @@ import {
 import { crewProblem, leaveProblem } from '../domain/crew';
 import { melbourneDate, rsvpProblem } from '../domain/rides';
 import { NO_TRACK, readGpx, type GpxSummary } from '../domain/gpx';
-import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem } from '../domain/routes';
+import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { castProblem, closeProblem as closeVoteProblem, openVoteProblem } from '../domain/votes';
 import type { ClubData, NotificationPrefs } from '../domain/types'; // NotificationPrefs: Lane E
 import {
@@ -954,6 +956,24 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     withdrawHub: async (rideId) => {
       deny(withdrawHubProblem(visibleMe, data.rides.find((r) => r.id === rideId), data, new Date().toISOString()));
       ok(await supabase().rpc('withdraw_hub', { p_ride: rideId }));
+      await after();
+    },
+    // Rides made in the app
+    saveRide: async (input, id) => {
+      const existing = id === undefined ? undefined : data.rides.find((r) => r.id === id);
+      deny(signedInProblem(visibleMe));
+      if (id !== undefined && !existing) throw new NotAllowedError(RIDE_GONE);
+      deny(saveRideProblem(visibleMe, existing, input, data, new Date().toISOString()));
+      const result = ok(await supabase().rpc('save_ride', saveRideArgs(input, id ?? null)));
+      await after();
+      if (!result.data) throw new Error('The ride wasn’t saved. Try again.');
+      return result.data;
+    },
+    setRideCalledOff: async (id, off) => {
+      const ride = data.rides.find((r) => r.id === id);
+      const now = new Date().toISOString();
+      deny(off ? callOffProblem(visibleMe, ride, data, now) : putBackProblem(visibleMe, ride, data, now));
+      ok(await supabase().rpc('set_ride_called_off', setRideCalledOffArgs(id, off)));
       await after();
     },
     // Charity ride sign-ups

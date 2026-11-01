@@ -25,6 +25,7 @@ import { EditRouteScreen, PickRouteScreen, RouteScreen, RoutesScreen } from '../
 import { BriefingScreen, EditBriefingScreen } from '../screens/briefing';
 import { AskSwapScreen, CallRideScreen, EditHubScreen, HubScreen, PlanRideScreen } from '../screens/ridePlanning';
 import { CharityScreen, EditCharityScreen } from '../screens/charity'; // Charity ride sign-ups
+import { EditRideScreen } from '../screens/editRide'; // Rides made in the app
 import { EditRoadRulesScreen, RoadRulesScreen, RoadRulesSignoffsScreen } from '../screens/roadRules';
 import { RoadRulesDiagramScreen, RoadRulesDiagramsScreen, RoadRulesGuideScreen, RoadRulesRuleScreen } from '../screens/roadRulesGuide';
 import { BookBusScreen, BusBookingScreen, BusScreen, ChangeBusScreen } from '../screens/bus';
@@ -330,6 +331,8 @@ export function RootNavigator() {
             <Stack.Screen name="CallRide" component={CallRideScreen} options={{ title: 'Ride’s off or postponed' }} />
             <Stack.Screen name="Hub" component={HubScreen} options={{ title: 'Registrations' }} />
             <Stack.Screen name="EditHub" component={EditHubScreen} options={{ title: 'Run the hub' }} />
+            {/* Rides made in the app */}
+            <Stack.Screen name="EditRide" component={EditRideScreen} options={({ route }) => ({ title: route.params?.rideId ? 'Change the ride' : 'New ride' })} />
             {/* Charity ride sign-ups */}
             <Stack.Screen name="Charity" component={CharityScreen} options={{ title: 'Charity ride' }} />
             <Stack.Screen name="EditCharity" component={EditCharityScreen} options={{ title: 'Run sign-ups' }} />
