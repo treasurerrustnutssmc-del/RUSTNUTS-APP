@@ -16,6 +16,7 @@
     "supabase/functions/ride-voice-token",
     "supabase/functions/ask-club",
     "supabase/functions/purge-files",
-    "supabase/functions/site-api"
+    "supabase/functions/site-api",
+    "supabase/functions/shop-order"
   ]
 }

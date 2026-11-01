@@ -80,6 +80,11 @@ export interface MemberPrivate {
   firstAidExpiry: string | null;
   introducedBy: string | null;
   applicationNote: string | null;
+  /** Saved delivery address for the club shop (in-app merch ordering). Missing or null: not saved. */
+  street?: string | null;
+  suburb?: string | null;
+  state?: string | null;
+  postcode?: string | null;
 }
 
 export interface Bike {
@@ -259,7 +264,7 @@ export interface RosterTally {
   count: number;
 }
 
-export interface ClubData extends LedgerData, AdminData, AuditData {
+export interface ClubData extends LedgerData, AdminData, AuditData, ShopData {
   chapters: Chapter[];
   members: Member[];
   /** Roster places not yet claimed (live mode only). Missing means none. */
@@ -1314,4 +1319,112 @@ export interface BusCost {
   loggedAt: string;
   struckBy: string | null;
   struckAt: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// The club shop: ordering members' merch inside the app, into Chris's Make pipeline
+// (docs/superpowers/specs/2026-11-01-in-app-merch-ordering-design.md)
+
+/** Who may order a design: anyone approved, Full and Nomad only, or Family plus Full and Nomad. */
+export type ShopEligibility = 'any' | 'patched' | 'family';
+
+export interface ShopDesign {
+  id: string;
+  name: string;
+  eligibility: ShopEligibility;
+  /** Empty when none. */
+  blurb: string;
+  sort: number;
+  onSale: boolean;
+  updatedBy: string | null;
+  updatedAt: string;
+}
+
+export interface ShopGarment {
+  id: string;
+  designId: string;
+  name: string;
+  priceCents: number;
+  /** Empty means no size to pick. */
+  sizes: string[];
+  /** Empty means no colour to pick. */
+  colours: string[];
+  sort: number;
+  onSale: boolean;
+}
+
+export type ShippingMethod = 'standard' | 'express';
+
+/** The app's copy of Make's shipping table, so the cart can show a total. The invoice wins. */
+export interface ShopShipping {
+  state: string;
+  method: ShippingMethod;
+  cents: number;
+}
+
+/** Someone named to run the shop alongside the office-bearers (Chris). */
+export interface ShopRunner {
+  memberId: string;
+  namedBy: string | null;
+  namedOn: string;
+}
+
+export type ShopDelivery = 'ship' | 'collect';
+
+/** held: saved, Make hasn't accepted it yet. sent: Make has it (invoice on its way). */
+export type ShopOrderStatus = 'held' | 'sent' | 'paid' | 'posted' | 'collected' | 'cancelled';
+
+export interface ShopOrderLine {
+  id: string;
+  orderId: string;
+  garmentId: string | null;
+  /** Copied when ordered, so the history survives catalogue edits. */
+  designName: string;
+  garmentName: string;
+  size: string | null;
+  colour: string | null;
+  qty: number;
+  unitCents: number;
+}
+
+export interface ShopOrder {
+  id: string;
+  memberId: string;
+  /** The phone's uuid for this cart: the same one twice gets the first order back. */
+  clientRef: string;
+  buyerName: string;
+  roadName: string | null;
+  email: string;
+  phone: string | null;
+  delivery: ShopDelivery;
+  street: string | null;
+  suburb: string | null;
+  state: string | null;
+  postcode: string | null;
+  shippingMethod: ShippingMethod | null;
+  subtotalCents: number;
+  /** From the app's shipping table; 0 for collect. */
+  shippingCents: number;
+  status: ShopOrderStatus;
+  makeSentAt: string | null;
+  makeError: string | null;
+  paidOn: string | null;
+  /** What the treasurer saw land (the invoice total is Make's). */
+  paidCents: number | null;
+  /** The CR-005 ledger line it made. */
+  ledgerEntryId: string | null;
+  handedOverOn: string | null;
+  cancelledAt: string | null;
+  cancelledBy: string | null;
+  orderedAt: string;
+  lines: ShopOrderLine[];
+}
+
+export interface ShopData {
+  shopDesigns?: ShopDesign[];
+  shopGarments?: ShopGarment[];
+  shopShipping?: ShopShipping[];
+  shopRunners?: ShopRunner[];
+  /** Orders the viewer may see. Missing means none. */
+  shopOrders?: ShopOrder[];
 }

@@ -19,6 +19,8 @@ import { DOCS_AT } from '../src/data/parityFixture.testkit'; // Stage 5C
 import { ADMIN_AT, ADMIN_PLAN } from '../src/data/parityFixture.testkit'; // Stage 5D
 import { CASE_PLAN } from '../src/data/adminActions'; // Stage 5D
 import { REPORT_KINDS } from '../src/domain/reports'; // Member content rules
+import { SHOP_AT, shopTodayAt } from '../src/data/parityFixture.testkit'; // The club shop
+import { SHOP_ACTIONS } from '../src/data/shopActions'; // The club shop
 
 const q = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const id = (kind: string, key: string) => `md5(${q(`${kind}:${key}`)})::uuid`;
@@ -590,7 +592,52 @@ const auditCall = (c: ParityCase & Record<string, any>): string | null => {
   }
 };
 
+// The club shop. Dates come as …Days from today.
+const shopCall = (c: ParityCase & Record<string, any>): string => {
+  switch (c.action) {
+    case 'shopOrder': {
+      const lines = (c.lines as { garment: string; size?: string | null; colour?: string | null; qty: number }[]).map((l) => ({
+        garment_id: uuidOf('sg', l.garment), size: l.size ?? null, colour: l.colour ?? null, qty: l.qty,
+      }));
+      return (
+        `public.place_shop_order(${id('cref', c.clientRef ?? 'case')}, ${json(lines)}, ${q(c.email ?? '')}, ${q(c.phone ?? '')}, ` +
+        `${q(c.delivery)}, ${q(c.street ?? '')}, ${q(c.suburb ?? '')}, ${q(c.state ?? '')}, ${q(c.postcode ?? '')}, ` +
+        `${c.method ? q(c.method) : 'null'}, ${c.saveAddress ? 'true' : 'false'})`
+      );
+    }
+    case 'shopPay':
+      return `public.pay_shop_order(${id('so', c.order)}, ${maybeDate(c.paid)}, ${c.cents})`;
+    case 'shopHandOver':
+      return `public.hand_over_shop_order(${id('so', c.order)})`;
+    case 'shopCancel':
+      return `public.cancel_shop_order(${id('so', c.order)})`;
+    case 'shopResend':
+      return `public.resend_shop_order(${id('so', c.order)})`;
+    case 'shopSetDesign':
+      return (
+        `public.set_shop_design(${c.design ? id('sd', c.design) : 'null'}, ${q(c.designName)}, ${q(c.eligibility)}, ${q(c.blurb ?? '')}, ` +
+        `${c.sort ?? 0}, ${c.onSale ?? true})`
+      );
+    case 'shopSetGarment':
+      return (
+        `public.set_shop_garment(${c.garment ? id('sg', c.garment) : 'null'}, ${id('sd', c.design)}, ${q(c.garmentName)}, ${c.priceCents}, ` +
+        `${texts(c.sizes)}, ${texts(c.colours)}, ${c.sort ?? 0}, ${c.onSale ?? true})`
+      );
+    case 'shopSetShipping':
+      return `public.set_shop_shipping(${q(c.state)}, ${q(c.method)}, ${c.cents})`;
+    case 'shopNameRunner':
+      return `public.name_shop_runner(${id('m', c.member)})`;
+    case 'shopUnnameRunner':
+      return `public.unname_shop_runner(${id('m', c.member)})`;
+    case 'shopSaveAddress':
+      return `public.save_delivery_address(${q(c.street)}, ${q(c.suburb)}, ${q(c.state)}, ${q(c.postcode)})`;
+    default:
+      throw new Error(`Unknown shop action ${c.action} in "${c.name}"`);
+  }
+};
+
 const call = (c: ParityCase & Record<string, any>): string => {
+  if (SHOP_ACTIONS.has(String(c.action))) return shopCall(resolveCase(c, today) as ParityCase & Record<string, any>);
   if (ADMIN_CASE_ACTIONS.has(String(c.action))) return adminCall(resolveCase(c, today) as ParityCase & Record<string, any>);
   const audit = auditCall(resolveCase(c, today) as ParityCase & Record<string, any>);
   if (audit) return audit;
@@ -1154,6 +1201,53 @@ if (ad) {
       `insert into public.chapter_proposals (id, name, area, state, plan, founder_ids, president_id, saa_id, proposed_by, proposed_at) values (` +
         `${id('cp', p.key)}, ${q(p.name)}, 'Fixture', 'VIC', ${json(ADMIN_PLAN)}, ${uuids(p.founders)}, ${id('m', p.president)}, ` +
         `${id('m', p.saa)}, ${id('m', p.proposedBy)}, ${q(ADMIN_AT)}::timestamptz);`,
+    );
+  }
+}
+
+// The club shop: catalogue, runners and orders, inserted as the owner. Every fixture order is one
+// Member Tee (M, Black), as in the demo (withShop).
+const sh = fx.shop;
+if (sh) {
+  sh.designs.forEach((d, i) => {
+    sql(
+      `insert into public.shop_designs (id, name, eligibility, blurb, sort, on_sale, updated_at) values (` +
+        `${id('sd', d.key)}, ${q(d.name)}, ${q(d.eligibility)}, '', ${i}, ${d.onSale ?? true}, ${q(SHOP_AT)}::timestamptz);`,
+    );
+  });
+  sh.garments.forEach((g, i) => {
+    sql(
+      `insert into public.shop_garments (id, design_id, name, price_cents, sizes, colours, sort, on_sale) values (` +
+        `${id('sg', g.key)}, ${id('sd', g.design)}, ${q(g.name)}, ${g.priceCents}, ${texts(g.sizes)}, ${texts(g.colours)}, ${i}, ${g.onSale ?? true});`,
+    );
+  });
+  for (const r of sh.shipping) {
+    sql(`insert into public.shop_shipping (state, method, cents) values (${q(r.state)}, ${q(r.method)}, ${r.cents});`);
+  }
+  for (const m of sh.runners) {
+    sql(`insert into public.shop_runners (member_id, named_on) values (${id('m', m)}, date '2026-10-01');`);
+  }
+  const tee = sh.garments.find((g) => g.key === 'member-tee')!;
+  const teeDesign = sh.designs.find((d) => d.key === tee.design)!;
+  const vic = sh.shipping.find((r) => r.state === 'VIC' && r.method === 'standard')?.cents ?? 0;
+  for (const o of sh.orders) {
+    const ship = o.delivery === 'ship';
+    const at = `${q(o.today ? shopTodayAt(today) : SHOP_AT)}::timestamptz`;
+    const paid = ['paid', 'posted', 'collected'].includes(o.status);
+    const over = ['posted', 'collected'].includes(o.status);
+    sql(
+      `insert into public.shop_orders (id, member_id, client_ref, buyer_name, road_name, email, delivery, street, suburb, state, postcode, ` +
+        `shipping_method, subtotal_cents, shipping_cents, status, make_sent_at, make_error, paid_on, paid_cents, handed_over_on, cancelled_at, ` +
+        `cancelled_by, ordered_at) select ${id('so', o.key)}, id, ${id('cref', o.key)}, full_name, road_name, ${q(`${o.member}@example.com`)}, ` +
+        `${q(o.delivery)}, ${ship ? "'1 Main St'" : 'null'}, ${ship ? "'Sunshine'" : 'null'}, ${ship ? "'VIC'" : 'null'}, ${ship ? "'3020'" : 'null'}, ` +
+        `${ship ? "'standard'" : 'null'}, ${tee.priceCents}, ${ship ? vic : 0}, ${q(o.status)}, ${o.status === 'held' ? 'null' : at}, ` +
+        `${o.status === 'held' ? "'HTTP 500'" : 'null'}, ${paid ? `private.club_date(${at})` : 'null'}, ${paid ? tee.priceCents : 'null'}, ` +
+        `${over ? `private.club_date(${at})` : 'null'}, ${o.status === 'cancelled' ? at : 'null'}, ${o.status === 'cancelled' ? 'id' : 'null'}, ${at} ` +
+        `from public.members where id = ${id('m', o.member)};`,
+    );
+    sql(
+      `insert into public.shop_order_lines (order_id, garment_id, design_name, garment_name, size, colour, qty, unit_cents) values (` +
+        `${id('so', o.key)}, ${id('sg', tee.key)}, ${q(teeDesign.name)}, ${q(tee.name)}, 'M', 'Black', 1, ${tee.priceCents});`,
     );
   }
 }
