@@ -36,7 +36,7 @@ import {
   signoffStart,
   signoffSummary,
 } from '../domain/roadRules';
-import { GUIDE, writtenRulesText } from '../domain/roadRulesGuide';
+import { GUIDE, adoptionInput, writtenRulesText } from '../domain/roadRulesGuide';
 import { melbourneDate } from '../domain/rides';
 import { routeChapterName } from '../domain/routes';
 import type { ClubData, Member, RoadRulesVersion } from '../domain/types';
@@ -97,7 +97,9 @@ function publishedLine(v: RoadRulesVersion, data: ClubData): string {
 // ---------------------------------------------------------------------------
 
 export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRules'>) {
-  const { me, data, today } = useClub();
+  const { me, data, today, publishRoadRules } = useClub();
+  const [adopting, setAdopting] = useState(false);
+  const [adoptError, setAdoptError] = useState<string | null>(null);
   // The screen keeps the version it opened on (the one asked for, or the current one then), so the
   // text never changes under the reader and Sign sends the version read. A newer one is offered in
   // a notice instead (pinnedRoadRules).
@@ -111,6 +113,25 @@ export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRule
   const publisher = publishesRoadRules(me, data);
   const seesSignoffs = signoffChapters(me, data).length > 0;
 
+  const adopt = async () => {
+    if (adopting) return;
+    setAdoptError(null);
+    const input = adoptionInput();
+    const problem = publishProblem(me, input, 0, data);
+    if (problem) {
+      setAdoptError(problem);
+      return;
+    }
+    setAdopting(true);
+    try {
+      await publishRoadRules(input, 0);
+    } catch (e) {
+      setAdoptError((e as Error).message);
+    } finally {
+      setAdopting(false);
+    }
+  };
+
   if (!current || !view.version) {
     return (
       <Screen>
@@ -118,7 +139,25 @@ export function RoadRulesScreen({ route: nav, navigation }: RootScreen<'RoadRule
         <IllustratedRulesCard onRules={() => navigation.navigate('RoadRulesGuide')} onDiagrams={() => navigation.navigate('RoadRulesDiagrams')} />
         <Notice title="No signed version yet">{NOTHING_YET}</Notice>
         {publisher ? (
-          <Button label="Write the first version" icon="create-outline" onPress={() => navigation.navigate('EditRoadRules')} />
+          <Stack gap={space.sm}>
+            {/* The NEC adopts the illustrated set in one press: its written rules become version 1. */}
+            {adopting ? (
+              <Button label="Adopting" busy onPress={() => {}} />
+            ) : (
+              <ConfirmButton
+                label="Adopt the Road Rules"
+                confirmLabel="Yes, adopt them"
+                confirmNote="Publishes the illustrated set’s written rules as version 1. Everyone is asked to sign, and until they do they can’t say Going to a ride."
+                kind="primary"
+                icon="megaphone-outline"
+                onConfirm={adopt}
+              />
+            )}
+            <Button label="Write a different first version" icon="create-outline" kind="secondary" onPress={() => navigation.navigate('EditRoadRules')} />
+            <View accessibilityLiveRegion="polite" role="alert">
+              {adoptError ? <Notice tone="danger">{adoptError}</Notice> : null}
+            </View>
+          </Stack>
         ) : null}
       </Screen>
     );

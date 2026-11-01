@@ -797,3 +797,12 @@ export function guideStatus(adopted: boolean): GuideStatus {
         note: "Chris’s illustrated draft, for review. Until the club adopts it, the Road Rules you sign are the NEC’s published version.",
       };
 }
+
+/** What the NEC's one-press adoption publishes as version 1: the written rules, everyone signs. */
+export function adoptionInput(): { body: string; changes: string; fresh: boolean } {
+  return {
+    body: writtenRulesText(),
+    changes: `Adopted by the NEC: the club’s Road Rules, from the illustrated set of ${formatAuDate(GUIDE.date)}.`,
+    fresh: true,
+  };
+}
