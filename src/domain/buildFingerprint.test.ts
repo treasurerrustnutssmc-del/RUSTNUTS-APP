@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULT_SOURCE_SKIPS, SourceSkips, createFingerprintAsync } from '@expo/fingerprint';
+import { DEFAULT_SOURCE_SKIPS, SourceSkips, createFingerprintAsync } from 'expo/fingerprint';
 
 // Test phones only take an over-the-air update whose runtime fingerprint matches their build.
 // npm scripts never reach the native app, so a scripts edit must not strand every installed build
@@ -23,4 +24,11 @@ test('the fingerprint config keeps every default skip and adds only the scripts'
     return bits | bit;
   }, SourceSkips.None);
   assert.equal(skips, DEFAULT_SOURCE_SKIPS | SourceSkips.PackageJsonScriptsAll);
+});
+
+test('no npm lifecycle or EAS build hook could change native code unseen', () => {
+  // Skipping every script is only safe while no script runs during an install or an EAS build.
+  const { scripts } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
+  const hooks = Object.keys(scripts).filter((name) => /^(pre|post)?install$|^prepare$|^eas-build-/.test(name));
+  assert.deepEqual(hooks, [], 'a hook script now runs at install or build time; drop PackageJsonScriptsAll from fingerprint.config.js or hash that hook');
 });
