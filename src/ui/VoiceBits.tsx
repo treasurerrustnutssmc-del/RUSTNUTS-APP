@@ -16,7 +16,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { VoiceRecording } from '../data/chat/chatContext';
 import { useRideVoice } from '../data/rideVoice';
 import { MAX_VOICE_MS, VOICE_BROKEN, type MessageMedia } from '../domain/chat';
-import { voiceNoteAudioMode } from '../domain/rideVoiceDemo';
+import { voiceNoteAudioMode, voiceNoteCleanupMode } from '../domain/rideVoiceDemo';
 import { colors, fonts, radius, space } from '../theme';
 import { useMediaSource } from './ChatBits';
 import { Ionicons } from './primitives';
@@ -107,10 +107,12 @@ export function VoiceRecorderBar({
     return () => {
       live.current = false;
       // Leaving the chat mid-recording throws it away, once the microphone has finished opening.
-      // Playback goes back to the speaker.
+      // Playback goes back to the speaker, except on an iPhone with a ride call up: that would take
+      // the call's microphone away.
       ready.finally(() => {
         recorder.stop().catch(() => undefined);
-        setAudioModeAsync(voiceNoteAudioMode(false, onCallNow.current)).catch(() => undefined);
+        const mode = voiceNoteCleanupMode(Platform.OS, onCallNow.current);
+        if (mode) setAudioModeAsync(mode).catch(() => undefined);
       });
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

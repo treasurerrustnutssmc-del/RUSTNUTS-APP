@@ -3,10 +3,11 @@
 // app by the people who run them (src/screens/editRide.tsx); only app rides change here.
 
 import React, { useId, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { briefingOf, editBriefingProblem, hazardSummary, moreLabel, readCount, readCountLine, readState } from '../domain/briefings';
 import { formatAuDate, weekday } from '../domain/dates';
+import { placeSearchUrl } from '../domain/rideMap';
 import { canVolunteer, crewChangeProblem, crewRows, leaveProblem, managesRide, showsCrewNeeded, spotOf } from '../domain/crew';
 import type { CrewRowSlot } from '../domain/crew';
 import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL, ROLE_LABEL, ROLE_SHORT, RSVP_LABEL } from '../domain/labels';
@@ -403,7 +404,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
 
   const location = ride.location;
   const openMap = () => {
-    if (location) Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(location)}`).catch(() => {});
+    if (location) Linking.openURL(placeSearchUrl(location, Platform.OS)).catch(() => {});
   };
 
   const list = (title: string, members: Member[]) => (

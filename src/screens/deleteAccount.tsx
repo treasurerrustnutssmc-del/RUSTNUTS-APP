@@ -4,9 +4,11 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { deleteAccountProblem } from '../domain/account';
+import { deleteAccountProblem, stepDownSeats, type SeatToStepDown } from '../domain/account';
+import { seatTitle } from '../domain/home';
+import { ROLE_LABEL } from '../domain/labels';
 import { Body, Card, ConfirmButton, H2, Notice, Screen, Small } from '../ui/primitives';
-import { space } from '../theme';
+import { colors, space } from '../theme';
 
 const DELETED = [
   'Your sign-in, so this email can’t open the app any more',
@@ -36,12 +38,42 @@ function List({ items }: { items: string[] }) {
   );
 }
 
+/** Each seat in the way: a step-down for the ones they can end themselves (the same one as on their
+ *  member page), and who records the change for the rest. */
+function StepDownSeats({ seats }: { seats: SeatToStepDown[] }) {
+  const { data, endPosition } = useClub();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <Card>
+      <H2>Your seats</H2>
+      {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+      {seats.map(({ position: p, selfEnd, note }) => {
+        const role = seatTitle(p, data.chapters, ROLE_LABEL);
+        return selfEnd ? (
+          <ConfirmButton
+            key={p.id}
+            label={`Step down as ${role}`}
+            confirmLabel="Yes, step down"
+            confirmAccessibilityLabel={`Yes, step down as ${role}`}
+            kind="secondary"
+            size="small"
+            onConfirm={() => endPosition(p.id).then(() => setError(null), (e: Error) => setError(e.message))}
+          />
+        ) : (
+          <Body key={p.id}>{`${role}: ${note}`}</Body>
+        );
+      })}
+    </Card>
+  );
+}
+
 export function DeleteAccountScreen() {
-  const { me, data, deleteMyAccount, isDemo } = useClub();
+  const { me, data, today, deleteMyAccount, isDemo } = useClub();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Someone who signed in but hasn't asked to join has no member record, only the sign-in.
   const problem = me ? deleteAccountProblem(me, data.positions) : null;
+  const seats = problem ? stepDownSeats(me, data, today) : [];
 
   const remove = () => {
     setError(null);
@@ -55,6 +87,7 @@ export function DeleteAccountScreen() {
   return (
     <Screen>
       {problem ? <Notice tone="warn" title="Step down first">{problem}</Notice> : null}
+      {seats.length > 0 ? <StepDownSeats seats={seats} /> : null}
       <Card>
         <H2>Deleted straight away</H2>
         <List items={DELETED} />

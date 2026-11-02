@@ -65,6 +65,7 @@ import {
   Stack,
   type IconName,
 } from '../ui/primitives';
+import { voiceNoteOffHint } from '../domain/rideVoiceDemo';
 import { useOnRideCall, VoiceNote, VoiceRecorderBar } from '../ui/VoiceBits';
 
 const KIND_ICON: Record<string, IconName> = {
@@ -221,8 +222,10 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const [attachments, setAttachments] = useState<Attachment[]>(route.params.shared?.media ?? []);
   const [gifs, setGifs] = useState(false);
   const [recording, setRecording] = useState(false);
-  // A ride call holds the microphone, so voice notes wait until it's over.
+  // A ride call holds the microphone, so voice notes wait until it's over (on an iPhone the
+  // recorder would take the call's microphone away).
   const onCall = useOnRideCall();
+  const voiceOff = voiceNoteOffHint(onCall);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [reporting, setReporting] = useState<string | null>(null);
@@ -626,17 +629,18 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               ) : (
                 <Pressable
                   onPress={startRecording}
-                  disabled={sending || onCall}
+                  disabled={sending || !!voiceOff}
                   accessibilityRole="button"
                   accessibilityLabel="Record a voice note"
-                  accessibilityHint={onCall ? 'Off during a ride call.' : 'Starts recording straight away. Up to 2 minutes.'}
-                  accessibilityState={{ disabled: sending || onCall }}
-                  style={({ pressed }) => [styles.send, pressed && { backgroundColor: colors.red }, (sending || onCall) && { opacity: 0.45 }]}
+                  accessibilityHint={voiceOff ?? 'Starts recording straight away. Up to 2 minutes.'}
+                  accessibilityState={{ disabled: sending || !!voiceOff }}
+                  style={({ pressed }) => [styles.send, pressed && { backgroundColor: colors.red }, (sending || !!voiceOff) && { opacity: 0.45 }]}
                 >
                   <Ionicons name="mic" size={20} color={colors.bone} />
                 </Pressable>
               )}
             </View>
+            {voiceOff && !hasContent ? <Text style={styles.voiceOff}>{voiceOff}</Text> : null}
             </>
           )}
           {gifs && !recording ? (
@@ -872,6 +876,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'transparent',
   },
   gifBtnText: { fontFamily: fonts.stencil, fontSize: 14, color: colors.boneDim, letterSpacing: 0.5 },
+  voiceOff: { fontFamily: fonts.stencil, fontSize: 13, letterSpacing: 0.5, color: colors.boneMute, textAlign: 'right', paddingHorizontal: space.sm, paddingTop: space.xs },
   input: {
     ...type.body, color: colors.bone, flex: 1, minHeight: 44, maxHeight: 132, paddingHorizontal: space.md,
     paddingTop: 11, paddingBottom: 11, borderRadius: radius.sm, backgroundColor: colors.steel, borderWidth: 1, borderColor: colors.line,

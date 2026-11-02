@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { boundsAround, fitCamera, mapsAvailable, navigateOptions, riderPins } from './rideMap';
+import { boundsAround, fitCamera, mapsAvailable, navigateOptions, placeSearchUrl, riderPins } from './rideMap';
 import type { LiveRider } from './types';
 
 const NOW = '2026-11-08T01:00:00.000Z';
@@ -62,6 +62,14 @@ test('Navigate offers Apple Maps on iPhone, then Google Maps and Waze, all to th
   assert.equal(ios[2].url, 'https://waze.com/ul?ll=-37.81234,144.96321&navigate=yes');
   assert.deepEqual(navigateOptions(to, 'android').map((o) => o.app), ['google', 'waze']);
   assert.deepEqual(navigateOptions(to, 'web').map((o) => o.app), ['google', 'waze']);
+});
+
+test('a meeting place opens in Apple Maps on an iPhone and Google Maps everywhere else', () => {
+  const place = 'Caltex Lara, 1 Station Rd & Co';
+  assert.equal(placeSearchUrl(place, 'ios'), 'https://maps.apple.com/?q=Caltex%20Lara%2C%201%20Station%20Rd%20%26%20Co');
+  assert.equal(placeSearchUrl(place, 'android'), 'https://www.google.com/maps/search/?api=1&query=Caltex%20Lara%2C%201%20Station%20Rd%20%26%20Co');
+  assert.equal(placeSearchUrl(place, 'web'), placeSearchUrl(place, 'android'));
+  assert.equal(placeSearchUrl('  Bacchus Marsh  ', 'ios'), 'https://maps.apple.com/?q=Bacchus%20Marsh');
 });
 
 test('coordinates in Navigate links are cut to 6 decimal places (about 10 cm)', () => {

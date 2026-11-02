@@ -22,3 +22,20 @@ export function voiceNoteAudioMode(
     ? { allowsRecording: recording, playsInSilentMode: true, shouldPlayInBackground: true }
     : { allowsRecording: recording, playsInSilentMode: true };
 }
+
+/** Shown under the message box while a ride call is up, where the record button sits greyed out. */
+export const VOICE_NOTES_OFF_ON_CALL = 'Voice notes are off while ride comms is on';
+
+/** Why the record button is off right now, or null when a voice note can be recorded. A ride call
+ *  holds the microphone: on an iPhone, the recorder handing the audio back would take it off the call. */
+export function voiceNoteOffHint(onCall: boolean): string | null {
+  return onCall ? VOICE_NOTES_OFF_ON_CALL : null;
+}
+
+/** The audio settings to put back as the recorder closes, or null to leave them alone. On an iPhone
+ *  during a ride call (one that started while the bar was open), turning recording off would switch
+ *  the phone to playback only and cut the call's microphone, and LiveKit doesn't set it again. */
+export function voiceNoteCleanupMode(os: string, onCall: boolean): ReturnType<typeof voiceNoteAudioMode> | null {
+  if (os === 'ios' && onCall) return null;
+  return voiceNoteAudioMode(false, onCall);
+}
