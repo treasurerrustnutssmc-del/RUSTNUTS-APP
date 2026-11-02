@@ -135,6 +135,8 @@ test('tapping a notification opens what it’s about', () => {
   assert.deepEqual(notificationTarget({ kind: 'ride', rideId: 'r1' }), { screen: 'RideDetail', params: { rideId: 'r1' } });
   assert.deepEqual(notificationTarget({ kind: 'ride-reminder', rideId: 'r1' }), { screen: 'RideDetail', params: { rideId: 'r1' } });
   assert.deepEqual(notificationTarget({ kind: 'live-alert', rideId: 'r1' }), { screen: 'LiveRide', params: { rideId: 'r1' } });
+  // "Your photo is on the club website": the Website photos screen, where the poster can take it down.
+  assert.deepEqual(notificationTarget({ kind: 'site_photo', id: 'p1' }), { screen: 'WebsitePhotos', params: undefined });
   assert.equal(notificationTarget({ kind: 'chat' }), null, 'no chat named');
   assert.equal(notificationTarget({ kind: 'chat', chatId: 7 }), null, 'not an id');
   assert.deepEqual(notificationTarget({ kind: 'feedback', feedbackId: 'f1' }), { screen: 'Feedback', params: undefined }, 'a reply: your reports');

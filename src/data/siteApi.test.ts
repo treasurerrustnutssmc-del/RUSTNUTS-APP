@@ -5,6 +5,7 @@ import {
   CHARITY_CACHE,
   DOCUMENTS_CACHE,
   NEWS_CACHE,
+  PHOTOS_CACHE,
   cleanVisitPage,
   ENQUIRY_WORDS,
   SIGNUP_WORDS,
@@ -39,6 +40,8 @@ function deps(over: Partial<SiteApiDeps> = {}) {
     listDocuments: async () => [],
     listNews: async () => [],
     countVisit: async (page) => { calls.visits.push(page); },
+    listPhotos: async () => [],
+    signPhoto: async (bucket, path) => { calls.signed.push(`${bucket}/${path}`); return `https://x.supabase.co/signed/${bucket}/${path}`; },
     ...over,
   };
   return { d, calls };
@@ -228,6 +231,30 @@ test('GET /news: the board’s notices straight through, cached five minutes; 50
   assert.equal(b.status, 503);
   assert.equal(b.headers['cache-control'], 'no-store');
   assert.equal((await handleSiteApi({ method: 'POST', path: '/news', origin: ORIGIN, body: {} }, d)).status, 405);
+});
+
+test('GET /photos: the picked photos with signed links and captions, nothing personal; a photo that won’t sign is left out', async () => {
+  const rows = [
+    { id: 'p1', bucket: 'chat-media', path: 'club/a.jpg', width: 1200, height: 900, caption: 'Spring run', taken_at: '2026-10-13T06:10:00+00:00' },
+    { id: 'p2', bucket: 'site-media', path: 'u/b.jpg', width: 1600, height: 1200, caption: null, taken_at: '2026-10-12T06:10:00+00:00' },
+    { id: 'p3', bucket: 'site-media', path: 'u/gone.jpg', width: 1, height: 1, caption: 'Gone', taken_at: '2026-10-11T06:10:00+00:00' },
+  ];
+  const { d, calls } = deps({ listPhotos: async () => rows, signPhoto: async (bucket, path) => { calls.signed.push(`${bucket}/${path}`); return path.includes('gone') ? null : `https://x.supabase.co/signed/${bucket}/${path}`; } });
+  const r = await handleSiteApi({ method: 'GET', path: '/photos', origin: ORIGIN, body: null }, d);
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, {
+    photos: [
+      { id: 'p1', url: 'https://x.supabase.co/signed/chat-media/club/a.jpg', width: 1200, height: 900, caption: 'Spring run', taken_at: '2026-10-13T06:10:00+00:00' },
+      { id: 'p2', url: 'https://x.supabase.co/signed/site-media/u/b.jpg', width: 1600, height: 1200, caption: null, taken_at: '2026-10-12T06:10:00+00:00' },
+    ],
+  });
+  assert.equal(r.headers['cache-control'], PHOTOS_CACHE);
+  assert.deepEqual(calls.signed, ['chat-media/club/a.jpg', 'site-media/u/b.jpg', 'site-media/u/gone.jpg']);
+  const down = deps({ listPhotos: async () => { throw new Error('boom'); } });
+  const b = await handleSiteApi({ method: 'GET', path: '/photos', origin: ORIGIN, body: null }, down.d);
+  assert.equal(b.status, 503);
+  assert.equal(b.headers['cache-control'], 'no-store');
+  assert.equal((await handleSiteApi({ method: 'POST', path: '/photos', origin: ORIGIN, body: {} }, d)).status, 405);
 });
 
 test('POST /visit: counts a clean page path, drops the rest, never errors to the page', async () => {

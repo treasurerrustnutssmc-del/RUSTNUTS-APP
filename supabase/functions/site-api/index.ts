@@ -2,13 +2,14 @@
 // no sign-in): GET /site-api/sponsors gives the public sponsor list, GET /site-api/rides the public
 // ride list, POST /site-api/enquiry takes a
 // "Ride With Us" join enquiry, GET /site-api/charity-rides the charity rides taking website sign-ups
-// POST /site-api/charity-signup one such sign-up and GET /site-api/documents the Constitution for
-// the site's page. Everything it does is decided in ../_shared/siteApi.ts, which
+// POST /site-api/charity-signup one such sign-up, GET /site-api/documents the Constitution for
+// the site's page, GET /site-api/news the board's notices, POST /site-api/visit a page view and
+// GET /site-api/photos the photos the Social Media Officer picked for the site. Everything it does is decided in ../_shared/siteApi.ts, which
 // `npm test` checks; the database checks the enquiry again (public.site_enquiry) and keeps the
 // spam limits. Only the club website's origins get CORS headers.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
-import { handleSiteApi, LOGO_URL_LIFE_S, type PublicCharityRide, type PublicDocument, type PublicNews, type PublicRide, type SponsorRow } from '../_shared/siteApi.ts';
+import { handleSiteApi, LOGO_URL_LIFE_S, type PublicCharityRide, type PublicDocument, type PublicNews, type PublicRide, type PublicSitePhotoRow, type SponsorRow } from '../_shared/siteApi.ts';
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -71,6 +72,16 @@ Deno.serve(async (req) => {
       countVisit: async (page) => {
         const r = await admin.rpc('site_visit', { p_page: page });
         if (r.error) throw new Error(r.error.message);
+      },
+      listPhotos: async () => {
+        const r = await asAnon.rpc('public_site_photos');
+        if (r.error) throw new Error(r.error.message);
+        return (r.data ?? []) as PublicSitePhotoRow[];
+      },
+      signPhoto: async (bucket, path) => {
+        if (bucket !== 'chat-media' && bucket !== 'site-media') return null;
+        const r = await admin.storage.from(bucket).createSignedUrl(path, LOGO_URL_LIFE_S);
+        return r.error ? null : r.data.signedUrl;
       },
     },
   );

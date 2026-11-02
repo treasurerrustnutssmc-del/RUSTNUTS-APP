@@ -13,6 +13,7 @@ import { BoardScreen, ManageMemberScreen } from '../screens/board';
 import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteScreen } from '../screens/business';
 import { ChatListScreen, ChatReportsScreen, ChatScreen, NewChatScreen } from '../screens/chat';
 import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
+import { PickWebsitePhotoScreen, WebsitePhotosScreen } from '../screens/sitePhotos'; // club photos on the website
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
 import { DeleteAccountScreen } from '../screens/deleteAccount'; // Delete my account
 import { AskClubScreen } from '../screens/askClub'; // Ask the club
@@ -378,6 +379,8 @@ export function RootNavigator() {
             <Stack.Screen name="ChatReports" component={ChatReportsScreen} options={{ title: 'Reports' }} />
             <Stack.Screen name="Photos" component={PhotosScreen} options={{ title: 'Photos' }} />
             <Stack.Screen name="RideWall" component={RideWallScreen} options={{ title: 'Ride wall' }} />
+            <Stack.Screen name="WebsitePhotos" component={WebsitePhotosScreen} options={{ title: 'Website photos' }} />
+            <Stack.Screen name="PickWebsitePhoto" component={PickWebsitePhotoScreen} options={{ title: 'Pick a photo' }} />
             {/* Lane E: share in */}
             <Stack.Screen name="ShareIn" component={ShareInScreen} options={{ title: 'Share to the club' }} />
             {/* Stage 5B: treasurer */}

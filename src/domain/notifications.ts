@@ -65,6 +65,7 @@ export type NotificationTarget =
   | { screen: 'RideDetail'; params: { rideId: string } }
   | { screen: 'LiveRide'; params: { rideId: string } }
   | { screen: 'Feedback'; params: undefined }
+  | { screen: 'WebsitePhotos'; params: undefined }
   | { screen: 'Tabs'; params: { screen: 'Board' } };
 
 export function notificationTarget(data: Record<string, unknown> | null | undefined): NotificationTarget | null {
@@ -82,6 +83,9 @@ export function notificationTarget(data: Record<string, unknown> | null | undefi
     case 'feedback':
       // A reply to (or the closing of) your own report: your reports.
       return { screen: 'Feedback', params: undefined };
+    case 'site_photo':
+      // "Your photo is on the club website": where the poster sees it and can take it down.
+      return { screen: 'WebsitePhotos', params: undefined };
     case 'feedback-sent':
       // A new report, for the keepers: the Board screen's App feedback section.
       return { screen: 'Tabs', params: { screen: 'Board' } };
