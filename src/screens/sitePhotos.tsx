@@ -337,7 +337,7 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={type.name}>{who ? displayName(who) : 'A former member'}’s photo</Text>
               <Small>{formatAuDate(melbourneDate(chosen.createdAt))}</Small>
-              <Small>{own ? 'Yours. It goes straight up.' : `It goes straight up. ${who ? displayName(who) : 'They'} gets a heads-up and can take it down.`}</Small>
+              <Small>{own ? 'Yours. It goes straight up.' : who ? `It goes straight up. ${displayName(who)} gets a heads-up and can take it down.` : 'It goes straight up.'}</Small>
             </View>
           </Row>
           <PickForm verb="Put it up" onSend={send} onCancel={() => setChosen(null)} busy={busy} error={error} />

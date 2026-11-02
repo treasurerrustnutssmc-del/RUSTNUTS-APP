@@ -56,9 +56,9 @@ export const DEMO_SITE_PHOTO_CREW: SitePhotoCrew[] = [
 /**
  * Three sample photos so the demo shows what the list looks like: one live from the ride wall,
  * one of the demo member's own that Jet put up, and one taken down whose chat message is no
- * longer in the demo chats (so the servo-night chat photo stays free to pick).
+ * longer in the demo chats (so the servo-night chat photo stays free to pick). `mediaIdFor` finds
+ * a demo chat photo's media id by its path (the demo chat makes them in order).
  */
-/** `mediaIdFor` finds a demo chat photo's media id by its path (the demo chat makes them in order). */
 export function demoSitePhotos(meId: string, mediaIdFor: (path: string) => string | null): SitePhoto[] {
   return [
     {

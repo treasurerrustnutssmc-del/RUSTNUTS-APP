@@ -65,6 +65,7 @@ create table public.site_photos (
   picked_by uuid references public.members (id) on delete set null,
   picked_at timestamptz not null default now(),
   status public.site_photo_status not null,
+  -- When it went up (kept for the record; every pick and upload goes up at once).
   decided_at timestamptz,
   removed_at timestamptz,
   removed_by uuid references public.members (id) on delete set null,
@@ -72,7 +73,7 @@ create table public.site_photos (
   check ((source = 'chat') = (bucket = 'chat-media')),
   check ((removed_at is null) = (status <> 'removed'))
 );
--- One ask per chat photo while it stands (a taken-down one can go up again).
+-- Once per chat photo while it stands (a taken-down one can go up again).
 create unique index site_photos_media_once on public.site_photos (media_id) where media_id is not null and status <> 'removed';
 create index site_photos_posted_by_idx on public.site_photos (posted_by, status);
 create index site_photos_picked_by_idx on public.site_photos (picked_by);
@@ -82,7 +83,7 @@ create index site_photos_live_idx on public.site_photos (picked_at desc) where s
 alter table public.site_photos enable row level security;
 revoke all on public.site_photos from public, anon, authenticated;
 grant select on public.site_photos to authenticated;
--- Editors see the whole list; everyone sees the photos that are theirs (asks and live ones).
+-- Editors see the whole list; everyone sees the photos that are theirs (live and taken down).
 create policy site_photos_for_editors_and_posters on public.site_photos for select to authenticated
   using ((select private.is_site_photo_editor()) or posted_by = (select auth.uid()));
 

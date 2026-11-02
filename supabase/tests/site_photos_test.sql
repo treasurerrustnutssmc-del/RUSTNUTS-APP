@@ -226,6 +226,7 @@ begin
   assert pg_temp.try_as(crew, format(up, crew || '/x.jpg', ' Big 4 ', true)) is null, 'the crew puts it up';
   select * into p from site_photos where bucket = 'site-media';
   assert p.status = 'live' and p.source = 'upload' and p.caption = 'Big 4' and p.posted_by = crew and p.picked_by = crew and p.media_id is null and p.width = 1600, 'live';
+  assert not exists (select 1 from private.push_outbox where dedupe_key = 'site-photo:' || p.id), 'no heads-up for your own upload';
   assert pg_temp.try_as(crew, format('delete from storage.objects where name = %L', crew || '/x.jpg')) is null, 'tidy is allowed';
   assert exists (select 1 from storage.objects where name = crew || '/x.jpg'), 'but a file on the list stays';
   assert pg_temp.value_as(smo, format('select count(*) from storage.objects where name = %L', crew || '/x.jpg')) = '1', 'editors can see each other''s uploads';
