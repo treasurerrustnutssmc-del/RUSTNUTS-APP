@@ -6,7 +6,9 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
+import { useAiConsent } from '../data/aiConsent';
 import { useCatchUpApi } from '../data/catchUpApi';
+import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { catchUpCount } from '../domain/catchUp';
 import { useChat } from '../data/chat/ChatProvider';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
@@ -47,6 +49,7 @@ import {
   ReactionPills,
   ReplyQuote,
 } from '../ui/ChatBits';
+import { AiConsentCard } from '../ui/AiConsentCard';
 import { MemberRow } from '../ui/MemberBits';
 import {
   Avatar,
@@ -65,6 +68,7 @@ import {
   Stack,
   type IconName,
 } from '../ui/primitives';
+import { voiceNoteOffHint } from '../domain/rideVoiceDemo';
 import { useOnRideCall, VoiceNote, VoiceRecorderBar } from '../ui/VoiceBits';
 
 const KIND_ICON: Record<string, IconName> = {
@@ -221,8 +225,12 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const [attachments, setAttachments] = useState<Attachment[]>(route.params.shared?.media ?? []);
   const [gifs, setGifs] = useState(false);
   const [recording, setRecording] = useState(false);
-  // A ride call holds the microphone, so voice notes wait until it's over.
+  // A ride call holds the microphone, so voice notes wait until it's over (on an iPhone the
+  // recorder would take the call's microphone away).
   const onCall = useOnRideCall();
+  const voiceOff = voiceNoteOffHint(onCall);
+  // A ride call holds the microphone: a voice note already being recorded stops when one starts.
+  if (onCall && recording) setRecording(false);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [reporting, setReporting] = useState<string | null>(null);
@@ -242,6 +250,9 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const [caught, setCaught] = useState<{ summary: string; count: number } | null>(null);
   const [catchError, setCatchError] = useState<string | null>(null);
   const catchingNow = useRef(false);
+  // Nothing goes to Anthropic until the member has agreed, once, on this phone.
+  const catchConsent = useAiConsent('catchUp');
+  const [askingConsent, setAskingConsent] = useState(false);
 
   // Only the chat on screen is marked read; one under the photo viewer or a member's page isn't.
   useFocusEffect(
@@ -297,7 +308,20 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     }
   };
 
-  const catchUp = async () => {
+  const catchUp = () => {
+    if (!catchConsent.loaded) return;
+    if (!catchConsent.agreed) setAskingConsent(true);
+    else void runCatchUp();
+  };
+
+  const agreeToCatchUp = async () => {
+    await catchConsent.agree();
+    setAskingConsent(false);
+    await runCatchUp();
+  };
+
+  // Only ever reached after the member has agreed (catchUp and agreeToCatchUp).
+  const runCatchUp = async () => {
     if (!catchCount || catchingNow.current) return;
     catchingNow.current = true;
     setCatching(true);
@@ -505,8 +529,13 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               <Body selectable>{caught.summary}</Body>
             </ScrollView>
             <Small>{`From the last ${caught.count} messages. It can get things wrong: check the chat for anything that matters.`}</Small>
+            <Small>{AI_PROVIDER_LINE.catchUp}</Small>
             <Button label="Close" kind="secondary" size="small" icon="close" onPress={() => setCaught(null)} />
           </View>
+        ) : catchCount && askingConsent && !catchConsent.agreed ? (
+          <ScrollView style={styles.consentScroll} contentContainerStyle={styles.consentWrap}>
+            <AiConsentCard feature="catchUp" onAgree={agreeToCatchUp} onNotNow={() => setAskingConsent(false)} />
+          </ScrollView>
         ) : catchCount ? (
           <View>
             <Pressable
@@ -626,17 +655,18 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               ) : (
                 <Pressable
                   onPress={startRecording}
-                  disabled={sending || onCall}
+                  disabled={sending || !!voiceOff}
                   accessibilityRole="button"
                   accessibilityLabel="Record a voice note"
-                  accessibilityHint={onCall ? 'Off during a ride call.' : 'Starts recording straight away. Up to 2 minutes.'}
-                  accessibilityState={{ disabled: sending || onCall }}
-                  style={({ pressed }) => [styles.send, pressed && { backgroundColor: colors.red }, (sending || onCall) && { opacity: 0.45 }]}
+                  accessibilityHint={voiceOff ?? 'Starts recording straight away. Up to 2 minutes.'}
+                  accessibilityState={{ disabled: sending || !!voiceOff }}
+                  style={({ pressed }) => [styles.send, pressed && { backgroundColor: colors.red }, (sending || !!voiceOff) && { opacity: 0.45 }]}
                 >
                   <Ionicons name="mic" size={20} color={colors.bone} />
                 </Pressable>
               )}
             </View>
+            {voiceOff && !hasContent ? <Text style={styles.voiceOff}>{voiceOff}</Text> : null}
             </>
           )}
           {gifs && !recording ? (
@@ -864,6 +894,8 @@ const styles = StyleSheet.create({
   },
   catchHeading: { fontFamily: fonts.stencil, fontSize: 18, letterSpacing: 0.8, color: colors.bone, textTransform: 'uppercase' },
   catchScroll: { maxHeight: 280 },
+  consentScroll: { flexGrow: 0, flexShrink: 0, maxHeight: '60%', borderBottomWidth: 1, borderBottomColor: colors.line },
+  consentWrap: { padding: space.md },
   composerWrap: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.ink2 },
   replyBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: space.lg, paddingRight: space.sm, paddingTop: space.sm },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, paddingHorizontal: space.sm, paddingTop: space.sm },
@@ -872,6 +904,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'transparent',
   },
   gifBtnText: { fontFamily: fonts.stencil, fontSize: 14, color: colors.boneDim, letterSpacing: 0.5 },
+  voiceOff: { fontFamily: fonts.stencil, fontSize: 13, letterSpacing: 0.5, color: colors.boneMute, textAlign: 'right', paddingHorizontal: space.sm, paddingTop: space.xs },
   input: {
     ...type.body, color: colors.bone, flex: 1, minHeight: 44, maxHeight: 132, paddingHorizontal: space.md,
     paddingTop: 11, paddingBottom: 11, borderRadius: radius.sm, backgroundColor: colors.steel, borderWidth: 1, borderColor: colors.line,

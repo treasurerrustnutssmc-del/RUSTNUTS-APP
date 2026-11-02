@@ -20,7 +20,7 @@ export const POSTING_RULES_URL = 'https://www.rustnutssmc.com.au/app/posting-rul
 export const POSTING_RULES_EMAIL = 'apps@rustnutssmc.com.au';
 
 /** ISO date the rules last changed. */
-export const POSTING_RULES_UPDATED_ON = '2026-10-31';
+export const POSTING_RULES_UPDATED_ON = '2026-11-02';
 
 export const POSTING_RULES_TITLE = 'Club rules for chats and posts';
 
@@ -83,6 +83,7 @@ export const POSTING_RULES_SECTIONS: RulesSection[] = [
     heading: 'Your posts',
     blocks: [
       'What you post is yours, and you’re responsible for it. The club can remove any post that breaks these rules, and a board member can remove anything in a chat they look after. Reported messages are kept for the board to see even after they’re removed.',
+      'When someone in a chat taps Catch me up, that chat’s newest messages, with who wrote them and when, go to Anthropic (Claude), the club’s AI provider, to write them a short summary that isn’t kept.',
       'The club’s constitution and its Road Rules apply as well. Nothing here overrides them.',
     ],
   },
@@ -95,7 +96,7 @@ export const POSTING_RULES_SECTIONS: RulesSection[] = [
   },
 ];
 
-/** "Last updated 31/10/2026". */
+/** "Last updated 02/11/2026". */
 export function postingRulesUpdatedLine(iso: string = POSTING_RULES_UPDATED_ON): string {
   const [y, m, d] = iso.split('-');
   return `Last updated ${d}/${m}/${y}`;

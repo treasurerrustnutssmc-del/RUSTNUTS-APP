@@ -14,6 +14,12 @@
 //
 // List it in app.json BEFORE "expo-sharing": Xcode project mods run in reverse list order, so being
 // listed first means running after expo-sharing has created the target.
+//
+// It also names the extension in the share sheet. expo-sharing writes CFBundleDisplayName and
+// CFBundleName as "$(PRODUCT_NAME)", which is the target name, so iPhones listed it as
+// "expo-sharing-extension". A dangerous mod (which, listed first, runs after expo-sharing's dangerous
+// mod has written ios/expo-sharing-extension/Info.plist) sets both to "Rustnuts". The target and its
+// PRODUCT_NAME stay as they are: expo-sharing finds its target by that name.
 
 const fs = require('fs');
 const path = require('path');
@@ -22,6 +28,28 @@ const { withDangerousMod, withXcodeProject } = require('expo/config-plugins');
 
 const TARGET_NAME = 'expo-sharing-extension';
 const FILE_NAME = 'PrivacyInfo.xcprivacy';
+const DISPLAY_NAME = 'Rustnuts';
+
+/** The extension's Info.plist with the name the share sheet shows; every other key is kept. */
+function shareExtensionDisplayName(infoPlist) {
+  return { ...infoPlist, CFBundleDisplayName: DISPLAY_NAME, CFBundleName: DISPLAY_NAME };
+}
+
+const withDisplayName = (config) =>
+  withDangerousMod(config, [
+    'ios',
+    async (config) => {
+      const file = path.join(config.modRequest.platformProjectRoot, TARGET_NAME, 'Info.plist');
+      if (!fs.existsSync(file)) {
+        throw new Error(
+          `withShareExtensionPrivacy: ${TARGET_NAME}/Info.plist isn't there yet. List this plugin before "expo-sharing" in app.json.`,
+        );
+      }
+      const current = plist.parse(fs.readFileSync(file, 'utf8'));
+      fs.writeFileSync(file, plist.build(shareExtensionDisplayName(current)));
+      return config;
+    },
+  ]);
 
 /** The manifest contents: no tracking, nothing collected, and a reason for each API the extension touches. */
 function shareExtensionPrivacyManifest() {
@@ -114,7 +142,8 @@ const withManifestInXcodeProject = (config) =>
     return config;
   });
 
-const withShareExtensionPrivacy = (config) => withManifestInXcodeProject(withManifestFile(config));
+const withShareExtensionPrivacy = (config) => withManifestInXcodeProject(withDisplayName(withManifestFile(config)));
 
 module.exports = withShareExtensionPrivacy;
 module.exports.shareExtensionPrivacyManifest = shareExtensionPrivacyManifest;
+module.exports.shareExtensionDisplayName = shareExtensionDisplayName;

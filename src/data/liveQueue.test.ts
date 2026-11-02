@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alertNotice, createAlertQueue, drainQueue, queueAlert, smsUrl, unseenAlerts, type QueuedAlert } from './liveQueue';
+import { alertNotice, createAlertQueue, drainQueue, queueAlert, smsUrl, textLeaders, unseenAlerts, type QueuedAlert } from './liveQueue';
 import type { RideAlert } from '../domain/types';
 
 const alert = (over: Partial<RideAlert> = {}): RideAlert => ({
@@ -104,6 +104,50 @@ test('the text-my-location link suits the phone', () => {
   assert.equal(smsUrl('android', ['0400 000 002', '+61 400 000 003'], body), `sms:0400000002,+61400000003?body=${encodeURIComponent(body)}`);
   assert.equal(smsUrl('ios', ['0400 000 002', '0400 000 003'], body), `sms:0400000002&body=${encodeURIComponent(body)}`);
   assert.equal(smsUrl('android', [], body), null);
+});
+
+const fakeSms = (over: { available?: boolean; throws?: boolean } = {}) => {
+  const calls: { sms: [string[], string][]; opened: string[] } = { sms: [], opened: [] };
+  const deps = {
+    isAvailableAsync: async () => over.available ?? true,
+    sendSMSAsync: async (to: string[], text: string) => {
+      calls.sms.push([to, text]);
+      if (over.throws) throw new Error('no composer');
+      return { result: 'sent' as const };
+    },
+    openUrl: async (url: string) => {
+      calls.opened.push(url);
+    },
+  };
+  return { calls, deps };
+};
+
+test('on an iPhone the emergency text goes to every ride leader', async () => {
+  const body = 'Rustnuts emergency. I’m here: https://maps.google.com/?q=-37.8,144.9';
+  const { calls, deps } = fakeSms();
+  await textLeaders('ios', ['0400 000 002', '+61 400 000 003'], body, deps);
+  assert.deepEqual(calls.sms, [[['0400000002', '+61400000003'], body]]);
+  assert.deepEqual(calls.opened, []);
+});
+
+test('an iPhone that can’t compose texts in the app falls back to the first leader’s sms link', async () => {
+  const body = 'Rustnuts emergency.';
+  for (const over of [{ available: false }, { throws: true }]) {
+    const { calls, deps } = fakeSms(over);
+    await textLeaders('ios', ['0400 000 002', '0400 000 003'], body, deps);
+    assert.deepEqual(calls.opened, [smsUrl('ios', ['0400 000 002'], body)], JSON.stringify(over));
+  }
+});
+
+test('Android keeps its multi-number sms link, and no leaders means no text', async () => {
+  const body = 'Rustnuts emergency.';
+  const android = fakeSms();
+  await textLeaders('android', ['0400 000 002', '0400 000 003'], body, android.deps);
+  assert.deepEqual(android.calls.sms, []);
+  assert.deepEqual(android.calls.opened, [smsUrl('android', ['0400 000 002', '0400 000 003'], body)]);
+  const none = fakeSms();
+  await textLeaders('ios', [], body, none.deps);
+  assert.deepEqual(none.calls, { sms: [], opened: [] });
 });
 
 test('sharing again forgets a stop still waiting for signal, so it can’t switch the new share off', async () => {

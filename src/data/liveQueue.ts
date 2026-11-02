@@ -121,3 +121,29 @@ export function smsUrl(platform: string, phones: string[], body: string): string
   const text = encodeURIComponent(body);
   return platform === 'ios' ? `sms:${digits(phones[0])}&body=${text}` : `sms:${phones.map(digits).join(',')}?body=${text}`;
 }
+
+/** What textLeaders needs: expo-sms's two calls and a way to open a link (passed in so it tests in node). */
+export type TextDeps = {
+  isAvailableAsync: () => Promise<boolean>;
+  sendSMSAsync: (addresses: string[], message: string) => Promise<unknown>;
+  openUrl: (url: string) => Promise<unknown>;
+};
+
+/** Texts the ride leaders. An iPhone's sms: link only takes one number, so iPhones open the in-app
+ *  composer with every leader; if it can't (no Messages, or it fails) they fall back to the link,
+ *  which reaches the first leader. Android's link already takes every number. */
+export async function textLeaders(platform: string, phones: string[], body: string, deps: TextDeps): Promise<void> {
+  const url = smsUrl(platform, phones, body);
+  if (!url) return;
+  if (platform === 'ios') {
+    try {
+      if (await deps.isAvailableAsync()) {
+        await deps.sendSMSAsync(phones.map(digits), body);
+        return;
+      }
+    } catch {
+      // fall through to the link
+    }
+  }
+  await deps.openUrl(url);
+}

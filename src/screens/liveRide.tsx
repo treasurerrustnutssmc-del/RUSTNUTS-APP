@@ -3,10 +3,11 @@
 // switches itself off, nothing kept. The rules are in src/domain/liveRide.ts.
 
 import React, { useEffect, useState } from 'react';
+import * as SMS from 'expo-sms';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { activeRide } from '../data/liveTracker';
-import { smsUrl } from '../data/liveQueue';
+import { smsUrl, textLeaders } from '../data/liveQueue';
 import { useLiveRide } from '../data/useLiveRide';
 import { BACKGROUND_LOCATION_NOTICE, awayText, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, offTime, splitGroups, splitWarning } from '../domain/liveRide';
 import { initials } from '../domain/profile';
@@ -182,7 +183,15 @@ export function LiveRideScreen({ route, navigation }: RootScreen<'LiveRide'>) {
   if (myEmergency) helpIds.add(me.id);
   const pins = riderPins(state.riders, now, { meId: me.id, help: helpIds, splitOff });
   const rideRoute = routeOf(ride.id, data);
-  const textUrl = smsUrl(Platform.OS, leaderPhones, `Rustnuts emergency. I'm here: ${myPos ? mapsUrl(myPos) : 'location unknown'}`);
+  const textBody = `Rustnuts emergency. I'm here: ${myPos ? mapsUrl(myPos) : 'location unknown'}`;
+  const canText = smsUrl(Platform.OS, leaderPhones, textBody) !== null;
+  // iPhones text every leader through the in-app composer; Android's sms: link already takes them all.
+  const textMyLocation = () =>
+    textLeaders(Platform.OS, leaderPhones, textBody, {
+      isAvailableAsync: SMS.isAvailableAsync,
+      sendSMSAsync: SMS.sendSMSAsync,
+      openUrl: open,
+    }).catch(() => {});
 
   return (
     <Screen>
@@ -216,7 +225,7 @@ export function LiveRideScreen({ route, navigation }: RootScreen<'LiveRide'>) {
           <H2 style={{ color: colors.danger }}>Emergency sent</H2>
           <Body>The riders sharing on this ride can see where you are.</Body>
           <Button label="Call 000" icon="call" onPress={() => open('tel:000')} style={styles.big} />
-          {textUrl ? <Button label="Text my location" icon="chatbubble-outline" kind="secondary" onPress={() => open(textUrl)} /> : null}
+          {canText ? <Button label="Text my location" icon="chatbubble-outline" kind="secondary" onPress={textMyLocation} /> : null}
           <Button label="I’m OK, cancel" kind="quiet" busy={busy === myEmergency.id} onPress={run(myEmergency.id, () => live.resolve(myEmergency.id))} />
         </Card>
       ) : null}

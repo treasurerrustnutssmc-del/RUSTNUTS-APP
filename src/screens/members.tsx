@@ -45,6 +45,7 @@ import { BadgesCard } from './badges';
 import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
+import { NotificationIntroCard } from '../ui/NotificationIntro';
 import {
   Avatar,
   Body,
@@ -136,6 +137,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Row>
       </Flannel>
 
+      {/* What notifications are for, once, before the phone asks */}
+      <NotificationIntroCard />
       {/* Stage 4: today's check-in and what you owe */}
       <HomeCheckinCard />
       <HomeFeesCard />

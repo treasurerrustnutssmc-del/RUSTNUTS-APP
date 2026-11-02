@@ -121,3 +121,75 @@ test('iOS store builds are submitted with the club Apple account to the right Ap
   assert.equal(ios?.appName, 'Rustnuts SMC');
   assert.equal(ios?.language, 'en-AU');
 });
+
+test('saving a ride replay to Photos has an add-only purpose string (the share sheet crashes without it)', () => {
+  assert.equal(
+    expo.ios.infoPlist?.NSPhotoLibraryAddUsageDescription,
+    'Rustnuts saves ride replays you choose to keep to your photos.',
+  );
+});
+
+test('the share extension shows as "Rustnuts" in the iOS share sheet', async () => {
+  const { shareExtensionDisplayName } = await import('../plugins/withShareExtensionPrivacy.js');
+  const written = { CFBundleDisplayName: 'expo-sharing-extension', CFBundleName: '$(PRODUCT_NAME)', NSExtension: { a: 1 } };
+  const named = shareExtensionDisplayName(written);
+  assert.equal(named.CFBundleDisplayName, 'Rustnuts');
+  assert.equal(named.CFBundleName, 'Rustnuts');
+  assert.deepEqual(named.NSExtension, { a: 1 }, 'the rest of expo-sharing’s plist is kept');
+});
+
+test('the unused background "fetch" mode expo-task-manager adds is taken back out', async () => {
+  const names = plugins.map(pluginName);
+  assert.ok(names.includes('./plugins/withoutBackgroundFetch.js'), 'the local plugin is listed');
+  const { withoutFetchMode } = await import('../plugins/withoutBackgroundFetch.js');
+  assert.deepEqual(withoutFetchMode({ UIBackgroundModes: ['audio', 'fetch', 'location'], X: 1 }), {
+    UIBackgroundModes: ['audio', 'location'],
+    X: 1,
+  });
+  assert.deepEqual(withoutFetchMode({ X: 1 }), { X: 1 }, 'a plist with no background modes is left alone');
+});
+
+test('expo-system-ui is installed so the dark background and interface style reach the native app', () => {
+  assert.ok(pkg.dependencies['expo-system-ui'], 'expo-system-ui is a dependency');
+});
+
+test('iPhone emergency texts can go to every ride leader (expo-sms)', () => {
+  assert.ok(pkg.dependencies['expo-sms'], 'expo-sms is a dependency');
+});
+
+test('the app privacy manifest declares every data type on the App Store privacy label', () => {
+  type Collected = {
+    NSPrivacyCollectedDataType: string;
+    NSPrivacyCollectedDataTypeLinked: boolean;
+    NSPrivacyCollectedDataTypeTracking: boolean;
+    NSPrivacyCollectedDataTypePurposes: string[];
+  };
+  const collected: Collected[] = expo.ios.privacyManifests?.NSPrivacyCollectedDataTypes ?? [];
+  const p = 'NSPrivacyCollectedDataType';
+  // From docs/store/privacy-answers.md (Apple table), plus merch shipping, support and feedback reports.
+  const linked: Record<string, boolean> = {
+    [`${p}Name`]: true,
+    [`${p}EmailAddress`]: true,
+    [`${p}PhoneNumber`]: true,
+    [`${p}PhysicalAddress`]: true,
+    [`${p}PreciseLocation`]: true,
+    [`${p}OtherFinancialInfo`]: true,
+    [`${p}PhotosorVideos`]: true,
+    [`${p}AudioData`]: true,
+    [`${p}EmailsOrTextMessages`]: true,
+    [`${p}OtherUserContent`]: true,
+    [`${p}SearchHistory`]: false,
+    [`${p}UserID`]: true,
+    [`${p}OtherDataTypes`]: true,
+    [`${p}PurchaseHistory`]: true,
+    [`${p}CrashData`]: false,
+    [`${p}CustomerSupport`]: true,
+    [`${p}OtherDiagnosticData`]: true,
+  };
+  assert.deepEqual(collected.map((c) => c.NSPrivacyCollectedDataType).sort(), Object.keys(linked).sort());
+  for (const c of collected) {
+    assert.equal(c.NSPrivacyCollectedDataTypeLinked, linked[c.NSPrivacyCollectedDataType], `${c.NSPrivacyCollectedDataType} linked`);
+    assert.equal(c.NSPrivacyCollectedDataTypeTracking, false, `${c.NSPrivacyCollectedDataType} not tracking`);
+    assert.deepEqual(c.NSPrivacyCollectedDataTypePurposes, ['NSPrivacyCollectedDataTypePurposeAppFunctionality']);
+  }
+});

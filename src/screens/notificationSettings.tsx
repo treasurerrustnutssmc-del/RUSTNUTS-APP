@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, Linking, Platform } from 'react-native';
 import { useClub } from '../data/ClubStore';
+import { setIntroAnswer } from '../data/notifyIntro';
 import { DEFAULT_PREFS, phoneNotificationState } from '../domain/notifications';
 import type { NotificationPrefs } from '../domain/types';
 import { space } from '../theme';
@@ -28,9 +29,14 @@ function usePhonePermission() {
       sub.remove();
     };
   }, []);
+  // Asks whatever the explainer card was answered ("Not now" included). A yes counts as turning
+  // notifications on, so the reminders sync and this phone signs up for pushes.
   const ask = () =>
     Notifications.requestPermissionsAsync().then(
-      (p) => setState(phoneNotificationState(p)),
+      (p) => {
+        setState(phoneNotificationState(p));
+        return setIntroAnswer(p.granted ? 'on' : 'later');
+      },
       () => undefined,
     );
   return { state, ask };

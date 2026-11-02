@@ -78,6 +78,15 @@ export function navigateOptions(to: LatLng, os: string): NavOption[] {
   return list;
 }
 
+/**
+ * A link that looks a typed place up (a ride's meeting point, say) in the phone's own maps app:
+ * Apple Maps on an iPhone, Google Maps everywhere else. Both open in the browser without the app.
+ */
+export function placeSearchUrl(query: string, os: string): string {
+  const q = encodeURIComponent(query.trim());
+  return os === 'ios' ? `https://maps.apple.com/?q=${q}` : `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
 export type PinTone = 'me' | 'help' | 'leader' | 'split' | 'stale' | 'rider';
 export interface RiderPin {
   memberId: string;

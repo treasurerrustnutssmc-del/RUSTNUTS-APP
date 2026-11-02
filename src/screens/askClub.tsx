@@ -7,21 +7,24 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MAX_TURNS, type ApiMessage } from '../../supabase/functions/_shared/askClub';
+import { useAiConsent } from '../data/aiConsent';
 import { useAssistantApi, type AssistantStatus } from '../data/assistantApi';
 import { runAction } from '../data/assistantRun';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { isApprovedMember } from '../domain/access';
+import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { STARTERS, buildSnapshot, cardFor, nextMessages, withReply, type ActionCard, type ActionPlan, type ChatChoice } from '../domain/assistant';
 import { postProblem } from '../domain/chat';
 import type { RootScreen } from '../navigation/types';
 import { colors, MAX_CONTENT_WIDTH, radius, space, type } from '../theme';
 import { Body, Button, Card, H2, IconBadge, ListRow, Notice, Row, Skull, Small } from '../ui/primitives';
+import { AiConsentCard } from '../ui/AiConsentCard';
 import { useKeyboardHeight } from './chat';
 import { openLink } from '../ui/openLink';
 
 const FINE_PRINT =
-  'Answers come from the constitution, the Road Rules and what you can see in the app. It can get things wrong: check anything that matters. Nothing happens until you tap Confirm.';
+  `Answers come from the constitution, the Road Rules and what you can see in the app. It can get things wrong: check anything that matters. Nothing happens until you tap Confirm. ${AI_PROVIDER_LINE.askClub}`;
 const MAX_QUESTION = 2000;
 
 type CardState = 'open' | 'busy' | 'done' | 'failed' | 'declined';
@@ -48,7 +51,7 @@ function stopped(status: AssistantStatus | null, turns: number): string | null {
   return null;
 }
 
-export function AskClubScreen(_: RootScreen<'AskClub'>) {
+export function AskClubScreen({ navigation }: RootScreen<'AskClub'>) {
   const club = useClub();
   const { me, data } = club;
   const chat = useChat();
@@ -56,6 +59,8 @@ export function AskClubScreen(_: RootScreen<'AskClub'>) {
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
   const scroller = useRef<ScrollViewInstance>(null);
+  // Nothing goes to Anthropic until the member has agreed, once, on this phone.
+  const consent = useAiConsent('askClub');
 
   const [status, setStatus] = useState<AssistantStatus | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -88,11 +93,11 @@ export function AskClubScreen(_: RootScreen<'AskClub'>) {
   const question = draft.trim();
   // A card still running holds the next question, so its result goes with it.
   const running = items.some((i) => i.kind === 'card' && i.state === 'busy');
-  const canSend = !thinking && !running && !blocked && question.length > 0;
+  const canSend = consent.agreed && !thinking && !running && !blocked && question.length > 0;
 
   const ask = async (words: string) => {
     const text = words.trim().slice(0, MAX_QUESTION);
-    if (!text || thinking || running || blocked) return;
+    if (!text || !consent.agreed || thinking || running || blocked) return;
     const before = items;
     const now = new Date().toISOString();
     const sent = nextMessages(history, results.current, text, history.length === 0 ? buildSnapshot(me, data, chats, now) : null);
@@ -165,7 +170,15 @@ export function AskClubScreen(_: RootScreen<'AskClub'>) {
           {status && status.on && !status.restingUntil ? <Text style={styles.left}>{leftLine(status)}</Text> : null}
           {statusError && !status ? <Notice tone="warn">{statusError}</Notice> : null}
 
-          {items.length === 0 ? (
+          {!consent.agreed ? (
+            consent.loaded ? (
+              <AiConsentCard
+                feature="askClub"
+                onAgree={consent.agree}
+                onNotNow={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' }))}
+              />
+            ) : null
+          ) : items.length === 0 ? (
             <Card style={{ padding: 0, gap: 0 }}>
               {STARTERS.map((s, i) => (
                 <ListRow
@@ -216,7 +229,7 @@ export function AskClubScreen(_: RootScreen<'AskClub'>) {
       </ScrollView>
 
       <View style={[styles.composerWrap, { paddingBottom: keyboard ? keyboard + space.sm : insets.bottom + space.sm }]}>
-        {blocked ? (
+        {!consent.agreed ? null : blocked ? (
           // Why it can't take a question, where the box would be, so it's seen at the end of a long chat too.
           <View style={styles.composer} accessibilityLiveRegion="polite">
             <View style={{ flex: 1 }}>

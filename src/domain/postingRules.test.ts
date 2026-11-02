@@ -6,6 +6,7 @@ import {
   hasAgreedPostingRules,
   needsPostingRules,
   POSTING_RULES_SECTIONS,
+  POSTING_RULES_UPDATED_ON,
   postingRulesProblem,
   postingRulesUpdatedLine,
 } from './postingRules';
@@ -57,4 +58,15 @@ test('a bio needs the rules agreed; a blank one does not', () => {
 
 test('the updated line shows the date as DD/MM/YYYY', () => {
   assert.equal(postingRulesUpdatedLine('2026-10-31'), 'Last updated 31/10/2026');
+});
+
+test('the rules tell members that Catch me up sends a chat’s newest messages to Anthropic (Claude)', () => {
+  const text = JSON.stringify(POSTING_RULES_SECTIONS);
+  assert.ok(text.includes('Catch me up'), 'Catch me up');
+  assert.ok(text.includes('Anthropic (Claude)'), 'Anthropic (Claude)');
+  assert.ok(/newest messages/.test(text) && /isn’t kept/.test(text), 'what goes and that it is not kept');
+});
+
+test('the rules date is the day Catch me up was added to them', () => {
+  assert.equal(POSTING_RULES_UPDATED_ON, '2026-11-02');
 });
