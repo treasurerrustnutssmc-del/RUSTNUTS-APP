@@ -21,16 +21,25 @@ export interface UpdateApi {
 }
 
 export type UpdateStep = 'checking' | 'downloading' | 'restarting';
-export type UpdateOutcome = { kind: 'current' } | { kind: 'restarting' } | { kind: 'off' } | { kind: 'failed'; message: string };
+export type UpdateOutcome =
+  | { kind: 'current' }
+  | { kind: 'restarting' }
+  /** Downloaded, but the app couldn't restart itself: it applies on the next open. */
+  | { kind: 'downloaded' }
+  | { kind: 'off' }
+  | { kind: 'failed'; message: string };
 
 export const NO_SIGNAL = 'Couldn’t reach the update server. Check your signal and try again.';
+export const NO_DOWNLOAD = 'The update didn’t finish downloading. Try again in a minute.';
+export const REOPEN = 'Update downloaded. Close the app fully and open it again to use it.';
 
 /** "1A2B3C4D": enough to tell two phones apart when someone reads it out. */
 export function shortUpdateId(id: string): string {
   return id.slice(0, 8).toUpperCase();
 }
 
-/** The line under "Check for updates": which update this phone is on. */
+/** The line under "Check for updates": which update this phone is on. The time is Melbourne time on
+ *  every phone, so two phones on the same update read the same. */
 export function describeRunning(r: RunningUpdate): string {
   if (!r.isEnabled) return 'Updates don’t run in this version';
   if (!r.updateId || r.isEmbeddedLaunch) return 'The build’s own code (no update yet)';
@@ -41,17 +50,27 @@ export function describeRunning(r: RunningUpdate): string {
 /** Check, download if there's something new (or a roll-back), then restart into it. */
 export async function checkAndUpdate(api: UpdateApi, onStep: (s: UpdateStep) => void): Promise<UpdateOutcome> {
   if (!api.isEnabled) return { kind: 'off' };
+  let found: Awaited<ReturnType<UpdateApi['check']>>;
   try {
     onStep('checking');
-    const found = await api.check();
-    if (!found.isAvailable && !found.isRollBackToEmbedded) return { kind: 'current' };
+    found = await api.check();
+  } catch {
+    return { kind: 'failed', message: NO_SIGNAL };
+  }
+  if (!found.isAvailable && !found.isRollBackToEmbedded) return { kind: 'current' };
+  let got: Awaited<ReturnType<UpdateApi['fetch']>>;
+  try {
     onStep('downloading');
-    const got = await api.fetch();
-    if (!got.isNew && !got.isRollBackToEmbedded) return { kind: 'current' };
+    got = await api.fetch();
+  } catch {
+    return { kind: 'failed', message: NO_DOWNLOAD };
+  }
+  if (!got.isNew && !got.isRollBackToEmbedded) return { kind: 'current' };
+  try {
     onStep('restarting');
     await api.reload();
     return { kind: 'restarting' };
   } catch {
-    return { kind: 'failed', message: NO_SIGNAL };
+    return { kind: 'downloaded' };
   }
 }

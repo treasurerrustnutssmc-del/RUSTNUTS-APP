@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkAndUpdate, describeRunning, shortUpdateId, type UpdateApi } from './appUpdate';
+import { NO_DOWNLOAD, checkAndUpdate, describeRunning, shortUpdateId, type UpdateApi } from './appUpdate';
 
 test('shortUpdateId keeps the first 8 characters, upper case', () => {
   assert.equal(shortUpdateId('1a2b3c4d-5e6f-7a8b-9c0d-112233445566'), '1A2B3C4D');
@@ -62,11 +62,14 @@ test('checkAndUpdate: a new update downloads, then restarts the app', async () =
 test('checkAndUpdate: a roll-back to the build’s own code also downloads and restarts', async () => {
   const api = fakeApi({
     check: async () => ({ isAvailable: false, isRollBackToEmbedded: true }),
-    fetch: async () => ({ isNew: false, isRollBackToEmbedded: true }),
   });
+  api.fetch = async () => {
+    api.calls.push('fetch');
+    return { isNew: false, isRollBackToEmbedded: true };
+  };
   const out = await checkAndUpdate(api, () => {});
   assert.deepEqual(out, { kind: 'restarting' });
-  assert.deepEqual(api.calls, ['reload']);
+  assert.deepEqual(api.calls, ['fetch', 'reload']);
 });
 
 test('checkAndUpdate: a download that turns out not new says up to date, no restart', async () => {
@@ -94,4 +97,24 @@ test('checkAndUpdate: switched off (web, dev) never calls the server', async () 
   const out = await checkAndUpdate(api, () => {});
   assert.deepEqual(out, { kind: 'off' });
   assert.deepEqual(api.calls, []);
+});
+
+test('checkAndUpdate: a failed download says so, not “no signal”', async () => {
+  const api = fakeApi({
+    check: async () => ({ isAvailable: true, isRollBackToEmbedded: false }),
+    fetch: async () => {
+      throw new Error('asset hash mismatch');
+    },
+  });
+  assert.deepEqual(await checkAndUpdate(api, () => {}), { kind: 'failed', message: NO_DOWNLOAD });
+});
+
+test('checkAndUpdate: downloaded but the restart fails says to reopen the app', async () => {
+  const api = fakeApi({
+    check: async () => ({ isAvailable: true, isRollBackToEmbedded: false }),
+    reload: async () => {
+      throw new Error('cannot find a reference to the JS runtime');
+    },
+  });
+  assert.deepEqual(await checkAndUpdate(api, () => {}), { kind: 'downloaded' });
 });

@@ -11,7 +11,7 @@ import { PickProblem, pickMedia } from '../data/chat/media';
 import { useClub } from '../data/ClubStore';
 import { runningUpdate, updateApi } from '../data/appUpdate';
 import { useFeedback } from '../data/feedback';
-import { checkAndUpdate, describeRunning, type UpdateOutcome, type UpdateStep } from '../domain/appUpdate';
+import { REOPEN, checkAndUpdate, describeRunning, type UpdateOutcome, type UpdateStep } from '../domain/appUpdate';
 import type { PickedMedia } from '../domain/chat';
 import { formatAuDate } from '../domain/dates';
 import {
@@ -71,6 +71,16 @@ function CheckForUpdatesRow() {
   const [result, setResult] = useState<UpdateOutcome | null>(null);
   const busy = step !== null;
 
+  // A restart that never comes (reloadAsync resolved but nothing happened): stop spinning after 10 s.
+  useEffect(() => {
+    if (step !== 'restarting') return;
+    const t = setTimeout(() => {
+      setStep(null);
+      setResult({ kind: 'downloaded' });
+    }, 10_000);
+    return () => clearTimeout(t);
+  }, [step]);
+
   const run = () => {
     if (busy) return;
     setResult(null);
@@ -86,9 +96,11 @@ function CheckForUpdatesRow() {
       ? `You’re up to date. ${running}`
       : result?.kind === 'failed'
         ? result.message
-        : result?.kind === 'off'
-          ? 'Updates don’t run in this version. Get the newest from the app store or tester link.'
-          : running;
+        : result?.kind === 'downloaded'
+          ? REOPEN
+          : result?.kind === 'off'
+            ? 'Updates don’t run in this version.'
+            : running;
 
   return (
     <ListRow
