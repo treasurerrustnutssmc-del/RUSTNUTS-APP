@@ -72,6 +72,7 @@ begin
      or not exists (select 1 from storage.objects o where o.bucket_id = 'shop-pictures' and o.name = pth) then
     raise exception 'Upload the picture first.';
   end if;
+  perform 1 from public.shop_designs where id = p_design for update; -- two runners at once can't pass 40
   if (select count(*) from public.shop_pictures where design_id = p_design) >= 40 then raise exception 'Up to 40 pictures a design.'; end if;
   if exists (select 1 from public.shop_pictures where path = pth) then raise exception 'That picture is already in the shop.'; end if;
   insert into public.shop_pictures (design_id, garment_id, colour, side, path, sort, added_by)
@@ -120,7 +121,8 @@ begin
           select jsonb_agg(jsonb_build_object(
             'id', p.id, 'garment_id', p.garment_id, 'colour', p.colour, 'side', p.side, 'path', p.path, 'sort', p.sort)
             order by p.sort, p.id)
-          from public.shop_pictures p where p.design_id = d.id), '[]'::jsonb)
+          from public.shop_pictures p where p.design_id = d.id and (p.garment_id is null or private.runs_shop() or exists (
+            select 1 from public.shop_garments g where g.id = p.garment_id and g.on_sale))), '[]'::jsonb)
         ) order by d.sort, d.name)
       from public.shop_designs d where d.on_sale or private.runs_shop()), '[]'::jsonb),
     'shipping', coalesce((

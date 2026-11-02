@@ -94,6 +94,13 @@ select pg_temp.check(pg_temp.try_as(:'rog', format($$insert into storage.objects
 select pg_temp.check(pg_temp.try_as(:'rog', $$insert into storage.objects (bucket_id, name) values ('shop-pictures', 'nowhere/x.jpg')$$)
   like 'new row violates row-level security%', 'an upload goes in a real design''s folder');
 
+-- Every other bucket still takes a member's uploads (these policies apply to all of storage.objects).
+select pg_temp.check(pg_temp.try_as(:'nell', format($$insert into storage.objects (bucket_id, name) values ('site-media', '%s/x.jpg')$$, :'nell'))
+  like 'new row violates row-level security%', 'site-media still refuses a member who isn''t an editor (no error from the shop policies)');
+select pg_temp.check(pg_temp.try_as(:'nell', format($$insert into storage.objects (bucket_id, name) values ('feedback-media', '%s/x.jpg')$$, :'nell')) is null,
+  'a member still uploads a feedback screenshot');
+select pg_temp.check(pg_temp.try_as(:'nell', format($$select count(*) from storage.objects$$)) is null, 'and still reads storage without an error');
+
 -- Adding: the same refusals in the same order as the app.
 select pg_temp.check(pg_temp.try_as(:'nell', format($$select public.add_shop_picture(%L, null, null, 'front', '%s/front.jpg')$$, :'better', :'better'))
   = 'Only the people who run the shop can do that.', 'a member cannot add a picture');

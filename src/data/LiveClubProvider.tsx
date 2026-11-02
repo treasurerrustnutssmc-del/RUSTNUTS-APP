@@ -107,7 +107,7 @@ import * as merch from '../domain/merch';
 import * as national from '../domain/national';
 import * as audit from '../domain/audit'; // National Auditor
 import * as shop from '../domain/shop'; // The club shop
-import { addShopPictureProblem, removeShopPictureProblem, shopPicturePath, UPLOAD_FIRST } from '../domain/shopPictures'; // Shop pictures
+import { addShopPictureProblem, removeShopPictureProblem, shopPicturePath } from '../domain/shopPictures'; // Shop pictures
 import { newClientRef } from '../domain/shopCart';
 import { prepareUpload } from './chat/media';
 import { SHOP_PICTURE_BUCKET, placeOrderBody, shopFunctionWords } from './shopLive'; // The club shop
@@ -1344,7 +1344,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       deny(addShopPictureProblem(visibleMe, { ...input, path }, data));
       const { file } = await prepareUpload(picked);
       const up = await supabase().storage.from(SHOP_PICTURE_BUCKET).upload(path, file.bytes, { contentType: file.contentType, upsert: false });
-      if (up.error) throw new Error(UPLOAD_FIRST);
+      if (up.error) throw new Error('That photo couldn’t be uploaded. Check your signal and try again.');
       const added = await supabase().rpc('add_shop_picture', {
         p_design: input.designId, p_garment: input.garmentId, p_colour: input.colour, p_side: input.side, p_path: path,
       });

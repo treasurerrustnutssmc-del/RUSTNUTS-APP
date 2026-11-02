@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RUNS_SHOP_ONLY } from './shop';
 import {
-  MAX_PICTURES, NO_PICTURE, PICK_ITS_COLOUR, PICK_SIDE, TOO_MANY_PICTURES, UPLOAD_FIRST,
+  ALREADY_IN, MAX_PICTURES, NO_PICTURE, PICK_ITS_COLOUR, PICK_SIDE, TOO_MANY_PICTURES, UPLOAD_FIRST,
   addShopPictureProblem, pictureGaps, picturesFor, removeShopPictureProblem, shopPicturePath,
 } from './shopPictures';
 import { club, member } from './stage4.testkit';
@@ -93,6 +93,19 @@ test('no colour picked yet means the first colour; a garment without colours tak
   assert.deepEqual(ids(picturesFor(d, g(d, 'tee'), null).pictures), [black.id]);
   assert.deepEqual(ids(picturesFor(d, g(d, 'cap'), null).pictures), [plain.id]);
   assert.deepEqual(picturesFor(data([]), g(d, 'cap'), null).pictures, []);
+  const capOnly = picturesFor(data([black]), g(d, 'cap'), null);
+  assert.deepEqual(ids(capOnly.pictures), [black.id], 'a garment with no colours takes any colour');
+  assert.equal(capOnly.ofThisColour, true);
+});
+
+test('in another colour, front and back come from the same colour and source', () => {
+  const ownRedFront = pic('better', { garmentId: 'tee', colour: 'Red' as never, side: 'front' });
+  const designBlueBack = pic('better', { colour: 'Blue' as never, side: 'back' });
+  const ownRedBack = pic('better', { garmentId: 'tee', colour: 'Red' as never, side: 'back' });
+  const d = data([designBlueBack, ownRedFront]);
+  assert.deepEqual(ids(picturesFor(d, g(d, 'tee'), 'Grey').pictures), [ownRedFront.id]);
+  const d2 = data([designBlueBack, ownRedFront, ownRedBack]);
+  assert.deepEqual(ids(picturesFor(d2, g(d2, 'tee'), 'Grey').pictures), [ownRedFront.id, ownRedBack.id]);
 });
 
 test('another garment’s pictures never show', () => {
@@ -128,6 +141,10 @@ test('adding a picture: the shop runs it, to a real design, garment and colour',
   assert.equal(addShopPictureProblem(who(d, 'pres'), { ...input, side: 'left' as never }, d), PICK_SIDE);
   assert.equal(addShopPictureProblem(who(d, 'pres'), { ...input, path: 'ruok/new.jpg' }, d), UPLOAD_FIRST);
   assert.equal(addShopPictureProblem(who(d, 'pres'), { ...input, path: '' }, d), UPLOAD_FIRST);
+  assert.equal(addShopPictureProblem(who(d, 'pres'), { ...input, colour: ' Grey ' }, d), null, 'trimmed like the database');
+  assert.equal(addShopPictureProblem(who(d, 'pres'), { ...input, colour: '' }, d), null, 'blank is any colour');
+  const taken = pic('better', { path: 'better/new.jpg' });
+  assert.equal(addShopPictureProblem(who(d, 'pres'), input, data([taken])), ALREADY_IN);
   const full = data(Array.from({ length: MAX_PICTURES }, () => pic('better')));
   assert.equal(addShopPictureProblem(who(full, 'pres'), input, full), TOO_MANY_PICTURES);
 });

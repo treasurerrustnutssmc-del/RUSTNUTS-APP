@@ -72,20 +72,27 @@ export function DesignPicturesEditor({ design, garments }: { design: ShopDesign;
   const [colour, setColour] = useState<string>(ANY);
   const [side, setSide] = useState<ShopPictureSide>('front');
   const { busy, msg, run } = useRun();
+  const removing = useRun();
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const pictures = (data.shopPictures ?? []).filter((p) => p.designId === design.id).sort((a, b) => a.sort - b.sort);
   const forGarment = garmentId === ANY ? null : garments.find((g) => g.id === garmentId) ?? null;
   const colours = [...new Set(forGarment ? forGarment.colours : garments.flatMap((g) => g.colours))];
   const gaps = pictureGaps(data).filter((g) => g.design.id === design.id);
 
   const add = async () => {
+    if (picking || busy) return;
     setPickError(null);
     let picked;
+    setPicking(true);
     try {
       picked = await pickMedia('library', 1, true);
     } catch (e) {
       setPickError(e instanceof PickProblem ? e.message : 'That photo couldn’t be opened. Try another.');
       return;
+    } finally {
+      setPicking(false);
     }
     if (!picked.length) return;
     const chosen = colour === ANY || !colours.includes(colour) ? null : colour;
@@ -110,8 +117,9 @@ export function DesignPicturesEditor({ design, garments }: { design: ShopDesign;
             size="small"
             icon="trash-outline"
             accessibilityLabel={`Take out ${pictureLabel(p, garments)}`}
-            onConfirm={() => run(`rm-${p.id}`, () => removeShopPicture(p.id), 'Picture taken out.')}
+            onConfirm={() => { setRemovingId(p.id); void removing.run(p.id, () => removeShopPicture(p.id), 'Picture taken out.'); }}
           />
+          {removing.msg?.tone === 'danger' && removingId === p.id ? <Notice tone="danger">{removing.msg.text}</Notice> : null}
         </Card>
       ))}
       <Card>
@@ -131,9 +139,10 @@ export function DesignPicturesEditor({ design, garments }: { design: ShopDesign;
           />
         ) : null}
         <Choices<ShopPictureSide> label="Side" options={SIDES.map((s) => ({ value: s, label: SIDE_LABEL[s] }))} value={side} onChange={setSide} />
-        <ActionWithReason label="Pick the photo" icon="image-outline" kind="secondary" busy={busy === 'add'} reason={pickError ?? (msg?.tone === 'danger' ? msg.text : null)} onPress={add} />
+        <ActionWithReason label="Pick the photo" icon="image-outline" kind="secondary" busy={picking || busy === 'add'} reason={pickError ?? (msg?.tone === 'danger' ? msg.text : null)} onPress={add} />
       </Card>
       {msg?.tone === 'ok' ? <Notice tone="ok">{msg.text}</Notice> : null}
+      {removing.msg?.tone === 'ok' ? <Notice tone="ok">{removing.msg.text}</Notice> : null}
       {gaps.length ? (
         <>
           <SectionTitle title="Still needs a picture" />

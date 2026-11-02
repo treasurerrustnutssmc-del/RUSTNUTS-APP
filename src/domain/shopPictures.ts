@@ -16,6 +16,7 @@ export const PICK_SIDE = 'Pick front or back.';
 export const UPLOAD_FIRST = 'Upload the picture first.';
 export const TOO_MANY_PICTURES = 'Up to 40 pictures a design.';
 export const NO_PICTURE = 'No such picture.';
+export const ALREADY_IN = 'That picture is already in the shop.';
 
 /** What the shop runner picks for a new picture. */
 export interface PictureInput {
@@ -53,32 +54,35 @@ export function picturesFor(data: ClubData, garment: ShopGarment, colour: string
     (p) => p.designId === garment.designId && (p.garmentId === null || p.garmentId === garment.id),
   );
   const own = (p: ShopPicture) => p.garmentId === garment.id;
-  const right: ((p: ShopPicture) => boolean)[] = [
-    (p) => own(p) && want !== null && p.colour === want,
-    (p) => own(p) && p.colour === null,
-    (p) => !own(p) && want !== null && p.colour === want,
-    (p) => !own(p) && p.colour === null,
-  ];
-  const other: ((p: ShopPicture) => boolean)[] = [
-    (p) => own(p) && p.colour !== null && p.colour !== want,
-    (p) => !own(p) && p.colour !== null && p.colour !== want,
-  ];
-  const pick = (tiers: ((p: ShopPicture) => boolean)[]) =>
+  const fits = (p: ShopPicture) => p.colour === want;
+  // A garment with no colours to pick takes a picture of any colour, colourless ones first.
+  const right: ((p: ShopPicture) => boolean)[] = want === null
+    ? [(p) => own(p) && p.colour === null, own, (p) => !own(p) && p.colour === null, (p) => !own(p)]
+    : [
+        (p) => own(p) && p.colour !== null && fits(p),
+        (p) => own(p) && p.colour === null,
+        (p) => !own(p) && p.colour !== null && fits(p),
+        (p) => !own(p) && p.colour === null,
+      ];
+  const pickSides = (tiers: ((p: ShopPicture) => boolean)[]) =>
     SIDES.flatMap((side) => {
       const ofSide = mine.filter((p) => p.side === side);
       for (const tier of tiers) {
         const found = ofSide.filter(tier);
-        if (found.length) {
-          // In another colour, keep to the one colour that matched first.
-          const first = found.sort(bySort)[0];
-          return found.filter((p) => p.colour === first.colour && p.garmentId === first.garmentId);
-        }
+        if (found.length) return found.sort(bySort);
       }
       return [];
     });
-  let pictures = pick(right);
+  let pictures = pickSides(right);
   const ofThisColour = pictures.length > 0;
-  if (!ofThisColour) pictures = pick(other);
+  if (!ofThisColour) {
+    // Another colour: settle on one colour of one source (its own first), the same on both sides.
+    const other = [...mine.filter(own), ...mine.filter((p) => !own(p))].filter((p) => p.colour !== null);
+    const first = [...other.filter(own).sort(bySort), ...other.filter((p) => !own(p)).sort(bySort)][0];
+    pictures = first
+      ? SIDES.flatMap((side) => other.filter((p) => p.side === side && p.colour === first.colour && p.garmentId === first.garmentId).sort(bySort))
+      : [];
+  }
   return {
     pictures,
     ofThisGarment: pictures.length > 0 && pictures.every(own),
@@ -125,13 +129,15 @@ export function addShopPictureProblem(me: Member | null, input: AddPictureInput,
   const garments = (data.shopGarments ?? []).filter((g) => g.designId === input.designId);
   const garment = input.garmentId === null ? null : garments.find((g) => g.id === input.garmentId);
   if (garment === undefined) return NO_GARMENT;
-  if (input.colour !== null) {
+  const colour = input.colour === null ? null : input.colour.trim() || null;
+  if (colour !== null) {
     const colours = garment ? garment.colours : garments.flatMap((g) => g.colours);
-    if (!colours.includes(input.colour)) return PICK_ITS_COLOUR;
+    if (!colours.includes(colour)) return PICK_ITS_COLOUR;
   }
   if (!SIDES.includes(input.side)) return PICK_SIDE;
   if (!input.path.startsWith(`${input.designId}/`) || input.path.length <= input.designId.length + 1) return UPLOAD_FIRST;
   if ((data.shopPictures ?? []).filter((p) => p.designId === input.designId).length >= MAX_PICTURES) return TOO_MANY_PICTURES;
+  if ((data.shopPictures ?? []).some((p) => p.path === input.path)) return ALREADY_IN;
   return null;
 }
 
