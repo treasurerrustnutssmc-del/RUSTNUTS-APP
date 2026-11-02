@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NO_DOWNLOAD, checkAndUpdate, describeRunning, shortUpdateId, type UpdateApi } from './appUpdate';
+import { MIN_CHECK_MS, NO_DOWNLOAD, NO_SIGNAL, REOPEN, checkAndUpdate, statusLine, describeRunning, shortUpdateId, type UpdateApi } from './appUpdate';
 
 test('shortUpdateId keeps the first 8 characters, upper case', () => {
   assert.equal(shortUpdateId('1a2b3c4d-5e6f-7a8b-9c0d-112233445566'), '1A2B3C4D');
@@ -17,8 +17,8 @@ test('describeRunning: a downloaded update shows its id and when it was publishe
 });
 
 test('describeRunning: the build’s own code, and updates switched off', () => {
-  assert.equal(describeRunning({ isEnabled: true, updateId: null, isEmbeddedLaunch: true, createdAt: null }), 'The build’s own code (no update yet)');
-  assert.equal(describeRunning({ isEnabled: false, updateId: null, isEmbeddedLaunch: true, createdAt: null }), 'Updates don’t run in this version');
+  assert.equal(describeRunning({ isEnabled: true, updateId: null, isEmbeddedLaunch: true, createdAt: null }), 'Built-in version (no update yet)');
+  assert.equal(describeRunning({ isEnabled: false, updateId: null, isEmbeddedLaunch: true, createdAt: null }), 'Updates are off in this version');
 });
 
 const fakeApi = (over: Partial<UpdateApi> & { calls?: string[] } = {}): UpdateApi & { calls: string[] } => {
@@ -89,7 +89,7 @@ test('checkAndUpdate: no signal gives a plain message, not the raw error', async
     },
   });
   const out = await checkAndUpdate(api, () => {});
-  assert.deepEqual(out, { kind: 'failed', message: 'Couldn’t reach the update server. Check your signal and try again.' });
+  assert.deepEqual(out, { kind: 'failed', message: NO_SIGNAL });
 });
 
 test('checkAndUpdate: switched off (web, dev) never calls the server', async () => {
@@ -117,4 +117,24 @@ test('checkAndUpdate: downloaded but the restart fails says to reopen the app', 
     },
   });
   assert.deepEqual(await checkAndUpdate(api, () => {}), { kind: 'downloaded' });
+});
+
+test('statusLine: every state fits one phone line (36 characters or fewer)', () => {
+  const lines = [
+    statusLine(null, null),
+    statusLine('checking', null),
+    statusLine('downloading', null),
+    statusLine('restarting', null),
+    statusLine(null, { kind: 'current' }),
+    statusLine(null, { kind: 'failed', message: NO_SIGNAL }),
+    statusLine(null, { kind: 'failed', message: NO_DOWNLOAD }),
+    statusLine(null, { kind: 'downloaded' }),
+    statusLine(null, { kind: 'off' }),
+  ];
+  assert.equal(statusLine(null, { kind: 'downloaded' }), REOPEN);
+  for (const l of lines) assert.ok(l.length <= 37, `too long: ${l}`);
+});
+
+test('the check is held long enough to read', () => {
+  assert.ok(MIN_CHECK_MS >= 600);
 });
