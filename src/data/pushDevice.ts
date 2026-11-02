@@ -6,7 +6,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { mayAskAutomatically } from '../domain/notifyIntro';
 import { ensureChannels } from './notificationChannels';
+import { introAnswer } from './notifyIntro';
 import { supabase } from './supabase';
 
 const KEY = 'push.token';
@@ -22,7 +24,8 @@ export async function registerThisDevice(): Promise<void> {
     // Ask once, so chat can reach every member, not just those going to a ride. After a no it's up to
     // the phone's settings.
     // Only if never answered: after a no from the ride reminders' ask, asking again could make it final.
-    if (permission.status === 'undetermined' && !(await AsyncStorage.getItem(ASKED))) {
+    // And only after "Turn on notifications" on the explainer card, which asks first.
+    if (permission.status === 'undetermined' && mayAskAutomatically(await introAnswer()) && !(await AsyncStorage.getItem(ASKED))) {
       await AsyncStorage.setItem(ASKED, '1');
       permission = await Notifications.requestPermissionsAsync();
     }

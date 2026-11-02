@@ -36,6 +36,7 @@ import { formatAuDate, weekday } from '../domain/dates';
 import { ROLE_LABEL, ROLE_SHORT } from '../domain/labels';
 import { displayName } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
+import { placeSearchUrl } from '../domain/rideMap';
 import { routeOf, signedInProblem } from '../domain/routes';
 import { briefingStops, STOP_LABEL } from '../domain/ridePlan'; // Ride planning extras
 import { currentRoadRules, signoffLine, unsignedGoing } from '../domain/roadRules'; // Road Rules
@@ -189,7 +190,7 @@ export function BriefingScreen({ route: nav, navigation }: RootScreen<'Briefing'
             <Pressable
               accessibilityRole="link"
               accessibilityLabel={`Meet at ${location}, open in maps`}
-              onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(location)}`).catch(() => {})}
+              onPress={() => Linking.openURL(placeSearchUrl(location, Platform.OS)).catch(() => {})}
               style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
                 styles.place,
                 (pressed || hovered) && { backgroundColor: colors.steel },
