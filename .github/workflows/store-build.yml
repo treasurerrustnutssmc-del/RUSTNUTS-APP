@@ -6,8 +6,9 @@
 # ios-simulator is a test iPhone build for the iOS Simulator: it needs no Apple account, and the job
 # waits for it, so a red job means the iPhone app doesn't compile.
 # android-preview is the tester APK (preview channel) for Jeff's S25 and the test crew. Make one
-# whenever app.json or package.json changes, since that moves the runtime fingerprint and the old
-# install stops taking over-the-air updates. Install it from the EAS build page on the phone.
+# whenever app.json, a native module or a package.json dependency changes, since that moves the
+# runtime fingerprint and the old install stops taking over-the-air updates (npm scripts don't:
+# fingerprint.config.js skips them). Install it from the EAS build page on the phone.
 name: Store build
 
 on:
