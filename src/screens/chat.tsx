@@ -6,7 +6,9 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { ActivityIndicator, FlatList, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
+import { useAiConsent } from '../data/aiConsent';
 import { useCatchUpApi } from '../data/catchUpApi';
+import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { catchUpCount } from '../domain/catchUp';
 import { useChat } from '../data/chat/ChatProvider';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
@@ -47,6 +49,7 @@ import {
   ReactionPills,
   ReplyQuote,
 } from '../ui/ChatBits';
+import { AiConsentCard } from '../ui/AiConsentCard';
 import { MemberRow } from '../ui/MemberBits';
 import {
   Avatar,
@@ -242,6 +245,9 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const [caught, setCaught] = useState<{ summary: string; count: number } | null>(null);
   const [catchError, setCatchError] = useState<string | null>(null);
   const catchingNow = useRef(false);
+  // Nothing goes to Anthropic until the member has agreed, once, on this phone.
+  const catchConsent = useAiConsent('catchUp');
+  const [askingConsent, setAskingConsent] = useState(false);
 
   // Only the chat on screen is marked read; one under the photo viewer or a member's page isn't.
   useFocusEffect(
@@ -297,7 +303,19 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     }
   };
 
-  const catchUp = async () => {
+  const catchUp = () => {
+    if (!catchConsent.agreed) setAskingConsent(true);
+    else void runCatchUp();
+  };
+
+  const agreeToCatchUp = async () => {
+    await catchConsent.agree();
+    setAskingConsent(false);
+    await runCatchUp();
+  };
+
+  // Only ever reached after the member has agreed (catchUp and agreeToCatchUp).
+  const runCatchUp = async () => {
     if (!catchCount || catchingNow.current) return;
     catchingNow.current = true;
     setCatching(true);
@@ -505,8 +523,13 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               <Body selectable>{caught.summary}</Body>
             </ScrollView>
             <Small>{`From the last ${caught.count} messages. It can get things wrong: check the chat for anything that matters.`}</Small>
+            <Small>{AI_PROVIDER_LINE.catchUp}</Small>
             <Button label="Close" kind="secondary" size="small" icon="close" onPress={() => setCaught(null)} />
           </View>
+        ) : catchCount && askingConsent && !catchConsent.agreed ? (
+          <ScrollView style={styles.consentScroll} contentContainerStyle={styles.consentWrap}>
+            <AiConsentCard feature="catchUp" onAgree={agreeToCatchUp} onNotNow={() => setAskingConsent(false)} />
+          </ScrollView>
         ) : catchCount ? (
           <View>
             <Pressable
@@ -864,6 +887,8 @@ const styles = StyleSheet.create({
   },
   catchHeading: { fontFamily: fonts.stencil, fontSize: 18, letterSpacing: 0.8, color: colors.bone, textTransform: 'uppercase' },
   catchScroll: { maxHeight: 280 },
+  consentScroll: { flexGrow: 0, flexShrink: 0, maxHeight: '60%', borderBottomWidth: 1, borderBottomColor: colors.line },
+  consentWrap: { padding: space.md },
   composerWrap: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.ink2 },
   replyBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: space.lg, paddingRight: space.sm, paddingTop: space.sm },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, paddingHorizontal: space.sm, paddingTop: space.sm },
