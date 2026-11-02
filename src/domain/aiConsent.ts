@@ -58,7 +58,7 @@ export const AI_CONSENT: Record<AiFeature, AiConsentCopy> = {
 /** The short line that stays on screen after agreeing. */
 export const AI_PROVIDER_LINE: Record<AiFeature, string> = {
   askClub: 'Your questions go to Anthropic (Claude), the club’s AI provider, to write the answers, and aren’t used to train AI.',
-  catchUp: 'Catch me up sends the newest messages to Anthropic (Claude), the club’s AI provider, to write this. They aren’t kept or used to train AI.',
+  catchUp: 'Catch me up sends the newest messages to Anthropic (Claude), the club’s AI provider, to write this. Anthropic doesn’t keep them or use them to train AI.',
 };
 
 export const aiConsentKey = (memberId: string) => `rustnuts.aiConsent.v1.${memberId}`;

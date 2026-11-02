@@ -37,13 +37,14 @@ export async function setIntroAnswer(next: 'on' | 'later'): Promise<void> {
 }
 
 /** The answer, read once and kept up to date. Undefined while it's being read. */
+function subscribe(l: () => void): () => void {
+  listeners.add(l);
+  introAnswer();
+  return () => {
+    listeners.delete(l);
+  };
+}
+
 export function useIntroAnswer(): IntroAnswer {
-  return useSyncExternalStore(
-    (l) => {
-      listeners.add(l);
-      introAnswer();
-      return () => listeners.delete(l);
-    },
-    () => answer,
-  );
+  return useSyncExternalStore(subscribe, () => answer);
 }

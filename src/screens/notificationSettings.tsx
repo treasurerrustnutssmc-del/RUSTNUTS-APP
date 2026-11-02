@@ -29,13 +29,13 @@ function usePhonePermission() {
       sub.remove();
     };
   }, []);
-  // Asks whatever the explainer card was answered ("Not now" included), then counts as turning
+  // Asks whatever the explainer card was answered ("Not now" included). A yes counts as turning
   // notifications on, so the reminders sync and this phone signs up for pushes.
   const ask = () =>
     Notifications.requestPermissionsAsync().then(
       (p) => {
         setState(phoneNotificationState(p));
-        return setIntroAnswer('on');
+        return setIntroAnswer(p.granted ? 'on' : 'later');
       },
       () => undefined,
     );

@@ -229,6 +229,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   // recorder would take the call's microphone away).
   const onCall = useOnRideCall();
   const voiceOff = voiceNoteOffHint(onCall);
+  // A ride call holds the microphone: a voice note already being recorded stops when one starts.
+  if (onCall && recording) setRecording(false);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [reporting, setReporting] = useState<string | null>(null);
@@ -307,6 +309,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   };
 
   const catchUp = () => {
+    if (!catchConsent.loaded) return;
     if (!catchConsent.agreed) setAskingConsent(true);
     else void runCatchUp();
   };

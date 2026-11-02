@@ -175,7 +175,7 @@ export function AskClubScreen({ navigation }: RootScreen<'AskClub'>) {
               <AiConsentCard
                 feature="askClub"
                 onAgree={consent.agree}
-                onNotNow={() => (navigation.canGoBack() ? navigation.goBack() : undefined)}
+                onNotNow={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' }))}
               />
             ) : null
           ) : items.length === 0 ? (

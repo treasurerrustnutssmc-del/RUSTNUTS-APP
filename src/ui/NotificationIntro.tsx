@@ -35,9 +35,10 @@ export function NotificationIntroCard() {
     setBusy(true);
     // Android 13 only shows the prompt once a channel exists.
     await ensureChannels().catch(() => undefined);
-    await Notifications.requestPermissionsAsync().catch(() => null);
-    // The ride reminders sync again on the answer, and save this phone's push token for chat and alerts.
-    await setIntroAnswer('on');
+    const p = await Notifications.requestPermissionsAsync().catch(() => null);
+    // A yes syncs the ride reminders again and saves this phone's push token. A no counts as
+    // "Not now", so nothing asks again straight away (on Android a second no is permanent).
+    await setIntroAnswer(p?.granted ? 'on' : 'later');
   };
 
   return (

@@ -3,11 +3,12 @@
 // may see is decided by the database; see docs/superpowers/specs/2026-10-29-family-view-design.md.
 
 import React from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, Platform, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { describeExpiry, formatAuDate, weekday } from '../domain/dates';
 import { nextRides } from '../domain/family';
 import { displayName, initials } from '../domain/profile';
+import { placeSearchUrl } from '../domain/rideMap';
 import { melbourneDate } from '../domain/rides';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
@@ -36,7 +37,6 @@ import { FeedbackRow } from './feedback'; // Feedback & issues
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
 import { RideChip, RideRow, timeRange } from './rides';
 
-const mapsUrl = (place: string) => `https://maps.google.com/?q=${encodeURIComponent(place)}`;
 
 // ---------------------------------------------------------------------------
 // Home
@@ -139,7 +139,7 @@ export function FamilyRideScreen({ route }: RootScreen<'RideDetail'>) {
             label="Open in maps"
             icon="map-outline"
             kind="secondary"
-            onPress={() => Linking.openURL(mapsUrl(ride.location as string)).catch(() => {})}
+            onPress={() => Linking.openURL(placeSearchUrl(ride.location as string, Platform.OS)).catch(() => {})}
           />
         ) : null}
       </Card>
