@@ -1,11 +1,10 @@
 // Club photos for the website (website-and-app task 23): the editors' list and crew, picking a
-// photo from the club's chats or the phone, the poster's yes or no (also a card on Home), and the
-// row on the Photos screen that leads here.
+// photo from the club's chats or the phone (it goes straight up; the poster gets a heads-up push
+// and can take it down here), and the row on the Photos screen that leads here.
 
-import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { PickProblem, pickMedia } from '../data/chat/media';
 import { useChat } from '../data/chat/ChatProvider';
@@ -15,18 +14,17 @@ import type { PickedMedia } from '../domain/chat';
 import { formatAuDate } from '../domain/dates';
 import { displayName } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
-import { CAPTION_MAX, CONSENT_LINE, PHOTOS_SHOWN, pickGoesLive, type PickablePhoto, type SitePhoto, type SitePhotoStatus } from '../domain/sitePhotos';
-import type { RootParams, RootScreen } from '../navigation/types';
+import { CAPTION_MAX, CONSENT_LINE, PHOTOS_SHOWN, type PickablePhoto, type SitePhoto, type SitePhotoStatus } from '../domain/sitePhotos';
+import type { RootScreen } from '../navigation/types';
 import { colors, MAX_CONTENT_WIDTH, space, type } from '../theme';
 import { asImage, MediaTile, useMediaSource } from '../ui/ChatBits';
 import { Button, Card, Chip, ConfirmButton, Field, H2, IconBadge, KeyValue, ListRow, Notice, Row, Screen, SectionTitle, Small, Stack, Toggle } from '../ui/primitives';
 import { MemberPicker } from './adminBits';
 
-type Nav = NavigationProp<RootParams>;
 const COLUMNS = 3;
 const GAP = 3;
-const STATUS_WORD: Record<SitePhotoStatus, string> = { live: 'On the website', waiting: 'Waiting for their OK', declined: 'They said no', removed: 'Taken down' };
-const STATUS_TONE: Record<SitePhotoStatus, 'steel' | 'warn' | 'bone' | 'ok'> = { live: 'ok', waiting: 'warn', declined: 'bone', removed: 'bone' };
+const STATUS_WORD: Record<SitePhotoStatus, string> = { live: 'On the website', removed: 'Taken down' };
+const STATUS_TONE: Record<SitePhotoStatus, 'steel' | 'warn' | 'bone' | 'ok'> = { live: 'ok', removed: 'bone' };
 
 /** A picture source for a photo on the list, whichever bucket holds it. */
 function useSitePhotoSource(photo: Pick<SitePhoto, 'bucket' | 'path'>): MediaSource | null {
@@ -86,7 +84,7 @@ function PickForm({
 
 export function WebsitePhotosScreen({ navigation }: RootScreen<'WebsitePhotos'>) {
   const { me } = useClub();
-  const { ready, photos, asks, crew, editor, crewManager, loadError, upload, answer, remove, setCrew, refresh } = useSitePhotos();
+  const { ready, photos, crew, editor, crewManager, loadError, upload, remove, setCrew, refresh } = useSitePhotos();
   const [done, setDone] = useState<string | null>(null);
   const [picked, setPicked] = useState<PickedMedia | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +112,7 @@ export function WebsitePhotosScreen({ navigation }: RootScreen<'WebsitePhotos'>)
     }
   };
 
-  const mine = photos.filter((p) => p.postedBy === me.id && p.status !== 'waiting');
+  const mine = photos.filter((p) => p.postedBy === me.id);
   return (
     <Screen onRefresh={refresh}>
       {done ? (
@@ -124,8 +122,8 @@ export function WebsitePhotosScreen({ navigation }: RootScreen<'WebsitePhotos'>)
         <Card>
           <H2>Website photos</H2>
           <Small>
-            What the club website shows the public: the newest {PHOTOS_SHOWN} photos here. Pick from the club’s chats, or straight from your phone. Someone
-            else’s photo goes up once they say yes. Captions only, never names.
+            What the club website shows the public: the newest {PHOTOS_SHOWN} photos here. Pick from the club’s chats, or straight from your phone. It goes up
+            straight away, and the member who posted it gets a heads-up and can take it down. Captions only, never names.
           </Small>
           {picked ? (
             <Stack>
@@ -147,15 +145,6 @@ export function WebsitePhotosScreen({ navigation }: RootScreen<'WebsitePhotos'>)
         </Card>
       ) : null}
 
-      {asks.length > 0 ? (
-        <>
-          <SectionTitle title="Photo for the website?" action={<Small>{asks.length}</Small>} />
-          {asks.map((p) => (
-            <AskCard key={p.id} photo={p} answer={answer} onDone={setDone} />
-          ))}
-        </>
-      ) : null}
-
       {crewManager ? <CrewSection crew={crew} setCrew={setCrew} onDone={setDone} /> : null}
 
       <SectionTitle title={editor ? 'The list' : 'Your photos on the website'} action={<Small>{editor ? photos.length : mine.length}</Small>} />
@@ -167,7 +156,7 @@ export function WebsitePhotosScreen({ navigation }: RootScreen<'WebsitePhotos'>)
         <Notice title={editor ? 'Nothing picked yet' : 'None yet'}>
           {editor
             ? 'The website’s Photos strip stays hidden until there is.'
-            : 'When the Social Media Officer or their crew wants one of your photos on the club website, you’ll be asked here first.'}
+            : 'When the Social Media Officer or their crew put one of your photos on the club website, it shows here and you can take it down.'}
         </Notice>
       ) : (
         (editor ? photos : mine).map((p) => <PhotoCard key={p.id} photo={p} canRemove={editor || p.postedBy === me.id} remove={remove} onDone={setDone} />)
@@ -196,7 +185,7 @@ function PhotoCard({ photo, canRemove, remove, onDone }: { photo: SitePhoto; can
     }
   };
   return (
-    <Card style={photo.status === 'removed' || photo.status === 'declined' ? { opacity: 0.7 } : undefined}>
+    <Card style={photo.status === 'removed' ? { opacity: 0.7 } : undefined}>
       <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
         <Thumb photo={photo} />
         <View style={{ flex: 1, gap: 4 }}>
@@ -222,42 +211,6 @@ function PhotoCard({ photo, canRemove, remove, onDone }: { photo: SitePhoto; can
           />
         </>
       ) : null}
-    </Card>
-  );
-}
-
-function AskCard({ photo, answer, onDone }: { photo: SitePhoto; answer: (id: string, yes: boolean) => Promise<void>; onDone: (msg: string) => void }) {
-  const { data } = useClub();
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const picker = data.members.find((m) => m.id === photo.pickedBy);
-  const say = async (yes: boolean) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await answer(photo.id, yes);
-      onDone(yes ? 'Thanks. It goes on the website within a few minutes.' : 'No worries. It stays off the website.');
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Card style={{ borderColor: colors.redBright }}>
-      <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
-        <Thumb photo={photo} />
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={type.name}>{picker ? displayName(picker) : 'The website crew'} wants this on the club website</Text>
-          {photo.caption ? <Small>Caption: {photo.caption}</Small> : null}
-          <Small>Asked {formatAuDate(melbourneDate(photo.pickedAt))}. The public sees it with no names. You can take it down later.</Small>
-        </View>
-      </Row>
-      {error ? <Notice tone="danger">{error}</Notice> : null}
-      <Row style={{ gap: space.sm }}>
-        <Button label="No thanks" kind="secondary" onPress={() => void say(false)} disabled={busy} style={{ flex: 1 }} accessibilityLabel="No, keep this photo off the website" />
-        <Button label="Yes, put it up" icon="globe-outline" onPress={() => void say(true)} disabled={busy} busy={busy} style={{ flex: 1 }} accessibilityLabel="Yes, put this photo on the website" />
-      </Row>
     </Card>
   );
 }
@@ -373,7 +326,7 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
     }
   };
   const who = chosen ? data.members.find((m) => m.id === chosen.authorId) : undefined;
-  const own = chosen ? pickGoesLive(me, pickable(chosen)) : false;
+  const own = chosen ? chosen.authorId === me.id : false;
 
   return (
     <Screen onRefresh={load}>
@@ -384,10 +337,10 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={type.name}>{who ? displayName(who) : 'A former member'}’s photo</Text>
               <Small>{formatAuDate(melbourneDate(chosen.createdAt))}</Small>
-              <Small>{own ? 'Yours, so it goes straight up.' : `${who ? displayName(who) : 'They'} will be asked first. It goes up once they say yes.`}</Small>
+              <Small>{own ? 'Yours. It goes straight up.' : `It goes straight up. ${who ? displayName(who) : 'They'} gets a heads-up and can take it down.`}</Small>
             </View>
           </Row>
-          <PickForm verb={own ? 'Put it up' : 'Ask them'} onSend={send} onCancel={() => setChosen(null)} busy={busy} error={error} />
+          <PickForm verb="Put it up" onSend={send} onCancel={() => setChosen(null)} busy={busy} error={error} />
         </Card>
       ) : (
         <>
@@ -427,36 +380,11 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
 }
 
 // ---------------------------------------------------------------------------------------------
-// Home and the Photos screen
-
-/** On Home: the photos of mine someone wants on the website, with Yes and No. Nothing when there are none. */
-export function HomePhotoAskCard() {
-  const { asks, answer } = useSitePhotos();
-  const navigation = useNavigation<Nav>();
-  const [done, setDone] = useState<string | null>(null);
-  // The thanks shows for a moment after the last answer, then the card goes.
-  useEffect(() => {
-    if (!done || asks.length > 0) return;
-    const t = setTimeout(() => setDone(null), 6000);
-    return () => clearTimeout(t);
-  }, [done, asks.length]);
-  if (asks.length === 0) return done ? <Notice tone="ok">{done}</Notice> : null;
-  return (
-    <Stack gap={space.sm}>
-      <Pressable onPress={() => navigation.navigate('WebsitePhotos')} accessibilityRole="button" accessibilityLabel="Open website photos">
-        <H2>Photo for the website?</H2>
-      </Pressable>
-      {asks.slice(0, 3).map((p) => (
-        <AskCard key={p.id} photo={p} answer={answer} onDone={setDone} />
-      ))}
-      {asks.length > 3 ? <Button label={`All ${asks.length} asks`} kind="quiet" onPress={() => navigation.navigate('WebsitePhotos')} /> : null}
-    </Stack>
-  );
-}
+// The Photos screen
 
 /** The row on the Photos screen that leads to the website list. */
 export function WebsitePhotosRow({ onOpen }: { onOpen: () => void }) {
-  const { editor, asks, photos } = useSitePhotos();
+  const { editor, photos } = useSitePhotos();
   const live = photos.filter((p) => p.status === 'live').length;
   return (
     <Card style={{ padding: 0, gap: 0 }}>
@@ -465,9 +393,7 @@ export function WebsitePhotosRow({ onOpen }: { onOpen: () => void }) {
         left={<IconBadge icon="globe-outline" />}
         title="Website photos"
         subtitle={
-          asks.length > 0
-            ? `${asks.length} of yours waiting for your OK`
-            : editor
+          editor
               ? `${live} on the club website · pick what the public sees`
               : 'The photos of yours on the club website'
         }

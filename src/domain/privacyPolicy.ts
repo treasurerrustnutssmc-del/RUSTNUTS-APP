@@ -94,7 +94,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Your fees and payments are seen by you, your chapter’s board (including its treasurer), the club’s national office-bearers and the club’s Auditor.',
           'Conduct records are seen by you, the board and, if you appeal, the appeal panel. They are deleted on the schedule the constitution sets.',
           'Family accounts see the home screen, the ride calendar and their own details, but not the chats or other members’ details.',
-          'Photos the Social Media Officer or their crew pick for the club website are shown to the public, only with the OK of the member who posted them. The website shows no names, and you can take your photo down any time.',
+          'The Social Media Officer, their crew and the NEC can put photos from the club’s chats on the public club website. Photos from private chats never go there. The website shows no names. If one of your photos goes up you get a heads-up, and you can take it down in the app any time.',
           'Anyone who opens the app, signed in or not, sees only the club’s public information: chapters, sponsors and club links.',
         ],
       },

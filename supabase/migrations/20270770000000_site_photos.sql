@@ -1,6 +1,7 @@
 -- Club photos on the public website (website-and-app task 23). The Social Media Officer, a crew
--- they approve, and the NEC put photos from the club's chats (or their phone) on the website. A
--- photo someone else posted waits for that member's OK (a push and a Home card). Same rules and
+-- they approve, and the NEC put photos from the club's chats (or their phone) on the website. Their
+-- tick puts it up; a member whose photo it is gets a heads-up push and can take it down any time
+-- (Jeff's call, 2 Nov 2026: no ask first). Same rules and
 -- words as src/domain/sitePhotos.ts, in the same order (checked by supabase/tests/site_photos_test.sql).
 -- Spec: docs/superpowers/specs/2026-11-02-website-photos-design.md. Needs the chat (message_media),
 -- push (private.push_outbox) and storage purge (private.storage_purge) migrations.
@@ -47,7 +48,7 @@ grant execute on function private.is_site_photo_editor() to authenticated;
 -- The list
 
 create type public.site_photo_source as enum ('chat', 'upload');
-create type public.site_photo_status as enum ('waiting', 'live', 'declined', 'removed');
+create type public.site_photo_status as enum ('live', 'removed');
 
 create table public.site_photos (
   id uuid primary key default gen_random_uuid(),
@@ -104,7 +105,7 @@ create policy site_media_tidy on storage.objects for delete to authenticated
 -- ---------------------------------------------------------------------------------------------
 -- Actions
 
--- Puts a chat photo on the list. The editor's own photo goes live; someone else's waits for them.
+-- Puts a chat photo on the website. Live at once, whoever posted it (the poster gets a heads-up).
 create or replace function public.pick_site_photo(p_media uuid, p_caption text, p_consent boolean)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare
@@ -135,9 +136,7 @@ begin
   if length(coalesce(v_caption, '')) > 120 then raise exception 'Keep the caption to 120 characters.'; end if;
 
   insert into public.site_photos (source, media_id, bucket, path, width, height, caption, posted_by, picked_by, status, decided_at)
-  values ('chat', p_media, 'chat-media', mm.path, mm.width, mm.height, v_caption, m.author_id, me,
-          case when m.author_id = me then 'live' else 'waiting' end::public.site_photo_status,
-          case when m.author_id = me then now() else null end)
+  values ('chat', p_media, 'chat-media', mm.path, mm.width, mm.height, v_caption, m.author_id, me, 'live', now())
   returning id into new_id;
   return new_id;
 end;
@@ -172,27 +171,6 @@ end;
 $$;
 revoke all on function public.upload_site_photo(text, int, int, text, boolean) from public, anon;
 grant execute on function public.upload_site_photo(text, int, int, text, boolean) to authenticated;
-
--- The poster's answer to "Photo for the website?".
-create or replace function public.answer_site_photo(p_id uuid, p_yes boolean)
-returns void language plpgsql security definer set search_path = '' as $$
-declare
-  me uuid := auth.uid();
-  p public.site_photos%rowtype;
-begin
-  if me is null then raise exception 'Sign in first.'; end if;
-  if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
-  select * into p from public.site_photos where id = p_id for update;
-  if not found then raise exception 'No such photo.'; end if;
-  if p.posted_by is distinct from me then raise exception 'Only the member who posted the photo can answer.'; end if;
-  if p.status <> 'waiting' then raise exception 'That one has already been answered.'; end if;
-  update public.site_photos
-  set status = case when coalesce(p_yes, false) then 'live' else 'declined' end::public.site_photo_status, decided_at = now()
-  where id = p_id;
-end;
-$$;
-revoke all on function public.answer_site_photo(uuid, boolean) from public, anon;
-grant execute on function public.answer_site_photo(uuid, boolean) to authenticated;
 
 -- Takes a photo off the website: any editor, or the member whose photo it is.
 create or replace function public.remove_site_photo(p_id uuid)
@@ -248,12 +226,12 @@ grant execute on function public.set_site_photo_crew(uuid, boolean) to authentic
 -- Reading
 
 -- The app's list: editors get every row, everyone else the rows that are theirs (row-level
--- security does the narrowing). Live first, then waiting, declined and taken down; newest pick first.
+-- security does the narrowing). Live first, then taken down; newest pick first.
 create or replace function public.list_site_photos()
 returns setof public.site_photos
 language sql stable security invoker set search_path = '' as $$
   select * from public.site_photos
-  order by case status when 'live' then 0 when 'waiting' then 1 when 'declined' then 2 else 3 end, picked_at desc, id;
+  order by case status when 'live' then 0 else 1 end, picked_at desc, id;
 $$;
 revoke all on function public.list_site_photos() from public, anon;
 grant execute on function public.list_site_photos() to authenticated;
@@ -292,32 +270,32 @@ create trigger site_photos_message_removed after update of removed_at on public.
   execute function private.site_photos_message_removed();
 
 -- ---------------------------------------------------------------------------------------------
--- The ask: a push to the poster when their photo is picked by someone else.
+-- The heads-up: a push to the poster when someone else puts their photo on the website.
 
-create or replace function private.push_site_photo_ask()
+create or replace function private.push_site_photo_up()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare
   picker public.members%rowtype;
 begin
   begin
-    if new.status <> 'waiting' or new.posted_by is null or new.picked_by is null then return null; end if;
+    if new.status <> 'live' or new.posted_by is null or new.picked_by is null or new.posted_by = new.picked_by then return null; end if;
     select * into picker from public.members where id = new.picked_by;
     if exists (select 1 from public.push_devices d where d.member_id = new.posted_by) then
       insert into private.push_outbox (member_id, dedupe_key, title, body, data)
-      values (new.posted_by, 'site-photo:' || new.id, 'Photo for the website?',
-              private.short_name(picker) || ' wants to put one of your photos on the club website. Open the app to say yes or no.',
+      values (new.posted_by, 'site-photo:' || new.id, 'Your photo is on the club website',
+              private.short_name(picker) || ' put one of your photos on the club website. Open the app to see it or take it down.',
               jsonb_build_object('kind', 'site_photo', 'id', new.id))
       on conflict (member_id, dedupe_key) do nothing;
     end if;
   exception when others then
-    raise warning 'website photo ask % not written: %', new.id, sqlerrm;
+    raise warning 'website photo heads-up % not written: %', new.id, sqlerrm;
   end;
   return null;
 end;
 $$;
-revoke all on function private.push_site_photo_ask() from public, anon, authenticated;
-create trigger site_photos_push_ask after insert on public.site_photos
-  for each row execute function private.push_site_photo_ask();
+revoke all on function private.push_site_photo_up() from public, anon, authenticated;
+create trigger site_photos_push_up after insert on public.site_photos
+  for each row execute function private.push_site_photo_up();
 
 -- ---------------------------------------------------------------------------------------------
 -- A member who deletes their account: forget_member starts by deleting their member_private row,

@@ -1,16 +1,5 @@
 // Club photos for the website as rows from the database, and the demo build's made-up list.
 import type { SitePhoto, SitePhotoCrew, SitePhotoSource, SitePhotoStatus } from '../domain/sitePhotos';
-import { demoChatData } from './chat/demoChatData';
-
-/** The demo chat's media ids are made in order, so a sample photo finds its chat photo by path. */
-const demoMediaId = (path: string): string | null => {
-  for (const m of demoChatData().messages) {
-    const hit = m.media.find((x) => x.path === path);
-    if (hit) return hit.id;
-  }
-  return null;
-};
-
 export interface SitePhotoRow {
   id: string;
   source: SitePhotoSource;
@@ -66,45 +55,41 @@ export const DEMO_SITE_PHOTO_CREW: SitePhotoCrew[] = [
 
 /**
  * Three sample photos so the demo shows what the list looks like: one live from the ride wall,
- * one the demo member is being asked about (so the Home card shows), one declined whose chat
- * message is no longer in the demo chats (so the servo-night chat photo stays free to pick).
+ * one of the demo member's own that Jet put up, and one taken down whose chat message is no
+ * longer in the demo chats (so the servo-night chat photo stays free to pick).
  */
-export function demoSitePhotos(meId: string): SitePhoto[] {
+/** `mediaIdFor` finds a demo chat photo's media id by its path (the demo chat makes them in order). */
+export function demoSitePhotos(meId: string, mediaIdFor: (path: string) => string | null): SitePhoto[] {
   return [
     {
-      id: 'demo-sp-1', source: 'chat', mediaId: demoMediaId('demo/coast-road.jpg'), bucket: 'chat-media', path: 'demo/coast-road.jpg', width: 1200, height: 900,
+      id: 'demo-sp-1', source: 'chat', mediaId: mediaIdFor('demo/coast-road.jpg'), bucket: 'chat-media', path: 'demo/coast-road.jpg', width: 1200, height: 900,
       caption: 'Spring run to Lorne', postedBy: 'm-sparks', pickedBy: 'm-torque', pickedAt: '2026-10-13T06:10:00.000Z', status: 'live',
       decidedAt: '2026-10-13T08:30:00.000Z', removedAt: null,
     },
     {
-      id: 'demo-sp-2', source: 'chat', mediaId: demoMediaId('demo/dusk-run.jpg'), bucket: 'chat-media', path: 'demo/dusk-run.jpg', width: 1200, height: 900,
-      caption: 'Dusk run out past Bacchus Marsh', postedBy: meId, pickedBy: 'm-jet', pickedAt: '2026-10-30T09:00:00.000Z', status: 'waiting',
-      decidedAt: null, removedAt: null,
+      id: 'demo-sp-2', source: 'chat', mediaId: mediaIdFor('demo/dusk-run.jpg'), bucket: 'chat-media', path: 'demo/dusk-run.jpg', width: 1200, height: 900,
+      caption: 'Dusk run out past Bacchus Marsh', postedBy: meId, pickedBy: 'm-jet', pickedAt: '2026-10-30T09:00:00.000Z', status: 'live',
+      decidedAt: '2026-10-30T09:00:00.000Z', removedAt: null,
     },
     {
       id: 'demo-sp-3', source: 'chat', mediaId: 'demo-media-gone', bucket: 'chat-media', path: 'demo/twisties.jpg', width: 1200, height: 900,
-      caption: null, postedBy: 'm-sparks', pickedBy: 'm-torque', pickedAt: '2026-10-14T06:10:00.000Z', status: 'declined',
-      decidedAt: '2026-10-14T10:00:00.000Z', removedAt: null,
+      caption: null, postedBy: 'm-sparks', pickedBy: 'm-torque', pickedAt: '2026-10-14T06:10:00.000Z', status: 'removed',
+      decidedAt: '2026-10-14T06:10:00.000Z', removedAt: '2026-10-14T10:00:00.000Z',
     },
   ];
 }
 
-/** Adds a pick or an upload to the demo list. */
+/** Adds a pick or an upload to the demo list: live at once, whoever posted it. */
 export function demoAddPhoto(
   list: SitePhoto[],
   photo: Pick<SitePhoto, 'source' | 'mediaId' | 'bucket' | 'path' | 'width' | 'height' | 'caption' | 'postedBy'>,
   pickedBy: string,
   now: string,
 ): SitePhoto[] {
-  const live = photo.postedBy === pickedBy;
   return [
-    { id: `demo-sp-${now}`, ...photo, pickedBy, pickedAt: now, status: live ? 'live' : 'waiting', decidedAt: live ? now : null, removedAt: null },
+    { id: `demo-sp-${now}`, ...photo, pickedBy, pickedAt: now, status: 'live', decidedAt: now, removedAt: null },
     ...list,
   ];
-}
-
-export function demoAnswerPhoto(list: SitePhoto[], id: string, yes: boolean, now: string): SitePhoto[] {
-  return list.map((p) => (p.id === id ? { ...p, status: yes ? 'live' : 'declined', decidedAt: now } : p));
 }
 
 export function demoRemovePhoto(list: SitePhoto[], id: string, now: string): SitePhoto[] {

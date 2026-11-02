@@ -1,7 +1,8 @@
 /**
  * Club photos on the public website (website-and-app task 23). The Social Media Officer, a crew
- * they approve, and the NEC put photos from the club's chats (or their phone) on the website. A
- * photo someone else posted waits for that member's OK. The database mirrors these rules
+ * they approve, and the NEC put photos from the club's chats (or their phone) on the website. Their
+ * tick puts it up; the member whose photo it is gets a heads-up and can take it down (Jeff's call,
+ * 2 Nov 2026: no ask first). The database mirrors these rules
  * (supabase/migrations/*_site_photos.sql) in the same order with the same words; change both
  * together. Spec: docs/superpowers/specs/2026-11-02-website-photos-design.md
  */
@@ -19,8 +20,6 @@ export const PHOTO_ALREADY_PICKED = 'That photo is already on the list.';
 export const NO_CONSENT_TICK = 'Tick that everyone in the photo is happy to be on the website.';
 export const LONG_CAPTION = 'Keep the caption to 120 characters.';
 export const BAD_UPLOAD = 'That photo didn’t upload properly. Try again.';
-export const NOT_YOUR_ASK = 'Only the member who posted the photo can answer.';
-export const ASK_ANSWERED = 'That one has already been answered.';
 export const NOT_PHOTO_REMOVER = 'Only the website photo crew or the member who posted it can take it down.';
 export const PHOTO_REMOVED_ALREADY = 'That photo has already been taken down.';
 export const CREW_NOT_MEMBER = 'Only approved members can join the crew.';
@@ -34,7 +33,7 @@ export const PHOTOS_SHOWN = 60;
 /** The consent line on the pick form. */
 export const CONSENT_LINE = 'Everyone in this photo is happy for it to be on the club website.';
 
-export type SitePhotoStatus = 'waiting' | 'live' | 'declined' | 'removed';
+export type SitePhotoStatus = 'live' | 'removed';
 export type SitePhotoSource = 'chat' | 'upload';
 
 /** Someone the Social Media Officer put on the crew. */
@@ -142,27 +141,12 @@ export function pickProblem(
   return formProblem(input);
 }
 
-/** Whether a pick of this chat photo goes live at once (my own) or waits for the poster's OK. */
-export function pickGoesLive(me: Member, photo: PickablePhoto): boolean {
-  return photo.authorId === me.id;
-}
-
 /** Why `me` can't put a photo from their phone up, or null when they can. Mirrors upload_site_photo (before the file check). */
 export function uploadProblem(me: Member | null, positions: Position[], crew: SitePhotoCrew[], input: PhotoPickInput): string | null {
   const notIn = signedInProblem(me);
   if (notIn) return notIn;
   if (!isSitePhotoEditor(me, positions, crew)) return NOT_PHOTO_EDITOR;
   return formProblem(input);
-}
-
-/** Why `me` can't answer this ask, or null when they can. Mirrors answer_site_photo. */
-export function answerProblem(me: Member | null, photo: SitePhoto | undefined): string | null {
-  const notIn = signedInProblem(me);
-  if (notIn) return notIn;
-  if (!photo) return PHOTO_GONE;
-  if (photo.postedBy !== me!.id) return NOT_YOUR_ASK;
-  if (photo.status !== 'waiting') return ASK_ANSWERED;
-  return null;
 }
 
 /** Why `me` can't take this photo down, or null when they can. Mirrors remove_site_photo. */
@@ -202,19 +186,13 @@ export function crewProblem(
   return null;
 }
 
-const STATUS_ORDER: Record<SitePhotoStatus, number> = { live: 0, waiting: 1, declined: 2, removed: 3 };
+const STATUS_ORDER: Record<SitePhotoStatus, number> = { live: 0, removed: 1 };
 
-/** The editor's list: live, then waiting, declined and taken down; newest pick first within each. */
+/** The editor's list: live, then taken down; newest pick first within each. */
 export function editorListOrder(list: SitePhoto[]): SitePhoto[] {
   return [...list].sort(
     (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.pickedAt.localeCompare(a.pickedAt) || a.id.localeCompare(b.id),
   );
-}
-
-/** The asks waiting for `me`: photos of mine someone wants on the website. */
-export function myAsks(me: Member | null, list: SitePhoto[]): SitePhoto[] {
-  if (!me) return [];
-  return list.filter((p) => p.postedBy === me.id && p.status === 'waiting').sort((a, b) => a.pickedAt.localeCompare(b.pickedAt) || a.id.localeCompare(b.id));
 }
 
 /** The website's list: the newest PHOTOS_SHOWN live photos, nothing personal. Mirrors public_site_photos(). */

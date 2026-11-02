@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { MessageMedia } from './chat';
 import {
-  answerProblem, ASK_ANSWERED, CAPTION_MAX, cleanCaption, CREW_ALREADY, CREW_NOT_MEMBER, CREW_ON_HIATUS, crewProblem, editorListOrder,
-  isSitePhotoEditor, LONG_CAPTION, managesSitePhotoCrew, myAsks, NO_CONSENT_TICK, NOT_A_PHOTO, NOT_CREW_MANAGER, NOT_ON_CREW,
-  NOT_PHOTO_EDITOR, NOT_PHOTO_REMOVER, NOT_YOUR_ASK, PHOTO_ALREADY_PICKED, PHOTO_GONE, PHOTO_REMOVED_ALREADY, PHOTOS_SHOWN,
-  pickGoesLive, pickProblem, PRIVATE_PHOTO, publicSitePhotos, removeProblem, uploadProblem, type PickablePhoto, type SitePhoto,
+  CAPTION_MAX, cleanCaption, CREW_ALREADY, CREW_NOT_MEMBER, CREW_ON_HIATUS, crewProblem, editorListOrder,
+  isSitePhotoEditor, LONG_CAPTION, managesSitePhotoCrew, NO_CONSENT_TICK, NOT_A_PHOTO, NOT_CREW_MANAGER, NOT_ON_CREW,
+  NOT_PHOTO_EDITOR, NOT_PHOTO_REMOVER, PHOTO_ALREADY_PICKED, PHOTO_GONE, PHOTO_REMOVED_ALREADY, PHOTOS_SHOWN,
+  pickProblem, PRIVATE_PHOTO, publicSitePhotos, removeProblem, uploadProblem, type PickablePhoto, type SitePhoto,
   type SitePhotoCrew,
 } from './sitePhotos';
 import { club, member, who } from './stage4.testkit';
@@ -61,8 +61,6 @@ test('picking a chat photo: refusals in order, own photo goes live, someone else
   assert.equal(pickProblem(smo, d.positions, crew, chatPhoto('a'), list, ok), null);
   // A photo taken down once can go up again; the crew can pick too.
   assert.equal(pickProblem(who(d, 'crew1'), d.positions, crew, chatPhoto('freed'), list, { caption: '  ', consent: true }), null);
-  assert.equal(pickGoesLive(smo, chatPhoto('a', 'smo')), true);
-  assert.equal(pickGoesLive(smo, chatPhoto('a', 'snap')), false);
   assert.equal(cleanCaption('  Spring run  '), 'Spring run');
   assert.equal(cleanCaption('   '), null);
 });
@@ -74,25 +72,13 @@ test('uploading from the phone: editors only, with the tick', () => {
   assert.equal(uploadProblem(who(d, 'chair'), d.positions, crew, ok), null);
 });
 
-test('answering an ask: only the poster, only while it waits', () => {
-  const d = data();
-  const waiting = photo('w', { status: 'waiting' });
-  assert.equal(answerProblem(null, waiting), 'Sign in first.');
-  assert.equal(answerProblem(who(d, 'snap'), undefined), PHOTO_GONE);
-  assert.equal(answerProblem(who(d, 'smo'), waiting), NOT_YOUR_ASK);
-  assert.equal(answerProblem(who(d, 'snap'), photo('l')), ASK_ANSWERED);
-  assert.equal(answerProblem(who(d, 'snap'), waiting), null);
-  assert.deepEqual(myAsks(who(d, 'snap'), [photo('l'), waiting, photo('w2', { status: 'waiting', postedBy: 'rider' })]).map((p) => p.id), ['w']);
-  assert.deepEqual(myAsks(null, [waiting]), []);
-});
-
 test('taking down: any editor or the poster, once', () => {
   const d = data();
   assert.equal(removeProblem(who(d, 'rider'), d.positions, crew, photo('l')), NOT_PHOTO_REMOVER);
   assert.equal(removeProblem(who(d, 'smo'), d.positions, crew, undefined), PHOTO_GONE);
   assert.equal(removeProblem(who(d, 'snap'), d.positions, crew, photo('l')), null);
   assert.equal(removeProblem(who(d, 'crew1'), d.positions, crew, photo('l')), null);
-  assert.equal(removeProblem(who(d, 'chair'), d.positions, crew, photo('l', { status: 'waiting' })), null);
+  assert.equal(removeProblem(who(d, 'chair'), d.positions, crew, photo('l', { postedBy: 'snap' })), null);
   assert.equal(removeProblem(who(d, 'smo'), d.positions, crew, photo('l', { status: 'removed', removedAt: '2026-10-21T00:00:00.000Z' })), PHOTO_REMOVED_ALREADY);
 });
 
@@ -114,11 +100,9 @@ test('the editor’s list order and the website’s list', () => {
   const list = [
     photo('old-live', { pickedAt: '2026-10-01T00:00:00.000Z' }),
     photo('gone', { status: 'removed', removedAt: '2026-10-22T00:00:00.000Z' }),
-    photo('ask', { status: 'waiting', pickedAt: '2026-10-25T00:00:00.000Z' }),
-    photo('no', { status: 'declined', pickedAt: '2026-10-24T00:00:00.000Z' }),
     photo('new-live', { pickedAt: '2026-10-23T00:00:00.000Z', source: 'upload', bucket: 'site-media', mediaId: null, caption: 'Big 4' }),
   ];
-  assert.deepEqual(editorListOrder(list).map((p) => p.id), ['new-live', 'old-live', 'ask', 'no', 'gone']);
+  assert.deepEqual(editorListOrder(list).map((p) => p.id), ['new-live', 'old-live', 'gone']);
   const pub = publicSitePhotos(list, (p) => p.pickedAt);
   assert.deepEqual(pub.map((p) => p.id), ['new-live', 'old-live']);
   assert.deepEqual(Object.keys(pub[0]).sort(), ['bucket', 'caption', 'height', 'id', 'path', 'taken_at', 'width']);

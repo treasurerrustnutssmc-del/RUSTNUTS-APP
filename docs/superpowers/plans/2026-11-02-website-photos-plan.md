@@ -3,7 +3,7 @@
 Spec: `docs/superpowers/specs/2026-11-02-website-photos-design.md`. Executed inline, test first.
 
 1. **Domain** `src/domain/sitePhotos.ts` + `sitePhotos.test.ts`: words, limits, types, `isSitePhotoEditor`,
-   `managesSitePhotoCrew`, `pickProblem`, `uploadProblem`, `answerProblem`, `removeProblem`, `crewProblem`,
+   `managesSitePhotoCrew`, `pickProblem`, `uploadProblem`, `removeProblem`, `crewProblem`,
    `editorListOrder`, `publicSitePhotos`. Tests fail, then pass.
 2. **Database** `supabase/migrations/20270770000000_site_photos.sql` + `supabase/tests/site_photos_test.sql` +
    test-db.sh block. Run on the quick runner, then the full suite in the background.
@@ -19,3 +19,5 @@ Spec: `docs/superpowers/specs/2026-11-02-website-photos-design.md`. Executed inl
 9. **Review** independent subagent on the diff; fix Critical/Important.
 10. **Ship** app PR, website PR, merge both (blanket rule), apply migration live (item 62), deploy site-api v10,
     verify live read-only, update docs/memory, tell Jeff with screenshots and a card.
+
+Update 2 Nov 2026: Jeff chose "Crew don't need the poster's OK". Every pick goes live at once with a heads-up push to the poster; the ask (answer_site_photo, the Home card, waiting/declined) was removed before going live. See the spec's Consent paragraph.

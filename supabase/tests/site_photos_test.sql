@@ -182,11 +182,13 @@ begin
 
   assert pg_temp.try_as(smo, pg_temp.pick_sql(snap_pic, '  Black Spur ', true)) is null, 'the SMO picks Snap''s photo';
   select * into p from site_photos where media_id = snap_pic;
-  assert p.status = 'waiting' and p.caption = 'Black Spur' and p.posted_by = snap and p.picked_by = smo and p.bucket = 'chat-media'
-     and p.path = club || '/a.jpg' and p.width = 1200 and p.decided_at is null, 'waits for Snap';
+  -- Jeff's call (2 Nov 2026): the editor's tick puts it up; Snap isn't asked first.
+  assert p.status = 'live' and p.caption = 'Black Spur' and p.posted_by = snap and p.picked_by = smo and p.bucket = 'chat-media'
+     and p.path = club || '/a.jpg' and p.width = 1200 and p.decided_at is not null, 'live at once';
   assert exists (select 1 from private.push_outbox where member_id = snap and dedupe_key = 'site-photo:' || p.id
-                 and title = 'Photo for the website?' and body like 'Bam Bam wants to put one of your photos%'), 'Snap gets a push';
-  assert pg_temp.try_as(crew, pg_temp.pick_sql(snap_pic, 'again', true)) = 'That photo is already on the list.', 'one ask per photo';
+                 and title = 'Your photo is on the club website'
+                 and body = 'Bam Bam put one of your photos on the club website. Open the app to see it or take it down.'), 'Snap gets a heads-up';
+  assert pg_temp.try_as(crew, pg_temp.pick_sql(snap_pic, 'again', true)) = 'That photo is already on the list.', 'once per photo';
 
   assert pg_temp.try_as(smo, pg_temp.pick_sql(smo_pic, '', true)) is null, 'the SMO''s own photo';
   select * into p from site_photos where media_id = smo_pic;
@@ -196,7 +198,7 @@ begin
 end $$;
 
 \o
-\echo 'Website photos: the poster answers, once; uploads from the phone go live'
+\echo 'Website photos: the answer is gone; uploads from the phone go live'
 \o /dev/null
 do $$
 declare
@@ -204,24 +206,13 @@ declare
   crew constant uuid := '00000000-0000-0000-0000-0000000007b3';
   snap constant uuid := '00000000-0000-0000-0000-0000000007b4';
   nell constant uuid := '00000000-0000-0000-0000-0000000007b7';
-  ask uuid := (select id from site_photos where status = 'waiting');
-  yes text := 'select public.answer_site_photo(%L, true)';
-  no text := 'select public.answer_site_photo(%L, false)';
   up text := 'select public.upload_site_photo(%L, 1600, 1200, %L, %L)';
   upload text := $q$insert into storage.objects (bucket_id, name, owner, owner_id) values ('site-media', %L, %L, %L)$q$;
   p site_photos%rowtype;
 begin
-  assert pg_temp.try_as(null, format(yes, ask)) like 'permission denied%', 'anon';
-  assert pg_temp.try_as(nell, format(yes, '00000000-0000-0000-0000-000000000000')) = 'No such photo.', 'gone';
-  assert pg_temp.try_as(smo, format(yes, ask)) = 'Only the member who posted the photo can answer.', 'the picker can''t answer';
-  assert pg_temp.try_as(nell, format(yes, ask)) = 'Only the member who posted the photo can answer.', 'a stranger can''t answer';
-  assert pg_temp.list_as(snap) = 'Black Spur:waiting', 'Snap sees the ask: ' || pg_temp.list_as(snap);
+  assert not exists (select 1 from pg_proc where proname = 'answer_site_photo'), 'no asks, so no answer';
+  assert pg_temp.list_as(snap) = 'Black Spur:live', 'Snap sees her photo: ' || pg_temp.list_as(snap);
   assert pg_temp.list_as(nell) = '', 'Nell sees nothing';
-  assert pg_temp.try_as(snap, format(no, ask)) is null, 'Snap says no';
-  assert (select status = 'declined' and decided_at is not null from site_photos where id = ask), 'declined';
-  assert pg_temp.try_as(snap, format(yes, ask)) = 'That one has already been answered.', 'once';
-  -- A second ask can't follow a no.
-  assert pg_temp.try_as(smo, pg_temp.pick_sql((select media_id from site_photos where id = ask), 'please', true)) = 'That photo is already on the list.', 'no nagging';
 
   -- Uploads: editors only, in their own folder, the file must be there.
   assert pg_temp.try_as(nell, format(upload, nell || '/x.jpg', nell, nell)) like '%policy%', 'a member can''t upload into site-media';
@@ -260,15 +251,17 @@ declare
   cols text;
   i int;
 begin
-  assert pg_temp.try_as(crew, pg_temp.pick_sql(pic2, 'Lunch stop', true)) is null, 'the crew asks for a second one';
+  assert pg_temp.try_as(crew, pg_temp.pick_sql(pic2, 'Lunch stop', true)) is null, 'the crew puts a second one up';
   ask2 := (select id from site_photos where media_id = pic2);
-  assert pg_temp.try_as(snap, format('select public.answer_site_photo(%L, true)', ask2)) is null, 'Snap says yes';
   -- Everything so far landed at this transaction's now(): spread the picks out so the order is testable.
+  update site_photos set picked_at = now() - interval '3 minutes' where caption = 'Black Spur';
   update site_photos set picked_at = now() - interval '2 minutes' where id = big4;
   update site_photos set picked_at = now() - interval '1 minute' where id = own;
-  assert pg_temp.list_as(smo) = 'Lunch stop:live,-:live,Big 4:live,Black Spur:declined', 'the editor''s list: ' || pg_temp.list_as(smo);
+  -- Snap takes the first one down herself, so the rest of the checks see three live.
+  assert pg_temp.try_as(snap, format(rm, (select id from site_photos where caption = 'Black Spur'))) is null, 'Snap takes hers down';
+  assert pg_temp.list_as(smo) = 'Lunch stop:live,-:live,Big 4:live,Black Spur:removed', 'the editor''s list: ' || pg_temp.list_as(smo);
   assert pg_temp.list_as(chair) = pg_temp.list_as(smo), 'the NEC sees the same';
-  assert pg_temp.list_as(snap) = 'Lunch stop:live,Black Spur:declined', 'Snap sees her own: ' || pg_temp.list_as(snap);
+  assert pg_temp.list_as(snap) = 'Lunch stop:live,Black Spur:removed', 'Snap sees her own: ' || pg_temp.list_as(snap);
   assert pg_temp.try_as(null, 'select * from public.list_site_photos()') like 'permission denied%', 'anon can''t list';
   assert pg_temp.try_as(null, 'select * from public.site_photos') like 'permission denied%', 'anon can''t read the table';
   assert pg_temp.try_as(smo, 'update public.site_photos set caption = ''x''') like 'permission denied%', 'no direct update';
@@ -282,13 +275,12 @@ begin
   assert (select removed_by = crew and removed_at is not null and status = 'removed' from site_photos where id = own), 'marked';
   assert pg_temp.try_as(smo, format(rm, own)) = 'That photo has already been taken down.', 'twice';
   assert pg_temp.public_captions() = 'Big 4', 'only the upload is left: ' || pg_temp.public_captions();
-  assert pg_temp.list_as(smo) = 'Big 4:live,Black Spur:declined,Lunch stop:removed,-:removed', 'taken-down last: ' || pg_temp.list_as(smo);
+  assert pg_temp.list_as(smo) = 'Big 4:live,Lunch stop:removed,-:removed,Black Spur:removed', 'taken-down last: ' || pg_temp.list_as(smo);
   -- A taken-down chat photo can go up again.
   assert pg_temp.try_as(smo, pg_temp.pick_sql(pic2, 'Lunch again', true)) is null, 'again';
-  assert (select status from site_photos where caption = 'Lunch again') = 'waiting', 'and asks again';
+  assert (select status from site_photos where caption = 'Lunch again') = 'live', 'and is live again';
 
   -- Removing the chat message the app's way (the row stays, removed_at is set) takes its photo down.
-  update site_photos set status = 'live', decided_at = now() where caption = 'Lunch again';
   assert exists (select 1 from public.public_site_photos() f join site_photos p on p.id = f.id where p.caption = 'Lunch again'), 'up before';
   perform private.remove_message_now((select message_id from message_media where id = pic2), smo);
   assert (select status = 'removed' and removed_at is not null and removed_by = smo from site_photos where caption = 'Lunch again'), 'down with the message';

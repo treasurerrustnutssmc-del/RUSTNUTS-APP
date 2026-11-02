@@ -7,20 +7,30 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import type { PickedMedia } from '../domain/chat';
 import {
-  answerProblem, BAD_UPLOAD, cleanCaption, crewProblem, editorListOrder, isSitePhotoEditor, managesSitePhotoCrew, myAsks,
+  BAD_UPLOAD, cleanCaption, crewProblem, editorListOrder, isSitePhotoEditor, managesSitePhotoCrew,
   pickProblem, removeProblem, uploadProblem, type PhotoPickInput, type PickablePhoto, type SitePhoto, type SitePhotoCrew,
 } from '../domain/sitePhotos';
+import { demoChatData } from './chat/demoChatData';
 import { prepareUpload } from './chat/media';
 import { uploadName } from './chat/liveChat';
 import { NotAllowedError, useClub } from './clubContext';
 import { appMode, liveDataOn } from './reviewMode';
 import {
-  DEMO_SITE_PHOTO_CREW, demoAddPhoto, demoAnswerPhoto, demoRemovePhoto, demoSetCrew, demoSitePhotos, toSitePhotoCrew, toSitePhotos,
+  DEMO_SITE_PHOTO_CREW, demoAddPhoto, demoRemovePhoto, demoSetCrew, demoSitePhotos, toSitePhotoCrew, toSitePhotos,
   type SitePhotoCrewRow, type SitePhotoRow,
 } from './sitePhotosData';
 import { friendlyError, supabase } from './supabase';
 
 export const SITE_BUCKET = 'site-media';
+
+/** A demo chat photo's media id, found by its path, so the demo's samples match the chat's photos. */
+const demoMediaId = (path: string): string | null => {
+  for (const m of demoChatData().messages) {
+    const hit = m.media.find((x) => x.path === path);
+    if (hit) return hit.id;
+  }
+  return null;
+};
 const URL_LIFE_S = 300;
 const URL_KEEP_MS = 4 * 60_000;
 
@@ -29,17 +39,14 @@ export interface SitePhotosValue {
   ready: boolean;
   /** Editors: every photo, live first. Everyone else: the photos that are theirs. */
   photos: SitePhoto[];
-  /** The asks waiting for me: photos of mine someone wants on the website. */
-  asks: SitePhoto[];
   crew: SitePhotoCrew[];
   editor: boolean;
   crewManager: boolean;
   loadError: string | null;
-  /** Puts a chat photo on the list (live if mine, else waiting for the poster). */
+  /** Puts a chat photo on the website at once (the poster gets a heads-up push). */
   pick: (photo: PickablePhoto, input: PhotoPickInput) => Promise<void>;
   /** Shrinks and uploads a photo from the phone, then puts it on the list. */
   upload: (picked: PickedMedia, input: PhotoPickInput) => Promise<void>;
-  answer: (id: string, yes: boolean) => Promise<void>;
   remove: (id: string) => Promise<void>;
   setCrew: (memberId: string, on: boolean) => Promise<void>;
   refresh: () => Promise<void>;
@@ -109,7 +116,7 @@ export function useSitePhotos(): SitePhotosValue {
   useEffect(() => {
     if (state.forId === forId) return;
     if (!liveDataOn()) {
-      set({ forId, photos: forId ? demoSitePhotos(forId) : [], crew: DEMO_SITE_PHOTO_CREW });
+      set({ forId, photos: forId ? demoSitePhotos(forId, demoMediaId) : [], crew: DEMO_SITE_PHOTO_CREW });
       return;
     }
     if (!forId) {
@@ -168,18 +175,6 @@ export function useSitePhotos(): SitePhotosValue {
     await refresh().catch(() => undefined);
   }, [me, data.positions, refresh]);
 
-  const answer = useCallback(async (id: string, yes: boolean) => {
-    const problem = answerProblem(me, state.photos.find((p) => p.id === id));
-    if (problem) throw new NotAllowedError(problem);
-    if (!liveDataOn()) {
-      set({ photos: demoAnswerPhoto(state.photos, id, yes, new Date().toISOString()) });
-      return;
-    }
-    const { error } = await db().rpc('answer_site_photo', { p_id: id, p_yes: yes });
-    if (error) throw friendlyError(error);
-    await refresh().catch(() => undefined);
-  }, [me, refresh]);
-
   const remove = useCallback(async (id: string) => {
     const problem = removeProblem(me, data.positions, state.crew, state.photos.find((p) => p.id === id));
     if (problem) throw new NotAllowedError(problem);
@@ -207,14 +202,12 @@ export function useSitePhotos(): SitePhotosValue {
   return {
     ready: current.ready,
     photos: editorListOrder(current.photos),
-    asks: myAsks(me, current.photos),
     crew: current.crew,
     editor,
     crewManager,
     loadError: current.loadError,
     pick,
     upload,
-    answer,
     remove,
     setCrew,
     refresh,
