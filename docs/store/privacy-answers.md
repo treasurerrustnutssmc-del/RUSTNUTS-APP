@@ -13,7 +13,8 @@ Keep the three in step: when the app starts collecting something new, change the
 Rules used for both forms:
 - Nothing is used for advertising, analytics or tracking. No ad SDKs, no analytics SDKs.
 - The services the app uses (Supabase, Expo, Firebase Cloud Messaging, Apple Push, LiveKit, Open-Meteo,
-  Gmail for sign-in codes) work for the club as service providers, which both stores say is not
+  Gmail for sign-in codes, and for merch orders Make.com, Google Workspace (Sheets, Docs and Drive) and
+  Resend) work for the club as service providers, which both stores say is not
   "sharing". GIPHY is the exception: its API terms let it use data for its own purposes, so the GIF
   search words are declared as shared (App activity: In-app search history) on Google Play. Members seeing each other's posts is the app's purpose, which Google treats as not sharing
   ("user-initiated").
@@ -21,6 +22,12 @@ Rules used for both forms:
   in the app to Anthropic (Claude) to answer. Anthropic works for the club as a service provider and
   doesn't train on it. The club doesn't store the questions or answers (only a daily count per member),
   so on Google Play it's "processed ephemerally" under Other user-generated content.
+- Catch me up sends a chat's newest messages (sender, time and text) to Anthropic, as a service provider
+  that doesn't train on them, to write a summary. The summary isn't kept, and each one counts toward the
+  member's daily Ask the club allowance. The messages themselves stay stored as chat messages, so the
+  Google Messages row stays "Ephemeral: No"; nothing new is declared.
+- Both Ask the club and Catch me up now ask each member's permission in the app, naming Anthropic, before
+  first use. Nothing goes to Anthropic from either until the member says yes.
 - Draft from Otter sends a meeting's transcript (pasted or picked from the secretary's Otter.ai export),
   the agenda and the names of members who could have been there to Anthropic to draft minutes. The club
   keeps only the minutes the board saves (already declared with meeting minutes), not the transcript, so
@@ -50,6 +57,7 @@ management" where marked.)
 | Personal info | Email address | Required | No | App functionality, Account management |
 | Personal info | User IDs | Required | No | App functionality, Account management |
 | Personal info | Phone number | Required (on the join form) | No | App functionality, Account management |
+| Personal info | Address (merch delivery address, only when a merch order is shipped; saved to the profile if the member ticks "Save for next time") | Optional | No | App functionality |
 | Personal info | Other info (road name, bio, birthday day/month, licence and first aid expiry, emergency contacts, bikes and registrations) | Optional | No | App functionality |
 | Financial info | Other financial info (fees charged, payments the member reports, receipts; no card or bank numbers) | Required for members | No | App functionality, Account management |
 | Messages | Other in-app messages | Optional | No | App functionality |
@@ -57,14 +65,15 @@ management" where marked.)
 | Photos and videos | Videos | Optional | No | App functionality |
 | Audio | Voice or sound recordings (voice notes; ride comms is live only) | Optional | No | App functionality |
 | Files and docs | Files and docs (ride route files the crew uploads) | Optional | No | App functionality |
-| App activity | Other user-generated content (listings, build threads, nominations, RSVPs, votes, sign-offs) | Optional | No | App functionality |
+| App activity | Other user-generated content (listings, build threads, nominations, RSVPs, votes, sign-offs, feedback and issue report text) | Optional | No | App functionality |
 | App activity | In-app search history (GIF search words, sent to GIPHY) | Optional | Yes (not stored by the club) | App functionality. **Shared: Yes** (GIPHY) |
 | Device or other IDs | Device or other IDs (push notification token) | Optional (only if notifications are allowed) | No | App functionality |
 | App info and performance | Crash logs (the Expo updates client sends the previous launch's fatal JS error text and a random install id when it checks for updates; no crash SDK) | Optional | No | App functionality |
+| App info and performance | Diagnostics (app version, build and device/OS attached to a feedback or issue report the member sends) | Optional | No | App functionality |
 | Financial info | Purchase history (club merch orders: item, size, quantity, price, status; paid outside the app by PayID, bank or cash) | Optional (only if the member orders merch) | No | App functionality |
 
 Not collected: Contacts, Calendar, Health and fitness, Web browsing, App info and performance
-(Diagnostics and Other app performance data; crash logs are declared above), Credit info,
+(Other app performance data; crash logs and diagnostics are declared above), Credit info,
 Race/ethnicity, Political or religious beliefs, Sexual orientation, SMS, Emails, Music files,
 Installed apps.
 
@@ -82,22 +91,25 @@ Other Purposes: No).
 | Contact Info | Name | |
 | Contact Info | Email Address | Sign-in |
 | Contact Info | Phone Number | |
+| Contact Info | Physical Address | Merch orders with shipping; saved to the profile if the member ticks "Save for next time" |
 | Location | Precise Location | Live ride only; latest position only, deleted when sharing stops |
 | Financial Info | Other Financial Info | Fees, payments members report, receipts |
 | User Content | Photos or Videos | |
 | User Content | Audio Data | Voice notes |
 | User Content | Emails or Text Messages | Club chat messages (Apple counts in-app messages here) |
 | User Content | Other User Content | Listings, build threads, nominations, routes |
+| User Content | Customer Support | Feedback and issue reports: the text, where in the app, an optional screenshot |
 | Search History | Search History | GIF search words, sent to GIPHY. **Linked to the user: No** (GIPHY gets no account details) |
 | Identifiers | User ID | |
 | Other Data | Other Data Types | Road name, bio, birthday (day and month), bikes and registrations, licence and first aid expiry, membership records, emergency contacts (other people's details) |
 | Purchases | Purchase History | Club merch orders: item, size, quantity, price, status. Paid outside the app by PayID, bank or cash; no payment details |
 | Diagnostics | Crash Data | **Linked to the user: No.** The Expo updates client sends the previous launch's fatal JS error text and a random install id when it checks for updates. Tracking: No. Purpose: App Functionality |
+| Diagnostics | Other Diagnostic Data | App version, build and device/OS attached to a feedback or issue report |
 
 Not collected: Health and Fitness, Sensitive Info, Contacts (address book), Browsing History,
 Usage Data, Device ID (the push token isn't an advertising or device identifier), Coarse Location.
-Within Diagnostics, Performance Data and Other Diagnostic Data are not collected (only Crash Data,
-above).
+Within Diagnostics, Performance Data is not collected (Crash Data and Other Diagnostic Data are
+declared above).
 
 **Permission prompts** (already in `app.json`, matching the policy): camera, photos, microphone,
 location when in use, location always (live ride, switches off after the ride). Apple will ask why the

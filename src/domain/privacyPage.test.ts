@@ -41,3 +41,16 @@ test('the policy names every outside service the app sends data to', () => {
     assert.ok(all.includes(name), name);
   }
 });
+
+test('the policy says what a feedback or issue report collects and who reads it', () => {
+  const collect = JSON.stringify(PRIVACY_SECTIONS.find((s) => s.id === 'collect'));
+  assert.ok(collect.includes('Feedback & issues'), 'names Feedback & issues');
+  for (const bit of ['where in the app', 'screenshot', 'app version', 'build', 'device', 'app keepers']) {
+    assert.ok(collect.includes(bit), bit);
+  }
+});
+
+test('the policy says Ask the club and Catch me up ask permission before first use', () => {
+  const services = JSON.stringify(PRIVACY_SECTIONS.find((s) => s.id === 'services'));
+  assert.ok(/ask your permission[^"]*before you first use/i.test(services), 'permission before first use');
+});
