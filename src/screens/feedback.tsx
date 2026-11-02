@@ -11,7 +11,7 @@ import { PickProblem, pickMedia } from '../data/chat/media';
 import { useClub } from '../data/ClubStore';
 import { runningUpdate, updateApi } from '../data/appUpdate';
 import { useFeedback } from '../data/feedback';
-import { REOPEN, checkAndUpdate, describeRunning, type UpdateOutcome, type UpdateStep } from '../domain/appUpdate';
+import { MIN_CHECK_MS, checkAndUpdate, describeRunning, statusLine, type UpdateOutcome, type UpdateStep } from '../domain/appUpdate';
 import type { PickedMedia } from '../domain/chat';
 import { formatAuDate } from '../domain/dates';
 import {
@@ -57,14 +57,10 @@ export function FeedbackRow() {
   );
 }
 
-const STEP_LINE: Record<UpdateStep, string> = {
-  checking: 'Checking…',
-  downloading: 'Downloading the update…',
-  restarting: 'Restarting into the update…',
-};
-
 /** Ask the update server now, instead of closing and opening the app twice. Shows which update this
- *  phone is on, so a tester can read it out when something looks different on someone else's phone. */
+ *  phone is on, so a tester can read it out when something looks different on someone else's phone.
+ *  The row keeps the same size and stays the same pressable while it works (no jumping): only the
+ *  icon and the top line change. */
 function CheckForUpdatesRow() {
   const running = describeRunning(runningUpdate());
   const [step, setStep] = useState<UpdateStep | null>(null);
@@ -84,31 +80,35 @@ function CheckForUpdatesRow() {
   const run = () => {
     if (busy) return;
     setResult(null);
-    checkAndUpdate(updateApi, setStep).then((out) => {
-      setResult(out);
-      if (out.kind !== 'restarting') setStep(null);
-    });
+    const started = Date.now();
+    checkAndUpdate(updateApi, setStep)
+      .then((out) => new Promise<UpdateOutcome>((done) => setTimeout(() => done(out), Math.max(0, MIN_CHECK_MS - (Date.now() - started)))))
+      .then((out) => {
+        setResult(out);
+        if (out.kind !== 'restarting') setStep(null);
+      });
   };
 
-  const subtitle = step
-    ? STEP_LINE[step]
-    : result?.kind === 'current'
-      ? `You’re up to date. ${running}`
-      : result?.kind === 'failed'
-        ? result.message
-        : result?.kind === 'downloaded'
-          ? REOPEN
-          : result?.kind === 'off'
-            ? 'Updates don’t run in this version.'
-            : running;
-
+  const failed = !busy && result?.kind === 'failed';
   return (
     <ListRow
-      left={<IconBadge icon={result?.kind === 'current' ? 'checkmark-circle-outline' : 'cloud-download-outline'} tone={result?.kind === 'failed' ? 'red' : 'steel'} />}
-      title={busy ? 'Checking for updates' : 'Check for updates'}
-      subtitle={<Small numberOfLines={3} style={result?.kind === 'failed' ? { color: colors.danger } : undefined}>{subtitle}</Small>}
-      right={busy ? <ActivityIndicator color={colors.boneMute} /> : undefined}
-      onPress={busy ? undefined : run}
+      left={
+        busy ? (
+          <View style={{ width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.steel, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="small" color={colors.bone} />
+          </View>
+        ) : (
+          <IconBadge icon={result?.kind === 'current' ? 'checkmark-circle-outline' : 'cloud-download-outline'} tone={failed ? 'red' : 'steel'} />
+        )
+      }
+      title="Check for updates"
+      subtitle={
+        <View>
+          <Small numberOfLines={1} style={failed ? { color: colors.danger } : undefined}>{statusLine(step, result)}</Small>
+          <Small numberOfLines={1}>{running}</Small>
+        </View>
+      }
+      onPress={run}
     />
   );
 }

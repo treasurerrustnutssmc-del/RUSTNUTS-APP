@@ -29,9 +29,26 @@ export type UpdateOutcome =
   | { kind: 'off' }
   | { kind: 'failed'; message: string };
 
-export const NO_SIGNAL = 'Couldn’t reach the update server. Check your signal and try again.';
-export const NO_DOWNLOAD = 'The update didn’t finish downloading. Try again in a minute.';
-export const REOPEN = 'Update downloaded. Close the app fully and open it again to use it.';
+// Kept short: each fits one line on a phone, so the row never changes height.
+export const NO_SIGNAL = 'No connection. Try again.';
+export const NO_DOWNLOAD = 'Download failed. Try again.';
+export const REOPEN = 'Downloaded. Close and reopen the app.';
+
+/** The status line (top line under the title). */
+export function statusLine(step: UpdateStep | null, result: UpdateOutcome | null): string {
+  if (step === 'checking') return 'Checking…';
+  if (step === 'downloading') return 'Downloading…';
+  if (step === 'restarting') return 'Restarting…';
+  if (!result) return 'Tap to check now';
+  if (result.kind === 'current') return 'You’re up to date';
+  if (result.kind === 'failed') return result.message;
+  if (result.kind === 'downloaded') return REOPEN;
+  if (result.kind === 'off') return 'Updates are off in this version';
+  return 'Restarting…';
+}
+
+/** Ask at least this long, so "Checking…" can be read instead of flashing. */
+export const MIN_CHECK_MS = 900;
 
 /** "1A2B3C4D": enough to tell two phones apart when someone reads it out. */
 export function shortUpdateId(id: string): string {
@@ -41,8 +58,8 @@ export function shortUpdateId(id: string): string {
 /** The line under "Check for updates": which update this phone is on. The time is Melbourne time on
  *  every phone, so two phones on the same update read the same. */
 export function describeRunning(r: RunningUpdate): string {
-  if (!r.isEnabled) return 'Updates don’t run in this version';
-  if (!r.updateId || r.isEmbeddedLaunch) return 'The build’s own code (no update yet)';
+  if (!r.isEnabled) return 'Updates are off in this version';
+  if (!r.updateId || r.isEmbeddedLaunch) return 'Built-in version (no update yet)';
   const when = r.createdAt ? ` · ${formatAuDate(melbourneDate(r.createdAt.toISOString()))} ${melbourneTime(r.createdAt.toISOString())}` : '';
   return `Update ${shortUpdateId(r.updateId)}${when}`;
 }
