@@ -4,7 +4,7 @@
 // Spec: docs/superpowers/specs/2026-10-31-club-assistant-design.md ("The screen")
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MAX_TURNS, type ApiMessage } from '../../supabase/functions/_shared/askClub';
 import { useAiConsent } from '../data/aiConsent';
@@ -13,6 +13,7 @@ import { runAction } from '../data/assistantRun';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { isApprovedMember } from '../domain/access';
+import { composerBottomRoom } from '../domain/keyboard';
 import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { STARTERS, buildSnapshot, cardFor, nextMessages, withReply, type ActionCard, type ActionPlan, type ChatChoice } from '../domain/assistant';
 import { postProblem } from '../domain/chat';
@@ -228,7 +229,7 @@ export function AskClubScreen({ navigation }: RootScreen<'AskClub'>) {
         </View>
       </ScrollView>
 
-      <View style={[styles.composerWrap, { paddingBottom: keyboard ? keyboard + space.sm : insets.bottom + space.sm }]}>
+      <View style={[styles.composerWrap, { paddingBottom: composerBottomRoom(Platform.OS, keyboard, insets.bottom, space.sm) }]}>
         {!consent.agreed ? null : blocked ? (
           // Why it can't take a question, where the box would be, so it's seen at the end of a long chat too.
           <View style={styles.composer} accessibilityLiveRegion="polite">

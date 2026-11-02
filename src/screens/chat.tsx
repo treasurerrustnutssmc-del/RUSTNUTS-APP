@@ -10,6 +10,7 @@ import { useAiConsent } from '../data/aiConsent';
 import { useCatchUpApi } from '../data/catchUpApi';
 import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { catchUpCount } from '../domain/catchUp';
+import { composerBottomRoom } from '../domain/keyboard';
 import { useChat } from '../data/chat/ChatProvider';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
 import { REPORT_KIND_LABEL, type ContentReport } from '../domain/reports';
@@ -591,7 +592,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           </Pressable>
         ) : null}
       </View>
-      <View style={[styles.composerWrap, { paddingBottom: keyboard ? keyboard + space.sm : insets.bottom + space.sm }]}>
+      <View style={[styles.composerWrap, { paddingBottom: composerBottomRoom(Platform.OS, keyboard, insets.bottom, space.sm) }]}>
         <View style={{ width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' }}>
           {replyTo ? (
             <View style={styles.replyBar}>
