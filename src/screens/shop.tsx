@@ -25,6 +25,7 @@ import {
   Toggle,
 } from '../ui/primitives';
 import { ActionWithReason, DateField, Fact, QtyStepper, styles, useDate, useRun } from './adminBits';
+import { DesignThumb, GarmentPictures, designCover } from './shopPictures';
 
 type Tone = 'ok' | 'warn' | 'danger' | 'steel' | 'bone';
 export const SHOP_TONE: Record<ShopOrderStatus, Tone> = {
@@ -121,11 +122,12 @@ export function ClubShopSection() {
           designs.map((d, i) => {
             const garments = garmentsOf(data, d.id);
             const from = Math.min(...garments.map((g) => g.priceCents));
+            const cover = designCover(data.shopPictures, d.id);
             return (
               <ListRow
                 key={d.id}
                 last={i === designs.length - 1 && count === 0}
-                left={<IconBadge icon="shirt-outline" />}
+                left={cover ? <DesignThumb picture={cover} name={d.name} /> : <IconBadge icon="shirt-outline" />}
                 title={d.name}
                 subtitle={<Text style={[styles.meta, num]} numberOfLines={2}>{`${namesLine(garments.map((g) => g.name))} · from ${formatCents(from)}`}</Text>}
                 onPress={() => navigation.navigate('ShopDesign', { designId: d.id })}
@@ -163,7 +165,7 @@ export function ClubShopSection() {
 // One design: its garments, each with sizes, colours and how many
 // ---------------------------------------------------------------------------
 
-function GarmentCard({ garment, onAdded }: { garment: ShopGarment; onAdded: () => void }) {
+function GarmentCard({ garment, designName, onAdded }: { garment: ShopGarment; designName: string; onAdded: () => void }) {
   const { me, data } = useClub();
   const { add } = useShopCart(me?.id ?? null);
   const [size, setSize] = useState<string | null>(garment.sizes.length === 1 ? garment.sizes[0] : null);
@@ -182,6 +184,7 @@ function GarmentCard({ garment, onAdded }: { garment: ShopGarment; onAdded: () =
   };
   return (
     <Card>
+      <GarmentPictures garment={garment} colour={colour} designName={designName} />
       <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: space.md }}>
         <H2 style={{ flexShrink: 1 }}>{garment.name}</H2>
         <Text style={[type.name, num]}>{formatCents(garment.priceCents)}</Text>
@@ -222,7 +225,7 @@ export function ShopDesignScreen({ route, navigation }: RootScreen<'ShopDesign'>
       </Stack>
       {problem ? <Notice tone="info">{problem}</Notice> : null}
       {!problem && garments.length === 0 ? <Notice tone="info">Nothing of this design is on sale right now.</Notice> : null}
-      {!problem ? garments.map((g) => <GarmentCard key={g.id} garment={g} onAdded={() => setJustAdded(true)} />) : null}
+      {!problem ? garments.map((g) => <GarmentCard key={g.id} garment={g} designName={design.name} onAdded={() => setJustAdded(true)} />) : null}
       {count > 0 ? (
         <Button
           label={`View cart · ${count} ${count === 1 ? 'item' : 'items'}`}

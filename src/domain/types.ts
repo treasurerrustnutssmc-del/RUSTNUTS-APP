@@ -1357,6 +1357,21 @@ export interface ShopGarment {
   onSale: boolean;
 }
 
+/** A product picture: the design's own (garmentId null) or one garment's, of one colour or any (colour null). */
+export interface ShopPicture {
+  id: string;
+  designId: string;
+  garmentId: string | null;
+  colour: string | null;
+  side: ShopPictureSide;
+  /** Where it sits in the shop-pictures bucket (design id / file), or null for a demo picture. */
+  path: string | null;
+  url: string;
+  sort: number;
+}
+
+export type ShopPictureSide = 'front' | 'back';
+
 export type ShippingMethod = 'standard' | 'express';
 
 /** The app's copy of Make's shipping table, so the cart can show a total. The invoice wins. */
@@ -1427,6 +1442,7 @@ export interface ShopOrder {
 export interface ShopData {
   shopDesigns?: ShopDesign[];
   shopGarments?: ShopGarment[];
+  shopPictures?: ShopPicture[];
   shopShipping?: ShopShipping[];
   shopRunners?: ShopRunner[];
   /** Orders the viewer may see. Missing means none. */

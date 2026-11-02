@@ -49,6 +49,8 @@ import type { MerchInput, OrderInput } from '../domain/merch';
 import type { ChapterInput, ContributionInput } from '../domain/national';
 import type { ReportInput, RequestInput } from '../domain/audit'; // National Auditor
 import type { AddressInput, DesignInput, GarmentInput, PlaceOrderInput, ShippingInput } from '../domain/shop'; // The club shop
+import type { PictureInput } from '../domain/shopPictures'; // Shop pictures
+import type { PickedMedia } from '../domain/chat';
 
 export class NotAllowedError extends Error {}
 
@@ -355,6 +357,10 @@ export interface ClubContextValue {
   /** Adds (id null) or changes a garment. Resolves to its id. */
   setShopGarment: (input: GarmentInput) => Promise<string>;
   setShopShipping: (input: ShippingInput) => Promise<void>;
+  /** Uploads a product picture (shrunk to a JPEG) for a design or one garment, a colour or any, front or back. */
+  addShopPicture: (input: PictureInput, picked: PickedMedia) => Promise<void>;
+  /** Takes a product picture out of the shop and clears its upload. */
+  removeShopPicture: (pictureId: string) => Promise<void>;
   nameShopRunner: (memberId: string) => Promise<void>;
   unnameShopRunner: (memberId: string) => Promise<void>;
   /** The NEC asks the chapters for a national contribution, split by voting members. Resolves to its id. */

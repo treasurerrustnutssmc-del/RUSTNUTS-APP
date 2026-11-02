@@ -9,6 +9,7 @@ import {
 } from '../domain/shop';
 import type { ClubData, LedgerEntry, ShippingMethod, ShopDelivery, ShopEligibility, ShopOrder } from '../domain/types';
 import { NotAllowedError } from './clubContext';
+import { addShopPictureProblem, removeShopPictureProblem, shopPicturePath, type PictureInput } from '../domain/shopPictures';
 import type { DemoCtx } from './demoActions';
 
 let idCounter = 0;
@@ -217,3 +218,19 @@ export function runShopAction(ctx: DemoCtx, a: ShopAction): ClubData {
       throw new Error(`Unknown shop action ${(a as { action: string }).action}`);
   }
 }
+
+// Product pictures. The demo keeps the picked photo where it is on the phone.
+export function addShopPicture(ctx: DemoCtx, input: PictureInput, uri: string): ClubData {
+  const id = newId('sp');
+  const path = shopPicturePath(input.designId, id);
+  refuse(addShopPictureProblem(ctx.me, { ...input, path }, ctx.data));
+  const pictures = ctx.data.shopPictures ?? [];
+  const sort = pictures.filter((p) => p.designId === input.designId).reduce((n, p) => Math.max(n, p.sort + 1), 0);
+  return { ...ctx.data, shopPictures: [...pictures, { id, ...input, path: null, url: uri, sort }] };
+}
+
+export function removeShopPicture(ctx: DemoCtx, id: string): ClubData {
+  refuse(removeShopPictureProblem(ctx.me, id, ctx.data));
+  return { ...ctx.data, shopPictures: (ctx.data.shopPictures ?? []).filter((p) => p.id !== id) };
+}
+

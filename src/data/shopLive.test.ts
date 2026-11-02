@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { placeOrderBody, shopFunctionWords, toShop, SHOP_NEEDS_SIGNAL, SHOP_CANT_SEND } from './shopLive';
+import { placeOrderBody, shopFunctionWords, shopPictureUrl, toShop, SHOP_NEEDS_SIGNAL, SHOP_CANT_SEND } from './shopLive';
 
 const T = '2026-11-01T02:00:00+00:00';
 const Z = '2026-11-01T02:00:00.000Z';
@@ -8,7 +8,7 @@ const Z = '2026-11-01T02:00:00.000Z';
 test('anything but the shop reads reads as an empty shop', () => {
   for (const odd of [[], 'x', 1, null, undefined, { designs: 'x' }] as unknown[]) {
     const s = toShop(odd as never, odd as never);
-    assert.deepEqual([s.shopDesigns, s.shopGarments, s.shopShipping, s.shopRunners, s.shopOrders], [[], [], [], [], []]);
+    assert.deepEqual([s.shopDesigns, s.shopGarments, s.shopPictures, s.shopShipping, s.shopRunners, s.shopOrders], [[], [], [], [], [], []]);
     assert.equal(s.runsShop, false);
     assert.equal(s.address, null);
   }
@@ -23,6 +23,10 @@ test('merch_catalogue() becomes designs, garments, shipping, runners and the sav
         garments: [
           { id: 'g1', design_id: 'd1', name: 'Hoodie', price_cents: '6500', sizes: ['M', 'L'], colours: ['Black'], sort: 0, on_sale: true },
           { id: 'g2', design_id: 'd1', name: 'Cap', price_cents: 3000, sizes: null, colours: null, sort: 1, on_sale: false },
+        ],
+        pictures: [
+          { id: 'p1', garment_id: null, colour: 'Black', side: 'front', path: 'd1/front.jpg', sort: 0 },
+          { id: 'p2', garment_id: 'g1', colour: null, side: 'back', path: 'd1/hoodie back.jpg', sort: 1 },
         ],
       }],
       shipping: [{ state: 'VIC', method: 'standard', cents: 1200 }],
@@ -39,6 +43,11 @@ test('merch_catalogue() becomes designs, garments, shipping, runners and the sav
     { id: 'g1', designId: 'd1', name: 'Hoodie', priceCents: 6500, sizes: ['M', 'L'], colours: ['Black'], sort: 0, onSale: true },
     { id: 'g2', designId: 'd1', name: 'Cap', priceCents: 3000, sizes: [], colours: [], sort: 1, onSale: false },
   ]);
+  assert.deepEqual(s.shopPictures, [
+    { id: 'p1', designId: 'd1', garmentId: null, colour: 'Black', side: 'front', path: 'd1/front.jpg', url: shopPictureUrl('d1/front.jpg'), sort: 0 },
+    { id: 'p2', designId: 'd1', garmentId: 'g1', colour: null, side: 'back', path: 'd1/hoodie back.jpg', url: shopPictureUrl('d1/hoodie back.jpg'), sort: 1 },
+  ]);
+  assert.match(shopPictureUrl('d1/hoodie back.jpg'), /\/storage\/v1\/object\/public\/shop-pictures\/d1\/hoodie%20back\.jpg$/);
   assert.deepEqual(s.shopShipping, [{ state: 'VIC', method: 'standard', cents: 1200 }]);
   assert.deepEqual(s.shopRunners, [{ memberId: 'm9', namedBy: 'm1', namedOn: '2026-11-01' }]);
   assert.deepEqual(s.address, { street: '1 Main St', suburb: 'Footscray', state: 'VIC', postcode: '3011' });
