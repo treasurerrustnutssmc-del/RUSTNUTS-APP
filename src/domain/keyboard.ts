@@ -7,6 +7,6 @@
  * still sits under the keyboard and has to be added back or the box is hidden behind it.
  */
 export function composerBottomRoom(os: string, keyboard: number, insetBottom: number, gap: number): number {
-  if (!keyboard) return insetBottom + gap;
+  if (keyboard <= 0) return insetBottom + gap; // a floating keyboard covers nothing (Android reports it below zero)
   return keyboard + (os === 'android' ? insetBottom : 0) + gap;
 }

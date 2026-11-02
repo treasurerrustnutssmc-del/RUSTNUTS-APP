@@ -22,3 +22,7 @@ test('iPhone reports the whole keyboard from the bottom of the screen', () => {
 test('web never moves the composer for a keyboard', () => {
   assert.equal(composerBottomRoom('web', 0, 0, GAP), GAP);
 });
+
+test('a floating Android keyboard (reported below zero) is treated as no keyboard', () => {
+  assert.equal(composerBottomRoom('android', -48, 48, GAP), 48 + GAP);
+});
