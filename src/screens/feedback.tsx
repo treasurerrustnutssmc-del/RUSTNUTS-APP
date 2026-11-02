@@ -6,10 +6,12 @@
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
-import { Linking, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from 'react-native';
 import { PickProblem, pickMedia } from '../data/chat/media';
 import { useClub } from '../data/ClubStore';
+import { runningUpdate, updateApi } from '../data/appUpdate';
 import { useFeedback } from '../data/feedback';
+import { checkAndUpdate, describeRunning, type UpdateOutcome, type UpdateStep } from '../domain/appUpdate';
 import type { PickedMedia } from '../domain/chat';
 import { formatAuDate } from '../domain/dates';
 import {
@@ -41,6 +43,8 @@ export function FeedbackRow() {
     <>
       <SectionTitle title="The app" />
       <Card style={{ padding: 0, gap: 0 }}>
+      {/* Phones only: the web version gets the newest code on a reload (Ctrl+F5). */}
+      {Platform.OS !== 'web' ? <CheckForUpdatesRow /> : null}
       <ListRow
         last
         left={<IconBadge icon="construct-outline" tone="red" />}
@@ -50,6 +54,50 @@ export function FeedbackRow() {
       />
       </Card>
     </>
+  );
+}
+
+const STEP_LINE: Record<UpdateStep, string> = {
+  checking: 'Checking…',
+  downloading: 'Downloading the update…',
+  restarting: 'Restarting into the update…',
+};
+
+/** Ask the update server now, instead of closing and opening the app twice. Shows which update this
+ *  phone is on, so a tester can read it out when something looks different on someone else's phone. */
+function CheckForUpdatesRow() {
+  const running = describeRunning(runningUpdate());
+  const [step, setStep] = useState<UpdateStep | null>(null);
+  const [result, setResult] = useState<UpdateOutcome | null>(null);
+  const busy = step !== null;
+
+  const run = () => {
+    if (busy) return;
+    setResult(null);
+    checkAndUpdate(updateApi, setStep).then((out) => {
+      setResult(out);
+      if (out.kind !== 'restarting') setStep(null);
+    });
+  };
+
+  const subtitle = step
+    ? STEP_LINE[step]
+    : result?.kind === 'current'
+      ? `You’re up to date. ${running}`
+      : result?.kind === 'failed'
+        ? result.message
+        : result?.kind === 'off'
+          ? 'Updates don’t run in this version. Get the newest from the app store or tester link.'
+          : running;
+
+  return (
+    <ListRow
+      left={<IconBadge icon={result?.kind === 'current' ? 'checkmark-circle-outline' : 'cloud-download-outline'} tone={result?.kind === 'failed' ? 'red' : 'steel'} />}
+      title={busy ? 'Checking for updates' : 'Check for updates'}
+      subtitle={<Small numberOfLines={3} style={result?.kind === 'failed' ? { color: colors.danger } : undefined}>{subtitle}</Small>}
+      right={busy ? <ActivityIndicator color={colors.boneMute} /> : undefined}
+      onPress={busy ? undefined : run}
+    />
   );
 }
 
