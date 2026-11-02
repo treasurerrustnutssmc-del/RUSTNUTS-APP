@@ -1123,6 +1123,7 @@ DEMO_DATA.rides.push(
 // ---------------------------------------------------------------------------
 
 const TEE_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+const SITE_SHOP = 'https://www.rustnutssmc.com.au/shop';
 const shopAt = at(ago(3));
 Object.assign(DEMO_DATA, {
   shopDesigns: [
@@ -1138,6 +1139,16 @@ Object.assign(DEMO_DATA, {
     { id: 'sg-family-tee', designId: 'sd-family', name: 'Tee', priceCents: 3500, sizes: ['XS', ...TEE_SIZES], colours: ['Black'], sort: 1, onSale: true },
     { id: 'sg-better-tee', designId: 'sd-better', name: 'Tee', priceCents: 3500, sizes: TEE_SIZES, colours: ['Black', 'White'], sort: 1, onSale: true },
     { id: 'sg-ruok-tee', designId: 'sd-ruok', name: 'Tee', priceCents: 3500, sizes: TEE_SIZES, colours: ['Yellow'], sort: 1, onSale: true },
+  ],
+  // The real artwork from the club website's shop, so the demo shows pictures as the live shop does.
+  shopPictures: [
+    { id: 'sp-member-front', designId: 'sd-member', garmentId: null, colour: null, side: 'front', path: null, url: `${SITE_SHOP}/member-front.jpg`, sort: 0 },
+    { id: 'sp-member-back', designId: 'sd-member', garmentId: null, colour: null, side: 'back', path: null, url: `${SITE_SHOP}/member-back.jpg`, sort: 1 },
+    { id: 'sp-family-front', designId: 'sd-family', garmentId: null, colour: null, side: 'front', path: null, url: `${SITE_SHOP}/family-front.jpg`, sort: 0 },
+    { id: 'sp-family-back', designId: 'sd-family', garmentId: null, colour: null, side: 'back', path: null, url: `${SITE_SHOP}/family-back.jpg`, sort: 1 },
+    { id: 'sp-better-front', designId: 'sd-better', garmentId: null, colour: 'Black', side: 'front', path: null, url: `${SITE_SHOP}/supporter-front.jpg`, sort: 0 },
+    { id: 'sp-better-back', designId: 'sd-better', garmentId: null, colour: 'Black', side: 'back', path: null, url: `${SITE_SHOP}/supporter-back.jpg`, sort: 1 },
+    { id: 'sp-ruok-front', designId: 'sd-ruok', garmentId: null, colour: null, side: 'front', path: null, url: `${SITE_SHOP}/fourth-design-front.jpg`, sort: 0 },
   ],
   shopShipping: ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'].flatMap((state) => [
     { state, method: 'standard' as const, cents: state === 'VIC' ? 1200 : 1500 },

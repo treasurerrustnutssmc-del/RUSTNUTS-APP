@@ -17,6 +17,8 @@ import {
 } from '../ui/primitives';
 import { ActionWithReason, MemberPicker, styles, useRun } from './adminBits';
 import { ShopOrderRow } from './shop';
+import { DesignPicturesEditor, DesignThumb, designCover } from './shopPictures';
+import { pictureGaps } from '../domain/shopPictures';
 
 const num = { fontVariant: ['tabular-nums' as const] };
 const DONE_SHOWN = 20;
@@ -49,6 +51,7 @@ export function ShopAdminScreen({ navigation }: RootScreen<'ShopAdmin'>) {
   const open = (o: ShopOrder) => navigation.navigate('ShopOrder', { orderId: o.id });
   const designs = [...(data.shopDesigns ?? [])].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
   const garmentCount = (id: string) => (data.shopGarments ?? []).filter((g) => g.designId === id).length;
+  const gaps = pictureGaps(data);
   const nothingOpen = q.held.length + q.awaitingPayment.length + q.toHandOver.length === 0;
 
   return (
@@ -73,21 +76,26 @@ export function ShopAdminScreen({ navigation }: RootScreen<'ShopAdmin'>) {
                 <Small>No designs yet.</Small>
               </View>
             ) : (
-              designs.map((d, i) => (
+              designs.map((d, i) => {
+                const cover = designCover(data.shopPictures, d.id);
+                const missing = gaps.filter((g) => g.design.id === d.id).length;
+                return (
                 <ListRow
                   key={d.id}
                   last={i === designs.length - 1}
-                  left={<IconBadge icon="shirt-outline" />}
+                  left={cover ? <DesignThumb picture={cover} name={d.name} /> : <IconBadge icon="shirt-outline" />}
                   title={d.name}
                   subtitle={
                     <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
                       <Text style={styles.meta}>{`${ELIGIBILITY_LABEL[d.eligibility]} · ${garmentCount(d.id)} ${garmentCount(d.id) === 1 ? 'garment' : 'garments'}`}</Text>
+                      {d.onSale && missing > 0 ? <Text style={styles.meta}>{`${missing} without a picture of their colour`}</Text> : null}
                       {!d.onSale ? <Chip label="Off sale" tone="steel" /> : null}
                     </View>
                   }
                   onPress={() => navigation.navigate('ShopDesignEdit', { designId: d.id })}
                 />
-              ))
+                );
+              })
             )}
           </Card>
           <Button label="Add a design" kind="secondary" icon="add" onPress={() => navigation.navigate('ShopDesignEdit', {})} />
@@ -253,6 +261,7 @@ export function ShopDesignEditScreen({ route, navigation }: RootScreen<'ShopDesi
             )}
           </Card>
           <Button label="Add a garment" kind="secondary" icon="add" onPress={() => navigation.navigate('ShopGarmentEdit', { designId: design.id })} />
+          <DesignPicturesEditor design={design} garments={garments} />
         </>
       ) : null}
     </Screen>

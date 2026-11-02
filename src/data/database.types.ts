@@ -756,6 +756,11 @@ export type Database = {
         Returns: string;
       };
       set_shop_shipping: { Args: { p_state: string; p_method: string; p_cents: number }; Returns: undefined };
+      add_shop_picture: {
+        Args: { p_design: string; p_garment: string | null; p_colour: string | null; p_side: string; p_path: string };
+        Returns: string;
+      };
+      remove_shop_picture: { Args: { p_id: string }; Returns: string };
       name_shop_runner: { Args: { p_member: string }; Returns: undefined };
       unname_shop_runner: { Args: { p_member: string }; Returns: undefined };
       record_conduct: {

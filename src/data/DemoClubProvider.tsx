@@ -316,6 +316,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       return r.id;
     },
     setShopShipping: async (input) => keep(shop.setShopShipping(fresh(), input)),
+    addShopPicture: async (input, picked) => keep(shop.addShopPicture(fresh(), input, picked.uri)),
+    removeShopPicture: async (id) => keep(shop.removeShopPicture(fresh(), id)),
     nameShopRunner: async (memberId) => keep(shop.nameShopRunner(fresh(), memberId)),
     unnameShopRunner: async (memberId) => keep(shop.unnameShopRunner(fresh(), memberId)),
     proposeContribution: async (input) => {

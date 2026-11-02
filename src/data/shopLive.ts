@@ -4,9 +4,10 @@
 
 import type { PlaceOrderInput, AddressInput } from '../domain/shop';
 import type {
-  ShippingMethod, ShopData, ShopDelivery, ShopEligibility, ShopOrder, ShopOrderStatus,
+  ShippingMethod, ShopData, ShopDelivery, ShopEligibility, ShopOrder, ShopOrderStatus, ShopPictureSide,
 } from '../domain/types';
 import type { PlaceBody } from '../../supabase/functions/_shared/shopOrder';
+import { SUPABASE_URL } from './config';
 
 type Ts = string;
 type Id = string;
@@ -20,6 +21,8 @@ export interface CatalogueJson {
       id: Id; design_id: Id; name: string; price_cents: Cents; sizes: string[] | null; colours: string[] | null; sort: number;
       on_sale: boolean;
     }[] | null;
+    /** Missing from a database older than the pictures. */
+    pictures?: { id: Id; garment_id: Id | null; colour: string | null; side: ShopPictureSide; path: string; sort: number }[] | null;
   }[];
   shipping: { state: string; method: ShippingMethod; cents: Cents }[];
   address: AddressInput | null;
@@ -47,6 +50,12 @@ export interface LiveShop extends Required<ShopData> {
   runsShop: boolean;
 }
 
+export const SHOP_PICTURE_BUCKET = 'shop-pictures';
+
+/** The picture's public address (the bucket is public, like the website's shop images). */
+export const shopPictureUrl = (path: string) =>
+  `${SUPABASE_URL}/storage/v1/object/public/${SHOP_PICTURE_BUCKET}/${path.split('/').map(encodeURIComponent).join('/')}`;
+
 const instant = (ts: Ts) => new Date(ts).toISOString();
 const maybeInstant = (ts: Ts | null | undefined) => (ts ? instant(ts) : null);
 const list = <T,>(v: T[] | null | undefined): T[] => (Array.isArray(v) ? v : []);
@@ -66,6 +75,12 @@ export function toShop(catalogue: CatalogueJson | null | undefined, orders: Orde
       list(d.garments).map((g) => ({
         id: g.id, designId: g.design_id, name: g.name, priceCents: num(g.price_cents), sizes: list(g.sizes), colours: list(g.colours),
         sort: g.sort, onSale: g.on_sale,
+      })),
+    ),
+    shopPictures: designs.flatMap((d) =>
+      list(d.pictures).map((p) => ({
+        id: p.id, designId: d.id, garmentId: p.garment_id, colour: p.colour, side: p.side, path: p.path, url: shopPictureUrl(p.path),
+        sort: p.sort,
       })),
     ),
     shopShipping: list(c?.shipping).map((s) => ({ state: s.state, method: s.method, cents: num(s.cents) })),

@@ -107,7 +107,10 @@ import * as merch from '../domain/merch';
 import * as national from '../domain/national';
 import * as audit from '../domain/audit'; // National Auditor
 import * as shop from '../domain/shop'; // The club shop
-import { placeOrderBody, shopFunctionWords } from './shopLive'; // The club shop
+import { addShopPictureProblem, removeShopPictureProblem, shopPicturePath } from '../domain/shopPictures'; // Shop pictures
+import { newClientRef } from '../domain/shopCart';
+import { prepareUpload } from './chat/media';
+import { SHOP_PICTURE_BUCKET, placeOrderBody, shopFunctionWords } from './shopLive'; // The club shop
 
 const clubCache = createClubCache(AsyncStorage);
 
@@ -1334,6 +1337,28 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     setShopShipping: async (input) => {
       deny(shop.setShopShippingProblem(visibleMe, input, data));
       ok(await supabase().rpc('set_shop_shipping', { p_state: input.state.trim().toUpperCase(), p_method: input.method, p_cents: input.cents }));
+      await after();
+    },
+    addShopPicture: async (input, picked) => {
+      const path = shopPicturePath(input.designId, newClientRef());
+      deny(addShopPictureProblem(visibleMe, { ...input, path }, data));
+      const { file } = await prepareUpload(picked);
+      const up = await supabase().storage.from(SHOP_PICTURE_BUCKET).upload(path, file.bytes, { contentType: file.contentType, upsert: false });
+      if (up.error) throw new Error('That photo couldn’t be uploaded. Check your signal and try again.');
+      const added = await supabase().rpc('add_shop_picture', {
+        p_design: input.designId, p_garment: input.garmentId, p_colour: input.colour, p_side: input.side, p_path: path,
+      });
+      if (added.error) {
+        // The file never made the shop: clear it away.
+        supabase().storage.from(SHOP_PICTURE_BUCKET).remove([path]).then(() => undefined, () => undefined);
+      }
+      ok(added);
+      await after();
+    },
+    removeShopPicture: async (id) => {
+      deny(removeShopPictureProblem(visibleMe, id, data));
+      const r = ok(await supabase().rpc('remove_shop_picture', { p_id: id }));
+      supabase().storage.from(SHOP_PICTURE_BUCKET).remove([r.data as string]).then(() => undefined, () => undefined);
       await after();
     },
     nameShopRunner: async (memberId) => {

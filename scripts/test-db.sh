@@ -544,4 +544,13 @@ done
 "${PSQL[@]}" -d rustnuts_shop -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_shop -f "$ROOT/supabase/tests/shop_test.sql"
 
+# The club shop's product pictures, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_shop_pictures" >/dev/null
+"${PSQL[@]}" -d rustnuts_shop_pictures -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_shop_pictures -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_shop_pictures -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_shop_pictures -f "$ROOT/supabase/tests/shop_pictures_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
