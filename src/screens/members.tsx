@@ -92,12 +92,13 @@ function ClubSplitTable({ rows }: { rows: ({ id: string; name: string } & Status
   const cell = { flex: 1, textAlign: 'center' as const };
   return (
     <View>
-      <Row style={{ paddingBottom: 6 }}>
+      {/* The heads are for the eye; each row already says its numbers to a screen reader. */}
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ flexDirection: 'row', paddingBottom: 6 }}>
         <View style={{ flex: 1.1 }} />
         {SPLIT_COLUMNS.map((c) => (
           <Label key={c.key} style={[cell, { letterSpacing: 0.6 }]}>{c.label}</Label>
         ))}
-      </Row>
+      </View>
       {rows.map((r, i) => (
         <View
           key={r.id}
@@ -299,7 +300,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
 
       <Card>
         <H2>The club</H2>
-        <ClubSplitTable rows={[...counts.split, { id: 'club', name: 'Club', ...counts.club }]} />
+        <ClubSplitTable rows={[...counts.split, { id: 'club-total', name: 'Club', ...counts.club }]} />
         {counts.onApp < counts.total ? (
           <Small>
             {counts.onApp} of {counts.total} signed in to the app so far.
