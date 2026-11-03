@@ -1,6 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MIN_CHECK_MS, NO_DOWNLOAD, NO_SIGNAL, REOPEN, checkAndUpdate, statusLine, describeRunning, shortUpdateId, type UpdateApi } from './appUpdate';
+import {
+  MIN_CHECK_MS,
+  NO_DOWNLOAD,
+  NO_SIGNAL,
+  REOPEN,
+  RESUME_CHECK_GAP_MS,
+  UPDATE_READY_ACTION,
+  UPDATE_READY_TEXT,
+  UPDATE_READY_TITLE,
+  checkAndUpdate,
+  describeRunning,
+  fetchQuietly,
+  restartNow,
+  shortUpdateId,
+  shouldCheckOnResume,
+  statusLine,
+  type UpdateApi,
+} from './appUpdate';
 
 test('shortUpdateId keeps the first 8 characters, upper case', () => {
   assert.equal(shortUpdateId('1a2b3c4d-5e6f-7a8b-9c0d-112233445566'), '1A2B3C4D');
@@ -137,4 +154,58 @@ test('statusLine: every state fits one phone line (36 characters or fewer)', () 
 
 test('the check is held long enough to read', () => {
   assert.ok(MIN_CHECK_MS >= 600);
+});
+
+// "Update ready" strip: the update the phone fetched by itself (on opening, or on coming back to the
+// front) is offered with one tap, instead of closing and opening the app twice.
+
+test('shouldCheckOnResume: checks on the first return, then at most every 10 minutes', () => {
+  const t0 = Date.parse('2026-11-03T03:00:00Z');
+  assert.equal(shouldCheckOnResume(null, t0), true);
+  assert.equal(shouldCheckOnResume(t0, t0 + RESUME_CHECK_GAP_MS - 1), false);
+  assert.equal(shouldCheckOnResume(t0, t0 + RESUME_CHECK_GAP_MS), true);
+  assert.ok(RESUME_CHECK_GAP_MS >= 5 * 60_000);
+});
+
+test('fetchQuietly: something new downloads and says so, without restarting', async () => {
+  const api = fakeApi({ check: async () => ({ isAvailable: true, isRollBackToEmbedded: false }) });
+  assert.equal(await fetchQuietly(api), true);
+  assert.deepEqual(api.calls, ['fetch']);
+});
+
+test('fetchQuietly: nothing new, no signal or updates off all stay quiet', async () => {
+  assert.equal(await fetchQuietly(fakeApi()), false);
+  assert.equal(await fetchQuietly(fakeApi({ isEnabled: false })), false);
+  const offline = fakeApi({
+    check: async () => {
+      throw new Error('offline');
+    },
+  });
+  assert.equal(await fetchQuietly(offline), false);
+  const badDownload = fakeApi({
+    check: async () => ({ isAvailable: true, isRollBackToEmbedded: false }),
+    fetch: async () => {
+      throw new Error('hash');
+    },
+  });
+  assert.equal(await fetchQuietly(badDownload), false);
+  assert.ok(!badDownload.calls.includes('reload'));
+});
+
+test('restartNow: restarts into the waiting update; a failed restart says to reopen', async () => {
+  const api = fakeApi();
+  assert.deepEqual(await restartNow(api), { kind: 'restarting' });
+  assert.deepEqual(api.calls, ['reload']);
+  const stuck = fakeApi({
+    reload: async () => {
+      throw new Error('no runtime');
+    },
+  });
+  assert.deepEqual(await restartNow(stuck), { kind: 'downloaded' });
+});
+
+test('the strip’s words are short and say what one tap does', () => {
+  assert.equal(UPDATE_READY_TITLE, 'Update ready');
+  assert.equal(UPDATE_READY_ACTION, 'Restart');
+  assert.ok(UPDATE_READY_TEXT.length <= 40);
 });

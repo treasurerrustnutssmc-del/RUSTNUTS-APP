@@ -13,6 +13,8 @@ import { colors } from './src/theme';
 import { DemoBar } from './src/ui/DemoBar';
 import { appMode, useAppMode } from './src/data/reviewMode';
 import { RefreshBanner } from './src/ui/RefreshBanner';
+import { useUpdateReady } from './src/data/appUpdate';
+import { UpdateReadyStrip } from './src/ui/UpdateReadyStrip';
 // Lane E: share in
 import { useWaitingShare } from './src/data/shareIn';
 import { shareWaitStage } from './src/domain/shareIn';
@@ -22,6 +24,8 @@ import { useAppFonts } from './src/useAppFonts';
 function Shell() {
   const { isDemo, loading, refreshError, level, needsApplication, loadError, me } = useClub();
   const insets = useSafeAreaInsets();
+  // A downloaded update waiting for a restart: one tap on the strip loads it.
+  const updateReady = useUpdateReady();
   // Lane E: share in. Shared in by someone without "Share to the club": say why nothing opened.
   const share = useWaitingShare(
     loading ? null : shareWaitStage({ level, needsApplication, loadError: loadError !== null, status: me?.status ?? null }),
@@ -40,7 +44,8 @@ function Shell() {
       <View style={{ flex: 1, backgroundColor: colors.ink }}>
         <RefreshBanner />
         {share ? <ShareWaitingStrip {...share} padTop={!refreshError} /> : null}
-        <SafeAreaInsetsContext.Provider value={refreshError || share ? { ...insets, top: 0 } : insets}>
+        {updateReady ? <UpdateReadyStrip padTop={!refreshError && !share} /> : null}
+        <SafeAreaInsetsContext.Provider value={refreshError || share || updateReady ? { ...insets, top: 0 } : insets}>
           <View style={{ flex: 1 }}>
             <RootNavigator />
           </View>
@@ -53,6 +58,7 @@ function Shell() {
     <View style={{ flex: 1, backgroundColor: colors.ink }}>
       <DemoBar />
       {share ? <ShareWaitingStrip {...share} padTop={false} /> : null}
+      {updateReady ? <UpdateReadyStrip padTop={false} /> : null}
       <SafeAreaInsetsContext.Provider value={{ ...insets, top: 0 }}>
         <View style={{ flex: 1 }}>
           <RootNavigator />
