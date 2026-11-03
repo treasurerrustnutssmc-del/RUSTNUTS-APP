@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AppState, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { validateApplicationBike } from '../data/clubContext';
+import { validateAdult, validateApplicationBike } from '../data/clubContext';
 import { DEMO_PERSONAS } from '../data/demoData';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
@@ -34,6 +34,7 @@ import {
   Screen,
   Small,
   Stack,
+  Toggle,
 } from '../ui/primitives';
 
 export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
@@ -252,6 +253,7 @@ export function JoinScreen() {
   });
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [joinAs, setJoinAs] = useState<JoinAs>('introduced');
+  const [adult, setAdult] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -260,6 +262,7 @@ export function JoinScreen() {
     email: !isDemo || /^\S+@\S+\.\S+$/.test(form.email.trim()) ? null : 'Add an email address we can send your code to.',
     phone: form.phone.replace(/\D/g, '').length >= 8 ? null : 'Add a mobile number.',
     chapter: chapterId ? null : 'Pick the chapter you ride with.',
+    adult: validateAdult(adult),
     // Make and model go together; the year has its own rule. Same checks the database makes.
     bikeParts: validateApplicationBike({ make: form.make, model: form.model, year: null }, today),
     year: !form.year.trim()
@@ -351,6 +354,16 @@ export function JoinScreen() {
           onChange={setJoinAs}
         />
         <Field label="Who introduced you?" value={form.introducedBy} onChangeText={set('introducedBy')} placeholder="A member's name or road name" />
+      </Card>
+
+      <Card>
+        <Toggle
+          label="I'm 18 or over"
+          description="The app is for adults, Family included."
+          value={adult}
+          onChange={setAdult}
+        />
+        {err('adult') ? <Small style={{ color: colors.danger }}>{err('adult')}</Small> : null}
       </Card>
 
       <Card>

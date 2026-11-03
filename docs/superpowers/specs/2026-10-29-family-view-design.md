@@ -5,7 +5,7 @@ it; Jeff can veto.
 
 ## Why
 
-Family is an app-only status for partners and kids (constitution v4 has no Family category, and 5.8
+Family is an app-only status for partners and grown-up kids, 18 and over since 3 Nov 2026 (constitution v4 has no Family category, and 5.8
 says a family relationship alone doesn't make someone a Supporter). Until now an approved Family
 person was treated like any approved member: the whole directory with shared phone numbers, every
 member chat they could reach, presented Treasurer's Reports, the business screens. The club is
@@ -17,7 +17,7 @@ family BBQs."
 
 ## What family see
 
-Three tabs, nothing else:
+Three tabs, nothing else (3 Nov 2026: Family now get a fourth tab, Chat, with only the Family chat; see `2026-11-03-family-chat-design.md`):
 
 - **Home:** a welcome, the next few rides and events, and the club links (website, shop, socials).
 - **Rides:** the ride calendar from today on (title, date and time, where from, notes, the colour key,
@@ -66,7 +66,7 @@ Migration `20270530000000_family_view.sql`.
 
 ## Open question for Jeff
 
-**Chat.** Recommended: no chats for Family for now. It's easy to open the whole-club chat to them
+**Chat.** (Superseded 3 Nov 2026 by `2026-11-03-family-chat-design.md`: Family read and post in one Family chat.) Recommended: no chats for Family for now. It's easy to open the whole-club chat to them
 later, and hard to take it back once members have said things there they assumed were members only.
 The alternative is Family in the whole-club chat (read and post) and nothing else.
 

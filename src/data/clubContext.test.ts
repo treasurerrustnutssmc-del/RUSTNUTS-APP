@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateApplicationBike, validateBike } from './clubContext';
+import { validateAdult, validateApplicationBike, validateBike } from './clubContext';
 
 const TODAY = '2026-10-24';
 const bike = (make: string, model: string, year: number | null) => ({
@@ -32,4 +32,9 @@ test('the join form takes a whole bike or none at all', () => {
 
 test('a year on its own, with no make or model, is flagged rather than dropped', () => {
   assert.equal(ok(validateApplicationBike({ make: '', model: '', year: 2019 }, TODAY)), false);
+});
+
+test('the join form only goes through once the applicant says they are 18 or over', () => {
+  assert.equal(ok(validateAdult(false)), false);
+  assert.equal(ok(validateAdult(true)), true);
 });

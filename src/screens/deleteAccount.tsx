@@ -1,5 +1,5 @@
-// Delete my account (both app stores require it). Says plainly what goes, what the club keeps
-// without a name, and that the club membership itself isn't touched.
+// Delete my account (both app stores require it). Says plainly what goes, what the club keeps,
+// and that the club membership itself isn't touched. Keep in step with site/delete-account.html.
 
 import React, { useState } from 'react';
 import { View } from 'react-native';
@@ -11,7 +11,7 @@ import { Body, Card, ConfirmButton, H2, Notice, Screen, Small } from '../ui/prim
 import { colors, space } from '../theme';
 
 const DELETED = [
-  'Your sign-in, so this email can’t open the app any more',
+  'Your sign-in. Signing in again with this email starts a new request to join',
   'Contact details, licence and first aid dates',
   'Emergency contacts, bikes and regos',
   'Chat messages and reactions',
@@ -21,11 +21,15 @@ const DELETED = [
 ];
 
 const KEPT = [
+  'If the club loaded your place from its roster: the roster keeps your name, email, membership level and dates',
   'Fees, payments and anything in the club’s books',
+  'Copies of your club shop orders in the club’s order system (Make.com, Google Sheets, Docs and Drive, and Resend), as financial records',
   'Meeting minutes, votes and action items',
   'Attendance, status changes, 5.5 notices and conduct records',
   'Board seats you held in the past',
-  'Chat messages someone has reported, for the board to deal with',
+  'Rusty Bus bookings and logs, routes you uploaded and past merch orders',
+  'Anything someone has reported (a message, a post or your profile), as it was when reported, for the board to deal with',
+  'On the website photo crew: photos you put on the club website from your phone (take them down first if you want them gone)',
 ];
 
 function List({ items }: { items: string[] }) {
@@ -94,9 +98,9 @@ export function DeleteAccountScreen() {
         <Small>Nobody can open the photos from what’s deleted. The board clears the files themselves.</Small>
       </Card>
       <Card>
-        <H2>Kept by the club, without your name</H2>
+        <H2>Kept by the club</H2>
         <List items={KEPT} />
-        <Small>These show as “Former member”. The club has to keep its books and minutes.</Small>
+        <Small>The roster, the shop order copies and anything reported keep your name. Everything else here shows as “Former member”; names typed into free text (for example minutes) aren’t changed. The club has to keep its books and minutes.</Small>
       </Card>
       <Card>
         <H2>Not changed</H2>

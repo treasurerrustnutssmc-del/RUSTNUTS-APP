@@ -1,4 +1,4 @@
-// Family view: Home, one ride and Me for partners and kids, who use the app with no Club rights.
+// Family view: Home, one ride and Me (plus the Family chat tab) for partners and grown-up kids (18 and over), who use the app with no Club rights.
 // The Rides tab is the members' one (Family get no answers, crew or route library). What Family
 // may see is decided by the database; see docs/superpowers/specs/2026-10-29-family-view-design.md.
 

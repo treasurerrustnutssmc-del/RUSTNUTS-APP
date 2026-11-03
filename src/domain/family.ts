@@ -1,4 +1,4 @@
-// Family view: partners and kids who use the app with no Club rights. See
+// Family view: partners and grown-up kids (18 and over) who use the app with no Club rights. See
 // docs/superpowers/specs/2026-10-29-family-view-design.md. Who counts as Family is isFamily in access.ts.
 
 import { lastDay } from './rides';
