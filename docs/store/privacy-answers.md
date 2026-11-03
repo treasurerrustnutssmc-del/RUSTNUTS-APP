@@ -51,7 +51,7 @@ policy together if anything changes.
 | Is all of the user data collected by your app encrypted in transit? | Yes |
 | Account creation | Username and other authentication (email plus a one-time code; no passwords) |
 | Delete account URL | https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/delete-account.html |
-| Can users ask for some of their data to be deleted without deleting the account? | Not answered yet. Answer Yes once the deletion page with the "Delete some of your data and keep your account" section is live (it needs a Delete data URL; use the same page). |
+| Can users ask for some of their data to be deleted without deleting the account? | Yes (saved 3 Nov 2026). Delete data URL: https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/delete-account.html, the same page as account deletion; its "Delete some of your data and keep your account" section has the steps. |
 | Independent security review | No |
 | Target audience (its own App content page) | 18 and over |
 | Contains ads (its own App content page) | Yes: the club's own sponsors and their member deals; no ad networks |
