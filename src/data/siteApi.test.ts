@@ -14,7 +14,7 @@ import {
   type SiteApiDeps,
 } from '../../supabase/functions/_shared/siteApi';
 import {
-  BAD_SIGNUP_EMAIL, LONG_SIGNUP_NAME, LONG_SIGNUP_PHONE, NOT_ON_WEBSITE, NO_SIGNUP_NAME, TOO_MANY_SIGNUPS,
+  ALREADY_SIGNED_UP, BAD_SIGNUP_EMAIL, LONG_SIGNUP_NAME, LONG_SIGNUP_PHONE, NOT_ON_WEBSITE, NO_SIGNUP_NAME, TOO_MANY_SIGNUPS,
 } from '../domain/websiteSignups';
 import {
   GUESTS_LIMITS, JOB_NOT_LISTED, NOTHING_PICKED, PILLION_NEEDS_RIDER, RIDE_FULL, SIGNUP_TOO_LONG, SIGNUPS_CLOSED,
@@ -177,7 +177,9 @@ test('the sign-up words are the app’s', () => {
     notOnWebsite: NOT_ON_WEBSITE, closed: SIGNUPS_CLOSED, noName: NO_SIGNUP_NAME, longName: LONG_SIGNUP_NAME, badEmail: BAD_SIGNUP_EMAIL,
     longPhone: LONG_SIGNUP_PHONE, nothingPicked: NOTHING_PICKED, pillionNeedsRider: PILLION_NEEDS_RIDER, guests: GUESTS_LIMITS,
     jobNotListed: JOB_NOT_LISTED, tooLong: SIGNUP_TOO_LONG, tooMany: TOO_MANY_SIGNUPS, full: RIDE_FULL,
+    alreadyOn: ALREADY_SIGNED_UP,
   });
+  assert.equal(ALREADY_SIGNED_UP, 'That email is already on the list for this ride. To change it, email the club.');
 });
 
 test('GET /charity-rides: the public list straight through, cached five minutes; 503 no-store when down', async () => {
@@ -320,6 +322,9 @@ test('POST /charity-signup: honeypot, other origins, and what the database says'
   assert.equal(calls.signups.length, 0);
   const full = deps({ websiteSignup: async () => RIDE_FULL });
   assert.deepEqual(await handleSiteApi({ method: 'POST', path: '/charity-signup', origin: ORIGIN, body: signup }, full.d).then((r) => [r.status, r.body]), [400, { error: RIDE_FULL }]);
+  // An email already on the list can't overwrite that sign-up from the form (ChatGPT audit F04).
+  const already = deps({ websiteSignup: async () => ALREADY_SIGNED_UP });
+  assert.deepEqual(await handleSiteApi({ method: 'POST', path: '/charity-signup', origin: ORIGIN, body: signup }, already.d).then((r) => [r.status, r.body]), [400, { error: ALREADY_SIGNED_UP }]);
   const closed = deps({ websiteSignup: async () => SIGNUPS_CLOSED });
   assert.deepEqual(await handleSiteApi({ method: 'POST', path: '/charity-signup', origin: ORIGIN, body: signup }, closed.d).then((r) => [r.status, r.body]), [400, { error: SIGNUPS_CLOSED }]);
   const busy = deps({ websiteSignup: async () => TOO_MANY_SIGNUPS });

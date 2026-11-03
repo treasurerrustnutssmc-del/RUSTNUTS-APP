@@ -55,6 +55,8 @@ test('the payload is the bot’s Jotform shape, wrapped as rawRequest', () => {
   const payload = makePayload(ORDER);
   assert.deepEqual(Object.keys(payload), ['rawRequest']);
   assert.deepEqual(JSON.parse(payload.rawRequest), o);
+  // The app's own order id rides along, so Make can spot a second post of the same order (ChatGPT audit F06).
+  assert.equal(o.appOrderId, ORDER.id);
   assert.ok(!payload.rawRequest.includes('shipping_cents'));
 });
 
@@ -151,4 +153,22 @@ test('a body that is not a cart or a resend is refused before the database', asy
     assert.deepEqual(await handleShopOrder(ENV, body, d), { status: 400, body: { error: START_AGAIN } });
   }
   assert.equal(calls.place.length, 0);
+});
+
+test('when recording "sent" fails it is tried again, and the member still hears it was sent', async () => {
+  let tries = 0;
+  const { d, calls } = deps({
+    sent: async (id, ok, error) => { tries += 1; calls.sent.push([id, ok, error]); if (tries === 1) throw new Error('db blip'); },
+  });
+  const got = await handleShopOrder(ENV, { clientRef: ORDER.client_ref, lines: [] }, d);
+  assert.equal(got.body.status, 'sent');
+  assert.equal(calls.post.length, 1, 'posted to Make once');
+  assert.deepEqual(calls.sent, [[ORDER.id, true, null], [ORDER.id, true, null]]);
+});
+
+test('when recording "sent" keeps failing the member still hears it was sent, and Make is not posted again', async () => {
+  const { d, calls } = deps({ sent: async () => { throw new Error('db down'); } });
+  const got = await handleShopOrder(ENV, { clientRef: ORDER.client_ref, lines: [] }, d);
+  assert.equal(got.body.status, 'sent');
+  assert.equal(calls.post.length, 1);
 });

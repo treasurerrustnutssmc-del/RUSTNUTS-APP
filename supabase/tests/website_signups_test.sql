@@ -169,11 +169,13 @@ begin
   assert w.name = 'Sam Rider' and w.email = 'sam@example.com' and w.phone = '0400 000 000' and w.riding and w.job = 'BBQ' and w.notes = 'Late start', 'the row kept';
   -- A helper bringing nobody always fits, even now the places are nearly gone.
   perform pg_temp.expect_service(pg_temp.door(kids, 'Kim Helper', 'kim@example.com', null, false, false, 0, null, 'BBQ', null), null);
-  -- The same email again replaces Sam's answer rather than adding a second one (and can't take more than the places).
-  perform pg_temp.expect_service(pg_temp.door(kids, 'Sam Rider', 'sam@example.com', null, true, true, 1, 'Bec', null, null), 'The ride’s full.');
-  perform pg_temp.expect_service(pg_temp.door(kids, 'Sam Rider', 'sam@example.com', null, true, true, 0, null, null, 'Pillion now'), null);
+  -- The same email again can't overwrite Sam's answer: the form can't prove it's Sam (ChatGPT audit F04).
+  perform pg_temp.expect_service(pg_temp.door(kids, 'Not Sam', ' SAM@example.com', '0499 999 999', false, false, 0, null, 'BBQ', 'Prank'),
+    'That email is already on the list for this ride. To change it, email the club.');
   assert (select count(*) from website_signups where ride_id = kids::uuid and email = 'sam@example.com') = 1, 'one row per email per ride';
-  assert (select pillion from website_signups where ride_id = kids::uuid and email = 'sam@example.com'), 'the answer replaced';
+  assert (select name = 'Sam Rider' and riding and notes = 'Late start' from website_signups where ride_id = kids::uuid and email = 'sam@example.com'), 'Sam’s answer stands';
+  -- The board changes Sam's answer on Sam's word: a pillion, no job. The ride is now full.
+  update website_signups set pillion = true, job = null where ride_id = kids::uuid and email = 'sam@example.com';
 
   -- The ride is now full (2 members + 2 from the website): a member can't add a guest either.
   perform pg_temp.expect(fran, format('select public.sign_up_charity(%L, true, true, 1, %L, null, null)', kids, 'Joe'), 'The ride’s full.');

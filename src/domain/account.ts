@@ -9,12 +9,16 @@ import type { ClubData, Member, Position } from './types';
 export const FORMER_MEMBER = 'Former member';
 
 export const STEP_DOWN_FIRST = 'Step down from your seat first, so the club can fill it. Then you can delete your account.';
+/** The Chairman can't step down in the app (the seat changes by the club's vote), so email instead. */
+export const CHAIR_EMAILS_US = 'The National Chairman’s seat changes by the club’s vote. To delete your account, email apps@rustnutssmc.com.au.';
 
 /** Why `me` can't delete their account now, or null when they can. A board or national seat comes first. */
 export function deleteAccountProblem(me: Member | null, positions: Position[]): string | null {
   if (!me) return 'Sign in first.';
   const seats = [...BOARD_ROLES, ...NATIONAL_ROLES];
-  if (activePositions(me.id, positions).some((p) => seats.includes(p.role))) return STEP_DOWN_FIRST;
+  const mine = activePositions(me.id, positions);
+  if (mine.some((p) => p.role === 'nec_chair')) return CHAIR_EMAILS_US;
+  if (mine.some((p) => seats.includes(p.role))) return STEP_DOWN_FIRST;
   return null;
 }
 

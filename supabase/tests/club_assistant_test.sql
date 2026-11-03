@@ -87,6 +87,11 @@ begin
   assert pg_temp.start_error('00000000-0000-0000-0000-0000000000a1') = 'You’ve asked 15 today. More tomorrow.',
     pg_temp.start_error('00000000-0000-0000-0000-0000000000a1');
   assert pg_temp.start_error('00000000-0000-0000-0000-0000000000a2') is null, 'Bolts can ask';
+  assert (select questions from private.assistant_days where member_id = '00000000-0000-0000-0000-0000000000a1') = 15, 'a refusal isn’t counted';
+  -- Counted before it's checked, so questions sent together can't all get under the limit before the
+  -- day's row exists (ChatGPT audit F07): the day's count is no longer read with a lock first.
+  assert (select prosrc not like '%from private.assistant_days where member_id = auth.uid() and day = today for update%'
+          from pg_proc where proname = 'assistant_start'), 'assistant_start counts first';
 end $$;
 
 \echo 'The daily limit is a setting'

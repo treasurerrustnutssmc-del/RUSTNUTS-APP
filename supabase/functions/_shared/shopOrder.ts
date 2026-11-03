@@ -92,6 +92,8 @@ export interface MakeOrder {
   q20_state: string;
   q21_postcode: string;
   q22_shippingMethod: string;
+  /** The app's own order id, the same on every post of one order, so Make can skip a repeat (F06). */
+  appOrderId: string;
 }
 
 export interface ShopOrderDeps {
@@ -140,6 +142,7 @@ export function makeOrder(o: OrderRow): MakeOrder {
     q20_state: ship ? o.state ?? '' : '',
     q21_postcode: ship ? o.postcode ?? '' : '',
     q22_shippingMethod: ship && o.shipping_method ? SHIPPING_LABEL[o.shipping_method] : '',
+    appOrderId: o.id,
   };
 }
 
@@ -156,25 +159,40 @@ const isPlace = (b: unknown): b is PlaceBody =>
   && (b as PlaceBody).lines.every((l) => !!l && typeof l === 'object');
 const isResend = (b: unknown): b is ResendBody => !!b && typeof b === 'object' && typeof (b as ResendBody).resend === 'string';
 
+/**
+ * Make has the order: record it, trying twice. If the database still won't take it, Make has it all the
+ * same, so the member hears it was sent; the error is logged for the runner (ChatGPT audit F06).
+ */
+async function recordSent(orderId: string, deps: ShopOrderDeps): Promise<void> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await deps.sent(orderId, true, null);
+      return;
+    } catch (e) {
+      if (attempt === 2) console.error('shop_order_sent failed after Make took the order', orderId, (e as Error).message);
+    }
+  }
+}
+
 /** Posts a held order to Make and records the outcome. Never throws: a failure keeps the order held. */
 async function send(order: OrderRow, env: ShopOrderEnv, deps: ShopOrderDeps): Promise<Answer> {
   const url = env.MAKE_WEBHOOK_MEMBER_URL;
   if (!url) {
-    await deps.sent(order.id, false, NOT_SWITCHED_ON);
+    await deps.sent(order.id, false, NOT_SWITCHED_ON).catch((e) => console.error('shop_order_sent', order.id, (e as Error).message));
     return { status: 200, body: { orderId: order.id, status: 'held', message: HELD_MESSAGE } };
   }
   let error: string;
   try {
     const r = await deps.post(url, makePayload(order));
     if (r.ok) {
-      await deps.sent(order.id, true, null);
+      await recordSent(order.id, deps);
       return { status: 200, body: { orderId: order.id, status: 'sent', message: SENT_MESSAGE } };
     }
     error = `Make answered ${r.status}: ${r.text.slice(0, 200)}`;
   } catch (e) {
     error = `Make unreachable: ${(e as Error).message}`.slice(0, 300);
   }
-  await deps.sent(order.id, false, error);
+  await deps.sent(order.id, false, error).catch((e) => console.error('shop_order_sent', order.id, (e as Error).message));
   return { status: 200, body: { orderId: order.id, status: 'held', message: HELD_MESSAGE } };
 }
 

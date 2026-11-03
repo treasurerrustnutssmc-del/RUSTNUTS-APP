@@ -177,6 +177,10 @@ test('only the Chairman ends a national role, and nobody ends the Chairman\'s', 
   assert.equal(allowed(endTermProblem(m('m-smokey'), pos('p-2'), d, TODAY)), false); // nor can a President
   assert.equal(allowed(endTermProblem(m('m-jet'), sec, withSecretary, TODAY)), true); // the Secretary steps down herself (9.3)
   assert.equal(allowed(endTermProblem(m('m-rusty'), pos('p-2'), d, TODAY)), false); // not even the Chairman ends his own seat here
+  // Suspended, she can still step down from her own seat (ChatGPT audit F10), but can't end anyone else's.
+  const suspendedJet = { ...m('m-jet'), approval: 'suspended' as const };
+  assert.equal(endTermProblem(suspendedJet, sec, withSecretary, TODAY), null);
+  assert.equal(endTermProblem({ ...m('m-rusty'), approval: 'suspended' as const }, sec, withSecretary, TODAY), 'Only approved members can do that.');
 });
 
 // West President seat vacated: Rusty's term ended, he stays National Chair.

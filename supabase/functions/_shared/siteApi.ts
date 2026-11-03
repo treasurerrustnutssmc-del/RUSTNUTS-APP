@@ -46,6 +46,7 @@ export const SIGNUP_WORDS = {
   tooLong: 'Keep it short: 200 characters for guests’ names, 200 for notes.',
   tooMany: 'Too many sign-ups just now. Try again later, or email the club.',
   full: 'The ride’s full.',
+  alreadyOn: 'That email is already on the list for this ride. To change it, email the club.',
 } as const;
 const CHAPTERS = ['west', 'north', 'either'];
 const VISIT_PAGE = /^\/[a-z0-9/._-]*$/;

@@ -138,6 +138,20 @@ begin
           from private.roster where email = 'Rusty@example.com'), 'the roster copy loses their details and seats';
 end $$;
 
+\echo 'Signing up again with the same email doesn’t bring a deleted member back off the roster (ChatGPT audit F01)'
+insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000d9', 'rusty@example.com', now());
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000d9', false);
+set role authenticated;
+do $$ begin assert not public.claim_roster(), 'the new sign-in claimed the old roster place'; end $$;
+reset role;
+do $$
+begin
+  assert not exists (select 1 from members where id = '00000000-0000-0000-0000-0000000000d9'), 'no member record for the new sign-in';
+  assert (select claimed_at is not null from private.roster where email = 'Rusty@example.com'), 'the roster place stays used';
+end $$;
+delete from auth.users where id = '00000000-0000-0000-0000-0000000000d9';
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000d1', false);
+
 \echo 'A deleted member can’t act any more, even with an old login'
 set role authenticated;
 do $$
@@ -162,6 +176,41 @@ begin
   assert (select count(*) from public.member_private) = 0;
 end $$;
 reset role;
+
+\echo 'A suspended office holder can still step down from their own seat, then delete their account (ChatGPT audit F10)'
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000d4', 'rc@example.com');
+insert into members (id, chapter_id, full_name, status, approval) select '00000000-0000-0000-0000-0000000000d4', id, 'Rob Captain', 'full', 'suspended' from chapters where slug = 'west';
+insert into positions (member_id, chapter_id, role) select '00000000-0000-0000-0000-0000000000d4', id, 'road_captain' from chapters where slug = 'west';
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000d4', false);
+set role authenticated;
+do $$
+begin
+  perform public.end_position((select id from public.positions where member_id = '00000000-0000-0000-0000-0000000000d4'));
+  perform public.delete_my_account();
+end $$;
+reset role;
+do $$
+begin
+  assert not exists (select 1 from auth.users where id = '00000000-0000-0000-0000-0000000000d4'), 'their sign-in is gone';
+  assert (select ended_by from positions where member_id = '00000000-0000-0000-0000-0000000000d4') = '00000000-0000-0000-0000-0000000000d4', 'they ended it themselves';
+end $$;
+
+\echo 'The National Chairman is pointed to the club’s email, not left at a dead end (ChatGPT audit F10)'
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000d5', 'chair@example.com');
+insert into members (id, chapter_id, full_name, status, approval) select '00000000-0000-0000-0000-0000000000d5', id, 'Cheryl Chair', 'full', 'approved' from chapters where slug = 'west';
+insert into positions (member_id, chapter_id, role) values ('00000000-0000-0000-0000-0000000000d5', null, 'nec_chair');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000d5', false);
+set role authenticated;
+do $$
+begin
+  perform public.delete_my_account();
+  assert false, 'the Chairman deleted their account in the app';
+exception when raise_exception then
+  assert sqlerrm = 'The National Chairman’s seat changes by the club’s vote. To delete your account, email apps@rustnutssmc.com.au.', sqlerrm;
+end $$;
+reset role;
+delete from positions where member_id = '00000000-0000-0000-0000-0000000000d5';
+delete from auth.users where id = '00000000-0000-0000-0000-0000000000d5';
 
 \echo 'Deleting someone from the dashboard does the same, and ends their seat'
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000d3';

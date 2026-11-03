@@ -24,6 +24,8 @@ export const LONG_SIGNUP_NAME = 'Keep your name to 80 characters.';
 export const BAD_SIGNUP_EMAIL = 'That email address does not look right.';
 export const LONG_SIGNUP_PHONE = 'Keep the phone number to 30 characters.';
 export const TOO_MANY_SIGNUPS = 'Too many sign-ups just now. Try again later, or email the club.';
+/** The form can't prove it owns an email, so it never overwrites a sign-up (ChatGPT audit F04). */
+export const ALREADY_SIGNED_UP = 'That email is already on the list for this ride. To change it, email the club.';
 export const WEBSITE_SIGNUP_GONE = 'No such sign-up.';
 export const WEBSITE_SIGNUP_LOCKED = 'Sign-ups can’t change after the ride day.';
 

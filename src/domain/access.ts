@@ -424,7 +424,9 @@ export function hasCarriedRemovalVote(position: Position, data: ClubData, today:
  */
 export function endTermProblem(me: Member | null, position: Position, data: ClubData, today: string): string | null {
   if (!me) return 'Sign in first.';
-  if (me.approval !== 'approved') return 'Only approved members can do that.';
+  // Your own seat needs no standing to step down from, so a suspended office holder isn't stuck
+  // (ChatGPT audit F10); ending anyone else's does.
+  if (position.memberId !== me.id && me.approval !== 'approved') return 'Only approved members can do that.';
   if (position.endedOn !== null) return 'That term has already ended.';
   if (TITLE_ROLES.includes(position.role)) return HONOUR_BY_ADMIN;
   if (position.role === 'nec_chair') return CHAIR_BY_VOTE;

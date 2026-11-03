@@ -17,6 +17,7 @@
     "supabase/functions/ask-club",
     "supabase/functions/purge-files",
     "supabase/functions/site-api",
-    "supabase/functions/shop-order"
+    "supabase/functions/shop-order",
+    "supabase/functions/seed-shop-pictures"
   ]
 }

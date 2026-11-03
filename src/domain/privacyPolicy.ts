@@ -15,7 +15,7 @@ export const PRIVACY_URL = 'https://www.rustnutssmc.com.au/app/privacy.html';
 export const PRIVACY_EMAIL = 'apps@rustnutssmc.com.au';
 
 /** ISO date the policy last changed. */
-export const PRIVACY_UPDATED_ON = '2026-11-02';
+export const PRIVACY_UPDATED_ON = '2026-11-03';
 
 /** A paragraph, or a list of points. */
 export type PrivacyBlock = string | { points: string[] };
@@ -167,8 +167,8 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Notification queue: deleted after 90 days.',
           'Ask the club: the club doesn’t keep your questions or the answers. They stay on your phone for that chat only. The club keeps a count of how many questions each member asks a day (cleared after two days) and what each month costs. Catch me up: the summary isn’t kept, and each one counts as one of the day’s questions. Draft from Otter: the club doesn’t keep the transcript, only the minutes the board saves, and a count of how many times each meeting was drafted.',
           'Conduct records: deleted on the dates the constitution sets.',
-          'Financial records, receipts, meeting minutes and votes: kept as long as the club needs them for its books and the law (Australian law requires financial records to be kept for at least 5 years).',
-          'Your account and profile: until you delete your account. That removes your sign-in, profile, contact details, emergency contacts, bikes, messages, ride sign-ups and listings straight away. The club keeps its books, minutes, votes, attendance, conduct records, past board seats and any message someone has reported, showing you as “Former member”, and clears your photo files.',
+          'Financial records, receipts, meeting minutes and votes: kept for at least 7 years, and longer while the club still needs them. That meets the record-keeping rules for Victorian incorporated associations (7 years) and the tax office (5 years).',
+          'Your account and profile: until you delete your account. That removes your sign-in, profile, contact details, emergency contacts, bikes, messages, ride sign-ups and listings straight away. The club keeps its books, minutes, votes, attendance, conduct records, past board seats and any message someone has reported, showing you as “Former member”, and clears your photo files. The club’s roster keeps your name, email, membership level and dates, so your membership history stands and a deleted account can’t be used to rejoin without the board.',
         ],
       },
     ],
@@ -181,7 +181,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
         points: [
           'See and fix your details: most of your information is on the Me screen, where you can change it. For anything else, ask us.',
           'Turn things off: location sharing, notifications and phone sharing are all your choice, and you can change them any time in the app or your phone settings.',
-          `Delete your account: in the app, go to Me and tap Delete my account (if you hold a board or national seat, step down first). Or email ${PRIVACY_EMAIL} from the email you sign in with and we’ll delete it within 30 days. Deleting your app account doesn’t end your club membership.`,
+          `Delete your account: in the app, go to Me and tap Delete my account (if you hold a board or national seat, step down first; the National Chairman’s seat changes by the club’s vote, so the Chairman emails us instead). Or email ${PRIVACY_EMAIL} from the email you sign in with and we’ll delete it within 30 days. Deleting your app account doesn’t end your club membership.`,
           `Get a copy: ask at ${PRIVACY_EMAIL} and we’ll send you the information we hold about you.`,
         ],
       },

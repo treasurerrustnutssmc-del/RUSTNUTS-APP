@@ -211,6 +211,13 @@ begin
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_opening(%L, 2026, 100000)$q$, pg_temp.west())) is null, 'West opening';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_opening(%L, 2026, 300000)$q$, pg_temp.west())) is null, 'set again replaces it';
   assert (select count(*) from fund_openings) = 1 and (select amount_cents from fund_openings) = 300000, 'one opening';
+  -- Both settings are kept, with who made them (ChatGPT audit F08).
+  assert (select count(*) from fund_opening_changes where chapter_id = pg_temp.west() and fy = 2026) = 2, 'two changes kept';
+  assert exists (select 1 from fund_opening_changes where chapter_id = pg_temp.west() and old_cents = 100000 and new_cents = 300000
+                 and changed_by = pg_temp.u(2)), 'old, new and who';
+  assert jsonb_array_length(pg_temp.value_as(pg_temp.u(2), 'public.fund_opening_history()')::jsonb) = 2, 'the treasurer reads the history';
+  assert pg_temp.try_as(pg_temp.u(2), 'select * from public.fund_opening_changes') = 'permission denied for table fund_opening_changes', 'not the table itself';
+  assert pg_temp.try_as(null, 'select public.fund_opening_history()') = 'permission denied for function fund_opening_history', 'not signed out';
   assert pg_temp.try_as(pg_temp.u(2), $q$select public.set_opening(null, 2026, 500000)$q$) is null, 'Club opening';
   assert pg_temp.try_as(pg_temp.u(3), $q$select public.set_cash_float(2026, 40000)$q$)
     = 'Only that fund’s treasurer, or the National Chairman or Secretary, keeps its books.', 'Secretary float';

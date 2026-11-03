@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     },
     sent: async (orderId, ok, error) => {
       const r = await admin.rpc('shop_order_sent', { p_order: orderId, p_ok: ok, p_error: error });
-      if (r.error) console.error('shop_order_sent', r.error.message);
+      if (r.error) throw new Error(r.error.message);
     },
   });
   return Response.json(answer.body, { status: answer.status, headers: CORS });
