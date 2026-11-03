@@ -5,15 +5,17 @@ import type { Member, MemberStatus } from './types';
  * The member list's groups, in the order they show: patched members first, then Nomads, FNGs,
  * Hang Arounds (people in the Introduction Phase, v4 4.2), Supporters, Family and, last, Legacy.
  */
-const GROUPS: { status: MemberStatus; title: string }[] = [
-  { status: 'full', title: 'Patched' },
-  { status: 'nomad', title: 'Nomads' },
-  { status: 'fng', title: 'FNGs' },
-  { status: 'introduced', title: 'Hang Arounds' },
-  { status: 'supporter', title: 'Supporters' },
-  { status: 'family', title: 'Family' },
-  { status: 'legacy', title: 'Legacy' },
-];
+const TITLES: Record<MemberStatus, string> = {
+  full: 'Patched',
+  nomad: 'Nomads',
+  fng: 'FNGs',
+  introduced: 'Hang Arounds',
+  supporter: 'Supporters',
+  family: 'Family',
+  legacy: 'Legacy',
+};
+// A Record makes every status need a title; the order is the Record's, so nobody can drop out of the list.
+const GROUPS = (Object.keys(TITLES) as MemberStatus[]).map((status) => ({ status, title: TITLES[status] }));
 
 export type MemberGroup = { status: MemberStatus; title: string; members: Member[] };
 

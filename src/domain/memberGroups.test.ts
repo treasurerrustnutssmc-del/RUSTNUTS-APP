@@ -21,3 +21,8 @@ test('empty groups are left out', () => {
   const groups = memberGroups([m('a', 'full'), m('b', 'legacy')]);
   assert.deepEqual(groups.map((g) => [g.status, g.members.length]), [['full', 1], ['legacy', 1]]);
 });
+
+test('every status has a group, so no member drops out of the list', () => {
+  const all: MemberStatus[] = ['introduced', 'fng', 'full', 'nomad', 'supporter', 'family', 'legacy'];
+  assert.equal(memberGroups(all.map((s) => m(s, s))).length, all.length);
+});
