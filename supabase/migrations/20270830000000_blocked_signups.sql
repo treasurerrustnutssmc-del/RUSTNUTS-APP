@@ -1,6 +1,6 @@
 -- Sign-up block list. Google's test robot ("crawlerrobo@gmail.com", from Google's own servers)
 -- keeps typing its address into the sign-in screen, which made an unconfirmed sign-in on 1 Nov and
--- again on 3 Nov 2026 and had Supabase email it codes. A listed address, or every address on a
+-- again on 3 Nov 2026 and had Supabase email it codes; it also tried test@example.com on 3 Nov. A listed address, or every address on a
 -- listed @domain, now can't create a sign-in at all, so no account row is made and no code is sent.
 -- Everyone else, including new people applying to join, signs up exactly as before.
 -- Add one later with: insert into private.blocked_signups (pattern, reason) values ('x@y.com', 'why');
@@ -14,7 +14,8 @@ alter table private.blocked_signups enable row level security;
 revoke all on private.blocked_signups from public, anon, authenticated, service_role;
 
 insert into private.blocked_signups (pattern, reason) values
-  ('crawlerrobo@gmail.com', 'Google test robot; made unconfirmed sign-ins 1 and 3 Nov 2026')
+  ('crawlerrobo@gmail.com', 'Google test robot; made unconfirmed sign-ins 1 and 3 Nov 2026'),
+  ('test@example.com', 'Google test robot (Google IP 108.177.6.13) on 3 Nov 2026; example.com takes no mail')
 on conflict (pattern) do nothing;
 
 -- A whole address, or "@domain" for everyone on exactly that domain (not its subdomains).

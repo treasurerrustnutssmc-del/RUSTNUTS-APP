@@ -13,6 +13,9 @@ begin
   assert private.signup_blocked('  CrawlerRobo@Gmail.com '), 'case and spaces do not get round it';
   assert not private.signup_blocked('rusty@gmail.com'), 'other gmail addresses are fine';
   assert not private.signup_blocked(null), 'no email (phone sign-in) is not blocked';
+  assert private.signup_blocked('test@example.com'), 'the robot''s second address';
+  assert not private.signup_blocked('rusty@example.com'), 'only that address, not the whole test domain';
+  assert not private.signup_blocked('review@rustnutssmc.com.au'), 'the store reviewer login is not blocked';
 end $$;
 
 \echo 'A listed address cannot create a sign-in'
