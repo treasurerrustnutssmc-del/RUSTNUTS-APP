@@ -3,7 +3,31 @@
 // fetched at most once a week and kept in private.link_previews.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
-import { fetchableUrl, fetchPreview, TIMEOUT_MS } from '../_shared/linkPreview.ts';
+import { fetchableUrl, fetchPreview, httpRequest, readHttpResponse, TIMEOUT_MS } from '../_shared/linkPreview.ts';
+
+/** Opens a connection to one of the checked addresses (never a fresh lookup, ChatGPT audit F09), with
+ *  https checked against the real host name, sends the GET and reads the answer. */
+async function getPinned(url: URL, addresses: string[], signal: AbortSignal): Promise<Response> {
+  const port = Number(url.port) || (url.protocol === 'https:' ? 443 : 80);
+  let lastError: unknown = new Error('No address to try');
+  for (const address of addresses) {
+    if (signal.aborted) break;
+    let conn: Deno.Conn | null = null;
+    try {
+      conn = await Deno.connect({ hostname: address, port });
+      if (url.protocol === 'https:') conn = await Deno.startTls(conn as Deno.TcpConn, { hostname: url.hostname });
+      const open = conn;
+      const stop = () => { try { open.close(); } catch { /* already closed */ } };
+      signal.addEventListener('abort', stop, { once: true });
+      await open.write(new TextEncoder().encode(httpRequest(url)));
+      return await readHttpResponse(open.readable);
+    } catch (e) {
+      lastError = e;
+      try { conn?.close(); } catch { /* already closed */ }
+    }
+  }
+  throw lastError;
+}
 
 // The web build calls from the browser, which asks first (OPTIONS) and needs these headers back.
 const CORS = {
@@ -41,12 +65,7 @@ Deno.serve(async (req) => {
         ]);
         return [...a, ...aaaa];
       },
-      get: (u, signal) =>
-        fetch(u, {
-          redirect: 'manual',
-          signal,
-          headers: { accept: 'text/html,application/xhtml+xml', 'user-agent': 'RustnutsLinkPreview/1.0' },
-        }),
+      get: (u, addresses) => getPinned(u, addresses, deadline),
     }, deadline);
   } catch {
     // Slow or unreachable: no card this time, and nothing kept, so the app asks again later.

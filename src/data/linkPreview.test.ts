@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchableUrl, fetchPreview, isPrivateAddress, parsePreview } from '../../supabase/functions/_shared/linkPreview';
+import { connectOrder, fetchableUrl, fetchPreview, httpRequest, isPrivateAddress, parsePreview, readHttpResponse } from '../../supabase/functions/_shared/linkPreview';
 
 test('private, local and reserved addresses are never fetched', () => {
   for (const ip of ['10.1.2.3', '127.0.0.1', '172.20.0.1', '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', 'fd00::1', 'fe80::1', '::ffff:10.0.0.1', 'nonsense']) {
@@ -81,8 +81,63 @@ test('one time limit covers the name lookups and every hop, and running out is n
   await assert.rejects(fetchPreview('https://slow-dns.example/', stuck, soon()), /time/i);
   const slowHops = {
     resolve: async () => ['93.184.216.34'],
-    get: (_u: URL, signal?: AbortSignal) =>
+    get: (_u: URL, _a: string[], signal?: AbortSignal) =>
       new Promise<Response>((_, reject) => signal?.addEventListener('abort', () => reject(new Error('timed out')))),
   };
   await assert.rejects(fetchPreview('https://slow.example/', slowHops, soon()), /time/i);
+});
+
+// ChatGPT audit F09: the address that was checked is the one connected to.
+test('the connection is made to the addresses that were checked, IPv4 first', async () => {
+  const seen: string[][] = [];
+  const deps = {
+    resolve: async () => ['2606:4700::1111', '93.184.216.34'],
+    get: async (_u: URL, addresses: string[]) => {
+      seen.push(addresses);
+      return page('<title>Pinned</title>');
+    },
+  };
+  assert.equal((await fetchPreview('https://pinned.example/', deps))?.title, 'Pinned');
+  assert.deepEqual(seen, [['93.184.216.34', '2606:4700::1111']]);
+  assert.deepEqual(connectOrder(['2606:4700::1111', '1.1.1.1', '93.184.216.34']), ['1.1.1.1', '93.184.216.34', '2606:4700::1111']);
+});
+
+test('one plain HTTP/1.1 GET, with the real host name', () => {
+  assert.equal(
+    httpRequest(new URL('https://www.vicroads.vic.gov.au/registration?x=1')),
+    'GET /registration?x=1 HTTP/1.1\r\nHost: www.vicroads.vic.gov.au\r\nUser-Agent: RustnutsLinkPreview/1.0\r\n' +
+      'Accept: text/html,application/xhtml+xml\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n',
+  );
+  assert.match(httpRequest(new URL('http://example.com')), /^GET \/ HTTP\/1\.1\r\nHost: example\.com\r\n/);
+});
+
+const stream = (...parts: string[]) =>
+  new ReadableStream<Uint8Array>({
+    start(c) {
+      for (const p of parts) c.enqueue(new TextEncoder().encode(p));
+      c.close();
+    },
+  });
+
+test('the answer is read by length, in chunks, or until the site hangs up', async () => {
+  const byLength = await readHttpResponse(stream('HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 5\r\n\r\nhel', 'lo-extra'));
+  assert.equal(byLength.status, 200);
+  assert.equal(byLength.headers.get('content-type'), 'text/html');
+  assert.equal(await byLength.text(), 'hello');
+
+  const chunked = await readHttpResponse(stream('HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n4\r\n<tit\r\n', 'b;ext=1\r\nle>Chunked<\r\n0\r\n\r\n'));
+  assert.equal(await chunked.text(), '<title>Chunked<');
+
+  const toClose = await readHttpResponse(stream('HTTP/1.0 200 OK\r\n', 'Content-Type: text/html\r\n\r\n<title>A</title>', '<p>more'));
+  assert.equal(await toClose.text(), '<title>A</title><p>more');
+
+  const moved = await readHttpResponse(stream('HTTP/1.1 301 Moved Permanently\r\nLocation: /b\r\nContent-Length: 0\r\n\r\n'));
+  assert.equal(moved.status, 301);
+  assert.equal(moved.headers.get('location'), '/b');
+});
+
+test('a broken answer is an error, not a page', async () => {
+  await assert.rejects(readHttpResponse(stream('SSH-2.0-OpenSSH\r\n\r\n')), /not an http answer/i);
+  await assert.rejects(readHttpResponse(stream('HTTP/1.1 200 OK\r\nX: ' + 'y'.repeat(40_000))), /headers too long/i);
+  await assert.rejects(readHttpResponse(stream('HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n')), /ended early/i);
 });

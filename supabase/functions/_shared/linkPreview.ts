@@ -111,8 +111,16 @@ export function parsePreview(html: string, pageUrl: string): LinkPreview | null 
 export interface FetchDeps {
   /** Every address the host name points to. */
   resolve: (host: string) => Promise<string[]>;
-  /** One request, redirects not followed, given up when `signal` fires. */
-  get: (url: URL, signal?: AbortSignal) => Promise<Response>;
+  /** One request to one of `addresses` (the ones just checked, in connectOrder), redirects not
+   *  followed, given up when `signal` fires. It must connect to those addresses, never look the
+   *  name up again (ChatGPT audit F09). */
+  get: (url: URL, addresses: string[], signal?: AbortSignal) => Promise<Response>;
+}
+
+/** IPv4 first (the Edge Functions' network reaches it most reliably), each family in the order given. */
+export function connectOrder(addresses: string[]): string[] {
+  const v4 = addresses.filter((a) => !a.includes(':'));
+  return [...v4, ...addresses.filter((a) => a.includes(':'))];
 }
 
 /** Waits for `work`, or fails as soon as `signal` fires. */
@@ -129,9 +137,8 @@ function beforeDeadline<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
  *  show; it throws when it couldn't find out (no connection, or `signal`'s one time limit for the
  *  name lookups, every hop and the reading ran out), so that isn't kept as an answer.
  *
- *  What's left: the lookup here and the one `get` makes can differ (a name that answers public, then
- *  private). The Edge Function runs outside the club's database network and reads only the start of
- *  HTML pages, so the most such a trick gets is a page's title on a member's chat card. */
+ *  `get` connects to the addresses checked here, so a name can't answer public for the check and
+ *  private for the fetch (ChatGPT audit F09). */
 export async function fetchPreview(
   raw: string,
   deps: FetchDeps,
@@ -141,7 +148,7 @@ export async function fetchPreview(
   for (let hop = 0; url && hop <= MAX_REDIRECTS; hop++) {
     const addresses = IP_HOST.test(url.hostname) ? [url.hostname] : await beforeDeadline(deps.resolve(url.hostname), signal);
     if (!addresses.length || addresses.some(isPrivateAddress)) return null;
-    const res = await beforeDeadline(deps.get(url, signal), signal);
+    const res = await beforeDeadline(deps.get(url, connectOrder(addresses), signal), signal);
     if (res.status >= 300 && res.status < 400) {
       const next = res.headers.get('location');
       await res.body?.cancel();
@@ -179,4 +186,166 @@ async function readCapped(res: Response): Promise<string> {
     if (at >= all.length) break;
   }
   return new TextDecoder().decode(all);
+}
+
+// ---------------------------------------------------------------------------
+// A small HTTP/1.1 client: the Edge Function opens the connection to a checked address itself, so it
+// writes the request and reads the answer here. Only what a page preview needs: one GET, no
+// compression, the connection closed after.
+
+const USER_AGENT = 'RustnutsLinkPreview/1.0';
+/** The status line and headers together may be this long at most. */
+export const MAX_HEADER_BYTES = 32 * 1024;
+
+/** The request to send, with the real host name (the connection itself goes to a checked address). */
+export function httpRequest(url: URL): string {
+  return [
+    `GET ${url.pathname || '/'}${url.search} HTTP/1.1`,
+    `Host: ${url.host}`,
+    `User-Agent: ${USER_AGENT}`,
+    'Accept: text/html,application/xhtml+xml',
+    'Accept-Encoding: identity',
+    'Connection: close',
+    '',
+    '',
+  ].join('\r\n');
+}
+
+/** Bytes from a stream, read as asked: up to a marker, a set number, or whatever comes next. */
+class Bytes {
+  private buf = new Uint8Array(0);
+  private done = false;
+  constructor(private reader: ReadableStreamDefaultReader<Uint8Array>) {}
+
+  private async more(): Promise<boolean> {
+    if (this.done) return false;
+    const { done, value } = await this.reader.read();
+    if (done || !value) {
+      this.done = true;
+      return false;
+    }
+    const next = new Uint8Array(this.buf.length + value.length);
+    next.set(this.buf);
+    next.set(value, this.buf.length);
+    this.buf = next;
+    return true;
+  }
+
+  private take(n: number): Uint8Array {
+    const out = this.buf.slice(0, n);
+    this.buf = this.buf.slice(n);
+    return out;
+  }
+
+  /** Everything up to `marker` (which is dropped), or null when the stream ends or `max` is passed first. */
+  async until(marker: string, max: number): Promise<Uint8Array | null> {
+    const m = new TextEncoder().encode(marker);
+    for (let from = 0; ; ) {
+      for (let i = from; i + m.length <= this.buf.length; i++) {
+        let hit = true;
+        for (let j = 0; j < m.length && hit; j++) hit = this.buf[i + j] === m[j];
+        if (hit) {
+          const out = this.take(i);
+          this.take(m.length);
+          return out;
+        }
+      }
+      from = Math.max(0, this.buf.length - m.length + 1);
+      if (this.buf.length > max) throw new Error('Headers too long');
+      if (!(await this.more())) return null;
+    }
+  }
+
+  /** Exactly `n` bytes, or fewer if the stream ends. */
+  async exactly(n: number): Promise<Uint8Array> {
+    while (this.buf.length < n && (await this.more()));
+    return this.take(Math.min(n, this.buf.length));
+  }
+
+  /** Whatever is next (what's buffered, else the next read), empty at the end. */
+  async next(): Promise<Uint8Array> {
+    if (!this.buf.length) await this.more();
+    return this.take(this.buf.length);
+  }
+
+  cancel() {
+    return this.reader.cancel().catch(() => undefined);
+  }
+}
+
+/** Reads one HTTP/1.x answer off a connection into a Response (body by length, chunked, or until close). */
+export async function readHttpResponse(source: ReadableStream<Uint8Array>): Promise<Response> {
+  const bytes = new Bytes(source.getReader());
+  const head = await bytes.until('\r\n\r\n', MAX_HEADER_BYTES);
+  if (!head) {
+    await bytes.cancel();
+    throw new Error('The answer ended early');
+  }
+  const [statusLine, ...lines] = new TextDecoder().decode(head).split('\r\n');
+  const m = statusLine.match(/^HTTP\/1\.[01] (\d{3})(?: .*)?$/);
+  const status = m ? Number(m[1]) : 0;
+  if (status < 200 || status > 599) {
+    await bytes.cancel();
+    throw new Error('Not an HTTP answer');
+  }
+  const headers = new Headers();
+  for (const line of lines) {
+    const colon = line.indexOf(':');
+    if (colon > 0) headers.append(line.slice(0, colon).trim(), line.slice(colon + 1).trim());
+  }
+  if (status === 204 || status === 304) {
+    await bytes.cancel();
+    return new Response(null, { status, headers });
+  }
+
+  const chunked = /\bchunked\b/i.test(headers.get('transfer-encoding') ?? '');
+  const lengthHeader = headers.get('content-length');
+  let left = !chunked && lengthHeader !== null && /^\d+$/.test(lengthHeader.trim()) ? Number(lengthHeader) : Infinity;
+  let chunkLeft = 0;
+  let finished = false;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(c) {
+      try {
+        if (finished) return c.close();
+        if (chunked) {
+          if (chunkLeft === 0) {
+            const sizeLine = await bytes.until('\r\n', 1024);
+            const size = sizeLine ? parseInt(new TextDecoder().decode(sizeLine).split(';')[0].trim(), 16) : NaN;
+            if (!Number.isFinite(size) || size === 0) {
+              finished = true;
+              await bytes.cancel();
+              return c.close();
+            }
+            chunkLeft = size;
+          }
+          const part = await bytes.exactly(chunkLeft);
+          if (!part.length) {
+            finished = true;
+            return c.close();
+          }
+          chunkLeft -= part.length;
+          if (chunkLeft === 0) await bytes.exactly(2); // the chunk's closing CRLF
+          return c.enqueue(part);
+        }
+        if (left <= 0) {
+          finished = true;
+          await bytes.cancel();
+          return c.close();
+        }
+        const part = left === Infinity ? await bytes.next() : await bytes.exactly(Math.min(left, 64 * 1024));
+        if (!part.length) {
+          finished = true;
+          return c.close();
+        }
+        left -= part.length;
+        c.enqueue(part);
+      } catch (e) {
+        c.error(e);
+      }
+    },
+    cancel() {
+      return bytes.cancel();
+    },
+  });
+  return new Response(body, { status, headers });
 }
