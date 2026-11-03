@@ -33,3 +33,19 @@ test('family see no answers, crew, positions, money, business or conduct', () =>
   assert.equal((view.ledger ?? []).length, 0);
   assert.equal(view.unclaimedRoster, undefined);
 });
+
+// Family chat: names only, so the Family chat can say who said what.
+test('family get the names of people in the Family chat, and nothing more about them', () => {
+  const view = forFamily(DEMO_DATA, kerry);
+  const diesel = view.chatPeople?.find((m) => m.id === 'm-diesel');
+  assert.ok(diesel, 'demo: everyone approved could be in the Family chat');
+  assert.equal(diesel.fullName, DEMO_DATA.members.find((m) => m.id === 'm-diesel')!.fullName.split(' ')[0], 'first name only');
+  assert.equal(diesel.bio, null);
+  assert.equal(diesel.joinedOn, null);
+  assert.ok(!view.chatPeople!.some((m) => m.id === 'm-kerry'), 'not themselves (they’re in members)');
+  assert.ok(!view.chatPeople!.some((m) => m.approval !== 'approved'), 'only approved people');
+  assert.deepEqual(view.members.map((m) => m.id), ['m-kerry'], 'the directory stays shut');
+  // Live: what family_chat_people handed over is kept as it is.
+  const live = forFamily({ ...DEMO_DATA, chatPeople: [] }, kerry);
+  assert.deepEqual(live.chatPeople, []);
+});

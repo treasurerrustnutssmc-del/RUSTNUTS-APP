@@ -60,10 +60,11 @@ begin
   assert (select count(*) from public.member_private) = 1, 'their own private details';
 end $$;
 
-\echo 'Family get no chats, business or Treasurer’s Reports'
+\echo 'Family get only the Family chat, no business or Treasurer’s Reports'
 do $$
 begin
-  assert (select count(*) from public.conversations) = 0, 'no chats';
+  assert (select count(*) from public.conversations) = 1, 'only the Family chat (20270810000100_family_chat.sql)';
+  assert (select kind::text from public.conversations) = 'family';
   assert public.meeting_reports() = '[]'::jsonb, 'no presented Treasurer’s Reports';
   assert jsonb_array_length(public.club_ledger() -> 'reports') = 0, 'no report totals';
 end $$;
@@ -118,7 +119,7 @@ begin
     perform public.open_direct_chat('00000000-0000-0000-0000-0000000000f2');
     assert false, 'no private chat with family';
   exception when raise_exception then
-    assert sqlerrm = 'Family don’t use the club chats.', sqlerrm;
+    assert sqlerrm = 'Family only use the Family chat, not private chats.', sqlerrm;
   end;
 end $$;
 reset role;

@@ -242,7 +242,8 @@ export function MediaViewerScreen({ route, navigation }: RootScreen<'MediaViewer
   const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(route.params.index);
   const current = items[index];
-  const who = current ? data.members.find((m) => m.id === current.authorId) : undefined;
+  // Family chat: Family know people by the chat's names (data.chatPeople), not the directory.
+  const who = current ? [...data.members, ...(data.chatPeople ?? [])].find((m) => m.id === current.authorId) : undefined;
   const pageHeight = height - insets.top - insets.bottom - 120;
   return (
     <View style={[styles.viewer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>

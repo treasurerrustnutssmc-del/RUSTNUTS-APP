@@ -196,13 +196,19 @@ function MainTabs() {
   );
 }
 
-// Family view: Home, Rides and Me. No chats, directory or board, and none of the members' sync helpers.
+// Family view: Home, Chat (the Family chat only), Rides and Me. No directory or board, and none of the
+// members' sync helpers.
 function FamilyTabs() {
   const insets = useSafeAreaInsets();
+  const { unreadTotal } = useChat();
   return (
+    <>
+    {/* Family chat: a tapped notification opens the Family chat (or a ride). */}
+    <NotificationTaps />
     <Tabs.Navigator
       screenOptions={({ route }) => ({
         ...headerOptions,
+        tabBarAccessibilityLabel: route.name === 'Chats' ? (unreadTotal > 0 ? `Chat, ${unreadTotal} unread` : 'Chat') : route.name,
         tabBarStyle: {
           backgroundColor: colors.ink2,
           borderTopColor: colors.line,
@@ -221,9 +227,19 @@ function FamilyTabs() {
       })}
     >
       <Tabs.Screen name="Home" component={FamilyHomeScreen} options={{ title: 'Home', headerTitle: () => <Skull size={30} /> }} />
+      <Tabs.Screen
+        name="Chats"
+        component={ChatListScreen}
+        options={{
+          title: 'Chat',
+          tabBarBadge: unreadTotal > 0 ? (unreadTotal > 99 ? '99+' : unreadTotal) : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.redBright, fontFamily: fonts.stencil },
+        }}
+      />
       <Tabs.Screen name="Rides" component={RidesScreen} />
       <Tabs.Screen name="Me" component={FamilyMeScreen} />
     </Tabs.Navigator>
+    </>
   );
 }
 
@@ -285,6 +301,10 @@ export function RootNavigator() {
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
             <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback & issues' }} />
+            {/* Family chat: the one chat, its photos and the club rules Family agree to before posting */}
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} getId={({ params }) => params.chatId} />
+            <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
           </>
         ) : needsPostingRules(me) ? (
           <>

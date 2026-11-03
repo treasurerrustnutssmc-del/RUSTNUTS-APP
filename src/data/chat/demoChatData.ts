@@ -76,6 +76,14 @@ export function demoChatData(now = new Date(), rides: Ride[] = []): ChatData {
     reactions: [['m-smokey', '👍'], ['m-jet', '👍']],
   });
 
+  // Family chat: members and Family accounts together. Kerry is the demo's Family persona.
+  const bbq = say('family', 'm-torque', 2 * 24 * 60 + 30, 'West family day at the clubhouse on the 16th. Marquee’s up from 10, barbie at noon. Kids welcome, dogs on a lead.', {
+    reactions: [['m-kerry', '❤️'], ['m-diesel', '👍']],
+  });
+  say('family', 'm-kerry', 2 * 24 * 60, 'We’ll bring a pasta salad and the cricket set.', { replyTo: bbq, reactions: [['m-torque', '🔥']] });
+  say('family', 'm-spanner', 30 * 60, 'Anyone got a spare kids’ helmet, size small? Ours has outgrown his.');
+  say('family', 'm-kerry', 22 * 60, 'Diesel says there’s one in our shed. I’ll bring it Sunday.', { reactions: [['m-spanner', '🍺']] });
+
   say('chapter:ch-west', 'm-torque', 3 * 24 * 60, 'Meeting Thursday 7:30 at the clubhouse. Bring your Christmas ride numbers.');
   say('chapter:ch-west', 'm-spanner', 9 * 60, 'Who’s got a spare 10 mm socket? Asking for the CB750.');
   say('chapter:ch-west', 'm-chook', 9 * 60 - 3, 'Under your seat. Where you left it.', { reactions: [['m-gravel', '😂'], ['m-sparks', '😂']] });
@@ -107,6 +115,7 @@ export function demoChatData(now = new Date(), rides: Ride[] = []): ChatData {
   return {
     conversations: [
       conv('club', { kind: 'club', pinnedMessageId: xmas }),
+      conv('family', { kind: 'family', pinnedMessageId: bbq }),
       conv('nec', { kind: 'nec' }),
       conv('committee:ride', { kind: 'committee', committee: 'ride' }),
       conv('committee:charity', { kind: 'committee', committee: 'charity' }),

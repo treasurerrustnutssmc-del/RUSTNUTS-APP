@@ -292,8 +292,9 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
   const load = useCallback(async () => {
     setError(null);
     try {
-      // club_photos never includes private chats; keep photos only.
-      setItems((await chat.photos()).filter((m) => m.kind === 'photo'));
+      // club_photos never includes private chats; keep photos only, and none from the Family chat
+      // (partners' and kids' photos stay off the website).
+      setItems((await chat.photos()).filter((m) => m.kind === 'photo' && chat.conversation(m.conversationId)?.kind !== 'family'));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -311,7 +312,7 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
 
   if (!me) return null;
   const taken = new Set(list.filter((p) => p.status !== 'removed' && p.mediaId).map((p) => p.mediaId));
-  const pickable = (m: FeedItem): PickablePhoto => ({ media: m, chatKind: 'club', authorId: m.authorId });
+  const pickable = (m: FeedItem): PickablePhoto => ({ media: m, chatKind: chat.conversation(m.conversationId)?.kind ?? 'club', authorId: m.authorId });
   const send = async (caption: string, consent: boolean) => {
     if (!chosen) return;
     setBusy(true);

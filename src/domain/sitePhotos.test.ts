@@ -5,7 +5,7 @@ import {
   CAPTION_MAX, cleanCaption, CREW_ALREADY, CREW_NOT_MEMBER, CREW_ON_HIATUS, crewProblem, editorListOrder,
   isSitePhotoEditor, LONG_CAPTION, managesSitePhotoCrew, NO_CONSENT_TICK, NOT_A_PHOTO, NOT_CREW_MANAGER, NOT_ON_CREW,
   NOT_PHOTO_EDITOR, NOT_PHOTO_REMOVER, PHOTO_ALREADY_PICKED, PHOTO_GONE, PHOTO_REMOVED_ALREADY, PHOTOS_SHOWN,
-  pickProblem, PRIVATE_PHOTO, publicSitePhotos, removeProblem, uploadProblem, type PickablePhoto, type SitePhoto,
+  FAMILY_PHOTO, pickProblem, PRIVATE_PHOTO, publicSitePhotos, removeProblem, uploadProblem, type PickablePhoto, type SitePhoto,
   type SitePhotoCrew,
 } from './sitePhotos';
 import { club, member, who } from './stage4.testkit';
@@ -55,6 +55,7 @@ test('picking a chat photo: refusals in order, own photo goes live, someone else
   assert.equal(pickProblem(smo, d.positions, crew, undefined, list, ok), PHOTO_GONE);
   assert.equal(pickProblem(smo, d.positions, crew, { ...chatPhoto('v'), media: media('v', 'video') }, list, ok), NOT_A_PHOTO);
   assert.equal(pickProblem(smo, d.positions, crew, chatPhoto('a', 'snap', { chatKind: 'direct' }), list, ok), PRIVATE_PHOTO);
+  assert.equal(pickProblem(smo, d.positions, crew, chatPhoto('a', 'snap', { chatKind: 'family' }), list, ok), FAMILY_PHOTO, 'Family chat photos stay off the website');
   assert.equal(pickProblem(smo, d.positions, crew, chatPhoto('taken'), list, ok), PHOTO_ALREADY_PICKED);
   assert.equal(pickProblem(smo, d.positions, crew, chatPhoto('a'), list, { ...ok, consent: false }), NO_CONSENT_TICK);
   assert.equal(pickProblem(smo, d.positions, crew, chatPhoto('a'), list, { ...ok, caption: 'x'.repeat(CAPTION_MAX + 1) }), LONG_CAPTION);

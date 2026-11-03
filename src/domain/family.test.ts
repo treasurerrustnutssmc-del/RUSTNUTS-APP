@@ -33,11 +33,12 @@ test('members still see family in the directory', () => {
   assert.equal(canSeeMember(m('m-spanner'), kerry, d.positions), true);
 });
 
-test('family don’t use the club chats, and nobody opens a private chat with them', () => {
+test('family use the Family chat only, and nobody opens a private chat with them', () => {
   const club: Conversation = { id: 'c-club', kind: 'club', chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [] };
-  assert.equal(approvalProblem(kerry), 'Only approved members can do that.');
-  assert.equal(readProblem(kerry, club, d), 'Only approved members can do that.');
-  assert.equal(directProblem(m('m-spanner'), kerry), 'Family don’t use the club chats.');
+  assert.equal(approvalProblem(kerry), null, 'they use the chats (the Family one)');
+  assert.equal(readProblem(kerry, club, d), 'Family can only use the Family chat.');
+  assert.equal(readProblem(kerry, { ...club, id: 'c-family', kind: 'family' }, d), null);
+  assert.equal(directProblem(m('m-spanner'), kerry), 'Family only use the Family chat, not private chats.');
 });
 
 test('family aren’t asked to sign the Road Rules or club documents', () => {

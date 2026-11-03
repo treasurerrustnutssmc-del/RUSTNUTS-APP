@@ -2,15 +2,15 @@
 // database's chat_list, club_photos, ride_walls and ride_wall work them out. The demo uses these;
 // the live app gets the same shapes from the database and sorts them with sortSummaries.
 
-import { approvalProblem, chatTitle, readProblem, rideChatListed, type Block, type Message } from '../../domain/chat';
+import { approvalProblem, chatTitle, memberProblem, readProblem, rideChatListed, type Block, type Message } from '../../domain/chat';
 import type { ClubData, Member } from '../../domain/types';
 import { NotAllowedError } from '../clubContext';
 import type { ChatSummary, FeedItem, RideWall } from './chatContext';
 import type { ChatData } from './demoChatActions';
 
-const KIND_ORDER = ['club', 'chapter', 'board', 'nec', 'committee', 'ride', 'direct'];
+const KIND_ORDER = ['club', 'family', 'chapter', 'board', 'nec', 'committee', 'ride', 'direct'];
 
-/** The whole club first, then chapter, big table, NEC and committee chats, ride chats by when the
+/** The whole club first, then Family, chapter, big table, NEC and committee chats, ride chats by when the
  *  ride starts, and private chats with the latest message first. */
 export function sortSummaries(list: ChatSummary[]): ChatSummary[] {
   const rank = (s: ChatSummary) => KIND_ORDER.indexOf(s.conversation.kind);
@@ -73,7 +73,7 @@ function itemsOf(m: Message): FeedItem[] {
 /** Photos and videos `me` can see in every chat but private ones, newest first, a page of about
  *  `limit` items that never splits a message. */
 export function feedFrom(chat: ChatData, club: ClubData, me: Member | null, before?: string, limit = 60): FeedItem[] {
-  if (!me || approvalProblem(me)) return [];
+  if (!me || memberProblem(me)) return [];
   const readable = new Set(chat.conversations.filter((c) => c.kind !== 'direct' && !readProblem(me, c, club)).map((c) => c.id));
   const page: FeedItem[] = [];
   for (const m of withoutBlocked(chat.messages, chat.blocks, me.id).sort(newestFirst)) {
@@ -94,7 +94,7 @@ function wallItems(chat: ChatData, me: Member, chatId: string): FeedItem[] {
 }
 
 export function rideWallsFrom(chat: ChatData, club: ClubData, me: Member | null): RideWall[] {
-  if (!me || approvalProblem(me)) return [];
+  if (!me || memberProblem(me)) return [];
   return chat.conversations
     .filter((c) => c.kind === 'ride')
     .flatMap((c): RideWall[] => {
@@ -106,7 +106,7 @@ export function rideWallsFrom(chat: ChatData, club: ClubData, me: Member | null)
 }
 
 export function rideWallFrom(chat: ChatData, club: ClubData, me: Member | null, rideId: string) {
-  const cant = approvalProblem(me);
+  const cant = memberProblem(me);
   if (cant || !me) throw new NotAllowedError(cant ?? 'Sign in first.');
   const ride = club.rides.find((r) => r.id === rideId);
   if (!ride) throw new NotAllowedError('No such ride.');
