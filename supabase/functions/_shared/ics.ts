@@ -360,7 +360,9 @@ const PREFIXES: [RegExp, RideCategory][] = [
 ];
 
 /** The ride's colour: a "Label: North" line in its notes (the club website's convention, so it
- * beats everything), then the feed's own colour, then a "West:"-style title prefix, then its category. */
+ * beats everything), then the feed's own colour, then a "West:"-style title prefix, then its category.
+ * With none of those it is a Non-Nuts event: every club ride on the calendar carries "Label: Rustnuts",
+ * so an untagged one is someone else's ride (Jeff, 3 Nov 2026). */
 export function categoryFor(feedCategory: RideCategory | null, ev: FeedEvent): RideCategory {
   // Google's editor can wrap the label in HTML, so read a tag-free copy, one label line at a time.
   const plain = (ev.notes ?? '').replace(/<(br|\/?p|\/?div|\/?li)\b[^>]*>/gi, '\n').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&');
@@ -373,5 +375,5 @@ export function categoryFor(feedCategory: RideCategory | null, ev: FeedEvent): R
     if (!source) continue;
     for (const [re, cat] of PREFIXES) if (re.test(source)) return cat;
   }
-  return 'club';
+  return 'non_nuts';
 }
