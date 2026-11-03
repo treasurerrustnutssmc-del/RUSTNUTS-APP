@@ -75,3 +75,27 @@ test('with no roster (the demo) the counts come from members alone', () => {
   assert.equal(counts.fngs, 1);
   assert.equal(counts.onApp, counts.total);
 });
+
+test('club counts split each chapter into Patched, Nomads, FNGs and Legacy, with a club row', () => {
+  const members = [
+    member('jeff', 'ch-west', 'full'),
+    member('kilroy', 'ch-west', 'nomad'),
+    member('gone', 'ch-west', 'legacy'),
+    member('mum', 'ch-west', 'family'),
+    member('applicant', 'ch-north', 'fng', 'pending'),
+  ];
+  const counts = clubCounts(chapters, members, [
+    { chapterId: 'ch-west', status: 'full', count: 12 },
+    { chapterId: 'ch-west', status: 'fng', count: 6 },
+    { chapterId: 'ch-west', status: 'legacy', count: 4 },
+    { chapterId: 'ch-north', status: 'full', count: 4 },
+    { chapterId: 'ch-north', status: 'nomad', count: 1 },
+    { chapterId: 'ch-north', status: 'fng', count: 2 },
+  ]);
+  const row = (r: { patched: number; nomads: number; fngs: number; legacy: number }) => [r.patched, r.nomads, r.fngs, r.legacy];
+  assert.deepEqual(counts.split.map((r) => [r.name, ...row(r)]), [
+    ['West', 13, 1, 6, 5],
+    ['North', 4, 1, 2, 0],
+  ]);
+  assert.deepEqual(row(counts.club), [17, 2, 8, 5], 'the pending applicant is not counted');
+});

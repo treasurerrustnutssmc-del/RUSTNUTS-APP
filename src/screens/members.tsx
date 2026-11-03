@@ -15,7 +15,7 @@ import { canSeeAttendance } from '../domain/attendance';
 import { compassFor } from '../domain/compass';
 import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
-import { clubCounts, positionTitles, seatTitle } from '../domain/home';
+import { clubCounts, positionTitles, seatTitle, type StatusSplit } from '../domain/home';
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, ROLE_SHORT, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
@@ -79,6 +79,50 @@ const toneFor = (iso: string | null, today: string) => {
   const s = expiryState(iso, today);
   return s === 'expired' ? 'danger' : s === 'soon' ? 'warn' : s === 'ok' ? 'ok' : undefined;
 };
+
+const SPLIT_COLUMNS = [
+  { key: 'patched', label: 'Patched' },
+  { key: 'nomads', label: 'Nomads' },
+  { key: 'fngs', label: 'FNGs' },
+  { key: 'legacy', label: 'Legacy' },
+] as const;
+
+/** Home's club numbers: one row per chapter and a club row, by Patched, Nomads, FNGs and Legacy. */
+function ClubSplitTable({ rows }: { rows: ({ id: string; name: string } & StatusSplit)[] }) {
+  const cell = { flex: 1, textAlign: 'center' as const };
+  return (
+    <View>
+      {/* The heads are for the eye; each row already says its numbers to a screen reader. */}
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ flexDirection: 'row', paddingBottom: 6 }}>
+        <View style={{ flex: 1.1 }} />
+        {SPLIT_COLUMNS.map((c) => (
+          <Label key={c.key} style={[cell, { letterSpacing: 0.6 }]}>{c.label}</Label>
+        ))}
+      </View>
+      {rows.map((r, i) => (
+        <View
+          key={r.id}
+          accessible
+          accessibilityLabel={`${r.name}: ${SPLIT_COLUMNS.map((c) => `${r[c.key]} ${c.label}`).join(', ')}`}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 8,
+            borderTopWidth: 1,
+            borderTopColor: i === rows.length - 1 ? colors.lineStrong : colors.line,
+          }}
+        >
+          <Text style={[type.name, { flex: 1.1 }]}>{r.name}</Text>
+          {SPLIT_COLUMNS.map((c) => (
+            <Text key={c.key} style={[type.name, cell, { fontVariant: ['tabular-nums'] }, r[c.key] === 0 ? { color: colors.boneMute } : null]}>
+              {r[c.key]}
+            </Text>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
 
 /** A chapter's members split into Patched, Nomads, FNGs, Hang Arounds, Supporters, Family and Legacy. */
 function GroupedMembers({ members, onOpen }: { members: Member[]; onOpen: (memberId: string) => void }) {
@@ -256,22 +300,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
 
       <Card>
         <H2>The club</H2>
-        <Row style={{ gap: space.xl }}>
-          {counts.chapters.map((c) => (
-            <View key={c.id} style={{ gap: 2 }}>
-              <H1 style={{ fontVariant: ['tabular-nums'] }}>{c.count}</H1>
-              <Label>{c.name}</Label>
-            </View>
-          ))}
-          <View style={{ gap: 2 }}>
-            <H1 style={{ fontVariant: ['tabular-nums'] }}>{counts.patched}</H1>
-            <Label>Patched</Label>
-          </View>
-          <View style={{ gap: 2 }}>
-            <H1 style={{ fontVariant: ['tabular-nums'] }}>{counts.fngs}</H1>
-            <Label>FNGs</Label>
-          </View>
-        </Row>
+        <ClubSplitTable rows={[...counts.split, { id: 'club-total', name: 'Club', ...counts.club }]} />
         {counts.onApp < counts.total ? (
           <Small>
             {counts.onApp} of {counts.total} signed in to the app so far.
