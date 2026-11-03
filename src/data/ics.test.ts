@@ -126,7 +126,7 @@ test('something that isn’t a calendar is refused', () => {
   assert.throws(() => parseIcs('<!doctype html><html>Sign in</html>', FROM, TO), /Not a calendar/);
 });
 
-test('ride colour: the feed’s own colour, then a title prefix, then its category, else the whole club', () => {
+test('ride colour: the feed’s own colour, then a title prefix, then its category, else a non-club event', () => {
   const ev = (title: string, categoryHint: string | null = null): FeedEvent => ({
     uid: 'x', startsAt: FROM, endsAt: null, allDay: false, title, location: null, notes: null, categoryHint,
   });
@@ -135,8 +135,11 @@ test('ride colour: the feed’s own colour, then a title prefix, then its catego
   assert.equal(categoryFor(null, ev('non-nuts: Toy Run')), 'non_nuts');
   assert.equal(categoryFor(null, ev('Rustnuts: Christmas ride')), 'club');
   assert.equal(categoryFor(null, ev('Charity run', 'Supported')), 'supported');
-  assert.equal(categoryFor(null, ev('Charity run', 'Something else')), 'club');
-  assert.equal(categoryFor(null, ev('Breakfast')), 'club');
+  // Jeff 3 Nov 2026: every club ride on the calendar carries "Label: Rustnuts", so one with no
+  // label, prefix or category is someone else's event, not a whole-club ride.
+  assert.equal(categoryFor(null, ev('Charity run', 'Something else')), 'non_nuts');
+  assert.equal(categoryFor(null, ev('Breakfast')), 'non_nuts');
+  assert.equal(categoryFor(null, { ...ev('Black Dog Ride'), notes: 'Annual ride, no tag' }), 'non_nuts');
 });
 
 test('a "Label:" line in the notes (how the club website colours rides) beats everything else', () => {

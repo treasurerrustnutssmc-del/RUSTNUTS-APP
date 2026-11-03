@@ -40,7 +40,7 @@ test('each good feed is applied with coloured rides; a failing one is recorded a
   assert.deepEqual(result, { ok: 1, failed: 2 });
   assert.equal(applied.length, 1, 'only the good feed is applied');
   assert.equal(applied[0].feedId, 'f-mixed');
-  assert.deepEqual(applied[0].events.map((e) => [e.uid, e.category]), [['a@x', 'north'], ['b@x', 'club']]);
+  assert.deepEqual(applied[0].events.map((e) => [e.uid, e.category]), [['a@x', 'north'], ['b@x', 'non_nuts']]);
   assert.deepEqual(errors, [['f-down', 'fetch failed: 503'], ['f-html', 'Not a calendar']]);
 });
 
