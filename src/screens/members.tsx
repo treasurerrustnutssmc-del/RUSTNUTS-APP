@@ -45,6 +45,7 @@ import { BadgesCard } from './badges';
 import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
+import { memberGroups } from '../domain/memberGroups';
 import { NotificationIntroCard } from '../ui/NotificationIntro';
 import {
   Avatar,
@@ -78,6 +79,32 @@ const toneFor = (iso: string | null, today: string) => {
   const s = expiryState(iso, today);
   return s === 'expired' ? 'danger' : s === 'soon' ? 'warn' : s === 'ok' ? 'ok' : undefined;
 };
+
+/** A chapter's members split into Patched, Nomads, FNGs, Hang Arounds, Supporters, Family and Legacy. */
+function GroupedMembers({ members, onOpen }: { members: Member[]; onOpen: (memberId: string) => void }) {
+  const { data } = useClub();
+  return (
+    <Stack gap={space.sm}>
+      {memberGroups(members).map((g) => (
+        <Stack key={g.status} gap={6}>
+          <Label>{`${g.title} · ${g.members.length}`}</Label>
+          <Card style={{ padding: 0, gap: 0 }}>
+            {g.members.map((m, i) => (
+              <MemberRow
+                key={m.id}
+                member={m}
+                data={data}
+                showChapter={false}
+                last={i === g.members.length - 1}
+                onPress={() => onOpen(m.id)}
+              />
+            ))}
+          </Card>
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
 
 function sortMembers(list: Member[]) {
   return [...list].sort(
@@ -317,18 +344,7 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
       {groups.map((g) => (
         <Stack key={g.chapter.id} gap={space.sm}>
           <SectionTitle title={g.chapter.name} action={<Small>{g.members.length} members</Small>} />
-          <Card style={{ padding: 0, gap: 0 }}>
-            {g.members.map((m, i) => (
-              <MemberRow
-                key={m.id}
-                member={m}
-                data={data}
-                showChapter={false}
-                last={i === g.members.length - 1}
-                onPress={() => navigation.navigate('MemberDetail', { memberId: m.id })}
-              />
-            ))}
-          </Card>
+          <GroupedMembers members={g.members} onOpen={(id) => navigation.navigate('MemberDetail', { memberId: id })} />
         </Stack>
       ))}
     </Screen>
@@ -654,18 +670,7 @@ export function ChapterDetailScreen({ route, navigation }: RootScreen<'ChapterDe
         </>
       ) : null}
       <SectionTitle title="Members" action={<Small>{members.length}</Small>} />
-      <Card style={{ padding: 0, gap: 0 }}>
-        {members.map((m, i) => (
-          <MemberRow
-            key={m.id}
-            member={m}
-            data={data}
-            showChapter={false}
-            last={i === members.length - 1}
-            onPress={() => navigation.navigate('MemberDetail', { memberId: m.id })}
-          />
-        ))}
-      </Card>
+      <GroupedMembers members={members} onOpen={(id) => navigation.navigate('MemberDetail', { memberId: id })} />
     </Screen>
   );
 }
