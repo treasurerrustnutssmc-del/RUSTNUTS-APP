@@ -62,3 +62,13 @@ test('the room service is reached over https at the same host', () => {
   assert.equal(roomServiceHost('ws://localhost:7880'), 'http://localhost:7880');
   assert.equal(roomServiceHost('https://rustnuts.livekit.cloud/'), 'https://rustnuts.livekit.cloud/');
 });
+
+test('a room that closes while the sweep runs is skipped, not the end of the sweep', async () => {
+  const f = fake({ 'ride-gone': ['m1'], 'ride-r1': ['m2'] }, [{ room: 'ride-r1', close: false, remove: ['m2'] }]);
+  const deps = { ...f.deps, listParticipants: async (room: string) => {
+    if (room === 'ride-gone') throw new Error('room not found');
+    return ['m2'];
+  } };
+  assert.deepEqual(await sweepVoice(env, deps), { switchedOn: true, rooms: 2, closed: 0, removed: 1, failed: 1 });
+  assert.deepEqual(f.asked, [[{ room: 'ride-r1', members: ['m2'] }]]);
+});

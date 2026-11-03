@@ -3,27 +3,33 @@
 // fetched at most once a week and kept in private.link_previews.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
-import { fetchableUrl, fetchPreview, httpRequest, readHttpResponse, TIMEOUT_MS } from '../_shared/linkPreview.ts';
+import { fetchableUrl, fetchPreview, httpRequest, readHttpResponse, TIMEOUT_MS, tlsName } from '../_shared/linkPreview.ts';
 
 /** Opens a connection to one of the checked addresses (never a fresh lookup, ChatGPT audit F09), with
- *  https checked against the real host name, sends the GET and reads the answer. */
+ *  https checked against the real host name, sends the GET and reads the answer. The deadline closes
+ *  whatever connection is open, at any step. */
 async function getPinned(url: URL, addresses: string[], signal: AbortSignal): Promise<Response> {
   const port = Number(url.port) || (url.protocol === 'https:' ? 443 : 80);
   let lastError: unknown = new Error('No address to try');
   for (const address of addresses) {
     if (signal.aborted) break;
     let conn: Deno.Conn | null = null;
+    const close = () => {
+      try { conn?.close(); } catch { /* already closed */ }
+    };
+    signal.addEventListener('abort', close, { once: true });
     try {
       conn = await Deno.connect({ hostname: address, port });
-      if (url.protocol === 'https:') conn = await Deno.startTls(conn as Deno.TcpConn, { hostname: url.hostname });
-      const open = conn;
-      const stop = () => { try { open.close(); } catch { /* already closed */ } };
-      signal.addEventListener('abort', stop, { once: true });
-      await open.write(new TextEncoder().encode(httpRequest(url)));
-      return await readHttpResponse(open.readable);
+      if (signal.aborted) throw new Error('Out of time');
+      if (url.protocol === 'https:') conn = await Deno.startTls(conn as Deno.TcpConn, { hostname: tlsName(url) });
+      if (signal.aborted) throw new Error('Out of time');
+      await conn.write(new TextEncoder().encode(httpRequest(url)));
+      // The listener stays while the answer is read, so the deadline still closes the connection.
+      return await readHttpResponse(conn.readable);
     } catch (e) {
       lastError = e;
-      try { conn?.close(); } catch { /* already closed */ }
+      close();
+      signal.removeEventListener('abort', close);
     }
   }
   throw lastError;

@@ -50,7 +50,16 @@ export async function sweepVoice(env: VoiceEnv, deps: SweepDeps): Promise<SweepR
   result.rooms = rooms.length;
   if (!rooms.length) return result;
   const list = [];
-  for (const room of rooms) list.push({ room, members: await deps.listParticipants(room) });
+  for (const room of rooms) {
+    try {
+      list.push({ room, members: await deps.listParticipants(room) });
+    } catch (e) {
+      // Most likely it closed itself (empty) since the list; the next sweep sees it either way.
+      result.failed++;
+      console.error('voice-sweep list', room, (e as Error).message);
+    }
+  }
+  if (!list.length) return result;
   for (const d of await deps.decide(list)) {
     if (d.close) {
       try {

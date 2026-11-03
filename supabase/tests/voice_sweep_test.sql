@@ -114,6 +114,13 @@ begin
   assert private.live_problem('00000000-0000-0000-0000-0000000000b4') = 'Only approved members can do that.', 'suspended';
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
   assert private.live_problem('00000000-0000-0000-0000-0000000000b4') = 'Live ride opens 2 hours before the start.', 'not yet';
+  assert private.live_problem('00000000-0000-0000-0000-0000000000ee') = 'No such ride.', 'unknown';
+  assert private.live_problem('00000000-0000-0000-0000-0000000000b3') = 'That ride was cancelled.', 'cancelled';
+  assert private.live_problem('00000000-0000-0000-0000-0000000000b2') = 'This ride’s finished.', 'finished';
+  update rides set cancelled_at = null where id = '00000000-0000-0000-0000-0000000000b1';
+  assert private.live_problem('00000000-0000-0000-0000-0000000000b1') is null, 'approved, ride on';
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
+  assert private.live_problem('00000000-0000-0000-0000-0000000000b1') = 'Only approved members can do that.', 'family';
   perform set_config('request.jwt.claim.sub', '', true);
   assert private.live_problem('00000000-0000-0000-0000-0000000000b4') = 'Sign in first.', 'nobody';
 end $$;

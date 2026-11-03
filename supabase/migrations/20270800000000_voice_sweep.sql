@@ -62,8 +62,9 @@ begin
     select coalesce(jsonb_agg(m.value order by m.ord), '[]'::jsonb) into gone
     from jsonb_array_elements_text(case when jsonb_typeof(r->'members') = 'array' then r->'members' else '[]'::jsonb end)
          with ordinality as m(value, ord)
-    where m.value !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-       or private.live_problem_for(ride_id, m.value::uuid) is not null;
+    where case when m.value ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+               then private.live_problem_for(ride_id, m.value::uuid) is not null
+               else true end;
     if jsonb_array_length(gone) > 0 then
       result := result || jsonb_build_array(jsonb_build_object('room', r->>'room', 'close', false, 'remove', gone));
     end if;
@@ -75,7 +76,8 @@ revoke all on function public.voice_sweep(jsonb) from public, anon, authenticate
 grant execute on function public.voice_sweep(jsonb) to service_role;
 
 -- Worth running: a ride's live window is open now or closed in the last 6 hours (a room left open by
--- a sweep that failed is still caught). No rides, no calls.
+-- a sweep that failed is still caught). No rides, no calls. Rides that started more than 7 days ago
+-- are left out (keeps it cheap); no club ride runs that long.
 create or replace function private.voice_sweep_due()
 returns boolean language sql stable security definer set search_path = '' as $$
   select exists (

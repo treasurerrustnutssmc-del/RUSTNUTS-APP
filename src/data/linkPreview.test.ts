@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { connectOrder, fetchableUrl, fetchPreview, httpRequest, isPrivateAddress, parsePreview, readHttpResponse } from '../../supabase/functions/_shared/linkPreview';
+import { connectOrder, fetchableUrl, tlsName, fetchPreview, httpRequest, isPrivateAddress, parsePreview, readHttpResponse } from '../../supabase/functions/_shared/linkPreview';
 
 test('private, local and reserved addresses are never fetched', () => {
   for (const ip of ['10.1.2.3', '127.0.0.1', '172.20.0.1', '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', 'fd00::1', 'fe80::1', '::ffff:10.0.0.1', 'nonsense']) {
@@ -140,4 +140,43 @@ test('a broken answer is an error, not a page', async () => {
   await assert.rejects(readHttpResponse(stream('SSH-2.0-OpenSSH\r\n\r\n')), /not an http answer/i);
   await assert.rejects(readHttpResponse(stream('HTTP/1.1 200 OK\r\nX: ' + 'y'.repeat(40_000))), /headers too long/i);
   await assert.rejects(readHttpResponse(stream('HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n')), /ended early/i);
+});
+
+test('chunk sizes and line ends split across reads still parse, and a bad chunk is an error', async () => {
+  const split = await readHttpResponse(stream('HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n', '3', '\r', '\nabc', '\r', '\n2\r\nde\r\n0\r\n\r\n'));
+  assert.equal(await split.text(), 'abcde');
+  const negative = await readHttpResponse(stream('HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n-5\r\nabc\r\n'));
+  await assert.rejects(negative.text(), /bad chunk/i);
+  const noCrlf = await readHttpResponse(stream('HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabcXY4\r\n'));
+  await assert.rejects(noCrlf.text(), /bad chunk/i);
+});
+
+test('a huge chunk is handed on a piece at a time, so the 512 KB cap still holds', async () => {
+  let sent = 0;
+  const endless = new ReadableStream<Uint8Array>({
+    start(c) {
+      c.enqueue(new TextEncoder().encode('HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nTransfer-Encoding: chunked\r\n\r\nffffffffffff\r\n'));
+    },
+    pull(c) {
+      sent += 16 * 1024;
+      if (sent > 4 * 1024 * 1024) throw new Error('read far past the cap');
+      c.enqueue(new Uint8Array(16 * 1024).fill(120));
+    },
+  });
+  const res = await readHttpResponse(endless);
+  const deps = { resolve: async () => ['93.184.216.34'], get: async () => res };
+  assert.equal(await fetchPreview('https://big.example/', deps), null);
+  assert.ok(sent < 1024 * 1024, `read ${sent} bytes`);
+});
+
+test('an early hint is skipped, and a compressed answer is refused rather than read as a page', async () => {
+  const hinted = await readHttpResponse(stream('HTTP/1.1 103 Early Hints\r\nLink: </a.css>\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok'));
+  assert.equal(hinted.status, 200);
+  assert.equal(await hinted.text(), 'ok');
+  await assert.rejects(readHttpResponse(stream('HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: 2\r\n\r\nxx')), /compressed/i);
+});
+
+test('the TLS name for an IPv6 address has no brackets', () => {
+  assert.equal(tlsName(new URL('https://[2606:4700::1111]/')), '2606:4700::1111');
+  assert.equal(tlsName(new URL('https://www.example.com/')), 'www.example.com');
 });

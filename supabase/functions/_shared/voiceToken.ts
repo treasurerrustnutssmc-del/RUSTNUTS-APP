@@ -2,7 +2,9 @@
 // decides who (public.ride_voice_room, with the live ride rules); this turns its answer into a
 // LiveKit token. Shared by the ride-voice-token Edge Function and the app's tests.
 
-export const TOKEN_TTL_SECONDS = 3 * 60 * 60;
+/** Short: LiveKit keeps a connected member's call going with tokens it refreshes itself, and a token
+ *  kept after the voice sweep takes someone out is useless within 15 minutes (F03). */
+export const TOKEN_TTL_SECONDS = 15 * 60;
 export const NOT_SWITCHED_ON = 'Ride comms isn’t switched on yet.';
 
 export interface VoiceEnv {

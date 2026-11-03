@@ -197,6 +197,11 @@ const USER_AGENT = 'RustnutsLinkPreview/1.0';
 /** The status line and headers together may be this long at most. */
 export const MAX_HEADER_BYTES = 32 * 1024;
 
+/** The name the certificate must match: the host, without an IPv6 address's brackets. */
+export function tlsName(url: URL): string {
+  return url.hostname.replace(/^\[|\]$/g, '');
+}
+
 /** The request to send, with the real host name (the connection itself goes to a checked address). */
 export function httpRequest(url: URL): string {
   return [
@@ -276,14 +281,20 @@ class Bytes {
 /** Reads one HTTP/1.x answer off a connection into a Response (body by length, chunked, or until close). */
 export async function readHttpResponse(source: ReadableStream<Uint8Array>): Promise<Response> {
   const bytes = new Bytes(source.getReader());
-  const head = await bytes.until('\r\n\r\n', MAX_HEADER_BYTES);
-  if (!head) {
-    await bytes.cancel();
-    throw new Error('The answer ended early');
+  let status = 0;
+  let lines: string[] = [];
+  // 1xx answers (103 Early Hints and the like) come before the real one: skip them.
+  for (let heads = 0; heads < 5 && (status === 0 || (status >= 100 && status < 200)); heads++) {
+    const head = await bytes.until('\r\n\r\n', MAX_HEADER_BYTES);
+    if (!head) {
+      await bytes.cancel();
+      throw new Error('The answer ended early');
+    }
+    const [statusLine, ...rest] = new TextDecoder().decode(head).split('\r\n');
+    const m = statusLine.match(/^HTTP\/1\.[01] (\d{3})(?: .*)?$/);
+    status = m ? Number(m[1]) : -1;
+    lines = rest;
   }
-  const [statusLine, ...lines] = new TextDecoder().decode(head).split('\r\n');
-  const m = statusLine.match(/^HTTP\/1\.[01] (\d{3})(?: .*)?$/);
-  const status = m ? Number(m[1]) : 0;
   if (status < 200 || status > 599) {
     await bytes.cancel();
     throw new Error('Not an HTTP answer');
@@ -292,6 +303,12 @@ export async function readHttpResponse(source: ReadableStream<Uint8Array>): Prom
   for (const line of lines) {
     const colon = line.indexOf(':');
     if (colon > 0) headers.append(line.slice(0, colon).trim(), line.slice(colon + 1).trim());
+  }
+  const encoding = (headers.get('content-encoding') ?? '').trim().toLowerCase();
+  if (encoding && encoding !== 'identity') {
+    // Asked for none; a compressed page would read as nonsense and be kept as "no preview".
+    await bytes.cancel();
+    throw new Error('A compressed answer');
   }
   if (status === 204 || status === 304) {
     await bytes.cancel();
@@ -310,21 +327,27 @@ export async function readHttpResponse(source: ReadableStream<Uint8Array>): Prom
         if (chunked) {
           if (chunkLeft === 0) {
             const sizeLine = await bytes.until('\r\n', 1024);
-            const size = sizeLine ? parseInt(new TextDecoder().decode(sizeLine).split(';')[0].trim(), 16) : NaN;
-            if (!Number.isFinite(size) || size === 0) {
+            const sizeText = sizeLine ? new TextDecoder().decode(sizeLine).split(';')[0].trim() : '';
+            if (!/^[0-9a-f]{1,12}$/i.test(sizeText)) throw new Error('A bad chunk');
+            const size = parseInt(sizeText, 16);
+            if (size === 0) {
               finished = true;
               await bytes.cancel();
               return c.close();
             }
             chunkLeft = size;
           }
-          const part = await bytes.exactly(chunkLeft);
+          // A piece at a time, however big the chunk says it is, so the reader's cap holds.
+          const part = await bytes.exactly(Math.min(chunkLeft, 64 * 1024));
           if (!part.length) {
             finished = true;
             return c.close();
           }
           chunkLeft -= part.length;
-          if (chunkLeft === 0) await bytes.exactly(2); // the chunk's closing CRLF
+          if (chunkLeft === 0) {
+            const end = await bytes.exactly(2);
+            if (end.length !== 2 || end[0] !== 13 || end[1] !== 10) throw new Error('A bad chunk');
+          }
           return c.enqueue(part);
         }
         if (left <= 0) {

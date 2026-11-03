@@ -25,7 +25,10 @@ ignores the hang-up keeps talking until the token runs out (up to 3 hours, never
   the function is not woken on days with no ride. The URL is stored in `private.app_settings`
   (`voice_sweep_url`), like the others; until it is set nothing runs.
 - Logic (`_shared/voiceSweep.ts`) is plain TypeScript with LiveKit and the database passed in, tested
-  with `node:test`. The database rule is tested in `ride_voice_test.sql`.
+  with `node:test`. The database rule is tested in `voice_sweep_test.sql`.
+- Tokens now last 15 minutes (were 3 hours), still never past the window. LiveKit refreshes a
+  connected member's token itself, so calls carry on; someone taken out can't come back on a kept
+  token for more than 15 minutes, and each sweep takes them out again meanwhile.
 
 ## F09: link-preview's DNS check isn't pinned to the connection
 
@@ -51,6 +54,6 @@ A host that answers public then private could, in theory, be fetched on a privat
 
 ## Going live
 
-Migration (one SQL run), deploy `voice-sweep` and `link-preview`, then set
+Migration (one SQL run), deploy `voice-sweep`, `link-preview` and `ride-voice-token` (shorter tokens), then set
 `voice_sweep_url` in `private.app_settings`. The CRON_SECRET secret is project-wide, so voice-sweep
 already has it.

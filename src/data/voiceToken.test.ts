@@ -21,7 +21,8 @@ test('the grant is audio only, for one room, with nothing recorded', () => {
     canSubscribe: true,
     canPublishData: false,
   });
-  assert.equal(TOKEN_TTL_SECONDS, 3 * 60 * 60);
+  // Short, so a token kept after the voice sweep takes someone out is soon useless (F03 review).
+  assert.equal(TOKEN_TTL_SECONDS, 15 * 60);
 });
 
 test('a member allowed in gets the server address and a token for their ride', async () => {
@@ -30,9 +31,9 @@ test('a member allowed in gets the server address and a token for their ride', a
 });
 
 test('a token never outlives the live window', async () => {
-  const late = { ...deps, now: () => Date.parse('2026-11-08T02:30:00.000Z') };
+  const late = { ...deps, now: () => Date.parse('2026-11-08T02:50:00.000Z') };
   const res = await handleVoiceToken(env, { rideId: RIDE }, late);
-  assert.equal(res.status === 200 && res.body.token.split(':').pop(), String(30 * 60));
+  assert.equal(res.status === 200 && res.body.token.split(':').pop(), String(10 * 60));
 });
 
 test('before Jeff sets the LiveKit secrets, it says so', async () => {
