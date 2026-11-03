@@ -2,7 +2,7 @@
 // which applies the same rules the database enforces (checked by src/data/parity.test.ts).
 
 import React, { useCallback, useState } from 'react';
-import { approvalProblem } from '../../domain/chat';
+import { memberProblem } from '../../domain/chat';
 import { useChat } from '../chat/ChatProvider';
 import { DEMO_MEDIA } from '../chat/demoChatData';
 import { useClub } from '../clubContext';
@@ -16,7 +16,7 @@ export function DemoSocialProvider({ children }: { children: React.ReactNode }) 
   const ctx = (): act.SocialCtx => ({ social, club: data, me, today });
   // Kept the same between renders, so a screen that loads on change doesn't load forever.
   // Like the database: nothing from anyone you've blocked.
-  const notApproved = approvalProblem(me) !== null;
+  const notApproved = memberProblem(me) !== null;
   const { blocks } = useChat();
   const photosOnThisDay = useCallback(async () => {
     if (notApproved) return [];

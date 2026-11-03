@@ -105,7 +105,8 @@ declare
   fam uuid := '00000000-0000-0000-0000-0000000000c6';
 begin
   assert pg_temp.try_as(null, 'select public.accept_posting_rules()') is not null, 'anon';
-  assert pg_temp.try_as(fam, 'select public.accept_posting_rules()') = 'Only approved members can do that.', 'family';
+  -- Family agree too, before posting in the Family chat (20270810000100_family_chat.sql).
+  assert pg_temp.try_as(fam, 'select public.accept_posting_rules()') is null, 'family';
   assert pg_temp.value_as(fresh, 'select public.accept_posting_rules()')::date = private.club_date(), 'today';
   update public.members set posting_rules_accepted_on = date '2026-01-01' where id = fresh;
   assert pg_temp.value_as(fresh, 'select public.accept_posting_rules()')::date = date '2026-01-01', 'kept';

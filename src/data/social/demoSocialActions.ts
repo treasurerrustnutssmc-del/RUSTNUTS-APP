@@ -2,7 +2,7 @@
 // they take the data as it is and hand back the data as it should be, or throw with the same words
 // the database uses. src/data/parity.test.ts checks them against the database's rules.
 
-import { approvalProblem } from '../../domain/chat';
+import { memberProblem } from '../../domain/chat';
 import {
   archiveProblem,
   cleanMechanic,
@@ -127,7 +127,7 @@ const refuse = (problem: string | null) => {
 
 /** Shares (or changes) my birthday; two nulls take it off. */
 export function setBirthday(ctx: SocialCtx, month: number | null, day: number | null): SocialData {
-  refuse(approvalProblem(ctx.me));
+  refuse(memberProblem(ctx.me));
   refuse(birthdayProblem(month, day));
   const me = ctx.me as Member;
   const others = ctx.social.birthdays.filter((b) => b.memberId !== me.id);

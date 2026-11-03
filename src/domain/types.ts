@@ -298,6 +298,9 @@ export interface ClubData extends LedgerData, AdminData, AuditData, ShopData {
   busBookings?: BusBooking[];
   /** When the live calendar last synced (live mode only). */
   ridesSyncedAt?: string | null;
+  /** Family only: who's who in the Family chat (names, chapter and status only; first name as
+   *  fullName). Members use `members`. Missing means none. */
+  chatPeople?: Member[];
   // Ride planning extras. Missing means none.
   ridePlans?: RidePlan[];
   routeRatings?: RouteRating[];

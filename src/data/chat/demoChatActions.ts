@@ -3,7 +3,7 @@
 // the database uses. src/data/parity.test.ts checks them against the database's rules.
 
 import {
-  approvalProblem,
+  memberProblem,
   blockProblem,
   canSeeReport,
   directProblem,
@@ -181,7 +181,7 @@ export function reportMessage(ctx: ChatCtx, messageId: string, reason: string): 
 /** Deals with a report: remove the message, or let it stand. Either way every open report on that
  *  message closes. */
 export function resolveReport(ctx: ChatCtx, reportId: string, remove: boolean): ChatData {
-  refuse(approvalProblem(ctx.me));
+  refuse(memberProblem(ctx.me));
   const report = ctx.chat.reports.find((r) => r.id === reportId);
   if (!report) throw new NotAllowedError('No such report.');
   const message = findMessage(ctx.chat, report.messageId);
@@ -199,7 +199,8 @@ export function resolveReport(ctx: ChatCtx, reportId: string, remove: boolean): 
 }
 
 export function setBlock(ctx: ChatCtx, memberId: string, blocked: boolean): ChatData {
-  refuse(blockProblem(ctx.me, ctx.club.members.find((m) => m.id === memberId)));
+  // Family know people through the Family chat's names (chatPeople), not the directory.
+  refuse(blockProblem(ctx.me, [...ctx.club.members, ...(ctx.club.chatPeople ?? [])].find((m) => m.id === memberId)));
   const me = ctx.me!.id;
   const others = ctx.chat.blocks.filter((b) => !(b.blockerId === me && b.blockedId === memberId));
   return { ...ctx.chat, blocks: blocked ? [...others, { blockerId: me, blockedId: memberId }] : others };
@@ -218,7 +219,7 @@ export function openDirect(ctx: ChatCtx, memberId: string): { chat: ChatData; id
 
 /** A ride's chat, for any approved member. */
 export function rideChat(ctx: ChatCtx, rideId: string): { chat: ChatData; id: string } {
-  refuse(approvalProblem(ctx.me));
+  refuse(memberProblem(ctx.me));
   if (!ctx.club.rides.some((r) => r.id === rideId)) throw new NotAllowedError('No such ride.');
   const existing = ctx.chat.conversations.find((c) => c.kind === 'ride' && c.rideId === rideId);
   if (existing) return { chat: ctx.chat, id: existing.id };

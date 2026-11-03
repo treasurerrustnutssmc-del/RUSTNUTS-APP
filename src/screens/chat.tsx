@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { useAiConsent } from '../data/aiConsent';
 import { useCatchUpApi } from '../data/catchUpApi';
+import { isFamily } from '../domain/access'; // Family chat
 import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { catchUpCount } from '../domain/catchUp';
 import { composerBottomRoom } from '../domain/keyboard';
@@ -30,6 +31,7 @@ import {
   type Message,
 } from '../domain/chat';
 import { pickReadable } from '../domain/contrast';
+import { hasAgreedPostingRules } from '../domain/postingRules'; // Family chat
 import { formatAuDate } from '../domain/dates';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
@@ -74,6 +76,7 @@ import { useOnRideCall, VoiceNote, VoiceRecorderBar } from '../ui/VoiceBits';
 
 const KIND_ICON: Record<string, IconName> = {
   club: 'people',
+  family: 'heart',
   chapter: 'flag',
   board: 'shield',
   nec: 'star',
@@ -113,19 +116,22 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
   const chat = useChat();
   const social = useSocial();
   const [reportCount, setReportCount] = useState(0);
-  // Someone who might join gets no private chats until they're an FNG.
-  const mayMessage = !!me && me.approval === 'approved' && me.status !== 'introduced';
+  // Someone who might join gets no private chats until they're an FNG. Family get the Family chat only:
+  // no private chats and no photo feeds.
+  const family = isFamily(me);
+  const mayMessage = !!me && me.approval === 'approved' && me.status !== 'introduced' && !family;
+  const people = useMemo(() => [...data.members, ...(data.chatPeople ?? [])], [data.members, data.chatPeople]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <Row style={{ gap: 2, marginRight: space.sm }}>
-          <IconButton icon="images-outline" label="Photos and ride walls" onPress={() => navigation.navigate('Photos')} />
+          {family ? null : <IconButton icon="images-outline" label="Photos and ride walls" onPress={() => navigation.navigate('Photos')} />}
           {mayMessage ? <IconButton icon="create-outline" label="New private chat" onPress={() => navigation.navigate('NewChat')} /> : null}
         </Row>
       ),
     });
-  }, [navigation, mayMessage]);
+  }, [navigation, mayMessage, family]);
 
   useFocusEffect(
     useCallback(() => {
@@ -172,7 +178,7 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
                 }
                 subtitle={
                   <Row style={{ gap: space.sm, flexWrap: 'nowrap' }}>
-                    <Small numberOfLines={1} style={[{ flex: 1 }, s.unread ? { color: colors.boneDim } : null]}>{preview(s, me, data.members)}</Small>
+                    <Small numberOfLines={1} style={[{ flex: 1 }, s.unread ? { color: colors.boneDim } : null]}>{preview(s, me, people)}</Small>
                     <UnreadBadge n={s.unread} />
                   </Row>
                 }
@@ -246,7 +252,10 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     isDemo ? messages.filter((m) => m.authorId !== me?.id && !m.removedAt).length : (summary?.unread ?? null),
   );
   if (unreadAtOpen === null && summary) setUnreadAtOpen(summary.unread);
-  const catchCount = catchUpCount(unreadAtOpen ?? 0, isDemo);
+  // Family chat: Catch me up, profiles and the photo feeds are members' things.
+  const family = isFamily(me);
+  const people = useMemo(() => [...data.members, ...(data.chatPeople ?? [])], [data.members, data.chatPeople]);
+  const catchCount = family ? 0 : catchUpCount(unreadAtOpen ?? 0, isDemo);
   const [catching, setCatching] = useState(false);
   const [caught, setCaught] = useState<{ summary: string; count: number } | null>(null);
   const [catchError, setCatchError] = useState<string | null>(null);
@@ -269,8 +278,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   // Someone who joined after the club was loaded isn't in the member list yet: reload it once
   // rather than calling them "Former member".
   const missingKey = useMemo(
-    () => unknownAuthors(messages, data.members).filter((id) => !reloadedFor.has(id)).join(','),
-    [messages, data.members],
+    () => unknownAuthors(messages, people).filter((id) => !reloadedFor.has(id)).join(','),
+    [messages, people],
   );
   useEffect(() => {
     if (!missingKey) return;
@@ -298,7 +307,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
 
   const pinned = conv?.pinnedMessageId ? messages.find((m) => m.id === conv.pinnedMessageId) : undefined;
   const moderator = !!conv && canModerate(me, conv, data);
-  const nameOf = (id: string) => (id === me?.id ? 'You' : displayName(data.members.find((m) => m.id === id) ?? { roadName: null, fullName: 'Former member' }));
+  const nameOf = (id: string) => (id === me?.id ? 'You' : displayName(people.find((m) => m.id === id) ?? { roadName: null, fullName: 'Former member' }));
 
   const run = async (job: () => Promise<void>) => {
     try {
@@ -385,7 +394,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
 
   const renderMessage = (m: Message, first: boolean, last: boolean) => {
     const mine = m.authorId === me.id;
-    const author = data.members.find((x) => x.id === m.authorId);
+    const author = people.find((x) => x.id === m.authorId);
     const isSelected = selected === m.id;
     const showAuthor = first && !mine && conv.kind !== 'direct';
     const firstLink = m.body ? findLinks(m.body).find((p) => p.url)?.url : undefined;
@@ -417,11 +426,11 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           >
             {showAuthor ? (
               <Pressable
-                disabled={!author}
-                onPress={() => author && navigation.navigate('MemberDetail', { memberId: author.id })}
-                accessibilityRole="button"
-                accessibilityLabel={author ? `${displayName(author)}’s page` : undefined}
-                accessibilityHint="Opens their page, where you can message, block or report them"
+                disabled={!author || family}
+                onPress={() => author && !family && navigation.navigate('MemberDetail', { memberId: author.id })}
+                accessibilityRole={family ? 'text' : 'button'}
+                accessibilityLabel={author && !family ? `${displayName(author)}’s page` : undefined}
+                accessibilityHint={family ? undefined : 'Opens their page, where you can message, block or report them'}
               >
                 <AuthorLine member={author} data={data} />
               </Pressable>
@@ -594,6 +603,15 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
       </View>
       <View style={[styles.composerWrap, { paddingBottom: composerBottomRoom(Platform.OS, keyboard, insets.bottom, space.sm) }]}>
         <View style={{ width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' }}>
+          {family && !hasAgreedPostingRules(me) ? (
+            // Family chat: Family agree to the club rules for chats and posts here, before their first
+            // message (members agree before the tabs open). Reading needs nothing.
+            <View style={styles.rulesCard}>
+              <Small>Read the club rules for chats and posts and agree once, and you can join in.</Small>
+              <Button label="Read the club rules" icon="document-text-outline" size="small" onPress={() => navigation.navigate('PostingRules')} />
+            </View>
+          ) : (
+          <>
           {replyTo ? (
             <View style={styles.replyBar}>
               <View style={{ flex: 1 }}>
@@ -678,6 +696,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               }}
             />
           ) : null}
+          </>
+          )}
         </View>
       </View>
     </View>
@@ -899,6 +919,7 @@ const styles = StyleSheet.create({
   consentWrap: { padding: space.md },
   composerWrap: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.ink2 },
   replyBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: space.lg, paddingRight: space.sm, paddingTop: space.sm },
+  rulesCard: { gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.md },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, paddingHorizontal: space.sm, paddingTop: space.sm },
   gifBtn: {
     width: 44, height: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',

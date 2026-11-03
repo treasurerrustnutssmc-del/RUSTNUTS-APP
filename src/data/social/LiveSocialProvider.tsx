@@ -4,7 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { approvalProblem } from '../../domain/chat';
+import { memberProblem } from '../../domain/chat';
 import {
   archiveProblem,
   mechanicProblem,
@@ -276,7 +276,7 @@ export function LiveSocialProvider({ children }: { children: React.ReactNode }) 
     ready,
     birthdays,
     setBirthday: async (month, day) => {
-      refuse(approvalProblem(me) ?? birthdayProblem(month, day));
+      refuse(memberProblem(me) ?? birthdayProblem(month, day));
       await call('set_birthday', { p_month: month, p_day: day });
       await load();
     },

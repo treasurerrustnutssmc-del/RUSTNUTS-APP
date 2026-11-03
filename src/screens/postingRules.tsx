@@ -6,6 +6,7 @@ import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Linking, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
+import { isFamily } from '../domain/access'; // Family chat
 import {
   POSTING_RULES_EMAIL,
   POSTING_RULES_INTRO,
@@ -13,6 +14,7 @@ import {
   POSTING_RULES_TITLE,
   POSTING_RULES_URL,
   postingRulesUpdatedLine,
+  hasAgreedPostingRules,
   needsPostingRules,
 } from '../domain/postingRules';
 import type { RootParams } from '../navigation/types';
@@ -81,11 +83,17 @@ export function PostingRulesScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const gate = needsPostingRules(me);
+  // Family chat: Family agree here, from the Family chat, before their first message. Then it's back
+  // to the chat.
+  const familyAgrees = isFamily(me) && !hasAgreedPostingRules(me);
   const agree = () => {
     if (busy) return;
     setError(null);
     setBusy(true);
     acceptPostingRules()
+      .then(() => {
+        if (familyAgrees && navigation.canGoBack()) navigation.goBack();
+      })
       .catch((e) => setError((e as Error).message))
       .finally(() => setBusy(false));
   };
@@ -97,8 +105,9 @@ export function PostingRulesScreen() {
           <Body>Read these once and agree, and the chats and posts open up. Every member does the same.</Body>
         </Stack>
       ) : null}
+      {familyAgrees ? <Body>Read these once and agree, and you can post in the Family chat. Every member does the same.</Body> : null}
       <RulesText />
-      {gate ? (
+      {gate || familyAgrees ? (
         <Stack gap={space.sm}>
           {error ? <Notice tone="danger">{error}</Notice> : null}
           <Button label="I agree" icon="checkmark-circle-outline" busy={busy} onPress={agree} />

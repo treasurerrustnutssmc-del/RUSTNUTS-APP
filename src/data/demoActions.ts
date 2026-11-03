@@ -165,7 +165,8 @@ export function approve(ctx: DemoCtx, memberId: string, status: MemberStatus): C
 /** Records today as the day I agreed to the club rules for chats and posts (a second tap keeps the first date). */
 export function acceptPostingRules(ctx: DemoCtx): ClubData {
   const me = requireMe(ctx);
-  if (me.approval !== 'approved' || me.status === 'family') throw new NotAllowedError('Only approved members can do that.');
+  // Family agree too, before posting in the Family chat (mirrors private.is_chat_user).
+  if (me.approval !== 'approved') throw new NotAllowedError('Only approved members can do that.');
   return patchMember(ctx.data, me.id, { postingRulesAcceptedOn: me.postingRulesAcceptedOn ?? ctx.today });
 }
 

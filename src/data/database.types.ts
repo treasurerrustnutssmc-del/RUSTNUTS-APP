@@ -634,6 +634,11 @@ export type Database = {
           'id' | 'starts_at' | 'ends_at' | 'all_day' | 'title' | 'location' | 'notes' | 'category' | 'cancelled_at'
         >[];
       };
+      /** Family chat: road name, first name, chapter and status of whoever posted there. Empty for anyone who isn't Family. */
+      family_chat_people: {
+        Args: never;
+        Returns: { id: string; road_name: string | null; first_name: string; chapter_id: string; status: MemberStatus }[];
+      };
       unclaimed_roster_counts: { Args: never; Returns: { chapter_id: string; status: MemberStatus; n: number }[] };
       signup_counts: {
         Args: never;

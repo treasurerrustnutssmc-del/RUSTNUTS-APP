@@ -129,17 +129,17 @@ end $$;
 \echo 'Who reads which chat'
 do $$
 begin
-  -- club, West, ride committee, 3 rides
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d1', 'conversations') = 6, 'West member on the ride committee';
-  -- club, North, 3 rides
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d3', 'conversations') = 5, 'North member';
-  -- club, North, North big table, ride committee, 3 rides
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d4', 'conversations') = 7, 'North Road Captain';
-  -- club, West, West big table, 3 rides
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d2', 'conversations') = 6, 'West Secretary';
-  -- club, NEC, 3 chapters, 3 big tables, 2 committees, 3 rides
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d5', 'conversations') = 13, 'the NEC';
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d6', 'conversations') = 5, 'Legacy: club, West, rides';
+  -- club, Family, West, ride committee, 3 rides
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d1', 'conversations') = 7, 'West member on the ride committee';
+  -- club, Family, North, 3 rides
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d3', 'conversations') = 6, 'North member';
+  -- club, Family, North, North big table, ride committee, 3 rides
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d4', 'conversations') = 8, 'North Road Captain';
+  -- club, Family, West, West big table, 3 rides
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d2', 'conversations') = 7, 'West Secretary';
+  -- club, Family, NEC, 3 chapters, 3 big tables, 2 committees, 3 rides
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d5', 'conversations') = 14, 'the NEC';
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d6', 'conversations') = 6, 'Legacy: club, Family, West, rides';
   assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d7', 'conversations') in (0, -1), 'an applicant sees none';
   assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d8', 'conversations') in (0, -1), 'a stranger sees none';
   assert pg_temp.count_as(null, 'conversations') in (0, -1), 'the public sees none';
@@ -379,8 +379,8 @@ declare
   wes constant uuid := '00000000-0000-0000-0000-0000000000d1';
   send text := 'select public.send_message(%L, %L, ''[]''::jsonb, null)';
 begin
-  assert pg_temp.count_as(nick, 'conversations') = pg_temp.count_as('00000000-0000-0000-0000-0000000000d6', 'conversations') - 1,
-    'what a Legacy member sees, less the chapter chat';
+  assert pg_temp.count_as(nick, 'conversations') = pg_temp.count_as('00000000-0000-0000-0000-0000000000d6', 'conversations') - 2,
+    'what a Legacy member sees, less the chapter and Family chats';
   assert pg_temp.try_as(nick, format(send, pg_temp.chat('club'), 'g''day all')) is null, 'says hello to the club';
   assert pg_temp.try_as(nick, format(send, pg_temp.chat('00000000-0000-0000-0000-0000000000e1'), 'see you there')) is null, 'and on a ride';
   assert pg_temp.try_as(nick, format(send, pg_temp.chat('west'), 'hi')) = 'Chapter chats open up once you’re an FNG.', 'not the chapter';

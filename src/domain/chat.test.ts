@@ -78,7 +78,7 @@ test('every approved member reads the whole-club and ride chats; nobody else doe
     assert.equal(readProblem(m, rideChat, data), null, m.id);
   }
   assert.equal(readProblem(applicant, club, data), 'Only approved members can do that.');
-  assert.equal(readProblem(member('fam', { status: 'family' }), club, data), 'Only approved members can do that.', 'family use the app without the chats');
+  assert.equal(readProblem(member('fam', { status: 'family' }), club, data), 'Family can only use the Family chat.', 'family get the Family chat only');
   assert.equal(readProblem(member('gone', { approval: 'suspended' }), club, data), 'Only approved members can do that.');
   assert.equal(readProblem(null, club, data), 'Sign in first.');
   assert.equal(readProblem(westie, undefined, data), 'No such chat.');
@@ -354,4 +354,39 @@ test('unknownAuthors lists message authors missing from the members list, once e
   assert.deepEqual(unknownAuthors(msgs, [member('wes')]), ['roger', 'gone']);
   assert.deepEqual(unknownAuthors(msgs, [member('wes'), member('roger'), member('gone')]), []);
   assert.deepEqual(unknownAuthors([], []), []);
+});
+
+// Family chat (docs/superpowers/specs/2026-11-03-family-chat-design.md). Mirrors supabase/tests/family_chat_test.sql.
+test('the Family chat is for members (FNG and up) and Family; Family get no other chat', () => {
+  const familyChat = chat({ kind: 'family' });
+  const kerry = member('kerry', { status: 'family', roadName: null });
+  const newbie = member('newbie', { status: 'introduced' });
+  for (const m of [westie, northie, legacy, secretary, kerry]) assert.equal(readProblem(m, familyChat, data), null, m.id);
+  assert.equal(readProblem(newbie, familyChat, data), 'That chat opens up once you’re an FNG.');
+  assert.equal(readProblem(member('pam', { status: 'family', approval: 'pending' }), familyChat, data), 'Only approved members can do that.');
+  assert.equal(readProblem(member('gone', { status: 'family', approval: 'suspended' }), familyChat, data), 'Only approved members can do that.');
+  for (const c of [club, west, rideChat, direct]) assert.equal(readProblem(kerry, c, data), 'Family can only use the Family chat.', c.kind);
+  assert.equal(readProblem(kerry, undefined, data), 'No such chat.');
+  assert.equal(chatTitle(familyChat, westie, data), 'Family');
+});
+
+test('Family post, react, report and block in the Family chat, after agreeing to the club rules', () => {
+  const familyChat = chat({ kind: 'family' });
+  const kerry = member('kerry', { status: 'family', roadName: null, postingRulesAcceptedOn: '2026-11-03' });
+  const theirs = message({ conversationId: 'c-family', authorId: 'westie' });
+  const hers = message({ id: 'msg-2', conversationId: 'c-family', authorId: 'kerry' });
+  assert.equal(postProblem(kerry, familyChat, 'We’ll bring salad', 0, data), null);
+  assert.equal(postProblem({ ...kerry, postingRulesAcceptedOn: null }, familyChat, 'hi', 0, data), 'Agree to the club rules for chats and posts first.');
+  assert.equal(postProblem(kerry, club, 'hi', 0, data), 'Family can only use the Family chat.');
+  assert.equal(reactProblem(kerry, familyChat, theirs, '👍', data), null);
+  assert.equal(reportProblem(kerry, familyChat, theirs, 'Not for the kids', data), null);
+  assert.equal(removeProblem(kerry, familyChat, hers, data), null, 'their own');
+  assert.equal(removeProblem(kerry, familyChat, theirs, data), 'You can only remove your own messages.');
+  assert.equal(blockProblem(kerry, westie), null);
+  assert.equal(directProblem(kerry, westie), 'Only approved members can do that.', 'no private chats');
+  assert.equal(canModerate(kerry, familyChat, data), false, 'Family never moderate');
+  assert.equal(pinProblem(kerry, familyChat, theirs, data), 'Only moderators can pin messages.');
+  assert.equal(canModerate(secretary, familyChat, data), true, 'any board member moderates it');
+  assert.equal(canModerate(westie, familyChat, data), false);
+  assert.equal(canSeeReport(secretary, familyChat, kerry, data), true);
 });

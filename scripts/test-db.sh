@@ -562,4 +562,13 @@ done
 "${PSQL[@]}" -d rustnuts_voice_sweep -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_voice_sweep -f "$ROOT/supabase/tests/voice_sweep_test.sql"
 
+# The Family chat, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_family_chat" >/dev/null
+"${PSQL[@]}" -d rustnuts_family_chat -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_family_chat -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_family_chat -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_family_chat -f "$ROOT/supabase/tests/family_chat_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'

@@ -9,7 +9,8 @@ import { displayName } from './profile';
 import { lastDay, melbourneDate } from './rides';
 import type { ClubData, Member, Ride, RsvpAnswer } from './types';
 
-export type ChatKind = 'club' | 'chapter' | 'board' | 'nec' | 'committee' | 'ride' | 'direct';
+/** 'family' is the one chat members share with Family accounts (2026-11-03-family-chat-design.md). */
+export type ChatKind = 'club' | 'family' | 'chapter' | 'board' | 'nec' | 'committee' | 'ride' | 'direct';
 export type ChatCommittee = 'ride' | 'charity';
 /** A GIF is GIPHY's own https address, not a file in the club's storage. A voice note is a
  *  recording that goes in a message on its own. */
@@ -94,12 +95,18 @@ export const GIF_URL = /^https:\/\/(media[0-9]?|i)\.giphy\.com\/[A-Za-z0-9_./?&=
 /** Messages from one person closer together than this sit in one run. */
 const RUN_GAP_MS = 5 * 60_000;
 
-/** Why `me` can't use the chats at all, or null. */
+/** Why `me` can't use the chats at all, or null. Approved members and approved Family (who then
+ *  get the Family chat only). Mirrors private.is_chat_user. */
 export function approvalProblem(me: Member | null): string | null {
   if (!me) return 'Sign in first.';
-  // Family use the app without the chats (mirrors private.is_approved_member).
-  if (me.approval !== 'approved' || me.status === 'family') return 'Only approved members can do that.';
+  if (me.approval !== 'approved') return 'Only approved members can do that.';
   return null;
+}
+
+/** Why `me` can't do a members-only chat thing (private chats, photo feeds, ride walls, reports
+ *  queue), or null. Mirrors private.is_approved_member, which leaves Family out. */
+export function memberProblem(me: Member | null): string | null {
+  return approvalProblem(me) ?? (me?.status === 'family' ? 'Only approved members can do that.' : null);
 }
 
 /** Why `me` can't read this chat, or null when they can. Mirrors private.chat_problem. */
@@ -107,6 +114,8 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
   const notApproved = approvalProblem(me);
   if (notApproved || !me) return notApproved;
   if (!conv) return 'No such chat.';
+  // Family get the Family chat and nothing else.
+  if (me.status === 'family') return conv.kind === 'family' ? null : 'Family can only use the Family chat.';
   // Someone who might join gets the whole-club and ride chats only, until they're an FNG.
   if (me.status === 'introduced' && conv.kind !== 'club' && conv.kind !== 'ride') {
     if (conv.kind === 'direct') return 'Private chats open up once you’re an FNG.';
@@ -182,7 +191,8 @@ export function postProblem(
  *  chat, any board member or the NEC in
  *  the whole-club and ride chats. Nobody moderates a private chat. */
 export function canModerate(me: Member | null, conv: Conversation, data: ClubData): boolean {
-  if (!me || me.approval !== 'approved') return false;
+  // Family never moderate (private.can_moderate needs is_approved_member, which leaves them out).
+  if (!me || me.approval !== 'approved' || me.status === 'family') return false;
   if (conv.kind === 'chapter' || conv.kind === 'board') return !!conv.chapterId && isBoardOf(me, conv.chapterId, data.positions);
   if (conv.kind === 'nec') return isNational(me.id, data.positions);
   if (conv.kind === 'direct') return false;
@@ -229,12 +239,12 @@ export function reactProblem(
 
 /** Why `me` can't start a private chat with `target`, or null. Mirrors public.open_direct_chat. */
 export function directProblem(me: Member | null, target: Member | undefined, blocks: Block[] = []): string | null {
-  const notApproved = approvalProblem(me);
+  const notApproved = memberProblem(me);
   if (notApproved || !me) return notApproved;
   if (!target) return 'That member no longer exists.';
   if (target.id === me.id) return 'You can’t message yourself.';
   if (target.approval !== 'approved') return 'They’re not an approved member.';
-  if (target.status === 'family') return 'Family don’t use the club chats.';
+  if (target.status === 'family') return 'Family only use the Family chat, not private chats.';
   if (me.status === 'introduced') return 'Private chats open up once you’re an FNG.';
   if (target.status === 'introduced') return 'They can’t get private messages until they’re an FNG.';
   if (blockedBetween(me.id, target.id, blocks)) return 'You can’t message them.';
@@ -386,6 +396,8 @@ export function chatTitle(conv: Conversation, me: Member | null, data: ClubData,
   switch (conv.kind) {
     case 'club':
       return 'Whole club';
+    case 'family':
+      return 'Family';
     case 'chapter':
       return `${data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'Chapter'} chapter`;
     case 'board':

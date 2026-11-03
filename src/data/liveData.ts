@@ -16,6 +16,7 @@ import { toAudit } from './auditLive'; // National Auditor
 import { toShop } from './shopLive'; // The club shop
 import { loadedBodies, toDocuments } from './documentsLive'; // Stage 5C
 import { EMPTY_DATA } from './clubContext';
+import { chatPerson } from './familyData'; // Family chat
 import type { Database, MembersMoneyRows } from './database.types';
 
 /** Postgres timestamps ("2026-11-07T21:30:00+00:00") as the app's ISO instants. */
@@ -101,6 +102,15 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const familyLoad = db.rpc('family_rides').then(
     (r) => {
       if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('family_rides:', r.error.message);
+      return r.error ? [] : (r.data ?? []);
+    },
+    () => [],
+  );
+  // Family chat: Family see the names of whoever posted there (they have no directory). Nothing for
+  // anyone else, and nothing rather than blocking the app until the database has it.
+  const chatPeopleLoad = db.rpc('family_chat_people').then(
+    (r) => {
+      if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('family_chat_people:', r.error.message);
       return r.error ? [] : (r.data ?? []);
     },
     () => [],
@@ -223,6 +233,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   const charity = await charityLoad;
   const signupCounts = await signupCountsLoad;
   const familyRides = await familyLoad;
+  const chatPeople = await chatPeopleLoad;
   const busExtras = await busExtrasLoad;
   const [catalogue, shopOrders] = await shopLoad;
   const { address: _address, runsShop: _runsShop, ...shop } = (() => {
@@ -405,6 +416,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       changedAt: b.changed_at ? instant(b.changed_at) : null,
     })),
     ridesSyncedAt: calendar.data?.synced_at ? instant(calendar.data.synced_at) : null,
+    chatPeople: chatPeople.map((p) => chatPerson({ id: p.id, chapterId: p.chapter_id, roadName: p.road_name, firstName: p.first_name, status: p.status })),
     ...planning,
     ...charity,
     ...(signupCounts
