@@ -2,7 +2,9 @@
 // decides who (public.ride_voice_room, with the live ride rules); this turns its answer into a
 // LiveKit token. Shared by the ride-voice-token Edge Function and the app's tests.
 
-export const TOKEN_TTL_SECONDS = 3 * 60 * 60;
+/** Short: LiveKit keeps a connected member's call going with tokens it refreshes itself, and a token
+ *  kept after the voice sweep takes someone out is useless within 15 minutes (F03). */
+export const TOKEN_TTL_SECONDS = 15 * 60;
 export const NOT_SWITCHED_ON = 'Ride comms isn’t switched on yet.';
 
 export interface VoiceEnv {
@@ -51,8 +53,8 @@ export async function handleVoiceToken(env: VoiceEnv, request: { rideId?: unknow
   } catch (e) {
     return { status: 403, body: { error: (e as Error).message } };
   }
-  // Never past the live window's close, so nobody can join after the ride. (Someone already in is
-  // hung up by their app; removing them from the server side is a later step.)
+  // Never past the live window's close, so nobody can join after the ride. Someone already in is hung
+  // up by their app, and the voice-sweep function takes them out on the server side too (F03).
   const left = Math.floor((Date.parse(room.closes) - (deps.now ?? Date.now)()) / 1000);
   const ttl = Math.max(60, Math.min(TOKEN_TTL_SECONDS, left));
   const token = await deps.sign({ identity, name: room.name }, room.room, ttl);

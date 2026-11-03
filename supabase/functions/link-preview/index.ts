@@ -3,7 +3,37 @@
 // fetched at most once a week and kept in private.link_previews.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
-import { fetchableUrl, fetchPreview, TIMEOUT_MS } from '../_shared/linkPreview.ts';
+import { fetchableUrl, fetchPreview, httpRequest, readHttpResponse, TIMEOUT_MS, tlsName } from '../_shared/linkPreview.ts';
+
+/** Opens a connection to one of the checked addresses (never a fresh lookup, ChatGPT audit F09), with
+ *  https checked against the real host name, sends the GET and reads the answer. The deadline closes
+ *  whatever connection is open, at any step. */
+async function getPinned(url: URL, addresses: string[], signal: AbortSignal): Promise<Response> {
+  const port = Number(url.port) || (url.protocol === 'https:' ? 443 : 80);
+  let lastError: unknown = new Error('No address to try');
+  for (const address of addresses) {
+    if (signal.aborted) break;
+    let conn: Deno.Conn | null = null;
+    const close = () => {
+      try { conn?.close(); } catch { /* already closed */ }
+    };
+    signal.addEventListener('abort', close, { once: true });
+    try {
+      conn = await Deno.connect({ hostname: address, port });
+      if (signal.aborted) throw new Error('Out of time');
+      if (url.protocol === 'https:') conn = await Deno.startTls(conn as Deno.TcpConn, { hostname: tlsName(url) });
+      if (signal.aborted) throw new Error('Out of time');
+      await conn.write(new TextEncoder().encode(httpRequest(url)));
+      // The listener stays while the answer is read, so the deadline still closes the connection.
+      return await readHttpResponse(conn.readable);
+    } catch (e) {
+      lastError = e;
+      close();
+      signal.removeEventListener('abort', close);
+    }
+  }
+  throw lastError;
+}
 
 // The web build calls from the browser, which asks first (OPTIONS) and needs these headers back.
 const CORS = {
@@ -41,12 +71,7 @@ Deno.serve(async (req) => {
         ]);
         return [...a, ...aaaa];
       },
-      get: (u, signal) =>
-        fetch(u, {
-          redirect: 'manual',
-          signal,
-          headers: { accept: 'text/html,application/xhtml+xml', 'user-agent': 'RustnutsLinkPreview/1.0' },
-        }),
+      get: (u, addresses) => getPinned(u, addresses, deadline),
     }, deadline);
   } catch {
     // Slow or unreachable: no card this time, and nothing kept, so the app asks again later.
