@@ -43,14 +43,31 @@ export interface ClubCounts {
   total: number;
   /** How many of the total have signed in to the app. */
   onApp: number;
+  /** Each chapter split by status (Patched here is Full only), for the Home screen's table. */
+  split: ({ id: string; name: string } & StatusSplit)[];
+  /** The same split for the whole club. */
+  club: StatusSplit;
+}
+
+export interface StatusSplit {
+  patched: number;
+  nomads: number;
+  fngs: number;
+  legacy: number;
 }
 
 /** The club's numbers: approved members plus roster places nobody has claimed yet. */
 export function clubCounts(chapters: Chapter[], members: Member[], unclaimed: RosterTally[]): ClubCounts {
-  const people = [
+  const everyone = [
     ...members.filter((m) => m.approval === 'approved').map((m) => ({ chapterId: m.chapterId, status: m.status, count: 1 })),
     ...unclaimed,
-  ].filter((p) => COUNTED(p.status));
+  ];
+  const people = everyone.filter((p) => COUNTED(p.status));
+  const splitOf = (inChapter: (chapterId: string) => boolean): StatusSplit => {
+    const n = (status: MemberStatus) =>
+      everyone.filter((p) => p.status === status && inChapter(p.chapterId)).reduce((t, p) => t + p.count, 0);
+    return { patched: n('full'), nomads: n('nomad'), fngs: n('fng'), legacy: n('legacy') };
+  };
   const sum = (keep: (p: (typeof people)[number]) => boolean) => people.filter(keep).reduce((n, p) => n + p.count, 0);
   const total = sum(() => true);
   return {
@@ -59,5 +76,7 @@ export function clubCounts(chapters: Chapter[], members: Member[], unclaimed: Ro
     fngs: sum((p) => p.status === 'fng'),
     total,
     onApp: total - unclaimed.filter((t) => COUNTED(t.status)).reduce((n, t) => n + t.count, 0),
+    split: chapters.map((c) => ({ id: c.id, name: c.name, ...splitOf((id) => id === c.id) })),
+    club: splitOf(() => true),
   };
 }
