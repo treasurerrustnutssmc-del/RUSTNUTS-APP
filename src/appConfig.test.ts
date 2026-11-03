@@ -193,3 +193,56 @@ test('the app privacy manifest declares every data type on the App Store privacy
     assert.deepEqual(c.NSPrivacyCollectedDataTypePurposes, ['NSPrivacyCollectedDataTypePurposeAppFunctionality']);
   }
 });
+
+// Google Play asks for a declaration and a video for every foreground-service type an Android app
+// carries. Rustnuts uses two: location (live ride) and microphone (ride comms). The libraries bring
+// three extras the app never starts, so the Android build leaves them out.
+test('expo-audio adds no media-playback foreground service on Android (nothing calls lock-screen controls)', () => {
+  const audio = pluginOptions('expo-audio');
+  assert.equal(audio.enableBackgroundPlayback, false);
+  assert.notEqual(audio.enableBackgroundRecording, true);
+});
+
+test('iOS keeps background audio on its own once expo-audio stops adding it', () => {
+  assert.ok(expo.ios.infoPlist.UIBackgroundModes.includes('audio'), 'ride comms and the demo call keep going on a locked iPhone');
+});
+
+test('the template’s screen-overlay permission is blocked (only the dev FPS overlay uses it)', () => {
+  assert.ok((expo.android.blockedPermissions ?? []).includes('android.permission.SYSTEM_ALERT_WINDOW'));
+});
+
+test('no plugin option brings a media-playback or screen-share service back', () => {
+  const video = pluginOptions('expo-video');
+  assert.notEqual(video.supportsBackgroundPlayback, true);
+  assert.notEqual(video.supportsPictureInPicture, true);
+  const livekit = pluginOptions('@livekit/react-native-expo-plugin') as { android?: Record<string, unknown> };
+  assert.notEqual(livekit.android?.enableScreenShareService, true);
+});
+
+test('the voice library’s unused screen-share service is taken out of the Android manifest', async () => {
+  const names = plugins.map(pluginName);
+  assert.ok(names.includes('./plugins/withoutScreenShareService.js'), 'the local plugin is listed');
+  const { withoutScreenShare, SCREEN_SHARE_SERVICE } = await import('../plugins/withoutScreenShareService.js');
+  assert.equal(SCREEN_SHARE_SERVICE, 'com.oney.WebRTCModule.MediaProjectionService');
+  const manifest = () => ({
+    manifest: {
+      $: { 'xmlns:android': 'http://schemas.android.com/apk/res/android' },
+      application: [
+        { $: { 'android:name': '.MainApplication' }, service: [{ $: { 'android:name': 'expo.modules.ridecomms.RideCommsService' } }] },
+      ],
+    },
+  });
+  const once = withoutScreenShare(manifest());
+  assert.equal(once.manifest.$['xmlns:tools'], 'http://schemas.android.com/tools', 'tools namespace added');
+  const services = (m: typeof once) => m.manifest.application[0].service ?? [];
+  assert.ok(
+    services(once).some((s: { $: Record<string, string> }) => s.$['android:name'] === 'expo.modules.ridecomms.RideCommsService'),
+    'ride comms service kept',
+  );
+  const removals = (m: typeof once) =>
+    services(m).filter((s: { $: Record<string, string> }) => s.$['android:name'] === SCREEN_SHARE_SERVICE);
+  assert.deepEqual(removals(once), [{ $: { 'android:name': SCREEN_SHARE_SERVICE, 'tools:node': 'remove' } }]);
+  assert.equal(removals(withoutScreenShare(once)).length, 1, 'running it twice still leaves one remove marker');
+  const bare = withoutScreenShare({ manifest: { $: {}, application: [{ $: { 'android:name': '.MainApplication' } }] } });
+  assert.equal(removals(bare).length, 1, 'an application with no services gets the marker too');
+});

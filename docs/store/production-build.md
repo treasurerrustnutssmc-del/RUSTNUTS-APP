@@ -17,6 +17,12 @@
 - **Submitting:** `eas submit --profile production --platform android` uploads to Play's internal
   track as a draft. It needs a Google Play service-account key on EAS, which can only be made once
   the club's Play Console exists. The first upload is often done by hand in Play Console instead.
+- **Before the first Play upload (any track):** check the bundle's merged manifest, e.g.
+  `bundletool dump manifest --bundle=Rustnuts.aab`. The only `foregroundServiceType` values should be
+  `location` and `microphone`, and there should be no `FOREGROUND_SERVICE_MEDIA_PLAYBACK`,
+  `FOREGROUND_SERVICE_MEDIA_PROJECTION`, `MediaProjectionService` or `SYSTEM_ALERT_WINDOW` (they are
+  kept out on purpose; see the ride comms spec, "Foreground services Google Play sees"). Anything
+  else means another Play declaration and video.
 - **After the first Play upload:** add Play's app-signing SHA-1 (Play Console › Setup › App
   signing) to the "Rustnuts Android app maps" key in Google Cloud, or maps go blank in store
   installs.

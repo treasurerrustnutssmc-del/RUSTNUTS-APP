@@ -201,7 +201,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -253,6 +256,7 @@
         }
       ],
       "./plugins/withoutBackgroundFetch.js",
+      "./plugins/withoutScreenShareService.js",
       "./plugins/withShareExtensionPrivacy.js",
       [
         "expo-sharing",
@@ -301,7 +305,8 @@
         "expo-audio",
         {
           "microphonePermission": "Rustnuts uses your microphone for ride comms, and to record voice notes and the sound with videos for club chats.",
-          "recordAudioAndroid": true
+          "recordAudioAndroid": true,
+          "enableBackgroundPlayback": false
         }
       ],
       "expo-maps"
