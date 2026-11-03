@@ -91,3 +91,42 @@ export async function checkAndUpdate(api: UpdateApi, onStep: (s: UpdateStep) => 
     return { kind: 'downloaded' };
   }
 }
+
+// "Update ready" strip (src/ui/UpdateReadyStrip.tsx). The phone fetches updates by itself when the
+// app opens and, from here, when it comes back to the front; once one is downloaded and waiting, a
+// strip offers one tap to restart into it, so nobody has to close and open the app twice.
+
+export const UPDATE_READY_TITLE = 'Update ready';
+export const UPDATE_READY_TEXT = 'Restart to load the new version.';
+export const UPDATE_READY_ACTION = 'Restart';
+
+/** Coming back to the front checks again, but no more often than this. */
+export const RESUME_CHECK_GAP_MS = 10 * 60_000;
+
+export function shouldCheckOnResume(lastCheckedMs: number | null, nowMs: number): boolean {
+  return lastCheckedMs === null || nowMs - lastCheckedMs >= RESUME_CHECK_GAP_MS;
+}
+
+/** Check and download in the background, never restarting and never showing an error: true when
+ *  something new is now waiting (expo-updates then marks it pending, which shows the strip). */
+export async function fetchQuietly(api: UpdateApi): Promise<boolean> {
+  if (!api.isEnabled) return false;
+  try {
+    const found = await api.check();
+    if (!found.isAvailable && !found.isRollBackToEmbedded) return false;
+    const got = await api.fetch();
+    return got.isNew || got.isRollBackToEmbedded;
+  } catch {
+    return false;
+  }
+}
+
+/** The strip's Restart: load the update that's already downloaded. */
+export async function restartNow(api: UpdateApi): Promise<UpdateOutcome> {
+  try {
+    await api.reload();
+    return { kind: 'restarting' };
+  } catch {
+    return { kind: 'downloaded' };
+  }
+}
