@@ -108,8 +108,8 @@ service, native code, an Edge Function and a new screen section).
   - If the module is missing (an older build), voice still works, without the headset button.
 - **`app.json`:**
   - the iOS `UIBackgroundModes` gets `audio`, plus a microphone permission text for ride comms;
-  - the Android permissions `RECORD_AUDIO`, `BLUETOOTH_CONNECT`, `FOREGROUND_SERVICE_MICROPHONE` and
-    `FOREGROUND_SERVICE_MEDIA_PLAYBACK`;
+  - the Android permissions `RECORD_AUDIO`, `BLUETOOTH_CONNECT` and `FOREGROUND_SERVICE_MICROPHONE`
+    (not media playback; see "Android permissions" below);
   - the LiveKit plugin, with `audioType: 'communication'`.
 
 ### Screen
@@ -167,4 +167,11 @@ On the Live ride screen, a "Ride comms" card sits above location sharing:
   so a gloved tap doesn't hang up by mistake.
 - **Android permissions:** the microphone service only needs `FOREGROUND_SERVICE_MICROPHONE`, not media
   playback. It and `BLUETOOTH_CONNECT` are in the module's own manifest, not in `app.json`.
+- **Foreground services Google Play sees (3 Nov 2026):** only location (live ride) and microphone (ride
+  comms). Three extras the libraries bring are kept out of the Android build, because Play asks for a
+  declaration and a video for each type and the app never starts them: expo-audio's lock-screen
+  playback service (`enableBackgroundPlayback: false`; nothing calls `setActiveForLockScreen`), WebRTC's
+  screen-share service (`plugins/withoutScreenShareService.js`; ride comms is microphone only) and the
+  template's `SYSTEM_ALERT_WINDOW` (`android.blockedPermissions`; only the dev FPS overlay uses it).
+  iOS keeps `audio` from `app.json` itself. Tests: `src/appConfig.test.ts`.
 - **Package versions:** pinned exactly in `package.json`.

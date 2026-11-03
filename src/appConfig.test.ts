@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const expo = JSON.parse(readFileSync(join(__dirname, '../app.json'), 'utf8')).expo;
@@ -191,5 +191,103 @@ test('the app privacy manifest declares every data type on the App Store privacy
     assert.equal(c.NSPrivacyCollectedDataTypeLinked, linked[c.NSPrivacyCollectedDataType], `${c.NSPrivacyCollectedDataType} linked`);
     assert.equal(c.NSPrivacyCollectedDataTypeTracking, false, `${c.NSPrivacyCollectedDataType} not tracking`);
     assert.deepEqual(c.NSPrivacyCollectedDataTypePurposes, ['NSPrivacyCollectedDataTypePurposeAppFunctionality']);
+  }
+});
+
+// Google Play asks for a declaration and a video for every foreground-service type an Android app
+// carries. Rustnuts uses two: location (live ride) and microphone (ride comms). The libraries bring
+// three extras the app never starts, so the Android build leaves them out.
+test('expo-audio adds no media-playback foreground service on Android (nothing calls lock-screen controls)', () => {
+  const audio = pluginOptions('expo-audio');
+  assert.equal(audio.enableBackgroundPlayback, false);
+  assert.notEqual(audio.enableBackgroundRecording, true);
+});
+
+test('iOS keeps background audio on its own once expo-audio stops adding it', () => {
+  assert.ok(expo.ios.infoPlist.UIBackgroundModes.includes('audio'), 'ride comms and the demo call keep going on a locked iPhone');
+});
+
+test('the template’s screen-overlay permission is blocked (only the dev FPS overlay uses it)', () => {
+  assert.ok((expo.android.blockedPermissions ?? []).includes('android.permission.SYSTEM_ALERT_WINDOW'));
+});
+
+test('no plugin option brings a media-playback or screen-share service back', () => {
+  // expo-video's two options must stay unset, not just "not true": set to false, its plugin runs after
+  // app.json and strips "audio" from the iPhone's background modes, so ride comms would cut out on a
+  // locked iPhone. Set to true, they bring a media-playback service back on Android.
+  const video = pluginOptions('expo-video');
+  assert.equal('supportsBackgroundPlayback' in video, false, 'expo-video supportsBackgroundPlayback stays unset');
+  assert.equal('supportsPictureInPicture' in video, false, 'expo-video supportsPictureInPicture stays unset');
+  const livekit = pluginOptions('@livekit/react-native-expo-plugin') as { android?: Record<string, unknown> };
+  assert.notEqual(livekit.android?.enableScreenShareService, true);
+});
+
+test('the voice library’s unused screen-share service is taken out of the Android manifest', async () => {
+  const names = plugins.map(pluginName);
+  assert.ok(names.includes('./plugins/withoutScreenShareService.js'), 'the local plugin is listed');
+  const { withoutScreenShare, SCREEN_SHARE_SERVICE } = await import('../plugins/withoutScreenShareService.js');
+  assert.equal(SCREEN_SHARE_SERVICE, 'com.oney.WebRTCModule.MediaProjectionService');
+  const manifest = () => ({
+    manifest: {
+      $: { 'xmlns:android': 'http://schemas.android.com/apk/res/android' },
+      application: [
+        { $: { 'android:name': '.MainApplication' }, service: [{ $: { 'android:name': 'expo.modules.ridecomms.RideCommsService' } }] },
+      ],
+    },
+  });
+  const once = withoutScreenShare(manifest());
+  assert.equal(once.manifest.$['xmlns:tools'], 'http://schemas.android.com/tools', 'tools namespace added');
+  const services = (m: typeof once) => m.manifest.application[0].service ?? [];
+  assert.ok(
+    services(once).some((s: { $: Record<string, string> }) => s.$['android:name'] === 'expo.modules.ridecomms.RideCommsService'),
+    'ride comms service kept',
+  );
+  const removals = (m: typeof once) =>
+    services(m).filter((s: { $: Record<string, string> }) => s.$['android:name'] === SCREEN_SHARE_SERVICE);
+  assert.deepEqual(removals(once), [{ $: { 'android:name': SCREEN_SHARE_SERVICE, 'tools:node': 'remove' } }]);
+  assert.equal(removals(withoutScreenShare(once)).length, 1, 'running it twice still leaves one remove marker');
+  const bare = withoutScreenShare({ manifest: { $: {}, application: [{ $: { 'android:name': '.MainApplication' } }] } });
+  assert.equal(removals(bare).length, 1, 'an application with no services gets the marker too');
+});
+
+// The libraries' own manifests are merged into the app at build time. If a library update renames
+// the screen-share service, or a new dependency brings another foreground-service type, Play would
+// ask about it again; this reads every library manifest the build can merge and catches that early.
+const root = join(__dirname, '..');
+const libraryDirs = (): string[] => {
+  const nm = join(root, 'node_modules');
+  const top = readdirSync(nm).filter((n) => !n.startsWith('.'));
+  const packages = top.flatMap((n) => (n.startsWith('@') ? readdirSync(join(nm, n)).map((s) => join(nm, n, s)) : [join(nm, n)]));
+  return [...packages, ...readdirSync(join(root, 'modules')).map((n) => join(root, 'modules', n))];
+};
+const foregroundServices = (dir: string): { name: string; types: string[] }[] => {
+  const manifestPath = join(dir, 'android/src/main/AndroidManifest.xml');
+  if (!existsSync(manifestPath)) return [];
+  const xml = readFileSync(manifestPath, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+  const gradle = ['android/build.gradle', 'android/build.gradle.kts'].map((f) => join(dir, f)).find((f) => existsSync(f));
+  const namespace =
+    xml.match(/\bpackage="([^"]+)"/)?.[1] ?? (gradle ? readFileSync(gradle, 'utf8').match(/namespace\s*=?\s*["']([^"']+)["']/)?.[1] : undefined);
+  return [...xml.matchAll(/<service\b[^>]*>/g)]
+    .map(([tag]) => {
+      const raw = tag.match(/android:name="([^"]+)"/)?.[1] ?? '';
+      const types = tag.match(/android:foregroundServiceType="([^"]+)"/)?.[1]?.split('|') ?? [];
+      return { name: raw.startsWith('.') ? `${namespace}${raw}` : raw, types };
+    })
+    .filter((s) => s.types.length > 0);
+};
+
+test('every foreground service a library brings is location or microphone, or is taken out', async () => {
+  const { SCREEN_SHARE_SERVICE } = await import('../plugins/withoutScreenShareService.js');
+  const found = libraryDirs().flatMap(foregroundServices);
+  assert.ok(
+    found.some((s) => s.name === 'expo.modules.ridecomms.RideCommsService' && s.types.includes('microphone')),
+    'the scan sees ride comms (so it is reading the manifests)',
+  );
+  assert.ok(
+    found.some((s) => s.name === SCREEN_SHARE_SERVICE),
+    'the voice library still declares its screen-share service under the name the plugin removes',
+  );
+  for (const s of found.filter((f) => f.name !== SCREEN_SHARE_SERVICE)) {
+    for (const t of s.types) assert.ok(['location', 'microphone'].includes(t), `${s.name} brings a "${t}" foreground service`);
   }
 });
