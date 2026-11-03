@@ -10,6 +10,8 @@ export const NOT_SWITCHED_ON = 'MAKE_WEBHOOK_MEMBER_URL is not set.';
 export const SEND_AGAIN = 'Something went wrong sending the order. Try again.';
 export const START_AGAIN = 'Start the order again.';
 export const HELD_MESSAGE = 'We’ve kept your order; the shop will send it on.';
+/** Left on an order Make took when the app couldn't record that, so the runner checks Make first. */
+export const MAKE_HAS_IT = 'Make took this order, but the app couldn’t record it. Check Make before sending it again.';
 export const SENT_MESSAGE = 'Order sent. Your invoice with the club’s bank details is on its way.';
 /** What Make's datastore and sheet expect in q16_deliveryMethod. */
 export const DELIVERY_LABEL = { ship: 'Ship to me', collect: 'Collect at next club meeting' } as const;
@@ -172,6 +174,8 @@ async function recordSent(orderId: string, deps: ShopOrderDeps): Promise<void> {
       if (attempt === 2) console.error('shop_order_sent failed after Make took the order', orderId, (e as Error).message);
     }
   }
+  // Still held in the app: leave the runner a warning on it, so a Resend isn't a second invoice.
+  await deps.sent(orderId, false, MAKE_HAS_IT).catch(() => undefined);
 }
 
 /** Posts a held order to Make and records the outcome. Never throws: a failure keeps the order held. */

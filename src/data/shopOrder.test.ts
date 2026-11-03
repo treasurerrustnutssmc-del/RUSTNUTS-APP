@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  DELIVERY_LABEL, HELD_MESSAGE, NOT_SWITCHED_ON, SENT_MESSAGE, SHIPPING_LABEL, START_AGAIN, handleShopOrder, makeOrder, makePayload,
+  DELIVERY_LABEL, HELD_MESSAGE, MAKE_HAS_IT, NOT_SWITCHED_ON, SENT_MESSAGE, SHIPPING_LABEL, START_AGAIN, handleShopOrder, makeOrder, makePayload,
   splitName, type OrderRow, type PlaceBody, type ShopOrderDeps,
 } from '../../supabase/functions/_shared/shopOrder';
 
@@ -167,8 +167,12 @@ test('when recording "sent" fails it is tried again, and the member still hears 
 });
 
 test('when recording "sent" keeps failing the member still hears it was sent, and Make is not posted again', async () => {
-  const { d, calls } = deps({ sent: async () => { throw new Error('db down'); } });
+  const { d, calls } = deps({
+    sent: async (id, ok, error) => { calls.sent.push([id, ok, error]); if (ok) throw new Error('db down'); },
+  });
   const got = await handleShopOrder(ENV, { clientRef: ORDER.client_ref, lines: [] }, d);
   assert.equal(got.body.status, 'sent');
   assert.equal(calls.post.length, 1);
+  // Still held in the app, so the runner sees a warning before any Resend.
+  assert.deepEqual(calls.sent.at(-1), [ORDER.id, false, MAKE_HAS_IT]);
 });

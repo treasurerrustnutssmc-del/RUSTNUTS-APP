@@ -472,6 +472,23 @@ begin
   delete from auth.users where id = me; -- the trigger forgets the member
 end $function$;
 
+-- F01: a place a deleted account used is no longer counted as waiting to be claimed.
+create or replace function public.unclaimed_roster_counts()
+ returns table(chapter_id uuid, status member_status, n integer)
+ language sql
+ stable security definer
+ set search_path to ''
+as $function$
+  select r.chapter_id, r.status, count(*)::int
+  from private.roster r
+  where r.claimed_by is null and r.claimed_at is null and private.is_approved_member()
+    and not exists (
+      select 1 from auth.users u join public.members m on m.id = u.id
+      where lower(trim(u.email)) = lower(trim(r.email))
+    )
+  group by r.chapter_id, r.status;
+$function$;
+
 -- F08 -------------------------------------------------------------------------------------------
 create table if not exists public.fund_opening_changes (
   id bigint generated always as identity primary key,
@@ -499,16 +516,17 @@ begin
      and new.chapter_id is not distinct from old.chapter_id and new.fy = old.fy then
     return new;
   end if;
+  -- Who: the signed-in person, or (for a change made outside the app) whoever the row now names, but
+  -- only if this change set it; otherwise unknown.
   insert into public.fund_opening_changes (chapter_id, fy, old_cents, new_cents, changed_by)
   values (new.chapter_id, new.fy, case when tg_op = 'UPDATE' then old.amount_cents end, new.amount_cents,
-          coalesce(new.set_by, auth.uid()));
+          coalesce(auth.uid(), case when tg_op = 'INSERT' or new.set_at is distinct from old.set_at then new.set_by end));
   return new;
 end;
 $$;
 revoke all on function private.log_fund_opening() from public, anon, authenticated;
 
-drop trigger if exists fund_openings_log on public.fund_openings;
-create trigger fund_openings_log after insert or update or delete on public.fund_openings
+create or replace trigger fund_openings_log after insert or update or delete on public.fund_openings
   for each row execute function private.log_fund_opening();
 
 -- Openings already set have no earlier history; record where each one stands now.

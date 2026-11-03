@@ -186,7 +186,7 @@ export function rosterSql(rows: RosterRow[]): string {
     '  phone = excluded.phone, emergency_name = excluded.emergency_name, emergency_relationship = excluded.emergency_relationship,',
     '  emergency_phone = excluded.emergency_phone, bike_make = excluded.bike_make, bike_model = excluded.bike_model,',
     '  bike_rego = excluded.bike_rego',
-    'where private.roster.claimed_by is null;',
+    'where private.roster.claimed_by is null and private.roster.claimed_at is null;',
     '',
   ].join('\n');
 }
