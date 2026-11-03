@@ -62,7 +62,8 @@ test('makes SQL that loads the roster without sending anything and leaves claime
   assert.match(sql, /'Pat O''Brien'/);
   assert.match(sql, /'\{president,tail_gunner\}'::public\.position_role\[\]/);
   assert.match(sql, /on conflict \(lower\(trim\(email\)\)\) do update/);
-  assert.match(sql, /where private\.roster\.claimed_by is null/);
+  // A place a deleted account used stays used: a reload never refills it (ChatGPT audit F01).
+  assert.match(sql, /where private\.roster\.claimed_by is null and private\.roster\.claimed_at is null;/);
   const statements = sql.split('\n').filter((l) => !l.startsWith('--')).join('\n');
   assert.doesNotMatch(statements, /auth\.|invite|send/i, 'touches the roster table only');
 });

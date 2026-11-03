@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { club, member } from './stage4.testkit';
-import { deleteAccountProblem, STEP_DOWN_FIRST, stepDownSeats } from './account';
+import { CHAIR_EMAILS_US, deleteAccountProblem, STEP_DOWN_FIRST, stepDownSeats } from './account';
 import type { Position } from './types';
 
 const seat = (memberId: string, role: Position['role'], over: Partial<Position> = {}): Position => ({
@@ -17,7 +17,7 @@ test('signed out, nobody can delete an account', () => {
 test('a sitting board or national seat holder steps down first', () => {
   const d = club();
   assert.equal(deleteAccountProblem(member('sec'), d.positions), STEP_DOWN_FIRST);
-  assert.equal(deleteAccountProblem(member('chair'), d.positions), STEP_DOWN_FIRST);
+  assert.equal(deleteAccountProblem(member('chair'), d.positions), CHAIR_EMAILS_US); // the vote changes that seat (F10)
   assert.equal(deleteAccountProblem(member('auditor'), d.positions), STEP_DOWN_FIRST);
   assert.equal(deleteAccountProblem(member('rc'), [seat('rc', 'road_captain')]), STEP_DOWN_FIRST);
 });

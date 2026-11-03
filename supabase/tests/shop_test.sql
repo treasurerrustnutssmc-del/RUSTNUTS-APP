@@ -265,6 +265,11 @@ select pg_temp.check((select count(*) from shop_orders where member_id = :'nell'
 select pg_temp.check((select count(*) from ledger_entries where code = 'CR-005') = 1, 'the books keep the line');
 do $$ begin perform private.forget_member('00000000-0000-0000-0000-00000000a0a8', 'chris@example.com'); end $$;
 select pg_temp.check((select count(*) from shop_runners) = 0, 'a deleted account is no longer a shop runner');
+-- A price changed mid-checkout can't split the total from the lines (ChatGPT audit F05): the garments and
+-- designs an order reads are held until it's written.
+select pg_temp.check((select prosrc like '%from public.shop_garments sg where sg.id::text = l.garment_id for share;%'
+  and prosrc like '%from public.shop_designs sd where sd.id = g.design_id for share;%' from pg_proc where proname = 'place_shop_order'),
+  'place_shop_order holds what it priced');
 
 \o
 \echo 'Club shop: catalogue, orders, Make hand-off, books, address and deletion behave'
