@@ -16,7 +16,7 @@ One club-wide chat called **Family**.
 - **Family accounts** get a fourth tab, **Chat**, which holds this one chat and nothing else. They
   read, post (words, photos, videos, GIFs, voice notes), reply and react.
 - **Introduced** applicants don't see it: like the chapter chats, it opens up once they're an FNG.
-  Family partners and kids are in there, and Introduced people aren't members yet.
+  Family partners and grown-up kids (adults, 18 and over since 3 Nov 2026) are in there, and Introduced people aren't members yet.
 
 ## Content rules (Apple 1.2) apply in full
 
@@ -53,7 +53,7 @@ Two migration files, because Postgres can't use a new enum value in the same tra
      saved get notifications for this chat;
    - `family_chat_people()`.
    - `pick_site_photo` refuses Family chat photos ("Photos from the Family chat stay off the website."),
-     and the website photo picker leaves them out: partners' and kids' photos stay in the club. They do
+     and the website photo picker leaves them out: family members' photos stay in the club. They do
      show in members' own Photos feed, like every group chat;
    - `open_direct_chat` says "Family only use the Family chat, not private chats." to a member who tries.
    Unchanged and still members-only: moderation, report queues, private chats, photo feeds, ride walls,

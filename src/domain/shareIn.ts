@@ -135,6 +135,6 @@ export function waitingShareNote(stage: ShareWaitStage): { title: string; text: 
     case 'notMember':
       return { title: 'Members only', text: 'Only approved members can share into the club chats.', action: 'Got it' };
     case 'family':
-      return { title: 'Members only', text: 'Family accounts don’t have the club chats.', action: 'Got it' };
+      return { title: 'Members only', text: 'Family accounts can’t share into the chats from other apps. Open the Family chat in the app instead.', action: 'Got it' };
   }
 }

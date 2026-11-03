@@ -464,6 +464,11 @@ export function validateApplicationBike(
   return bikeYearProblem(bike.year, today);
 }
 
+/** The app is for adults (Play target audience 18+, Jeff 3 Nov 2026), Family accounts included. */
+export function validateAdult(confirmed: boolean): string | null {
+  return confirmed ? null : 'The app is for adults. Turn this on to say you’re 18 or over.';
+}
+
 export function validateContact(contact: ContactInput): string | null {
   if (!contact.name.trim() || !contact.phone.trim()) return 'Add their name and number.';
   return null;

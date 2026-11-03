@@ -16,7 +16,7 @@ export const NOT_CREW_MANAGER = 'Only the Social Media Officer or the NEC can ch
 export const PHOTO_GONE = 'No such photo.';
 export const NOT_A_PHOTO = 'Only photos go on the website, not videos or GIFs.';
 export const PRIVATE_PHOTO = 'Photos from private chats stay private.';
-/** Family chat: partners' and kids' photos stay in the club. */
+/** Family chat: family members' photos stay in the club. */
 export const FAMILY_PHOTO = 'Photos from the Family chat stay off the website.';
 export const PHOTO_ALREADY_PICKED = 'That photo is already on the list.';
 export const NO_CONSENT_TICK = 'Tick that everyone in the photo is happy to be on the website.';

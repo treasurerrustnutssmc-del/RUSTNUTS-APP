@@ -132,8 +132,9 @@ test('applicants (pending or declined) and family are told why, with no promise 
   assert.doesNotMatch(applicant.text, /once you’re approved|wasn’t kept/);
   const family = waitingShareNote('family');
   assert.equal(family.title, 'Members only');
-  assert.match(family.text, /^Family accounts don’t have the club chats/);
-  assert.doesNotMatch(family.text, /post/); // family have no chats at all, not read-only ones
+  // Family have the Family chat (3 Nov 2026), but sharing in from other apps is for members only.
+  assert.match(family.text, /^Family accounts can’t share into the chats from other apps/);
+  assert.match(family.text, /Family chat/);
   assert.equal(applicant.action, 'Got it');
   assert.equal(family.action, 'Got it');
 });

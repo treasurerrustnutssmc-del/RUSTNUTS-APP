@@ -293,7 +293,7 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
     setError(null);
     try {
       // club_photos never includes private chats; keep photos only, and none from the Family chat
-      // (partners' and kids' photos stay off the website).
+      // (family members' photos stay off the website).
       setItems((await chat.photos()).filter((m) => m.kind === 'photo' && chat.conversation(m.conversationId)?.kind !== 'family'));
     } catch (e) {
       setError((e as Error).message);
