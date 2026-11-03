@@ -2,7 +2,7 @@
 
 import * as Updates from 'expo-updates';
 import { useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { fetchQuietly, shouldCheckOnResume, type RunningUpdate, type UpdateApi } from '../domain/appUpdate';
 
 export const runningUpdate = (): RunningUpdate => ({
@@ -25,15 +25,19 @@ export function useUpdateReady(): boolean {
   const { isUpdatePending } = Updates.useUpdates();
   // The app's own launch check has just run, so the first return to the front waits the full gap.
   const lastChecked = useRef<number | null>(null);
+  const pending = useRef(isUpdatePending);
   useEffect(() => {
-    if (!Updates.isEnabled) return;
+    pending.current = isUpdatePending;
+  }, [isUpdatePending]);
+  useEffect(() => {
+    if (Platform.OS === 'web' || !Updates.isEnabled) return;
     lastChecked.current = Date.now();
     const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' || !shouldCheckOnResume(lastChecked.current, Date.now())) return;
+      if (state !== 'active' || pending.current || !shouldCheckOnResume(lastChecked.current, Date.now())) return;
       lastChecked.current = Date.now();
       void fetchQuietly(updateApi);
     });
     return () => sub.remove();
   }, []);
-  return Updates.isEnabled && isUpdatePending;
+  return Platform.OS !== 'web' && Updates.isEnabled && isUpdatePending;
 }
