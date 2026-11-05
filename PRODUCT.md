@@ -19,7 +19,7 @@ One Expo codebase ships to Android and iPhone through the stores (Apple unlisted
 
 ## Product Purpose
 
-The club's own private app. It holds who's who (ranks, chapters, positions, bikes, emergency contacts), lets the board approve and manage members, and runs the ride calendar with RSVPs, fed from the same calendar as the club website. Stage 2 adds ride roles, locked GPX routes handed off to OsmAnd or MyRoute, briefing cards, Road Rules sign-off and booking the Rusty Bus. Success means members use it as *the* place the club lives, and the board stops running the club out of spreadsheets and group chats. Nobody in the club sees it until it's finished; the reveal is aimed at the 2027 AGM.
+The club's private app, built and owned by Jeff Ostler and licensed free to the club to run for its members (the club's name, insignia, documents and member data stay the club's). It holds who's who (ranks, chapters, positions, bikes, emergency contacts), lets the board approve and manage members, and runs the ride calendar with RSVPs, fed from the same calendar as the club website. Stage 2 adds ride roles, locked GPX routes handed off to OsmAnd or MyRoute, briefing cards, Road Rules sign-off and booking the Rusty Bus. Success means members use it as *the* place the club lives, and the board stops running the club out of spreadsheets and group chats. Nobody in the club sees it until it's finished; the reveal is aimed at the 2027 AGM.
 
 ## Positioning
 

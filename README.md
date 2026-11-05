@@ -1,7 +1,8 @@
 # Rustnuts App
 
-The Rustnuts SMC members' app: rides, chat, members and club business in one place,
-owned by the club. One codebase builds the iPhone app, the Android app and a website.
+The Rustnuts SMC members' app: rides, chat, members and club business in one place.
+Built and owned by Jeff Ostler, and licensed free to Rustnuts Social Motorcycle Club Inc. to run
+for its members; the club's name, insignia, documents and member data stay the club's. One codebase builds the iPhone app, the Android app and a website.
 
 ## Where it's up to
 

@@ -10,7 +10,7 @@ No keys, passwords or tokens are in this file, and none should ever be added to 
 
 ## 1. What we're building
 
-Rustnuts SMC is getting its own app. One app the club owns that brings together what's
+Rustnuts SMC is getting its own app. One app, built and owned by Jeff and licensed free to the club, that brings together what's
 spread across Facebook Messenger, the club Discord and the Google Drive folders today. Chat as easy as Messenger, plus rides, members,
 documents, money and the board, all in one place, built for this one club and nobody else: its real
 ranks (Introduced, FNG, Full, Nomad, Supporter, Family, Legacy), its real positions and chapters
@@ -31,8 +31,9 @@ quietly in the background, where mostly only the board sees it.
   board work on a laptop later).
 - **In the stores but hidden:** Apple unlisted (link only), Google under an organisation account. Nobody
   gets past sign-in without board approval.
-- **Owned by the club:** every account is on the club's treasurer Gmail, so the app outlives any one
-  person.
+- **Run by the club:** Jeff owns the software and licenses it free to the club, permanently. Every
+  account is on the club's treasurer Gmail and the club keeps a full copy of the code, so the app
+  outlives any one person. The club's name, insignia, documents and member data stay the club's.
 - **No tracking:** ride-day live location is opt-in, switches itself off, and nothing is kept.
 - **Under wraps until it's done:** no emails, invites or pushes to members until it's finished. A small
   secret test crew rides with it first.
