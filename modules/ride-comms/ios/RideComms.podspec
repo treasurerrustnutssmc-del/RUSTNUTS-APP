@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version        = '1.0.0'
   s.summary        = 'Ride comms headset button for the Rustnuts app'
   s.description    = 'Turns the headset play/pause button into mute while ride comms is on.'
-  s.license        = 'UNLICENSED'
+  s.license        = { :type => 'Rustnuts Original Software Licence', :file => '../../../LICENSE' }
   s.author         = 'Rustnuts SMC'
   s.homepage       = 'https://rustnutssmc.com.au'
   s.platforms      = { :ios => '16.4' }
