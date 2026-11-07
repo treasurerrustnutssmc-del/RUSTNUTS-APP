@@ -10,7 +10,20 @@ No keys, passwords or tokens are in this file, and none should ever be added to 
 
 ## 1. What we're building
 
-Rustnuts SMC is getting its own app. One app, built and owned by Jeff and licensed free to the club, that brings together what's
+Rustnuts SMC is getting its own app, developed by Jeff Ostler. Jeff retains the rights he owns
+in the original software. The [root licence](../LICENSE) grants the club permanent,
+non-exclusive use for club purposes without a licence fee. See the
+[licensing record](licensing/README.md): Jeff confirms that the club chairman,
+sitting presidents and treasurers signed the agreement and assignment. The repository
+texts are review drafts to reconcile with the signed originals, which were not supplied
+for this review. Valid earlier permissions are preserved. Jeff controls the main app
+build and will maintain it while he is able; the club may choose anyone to maintain its
+implementation at any time.
+Jeff may also build and license separate versions using his own software rights
+for other clubs. That does not reduce Rustnuts' rights or his maintenance
+undertaking, and excludes club assets and member information.
+
+The app brings together what's
 spread across Facebook Messenger, the club Discord and the Google Drive folders today. Chat as easy as Messenger, plus rides, members,
 documents, money and the board, all in one place, built for this one club and nobody else: its real
 ranks (Introduced, FNG, Full, Nomad, Supporter, Family, Legacy), its real positions and chapters
@@ -31,9 +44,16 @@ quietly in the background, where mostly only the board sees it.
   board work on a laptop later).
 - **In the stores but hidden:** Apple unlisted (link only), Google under an organisation account. Nobody
   gets past sign-in without board approval.
-- **Run by the club:** Jeff owns the software and licenses it free to the club, permanently. Every
-  account is on the club's treasurer Gmail and the club keeps a full copy of the code, so the app
-  outlives any one person. The club's name, insignia, documents and member data stay the club's.
+- **Software ownership and club continuity:** the [root licence](../LICENSE) retains Jeff Ostler's
+  rights in the original application software, with permanent, non-exclusive use by the club
+  without a licence fee. The root grant expressly
+  covers a complete source copy, builds, maintenance, modification and replacement maintainers,
+  independently of Jeff remaining a member, officer or maintainer. Account control, club assets
+  and member information are separate from software ownership. Verify actual source and
+  account access before treating continuity as operationally complete. Third-party licences
+  and any valid existing permissions remain in place. The former root MIT text is preserved
+  separately and its historical scope remains under review. The root grant does not depend
+  on signing the separate [review draft](licensing/CLUB-SOFTWARE-LICENCE.md).
 - **No tracking:** ride-day live location is opt-in, switches itself off, and nothing is kept.
 - **Under wraps until it's done:** no emails, invites or pushes to members until it's finished. A small
   secret test crew rides with it first.
@@ -199,7 +219,7 @@ credentials in chat or commits)
 
 | What | Where |
 |---|---|
-| Code | GitHub `treasurerrustnutssmc-del/rustnuts-app` (private). Chris is a collaborator |
+| Code | GitHub `treasurerrustnutssmc-del/rustnuts-app` (public at the 8 November 2026 review). Chris is a collaborator; verify current access separately |
 | Live database | Supabase project "Rustnuts", ref `mfhbvsybudneimgbfjpy` (Sydney). Chris is invited. A spare "Rustnuts app" project in Singapore is unused |
 | Builds and updates | Expo account `rustnutssmc`, org `rustnutssmcs-team`, project `rustnutssmc`. Chris is invited |
 | Voice | LiveKit Cloud project "Rustnuts"; its secret is already in Supabase's Edge Function secrets |
@@ -326,6 +346,17 @@ proxying link-card images; Rusty Bus editing and running costs.
   tests in the project's `build/lane-e/real-phone-tests.md`).
 - Website side: the ride calendar source, and later the "Get the app" link (after launch, not before).
 - A Stage 7 item that no lane owns, after telling Jeff so a Claude thread doesn't start the same thing.
+
+**Rights in contributions**
+
+Record the source, author/rights holder and licence of new contributions before adding
+them to the shared application. For contributions intended to become Jeff's IP, obtain
+a signed assignment from the actual rights holder; a pull request, account name or
+AI co-author trailer is not proof of an assignment. Keep pre-existing and third-party
+material separately identified and preserve its notices. See the
+[draft contributor instrument](licensing/CONTRIBUTOR-ASSIGNMENT.md) and
+[ownership schedule](licensing/OWNERSHIP-SCHEDULE.md). Contributions assigned to Jeff
+for this club application must also receive the club's permanent licence.
 
 **Rules for code changes**
 

@@ -1,8 +1,33 @@
 # Rustnuts App
 
 The Rustnuts SMC members' app: rides, chat, members and club business in one place.
-Built and owned by Jeff Ostler, and licensed free to Rustnuts Social Motorcycle Club Inc. to run
-for its members; the club's name, insignia, documents and member data stay the club's. One codebase builds the iPhone app, the Android app and a website.
+Developed by Jeff Ostler with contributions recorded in the repository history. Jeff retains
+the rights he owns in the original application software. The [root licence](LICENSE) grants
+Rustnuts Social Motorcycle Club Incorporated permanent, non-exclusive use for club purposes
+without a licence fee, including source copies, modification and replacement maintainers.
+This is a licence of use, not a transfer of software ownership.
+Jeff controls the main app build and will maintain it while he is able. The club
+may choose anyone to maintain its implementation at any time.
+Jeff may also build and license separate versions using his own software rights
+for other clubs, without reducing Rustnuts' rights or his maintenance undertaking.
+Club assets and member information are excluded from that reuse.
+
+Third-party software and fonts retain their own licences. Club branding, club documents,
+member content and personal information are separate from the original software rights.
+Member information is administered for club purposes, subject to individual rights and
+applicable obligations.
+
+The former Expo MIT notice is preserved verbatim in [licenses/Expo-MIT.txt](licenses/Expo-MIT.txt).
+The root licence preserves third-party rights and all valid earlier permissions, including
+any applicable earlier MIT grants; it does not settle their historical scope. Jeff confirms
+that the club chairman, sitting presidents and treasurers signed the agreement and
+assignment. The repository's [detailed agreement](docs/licensing/CLUB-SOFTWARE-LICENCE.md)
+and assignment texts are review drafts to reconcile with the signed originals, which
+were not supplied for this review. The root grant does not depend on signing new documents. See the
+[licensing review](docs/licensing/README.md) and
+[third-party notice inventory](THIRD_PARTY_NOTICES.md).
+
+One codebase builds the iPhone app, the Android app and a website.
 
 ## Where it's up to
 
