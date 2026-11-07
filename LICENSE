@@ -1,21 +1,99 @@
-The MIT License (MIT)
+RUSTNUTS APPLICATION — ORIGINAL SOFTWARE LICENCE
 
-Copyright (c) 2015-present 650 Industries, Inc. (aka Expo)
+Copyright (c) 2026 Jeff Ostler, in the original application material in which
+copyright subsists and is owned by him. All rights reserved except as below.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Scope and retained ownership
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+"Original Software" means the original application source code and technical
+documentation in this repository, only to the extent that the relevant rights
+subsist and are owned by Jeff Ostler ("Jeff"). It includes his original
+contributions to screens, business logic, build tooling and database definitions.
+It excludes third-party code and fonts, separately owned contributions, club
+branding and documents, member content and personal information. Ideas, facts
+and functionality as such are not claimed as copyright by this notice.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Jeff retains his rights in the Original Software. This licence is permission to
+use that material, not an assignment of ownership to or from anyone. File-level
+notices and separately applicable licences must be respected. Repository or
+account ownership, author metadata and AI assistance do not by themselves prove
+ownership of every contribution. See docs/licensing/OWNERSHIP-SCHEDULE.md for
+known evidence and unresolved rights questions.
+
+2. Permanent club licence, without a licence fee
+
+Jeff grants Rustnuts Social Motorcycle Club Incorporated ("Club") a worldwide,
+non-exclusive, perpetual, irrevocable and royalty-free licence under his rights
+in the Original Software to use, copy, build, host, run, maintain, repair and
+modify it for the Club's activities. These include membership, administration,
+rides, communications, merchandise and public club information. No licence fee
+is payable for these rights.
+
+The Club may keep complete source copies, build instructions and dependency
+records; distribute executable copies and updates to its users, including through
+app stores; and deploy its website. It may authorise officers, volunteers and
+replacement contractors to access, copy and modify the source solely to develop,
+operate and maintain its implementation. It may give hosting providers and app
+stores the permissions reasonably necessary to deliver that implementation.
+These permissions do not grant independent reuse or sale for another organisation,
+except where a separate licence, valid earlier permission or applicable law does.
+
+The Club's licence lasts for the full duration of Jeff's applicable rights and
+does not end because Jeff leaves the Club, changes office, ceases maintenance,
+becomes unavailable or transfers those rights. Any transfer by Jeff is subject
+to this licence. The Club's grant does not depend on signing the separate draft
+club agreement or completing an ownership or operating schedule.
+
+Original updates owned by Jeff and supplied for this Club application, and
+contributions whose rights are later validly assigned to him for incorporation
+into it, receive the same club licence automatically. This provision does not
+itself assign any contributor's rights or require anyone to create future work.
+New material owned by other contributors remains subject to their own rights
+and permissions; modifying the application does not automatically transfer it
+to Jeff.
+
+3. Other use and valid earlier permissions
+
+Except for the club grant above, this notice grants no new permission to use,
+redistribute, sublicense or sell Jeff's Original Software. Additional permission
+requires Jeff's written agreement, unless applicable law, GitHub platform terms,
+another applicable licence or a valid earlier permission already allows the use.
+
+This notice accompanies the revision in which it first appears and later
+revisions retaining it. It does not retroactively revoke, narrow or replace any
+valid permission already granted, including any MIT permission applicable to
+earlier copies of original application material. The historical scope of the
+former root MIT notice remains unresolved; moving its text does not determine
+that scope or turn previously licensed material into exclusively restricted code.
+
+4. Third-party materials
+
+Third-party materials retain their copyright, licence and notice requirements.
+No restriction here limits permissions under those licences. The former root
+Expo MIT notice is preserved verbatim at licenses/Expo-MIT.txt. See
+THIRD_PARTY_NOTICES.md and the existing component notices, including the font's
+OFL notice. That inventory is not a completed release-compliance audit.
+
+5. Club assets, member content and information
+
+Club names, insignia, artwork and documents remain separate from this software
+licence. The Club and other creators retain whatever rights they hold in them;
+no branding or document rights are assigned or licensed by this notice. Member
+and other contributor rights in their content also remain separate.
+
+Software ownership gives Jeff no independent right to access, use, sell,
+disclose or retain member information. Authorised access, privacy obligations
+and individual rights apply independently of software ownership. Service-account
+control and credentials are also separate; this notice grants no account access.
+
+6. Costs, support and non-excludable rights
+
+The fee-free grant does not require Jeff to pay hosting, app-store, email, API or
+other service charges, or to provide development, support or availability
+guarantees. Any paid services need a separate agreement. To the extent permitted
+by law, the Original Software is provided as is, without warranties. Nothing in
+this notice excludes rights or remedies that cannot lawfully be excluded.
+
+The detailed club agreement and contributor assignment in docs/licensing/ are
+unexecuted drafts for further review. This notice does not assert that any
+assignment, Club approval, signature or bilateral agreement has been obtained.
