@@ -13,8 +13,15 @@ No keys, passwords or tokens are in this file, and none should ever be added to 
 Rustnuts SMC is getting its own app, developed by Jeff Ostler. Jeff retains the rights he owns
 in the original software. The [root licence](../LICENSE) grants the club permanent,
 non-exclusive use for club purposes without a licence fee. See the
-[licensing record](licensing/README.md): separate detailed agreements remain unexecuted
-drafts, and valid earlier permissions are preserved.
+[licensing record](licensing/README.md): Jeff confirms that the club chairman,
+sitting presidents and treasurers signed the agreement and assignment. The repository
+texts are review drafts to reconcile with the signed originals, which were not supplied
+for this review. Valid earlier permissions are preserved. Jeff controls the main app
+build and will maintain it while he is able; the club may choose anyone to maintain its
+implementation at any time.
+Jeff may also build and license separate versions using his own software rights
+for other clubs. That does not reduce Rustnuts' rights or his maintenance
+undertaking, and excludes club assets and member information.
 
 The app brings together what's
 spread across Facebook Messenger, the club Discord and the Google Drive folders today. Chat as easy as Messenger, plus rides, members,
@@ -46,7 +53,7 @@ quietly in the background, where mostly only the board sees it.
   account access before treating continuity as operationally complete. Third-party licences
   and any valid existing permissions remain in place. The former root MIT text is preserved
   separately and its historical scope remains under review. The root grant does not depend
-  on the separate unexecuted [draft club agreement](licensing/CLUB-SOFTWARE-LICENCE.md).
+  on signing the separate [review draft](licensing/CLUB-SOFTWARE-LICENCE.md).
 - **No tracking:** ride-day live location is opt-in, switches itself off, and nothing is kept.
 - **Under wraps until it's done:** no emails, invites or pushes to members until it's finished. A small
   secret test crew rides with it first.
