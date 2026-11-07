@@ -20,6 +20,10 @@ account ownership, author metadata and AI assistance do not by themselves prove
 ownership of every contribution. See docs/licensing/OWNERSHIP-SCHEDULE.md for
 known evidence and unresolved rights questions.
 
+Jeff retains control of the main application build and its development. This
+does not limit the Club's rights below to maintain and modify its implementation
+or to choose its own maintainers.
+
 2. Permanent club licence, without a licence fee
 
 Jeff grants Rustnuts Social Motorcycle Club Incorporated ("Club") a worldwide,
@@ -35,14 +39,16 @@ app stores; and deploy its website. It may authorise officers, volunteers and
 replacement contractors to access, copy and modify the source solely to develop,
 operate and maintain its implementation. It may give hosting providers and app
 stores the permissions reasonably necessary to deliver that implementation.
+The Club may choose any maintainer at any time without Jeff's further approval;
+it need not wait until Jeff is unable to maintain the application.
 These permissions do not grant independent reuse or sale for another organisation,
 except where a separate licence, valid earlier permission or applicable law does.
 
 The Club's licence lasts for the full duration of Jeff's applicable rights and
 does not end because Jeff leaves the Club, changes office, ceases maintenance,
 becomes unavailable or transfers those rights. Any transfer by Jeff is subject
-to this licence. The Club's grant does not depend on signing the separate draft
-club agreement or completing an ownership or operating schedule.
+to this licence. The Club's grant does not depend on signing any new document
+or completing an ownership or operating schedule.
 
 Original updates owned by Jeff and supplied for this Club application, and
 contributions whose rights are later validly assigned to him for incorporation
@@ -53,6 +59,18 @@ and permissions; modifying the application does not automatically transfer it
 to Jeff.
 
 3. Other use and valid earlier permissions
+
+Jeff may reuse the Original Software he owns to develop, operate and license
+separate versions for other clubs or customers, including commercially. He does
+not need the Club's further permission to reuse his own software rights. This
+does not authorise reuse of Club branding, documents, confidential material,
+member content or personal information without the necessary separate rights
+and permissions; third-party licences continue to apply.
+
+Developing or licensing another version does not withdraw or reduce the Club's
+permanent fee-free licence, source access, modification rights or freedom to
+choose maintainers, and does not alter Jeff's maintenance undertaking below.
+No licence fee becomes payable by the Club because another version exists.
 
 Except for the club grant above, this notice grants no new permission to use,
 redistribute, sublicense or sell Jeff's Original Software. Additional permission
@@ -88,12 +106,20 @@ control and credentials are also separate; this notice grants no account access.
 
 6. Costs, support and non-excludable rights
 
+Jeff will maintain the application for the Club for as long as he is able. If he
+becomes unable to do so, the Club may continue maintenance through anyone it
+chooses, with its source, modification and use rights intact. This does not
+promise particular new features, response times or uninterrupted availability.
+
 The fee-free grant does not require Jeff to pay hosting, app-store, email, API or
-other service charges, or to provide development, support or availability
-guarantees. Any paid services need a separate agreement. To the extent permitted
+other service charges. Any paid services need a separate agreement and do not
+alter the permanent fee-free software licence. To the extent permitted
 by law, the Original Software is provided as is, without warranties. Nothing in
 this notice excludes rights or remedies that cannot lawfully be excluded.
 
-The detailed club agreement and contributor assignment in docs/licensing/ are
-unexecuted drafts for further review. This notice does not assert that any
-assignment, Club approval, signature or bilateral agreement has been obtained.
+Jeff has confirmed that the club chairman, sitting presidents and treasurers
+signed the agreement and assignment supporting this arrangement. The signed
+originals were not supplied for this review. The texts in docs/licensing/ are
+review drafts to reconcile with those originals, not copies of signed instruments.
+This notice does not create an assignment or enlarge the rights actually assigned.
+Existing valid agreements and permissions remain preserved; see the licensing record.
