@@ -17,6 +17,7 @@ import { NotificationSettings } from './notificationSettings';
 import { MeSocialSection } from './social';
 import { colors, space, type } from '../theme';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
+import { meGroups, type MeGroupId } from '../domain/meLayout';
 import { seesReports } from '../domain/ledger'; // Stage 5B
 import { MeAdminSection } from './adminRows'; // Stage 5D
 import { MeAuditSection } from './audit'; // National Auditor
@@ -38,6 +39,7 @@ import {
   Choices,
   ConfirmButton,
   Body,
+  Disclosure,
   Field,
   Flannel,
   H1,
@@ -72,11 +74,22 @@ function useDateField(initialIso: string | null) {
 export function MeScreen({ navigation }: TabScreen<'Me'>) {
   const { me, data, today, saveProfile, signOut, isDemo } = useClub();
   const [shareError, setShareError] = useState<string | null>(null);
+  // Which groups the person has opened or closed themselves; the rest follow what needs them.
+  const [chosen, setChosen] = useState<Partial<Record<MeGroupId, boolean>>>({});
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const bikes = data.bikes.filter((b) => b.memberId === me.id);
   const contacts = data.emergencyContacts.filter((c) => c.memberId === me.id);
   const positions = activePositions(me.id, data.positions);
+  const owing = totalOwing(me.id, data);
+  const rulesStatus = roadRulesStatus(me, data, today);
+  const groups = meGroups({
+    contacts: contacts.length,
+    bikes: bikes.length,
+    owingCents: owing,
+    onHiatus: me.onHiatus,
+    roadRules: asksToSign(me) ? { text: myRoadRulesLine(rulesStatus).text, urgent: needsSigning(rulesStatus.state) } : null,
+  });
 
   return (
     <Screen>
@@ -117,7 +130,6 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
         </Row>
       </Card>
 
-      {/* Attendance rules and the membership card */}
       <MyNotices />
       {me.approval === 'approved' ? (
         <Card style={{ padding: 0, gap: 0 }}>
@@ -130,115 +142,145 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
           />
         </Card>
       ) : null}
-      <StandingCard member={me} />
-      {me.approval === 'approved' ? <BadgesCard member={me} /> : null}
-
-      <SectionTitle title="Emergency contacts" action={<LockNote text="You + board" />} />
-      <Card style={{ padding: 0, gap: 0 }}>
-        {contacts.length === 0 ? (
-          <View style={{ padding: space.lg }}>
-            <Notice tone="warn" title="Add someone to call">
-              If you go down on a ride, this is who the Road Captain rings.
-            </Notice>
-          </View>
-        ) : null}
-        {contacts.map((c) => (
-          <ListRow
-            key={c.id}
-            left={<IconBadge icon="medkit" />}
-            title={c.name}
-            subtitle={`${c.relationship} · ${c.phone}`}
-            onPress={() => navigation.navigate('EditContact', { contactId: c.id })}
-          />
-        ))}
-        <ListRow
-          last
-          left={<IconBadge icon="add" tone="red" />}
-          title="Add an emergency contact"
-          onPress={() => navigation.navigate('EditContact', {})}
-        />
-      </Card>
-
-      <SectionTitle title="Garage" />
-      <Card style={{ padding: 0, gap: 0 }}>
-        {bikes.map((b) => {
-          const reg = data.registrations.find((r) => r.bikeId === b.id);
-          return (
-            <ListRow
-              key={b.id}
-              left={<IconBadge icon="speedometer" tone={b.isProject ? 'steel' : 'red'} />}
-              title={b.nickname ?? `${b.make} ${b.model}`}
-              subtitle={
-                b.isProject
-                  ? `${b.year ?? ''} ${b.make} ${b.model} · project`.trim()
-                  : `${reg?.rego ?? 'No rego'} · ${describeExpiry(reg?.regoExpiry ?? null, today)}`
-              }
-              onPress={() => navigation.navigate('EditBike', { bikeId: b.id })}
-            />
-          );
-        })}
-        <ListRow last left={<IconBadge icon="add" tone="red" />} title="Add a bike" onPress={() => navigation.navigate('EditBike', {})} />
-      </Card>
-
-      {/* Road Rules sign-off: for everyone who's asked to sign */}
-      {asksToSign(me) ? <RoadRulesRow onOpen={() => navigation.navigate('RoadRules')} /> : null}
-      {/* Stage 5C: document library */}
-      <DocumentsMeRow />
-
-      <SectionTitle title="Fees" action={<LockNote text="You + board" />} />
-      <Card style={{ padding: 0, gap: 0 }}>
-        <ListRow
-          left={<IconBadge icon="cash-outline" tone={totalOwing(me.id, data) > 0 ? 'red' : 'steel'} />}
-          title={totalOwing(me.id, data) > 0 ? `${formatCents(totalOwing(me.id, data))} owing` : 'All paid up'}
-          subtitle={me.onHiatus && totalOwing(me.id, data) === 0 ? 'On hiatus: no new fees while you’re away' : 'Charges, payments and receipts'}
-          onPress={() => navigation.navigate('MemberFees', { memberId: me.id })}
-          last={!seesReports(me)}
-        />
-        {/* Stage 5B: presented Treasurer's Reports (13.8) */}
-        {seesReports(me) ? (
-          <ListRow
-            last
-            left={<IconBadge icon="document-text-outline" />}
-            title="Club finances"
-            subtitle="The Treasurer’s Report each month"
-            onPress={() => navigation.navigate('ClubFinances')}
-          />
-        ) : null}
-      </Card>
       {/* Stage 5D: your conduct records (merch has its own tab) */}
       <MeAdminSection />
       {/* The National Auditor */}
       <MeAuditSection />
-      {/* Lane E: notifications */}
-      <NotificationSettings />
-      {/* Stage 7: social extras */}
-      <MeSocialSection />
-      {/* Club links: the website, shop, podcast and socials */}
-      <ClubLinksSection withoutShops />
-      {/* Sponsors: who backs the club, and member deals */}
-      <SponsorsSection />
-      {/* Feedback and issues: tell the club what's wrong with the app */}
-      <FeedbackRow />
 
-      <SectionTitle title="Privacy" />
-      <Card>
-        <Toggle
-          label="Share my mobile with members"
-          description="Your chapter board can always see it. Turn this on so other members can call you too."
-          value={me.sharePhone}
-          onChange={(v) => {
-            setShareError(null);
-            saveProfile({ fullName: me.fullName, roadName: me.roadName, bio: me.bio, sharePhone: v }, null).catch((e) =>
-              setShareError(`Couldn’t change that: ${(e as Error).message}`),
-            );
-          }}
-        />
-        {shareError ? <Notice tone="danger">{shareError}</Notice> : null}
-        {/* Lane E: live ride */}
-        <Small>Live ride location sharing is always your choice, switches off after the ride, and keeps nothing.</Small>
-      </Card>
-      <PrivacyPolicyRow />
-      <PostingRulesRow />
+      {groups.map((g) => {
+        const isOpen = chosen[g.id] ?? g.startsOpen;
+        return (
+          <Disclosure key={g.id} title={g.title} summary={g.summary} open={isOpen} onToggle={() => setChosen((c) => ({ ...c, [g.id]: !isOpen }))}>
+            {g.id === 'year' ? (
+              <>
+                <StandingCard member={me} />
+                {me.approval === 'approved' ? <BadgesCard member={me} /> : null}
+              </>
+            ) : null}
+
+            {g.id === 'details' ? (
+              <>
+                <SectionTitle title="Emergency contacts" action={<LockNote text="You + board" />} />
+                <Card style={{ padding: 0, gap: 0 }}>
+                  {contacts.length === 0 ? (
+                    <View style={{ padding: space.lg }}>
+                      <Notice tone="warn" title="Add someone to call">
+                        If you go down on a ride, this is who the Road Captain rings.
+                      </Notice>
+                    </View>
+                  ) : null}
+                  {contacts.map((c) => (
+                    <ListRow
+                      key={c.id}
+                      left={<IconBadge icon="medkit" />}
+                      title={c.name}
+                      subtitle={`${c.relationship} · ${c.phone}`}
+                      onPress={() => navigation.navigate('EditContact', { contactId: c.id })}
+                    />
+                  ))}
+                  <ListRow
+                    last
+                    left={<IconBadge icon="add" tone="red" />}
+                    title="Add an emergency contact"
+                    onPress={() => navigation.navigate('EditContact', {})}
+                  />
+                </Card>
+
+                <SectionTitle title="Garage" />
+                <Card style={{ padding: 0, gap: 0 }}>
+                  {bikes.map((b) => {
+                    const reg = data.registrations.find((r) => r.bikeId === b.id);
+                    return (
+                      <ListRow
+                        key={b.id}
+                        left={<IconBadge icon="speedometer" tone={b.isProject ? 'steel' : 'red'} />}
+                        title={b.nickname ?? `${b.make} ${b.model}`}
+                        subtitle={
+                          b.isProject
+                            ? `${b.year ?? ''} ${b.make} ${b.model} · project`.trim()
+                            : `${reg?.rego ?? 'No rego'} · ${describeExpiry(reg?.regoExpiry ?? null, today)}`
+                        }
+                        onPress={() => navigation.navigate('EditBike', { bikeId: b.id })}
+                      />
+                    );
+                  })}
+                  <ListRow last left={<IconBadge icon="add" tone="red" />} title="Add a bike" onPress={() => navigation.navigate('EditBike', {})} />
+                </Card>
+                {/* Stage 7: social extras */}
+                <MeSocialSection />
+              </>
+            ) : null}
+
+            {g.id === 'rules' ? (
+              <>
+                {/* Road Rules sign-off: for everyone who's asked to sign */}
+                {asksToSign(me) ? <RoadRulesRow onOpen={() => navigation.navigate('RoadRules')} /> : null}
+                {/* Stage 5C: document library */}
+                <DocumentsMeRow />
+                <PrivacyPolicyRow />
+                <PostingRulesRow />
+              </>
+            ) : null}
+
+            {g.id === 'fees' ? (
+              <Card style={{ padding: 0, gap: 0 }}>
+                <ListRow
+                  left={<IconBadge icon="cash-outline" tone={owing > 0 ? 'red' : 'steel'} />}
+                  title={owing > 0 ? `${formatCents(owing)} owing` : 'All paid up'}
+                  subtitle={me.onHiatus && owing === 0 ? 'On hiatus: no new fees while you’re away' : 'Charges, payments and receipts'}
+                  onPress={() => navigation.navigate('MemberFees', { memberId: me.id })}
+                  last={!seesReports(me)}
+                />
+                {/* Stage 5B: presented Treasurer's Reports (13.8) */}
+                {seesReports(me) ? (
+                  <ListRow
+                    last
+                    left={<IconBadge icon="document-text-outline" />}
+                    title="Club finances"
+                    subtitle="The Treasurer’s Report each month"
+                    onPress={() => navigation.navigate('ClubFinances')}
+                  />
+                ) : null}
+              </Card>
+            ) : null}
+
+            {g.id === 'settings' ? (
+              <>
+                {/* Lane E: notifications */}
+                <NotificationSettings />
+                <SectionTitle title="Privacy" />
+                <Card>
+                  <Toggle
+                    label="Share my mobile with members"
+                    description="Your chapter board can always see it. Turn this on so other members can call you too."
+                    value={me.sharePhone}
+                    onChange={(v) => {
+                      setShareError(null);
+                      saveProfile({ fullName: me.fullName, roadName: me.roadName, bio: me.bio, sharePhone: v }, null).catch((e) =>
+                        setShareError(`Couldn’t change that: ${(e as Error).message}`),
+                      );
+                    }}
+                  />
+                  {shareError ? <Notice tone="danger">{shareError}</Notice> : null}
+                  {/* Lane E: live ride */}
+                  <Small>Live ride location sharing is always your choice, switches off after the ride, and keeps nothing.</Small>
+                </Card>
+              </>
+            ) : null}
+
+            {g.id === 'help' ? (
+              <>
+                {/* Club links: the website, shop, podcast and socials */}
+                <ClubLinksSection withoutShops />
+                {/* Sponsors: who backs the club, and member deals */}
+                <SponsorsSection />
+                {/* Feedback and issues: tell the club what's wrong with the app */}
+                <FeedbackRow />
+              </>
+            ) : null}
+          </Disclosure>
+        );
+      })}
 
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
       {/* Delete my account */}
