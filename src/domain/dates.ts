@@ -41,13 +41,9 @@ export function weekday(date: string): string {
   return WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** "2026-11-08" → "8 Nov 2026" */
+/** "2026-11-08" → "08/11/2026". Kept under its old name: every date on a card is DD/MM/YYYY. */
 export function formatLongDate(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-').map(Number);
-  return `${d} ${MONTHS[m - 1]} ${y}`;
+  return formatAuDate(iso);
 }
 
 function utcMs(iso: string): number {

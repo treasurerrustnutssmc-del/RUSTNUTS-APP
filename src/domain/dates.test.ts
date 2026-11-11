@@ -24,7 +24,7 @@ test('reads Australian dates', () => {
 
 test('shows dates the Australian way', () => {
   assert.equal(formatAuDate('2026-11-08'), '08/11/2026');
-  assert.equal(formatLongDate('2026-11-08'), '8 Nov 2026');
+  assert.equal(formatLongDate('2026-11-08'), '08/11/2026');
   assert.equal(formatAuDate(null), '');
 });
 
@@ -44,9 +44,9 @@ test('flags expiries', () => {
   assert.equal(expiryState('2026-11-24', today), 'ok');
   assert.equal(expiryState(null, today), 'missing');
   assert.equal(describeExpiry('2026-11-08', today), 'Expires in 15 days');
-  assert.equal(describeExpiry('2026-10-12', today), 'Expired 12 Oct 2026');
+  assert.equal(describeExpiry('2026-10-12', today), 'Expired 12/10/2026');
   assert.equal(describeExpiry('2026-10-25', today), 'Expires tomorrow');
-  assert.equal(describeExpiry('2027-03-02', today), 'Expires 2 Mar 2027');
+  assert.equal(describeExpiry('2027-03-02', today), 'Expires 02/03/2027');
 });
 
 test('typing a date on the number pad puts the slashes in for you', () => {
