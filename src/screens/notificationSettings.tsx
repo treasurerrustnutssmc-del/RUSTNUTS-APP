@@ -9,7 +9,7 @@ import { setIntroAnswer } from '../data/notifyIntro';
 import { DEFAULT_PREFS, phoneNotificationState } from '../domain/notifications';
 import type { NotificationPrefs } from '../domain/types';
 import { space } from '../theme';
-import { Button, Card, Notice, SectionTitle, Small, Stack, Toggle } from '../ui/primitives';
+import { Button, Card, Notice, SectionTitle, Stack, Toggle } from '../ui/primitives';
 
 /** The phone's own notification permission, read again whenever the app comes back to the front. */
 function usePhonePermission() {

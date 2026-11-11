@@ -183,3 +183,11 @@ test('what’s left to the next badge', () => {
   assert.equal(toGoLine({ ...t(3, 4, '4 Big 4s'), track: 'big4' }), '1 more for 4 Big 4s');
   assert.equal(toGoLine(t(30000, null, null)), 'Top badge');
 });
+
+test('the badge name reads as part of the sentence, with no stray capital', () => {
+  const t = (value: number, next: number, nextLabel: string, track: 'rides' | 'states' = 'rides') => ({ track, value, earned: null, next, nextLabel, progress: 0 });
+  assert.equal(toGoLine(t(0, 1, 'First ride')), '1 more for first ride');
+  assert.equal(toGoLine(t(0, 2, 'Two states', 'states')), '2 more for two states');
+  assert.equal(toGoLine(t(6, 8, 'Every state and territory', 'states')), '2 more for every state and territory');
+  assert.equal(toGoLine(t(0, 5000, '5,000 km')), '5,000 more for 5,000 km');
+});

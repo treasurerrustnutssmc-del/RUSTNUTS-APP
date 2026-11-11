@@ -101,7 +101,7 @@ export function ClubShopSection() {
   return (
     <>
       <SectionTitle title="Club shop" />
-      <Small>Order here and the invoice comes by email. Pay by bank transfer.</Small>
+      <Small>Order here and the invoice comes by email. Pay by bank transfer. All prices are in AUD.</Small>
       {admin ? (
         <Card style={{ padding: 0, gap: 0 }}>
           <ListRow

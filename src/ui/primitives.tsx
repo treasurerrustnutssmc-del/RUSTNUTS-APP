@@ -426,6 +426,7 @@ export function Field({
       <Label>{label}</Label>
       <TextInput
         placeholderTextColor={colors.boneMute}
+        accessibilityLabel={label}
         {...input}
         onFocus={(e) => {
           setFocused(true);
@@ -468,6 +469,7 @@ export function Toggle({
         {description ? <Small>{description}</Small> : null}
       </View>
       <Switch
+        accessibilityLabel={label}
         value={value}
         onValueChange={onChange}
         trackColor={{ false: colors.steelHi, true: colors.redBright }}

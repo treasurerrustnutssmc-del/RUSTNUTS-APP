@@ -60,3 +60,9 @@ for (const [rule, pattern] of RULES) {
     assert.deepEqual(hits(pattern), []);
   });
 }
+
+test('the club shop says prices are in AUD (it says nothing about GST until the club confirms its GST status)', () => {
+  const shop = FILES.find((f) => f.file === 'screens/shop.tsx')!;
+  assert.match(shop.text, /All prices are in AUD\./);
+  assert.doesNotMatch(shop.text, /GST/);
+});
