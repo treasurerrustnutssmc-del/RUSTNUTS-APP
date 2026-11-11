@@ -87,6 +87,18 @@ export function upcomingByMonth(
   return months.map(({ month, rides: list }) => ({ month, rides: list }));
 }
 
+/**
+ * The ride to show first on Home: the earliest one coming up in these colours (a multi-day ride
+ * until its last day). A cancelled ride is never "next", though the Rides tab still lists it.
+ */
+export function nextRide(rides: Ride[], categories: RideCategory[], today: string): Ride | null {
+  for (const month of upcomingByMonth(rides, categories, today)) {
+    const ride = month.rides.find((r) => !r.cancelledAt);
+    if (ride) return ride;
+  }
+  return null;
+}
+
 /** Why `me` can't answer this ride right now, or null when they can. Mirrors public.set_rsvp. */
 export function rsvpProblem(me: Member | null, ride: Ride | undefined, now: string): string | null {
   if (!me) return 'Sign in first.';

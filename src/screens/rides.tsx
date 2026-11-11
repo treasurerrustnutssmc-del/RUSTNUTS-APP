@@ -21,6 +21,7 @@ import {
   lastDay,
   melbourneDate,
   melbourneTime,
+  nextRide,
   rsvpCounts,
   rsvpProblem,
   upcomingByMonth,
@@ -209,6 +210,33 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
 
       {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
     </Screen>
+  );
+}
+
+/** Home: the next ride in your colours, as it looks on the Rides tab, with what you've answered. Opens the ride. */
+export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void }) {
+  const { me, data, today } = useClub();
+  if (!me || me.approval !== 'approved') return null;
+  const ride = nextRide(data.rides, defaultCategories(me, data.chapters), today);
+  if (!ride) return null;
+  return (
+    <Stack gap={space.sm}>
+      <SectionTitle title="Next ride" />
+      <Card style={{ padding: 0, gap: 0 }}>
+        <RideRow
+          ride={ride}
+          going={rsvpCounts(ride.id, data.rsvps).going}
+          mine={data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null}
+          spot={spotOf(ride.id, me.id, data.crew)}
+          crewNeeded={showsCrewNeeded(me, ride, data, today)}
+          big4={isBig4(ride.id, data)}
+          call={activeCall(ride.id, data)}
+          charity={isCharityRide(ride.id, data)}
+          last
+          onPress={() => onOpen(ride.id)}
+        />
+      </Card>
+    </Stack>
   );
 }
 

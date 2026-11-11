@@ -44,6 +44,8 @@ import { BragRow } from './brag';
 import { BadgesCard } from './badges';
 import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
+import { HomeNextRideCard } from './rides';
+import { MORE_FROM_CLUB } from '../domain/membersLayout';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import { memberGroups } from '../domain/memberGroups';
 import { NotificationIntroCard } from '../ui/NotificationIntro';
@@ -54,6 +56,7 @@ import {
   Card,
   Chip,
   ConfirmButton,
+  Disclosure,
   Choices,
   Field,
   Flannel,
@@ -210,6 +213,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
 
       {/* What notifications are for, once, before the phone asks */}
       <NotificationIntroCard />
+      {/* The next ride, so it is one tap from opening the app */}
+      <HomeNextRideCard onOpen={(rideId) => navigation.navigate('RideDetail', { rideId })} />
       {/* Stage 4: today's check-in and what you owe */}
       <HomeCheckinCard />
       <HomeFeesCard />
@@ -319,6 +324,7 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
   const { me, data, isDemo, refresh } = useClub();
   const [query, setQuery] = useState('');
   const [chapterId, setChapterId] = useState<string>('all');
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -338,22 +344,6 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
-      <Card style={{ padding: 0, gap: 0 }}>
-        <ListRow
-          left={<IconBadge icon="flag" tone="red" />}
-          title="Chapters"
-          subtitle="Boards and the National committee"
-          onPress={() => navigation.navigate('Chapters')}
-        />
-        <HistoryRow last />
-      </Card>
-      {/* Stage 7: social extras */}
-      <Card style={{ padding: 0, gap: 0 }}>
-        <WhoCanHelpRow />
-        <SwapRow />
-        <BuildsRow />
-        <BragRow last />
-      </Card>
       <Field
         label="Search"
         value={query}
@@ -367,6 +357,25 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
         value={chapterId}
         onChange={setChapterId}
       />
+      {/* Chapters, history and the social extras: folded away so the member list comes first */}
+      <Disclosure title={MORE_FROM_CLUB.title} summary={MORE_FROM_CLUB.summary} open={moreOpen} onToggle={() => setMoreOpen((o) => !o)}>
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            left={<IconBadge icon="flag" tone="red" />}
+            title="Chapters"
+            subtitle="Boards and the National committee"
+            onPress={() => navigation.navigate('Chapters')}
+          />
+          <HistoryRow last />
+        </Card>
+        {/* Stage 7: social extras */}
+        <Card style={{ padding: 0, gap: 0 }}>
+          <WhoCanHelpRow />
+          <SwapRow />
+          <BuildsRow />
+          <BragRow last />
+        </Card>
+      </Disclosure>
       {groups.length === 0 ? (
         <Notice title="Nobody matches">Try a road name, a real name or a bike, like “Softail”.</Notice>
       ) : null}

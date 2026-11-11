@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calendarFreshness, defaultCategories, lastDay, melbourneDate, melbourneTime, rsvpCounts, rsvpProblem, upcomingByMonth } from './rides';
+import { calendarFreshness, defaultCategories, lastDay, melbourneDate, melbourneTime, nextRide, rsvpCounts, rsvpProblem, upcomingByMonth } from './rides';
 import type { Chapter, Member, Ride, Rsvp } from './types';
 
 const chapters: Chapter[] = [
@@ -91,4 +91,27 @@ test('how fresh the calendar is, and when to say so loudly', () => {
   assert.deepEqual(calendarFreshness(null, true, now),
     { stale: true, text: 'Part of the club calendar hasn’t loaded yet. Some rides may be missing.' });
   assert.deepEqual(calendarFreshness(null, false, now), { stale: false, text: 'Not updated from the club calendar yet' });
+});
+
+test('the next ride is the earliest one coming up in your colours, and never a cancelled one', () => {
+  const rides = [
+    ride({ id: 'old', startsAt: '2026-10-23T21:00:00.000Z' }),
+    ride({ id: 'gone', startsAt: '2026-11-03T00:00:00.000Z', cancelledAt: '2026-11-02T00:00:00.000Z' }),
+    ride({ id: 'north', startsAt: '2026-11-04T00:00:00.000Z', category: 'north' }),
+    ride({ id: 'later', startsAt: '2026-11-20T00:00:00.000Z' }),
+    ride({ id: 'soon', startsAt: '2026-11-10T00:00:00.000Z' }),
+  ];
+  assert.equal(nextRide(rides, ['west', 'club', 'supported'], '2026-11-01')?.id, 'soon');
+  assert.equal(nextRide(rides, ['north'], '2026-11-01')?.id, 'north');
+});
+
+test('a multi-day ride that has started still counts until its last day', () => {
+  const trip = ride({ id: 'trip', startsAt: '2026-11-20T00:00:00.000Z', endsAt: '2026-11-23T00:00:00.000Z', allDay: true });
+  assert.equal(nextRide([trip], ['west'], '2026-11-21')?.id, 'trip');
+  assert.equal(nextRide([trip], ['west'], '2026-11-25'), null);
+});
+
+test('no next ride when nothing is coming up', () => {
+  assert.equal(nextRide([], ['west'], '2026-11-01'), null);
+  assert.equal(nextRide([ride({ category: 'north' })], ['west'], '2026-11-01'), null);
 });
