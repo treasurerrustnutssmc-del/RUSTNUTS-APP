@@ -229,6 +229,49 @@ export function SectionTitle({ title, action }: { title: string; action?: React.
   );
 }
 
+/**
+ * A group that opens and closes: a title and one summary line you can read without opening it.
+ * Controlled, so a screen can open a group from somewhere else (the Board's "Needs you" list).
+ */
+export function Disclosure({
+  title,
+  summary,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  summary: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={{ gap: space.md }}>
+      <Card style={{ padding: 0, gap: 0 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          aria-expanded={open}
+          accessibilityLabel={`${title}, ${summary}`}
+          onPress={onToggle}
+          style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+            styles.disclosureHead,
+            (pressed || hovered) && { backgroundColor: colors.steel },
+          ]}
+        >
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <H2>{title}</H2>
+            <Small numberOfLines={2}>{summary}</Small>
+          </View>
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={colors.boneMute} />
+        </Pressable>
+      </Card>
+      {open ? children : null}
+    </View>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Chips and badges
 // ---------------------------------------------------------------------------
@@ -796,6 +839,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
   },
   listRowLast: { borderBottomWidth: 0 },
+  disclosureHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, minHeight: 64 },
   notice: { flexDirection: 'row', gap: space.md, padding: space.md, borderRadius: radius.md },
   kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: space.lg, paddingVertical: 2 },
   divider: { height: 1, backgroundColor: colors.line },

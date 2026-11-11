@@ -17,6 +17,7 @@ import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 // Stage 4
 import { fngDue } from '../domain/joining';
+import { boardGroups, needsYou, type BoardGroupId } from '../domain/boardLayout';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
 import { WebsiteEnquiries } from './enquiries';
@@ -41,6 +42,7 @@ import {
   Chip,
   Choices,
   ConfirmButton,
+  Disclosure,
   Field,
   H1,
   H2,
@@ -142,6 +144,8 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
 export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   const { me, data, level, today, isDemo, refresh } = useClub();
   const [done, setDone] = useState<string | null>(null);
+  // Which groups the person has opened or closed themselves; the rest follow what is waiting.
+  const [chosen, setChosen] = useState<Partial<Record<BoardGroupId, boolean>>>({});
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const national = level === 'national';
@@ -155,6 +159,10 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
     .filter((m) => m.status === 'fng' && m.fngStartedOn)
     .map((m) => ({ m, review: nextFngReview(m.fngStartedOn!, today), due: fngDue(m, data.decisions ?? [], today) }))
     .sort((a, b) => (a.due?.date ?? a.review.date).localeCompare(b.due?.date ?? b.review.date));
+
+  const counts = { pending: pending.length, alerts: alerts.length, noContact: noContact.length, fngs: fngs.length };
+  const attention = needsYou(counts);
+  const groups = boardGroups(counts);
 
   const memberName = (id: string) => {
     const m = data.members.find((x) => x.id === id);
@@ -212,86 +220,119 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
       {/* The National Auditor's requests and reports */}
       <BoardAuditRow />
 
-      <SectionTitle title="Waiting for approval" action={<Small>{pending.length}</Small>} />
-      {pending.length === 0 ? (
-        <Card>
-          <Small>Nobody waiting. New requests show up here and on your home screen.</Small>
-        </Card>
-      ) : (
-        pending.map((a) => <ApplicantCard key={a.id} applicant={a} onDone={setDone} />)
-      )}
-
-      {/* People who asked through the club website's Ride With Us form */}
-      <WebsiteEnquiries onDone={setDone} />
-      <WebsiteNews onDone={setDone} />
-      <WebsiteVisits />
-      <AppFeedbackSection onDone={setDone} />
-
-      <SectionTitle title="Needs attention" action={<Small>{alerts.length}</Small>} />
+      <SectionTitle title="Needs you" />
       <Card style={{ padding: 0, gap: 0 }}>
-        {alerts.length === 0 ? (
+        {attention.length === 0 ? (
           <View style={{ padding: space.lg }}>
-            <Small>No regos, licences or first aid certificates due in the next 30 days.</Small>
+            <Small>Nothing needs you right now.</Small>
           </View>
         ) : (
-          alerts.map((a, i) => (
+          attention.map((n, i) => (
             <ListRow
-              key={`${a.memberId}-${a.label}`}
-              last={i === alerts.length - 1}
-              left={<IconBadge icon={a.kind === 'rego' ? 'speedometer' : a.kind === 'licence' ? 'card' : 'medkit'} />}
-              title={memberName(a.memberId)}
-              subtitle={`${a.label} · ${a.description}`}
-              right={<Chip label={a.state === 'expired' ? 'Expired' : 'Due soon'} tone={a.state === 'expired' ? 'danger' : 'warn'} />}
-              onPress={() => navigation.navigate('MemberDetail', { memberId: a.memberId })}
+              key={n.text}
+              last={i === attention.length - 1}
+              left={<IconBadge icon="alert-circle-outline" tone="red" />}
+              title={n.text}
+              onPress={() => setChosen((c) => ({ ...c, [n.group]: true }))}
             />
           ))
         )}
       </Card>
 
-      {noContact.length > 0 ? (
-        <>
-          <SectionTitle title="No emergency contact" action={<Small>{noContact.length}</Small>} />
-          <Card style={{ padding: 0, gap: 0 }}>
-            {noContact.map((m, i) => (
-              <ListRow
-                key={m.id}
-                last={i === noContact.length - 1}
-                left={<Avatar text={initials(m)} size={40} />}
-                title={displayName(m)}
-                subtitle="Ask them to add one before the next ride"
-                onPress={() => navigation.navigate('MemberDetail', { memberId: m.id })}
-              />
-            ))}
-          </Card>
-        </>
-      ) : null}
-
-      <SectionTitle title="FNG reviews" action={<Small>{fngs.length}</Small>} />
-      <Card style={{ padding: 0, gap: 0 }}>
-        {fngs.length === 0 ? (
-          <View style={{ padding: space.lg }}>
-            <Small>No FNGs at the moment.</Small>
-          </View>
-        ) : (
-          fngs.map(({ m, review, due }, i) => (
-            <ListRow
-              key={m.id}
-              last={i === fngs.length - 1}
-              left={<Avatar text={initials(m)} size={40} />}
-              title={displayName(m)}
-              subtitle={`${monthsBetween(m.fngStartedOn!, today)} months in · ${due?.atMonths ?? review.atMonths}-month review ${formatLongDate(due?.date ?? review.date)}`}
-              right={due?.overdue ? <Chip label="Overdue" tone="warn" /> : review.overdue12 ? <Chip label="Past 12 months" tone="warn" /> : undefined}
-              onPress={() => navigation.navigate('FngReview', { memberId: m.id })}
-            />
-          ))
-        )}
-      </Card>
-
-      {/* Stage 4: check-ins and fees */}
-      {/* Attendance rules and terms */}
-      <BoardAttendance chapterId={national ? null : me.chapterId} />
-      <BoardCheckins chapterId={national ? null : me.chapterId} />
-      <BoardFees />
+      {groups.map((g) => {
+        const isOpen = chosen[g.id] ?? g.startsOpen;
+        return (
+          <Disclosure key={g.id} title={g.title} summary={g.summary} open={isOpen} onToggle={() => setChosen((c) => ({ ...c, [g.id]: !isOpen }))}>
+            {g.id === 'approvals' ? (
+              pending.length === 0 ? (
+                <Card>
+                  <Small>Nobody waiting. New requests show up here and on your home screen.</Small>
+                </Card>
+              ) : (
+                pending.map((a) => <ApplicantCard key={a.id} applicant={a} onDone={setDone} />)
+              )
+            ) : null}
+            {g.id === 'people' ? (
+              <>
+                {alerts.length === 0 && noContact.length === 0 && fngs.length === 0 ? (
+                  <Card>
+                    <Small>No regos, licences or first aid certificates due in the next 30 days, and no FNG reviews.</Small>
+                  </Card>
+                ) : null}
+                {alerts.length > 0 ? (
+                  <>
+                    <SectionTitle title="Needs attention" action={<Small>{alerts.length}</Small>} />
+                    <Card style={{ padding: 0, gap: 0 }}>
+                      {alerts.map((a, i) => (
+                        <ListRow
+                          key={`${a.memberId}-${a.label}`}
+                          last={i === alerts.length - 1}
+                          left={<IconBadge icon={a.kind === 'rego' ? 'speedometer' : a.kind === 'licence' ? 'card' : 'medkit'} />}
+                          title={memberName(a.memberId)}
+                          subtitle={`${a.label} · ${a.description}`}
+                          right={<Chip label={a.state === 'expired' ? 'Expired' : 'Due soon'} tone={a.state === 'expired' ? 'danger' : 'warn'} />}
+                          onPress={() => navigation.navigate('MemberDetail', { memberId: a.memberId })}
+                        />
+                      ))}
+                    </Card>
+                  </>
+                ) : null}
+                {noContact.length > 0 ? (
+                  <>
+                    <SectionTitle title="No emergency contact" action={<Small>{noContact.length}</Small>} />
+                    <Card style={{ padding: 0, gap: 0 }}>
+                      {noContact.map((m, i) => (
+                        <ListRow
+                          key={m.id}
+                          last={i === noContact.length - 1}
+                          left={<Avatar text={initials(m)} size={40} />}
+                          title={displayName(m)}
+                          subtitle="Ask them to add one before the next ride"
+                          onPress={() => navigation.navigate('MemberDetail', { memberId: m.id })}
+                        />
+                      ))}
+                    </Card>
+                  </>
+                ) : null}
+                {fngs.length > 0 ? (
+                  <>
+                    <SectionTitle title="FNG reviews" action={<Small>{fngs.length}</Small>} />
+                    <Card style={{ padding: 0, gap: 0 }}>
+                      {fngs.map(({ m, review, due }, i) => (
+                        <ListRow
+                          key={m.id}
+                          last={i === fngs.length - 1}
+                          left={<Avatar text={initials(m)} size={40} />}
+                          title={displayName(m)}
+                          subtitle={`${monthsBetween(m.fngStartedOn!, today)} months in · ${due?.atMonths ?? review.atMonths}-month review ${formatLongDate(due?.date ?? review.date)}`}
+                          right={due?.overdue ? <Chip label="Overdue" tone="warn" /> : review.overdue12 ? <Chip label="Past 12 months" tone="warn" /> : undefined}
+                          onPress={() => navigation.navigate('FngReview', { memberId: m.id })}
+                        />
+                      ))}
+                    </Card>
+                  </>
+                ) : null}
+              </>
+            ) : null}
+            {g.id === 'meetings' ? (
+              <>
+                <BoardAttendance chapterId={national ? null : me.chapterId} />
+                <BoardCheckins chapterId={national ? null : me.chapterId} />
+              </>
+            ) : null}
+            {g.id === 'money' ? <BoardFees /> : null}
+            {g.id === 'website' ? (
+              <>
+                {/* People who asked through the club website's Ride With Us form */}
+                <WebsiteEnquiries onDone={setDone} />
+                <WebsiteNews onDone={setDone} />
+                <WebsiteVisits />
+                <AppFeedbackSection onDone={setDone} />
+              </>
+            ) : null}
+          </Disclosure>
+        );
+      })}
     </Screen>
   );
 }
