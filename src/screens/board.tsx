@@ -22,7 +22,7 @@ import { BoardAttendance } from './attendance';
 import { WebsiteEnquiries } from './enquiries';
 import { WebsiteNews } from './siteNews'; // club news for the website
 import { WebsiteVisits } from './siteVisits'; // website page views
-import { AppFeedbackSection } from './feedback'; // Feedback & issues
+import { AppFeedbackSection } from './feedback'; // Feedback and issues
 import { termEndsOn, termState } from '../domain/terms';
 import { seatTitle } from '../domain/home';
 import { BoardFees } from './fees';

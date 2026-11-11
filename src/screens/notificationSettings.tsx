@@ -126,7 +126,6 @@ export function NotificationSettings() {
           value={prefs.revSound}
           onChange={change('revSound')}
         />
-        <Small>Reminders work now. The rest start when the app launches.</Small>
         {error ? <Notice tone="danger">{error}</Notice> : null}
       </Card>
     </Stack>

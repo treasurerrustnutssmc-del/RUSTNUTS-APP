@@ -22,7 +22,7 @@ export const POSTING_RULES_EMAIL = 'apps@rustnutssmc.com.au';
 /** ISO date the rules last changed. */
 export const POSTING_RULES_UPDATED_ON = '2026-11-02';
 
-export const POSTING_RULES_TITLE = 'Club rules for chats and posts';
+export const POSTING_RULES_TITLE = 'Chat and posting rules';
 
 /** Why a member can't post yet. The database uses the same words. */
 export const AGREE_FIRST = 'Agree to the club rules for chats and posts first.';

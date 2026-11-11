@@ -471,7 +471,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
         {member.bio && !reportedByMe('profile', member.id, myOpenReports) ? <Body>{member.bio}</Body> : null}
         {isSelf ? <StepDownButtons positions={positions} /> : null}
         {isSelf ? (
-          <Button label="Edit my profile" kind="secondary" icon="create-outline" onPress={() => navigation.navigate('EditProfile')} />
+          <Button label="Edit profile" kind="secondary" icon="create-outline" onPress={() => navigation.navigate('EditProfile')} />
         ) : null}
         {canManage ? (
           <Button label="Manage member" kind="secondary" icon="shield-outline" onPress={() => navigation.navigate('ManageMember', { memberId: member.id })} />
@@ -574,7 +574,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
           <Card style={{ padding: 0, gap: 0 }}>
             {contacts.length === 0 ? (
               <View style={{ padding: space.lg }}>
-                <Notice tone="warn" title="None recorded">
+                <Notice tone="warn" title="Not recorded">
                   {isSelf ? 'Add one so the Road Captain can call someone if you go down.' : 'Ask them to add one before the next ride.'}
                 </Notice>
               </View>

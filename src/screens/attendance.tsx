@@ -88,7 +88,7 @@ export function StandingCard({ member }: { member: Member }) {
   const period = standing.kind === 'fng' ? `Since ${formatAuDate(standing.from)}` : clubYearLabel(clubYearOf(today, data.agms));
   return (
     <>
-      <SectionTitle title={standing.kind === 'fng' ? 'Trial attendance' : 'Attendance rules'} action={<Text style={[type.name, { color: colors.boneMute }]}>{period}</Text>} />
+      <SectionTitle title={standing.kind === 'fng' ? 'Trial attendance' : 'Attendance targets'} action={<Text style={[type.name, { color: colors.boneMute }]}>{period}</Text>} />
       <Card>
         <StandingLines standing={standing} />
         <Small>Counts meetings and rides that had a check-in. The board can excuse you from one (4.12).</Small>

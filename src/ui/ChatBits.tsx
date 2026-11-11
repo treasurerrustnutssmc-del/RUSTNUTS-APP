@@ -307,7 +307,7 @@ export function GifPicker({ onPick }: { onPick: (gif: GifPick) => void }) {
   if (!GIPHY_KEY) {
     return (
       <View style={styles.gifPanel}>
-        <Small style={{ textAlign: 'center' }}>GIFs aren’t switched on yet. The club needs a GIPHY key first.</Small>
+        <Small style={{ textAlign: 'center' }}>GIFs aren’t available yet.</Small>
       </View>
     );
   }

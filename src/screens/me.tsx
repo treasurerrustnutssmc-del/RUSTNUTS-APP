@@ -27,9 +27,9 @@ import { DocumentsMeRow } from './documents'; // Stage 5C
 import { BadgesCard } from './badges'; // Stage 7: badges
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
-import { FeedbackRow } from './feedback'; // Feedback & issues
+import { FeedbackRow } from './feedback'; // Feedback and issues
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
-import { PostingRulesRow } from './postingRules'; // Club rules for chats and posts
+import { PostingRulesRow } from './postingRules'; // Chat and posting rules
 import {
   Avatar,
   Button,
@@ -217,7 +217,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       <ClubLinksSection withoutShops />
       {/* Sponsors: who backs the club, and member deals */}
       <SponsorsSection />
-      {/* Feedback & issues: tell the club what's wrong with the app */}
+      {/* Feedback and issues: tell the club what's wrong with the app */}
       <FeedbackRow />
 
       <SectionTitle title="Privacy" />
@@ -315,7 +315,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
       <Card>
         <H2>About you</H2>
         <Field label="Full name" value={fullName} onChangeText={setFullName} autoComplete="name" />
-        <Field label="Road name" value={roadName} onChangeText={setRoadName} hint="Leave blank if you don't have one yet." />
+        <Field label="Road name" value={roadName} onChangeText={setRoadName} hint="Leave blank if you don’t have one yet." />
         {/* A bio is a post, and Family don't post, so they don't get the field (their old one is kept as it was). */}
         {me.status !== 'family' ? (
           <Field label="A bit about you" value={bio} onChangeText={setBio} multiline placeholder="What you ride, how long you've been riding…" />
@@ -438,7 +438,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
             <LockNote text="You + board" />
           </Row>
           <Field label="Rego" value={rego} onChangeText={setRego} autoCapitalize="characters" placeholder="1AB 2CD" />
-          <Field label="Rego expiry" value={expiry.text} onChangeText={expiry.setText} placeholder="DD/MM/YYYY" inputMode="numeric" maxLength={10} error={expiry.error} hint="You'll get a reminder 30 days before." />
+          <Field label="Rego expiry" value={expiry.text} onChangeText={expiry.setText} placeholder="DD/MM/YYYY" inputMode="numeric" maxLength={10} error={expiry.error} hint="You’ll get a reminder 30 days before." />
         </Card>
       ) : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
@@ -492,7 +492,7 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
       <Card>
         <Field label="Name" value={name} onChangeText={setName} autoComplete="name" />
         <Choices
-          label="They're your"
+          label="They’re your"
           options={RELATIONSHIPS.map((r) => ({ value: r, label: r }))}
           value={RELATIONSHIPS.includes(relationship) ? relationship : null}
           onChange={setRelationship}

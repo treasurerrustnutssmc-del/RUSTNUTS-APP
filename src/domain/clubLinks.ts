@@ -38,7 +38,7 @@ export const PUBLIC_SHOP_URL = 'https://www.rustnutssmc.com.au/shop.html';
 const DISCORD_SHOP_LINK: ClubLink = {
   id: 'discord-shop',
   label: 'Members’ merch shop',
-  detail: 'Member designs, order with /buy in the club Discord',
+  detail: 'Member designs, order in the club Discord with /buy',
   url: DISCORD_SHOP_URL,
   icon: 'shirt-outline',
 };

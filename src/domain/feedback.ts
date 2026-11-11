@@ -1,5 +1,5 @@
 /**
- * Feedback & issues: members tell the club what's wrong with the app, or what they'd like. Anyone
+ * Feedback and issues: members tell the club what's wrong with the app, or what they'd like. Anyone
  * approved in the app (Family too) sends a report; the app keepers (a sitting Treasurer, or the
  * NEC Chairman or Secretary) read them all, mark them looking / done and reply. The database
  * mirrors these rules (supabase/migrations/*_app_feedback.sql); change both together.

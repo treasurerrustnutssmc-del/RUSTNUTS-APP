@@ -213,7 +213,7 @@ export function EditRideScreen({ route: nav, navigation }: RootScreen<'EditRide'
       <View accessibilityLiveRegion="polite" role="alert">
         {error ? <Notice tone="danger">{error}</Notice> : null}
       </View>
-      <Button label={ride ? 'Save changes' : 'Make the ride'} icon="checkmark" busy={busy} onPress={save} />
+      <Button label={ride ? 'Save changes' : 'Create ride'} icon="checkmark" busy={busy} onPress={save} />
       {ride ? null : <Small style={{ textAlign: 'center' }}>Members see it in Rides straight away. Those who asked for new-ride alerts hear about it.</Small>}
     </Screen>
   );

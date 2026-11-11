@@ -12,7 +12,7 @@ import { isReviewerEmail } from '../domain/reviewer'; // Store review demo
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
-import { PostingRulesRow } from './postingRules'; // Club rules for chats and posts
+import { PostingRulesRow } from './postingRules'; // Chat and posting rules
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -344,7 +344,7 @@ export function JoinScreen() {
         />
         {err('chapter') ? <Small style={{ color: colors.danger }}>{err('chapter')}</Small> : null}
         <Choices<JoinAs>
-          label="I'm joining as"
+          label="I’m joining as"
           options={[
             { value: 'introduced', label: 'A rider' },
             { value: 'supporter', label: STATUS_LABEL.supporter },
@@ -358,7 +358,7 @@ export function JoinScreen() {
 
       <Card>
         <Toggle
-          label="I'm 18 or over"
+          label="I’m 18 or over"
           description="The app is for adults, Family included."
           value={adult}
           onChange={setAdult}

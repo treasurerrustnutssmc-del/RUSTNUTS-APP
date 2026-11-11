@@ -70,8 +70,8 @@ import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../scre
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
 import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
-import { PostingRulesScreen } from '../screens/postingRules'; // Club rules for chats and posts
-import { FeedbackScreen } from '../screens/feedback'; // Feedback & issues
+import { PostingRulesScreen } from '../screens/postingRules'; // Chat and posting rules
+import { FeedbackScreen } from '../screens/feedback'; // Feedback and issues
 import { SupportScreen } from '../screens/support'; // Crisis and support lines, inside the app
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
@@ -300,7 +300,7 @@ export function RootNavigator() {
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
-            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback & issues' }} />
+            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback and issues' }} />
             {/* Family chat: the one chat, its photos and the club rules Family agree to before posting */}
             <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} getId={({ params }) => params.chatId} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
@@ -308,7 +308,7 @@ export function RootNavigator() {
           </>
         ) : needsPostingRules(me) ? (
           <>
-            {/* Club rules for chats and posts: agreed once before the tabs open (App Review 1.2). Its own
+            {/* Chat and posting rules: agreed once before the tabs open (App Review 1.2). Its own
                 route name, so once they agree the stack has no screen to keep and starts on Home. */}
             <Stack.Screen name="PostingRulesGate" component={PostingRulesScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
@@ -494,7 +494,7 @@ export function RootNavigator() {
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
             <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
-            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback & issues' }} />
+            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback and issues' }} />
             <Stack.Screen
               name="EditSponsor"
               component={EditSponsorScreen}
