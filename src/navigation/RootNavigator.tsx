@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { HeaderBackButton } from '@react-navigation/elements';
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import React from 'react';
-import { useWindowDimensions } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
@@ -98,6 +99,9 @@ const navTheme: Theme = {
   },
 };
 
+/** Smallest tap target (DESIGN.md): the web back arrow was 30pt. Native platforms draw their own, at full size. */
+const MIN_TOUCH = 44;
+
 const headerOptions = {
   headerStyle: { backgroundColor: colors.ink },
   headerTintColor: colors.bone,
@@ -105,6 +109,19 @@ const headerOptions = {
   headerShadowVisible: false,
   contentStyle: { backgroundColor: colors.ink },
 } as const;
+
+/** The stack's header: the tabs share headerOptions, but only the stack has a back arrow. */
+const stackHeaderOptions: NativeStackNavigationOptions = {
+  ...headerOptions,
+  // A screen reader hears "Go back", not the previous screen's internal name (it said "Tabs, back").
+  headerBackTitle: 'Back',
+  ...(Platform.OS === 'web'
+    ? {
+        headerLeft: (props) =>
+          props.canGoBack ? <HeaderBackButton {...props} style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, justifyContent: 'center' }} /> : null,
+      }
+    : {}),
+};
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const TAB_ICONS: Record<keyof TabParams, [IconName, IconName]> = {
@@ -252,7 +269,7 @@ export function RootNavigator() {
       <ReminderSync />
       <LocalAlertSync />
       {/* Keyed by who's signed in, so switching people always starts fresh on their home screen. */}
-      <Stack.Navigator key={stackKey} screenOptions={headerOptions}>
+      <Stack.Navigator key={stackKey} screenOptions={stackHeaderOptions}>
         {loadError ? (
           <Stack.Screen name="LoadError" component={LoadErrorScreen} options={{ headerShown: false }} />
         ) : needsApplication ? (
