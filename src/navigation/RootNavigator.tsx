@@ -301,7 +301,7 @@ export function RootNavigator() {
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
-            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Chat and posting rules' }} />
           </>
         ) : level === 'family' ? (
           <>
@@ -321,7 +321,7 @@ export function RootNavigator() {
             {/* Family chat: the one chat, its photos and the club rules Family agree to before posting */}
             <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} getId={({ params }) => params.chatId} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
-            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Chat and posting rules' }} />
           </>
         ) : needsPostingRules(me) ? (
           <>
@@ -510,7 +510,7 @@ export function RootNavigator() {
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
-            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Chat and posting rules' }} />
             <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback and issues' }} />
             <Stack.Screen
               name="EditSponsor"

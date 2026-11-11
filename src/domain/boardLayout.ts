@@ -45,7 +45,7 @@ export function boardGroups(c: BoardCounts): BoardGroup[] {
   ].filter((s): s is string => s !== null);
   return [
     { id: 'approvals', title: 'Approvals', summary: c.pending > 0 ? `${c.pending} waiting` : 'Nobody waiting', startsOpen: c.pending > 0 },
-    { id: 'people', title: 'People', summary: people.length ? people.join(', ') : 'Nothing due', startsOpen: false },
+    { id: 'people', title: 'People', summary: people.length ? people.join(', ') : 'Nothing due', startsOpen: people.length > 0 },
     { id: 'meetings', title: 'Meetings and attendance', summary: 'Attendance and check-ins', startsOpen: false },
     { id: 'money', title: 'Money', summary: 'Fees', startsOpen: false },
     { id: 'website', title: 'Website and app', summary: 'Enquiries, news, visits and app feedback', startsOpen: false },

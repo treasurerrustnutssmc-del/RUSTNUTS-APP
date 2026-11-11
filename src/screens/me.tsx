@@ -17,6 +17,7 @@ import { NotificationSettings } from './notificationSettings';
 import { MeSocialSection } from './social';
 import { colors, space, type } from '../theme';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
+import { settleOpen } from '../domain/groupOpen';
 import { meGroups, type MeGroupId } from '../domain/meLayout';
 import { seesReports } from '../domain/ledger'; // Stage 5B
 import { MeAdminSection } from './adminRows'; // Stage 5D
@@ -90,6 +91,9 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
     onHiatus: me.onHiatus,
     roadRules: asksToSign(me) ? { text: myRoadRulesLine(rulesStatus).text, urgent: needsSigning(rulesStatus.state) } : null,
   });
+  // A group that needs the member opens, and stays open once the thing that opened it is dealt with.
+  const settled = settleOpen(chosen, groups);
+  if (settled !== chosen) setChosen(settled);
 
   return (
     <Screen>
@@ -148,7 +152,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       <MeAuditSection />
 
       {groups.map((g) => {
-        const isOpen = chosen[g.id] ?? g.startsOpen;
+        const isOpen = chosen[g.id] ?? false;
         return (
           <Disclosure key={g.id} title={g.title} summary={g.summary} open={isOpen} onToggle={() => setChosen((c) => ({ ...c, [g.id]: !isOpen }))}>
             {g.id === 'year' ? (

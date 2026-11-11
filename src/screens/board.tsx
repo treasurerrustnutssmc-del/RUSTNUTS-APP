@@ -18,6 +18,7 @@ import { colors, fonts, space, type } from '../theme';
 // Stage 4
 import { fngDue } from '../domain/joining';
 import { boardGroups, needsYou, type BoardGroupId } from '../domain/boardLayout';
+import { settleOpen } from '../domain/groupOpen';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
 import { WebsiteEnquiries } from './enquiries';
@@ -163,6 +164,9 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   const counts = { pending: pending.length, alerts: alerts.length, noContact: noContact.length, fngs: fngs.length };
   const attention = needsYou(counts);
   const groups = boardGroups(counts);
+  // A group that needs the board opens, and stays open once the thing that opened it is dealt with.
+  const settled = settleOpen(chosen, groups);
+  if (settled !== chosen) setChosen(settled);
 
   const memberName = (id: string) => {
     const m = data.members.find((x) => x.id === id);
@@ -233,14 +237,15 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
               last={i === attention.length - 1}
               left={<IconBadge icon="alert-circle-outline" tone="red" />}
               title={n.text}
-              onPress={() => setChosen((c) => ({ ...c, [n.group]: true }))}
+              // Groups with something waiting are already open below; a tap only helps when one has been closed.
+              onPress={settled[n.group] ? undefined : () => setChosen((c) => ({ ...c, [n.group]: true }))}
             />
           ))
         )}
       </Card>
 
       {groups.map((g) => {
-        const isOpen = chosen[g.id] ?? g.startsOpen;
+        const isOpen = chosen[g.id] ?? false;
         return (
           <Disclosure key={g.id} title={g.title} summary={g.summary} open={isOpen} onToggle={() => setChosen((c) => ({ ...c, [g.id]: !isOpen }))}>
             {g.id === 'approvals' ? (

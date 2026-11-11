@@ -13,3 +13,7 @@ test('Disclosure exposes expanded and collapsed to screen readers on native and 
   assert.match(block, /accessibilityState=\{\{ expanded: open \}\}/);
   assert.match(block, /aria-expanded=\{open\}/);
 });
+
+test('Disclosure keeps its contents mounted when closed, so a half-typed reply is not lost', () => {
+  assert.match(block, /display: open \? 'flex' : 'none'/);
+});

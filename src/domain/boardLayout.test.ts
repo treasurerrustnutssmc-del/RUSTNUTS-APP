@@ -29,7 +29,9 @@ test('the groups come in a fixed order, and only the ones with something open st
   assert.deepEqual(quiet.map((g) => g.id), ['approvals', 'people', 'meetings', 'money', 'website']);
   assert.deepEqual(quiet.filter((g) => g.startsOpen), []);
   const busy = boardGroups({ pending: 2, alerts: 1, noContact: 0, fngs: 0 });
-  assert.deepEqual(busy.filter((g) => g.startsOpen).map((g) => g.id), ['approvals']);
+  assert.deepEqual(busy.filter((g) => g.startsOpen).map((g) => g.id), ['approvals', 'people']);
+  const onlyFngs = boardGroups({ ...none, fngs: 2 });
+  assert.deepEqual(onlyFngs.filter((g) => g.startsOpen).map((g) => g.id), ['people']);
 });
 
 test('each group says in one line what is inside, with counts where there are any', () => {

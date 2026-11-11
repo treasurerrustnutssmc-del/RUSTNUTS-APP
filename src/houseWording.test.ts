@@ -37,6 +37,7 @@ function hits(pattern: RegExp): string[] {
 }
 
 const RULES: [string, RegExp][] = [
+  ['Screens about the chat rules are titled "Chat and posting rules", not "Club rules"', /title: 'Club rules'/],
   ['Say "Feedback and issues", not "Feedback & issues"', /Feedback (&|&amp;) issues/],
   ['Chat conduct rules are "Chat and posting rules", so "rules" is not used for three different things', /Club rules for chats and posts/],
   ['Attendance is "Attendance targets", not "Attendance rules"', /['"`>]Attendance rules/i],

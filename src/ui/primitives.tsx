@@ -267,7 +267,8 @@ export function Disclosure({
           <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={colors.boneMute} />
         </Pressable>
       </Card>
-      {open ? children : null}
+      {/* Kept mounted when closed, so a half-typed reply or draft survives and nothing reloads on reopen. */}
+      <View style={{ display: open ? 'flex' : 'none', gap: space.md }}>{children}</View>
     </View>
   );
 }
