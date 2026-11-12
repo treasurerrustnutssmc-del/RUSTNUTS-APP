@@ -33,6 +33,7 @@ import { RIDE_TOOLS } from '../domain/ridesLayout';
 import { quickAnswerReason } from '../domain/quickAnswer';
 import { useToast } from '../ui/Toast';
 import { useSavedFilters } from '../data/savedFilters';
+import { isConnectionProblem } from '../data/friendlyError';
 import { sameColours } from '../domain/savedFilters';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -268,7 +269,8 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
       const t = rsvpToast(mine, a);
       toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!).catch((e: Error) => toast(e.message)) } : undefined);
     } catch (e) {
-      toast((e as Error).message, { label: 'Retry', onPress: () => void answer(a) });
+      const err = e as Error;
+      toast(err.message, isConnectionProblem(err) ? { label: 'Retry', onPress: () => void answer(a) } : undefined);
     } finally {
       setBusy(null);
     }
@@ -295,7 +297,7 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
               <Button
                 key={a}
                 // "Can't make it" wrapped to three lines in a third of the width; the full words are on the ride.
-                label={a === 'no' ? 'Can’t' : RSVP_LABEL[a]}
+                label={a === 'no' ? 'Can’t go' : RSVP_LABEL[a]}
                 accessibilityLabel={RSVP_LABEL[a]}
                 kind={mine === a ? 'primary' : 'secondary'}
                 busy={busy === a}
@@ -483,8 +485,9 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       const t = rsvpToast(mine, a);
       toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!).catch((e: Error) => setError(e.message)) } : undefined);
     } catch (e) {
-      setError((e as Error).message);
-      toast((e as Error).message, { label: 'Retry', onPress: () => void answer(a) });
+      const err = e as Error;
+      setError(err.message);
+      if (isConnectionProblem(err)) toast(err.message, { label: 'Retry', onPress: () => void answer(a) });
     } finally {
       setBusy(null);
     }

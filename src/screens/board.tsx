@@ -123,7 +123,7 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
         onChange={setStatus}
       />
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      <Small>{`Approving lets them in as ${STATUS_LABEL[status]} and opens the app for them.`}</Small>
+      <Small>{`Approving lets them in as ${STATUS_LABEL[status]}.`}</Small>
       <Row style={{ gap: space.sm }}>
         <Button
           label="Approve"

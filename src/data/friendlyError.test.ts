@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { friendlyError } from './friendlyError';
+import { friendlyError, isConnectionProblem } from './friendlyError';
 
 const msg = (error: { message?: string; code?: string }) => friendlyError(error).message;
 
@@ -29,4 +29,12 @@ test('sign-in problems say what to do', () => {
   assert.match(msg({ code: 'otp_expired', message: 'Token has expired or is invalid' }), /code didn’t work/);
   assert.match(msg({ code: 'over_email_send_rate_limit', message: 'email rate limit exceeded' }), /Wait a minute/);
   assert.match(msg({ code: 'email_address_invalid', message: 'Email address "jeff@" is invalid' }), /email address/i);
+});
+
+
+test('only a lost connection is worth a Retry; a rule failure would fail the same way again', () => {
+  assert.equal(isConnectionProblem(friendlyError({ message: 'fetch failed' })), true);
+  assert.equal(isConnectionProblem(new Error('No connection. Check your signal and try again.')), true);
+  assert.equal(isConnectionProblem(new Error('Sign the Road Rules first.')), false);
+  assert.equal(isConnectionProblem(new Error('That ride has already started.')), false);
 });

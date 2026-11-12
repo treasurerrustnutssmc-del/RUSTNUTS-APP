@@ -132,3 +132,12 @@ test('a cancelled ride that has a live replacement the same day is not listed tw
   const ids = upcomingByMonth(rides, ['west'], '2026-11-01').flatMap((m) => m.rides.map((r) => r.id));
   assert.deepEqual(ids, ['new', 'alone']);
 });
+
+test('a cancelled morning ride is not hidden by a different evening ride of the same name', () => {
+  const rides = [
+    ride({ id: 'am', title: 'Coffee run', startsAt: '2026-11-27T20:00:00.000Z', cancelledAt: '2026-11-20T00:00:00.000Z' }),
+    ride({ id: 'pm', title: 'Coffee run', startsAt: '2026-11-28T06:00:00.000Z' }),
+  ];
+  const ids = upcomingByMonth(rides, ['west'], '2026-11-01').flatMap((m) => m.rides.map((r) => r.id));
+  assert.deepEqual(ids, ['am', 'pm']);
+});

@@ -66,14 +66,14 @@ export function answersClose(ride: Ride): number {
 }
 
 /**
- * A cancelled ride is hidden when the same ride (same title and colour, same Melbourne day) is on again, so a
+ * A cancelled ride is hidden when the same ride (same title and colour, same Melbourne day, starting within three hours) is on again, so a
  * moved start time does not list the ride twice. A cancelled ride with no replacement still shows.
  */
 function isReplaced(r: Ride, all: Ride[]): boolean {
   if (!r.cancelledAt) return false;
   const day = melbourneDate(r.startsAt);
   const title = r.title.trim().toLowerCase();
-  return all.some((o) => o.id !== r.id && !o.cancelledAt && o.category === r.category && melbourneDate(o.startsAt) === day && o.title.trim().toLowerCase() === title);
+  return all.some((o) => o.id !== r.id && !o.cancelledAt && o.category === r.category && melbourneDate(o.startsAt) === day && o.title.trim().toLowerCase() === title && Math.abs(new Date(o.startsAt).getTime() - new Date(r.startsAt).getTime()) <= 3 * HOUR);
 }
 
 /** Rides from today on, a multi-day one until its last day (cancelled ones too, so people see
