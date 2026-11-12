@@ -10,6 +10,7 @@ import { isFamily } from '../domain/access'; // Family chat
 import {
   POSTING_RULES_EMAIL,
   POSTING_RULES_INTRO,
+  POSTING_RULES_SUMMARY,
   POSTING_RULES_SECTIONS,
   POSTING_RULES_TITLE,
   POSTING_RULES_URL,
@@ -45,6 +46,15 @@ function RulesText() {
   return (
     <>
       <Text style={[type.name, { color: colors.boneMute }]}>{postingRulesUpdatedLine()}</Text>
+      <Notice title="In short">
+        <Stack gap={space.xs}>
+          {POSTING_RULES_SUMMARY.map((p) => (
+            <Small key={p} style={{ color: colors.bone }}>
+              {p}
+            </Small>
+          ))}
+        </Stack>
+      </Notice>
       <Body style={{ color: colors.bone }}>{POSTING_RULES_INTRO}</Body>
       {POSTING_RULES_SECTIONS.map((s) => (
         <Stack key={s.id} gap={space.sm}>
