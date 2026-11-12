@@ -33,6 +33,7 @@ import { RIDE_TOOLS } from '../domain/ridesLayout';
 import { canQuickAnswer } from '../domain/quickAnswer';
 import { useToast } from '../ui/Toast';
 import { useSavedFilters } from '../data/savedFilters';
+import { sameColours } from '../domain/savedFilters';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
@@ -197,6 +198,20 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
       </View>
 
       <Small>{rideColourLegend()}</Small>
+      {!sameColours(categories, defaultCategories(me, data.chapters)) ? (
+        <Row style={{ gap: space.sm, alignItems: 'center' }}>
+          <Small style={{ flex: 1 }}>Some ride colours are hidden.</Small>
+          <Button
+            label="Show my usual"
+            kind="quiet"
+            onPress={() => {
+              const usual = defaultCategories(me, data.chapters);
+              setShown(usual);
+              saved.save({ rideColours: usual });
+            }}
+          />
+        </Row>
+      ) : null}
 
       {freshness?.stale ? <Notice tone="warn">{freshness.text}</Notice> : null}
 
@@ -250,7 +265,7 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
     try {
       await setRsvp(ride.id, a);
       const t = rsvpToast(mine, a);
-      toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!) } : undefined);
+      toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!).catch((e: Error) => toast(e.message)) } : undefined);
     } catch (e) {
       toast((e as Error).message);
     } finally {

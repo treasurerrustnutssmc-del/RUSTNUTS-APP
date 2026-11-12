@@ -9,9 +9,15 @@ test('the in-short summary has four short points', () => {
 
 test('the summary says what the full rules say: banter is fine, reporting within 24 hours, blocking, and your own posts', () => {
   const all = POSTING_RULES_SUMMARY.join(' ');
-  for (const bit of ['Banter is fine', 'Report', '24 hours', 'block', 'responsible']) assert.ok(all.includes(bit), bit);
+  for (const bit of ['Banter is fine', 'Report', '24 hours', 'block', 'responsible', 'can be removed']) assert.ok(all.includes(bit), bit);
 });
 
 test('the summary uses no em dashes', () => {
   assert.ok(!POSTING_RULES_SUMMARY.join(' ').includes('—'));
+});
+
+test('the summary does not promise more than the full rules do (they say the club can remove a post, not that it always does)', () => {
+  const all = POSTING_RULES_SUMMARY.join(' ');
+  assert.ok(!/is removed/.test(all));
+  assert.ok(!/Every post/.test(all), 'the full rules list what has a Report button; do not shorten it to every post');
 });

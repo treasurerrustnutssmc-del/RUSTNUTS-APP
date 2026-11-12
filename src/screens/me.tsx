@@ -391,7 +391,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
   };
 
   return (
-    <Screen>
+    <Screen scrollToTopKey={guard.held}>
       {guard.prompt}
       <Card>
         <H2>About you</H2>
@@ -493,7 +493,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
   };
 
   return (
-    <Screen>
+    <Screen scrollToTopKey={guard.held}>
       {guard.prompt}
       <Card>
         <Row style={{ gap: space.sm, alignItems: 'flex-start' }}>
@@ -584,7 +584,7 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
   };
 
   return (
-    <Screen>
+    <Screen scrollToTopKey={guard.held}>
       {guard.prompt}
       <Notice title="Who sees this">Only you and your chapter board. On ride day, the Road Captain uses it if something goes wrong.</Notice>
       <Card>

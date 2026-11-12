@@ -323,7 +323,7 @@ export function JoinScreen() {
   };
 
   return (
-    <Screen>
+    <Screen scrollToTopKey={step}>
       <Stack gap={space.sm}>
         <H1>Ask to join</H1>
         <Body>
@@ -332,9 +332,11 @@ export function JoinScreen() {
         </Body>
       </Stack>
 
-      <Small>
-        Step {step + 1} of {JOIN_STEPS.length}: {JOIN_STEPS[step].title}
-      </Small>
+      <View accessibilityLiveRegion="polite">
+        <Small>
+          Step {step + 1} of {JOIN_STEPS.length}: {JOIN_STEPS[step].title}
+        </Small>
+      </View>
 
       {step === 0 ? (
         <>

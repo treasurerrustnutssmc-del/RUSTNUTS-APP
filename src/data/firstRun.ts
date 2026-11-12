@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { hasSeenFirstRun, markFirstRunSeen, resetFirstRun } from '../domain/firstRun';
+import { hasSeenFirstRun, isRecentMember, markFirstRunSeen, resetFirstRun } from '../domain/firstRun';
 import { useClub } from './ClubStore';
 
 // Home and Me are both mounted at once, so a change made in one (Help bringing the guide back)
@@ -10,13 +10,15 @@ const notify = () => listeners.forEach((l) => l());
 
 /** Whether to show the first-run guide for this member, and how to dismiss or bring it back. */
 export function useFirstRun() {
-  const { me } = useClub();
+  const { me, today } = useClub();
   const memberId = me?.id ?? null;
-  const [seen, setSeen] = useState<boolean | null>(null);
+  const recent = isRecentMember(me?.joinedOn ?? null, today);
+  // Kept with the member it was read for, so on a shared phone the next member never briefly inherits it.
+  const [state, setState] = useState<{ memberId: string | null; seen: boolean | null }>({ memberId: null, seen: null });
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const l = () => setTick((t) => t + 1);
+    const l = () => setTick((n) => n + 1);
     listeners.add(l);
     return () => void listeners.delete(l);
   }, []);
@@ -24,11 +26,11 @@ export function useFirstRun() {
   useEffect(() => {
     if (!memberId) return undefined;
     let live = true;
-    hasSeenFirstRun(AsyncStorage, memberId).then((s) => live && setSeen(s));
+    hasSeenFirstRun(AsyncStorage, memberId, recent).then((seen) => live && setState({ memberId, seen }));
     return () => {
       live = false;
     };
-  }, [memberId, tick]);
+  }, [memberId, recent, tick]);
 
   const dismiss = useCallback(async () => {
     if (!memberId) return;
@@ -42,5 +44,6 @@ export function useFirstRun() {
     notify();
   }, [memberId]);
 
+  const seen = state.memberId === memberId ? state.seen : null;
   return { show: !!memberId && seen === false, dismiss, replay };
 }

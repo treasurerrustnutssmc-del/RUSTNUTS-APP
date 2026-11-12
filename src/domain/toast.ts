@@ -18,7 +18,7 @@ export function dismissToast(state: ToastState, id: number): ToastState {
   return state.current?.id === id ? { ...state, current: null } : state;
 }
 
-/** How long a toast stays: long enough to hit Undo when there is one. */
-export function toastDuration(t: ToastInput): number {
-  return t.onAction ? 10000 : 3500;
+/** How long a toast stays: long enough to hit Undo when there is one, and three times as long with a screen reader on. */
+export function toastDuration(t: ToastInput, screenReaderOn = false): number {
+  return (t.onAction ? 10000 : 3500) * (screenReaderOn ? 3 : 1);
 }

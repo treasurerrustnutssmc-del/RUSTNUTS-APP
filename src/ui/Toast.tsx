@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { dismissToast, initialToasts, pushToast, toastDuration } from '../domain/toast';
 import { colors, fonts, radius, space } from '../theme';
@@ -21,13 +21,19 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [],
   );
   const toast = state.current;
+  const [screenReader, setScreenReader] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isScreenReaderEnabled().then(setScreenReader).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (!toast) return undefined;
     const id = toast.id;
-    const timer = setTimeout(() => setState((s) => dismissToast(s, id)), toastDuration(toast));
+    // iOS ignores the live region, so say it out loud as well.
+    AccessibilityInfo.announceForAccessibility(toast.text);
+    const timer = setTimeout(() => setState((s) => dismissToast(s, id)), toastDuration(toast, screenReader));
     return () => clearTimeout(timer);
-  }, [toast]);
+  }, [toast, screenReader]);
 
   return (
     <ToastContext.Provider value={show}>

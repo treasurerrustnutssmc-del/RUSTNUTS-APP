@@ -22,3 +22,8 @@ test('a toast with an Undo stays longer than a plain one', () => {
   assert.equal(toastDuration({ text: 'Saved' }), 3500);
   assert.equal(toastDuration({ text: 'Going', actionLabel: 'Undo', onAction: () => undefined }), 10000);
 });
+
+test('someone using a screen reader gets three times as long, so the toast is not gone before it is read', () => {
+  assert.equal(toastDuration({ text: 'Saved' }, true), 3500 * 3);
+  assert.equal(toastDuration({ text: 'Going', actionLabel: 'Undo', onAction: () => undefined }, true), 10000 * 3);
+});

@@ -7,12 +7,16 @@ import { useClub } from './ClubStore';
 export function useSavedFilters() {
   const { me } = useClub();
   const memberId = me?.id ?? null;
-  const [filters, setFilters] = useState<SavedFilters>({});
+  // Kept with the member they were read for, so a shared phone never shows one member another's filters.
+  const [state, setState] = useState<{ memberId: string | null; filters: SavedFilters }>({ memberId: null, filters: {} });
 
   useEffect(() => {
     if (!memberId) return undefined;
     let live = true;
-    readFilters(AsyncStorage, memberId).then((f) => live && setFilters(f));
+    // Anything chosen before the read finished wins over what was stored.
+    readFilters(AsyncStorage, memberId).then(
+      (stored) => live && setState((s) => ({ memberId, filters: { ...stored, ...(s.memberId === memberId ? s.filters : {}) } })),
+    );
     return () => {
       live = false;
     };
@@ -20,10 +24,11 @@ export function useSavedFilters() {
 
   const save = useCallback(
     (patch: SavedFilters) => {
-      setFilters((f) => ({ ...f, ...patch }));
-      if (memberId) void saveFilters(AsyncStorage, memberId, patch);
+      if (!memberId) return;
+      setState((s) => ({ memberId, filters: { ...(s.memberId === memberId ? s.filters : {}), ...patch } }));
+      void saveFilters(AsyncStorage, memberId, patch);
     },
     [memberId],
   );
-  return { filters, save };
+  return { filters: state.memberId === memberId ? state.filters : {}, save };
 }

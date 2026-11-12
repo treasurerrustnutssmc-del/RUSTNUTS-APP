@@ -1,6 +1,7 @@
 // The first-run guide: a short "here's where things are" card on Home, shown until the member
 // dismisses it, remembered per member on their phone. Help can bring it back. If the phone's
 // storage fails it stays hidden rather than nag or break anything.
+import { daysBetween } from './dates';
 import type { FilterStorage } from './savedFilters';
 
 export const FIRST_RUN_STEPS: { title: string; text: string; icon: string }[] = [
@@ -12,12 +13,25 @@ export const FIRST_RUN_STEPS: { title: string; text: string; icon: string }[] = 
 
 const keyFor = (memberId: string) => `firstRunSeen:${memberId}`;
 
-export async function hasSeenFirstRun(storage: FilterStorage, memberId: string): Promise<boolean> {
+/**
+ * Whether to leave the guide out. Dismissed (1) means seen. Asked for from Help (0) means show it.
+ * Never touched: shown only to a recent member (`recent`), so long-standing members are not greeted
+ * with a "where things are" card the first time the app updates.
+ */
+export async function hasSeenFirstRun(storage: FilterStorage, memberId: string, recent: boolean): Promise<boolean> {
   try {
-    return (await storage.getItem(keyFor(memberId))) === '1';
+    const raw = await storage.getItem(keyFor(memberId));
+    if (raw === '1') return true;
+    if (raw === '0') return false;
+    return !recent;
   } catch {
     return true;
   }
+}
+
+/** New for the first 60 days after joining. A member with no join date counts as new. */
+export function isRecentMember(joinedOn: string | null, today: string): boolean {
+  return joinedOn === null || daysBetween(joinedOn, today) <= 60;
 }
 
 export async function markFirstRunSeen(storage: FilterStorage, memberId: string): Promise<void> {

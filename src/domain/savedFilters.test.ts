@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readFilters, saveFilters, type FilterStorage } from './savedFilters';
+import { readFilters, saveFilters, sameColours, type FilterStorage } from './savedFilters';
 
 const memory = (): FilterStorage & { data: Map<string, string> } => {
   const data = new Map<string, string>();
@@ -36,4 +36,16 @@ test('a phone whose storage fails never breaks the screen', async () => {
   const bad: FilterStorage = { getItem: async () => { throw new Error('no storage'); }, setItem: async () => { throw new Error('no storage'); } };
   assert.deepEqual(await readFilters(bad, 'm1'), {});
   await saveFilters(bad, 'm1', { memberChapter: 'x' });
+});
+
+test('choosing no colours at all is a real choice and is kept', async () => {
+  const st = memory();
+  await saveFilters(st, 'm1', { rideColours: [] });
+  assert.deepEqual(await readFilters(st, 'm1'), { rideColours: [] });
+});
+
+test('two colour lists are the same whatever their order', () => {
+  assert.equal(sameColours(['west', 'club'], ['club', 'west']), true);
+  assert.equal(sameColours(['west'], ['west', 'club']), false);
+  assert.equal(sameColours([], []), true);
 });

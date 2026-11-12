@@ -21,7 +21,8 @@ export async function readFilters(storage: FilterStorage, memberId: string): Pro
     const out: SavedFilters = {};
     if (Array.isArray(parsed.rideColours)) {
       const colours = parsed.rideColours.filter((c): c is RideCategory => RIDE_CATEGORIES.includes(c as RideCategory));
-      if (colours.length > 0) out.rideColours = colours;
+      // An explicit empty list ("show none") is a real choice; a list of only unknown colours is not.
+      if (colours.length > 0 || parsed.rideColours.length === 0) out.rideColours = colours;
     }
     if (typeof parsed.memberChapter === 'string' && parsed.memberChapter) out.memberChapter = parsed.memberChapter;
     return out;
@@ -38,4 +39,9 @@ export async function saveFilters(storage: FilterStorage, memberId: string, patc
   } catch {
     // The filters just won't be remembered; nothing else is affected.
   }
+}
+
+/** Whether two ride-colour lists hold the same colours, in any order. */
+export function sameColours(a: RideCategory[], b: RideCategory[]): boolean {
+  return a.length === b.length && a.every((c) => b.includes(c));
 }

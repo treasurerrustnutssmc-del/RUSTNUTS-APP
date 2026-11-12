@@ -111,6 +111,7 @@ export function Screen({
   padTop = false,
   onRefresh,
   scroller,
+  scrollToTopKey,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
@@ -119,10 +120,15 @@ export function Screen({
   onRefresh?: () => Promise<void>;
   /** Hands over the scroll view, for a screen that jumps to a place in its content. */
   scroller?: (view: ScrollViewInstance | null) => void;
+  /** When this changes the screen scrolls back to the top (a prompt or a new step must not be off screen). */
+  scrollToTopKey?: unknown;
 }) {
   const insets = useSafeAreaInsets();
   const { scrollRef, contentRef, keyboard, field, onContentSizeChange } = useKeyboardRoom();
   const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => {
+    if (scrollToTopKey !== undefined) scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [scrollToTopKey, scrollRef]);
   const refreshControl = onRefresh ? (
     <RefreshControl
       refreshing={refreshing}

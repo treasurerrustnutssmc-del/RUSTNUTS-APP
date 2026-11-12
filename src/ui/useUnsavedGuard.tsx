@@ -40,5 +40,5 @@ export function useUnsavedGuard(dirty: boolean) {
     </Notice>
   ) : null;
 
-  return { prompt, markSaved: () => { allow.current = true; } };
+  return { prompt, held: held !== null, markSaved: () => { allow.current = true; } };
 }

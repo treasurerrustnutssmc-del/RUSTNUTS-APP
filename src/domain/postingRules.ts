@@ -133,7 +133,7 @@ export function bioProblem(me: Pick<Member, 'postingRulesAcceptedOn' | 'bio'> | 
 /** "In short", shown above the full rules. It only restates them; the full text is what a member agrees to. */
 export const POSTING_RULES_SUMMARY = [
   'Banter is fine. Abuse, bullying, threats, slurs, sexual or violent content, private details shared without a say-so, and anything illegal are not.',
-  'Every post has a Report button. The board acts within 24 hours, and anything that breaks the rules is removed.',
+  'Messages, listings, build updates and profiles all have a Report button. The board acts within 24 hours, and anything that breaks the rules can be removed.',
   'You can block any member. You won’t see their posts, and only you know.',
   'What you post is yours, and you’re responsible for it. The full rules are below.',
 ];

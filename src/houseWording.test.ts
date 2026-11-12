@@ -87,7 +87,7 @@ const NO_CLAUSE_NUMBERS: [string, string[]][] = [
   ['screens/notices.tsx', ['(5.5)']],
   ['screens/fees.tsx', ['(4.11)']],
   ['screens/fng.tsx', ['(4.11)']],
-  ['screens/checkin.tsx', ['(5.4)']],
+  ['screens/checkin.tsx', ['(5.4)', '(5.2, 4.6)']],
 ];
 for (const [file, refs] of NO_CLAUSE_NUMBERS) {
   test(`member screens do not show clause numbers: ${file}`, () => {
