@@ -51,3 +51,9 @@ export function boardGroups(c: BoardCounts): BoardGroup[] {
     { id: 'website', title: 'Website and app', summary: 'Enquiries, news, visits and app feedback', startsOpen: false },
   ];
 }
+
+/** The menu of Board areas (meetings, treasury and so on), folded so "Needs you" is the first thing a board member sees. */
+export const BOARD_TOOLS = {
+  title: 'Board tools',
+  summary: 'Meetings and votes, Road Rules sign-off, Treasury, Documents, Conduct records, Merch orders, National',
+} as const;
