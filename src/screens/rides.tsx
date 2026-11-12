@@ -30,6 +30,7 @@ import {
 import type { ClubData, CrewRole, Member, Ride, RideCall, RideCategory, RsvpAnswer } from '../domain/types';
 import { rideColourLegend } from '../domain/glossary';
 import { RIDE_TOOLS } from '../domain/ridesLayout';
+import { canQuickAnswer } from '../domain/quickAnswer';
 import { useToast } from '../ui/Toast';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -230,10 +231,27 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
 
 /** Home: the next ride in your colours, as it looks on the Rides tab, with what you've answered. Opens the ride. */
 export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void }) {
-  const { me, data, today } = useClub();
+  const { me, data, today, setRsvp } = useClub();
+  const toast = useToast();
+  const [busy, setBusy] = useState<RsvpAnswer | null>(null);
   if (!me || me.approval !== 'approved') return null;
   const ride = nextRide(data.rides, defaultCategories(me, data.chapters), today);
   if (!ride) return null;
+  const mine = data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null;
+  // One tap here only when the ride screen would allow Going too; otherwise the card opens the ride, which says why.
+  const quick = canQuickAnswer(me, ride, data, today, new Date().toISOString());
+  const answer = async (a: RsvpAnswer) => {
+    setBusy(a);
+    try {
+      await setRsvp(ride.id, a);
+      const t = rsvpToast(mine, a);
+      toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!) } : undefined);
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
   return (
     <Stack gap={space.sm}>
       <SectionTitle title="Next ride" />
@@ -241,15 +259,30 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
         <RideRow
           ride={ride}
           going={rsvpCounts(ride.id, data.rsvps).going}
-          mine={data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null}
+          mine={mine}
           spot={spotOf(ride.id, me.id, data.crew)}
           crewNeeded={showsCrewNeeded(me, ride, data, today)}
           big4={isBig4(ride.id, data)}
           call={activeCall(ride.id, data)}
           charity={isCharityRide(ride.id, data)}
-          last
+          last={!quick}
           onPress={() => onOpen(ride.id)}
         />
+        {quick ? (
+          <Row style={{ gap: space.sm, padding: space.md }}>
+            {(['going', 'maybe', 'no'] as RsvpAnswer[]).map((a) => (
+              <Button
+                key={a}
+                label={RSVP_LABEL[a]}
+                kind={mine === a ? 'primary' : 'secondary'}
+                busy={busy === a}
+                disabled={busy !== null}
+                onPress={() => answer(a)}
+                style={{ flex: 1 }}
+              />
+            ))}
+          </Row>
+        ) : null}
       </Card>
     </Stack>
   );
