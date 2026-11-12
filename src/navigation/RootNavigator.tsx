@@ -74,6 +74,7 @@ import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
 import { PostingRulesScreen } from '../screens/postingRules'; // Chat and posting rules
 import { FeedbackScreen } from '../screens/feedback'; // Feedback and issues
 import { ClubWordsScreen } from '../screens/clubWords'; // Club words
+import { useToastScreenChange } from '../ui/Toast';
 import { SupportScreen } from '../screens/support'; // Crisis and support lines, inside the app
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
@@ -264,8 +265,16 @@ function FamilyTabs() {
 export function RootNavigator() {
   const { level, me, needsApplication, loadError } = useClub();
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
+  const toastScreenChange = useToastScreenChange();
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer
+      theme={navTheme}
+      onStateChange={(state) => {
+        // Toasts clear when you move on, and sit lower on a stack screen (no tab bar).
+        const focused = state?.routes[state.index ?? 0];
+        toastScreenChange(focused?.name === 'Tabs');
+      }}
+    >
       {/* Lane E: notifications */}
       <ReminderSync />
       <LocalAlertSync />

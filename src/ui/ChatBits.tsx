@@ -183,7 +183,6 @@ export function ReactionPills({ message, meId, onToggle }: { message: Message; m
           accessibilityRole="button"
           accessibilityLabel={`${r.emoji} ${r.n}${r.mine ? ', yours' : ''}`}
           accessibilityState={{ selected: r.mine }}
-          hitSlop={{ top: 6, bottom: 6 }} // the pill is 32 tall; this makes the tap area 44
           style={[styles.pill, r.mine && styles.pillMine]}
         >
           <Text style={styles.pillEmoji}>{r.emoji}</Text>
@@ -372,7 +371,7 @@ const styles = StyleSheet.create({
   author: { ...type.name, flexShrink: 1 },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32, paddingHorizontal: 10, borderRadius: radius.pill,
+    flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 12, borderRadius: radius.pill,
     backgroundColor: colors.steel, borderWidth: 1, borderColor: colors.steel,
   },
   pillMine: { borderColor: colors.bone, backgroundColor: colors.steelHi },

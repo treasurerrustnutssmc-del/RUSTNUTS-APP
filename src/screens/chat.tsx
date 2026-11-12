@@ -428,7 +428,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               <Pressable
                 disabled={!author || family}
                 onPress={() => author && !family && navigation.navigate('MemberDetail', { memberId: author.id })}
-                hitSlop={{ top: 10, bottom: 10 }}
+                style={{ minHeight: 44, justifyContent: 'center' }}
                 accessibilityRole={family ? 'text' : 'button'}
                 accessibilityLabel={author && !family ? `${displayName(author)}’s page` : undefined}
                 accessibilityHint={family ? undefined : 'Opens their page, where you can message, block or report them'}

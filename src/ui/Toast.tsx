@@ -1,13 +1,20 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { dismissToast, initialToasts, pushToast, toastDuration } from '../domain/toast';
+import { clearIfOlder, dismissToast, initialToasts, pushToast, toastDuration } from '../domain/toast';
 import { colors, fonts, radius, space } from '../theme';
 
 type ToastAction = { label: string; onPress: () => void };
 type ShowToast = (text: string, action?: ToastAction) => void;
 
 const ToastContext = createContext<ShowToast>(() => undefined);
+const ScreenChangeContext = createContext<(onTabs: boolean) => void>(() => undefined);
+
+/** For the navigator: tell the toast the screen changed, and whether the tab bar is showing. */
+export const useToastScreenChange = () => useContext(ScreenChangeContext);
+
+/** A toast older than this is cleared when you move to another screen. */
+const CLEAR_ON_NAVIGATE_AFTER_MS = 1500;
 
 /** Show a short confirmation: show('Saved'), or show('Going', { label: 'Undo', onPress }). */
 export const useToast = (): ShowToast => useContext(ToastContext);
@@ -21,6 +28,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [],
   );
   const toast = state.current;
+  // The tab bar sits under the toast on the tabs; on a stack screen there is none, so it sits lower.
+  const [onTabs, setOnTabs] = useState(true);
+  const screenChanged = useCallback((tabs: boolean) => {
+    setOnTabs(tabs);
+    setState((s) => clearIfOlder(s, Date.now(), CLEAR_ON_NAVIGATE_AFTER_MS));
+  }, []);
   const [screenReader, setScreenReader] = useState(false);
   useEffect(() => {
     AccessibilityInfo.isScreenReaderEnabled().then(setScreenReader).catch(() => undefined);
@@ -37,9 +50,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastContext.Provider value={show}>
-      {children}
+      <ScreenChangeContext.Provider value={screenChanged}>{children}</ScreenChangeContext.Provider>
       {toast ? (
-        <View pointerEvents="box-none" style={[styles.wrap, { bottom: 84 + insets.bottom }]}>
+        <View pointerEvents="box-none" style={[styles.wrap, { bottom: (onTabs ? 84 : 24) + insets.bottom }]}>
           <View style={styles.toast} accessibilityLiveRegion="polite" role="status">
             <Text style={styles.text}>{toast.text}</Text>
             {toast.onAction && toast.actionLabel ? (
