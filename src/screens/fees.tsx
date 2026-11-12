@@ -1,6 +1,7 @@
 // Fees: what you owe and how to pay it, a member's charges for the treasurer, and a chapter's
 // rates, PayID details, claims to confirm and who still owes.
 
+import { feesCardMode } from '../domain/feesCard';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
@@ -95,6 +96,19 @@ export function HomeFeesCard() {
   const charges = chargesOf(me.id, data).filter((c) => chargeBalance(c, data.payments ?? []).owingCents > 0);
   const firstDue = charges.map((c) => c.dueOn).sort()[0];
   const overdue = firstDue < today;
+  if (feesCardMode(firstDue, today) === 'compact') {
+    return (
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          last
+          left={<IconBadge icon="cash-outline" />}
+          title={`Fees: ${formatCents(owing)}`}
+          subtitle={`Due ${formatAuDate(firstDue)}`}
+          onPress={() => navigation.navigate('MemberFees', { memberId: me.id })}
+        />
+      </Card>
+    );
+  }
   return (
     <Card>
       <Row style={{ justifyContent: 'space-between' }}>
