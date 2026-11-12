@@ -22,6 +22,7 @@ import {
   Button,
   Card,
   Choices,
+  Disclosure,
   Display,
   Field,
   Flannel,
@@ -41,6 +42,7 @@ import {
 
 export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
   const { data, isDemo } = useClub();
+  const [linksOpen, setLinksOpen] = useState(false);
   return (
     <Screen padTop>
       <Flannel style={{ alignItems: 'center', paddingVertical: space.xl }}>
@@ -95,8 +97,10 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
         />
       </Card>
 
-      {/* Club links: the website, shop, podcast and socials */}
-      <ClubLinksSection withoutSupport />
+      {/* Club links: the website, shop, podcast and socials, folded so the first screen stays calm */}
+      <Disclosure title="Find the club online" summary="Website, shops, podcast and socials" open={linksOpen} onToggle={() => setLinksOpen((o) => !o)}>
+        <ClubLinksSection withoutSupport />
+      </Disclosure>
       {/* Sponsors: anyone with the app sees them */}
       <SponsorsSection />
       <PrivacyPolicyRow />
