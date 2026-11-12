@@ -15,7 +15,7 @@ import type {
 export const STATUS_LABEL: Record<MemberStatus, string> = {
   introduced: 'Introduced',
   fng: 'FNG',
-  full: 'Full patch',
+  full: 'Full member',
   nomad: 'Nomad',
   supporter: 'Supporter',
   family: 'Family',

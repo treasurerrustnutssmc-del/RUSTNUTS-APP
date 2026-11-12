@@ -105,7 +105,7 @@ export function HomeFeesCard() {
       {claimed.length > 0 ? (
         <Small>{`You’ve told the treasurer about ${formatCents(claimed.reduce((s, p) => s + p.amountCents, 0))}. It comes off once they confirm it.`}</Small>
       ) : null}
-      <Button label="Pay your fees" kind="secondary" icon="card-outline" onPress={() => navigation.navigate('MemberFees', { memberId: me.id })} />
+      <Button label="Fees" kind="secondary" icon="card-outline" onPress={() => navigation.navigate('MemberFees', { memberId: me.id })} />
     </Card>
   );
 }

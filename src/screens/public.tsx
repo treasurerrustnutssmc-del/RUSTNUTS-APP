@@ -86,7 +86,7 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
           </View>
         </Row>
         <Button
-          label="Support and resources"
+          label="Support"
           kind="secondary"
           icon="heart-outline"
           onPress={() => navigation.navigate('Support')}

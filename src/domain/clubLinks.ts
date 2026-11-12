@@ -71,7 +71,7 @@ export const CLUB_LINK_GROUPS: ClubLinkGroup[] = [
       { id: 'website', label: 'Club website', detail: 'rustnutssmc.com.au', url: 'https://www.rustnutssmc.com.au/', icon: 'globe-outline' },
       DISCORD_SHOP_LINK,
       PUBLIC_SHOP_LINK,
-      { id: 'support', label: 'Support and resources', detail: '24/7 crisis lines, in the app', url: SUPPORT_URL, icon: 'heart-outline' },
+      { id: 'support', label: 'Support', detail: '24/7 crisis lines, in the app', url: SUPPORT_URL, icon: 'heart-outline' },
     ],
   },
   {

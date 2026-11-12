@@ -45,7 +45,7 @@ test('the policy names every outside service the app sends data to', () => {
 test('the policy says what a feedback or issue report collects and who reads it', () => {
   const collect = JSON.stringify(PRIVACY_SECTIONS.find((s) => s.id === 'collect'));
   assert.ok(collect.includes('Feedback and issues'), 'names Feedback and issues');
-  for (const bit of ['where in the app', 'screenshot', 'app version', 'build', 'device', 'app keepers']) {
+  for (const bit of ['where in the app', 'screenshot', 'app version', 'build', 'device', 'app team']) {
     assert.ok(collect.includes(bit), bit);
   }
 });

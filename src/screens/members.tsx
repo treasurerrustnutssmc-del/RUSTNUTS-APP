@@ -84,7 +84,7 @@ const toneFor = (iso: string | null, today: string) => {
 };
 
 const SPLIT_COLUMNS = [
-  { key: 'patched', label: 'Patched' },
+  { key: 'patched', label: 'Full' },
   { key: 'nomads', label: 'Nomads' },
   { key: 'fngs', label: 'FNGs' },
   { key: 'legacy', label: 'Legacy' },
@@ -243,7 +243,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
           {boardAlerts.length > 0 ? (
             <ListRow
               left={<IconBadge icon="alert-circle" />}
-              title={`${boardAlerts.length} ${boardAlerts.length === 1 ? 'renewal needs' : 'renewals need'} attention`}
+              title={`${boardAlerts.length} ${boardAlerts.length === 1 ? 'rego, licence or first aid renewal needs' : 'rego, licence or first aid renewals need'} attention`}
               subtitle={`${boardAlerts.filter((a) => a.state === 'expired').length} expired, ${boardAlerts.filter((a) => a.state === 'soon').length} due within 30 days`}
               onPress={() => navigation.navigate('Board')}
               last

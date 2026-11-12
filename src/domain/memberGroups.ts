@@ -6,7 +6,7 @@ import type { Member, MemberStatus } from './types';
  * Hang Arounds (people in the Introduction Phase, v4 4.2), Supporters, Family and, last, Legacy.
  */
 const TITLES: Record<MemberStatus, string> = {
-  full: 'Patched',
+  full: 'Full members',
   nomad: 'Nomads',
   fng: 'FNGs',
   introduced: 'Hang Arounds',

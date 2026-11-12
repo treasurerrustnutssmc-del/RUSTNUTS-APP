@@ -53,6 +53,10 @@ const RULES: [string, RegExp][] = [
   ['Use a curly apostrophe (You’ll get a reminder)', /You'll get a reminder/],
   ['Use a curly apostrophe (Men’s Referral Service)', /Men's Referral/],
   ['Numbers of 1,000 or more have a comma', /\b1000 characters/],
+  ['Fees: the button says Fees (members pay by bank transfer, not card)', /Pay your fees/],
+  ['Say "app team", not "app keepers"', /app keepers/],
+  ['Say what is due: licence and rego renewals', /'renewal needs' : 'renewals need'/],
+  ['Support is called Support in the club links and on Welcome', /(label: 'Support and resources'|label="Support and resources")/],
   ['The create-ride button says "Create ride"', /Make the ride/i],
 ];
 
