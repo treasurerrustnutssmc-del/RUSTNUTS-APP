@@ -27,6 +27,7 @@ import {
   upcomingByMonth,
 } from '../domain/rides';
 import type { ClubData, CrewRole, Member, Ride, RideCall, RideCategory, RsvpAnswer } from '../domain/types';
+import { rideColourLegend } from '../domain/glossary';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
@@ -176,6 +177,8 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
           );
         })}
       </View>
+
+      <Small>{rideColourLegend()}</Small>
 
       {freshness?.stale ? <Notice tone="warn">{freshness.text}</Notice> : null}
 

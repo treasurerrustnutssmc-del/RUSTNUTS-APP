@@ -30,3 +30,13 @@ test('the key lists every short form shown on a chip with its full title', () =>
     assert.equal(row!.title, ROLE_LABEL[role]);
   }
 });
+
+import { rideColourLegend } from './glossary';
+
+test('the Rides legend explains the two ride colours people ask about, using the glossary wording', () => {
+  const legend = rideColourLegend();
+  assert.match(legend, /Supported/);
+  assert.match(legend, /Non-Nuts/);
+  assert.match(legend, /Another club’s ride that we support/);
+  assert.match(legend, /A ride organised by someone else/);
+});

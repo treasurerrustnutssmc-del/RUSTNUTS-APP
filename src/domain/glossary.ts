@@ -47,3 +47,9 @@ export const GLOSSARY: GlossaryGroup[] = [
 export function roleKey(): { short: string; title: string }[] {
   return (Object.keys(ROLE_SHORT) as PositionRole[]).map((role) => ({ short: ROLE_SHORT[role], title: ROLE_LABEL[role] }));
 }
+
+/** The line under the Rides colour chips, from the glossary so the two can never disagree. */
+export function rideColourLegend(): string {
+  const meaning = (term: string) => GLOSSARY.flatMap((g) => g.entries).find((e) => e.term === term)!.meaning;
+  return `Supported: ${meaning('Supported ride')} Non-Nuts: ${meaning('Non-Nuts ride')}`;
+}
