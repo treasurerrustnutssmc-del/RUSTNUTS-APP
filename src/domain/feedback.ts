@@ -1,6 +1,6 @@
 /**
- * Feedback & issues: members tell the club what's wrong with the app, or what they'd like. Anyone
- * approved in the app (Family too) sends a report; the app keepers (a sitting Treasurer, or the
+ * Feedback and issues: members tell the club what's wrong with the app, or what they'd like. Anyone
+ * approved in the app (Family too) sends a report; the app team (a sitting Treasurer, or the
  * NEC Chairman or Secretary) read them all, mark them looking / done and reply. The database
  * mirrors these rules (supabase/migrations/*_app_feedback.sql); change both together.
  * Spec: docs/superpowers/specs/2026-11-01-app-feedback-design.md
@@ -23,7 +23,7 @@ export const NO_FEEDBACK = 'Tell us what happened.';
 export const LONG_FEEDBACK = 'Keep it to 1,000 characters.';
 export const LONG_FEEDBACK_WHERE = 'Keep “where” to 60 characters.';
 export const TOO_MUCH_FEEDBACK = 'That’s five today. Send more tomorrow, or message the treasurer.';
-export const NOT_FEEDBACK_KEEPER = 'Only the app keepers can answer feedback.';
+export const NOT_FEEDBACK_KEEPER = 'Only the app team can answer feedback.';
 export const FEEDBACK_GONE = 'No such report.';
 export const BAD_FEEDBACK_STATUS = 'Pick a status: new, looking into it or done.';
 export const LONG_FEEDBACK_REPLY = 'Keep the reply to 600 characters.';

@@ -46,7 +46,7 @@ export function MyNotices() {
           <ListRow
             key={n.id}
             left={<IconBadge icon="document-text-outline" tone="red" />}
-            title={`${ABOUT_LABEL[n.about]} (5.5)`}
+            title={`${ABOUT_LABEL[n.about]}`}
             subtitle={n.response ? 'You’ve replied. You can change it until the board decides.' : `Read it and reply by ${formatAuDate(n.respondBy)}.`}
             onPress={() => navigation.navigate('StatusNotice', { noticeId: n.id })}
             last={i === open.length - 1}
@@ -65,7 +65,7 @@ export function ChapterNotices({ chapterId }: { chapterId: string }) {
   if (open.length === 0) return null;
   return (
     <>
-      <SectionTitle title="Open notices (5.5)" action={<Text style={[type.name, { color: colors.boneMute }]}>{open.length}</Text>} />
+      <SectionTitle title="Open notices" action={<Text style={[type.name, { color: colors.boneMute }]}>{open.length}</Text>} />
       <Card style={{ padding: 0, gap: 0 }}>
         {open.map((n, i) => {
           const m = data.members.find((x) => x.id === n.memberId);
@@ -132,7 +132,7 @@ export function GiveNoticeScreen({ route, navigation }: RootScreen<'GiveNotice'>
         <H1>{`Notice to ${displayName(member)}`}</H1>
         <Body>
           Before the board proposes any change to their status, they get the record, what’s proposed and at least 14 days to explain,
-          correct an error, or ask for an exemption or a payment arrangement (5.5). They’ll see it on their Me screen and can reply there.
+          correct an error, or ask for an exemption or a payment arrangement. They’ll see it on their Me screen and can reply there.
         </Body>
       </Stack>
       <Choices<NoticeAbout>
@@ -219,7 +219,7 @@ export function StatusNoticeScreen({ route, navigation }: RootScreen<'StatusNoti
     if (problem) return setError(problem);
     run(() => closeStatusNotice(n.id, outcome, note));
   };
-  // The board decides only after the reply-by date (5.5).
+  // The board decides only after the reply-by date.
   const tooSoon = today <= n.respondBy;
 
   return (
@@ -229,8 +229,8 @@ export function StatusNoticeScreen({ route, navigation }: RootScreen<'StatusNoti
         <H1>{`${ABOUT_LABEL[n.about]} notice`}</H1>
         <Body>
           {mine
-            ? 'Before your board proposes any change to your status, you get the record, what’s proposed and at least 14 days to respond (5.5). An absence on its own isn’t misconduct.'
-            : `${member ? displayName(member) : 'The member'} has at least 14 days to explain, correct an error, or ask for an exemption or a payment arrangement (5.5).`}
+            ? 'Before your board proposes any change to your status, you get the record, what’s proposed and at least 14 days to respond. An absence on its own isn’t misconduct.'
+            : `${member ? displayName(member) : 'The member'} has at least 14 days to explain, correct an error, or ask for an exemption or a payment arrangement.`}
         </Body>
       </Stack>
 

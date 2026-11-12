@@ -40,7 +40,7 @@ export function BoardAdminCard() {
       ) : null}
       <ListRow
         left={<IconBadge icon="shirt-outline" tone={orders > 0 ? 'red' : 'steel'} />}
-        title="Merch"
+        title="Merch orders"
         subtitle={merchNotes.length > 0 ? merchNotes.join(' · ') : 'Club gear, orders and approvals'}
         onPress={() => navigation.navigate('Tabs', { screen: 'Shop' })}
       />

@@ -133,7 +133,7 @@ export function recordConductProblem(me: Member | null, input: ConductInput, dat
   if (!input.kind) return 'Pick what kind of record it is.';
   const summary = input.summary.trim();
   if (!summary) return 'Say what happened.';
-  if (length(summary) > MAX_SUMMARY) return 'Keep what happened to 1000 characters at most.';
+  if (length(summary) > MAX_SUMMARY) return 'Keep what happened to 1,000 characters at most.';
   if (length(input.rule.trim()) > MAX_RULE) return 'Keep the rule to 200 characters at most.';
   if (!isIsoDate(input.decidedOn)) return 'Pick the date of the decision.';
   if (input.decidedOn > today) return 'The decision can’t be in the future.';
@@ -186,7 +186,7 @@ export function lodgeProblem(me: Member | null, id: string, grounds: string, dat
   if (r.appeal) return 'A review or appeal has already been lodged.';
   const why = grounds.trim();
   if (!why) return 'Say why.';
-  if (length(why) > MAX_GROUNDS) return 'Keep it to 1000 characters at most.';
+  if (length(why) > MAX_GROUNDS) return 'Keep it to 1,000 characters at most.';
   if (today > appealBy(r)) return `The window closed on ${formatAuDate(appealBy(r))}.`;
   return null;
 }
@@ -231,7 +231,7 @@ export function outcomeProblem(
   if (outcome === 'varied' && isFormal(r.kind)) return 'A formal appeal is upheld or revoked (14.6).';
   const text = note.trim();
   if (outcome === 'varied' && !text) return 'Say how it was varied.';
-  if (length(text) > MAX_GROUNDS) return 'Keep it to 1000 characters at most.';
+  if (length(text) > MAX_GROUNDS) return 'Keep it to 1,000 characters at most.';
   return null;
 }
 

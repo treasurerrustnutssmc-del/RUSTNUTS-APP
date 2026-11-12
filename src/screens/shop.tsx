@@ -8,6 +8,7 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useShopCart } from '../data/shopCartStore';
 import { formatAuDate } from '../domain/dates';
+import { garmentsLine } from '../domain/shopLayout';
 import { formatCents, parseDollars } from '../domain/fees';
 import { melbourneDate } from '../domain/rides';
 import {
@@ -45,12 +46,6 @@ const MEMBER_STATUS_LINE: Record<ShopOrderStatus, string> = {
 
 const garmentsOf = (data: ClubData, designId: string): ShopGarment[] =>
   (data.shopGarments ?? []).filter((g) => g.designId === designId && g.onSale).sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
-
-/** "Hoodie, Tee and Cap" */
-function namesLine(names: string[]): string {
-  if (names.length <= 1) return names.join('');
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-}
 
 /** "XL · Black · ×2" */
 export const lineOptions = (l: Pick<ShopOrderLine, 'size' | 'colour' | 'qty'>): string =>
@@ -101,7 +96,7 @@ export function ClubShopSection() {
   return (
     <>
       <SectionTitle title="Club shop" />
-      <Small>Order here and the invoice comes by email. Pay by bank transfer.</Small>
+      <Small>Order here and the invoice comes by email. Pay by bank transfer. All prices are in AUD.</Small>
       {admin ? (
         <Card style={{ padding: 0, gap: 0 }}>
           <ListRow
@@ -129,7 +124,7 @@ export function ClubShopSection() {
                 last={i === designs.length - 1 && count === 0}
                 left={cover ? <DesignThumb picture={cover} name={d.name} /> : <IconBadge icon="shirt-outline" />}
                 title={d.name}
-                subtitle={<Text style={[styles.meta, num]} numberOfLines={2}>{`${namesLine(garments.map((g) => g.name))} · from ${formatCents(from)}`}</Text>}
+                subtitle={<Text style={[styles.meta, num]} numberOfLines={2}>{`${garmentsLine(garments.map((g) => g.name))} · from ${formatCents(from)}`}</Text>}
                 onPress={() => navigation.navigate('ShopDesign', { designId: d.id })}
               />
             );

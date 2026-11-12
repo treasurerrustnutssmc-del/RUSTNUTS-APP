@@ -44,6 +44,11 @@ import { BragRow } from './brag';
 import { BadgesCard } from './badges';
 import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
+import { HomeNextRideCard } from './rides';
+import { MORE_FROM_CLUB } from '../domain/membersLayout';
+import { FirstRunCard } from '../ui/FirstRunCard';
+import { useSavedFilters } from '../data/savedFilters';
+import { CLUB_NUMBERS, showProfileCard } from '../domain/homeLayout';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import { memberGroups } from '../domain/memberGroups';
 import { NotificationIntroCard } from '../ui/NotificationIntro';
@@ -54,6 +59,7 @@ import {
   Card,
   Chip,
   ConfirmButton,
+  Disclosure,
   Choices,
   Field,
   Flannel,
@@ -81,7 +87,7 @@ const toneFor = (iso: string | null, today: string) => {
 };
 
 const SPLIT_COLUMNS = [
-  { key: 'patched', label: 'Patched' },
+  { key: 'patched', label: 'Full' },
   { key: 'nomads', label: 'Nomads' },
   { key: 'fngs', label: 'FNGs' },
   { key: 'legacy', label: 'Legacy' },
@@ -167,6 +173,7 @@ const nowInstant = () => new Date().toISOString();
 
 export function HomeScreen({ navigation }: TabScreen<'Home'>) {
   const { me, data, level, today, isDemo, refresh } = useClub();
+  const [numbersOpen, setNumbersOpen] = useState(false);
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const positions = sortedPositions(me.id, data);
@@ -192,6 +199,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
           <View style={{ flex: 1, gap: 4 }}>
             {/* One line on phones: a longer name shrinks to fit rather than wrapping (the web ignores this). */}
             <Text
+              accessibilityRole="header"
+              aria-level={1}
               style={type.h1}
               numberOfLines={Platform.OS === 'web' ? undefined : 1}
               adjustsFontSizeToFit
@@ -208,15 +217,22 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Row>
       </Flannel>
 
+      {/* New here? Where things are, once */}
+      <FirstRunCard />
       {/* What notifications are for, once, before the phone asks */}
       <NotificationIntroCard />
+      {/* The next ride, so it is one tap from opening the app */}
+      <HomeNextRideCard onOpen={(rideId) => navigation.navigate('RideDetail', { rideId })} />
       {/* Stage 4: today's check-in and what you owe */}
       <HomeCheckinCard />
+      {myAlerts.map((a) => (
+        <Notice key={a.label} tone={a.state === 'expired' ? 'danger' : 'warn'} title={a.label}>
+          {`${a.description}. Update it in your profile once it’s renewed.`}
+        </Notice>
+      ))}
+      {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}
+      <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />
       <HomeFeesCard />
-      {/* Stage 7: birthdays and patch anniversaries this week */}
-      <HomeShoutoutsCard />
-      <HomeOnThisDayCard />
-      <HomeNewsCard />
 
       {isBoard && (pending.length > 0 || boardAlerts.length > 0) ? (
         <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
@@ -238,7 +254,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
           {boardAlerts.length > 0 ? (
             <ListRow
               left={<IconBadge icon="alert-circle" />}
-              title={`${boardAlerts.length} ${boardAlerts.length === 1 ? 'renewal needs' : 'renewals need'} attention`}
+              title={`${boardAlerts.length} ${boardAlerts.length === 1 ? 'rego, licence or first aid renewal needs' : 'rego, licence or first aid renewals need'} attention`}
               subtitle={`${boardAlerts.filter((a) => a.state === 'expired').length} expired, ${boardAlerts.filter((a) => a.state === 'soon').length} due within 30 days`}
               onPress={() => navigation.navigate('Board')}
               last
@@ -260,53 +276,53 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Card>
       ) : null}
 
+      {/* Stage 7: birthdays and patch anniversaries this week */}
+      <HomeShoutoutsCard />
+      <HomeOnThisDayCard />
+      <HomeNewsCard />
       {/* Ask the club, the club assistant */}
       <AskClubHomeRow onOpen={() => navigation.navigate('AskClub')} />
-      {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}
-      <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />
 
-      {myAlerts.map((a) => (
-        <Notice key={a.label} tone={a.state === 'expired' ? 'danger' : 'warn'} title={a.label}>
-          {`${a.description}. Update it in your profile once it’s renewed.`}
-        </Notice>
-      ))}
+      {showProfileCard(done, checklist.length) ? (
+        <Card>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <H2>Your profile</H2>
+            <Small>
+              {done} of {checklist.length} done
+            </Small>
+          </Row>
+          <View style={{ height: 6, backgroundColor: colors.steel, borderRadius: 3, overflow: 'hidden' }}>
+            <View style={{ width: `${(done / checklist.length) * 100}%`, height: '100%', backgroundColor: colors.redBright }} />
+          </View>
+          {done === checklist.length ? (
+            <Small>All set. Your Road Captain can reach your emergency contact on ride day.</Small>
+          ) : (
+            <>
+              {checklist
+                .filter((c) => !c.done)
+                .map((c) => (
+                  <Row key={c.key} style={{ gap: space.sm }}>
+                    <Ionicons name="ellipse-outline" size={16} color={colors.boneMute} />
+                    <Body>{c.label}</Body>
+                  </Row>
+                ))}
+              <Button label="Finish your profile" kind="secondary" onPress={() => navigation.navigate('EditProfile')} />
+            </>
+          )}
+        </Card>
+  
+      ) : null}
 
-      <Card>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <H2>Your profile</H2>
-          <Small>
-            {done} of {checklist.length} done
-          </Small>
-        </Row>
-        <View style={{ height: 6, backgroundColor: colors.steel, borderRadius: 3, overflow: 'hidden' }}>
-          <View style={{ width: `${(done / checklist.length) * 100}%`, height: '100%', backgroundColor: colors.redBright }} />
-        </View>
-        {done === checklist.length ? (
-          <Small>All set. Your Road Captain can reach your emergency contact on ride day.</Small>
-        ) : (
-          <>
-            {checklist
-              .filter((c) => !c.done)
-              .map((c) => (
-                <Row key={c.key} style={{ gap: space.sm }}>
-                  <Ionicons name="ellipse-outline" size={16} color={colors.boneMute} />
-                  <Body>{c.label}</Body>
-                </Row>
-              ))}
-            <Button label="Finish your profile" kind="secondary" onPress={() => navigation.navigate('EditProfile')} />
-          </>
-        )}
-      </Card>
-
-      <Card>
-        <H2>The club</H2>
-        <ClubSplitTable rows={[...counts.split, { id: 'club-total', name: 'Club', ...counts.club }]} />
-        {counts.onApp < counts.total ? (
-          <Small>
-            {counts.onApp} of {counts.total} signed in to the app so far.
-          </Small>
-        ) : null}
-      </Card>
+      <Disclosure title={CLUB_NUMBERS.title} summary={CLUB_NUMBERS.summary} open={numbersOpen} onToggle={() => setNumbersOpen((o) => !o)}>
+        <Card>
+          <ClubSplitTable rows={[...counts.split, { id: 'club-total', name: 'Club', ...counts.club }]} />
+          {counts.onApp < counts.total ? (
+            <Small>
+              {counts.onApp} of {counts.total} signed in to the app so far.
+            </Small>
+          ) : null}
+        </Card>
+      </Disclosure>
     </Screen>
   );
 }
@@ -318,7 +334,15 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
 export function MembersScreen({ navigation }: TabScreen<'Members'>) {
   const { me, data, isDemo, refresh } = useClub();
   const [query, setQuery] = useState('');
-  const [chapterId, setChapterId] = useState<string>('all');
+  const [chosenChapter, setChosenChapter] = useState<string | null>(null);
+  const saved = useSavedFilters();
+  // What was chosen this visit, else what was remembered, else everyone.
+  const chapterId = chosenChapter ?? saved.filters.memberChapter ?? 'all';
+  const setChapterId = (id: string) => {
+    setChosenChapter(id);
+    saved.save({ memberChapter: id });
+  };
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -338,22 +362,6 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
-      <Card style={{ padding: 0, gap: 0 }}>
-        <ListRow
-          left={<IconBadge icon="flag" tone="red" />}
-          title="Chapters"
-          subtitle="Boards and the National committee"
-          onPress={() => navigation.navigate('Chapters')}
-        />
-        <HistoryRow last />
-      </Card>
-      {/* Stage 7: social extras */}
-      <Card style={{ padding: 0, gap: 0 }}>
-        <WhoCanHelpRow />
-        <SwapRow />
-        <BuildsRow />
-        <BragRow last />
-      </Card>
       <Field
         label="Search"
         value={query}
@@ -367,6 +375,26 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
         value={chapterId}
         onChange={setChapterId}
       />
+      {/* Chapters, history and the social extras: folded away so the member list comes first */}
+      <Disclosure title={MORE_FROM_CLUB.title} summary={MORE_FROM_CLUB.summary} open={moreOpen} onToggle={() => setMoreOpen((o) => !o)}>
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            left={<IconBadge icon="flag" tone="red" />}
+            title="Chapters"
+            subtitle="Boards and the National committee"
+            onPress={() => navigation.navigate('Chapters')}
+          />
+          <HistoryRow last />
+        </Card>
+        {/* Stage 7: social extras */}
+        <Card style={{ padding: 0, gap: 0 }}>
+          <WhoCanHelpRow />
+          <SwapRow />
+          <BuildsRow />
+          <BragRow last />
+        </Card>
+      </Disclosure>
+      <Button label="What do SAA, RC and the other short names mean?" kind="quiet" onPress={() => navigation.navigate('ClubWords')} />
       {groups.length === 0 ? (
         <Notice title="Nobody matches">Try a road name, a real name or a bike, like “Softail”.</Notice>
       ) : null}
@@ -471,7 +499,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
         {member.bio && !reportedByMe('profile', member.id, myOpenReports) ? <Body>{member.bio}</Body> : null}
         {isSelf ? <StepDownButtons positions={positions} /> : null}
         {isSelf ? (
-          <Button label="Edit my profile" kind="secondary" icon="create-outline" onPress={() => navigation.navigate('EditProfile')} />
+          <Button label="Edit profile" kind="secondary" icon="create-outline" onPress={() => navigation.navigate('EditProfile')} />
         ) : null}
         {canManage ? (
           <Button label="Manage member" kind="secondary" icon="shield-outline" onPress={() => navigation.navigate('ManageMember', { memberId: member.id })} />
@@ -574,7 +602,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
           <Card style={{ padding: 0, gap: 0 }}>
             {contacts.length === 0 ? (
               <View style={{ padding: space.lg }}>
-                <Notice tone="warn" title="None recorded">
+                <Notice tone="warn" title="Not recorded">
                   {isSelf ? 'Add one so the Road Captain can call someone if you go down.' : 'Ask them to add one before the next ride.'}
                 </Notice>
               </View>

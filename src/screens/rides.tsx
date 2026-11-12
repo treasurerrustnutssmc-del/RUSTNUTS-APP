@@ -21,11 +21,20 @@ import {
   lastDay,
   melbourneDate,
   melbourneTime,
+  nextRide,
   rsvpCounts,
   rsvpProblem,
+  rsvpToast,
   upcomingByMonth,
 } from '../domain/rides';
 import type { ClubData, CrewRole, Member, Ride, RideCall, RideCategory, RsvpAnswer } from '../domain/types';
+import { rideColourLegend } from '../domain/glossary';
+import { RIDE_TOOLS } from '../domain/ridesLayout';
+import { quickAnswerReason } from '../domain/quickAnswer';
+import { useToast } from '../ui/Toast';
+import { useSavedFilters } from '../data/savedFilters';
+import { isConnectionProblem } from '../data/friendlyError';
+import { sameColours } from '../domain/savedFilters';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
@@ -51,6 +60,7 @@ import {
   Card,
   Chip,
   ConfirmButton,
+  Disclosure,
   H1,
   IconBadge,
   Ionicons,
@@ -103,13 +113,18 @@ export function RideChip({ category }: { category: RideCategory }) {
 export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
   const { me, data, today, isDemo, refresh } = useClub();
   const [shown, setShown] = useState<RideCategory[] | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const saved = useSavedFilters();
   if (!me) return null;
-  const categories = shown ?? defaultCategories(me, data.chapters);
+  const categories = shown ?? saved.filters.rideColours ?? defaultCategories(me, data.chapters);
   const months = upcomingByMonth(data.rides, categories, today);
   const anyComing = upcomingByMonth(data.rides, RIDE_CATEGORIES, today).length > 0;
   const freshness = isDemo ? null : calendarFreshness(data.ridesSyncedAt ?? null, data.rides.length > 0, new Date().toISOString());
-  const toggle = (c: RideCategory) =>
-    setShown(categories.includes(c) ? categories.filter((x) => x !== c) : [...categories, c]);
+  const toggle = (c: RideCategory) => {
+    const next = categories.includes(c) ? categories.filter((x) => x !== c) : [...categories, c];
+    setShown(next);
+    saved.save({ rideColours: next });
+  };
 
   const routeCount = libraryFor(data, 'all').length;
 
@@ -117,35 +132,42 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
     <Screen onRefresh={isDemo ? undefined : refresh}>
       {/* Family view: no route library or Rusty Bus for Family */}
       {me.approval === 'approved' && !isFamily(me) ? (
-        <Card style={{ padding: 0, gap: 0 }}>
+        <>
           {/* Rides made in the app: for the people who run them */}
           {managesAnyCategory(me, data) ? (
-            <ListRow
-              left={<IconBadge icon="add-circle-outline" tone="red" />}
-              title="New ride"
-              subtitle={<Text style={styles.metaTime}>Put a ride on, for members and the website</Text>}
-              onPress={() => navigation.navigate('EditRide')}
-            />
+            <Card style={{ padding: 0, gap: 0 }}>
+              <ListRow
+                last
+                left={<IconBadge icon="add-circle-outline" tone="red" />}
+                title="New ride"
+                subtitle={<Text style={styles.metaTime}>Put a ride on, for members and the website</Text>}
+                onPress={() => navigation.navigate('EditRide')}
+              />
+            </Card>
           ) : null}
-          <ListRow
-            left={<IconBadge icon="map-outline" />}
-            title="Route library"
-            subtitle={
-              <Text style={styles.metaTime}>
-                {routeCount === 0 ? 'GPX routes for OsmAnd and MyRoute' : `${routeCount} ${routeCount === 1 ? 'route' : 'routes'} for OsmAnd and MyRoute`}
-              </Text>
-            }
-            onPress={() => navigation.navigate('Routes')}
-          />
-          {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
-          <ListRow
-            left={<IconBadge icon="bus-outline" />}
-            title="Rusty Bus"
-            subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
-            onPress={() => navigation.navigate('Bus')}
-          />
-          <OtherClubsRow last />
-        </Card>
+          <Disclosure title={RIDE_TOOLS.title} summary={RIDE_TOOLS.summary} open={toolsOpen} onToggle={() => setToolsOpen((o) => !o)}>
+            <Card style={{ padding: 0, gap: 0 }}>
+              <ListRow
+                left={<IconBadge icon="map-outline" />}
+                title="Route library"
+                subtitle={
+                  <Text style={styles.metaTime}>
+                    {routeCount === 0 ? 'GPX routes for OsmAnd and MyRoute' : `${routeCount} ${routeCount === 1 ? 'route' : 'routes'} for OsmAnd and MyRoute`}
+                  </Text>
+                }
+                onPress={() => navigation.navigate('Routes')}
+              />
+              {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
+              <ListRow
+                left={<IconBadge icon="bus-outline" />}
+                title="Rusty Bus"
+                subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
+                onPress={() => navigation.navigate('Bus')}
+              />
+              <OtherClubsRow last />
+            </Card>
+          </Disclosure>
+        </>
       ) : null}
 
       <View style={styles.filters} accessibilityLabel="Show rides by colour">
@@ -175,6 +197,22 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
           );
         })}
       </View>
+
+      <Small>{rideColourLegend()}</Small>
+      {!sameColours(categories, defaultCategories(me, data.chapters)) ? (
+        <Row style={{ gap: space.sm, alignItems: 'center' }}>
+          <Small style={{ flex: 1 }}>Some ride colours are hidden.</Small>
+          <Button
+            label="Show my usual"
+            kind="quiet"
+            onPress={() => {
+              const usual = defaultCategories(me, data.chapters);
+              setShown(usual);
+              saved.save({ rideColours: usual });
+            }}
+          />
+        </Row>
+      ) : null}
 
       {freshness?.stale ? <Notice tone="warn">{freshness.text}</Notice> : null}
 
@@ -209,6 +247,73 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
 
       {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
     </Screen>
+  );
+}
+
+/** Home: the next ride in your colours, as it looks on the Rides tab, with what you've answered. Opens the ride. */
+export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void }) {
+  const { me, data, today, setRsvp } = useClub();
+  const toast = useToast();
+  const [busy, setBusy] = useState<RsvpAnswer | null>(null);
+  if (!me || me.approval !== 'approved') return null;
+  const ride = nextRide(data.rides, defaultCategories(me, data.chapters), today);
+  if (!ride) return null;
+  const mine = data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null;
+  // One tap here only when the ride screen would allow Going too; otherwise the card opens the ride, which says why.
+  const whyNot = quickAnswerReason(me, ride, data, today, new Date().toISOString());
+  const quick = whyNot === null;
+  const answer = async (a: RsvpAnswer) => {
+    setBusy(a);
+    try {
+      await setRsvp(ride.id, a);
+      const t = rsvpToast(mine, a);
+      toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!).catch((e: Error) => toast(e.message)) } : undefined);
+    } catch (e) {
+      const err = e as Error;
+      toast(err.message, isConnectionProblem(err) ? { label: 'Retry', onPress: () => void answer(a) } : undefined);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <Stack gap={space.sm}>
+      <SectionTitle title="Next ride" />
+      <Card style={{ padding: 0, gap: 0 }}>
+        <RideRow
+          ride={ride}
+          going={rsvpCounts(ride.id, data.rsvps).going}
+          mine={mine}
+          spot={spotOf(ride.id, me.id, data.crew)}
+          crewNeeded={showsCrewNeeded(me, ride, data, today)}
+          big4={isBig4(ride.id, data)}
+          call={activeCall(ride.id, data)}
+          charity={isCharityRide(ride.id, data)}
+          last={!quick}
+          onPress={() => onOpen(ride.id)}
+        />
+        {quick ? (
+          <Row style={{ gap: space.sm, padding: space.md }}>
+            {(['going', 'maybe', 'no'] as RsvpAnswer[]).map((a) => (
+              <Button
+                key={a}
+                // "Can't make it" wrapped to three lines in a third of the width; the full words are on the ride.
+                label={a === 'no' ? 'Can’t go' : RSVP_LABEL[a]}
+                accessibilityLabel={RSVP_LABEL[a]}
+                kind={mine === a ? 'primary' : 'secondary'}
+                busy={busy === a}
+                disabled={busy !== null}
+                onPress={() => answer(a)}
+                style={{ flex: 1 }}
+              />
+            ))}
+          </Row>
+        ) : (
+          <View style={{ paddingHorizontal: space.md, paddingBottom: space.md }}>
+            <Small>{whyNot} Open the ride to answer.</Small>
+          </View>
+        )}
+      </Card>
+    </Stack>
   );
 }
 
@@ -313,6 +418,7 @@ const ANSWERS: RsvpAnswer[] = ['going', 'maybe', 'no'];
 export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>) {
   const { me, data, today, setRsvp, setRideCalledOff } = useClub();
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   // Rides made in the app: calling off and putting back on
   const [offBusy, setOffBusy] = useState(false);
@@ -376,8 +482,12 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
     setBusy(a);
     try {
       await setRsvp(ride.id, a);
+      const t = rsvpToast(mine, a);
+      toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!).catch((e: Error) => setError(e.message)) } : undefined);
     } catch (e) {
-      setError((e as Error).message);
+      const err = e as Error;
+      setError(err.message);
+      if (isConnectionProblem(err)) toast(err.message, { label: 'Retry', onPress: () => void answer(a) });
     } finally {
       setBusy(null);
     }

@@ -182,7 +182,7 @@ export function AuditScreen({ navigation }: RootScreen<'Audit'>) {
             <ListRow
               last
               left={<IconBadge icon="library-outline" />}
-              title="Documents"
+              title="Club documents"
               subtitle="The rules in force and who has signed them"
               onPress={() => navigation.navigate('Documents')}
             />

@@ -11,6 +11,7 @@ import { RideVoiceProvider } from './src/data/rideVoice';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { colors } from './src/theme';
 import { DemoBar } from './src/ui/DemoBar';
+import { ToastProvider } from './src/ui/Toast';
 import { appMode, useAppMode } from './src/data/reviewMode';
 import { RefreshBanner } from './src/ui/RefreshBanner';
 import { useUpdateReady } from './src/data/appUpdate';
@@ -87,7 +88,9 @@ export default function App() {
         <RideVoiceProvider>
           {/* Stage 7: social extras */}
           <SocialProvider>
-            <Shell />
+            <ToastProvider>
+              <Shell />
+            </ToastProvider>
           </SocialProvider>
         </RideVoiceProvider>
       </ChatProvider>

@@ -20,3 +20,8 @@ export function friendlyError(error: { message?: string; code?: string } | null 
   if (/rate limit|too many/i.test(msg)) return new Error('Too many tries. Wait a minute and try again.');
   return new Error('Something went wrong. Try again.');
 }
+
+/** Whether an error is just a lost connection, which is the only kind a Retry can fix. */
+export function isConnectionProblem(error: Error): boolean {
+  return /connection|signal|network|fetch|timed? ?out/i.test(error.message);
+}

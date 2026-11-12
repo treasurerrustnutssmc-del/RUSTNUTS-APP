@@ -111,6 +111,7 @@ export function Screen({
   padTop = false,
   onRefresh,
   scroller,
+  scrollToTopKey,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
@@ -119,10 +120,15 @@ export function Screen({
   onRefresh?: () => Promise<void>;
   /** Hands over the scroll view, for a screen that jumps to a place in its content. */
   scroller?: (view: ScrollViewInstance | null) => void;
+  /** When this changes the screen scrolls back to the top (a prompt or a new step must not be off screen). */
+  scrollToTopKey?: unknown;
 }) {
   const insets = useSafeAreaInsets();
   const { scrollRef, contentRef, keyboard, field, onContentSizeChange } = useKeyboardRoom();
   const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => {
+    if (scrollToTopKey !== undefined) scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [scrollToTopKey, scrollRef]);
   const refreshControl = onRefresh ? (
     <RefreshControl
       refreshing={refreshing}
@@ -186,15 +192,28 @@ export function Stack({ children, gap = space.md, style }: { children: React.Rea
 // ---------------------------------------------------------------------------
 
 export function Display({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[type.display, style]}>{children}</Text>;
+  return (
+    <Text accessibilityRole="header" aria-level={1} style={[type.display, style]}>
+      {children}
+    </Text>
+  );
 }
 
-export function H1({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[type.h1, style]}>{children}</Text>;
+/** A screen's title. Level 2 under the navigation bar's own title; pass level={1} where the bar shows none. */
+export function H1({ children, style, level = 2 }: { children: React.ReactNode; style?: StyleProp<TextStyle>; level?: 1 | 2 }) {
+  return (
+    <Text accessibilityRole="header" aria-level={level} style={[type.h1, style]}>
+      {children}
+    </Text>
+  );
 }
 
 export function H2({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
-  return <Text style={[type.h2, styles.upper, style]}>{children}</Text>;
+  return (
+    <Text accessibilityRole="header" aria-level={3} style={[type.h2, styles.upper, style]}>
+      {children}
+    </Text>
+  );
 }
 
 export function Label({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
@@ -225,6 +244,50 @@ export function SectionTitle({ title, action }: { title: string; action?: React.
       {/* A long title gives way so the action beside it (often a lock note) is never cut off. */}
       <H2 style={{ flexShrink: 1 }}>{title}</H2>
       {action ? <View style={{ flexShrink: 0 }}>{action}</View> : null}
+    </View>
+  );
+}
+
+/**
+ * A group that opens and closes: a title and one summary line you can read without opening it.
+ * Controlled, so a screen can open a group from somewhere else (the Board's "Needs you" list).
+ */
+export function Disclosure({
+  title,
+  summary,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  summary: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={{ gap: space.md }}>
+      <Card style={{ padding: 0, gap: 0 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          aria-expanded={open}
+          accessibilityLabel={`${title}, ${summary}`}
+          onPress={onToggle}
+          style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
+            styles.disclosureHead,
+            (pressed || hovered) && { backgroundColor: colors.steel },
+          ]}
+        >
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <H2>{title}</H2>
+            <Small numberOfLines={2}>{summary}</Small>
+          </View>
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={colors.boneMute} />
+        </Pressable>
+      </Card>
+      {/* Kept mounted when closed, so a half-typed reply or draft survives and nothing reloads on reopen. */}
+      <View style={{ display: open ? 'flex' : 'none', gap: space.md }}>{children}</View>
     </View>
   );
 }
@@ -426,6 +489,7 @@ export function Field({
       <Label>{label}</Label>
       <TextInput
         placeholderTextColor={colors.boneMute}
+        accessibilityLabel={label}
         {...input}
         onFocus={(e) => {
           setFocused(true);
@@ -445,7 +509,7 @@ export function Field({
           input.style,
         ]}
       />
-      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : hint ? <Small>{hint}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : hint ? <Small aria-live="polite">{hint}</Small> : null}
     </View>
   );
 }
@@ -468,6 +532,7 @@ export function Toggle({
         {description ? <Small>{description}</Small> : null}
       </View>
       <Switch
+        accessibilityLabel={label}
         value={value}
         onValueChange={onChange}
         trackColor={{ false: colors.steelHi, true: colors.redBright }}
@@ -794,6 +859,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
   },
   listRowLast: { borderBottomWidth: 0 },
+  disclosureHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, minHeight: 64 },
   notice: { flexDirection: 'row', gap: space.md, padding: space.md, borderRadius: radius.md },
   kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: space.lg, paddingVertical: 2 },
   divider: { height: 1, backgroundColor: colors.line },

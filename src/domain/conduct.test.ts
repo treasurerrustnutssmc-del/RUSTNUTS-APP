@@ -119,7 +119,7 @@ test('the board records a record; the refusals come in order', () => {
   assert.equal(recordConductProblem(who(d, 'chair'), input(), d, TODAY), 'Only that member’s chapter board can do that.', 'no West seat');
   assert.equal(recordConductProblem(sec, input({ kind: null }), d, TODAY), 'Pick what kind of record it is.');
   assert.equal(recordConductProblem(sec, input({ summary: '   ' }), d, TODAY), 'Say what happened.');
-  assert.equal(recordConductProblem(sec, input({ summary: 'x'.repeat(1001) }), d, TODAY), 'Keep what happened to 1000 characters at most.');
+  assert.equal(recordConductProblem(sec, input({ summary: 'x'.repeat(1001) }), d, TODAY), 'Keep what happened to 1,000 characters at most.');
   assert.equal(recordConductProblem(sec, input({ summary: ` ${'x'.repeat(1000)} ` }), d, TODAY), null);
   assert.equal(recordConductProblem(sec, input({ rule: 'x'.repeat(201) }), d, TODAY), 'Keep the rule to 200 characters at most.');
   assert.equal(recordConductProblem(sec, input({ decidedOn: '' }), d, TODAY), 'Pick the date of the decision.');
@@ -208,7 +208,7 @@ test('the member or their board lodges in time, once', () => {
   assert.equal(lodgeProblem(who(panel, 'fng'), 'c1', 'x', panel, TODAY), 'Only the member or their board can lodge this.');
   assert.equal(lodgeProblem(who(panel, 'rider'), 'c1', 'x', panel, TODAY), 'A review or appeal has already been lodged.');
   assert.equal(lodgeProblem(who(d, 'rider'), 'c1', ' ', d, TODAY), 'Say why.');
-  assert.equal(lodgeProblem(who(d, 'rider'), 'c1', 'x'.repeat(1001), d, TODAY), 'Keep it to 1000 characters at most.');
+  assert.equal(lodgeProblem(who(d, 'rider'), 'c1', 'x'.repeat(1001), d, TODAY), 'Keep it to 1,000 characters at most.');
   assert.equal(lodgeProblem(who(d, 'rider'), 'c1', 'x', d, '2026-11-04'), null);
   assert.equal(lodgeProblem(who(d, 'rider'), 'c1', 'x', d, '2026-11-05'), 'The window closed on 04/11/2026.');
   const formal = data([record({ kind: 'reprimand', noticeOn: '2026-10-20' })]);
@@ -250,7 +250,7 @@ test('one of the panel records the outcome on or after the hearing', () => {
   assert.equal(outcomeProblem(who(d, 'chair'), 'c1', 'confirmed', '', d, TODAY), 'Only the hearing panel can record the outcome.');
   assert.equal(outcomeProblem(who(d, 'fng'), 'c1', 'confirmed', '', d, '2026-10-26'), 'Wait until the hearing.');
   assert.equal(outcomeProblem(who(d, 'fng'), 'c1', 'varied', ' ', d, TODAY), 'Say how it was varied.');
-  assert.equal(outcomeProblem(who(d, 'fng'), 'c1', 'confirmed', 'x'.repeat(1001), d, TODAY), 'Keep it to 1000 characters at most.');
+  assert.equal(outcomeProblem(who(d, 'fng'), 'c1', 'confirmed', 'x'.repeat(1001), d, TODAY), 'Keep it to 1,000 characters at most.');
   const formal = data([record({ kind: 'suspension', suspendedUntil: '2026-12-01', appeal: appeal({ panelIds: ['northsec', 'tre', 'fng'], hearingOn: '2026-10-27' }) })]);
   assert.equal(outcomeProblem(who(formal, 'fng'), 'c1', 'varied', 'x', formal, TODAY), 'A formal appeal is upheld or revoked (14.6).');
   const unset = lodged();

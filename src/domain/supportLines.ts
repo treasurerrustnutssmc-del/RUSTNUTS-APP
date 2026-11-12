@@ -35,7 +35,7 @@ export const SUPPORT_GROUPS: SupportGroup[] = [
     title: 'Family and safety',
     lines: [
       { id: '1800respect', name: '1800RESPECT', phone: '1800 737 732', text: '0458 737 732', detail: 'For anyone affected by domestic, family or sexual violence.' },
-      { id: 'mens-referral', name: "Men's Referral Service", phone: '1300 766 491', detail: 'For men wanting to change controlling or violent behaviour.' },
+      { id: 'mens-referral', name: "Men’s Referral Service", phone: '1300 766 491', detail: 'For men wanting to change controlling or violent behaviour.' },
     ],
   },
 ];

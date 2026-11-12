@@ -118,7 +118,7 @@ export function DocumentsBoardRow({ last }: { last?: boolean }) {
     <ListRow
       last={last}
       left={<IconBadge icon="library-outline" tone={due > 0 ? 'red' : 'steel'} />}
-      title="Documents"
+      title="Club documents"
       subtitle={due > 0 ? `${due} review${due === 1 ? '' : 's'} due` : 'Constitution, bylaws, policies and forms'}
       onPress={() => navigation.navigate('Documents')}
     />

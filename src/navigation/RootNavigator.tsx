@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { HeaderBackButton } from '@react-navigation/elements';
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import React from 'react';
-import { useWindowDimensions } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
@@ -70,8 +71,10 @@ import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../scre
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
 import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
-import { PostingRulesScreen } from '../screens/postingRules'; // Club rules for chats and posts
-import { FeedbackScreen } from '../screens/feedback'; // Feedback & issues
+import { PostingRulesScreen } from '../screens/postingRules'; // Chat and posting rules
+import { FeedbackScreen } from '../screens/feedback'; // Feedback and issues
+import { ClubWordsScreen } from '../screens/clubWords'; // Club words
+import { useToastScreenChange } from '../ui/Toast';
 import { SupportScreen } from '../screens/support'; // Crisis and support lines, inside the app
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
@@ -98,6 +101,9 @@ const navTheme: Theme = {
   },
 };
 
+/** Smallest tap target (DESIGN.md): the web back arrow was 30pt. Native platforms draw their own, at full size. */
+const MIN_TOUCH = 44;
+
 const headerOptions = {
   headerStyle: { backgroundColor: colors.ink },
   headerTintColor: colors.bone,
@@ -105,6 +111,19 @@ const headerOptions = {
   headerShadowVisible: false,
   contentStyle: { backgroundColor: colors.ink },
 } as const;
+
+/** The stack's header: the tabs share headerOptions, but only the stack has a back arrow. */
+const stackHeaderOptions: NativeStackNavigationOptions = {
+  ...headerOptions,
+  // A screen reader hears "Go back", not the previous screen's internal name (it said "Tabs, back").
+  headerBackTitle: 'Back',
+  ...(Platform.OS === 'web'
+    ? {
+        headerLeft: (props) =>
+          props.canGoBack ? <HeaderBackButton {...props} style={{ minWidth: MIN_TOUCH, minHeight: MIN_TOUCH, justifyContent: 'center' }} /> : null,
+      }
+    : {}),
+};
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const TAB_ICONS: Record<keyof TabParams, [IconName, IconName]> = {
@@ -246,13 +265,21 @@ function FamilyTabs() {
 export function RootNavigator() {
   const { level, me, needsApplication, loadError } = useClub();
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
+  const toastScreenChange = useToastScreenChange();
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer
+      theme={navTheme}
+      onStateChange={(state) => {
+        // Toasts clear when you move on, and sit lower on a stack screen (no tab bar).
+        const focused = state?.routes[state.index ?? 0];
+        toastScreenChange(focused?.name === 'Tabs');
+      }}
+    >
       {/* Lane E: notifications */}
       <ReminderSync />
       <LocalAlertSync />
       {/* Keyed by who's signed in, so switching people always starts fresh on their home screen. */}
-      <Stack.Navigator key={stackKey} screenOptions={headerOptions}>
+      <Stack.Navigator key={stackKey} screenOptions={stackHeaderOptions}>
         {loadError ? (
           <Stack.Screen name="LoadError" component={LoadErrorScreen} options={{ headerShown: false }} />
         ) : needsApplication ? (
@@ -284,7 +311,7 @@ export function RootNavigator() {
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
-            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Chat and posting rules' }} />
           </>
         ) : level === 'family' ? (
           <>
@@ -300,15 +327,16 @@ export function RootNavigator() {
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
-            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback & issues' }} />
+            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback and issues' }} />
+            <Stack.Screen name="ClubWords" component={ClubWordsScreen} options={{ title: 'Club words' }} />
             {/* Family chat: the one chat, its photos and the club rules Family agree to before posting */}
             <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} getId={({ params }) => params.chatId} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
-            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Chat and posting rules' }} />
           </>
         ) : needsPostingRules(me) ? (
           <>
-            {/* Club rules for chats and posts: agreed once before the tabs open (App Review 1.2). Its own
+            {/* Chat and posting rules: agreed once before the tabs open (App Review 1.2). Its own
                 route name, so once they agree the stack has no screen to keep and starts on Home. */}
             <Stack.Screen name="PostingRulesGate" component={PostingRulesScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
@@ -493,8 +521,9 @@ export function RootNavigator() {
             <Stack.Screen name="Sponsors" component={SponsorsScreen} options={{ title: 'Sponsors' }} />
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
-            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Club rules' }} />
-            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback & issues' }} />
+            <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Chat and posting rules' }} />
+            <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback and issues' }} />
+            <Stack.Screen name="ClubWords" component={ClubWordsScreen} options={{ title: 'Club words' }} />
             <Stack.Screen
               name="EditSponsor"
               component={EditSponsorScreen}

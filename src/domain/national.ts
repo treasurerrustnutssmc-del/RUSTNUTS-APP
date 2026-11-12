@@ -112,7 +112,7 @@ export function proposeContributionProblem(me: Member | null, input: Contributio
   if (length(title) > 80) return 'Keep the title to 80 characters at most.';
   const purpose = input.purpose.trim();
   if (!purpose) return 'Say what it’s for.';
-  if (length(purpose) > 1000) return 'Keep it to 1000 characters at most.';
+  if (length(purpose) > 1000) return 'Keep it to 1,000 characters at most.';
   if (!Number.isInteger(input.totalCents) || input.totalCents < MIN_TOTAL_CENTS || input.totalCents > MAX_TOTAL_CENTS) {
     return 'Enter a total from $1 to $100,000.';
   }

@@ -93,7 +93,7 @@ test('the NEC proposes a contribution', () => {
   assert.equal(proposeContributionProblem(who(d, 'chair'), k({ title: ' ' }), d), 'Give it a title.');
   assert.equal(proposeContributionProblem(who(d, 'chair'), k({ title: 'x'.repeat(81) }), d), 'Keep the title to 80 characters at most.');
   assert.equal(proposeContributionProblem(who(d, 'chair'), k({ purpose: '' }), d), 'Say what it’s for.');
-  assert.equal(proposeContributionProblem(who(d, 'chair'), k({ purpose: 'x'.repeat(1001) }), d), 'Keep it to 1000 characters at most.');
+  assert.equal(proposeContributionProblem(who(d, 'chair'), k({ purpose: 'x'.repeat(1001) }), d), 'Keep it to 1,000 characters at most.');
   assert.equal(proposeContributionProblem(who(d, 'chair'), k({ totalCents: 99 }), d), 'Enter a total from $1 to $100,000.');
   assert.equal(proposeContributionProblem(who(d, 'chair'), k({ totalCents: 10000001 }), d), 'Enter a total from $1 to $100,000.');
   const empty = { ...d, members: d.members.map((m) => ({ ...m, status: 'supporter' as const })) };

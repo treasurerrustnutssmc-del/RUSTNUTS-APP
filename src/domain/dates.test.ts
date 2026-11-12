@@ -10,6 +10,7 @@ import {
   parseAuDate,
   typeDate,
   weekday,
+  dateHint,
 } from './dates';
 
 test('reads Australian dates', () => {
@@ -24,7 +25,7 @@ test('reads Australian dates', () => {
 
 test('shows dates the Australian way', () => {
   assert.equal(formatAuDate('2026-11-08'), '08/11/2026');
-  assert.equal(formatLongDate('2026-11-08'), '8 Nov 2026');
+  assert.equal(formatLongDate('2026-11-08'), '08/11/2026');
   assert.equal(formatAuDate(null), '');
 });
 
@@ -44,9 +45,9 @@ test('flags expiries', () => {
   assert.equal(expiryState('2026-11-24', today), 'ok');
   assert.equal(expiryState(null, today), 'missing');
   assert.equal(describeExpiry('2026-11-08', today), 'Expires in 15 days');
-  assert.equal(describeExpiry('2026-10-12', today), 'Expired 12 Oct 2026');
+  assert.equal(describeExpiry('2026-10-12', today), 'Expired 12/10/2026');
   assert.equal(describeExpiry('2026-10-25', today), 'Expires tomorrow');
-  assert.equal(describeExpiry('2027-03-02', today), 'Expires 2 Mar 2027');
+  assert.equal(describeExpiry('2027-03-02', today), 'Expires 02/03/2027');
 });
 
 test('typing a date on the number pad puts the slashes in for you', () => {
@@ -76,4 +77,24 @@ test('the weekday of a calendar date', () => {
   assert.equal(weekday('2026-11-08'), 'Sun');
   assert.equal(weekday('2026-10-24'), 'Sat');
   assert.equal(weekday('2027-01-01'), 'Fri');
+});
+
+test('a valid typed date confirms itself with its weekday, so a wrong day or month is caught as it is typed', () => {
+  assert.equal(dateHint('2026-11-08'), 'Sun 08/11/2026');
+  assert.equal(dateHint(null), null);
+});
+
+test('a typed date is read back with its weekday, for any day of the week', () => {
+  assert.equal(dateHint('2026-11-08'), 'Sun 08/11/2026');
+  assert.equal(dateHint('2026-11-09'), 'Mon 09/11/2026');
+  assert.equal(dateHint('2028-02-29'), 'Tue 29/02/2028');
+  assert.equal(dateHint('2026-12-31'), 'Thu 31/12/2026');
+});
+
+test('the weekday hint keeps the field’s own instruction after it', async () => {
+  const { dateHintWith } = await import('./dates');
+  assert.equal(dateHintWith('2026-11-08', 'You’ll get a reminder 30 days before.'), 'Sun 08/11/2026. You’ll get a reminder 30 days before.');
+  assert.equal(dateHintWith(null, 'You’ll get a reminder 30 days before.'), 'You’ll get a reminder 30 days before.');
+  assert.equal(dateHintWith('2026-11-08', undefined), 'Sun 08/11/2026');
+  assert.equal(dateHintWith(null, undefined), undefined);
 });

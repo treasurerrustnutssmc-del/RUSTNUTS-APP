@@ -1,6 +1,7 @@
 // Fees: what you owe and how to pay it, a member's charges for the treasurer, and a chapter's
 // rates, PayID details, claims to confirm and who still owes.
 
+import { compactFeesSubtitle, feesCardMode } from '../domain/feesCard';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
@@ -95,6 +96,19 @@ export function HomeFeesCard() {
   const charges = chargesOf(me.id, data).filter((c) => chargeBalance(c, data.payments ?? []).owingCents > 0);
   const firstDue = charges.map((c) => c.dueOn).sort()[0];
   const overdue = firstDue < today;
+  if (feesCardMode(firstDue, today) === 'compact') {
+    return (
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          last
+          left={<IconBadge icon="cash-outline" />}
+          title={`Fees: ${formatCents(owing)}`}
+          subtitle={compactFeesSubtitle(firstDue, claimed.reduce((sum, p) => sum + p.amountCents, 0))}
+          onPress={() => navigation.navigate('MemberFees', { memberId: me.id })}
+        />
+      </Card>
+    );
+  }
   return (
     <Card>
       <Row style={{ justifyContent: 'space-between' }}>
@@ -105,7 +119,7 @@ export function HomeFeesCard() {
       {claimed.length > 0 ? (
         <Small>{`You’ve told the treasurer about ${formatCents(claimed.reduce((s, p) => s + p.amountCents, 0))}. It comes off once they confirm it.`}</Small>
       ) : null}
-      <Button label="Pay your fees" kind="secondary" icon="card-outline" onPress={() => navigation.navigate('MemberFees', { memberId: me.id })} />
+      <Button label="Fees and payments" kind="secondary" icon="card-outline" onPress={() => navigation.navigate('MemberFees', { memberId: me.id })} />
     </Card>
   );
 }
@@ -472,7 +486,7 @@ function RatesCard({ chapterId, fy, onDone }: { chapterId: string; fy: number; o
         ))}
       </View>
       <Small>
-        {`The FNG continuation fee is half the Full fee, charged once when a review past twelve months says carry on (4.11)${cont !== null ? `: ${formatCents(cont)} this year` : ''}.`}
+        {`The FNG continuation fee is half the Full fee, charged once when a review past twelve months says carry on${cont !== null ? `: ${formatCents(cont)} this year` : ''}.`}
       </Small>
       <Field label="Due by" value={due.text} onChangeText={due.setText} keyboardType="number-pad" error={due.error} />
       {error ? <Notice tone="danger">{error}</Notice> : null}
@@ -728,7 +742,7 @@ export function BoardFees() {
   if (chapters.length === 0) return null;
   return (
     <>
-      <SectionTitle title="Fees" />
+      <SectionTitle title="Chapter fees" />
       <Card style={{ padding: 0, gap: 0 }}>
         {chapters.map((c, i) => {
           const charges = (data.charges ?? []).filter((x) => x.chapterId === c.id);

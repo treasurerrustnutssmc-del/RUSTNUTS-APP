@@ -41,13 +41,9 @@ export function weekday(date: string): string {
   return WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** "2026-11-08" → "8 Nov 2026" */
+/** "2026-11-08" → "08/11/2026". Kept under its old name: every date on a card is DD/MM/YYYY. */
 export function formatLongDate(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-').map(Number);
-  return `${d} ${MONTHS[m - 1]} ${y}`;
+  return formatAuDate(iso);
 }
 
 function utcMs(iso: string): number {
@@ -108,4 +104,15 @@ export function addDays(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   const t = new Date(Date.UTC(y, m - 1, d + days));
   return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`;
+}
+
+/** "Sun 08/11/2026": a typed date read back with its weekday, so a wrong day or month shows up as it is typed. */
+export function dateHint(iso: string | null): string | null {
+  return iso ? `${weekday(iso)} ${formatAuDate(iso)}` : null;
+}
+
+/** The weekday read-back plus the field's own instruction, so a typed date doesn't swallow it. */
+export function dateHintWith(iso: string | null, instruction: string | undefined): string | undefined {
+  const day = dateHint(iso);
+  return day && instruction ? `${day}. ${instruction}` : day ?? instruction;
 }

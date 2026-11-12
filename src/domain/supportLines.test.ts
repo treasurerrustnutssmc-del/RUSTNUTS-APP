@@ -20,7 +20,7 @@ test('the numbers match the club website Support page', () => {
   assert.equal(byName['Suicide Call Back Service'], '1300 659 467');
   assert.equal(byName['SuicideLine Victoria'], '1300 651 251');
   assert.equal(byName['1800RESPECT'], '1800 737 732');
-  assert.equal(byName["Men's Referral Service"], '1300 766 491');
+  assert.equal(byName["Men’s Referral Service"], '1300 766 491');
 });
 
 test('Lifeline and 1800RESPECT can also be texted', () => {

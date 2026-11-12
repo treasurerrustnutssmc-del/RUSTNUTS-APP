@@ -2,6 +2,7 @@
 // who can answer. The database's set_rsvp action applies the same rules with the same words.
 
 import { formatAuDate } from './dates';
+import { RSVP_LABEL } from './labels';
 import type { Chapter, Member, Ride, RideCategory, Rsvp, RsvpAnswer } from './types';
 
 const ZONE = 'Australia/Melbourne';
@@ -64,6 +65,17 @@ export function answersClose(ride: Ride): number {
   return ride.allDay ? endOfFirstDay(ride) : new Date(ride.startsAt).getTime();
 }
 
+/**
+ * A cancelled ride is hidden when the same ride (same title and colour, same Melbourne day, starting within three hours) is on again, so a
+ * moved start time does not list the ride twice. A cancelled ride with no replacement still shows.
+ */
+function isReplaced(r: Ride, all: Ride[]): boolean {
+  if (!r.cancelledAt) return false;
+  const day = melbourneDate(r.startsAt);
+  const title = r.title.trim().toLowerCase();
+  return all.some((o) => o.id !== r.id && !o.cancelledAt && o.category === r.category && melbourneDate(o.startsAt) === day && o.title.trim().toLowerCase() === title && Math.abs(new Date(o.startsAt).getTime() - new Date(r.startsAt).getTime()) <= 3 * HOUR);
+}
+
 /** Rides from today on, a multi-day one until its last day (cancelled ones too, so people see
  *  they're off), by the Melbourne month they start in. */
 export function upcomingByMonth(
@@ -74,6 +86,7 @@ export function upcomingByMonth(
   const months: { key: string; month: string; rides: Ride[] }[] = [];
   const shown = rides
     .filter((r) => categories.includes(r.category) && lastDay(r) >= today)
+    .filter((r, _i, all) => !isReplaced(r, all))
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   for (const ride of shown) {
     const key = melbourneDate(ride.startsAt).slice(0, 7);
@@ -85,6 +98,18 @@ export function upcomingByMonth(
     group.rides.push(ride);
   }
   return months.map(({ month, rides: list }) => ({ month, rides: list }));
+}
+
+/**
+ * The ride to show first on Home: the earliest one coming up in these colours (a multi-day ride
+ * until its last day). A cancelled ride is never "next", though the Rides tab still lists it.
+ */
+export function nextRide(rides: Ride[], categories: RideCategory[], today: string): Ride | null {
+  for (const month of upcomingByMonth(rides, categories, today)) {
+    const ride = month.rides.find((r) => !r.cancelledAt);
+    if (ride) return ride;
+  }
+  return null;
 }
 
 /** Why `me` can't answer this ride right now, or null when they can. Mirrors public.set_rsvp. */
@@ -120,4 +145,9 @@ export function calendarFreshness(syncedAt: string | null, hasRides: boolean, no
   return new Date(now).getTime() - new Date(syncedAt).getTime() > STALE_AFTER_MS
     ? { stale: true, text: `Club calendar last updated ${when}. Some rides may be out of date.` }
     : { stale: false, text: `Updated ${when} from the club calendar` };
+}
+
+/** The confirmation after answering a ride: what was saved, and the earlier answer to go back to if there was one. */
+export function rsvpToast(previous: RsvpAnswer | null, next: RsvpAnswer): { text: string; undoTo: RsvpAnswer | null } {
+  return { text: `Saved: ${RSVP_LABEL[next]}`, undoTo: previous !== null && previous !== next ? previous : null };
 }

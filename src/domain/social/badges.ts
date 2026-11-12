@@ -66,9 +66,12 @@ export function badgeCount(track: BadgeTrack, n: number): string {
   return `${thousands(n)} ${n === 1 ? word[0] : word[1]}`;
 }
 
-/** "2,290 more for 5,000 km", or "Top badge". */
+/** "2,290 more for 5,000 km", "2 more for two states", or "Top badge". */
 export function toGoLine(t: TrackBadge): string {
-  return t.next === null || t.nextLabel === null ? 'Top badge' : `${thousands(t.next - t.value)} more for ${t.nextLabel}`;
+  if (t.next === null || t.nextLabel === null) return 'Top badge';
+  // The badge name sits mid-sentence, so "First ride" reads "first ride"; "5,000 km" and "4 Big 4s" stay as they are.
+  const name = /^[A-Z][a-z]/.test(t.nextLabel) ? t.nextLabel[0].toLowerCase() + t.nextLabel.slice(1) : t.nextLabel;
+  return `${thousands(t.next - t.value)} more for ${name}`;
 }
 
 // ---------------------------------------------------------------------------------------------

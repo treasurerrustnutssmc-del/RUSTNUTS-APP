@@ -88,10 +88,10 @@ export function StandingCard({ member }: { member: Member }) {
   const period = standing.kind === 'fng' ? `Since ${formatAuDate(standing.from)}` : clubYearLabel(clubYearOf(today, data.agms));
   return (
     <>
-      <SectionTitle title={standing.kind === 'fng' ? 'Trial attendance' : 'Attendance rules'} action={<Text style={[type.name, { color: colors.boneMute }]}>{period}</Text>} />
+      <SectionTitle title={standing.kind === 'fng' ? 'Trial attendance' : 'Attendance targets'} action={<Text style={[type.name, { color: colors.boneMute }]}>{period}</Text>} />
       <Card>
         <StandingLines standing={standing} />
-        <Small>Counts meetings and rides that had a check-in. The board can excuse you from one (4.12).</Small>
+        <Small>Counts meetings and rides that had a check-in. The board can excuse you from one.</Small>
       </Card>
     </>
   );
@@ -264,12 +264,12 @@ export function Big4Card({ ride }: { ride: Ride }) {
           eligibility.ok ? (
             <Row style={{ gap: space.sm }}>
               <Chip label="Eligible" tone="ok" icon="checkmark" />
-              <Small>{eligibility.of === 0 ? 'No meetings to count yet.' : `${eligibility.attended} of the last ${eligibility.of} meetings (5.4).`}</Small>
+              <Small>{eligibility.of === 0 ? 'No meetings to count yet.' : `${eligibility.attended} of the last ${eligibility.of} meetings.`}</Small>
             </Row>
           ) : (
             <Row style={{ gap: space.sm }}>
               <Chip label="Not yet" tone="warn" />
-              <Small>{`${eligibility.attended} of the last ${eligibility.of} meetings. Needs ${needsMeetingsText(eligibility)} (5.4).`}</Small>
+              <Small>{`${eligibility.attended} of the last ${eligibility.of} meetings. Needs ${needsMeetingsText(eligibility)}.`}</Small>
             </Row>
           )
         ) : null}
@@ -341,7 +341,7 @@ function Big4Excuses({ ride }: { ride: Ride }) {
         <Stack key={c.id} gap={space.sm}>
           <View style={{ gap: 2, marginTop: space.sm }}>
             <Text style={type.name}>{`${c.name}: not eligible yet`}</Text>
-            <Small>Your board can excuse work, family, health, injury or distance (5.4).</Small>
+            <Small>Your board can excuse work, family, health, injury or distance.</Small>
           </View>
           {notYet.filter((m) => m.id !== me.id).map((m) => {
             const e = big4Eligibility(m, melbourneDate(ride.startsAt), data, today);
@@ -358,7 +358,7 @@ function Big4Excuses({ ride }: { ride: Ride }) {
                 </Row>
                 {picking === m.id ? (
                   <Stack gap={space.sm}>
-                    <Choices<Big4Ground> label="Ground (5.4)" options={BIG4_GROUNDS.map((g) => ({ value: g, label: GROUND_LABEL[g] }))} value={ground} onChange={setGround} />
+                    <Choices<Big4Ground> label="Ground" options={BIG4_GROUNDS.map((g) => ({ value: g, label: GROUND_LABEL[g] }))} value={ground} onChange={setGround} />
                     <Row style={{ gap: space.sm }}>
                       <Button label={`Excuse ${displayName(m)}`} busy={busy} onPress={() => run(() => setBig4Waiver(ride.id, m.id, ground))} style={{ flex: 1 }} />
                       <Button label="Cancel" kind="quiet" onPress={() => setPicking(null)} />
