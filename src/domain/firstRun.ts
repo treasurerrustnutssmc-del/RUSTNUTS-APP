@@ -49,3 +49,11 @@ export async function resetFirstRun(storage: FilterStorage, memberId: string): P
     // Nothing to do.
   }
 }
+
+const BOARD_STEP = { title: 'Board', text: 'Needs you comes first: approvals and anything due, with your areas right under it.', icon: 'shield-outline' };
+
+/** The guide's lines. A board member also gets one about the Board, before Me. */
+export function firstRunSteps(isBoard: boolean): { title: string; text: string; icon: string }[] {
+  if (!isBoard) return FIRST_RUN_STEPS;
+  return [...FIRST_RUN_STEPS.slice(0, -1), BOARD_STEP, FIRST_RUN_STEPS[FIRST_RUN_STEPS.length - 1]];
+}

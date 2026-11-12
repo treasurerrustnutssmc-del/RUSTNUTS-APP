@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { FIRST_RUN_STEPS, hasSeenFirstRun, isRecentMember, markFirstRunSeen, resetFirstRun } from './firstRun';
+import { FIRST_RUN_STEPS, firstRunSteps, hasSeenFirstRun, isRecentMember, markFirstRunSeen, resetFirstRun } from './firstRun';
 import type { FilterStorage } from './savedFilters';
 
 const memory = (): FilterStorage & { data: Map<string, string> } => {
@@ -46,4 +46,10 @@ test('a member counts as new for 60 days after joining, and one with no join dat
   assert.equal(isRecentMember('2026-09-14', '2026-11-12'), true);
   assert.equal(isRecentMember('2026-09-01', '2026-11-12'), false);
   assert.equal(isRecentMember(null, '2026-11-12'), true);
+});
+
+test('a board member also gets a line about the Board, before Me; everyone else sees the four', () => {
+  assert.deepEqual(firstRunSteps(false).map((s) => s.title), ['Rides', 'Chat', 'Members', 'Me']);
+  assert.deepEqual(firstRunSteps(true).map((s) => s.title), ['Rides', 'Chat', 'Members', 'Board', 'Me']);
+  assert.ok(firstRunSteps(true).find((s) => s.title === 'Board')!.text.includes('Needs you'));
 });
