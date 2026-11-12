@@ -268,7 +268,7 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
       const t = rsvpToast(mine, a);
       toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!).catch((e: Error) => toast(e.message)) } : undefined);
     } catch (e) {
-      toast((e as Error).message);
+      toast((e as Error).message, { label: 'Retry', onPress: () => void answer(a) });
     } finally {
       setBusy(null);
     }
@@ -484,6 +484,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!).catch((e: Error) => setError(e.message)) } : undefined);
     } catch (e) {
       setError((e as Error).message);
+      toast((e as Error).message, { label: 'Retry', onPress: () => void answer(a) });
     } finally {
       setBusy(null);
     }
