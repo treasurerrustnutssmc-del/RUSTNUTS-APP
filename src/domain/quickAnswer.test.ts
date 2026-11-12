@@ -23,3 +23,17 @@ test('a ride that has already started cannot', () => {
   const d = data(ride('r1', { startsAt: '2026-11-11T00:00:00.000Z' }));
   assert.equal(canQuickAnswer(me(d), d.rides[0], d, today, now), false);
 });
+
+// The point of the gate: the one-tap Going must stop wherever the ride screen would.
+const roadRules = [{ number: 1, body: '# Road Rules v1', changes: '', fresh: true, publishedAt: '2025-07-01T00:00:00.000Z', publishedBy: 'nec' }];
+const coming = ride('r1', { startsAt: '2026-11-20T00:00:00.000Z' });
+
+test('Going is not offered in one tap while the Road Rules are published and unsigned', () => {
+  const d = club({ members: [member('rider')], rides: [coming], roadRules });
+  assert.equal(canQuickAnswer(d.members[0], coming, d, today, now), false);
+});
+
+test('it is offered again once the Road Rules are signed', () => {
+  const d = club({ members: [member('rider')], rides: [coming], roadRules, roadRulesSignoffs: [{ memberId: 'rider', version: 1, signedAt: '2026-10-01T00:00:00.000Z' }] });
+  assert.equal(canQuickAnswer(d.members[0], coming, d, today, now), true);
+});
