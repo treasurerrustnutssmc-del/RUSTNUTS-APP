@@ -30,7 +30,7 @@ import {
 import type { ClubData, CrewRole, Member, Ride, RideCall, RideCategory, RsvpAnswer } from '../domain/types';
 import { rideColourLegend } from '../domain/glossary';
 import { RIDE_TOOLS } from '../domain/ridesLayout';
-import { canQuickAnswer } from '../domain/quickAnswer';
+import { quickAnswerReason } from '../domain/quickAnswer';
 import { useToast } from '../ui/Toast';
 import { useSavedFilters } from '../data/savedFilters';
 import { sameColours } from '../domain/savedFilters';
@@ -259,7 +259,8 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
   if (!ride) return null;
   const mine = data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null;
   // One tap here only when the ride screen would allow Going too; otherwise the card opens the ride, which says why.
-  const quick = canQuickAnswer(me, ride, data, today, new Date().toISOString());
+  const whyNot = quickAnswerReason(me, ride, data, today, new Date().toISOString());
+  const quick = whyNot === null;
   const answer = async (a: RsvpAnswer) => {
     setBusy(a);
     try {
@@ -293,7 +294,9 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
             {(['going', 'maybe', 'no'] as RsvpAnswer[]).map((a) => (
               <Button
                 key={a}
-                label={RSVP_LABEL[a]}
+                // "Can't make it" wrapped to three lines in a third of the width; the full words are on the ride.
+                label={a === 'no' ? 'Can’t' : RSVP_LABEL[a]}
+                accessibilityLabel={RSVP_LABEL[a]}
                 kind={mine === a ? 'primary' : 'secondary'}
                 busy={busy === a}
                 disabled={busy !== null}
@@ -302,7 +305,11 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
               />
             ))}
           </Row>
-        ) : null}
+        ) : (
+          <View style={{ paddingHorizontal: space.md, paddingBottom: space.md }}>
+            <Small>{whyNot} Open the ride to answer.</Small>
+          </View>
+        )}
       </Card>
     </Stack>
   );

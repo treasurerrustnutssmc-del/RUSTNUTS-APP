@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { canQuickAnswer } from './quickAnswer';
+import { canQuickAnswer, quickAnswerReason } from './quickAnswer';
 import { club, member, ride } from './stage4.testkit';
 
 const today = '2026-11-12';
@@ -36,4 +36,17 @@ test('Going is not offered in one tap while the Road Rules are published and uns
 test('it is offered again once the Road Rules are signed', () => {
   const d = club({ members: [member('rider')], rides: [coming], roadRules, roadRulesSignoffs: [{ memberId: 'rider', version: 1, signedAt: '2026-10-01T00:00:00.000Z' }] });
   assert.equal(canQuickAnswer(d.members[0], coming, d, today, now), true);
+});
+
+
+test('when one tap is not offered, the card says why in the rules’ own words', () => {
+  const started = club({ members: [member('rider')], rides: [ride('r1', { startsAt: '2026-11-11T00:00:00.000Z' })] });
+  assert.match(quickAnswerReason(started.members[0], started.rides[0], started, today, now) ?? '', /already started/);
+  const unsigned = club({ members: [member('rider')], rides: [coming], roadRules });
+  assert.match(quickAnswerReason(unsigned.members[0], coming, unsigned, today, now) ?? '', /Road Rules/);
+});
+
+test('there is no reason when one tap is offered', () => {
+  const d = club({ members: [member('rider')], rides: [coming] });
+  assert.equal(quickAnswerReason(d.members[0], coming, d, today, now), null);
 });
