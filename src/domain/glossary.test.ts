@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { GLOSSARY, roleKey } from './glossary';
+import { GLOSSARY, rideColourLegend, roleKey } from './glossary';
 import { ROLE_LABEL, ROLE_SHORT } from './labels';
 import type { PositionRole } from './types';
 
@@ -31,7 +31,6 @@ test('the key lists every short form shown on a chip with its full title', () =>
   }
 });
 
-import { rideColourLegend } from './glossary';
 
 test('the Rides legend explains the two ride colours people ask about, using the glossary wording', () => {
   const legend = rideColourLegend();

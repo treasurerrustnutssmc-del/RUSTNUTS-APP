@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { STATUS_LABEL } from './labels';
 import { memberGroups } from './memberGroups';
+import { STATUS_LABEL as SHOP_STATUS } from './shop';
 import type { Member } from './types';
 
 const member = (status: Member['status']): Member => ({
@@ -20,7 +21,6 @@ test('the member list groups them under Full members', () => {
   assert.deepEqual(groups.map((g) => g.title), ['Full members', 'Nomads', 'Hang Arounds']);
 });
 
-import { STATUS_LABEL as SHOP_STATUS } from './shop';
 
 test('shop order states read in plain words, not as insider shorthand', () => {
   assert.equal(SHOP_STATUS.held, 'Waiting to send');
