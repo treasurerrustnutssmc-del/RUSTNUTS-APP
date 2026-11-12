@@ -17,6 +17,7 @@ import { NotificationSettings } from './notificationSettings';
 import { MeSocialSection } from './social';
 import { colors, space, type } from '../theme';
 import { useToast } from '../ui/Toast';
+import { useFirstRun } from '../data/firstRun';
 import { useUnsavedGuard } from '../ui/useUnsavedGuard';
 import { hasChanges } from '../domain/dirty';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
@@ -78,6 +79,8 @@ function useDateField(initialIso: string | null) {
 export function MeScreen({ navigation }: TabScreen<'Me'>) {
   const { me, data, today, saveProfile, signOut, isDemo } = useClub();
   const [shareError, setShareError] = useState<string | null>(null);
+  const toast = useToast();
+  const firstRun = useFirstRun();
   // Which groups the person has opened or closed themselves; the rest follow what needs them.
   const [chosen, setChosen] = useState<Partial<Record<MeGroupId, boolean>>>({});
   if (!me) return null;
@@ -279,11 +282,21 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
               <>
                 <Card style={{ padding: 0, gap: 0 }}>
                   <ListRow
-                    last
                     left={<IconBadge icon="book-outline" />}
                     title="Club words"
                     subtitle="What FNG, Nomad, Big 4 and the short role names mean"
                     onPress={() => navigation.navigate('ClubWords')}
+                  />
+                  <ListRow
+                    last
+                    left={<IconBadge icon="compass-outline" />}
+                    title="Show the quick tour again"
+                    subtitle="Where things are, on Home"
+                    onPress={() => {
+                      void firstRun.replay();
+                      toast('The quick tour is back on Home');
+                      navigation.navigate('Home');
+                    }}
                   />
                 </Card>
                 {/* Club links: the website, shop, podcast and socials */}

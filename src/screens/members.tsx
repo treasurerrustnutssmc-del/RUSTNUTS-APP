@@ -46,6 +46,7 @@ import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
 import { HomeNextRideCard } from './rides';
 import { MORE_FROM_CLUB } from '../domain/membersLayout';
+import { FirstRunCard } from '../ui/FirstRunCard';
 import { useSavedFilters } from '../data/savedFilters';
 import { CLUB_NUMBERS, showProfileCard } from '../domain/homeLayout';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
@@ -214,6 +215,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Row>
       </Flannel>
 
+      {/* New here? Where things are, once */}
+      <FirstRunCard />
       {/* What notifications are for, once, before the phone asks */}
       <NotificationIntroCard />
       {/* The next ride, so it is one tap from opening the app */}
