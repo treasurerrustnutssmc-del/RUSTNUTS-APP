@@ -46,6 +46,7 @@ import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
 import { HomeNextRideCard } from './rides';
 import { MORE_FROM_CLUB } from '../domain/membersLayout';
+import { CLUB_NUMBERS, showProfileCard } from '../domain/homeLayout';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import { memberGroups } from '../domain/memberGroups';
 import { NotificationIntroCard } from '../ui/NotificationIntro';
@@ -170,6 +171,7 @@ const nowInstant = () => new Date().toISOString();
 
 export function HomeScreen({ navigation }: TabScreen<'Home'>) {
   const { me, data, level, today, isDemo, refresh } = useClub();
+  const [numbersOpen, setNumbersOpen] = useState(false);
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const positions = sortedPositions(me.id, data);
@@ -276,42 +278,46 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Notice>
       ))}
 
-      <Card>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <H2>Your profile</H2>
-          <Small>
-            {done} of {checklist.length} done
-          </Small>
-        </Row>
-        <View style={{ height: 6, backgroundColor: colors.steel, borderRadius: 3, overflow: 'hidden' }}>
-          <View style={{ width: `${(done / checklist.length) * 100}%`, height: '100%', backgroundColor: colors.redBright }} />
-        </View>
-        {done === checklist.length ? (
-          <Small>All set. Your Road Captain can reach your emergency contact on ride day.</Small>
-        ) : (
-          <>
-            {checklist
-              .filter((c) => !c.done)
-              .map((c) => (
-                <Row key={c.key} style={{ gap: space.sm }}>
-                  <Ionicons name="ellipse-outline" size={16} color={colors.boneMute} />
-                  <Body>{c.label}</Body>
-                </Row>
-              ))}
-            <Button label="Finish your profile" kind="secondary" onPress={() => navigation.navigate('EditProfile')} />
-          </>
-        )}
-      </Card>
+      {showProfileCard(done, checklist.length) ? (
+        <Card>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <H2>Your profile</H2>
+            <Small>
+              {done} of {checklist.length} done
+            </Small>
+          </Row>
+          <View style={{ height: 6, backgroundColor: colors.steel, borderRadius: 3, overflow: 'hidden' }}>
+            <View style={{ width: `${(done / checklist.length) * 100}%`, height: '100%', backgroundColor: colors.redBright }} />
+          </View>
+          {done === checklist.length ? (
+            <Small>All set. Your Road Captain can reach your emergency contact on ride day.</Small>
+          ) : (
+            <>
+              {checklist
+                .filter((c) => !c.done)
+                .map((c) => (
+                  <Row key={c.key} style={{ gap: space.sm }}>
+                    <Ionicons name="ellipse-outline" size={16} color={colors.boneMute} />
+                    <Body>{c.label}</Body>
+                  </Row>
+                ))}
+              <Button label="Finish your profile" kind="secondary" onPress={() => navigation.navigate('EditProfile')} />
+            </>
+          )}
+        </Card>
+  
+      ) : null}
 
-      <Card>
-        <H2>The club</H2>
-        <ClubSplitTable rows={[...counts.split, { id: 'club-total', name: 'Club', ...counts.club }]} />
-        {counts.onApp < counts.total ? (
-          <Small>
-            {counts.onApp} of {counts.total} signed in to the app so far.
-          </Small>
-        ) : null}
-      </Card>
+      <Disclosure title={CLUB_NUMBERS.title} summary={CLUB_NUMBERS.summary} open={numbersOpen} onToggle={() => setNumbersOpen((o) => !o)}>
+        <Card>
+          <ClubSplitTable rows={[...counts.split, { id: 'club-total', name: 'Club', ...counts.club }]} />
+          {counts.onApp < counts.total ? (
+            <Small>
+              {counts.onApp} of {counts.total} signed in to the app so far.
+            </Small>
+          ) : null}
+        </Card>
+      </Disclosure>
     </Screen>
   );
 }
