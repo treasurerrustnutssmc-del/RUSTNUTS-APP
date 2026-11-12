@@ -24,10 +24,12 @@ import {
   nextRide,
   rsvpCounts,
   rsvpProblem,
+  rsvpToast,
   upcomingByMonth,
 } from '../domain/rides';
 import type { ClubData, CrewRole, Member, Ride, RideCall, RideCategory, RsvpAnswer } from '../domain/types';
 import { rideColourLegend } from '../domain/glossary';
+import { useToast } from '../ui/Toast';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
@@ -344,6 +346,7 @@ const ANSWERS: RsvpAnswer[] = ['going', 'maybe', 'no'];
 export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>) {
   const { me, data, today, setRsvp, setRideCalledOff } = useClub();
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   // Rides made in the app: calling off and putting back on
   const [offBusy, setOffBusy] = useState(false);
@@ -407,6 +410,8 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
     setBusy(a);
     try {
       await setRsvp(ride.id, a);
+      const t = rsvpToast(mine, a);
+      toast(t.text, t.undoTo ? { label: 'Undo', onPress: () => void setRsvp(ride.id, t.undoTo!).catch((e: Error) => setError(e.message)) } : undefined);
     } catch (e) {
       setError((e as Error).message);
     } finally {

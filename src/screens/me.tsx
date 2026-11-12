@@ -16,6 +16,7 @@ import { NotificationSettings } from './notificationSettings';
 // Stage 7: social extras
 import { MeSocialSection } from './social';
 import { colors, space, type } from '../theme';
+import { useToast } from '../ui/Toast';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import { settleOpen } from '../domain/groupOpen';
 import { meGroups, type MeGroupId } from '../domain/meLayout';
@@ -332,6 +333,7 @@ function RoadRulesRow({ onOpen }: { onOpen: () => void }) {
 // ---------------------------------------------------------------------------
 
 export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
+  const toast = useToast();
   const { me, data, saveProfile } = useClub();
   const priv = data.privates.find((p) => p.memberId === me?.id);
   const [fullName, setFullName] = useState(me?.fullName ?? '');
@@ -358,6 +360,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
         { fullName, roadName, bio, sharePhone: me.sharePhone },
         { email, phone, licenceClass, licenceExpiry: licence.iso, firstAidExpiry: firstAid.iso },
       );
+      toast('Profile saved');
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -418,6 +421,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
 // ---------------------------------------------------------------------------
 
 export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
+  const toast = useToast();
   const { data, saveBike, removeBike, setBikeRange } = useClub();
   const bike = route.params.bikeId ? data.bikes.find((b) => b.id === route.params.bikeId) : undefined;
   const reg = bike ? data.registrations.find((r) => r.bikeId === bike.id) : undefined;
@@ -450,6 +454,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
         { rego: isProject ? null : rego, regoExpiry: isProject ? null : expiry.iso },
       );
       if (bike && rangeKm !== (bike.rangeKm ?? null)) await setBikeRange(bike.id, rangeKm);
+      toast(bike ? 'Bike saved' : 'Bike added');
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -505,7 +510,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
           icon="trash-outline"
           onConfirm={() => {
             removeBike(bike.id)
-              .then(() => navigation.goBack())
+              .then(() => { toast('Bike removed'); navigation.goBack(); })
               .catch((e: Error) => setError(e.message));
           }}
         />
@@ -521,6 +526,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
 const RELATIONSHIPS = ['Partner', 'Wife', 'Husband', 'Mum', 'Dad', 'Brother', 'Sister', 'Mate'];
 
 export function EditContactScreen({ route, navigation }: RootScreen<'EditContact'>) {
+  const toast = useToast();
   const { data, saveContact, removeContact } = useClub();
   const contact = route.params.contactId ? data.emergencyContacts.find((c) => c.id === route.params.contactId) : undefined;
   const [name, setName] = useState(contact?.name ?? '');
@@ -534,6 +540,7 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
     setBusy(true);
     try {
       await saveContact({ id: contact?.id ?? null, name, relationship, phone });
+      toast(contact ? 'Contact saved' : 'Contact added');
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -564,7 +571,7 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
           icon="trash-outline"
           onConfirm={() => {
             removeContact(contact.id)
-              .then(() => navigation.goBack())
+              .then(() => { toast('Contact removed'); navigation.goBack(); })
               .catch((e: Error) => setError(e.message));
           }}
         />

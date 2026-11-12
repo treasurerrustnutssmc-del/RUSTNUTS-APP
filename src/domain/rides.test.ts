@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calendarFreshness, defaultCategories, lastDay, melbourneDate, melbourneTime, nextRide, rsvpCounts, rsvpProblem, upcomingByMonth } from './rides';
+import { calendarFreshness, defaultCategories, lastDay, melbourneDate, melbourneTime, nextRide, rsvpCounts, rsvpToast, rsvpProblem, upcomingByMonth } from './rides';
 import type { Chapter, Member, Ride, Rsvp } from './types';
 
 const chapters: Chapter[] = [
@@ -114,4 +114,11 @@ test('a multi-day ride that has started still counts until its last day', () => 
 test('no next ride when nothing is coming up', () => {
   assert.equal(nextRide([], ['west'], '2026-11-01'), null);
   assert.equal(nextRide([ride({ category: 'north' })], ['west'], '2026-11-01'), null);
+});
+
+test('an RSVP is confirmed in words, with Undo only when there was an earlier answer to go back to', () => {
+  assert.deepEqual(rsvpToast(null, 'going'), { text: 'Saved: Going', undoTo: null });
+  assert.deepEqual(rsvpToast('going', 'maybe'), { text: 'Saved: Maybe', undoTo: 'going' });
+  assert.deepEqual(rsvpToast('maybe', 'no'), { text: 'Saved: Can’t make it', undoTo: 'maybe' });
+  assert.deepEqual(rsvpToast('going', 'going'), { text: 'Saved: Going', undoTo: null }, 'tapping the same answer again changes nothing to undo');
 });

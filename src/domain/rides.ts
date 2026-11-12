@@ -2,6 +2,7 @@
 // who can answer. The database's set_rsvp action applies the same rules with the same words.
 
 import { formatAuDate } from './dates';
+import { RSVP_LABEL } from './labels';
 import type { Chapter, Member, Ride, RideCategory, Rsvp, RsvpAnswer } from './types';
 
 const ZONE = 'Australia/Melbourne';
@@ -132,4 +133,9 @@ export function calendarFreshness(syncedAt: string | null, hasRides: boolean, no
   return new Date(now).getTime() - new Date(syncedAt).getTime() > STALE_AFTER_MS
     ? { stale: true, text: `Club calendar last updated ${when}. Some rides may be out of date.` }
     : { stale: false, text: `Updated ${when} from the club calendar` };
+}
+
+/** The confirmation after answering a ride: what was saved, and the earlier answer to go back to if there was one. */
+export function rsvpToast(previous: RsvpAnswer | null, next: RsvpAnswer): { text: string; undoTo: RsvpAnswer | null } {
+  return { text: `Saved: ${RSVP_LABEL[next]}`, undoTo: previous !== null && previous !== next ? previous : null };
 }
