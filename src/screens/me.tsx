@@ -391,8 +391,9 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
   };
 
   return (
-    <Screen scrollToTopKey={guard.held}>
+    <Screen scrollToTopKey={`${guard.held}|${error ?? ''}`}>
       {guard.prompt}
+      {error ? <Notice tone="danger">{error}</Notice> : null}
       <Card>
         <H2>About you</H2>
         <Field label="Full name" value={fullName} onChangeText={setFullName} autoComplete="name" />
@@ -433,7 +434,6 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
           hint="Required for Tail Gunners. Leave blank if you don't have one."
         />
       </Card>
-      {error ? <Notice tone="danger">{error}</Notice> : null}
       <Button label="Save" icon="checkmark" onPress={save} busy={busy} />
     </Screen>
   );
@@ -493,8 +493,9 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
   };
 
   return (
-    <Screen scrollToTopKey={guard.held}>
+    <Screen scrollToTopKey={`${guard.held}|${error ?? ''}`}>
       {guard.prompt}
+      {error ? <Notice tone="danger">{error}</Notice> : null}
       <Card>
         <Row style={{ gap: space.sm, alignItems: 'flex-start' }}>
           <View style={{ flex: 1, minWidth: 140 }}>
@@ -532,7 +533,6 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
           <Field label="Rego expiry" value={expiry.text} onChangeText={expiry.setText} placeholder="DD/MM/YYYY" inputMode="numeric" maxLength={10} error={expiry.error} hint="You’ll get a reminder 30 days before." />
         </Card>
       ) : null}
-      {error ? <Notice tone="danger">{error}</Notice> : null}
       <Button label={bike ? 'Save bike' : 'Add bike'} icon="checkmark" onPress={save} busy={busy} />
       {bike ? (
         <ConfirmButton
@@ -585,8 +585,9 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
   };
 
   return (
-    <Screen scrollToTopKey={guard.held}>
+    <Screen scrollToTopKey={`${guard.held}|${error ?? ''}`}>
       {guard.prompt}
+      {error ? <Notice tone="danger">{error}</Notice> : null}
       <Notice title="Who sees this">Only you and your chapter board. On ride day, the Road Captain uses it if something goes wrong.</Notice>
       <Card>
         <Field label="Name" value={name} onChangeText={setName} autoComplete="name" />
@@ -599,7 +600,6 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
         <Field label="Or type it" value={relationship} onChangeText={setRelationship} placeholder="Daughter, neighbour…" />
         <Field label="Mobile" value={phone} onChangeText={setPhone} keyboardType="phone-pad" inputMode="tel" />
       </Card>
-      {error ? <Notice tone="danger">{error}</Notice> : null}
       <Button label={contact ? 'Save contact' : 'Add contact'} icon="checkmark" onPress={save} busy={busy} />
       {contact ? (
         <ConfirmButton

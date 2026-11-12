@@ -338,6 +338,8 @@ export function JoinScreen() {
         </Small>
       </View>
 
+      {stepProblems(errors, step).some((f) => touched[f]) ? <Notice tone="danger" title="A few things to fix">Check the fields marked in red.</Notice> : null}
+
       {step === 0 ? (
         <>
           <Card>
@@ -430,7 +432,6 @@ export function JoinScreen() {
         </>
       ) : null}
 
-      {stepProblems(errors, step).some((f) => touched[f]) ? <Notice tone="danger" title="A few things to fix">Check the fields marked in red.</Notice> : null}
       {submitError ? <Notice tone="danger">{submitError}</Notice> : null}
       <PrivacyPolicyRow />
       <Row style={{ gap: space.sm }}>
