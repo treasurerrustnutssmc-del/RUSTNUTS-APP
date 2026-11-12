@@ -73,6 +73,7 @@ import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Spon
 import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
 import { PostingRulesScreen } from '../screens/postingRules'; // Chat and posting rules
 import { FeedbackScreen } from '../screens/feedback'; // Feedback and issues
+import { ClubWordsScreen } from '../screens/clubWords'; // Club words
 import { SupportScreen } from '../screens/support'; // Crisis and support lines, inside the app
 import {
   EditInviteScreen, EditOtherClubScreen, InviteClubScreen, InviteScreen, OtherClubScreen, OtherClubsScreen,
@@ -318,6 +319,7 @@ export function RootNavigator() {
             <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy policy' }} />
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
             <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback and issues' }} />
+            <Stack.Screen name="ClubWords" component={ClubWordsScreen} options={{ title: 'Club words' }} />
             {/* Family chat: the one chat, its photos and the club rules Family agree to before posting */}
             <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} getId={({ params }) => params.chatId} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
@@ -512,6 +514,7 @@ export function RootNavigator() {
             <Stack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
             <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Chat and posting rules' }} />
             <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback and issues' }} />
+            <Stack.Screen name="ClubWords" component={ClubWordsScreen} options={{ title: 'Club words' }} />
             <Stack.Screen
               name="EditSponsor"
               component={EditSponsorScreen}

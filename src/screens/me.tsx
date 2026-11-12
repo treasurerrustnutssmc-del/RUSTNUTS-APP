@@ -274,6 +274,15 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
 
             {g.id === 'help' ? (
               <>
+                <Card style={{ padding: 0, gap: 0 }}>
+                  <ListRow
+                    last
+                    left={<IconBadge icon="book-outline" />}
+                    title="Club words"
+                    subtitle="What FNG, Nomad, Big 4 and the short role names mean"
+                    onPress={() => navigation.navigate('ClubWords')}
+                  />
+                </Card>
                 {/* Club links: the website, shop, podcast and socials */}
                 <ClubLinksSection withoutShops />
                 {/* Sponsors: who backs the club, and member deals */}
