@@ -199,6 +199,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
           <View style={{ flex: 1, gap: 4 }}>
             {/* One line on phones: a longer name shrinks to fit rather than wrapping (the web ignores this). */}
             <Text
+              accessibilityRole="header"
+              aria-level={1}
               style={type.h1}
               numberOfLines={Platform.OS === 'web' ? undefined : 1}
               adjustsFontSizeToFit

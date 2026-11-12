@@ -111,7 +111,7 @@ export function PostingRulesScreen() {
     <Screen padTop={gate}>
       {gate ? (
         <Stack gap={space.sm}>
-          <H1>{POSTING_RULES_TITLE}</H1>
+          <H1 level={1}>{POSTING_RULES_TITLE}</H1>
           <Body>Read these once and agree, and the chats and posts open up. Every member does the same.</Body>
         </Stack>
       ) : null}

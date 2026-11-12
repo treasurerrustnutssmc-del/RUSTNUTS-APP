@@ -157,7 +157,7 @@ export function SignInScreen({ route }: RootScreen<'SignIn'>) {
   return (
     <Screen>
       <Stack gap={space.sm}>
-        <H1>{joining ? 'First, your email' : 'Sign in'}</H1>
+        <H1 level={1}>{joining ? 'First, your email' : 'Sign in'}</H1>
         <Body>
           {step === 'code' && isReviewerEmail(email)
             ? 'Enter the code from the store review notes.'
@@ -325,7 +325,7 @@ export function JoinScreen() {
   return (
     <Screen scrollToTopKey={step}>
       <Stack gap={space.sm}>
-        <H1>Ask to join</H1>
+        <H1 level={1}>Ask to join</H1>
         <Body>
           Your chapter’s board checks every request. Most people are introduced by a member and come along to a
           couple of meetings and a ride first.
@@ -489,7 +489,7 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
         </Stack>
       ) : (
         <Stack gap={space.sm}>
-          <H1>Thanks, {me.fullName.split(' ')[0]}</H1>
+          <H1 level={1}>Thanks, {me.fullName.split(' ')[0]}</H1>
           <Body>
             The {chapter?.name} chapter board has your request. Once they approve it, the rest of the app opens up
             here.{isDemo ? '' : ' Pull down or tap Check again to see if it’s happened.'}
