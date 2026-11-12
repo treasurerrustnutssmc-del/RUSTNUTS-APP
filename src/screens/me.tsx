@@ -538,6 +538,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
         <ConfirmButton
           label="Remove this bike"
           confirmLabel="Yes, remove it"
+          confirmNote="This can’t be undone."
           icon="trash-outline"
           onConfirm={() => {
             removeBike(bike.id)
@@ -604,6 +605,7 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
         <ConfirmButton
           label="Remove this contact"
           confirmLabel="Yes, remove"
+          confirmNote="This can’t be undone."
           icon="trash-outline"
           onConfirm={() => {
             removeContact(contact.id)

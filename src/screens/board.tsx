@@ -123,6 +123,7 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
         onChange={setStatus}
       />
       {error ? <Notice tone="danger">{error}</Notice> : null}
+      <Small>{`Approving lets them in as ${STATUS_LABEL[status]} and opens the app for them.`}</Small>
       <Row style={{ gap: space.sm }}>
         <Button
           label="Approve"
@@ -135,6 +136,7 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
       <ConfirmButton
         label="Decline"
         confirmLabel={`Decline ${applicant.fullName.split(' ')[0]}`}
+        confirmNote={`Declining tells ${applicant.fullName.split(' ')[0]}. It can’t be undone.`}
         kind="quiet"
         onConfirm={() => act(() => decideApplication(applicant.id, null, votes, note), `Declined ${applicant.fullName}.`)}
       />
