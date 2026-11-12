@@ -29,6 +29,7 @@ import {
 } from '../domain/rides';
 import type { ClubData, CrewRole, Member, Ride, RideCall, RideCategory, RsvpAnswer } from '../domain/types';
 import { rideColourLegend } from '../domain/glossary';
+import { RIDE_TOOLS } from '../domain/ridesLayout';
 import { useToast } from '../ui/Toast';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -55,6 +56,7 @@ import {
   Card,
   Chip,
   ConfirmButton,
+  Disclosure,
   H1,
   IconBadge,
   Ionicons,
@@ -107,6 +109,7 @@ export function RideChip({ category }: { category: RideCategory }) {
 export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
   const { me, data, today, isDemo, refresh } = useClub();
   const [shown, setShown] = useState<RideCategory[] | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
   if (!me) return null;
   const categories = shown ?? defaultCategories(me, data.chapters);
   const months = upcomingByMonth(data.rides, categories, today);
@@ -121,35 +124,42 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
     <Screen onRefresh={isDemo ? undefined : refresh}>
       {/* Family view: no route library or Rusty Bus for Family */}
       {me.approval === 'approved' && !isFamily(me) ? (
-        <Card style={{ padding: 0, gap: 0 }}>
+        <>
           {/* Rides made in the app: for the people who run them */}
           {managesAnyCategory(me, data) ? (
-            <ListRow
-              left={<IconBadge icon="add-circle-outline" tone="red" />}
-              title="New ride"
-              subtitle={<Text style={styles.metaTime}>Put a ride on, for members and the website</Text>}
-              onPress={() => navigation.navigate('EditRide')}
-            />
+            <Card style={{ padding: 0, gap: 0 }}>
+              <ListRow
+                last
+                left={<IconBadge icon="add-circle-outline" tone="red" />}
+                title="New ride"
+                subtitle={<Text style={styles.metaTime}>Put a ride on, for members and the website</Text>}
+                onPress={() => navigation.navigate('EditRide')}
+              />
+            </Card>
           ) : null}
-          <ListRow
-            left={<IconBadge icon="map-outline" />}
-            title="Route library"
-            subtitle={
-              <Text style={styles.metaTime}>
-                {routeCount === 0 ? 'GPX routes for OsmAnd and MyRoute' : `${routeCount} ${routeCount === 1 ? 'route' : 'routes'} for OsmAnd and MyRoute`}
-              </Text>
-            }
-            onPress={() => navigation.navigate('Routes')}
-          />
-          {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
-          <ListRow
-            left={<IconBadge icon="bus-outline" />}
-            title="Rusty Bus"
-            subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
-            onPress={() => navigation.navigate('Bus')}
-          />
-          <OtherClubsRow last />
-        </Card>
+          <Disclosure title={RIDE_TOOLS.title} summary={RIDE_TOOLS.summary} open={toolsOpen} onToggle={() => setToolsOpen((o) => !o)}>
+            <Card style={{ padding: 0, gap: 0 }}>
+              <ListRow
+                left={<IconBadge icon="map-outline" />}
+                title="Route library"
+                subtitle={
+                  <Text style={styles.metaTime}>
+                    {routeCount === 0 ? 'GPX routes for OsmAnd and MyRoute' : `${routeCount} ${routeCount === 1 ? 'route' : 'routes'} for OsmAnd and MyRoute`}
+                  </Text>
+                }
+                onPress={() => navigation.navigate('Routes')}
+              />
+              {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
+              <ListRow
+                left={<IconBadge icon="bus-outline" />}
+                title="Rusty Bus"
+                subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
+                onPress={() => navigation.navigate('Bus')}
+              />
+              <OtherClubsRow last />
+            </Card>
+          </Disclosure>
+        </>
       ) : null}
 
       <View style={styles.filters} accessibilityLabel="Show rides by colour">
