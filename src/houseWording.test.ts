@@ -79,3 +79,19 @@ test('the Board fees section says Chapter fees, so it is not mistaken for the me
   const fees = FILES.find((f) => f.file === 'screens/fees.tsx')!;
   assert.match(fees.text, /<SectionTitle title="Chapter fees" \/>/);
 });
+
+// Constitution clause numbers like (5.4) stay on the board's own screens, where they cite the rule.
+// On screens every member reads they are noise, so they are left out there.
+const NO_CLAUSE_NUMBERS: [string, string[]][] = [
+  ['screens/attendance.tsx', ['(4.12)', '(5.4)']],
+  ['screens/notices.tsx', ['(5.5)']],
+  ['screens/fees.tsx', ['(4.11)']],
+  ['screens/fng.tsx', ['(4.11)']],
+  ['screens/checkin.tsx', ['(5.4)']],
+];
+for (const [file, refs] of NO_CLAUSE_NUMBERS) {
+  test(`member screens do not show clause numbers: ${file}`, () => {
+    const text = FILES.find((f) => f.file === file)!.text;
+    for (const ref of refs) assert.ok(!text.includes(ref), `${file} shows ${ref}`);
+  });
+}
