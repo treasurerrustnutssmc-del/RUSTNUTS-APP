@@ -197,6 +197,26 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
         </Notice>
       ) : null}
 
+      <SectionTitle title="Needs you" />
+      <Card style={{ padding: 0, gap: 0 }}>
+        {attention.length === 0 ? (
+          <View style={{ padding: space.lg }}>
+            <Small>Nothing needs you right now.</Small>
+          </View>
+        ) : (
+          attention.map((n, i) => (
+            <ListRow
+              key={n.text}
+              last={i === attention.length - 1}
+              left={<IconBadge icon="alert-circle-outline" tone="red" />}
+              title={n.text}
+              // Groups with something waiting are already open below; a tap only helps when one has been closed.
+              onPress={settled[n.group] ? undefined : () => setChosen((c) => ({ ...c, [n.group]: true }))}
+            />
+          ))
+        )}
+      </Card>
+
       {/* Stage 5: meetings and votes */}
       <Card style={{ padding: 0, gap: 0 }}>
         <ListRow
@@ -225,26 +245,6 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
       <BoardAdminCard />
       {/* The National Auditor's requests and reports */}
       <BoardAuditRow />
-
-      <SectionTitle title="Needs you" />
-      <Card style={{ padding: 0, gap: 0 }}>
-        {attention.length === 0 ? (
-          <View style={{ padding: space.lg }}>
-            <Small>Nothing needs you right now.</Small>
-          </View>
-        ) : (
-          attention.map((n, i) => (
-            <ListRow
-              key={n.text}
-              last={i === attention.length - 1}
-              left={<IconBadge icon="alert-circle-outline" tone="red" />}
-              title={n.text}
-              // Groups with something waiting are already open below; a tap only helps when one has been closed.
-              onPress={settled[n.group] ? undefined : () => setChosen((c) => ({ ...c, [n.group]: true }))}
-            />
-          ))
-        )}
-      </Card>
 
       {groups.map((g) => {
         const isOpen = chosen[g.id] ?? false;
