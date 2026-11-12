@@ -110,3 +110,9 @@ export function addDays(iso: string, days: number): string {
 export function dateHint(iso: string | null): string | null {
   return iso ? `${weekday(iso)} ${formatAuDate(iso)}` : null;
 }
+
+/** The weekday read-back plus the field's own instruction, so a typed date doesn't swallow it. */
+export function dateHintWith(iso: string | null, instruction: string | undefined): string | undefined {
+  const day = dateHint(iso);
+  return day && instruction ? `${day}. ${instruction}` : day ?? instruction;
+}

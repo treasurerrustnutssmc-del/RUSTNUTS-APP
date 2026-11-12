@@ -17,3 +17,9 @@ test('a fee that is not due for a while is one calm row, not a big card', () => 
   assert.equal(feesCardMode('2026-12-13', today), 'compact', '31 days away');
   assert.equal(feesCardMode('2026-12-31', today), 'compact');
 });
+
+test('the compact row says so when a payment is already claimed', async () => {
+  const { compactFeesSubtitle } = await import('./feesCard');
+  assert.equal(compactFeesSubtitle('2026-12-31', 0), 'Due 31/12/2026');
+  assert.equal(compactFeesSubtitle('2026-12-31', 12500), 'Due 31/12/2026. You’ve told the treasurer about $125.00.');
+});

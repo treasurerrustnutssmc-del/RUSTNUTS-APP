@@ -83,3 +83,18 @@ test('a valid typed date confirms itself with its weekday, so a wrong day or mon
   assert.equal(dateHint('2026-11-08'), 'Sun 08/11/2026');
   assert.equal(dateHint(null), null);
 });
+
+test('a typed date is read back with its weekday, for any day of the week', () => {
+  assert.equal(dateHint('2026-11-08'), 'Sun 08/11/2026');
+  assert.equal(dateHint('2026-11-09'), 'Mon 09/11/2026');
+  assert.equal(dateHint('2028-02-29'), 'Tue 29/02/2028');
+  assert.equal(dateHint('2026-12-31'), 'Thu 31/12/2026');
+});
+
+test('the weekday hint keeps the field’s own instruction after it', async () => {
+  const { dateHintWith } = await import('./dates');
+  assert.equal(dateHintWith('2026-11-08', 'You’ll get a reminder 30 days before.'), 'Sun 08/11/2026. You’ll get a reminder 30 days before.');
+  assert.equal(dateHintWith(null, 'You’ll get a reminder 30 days before.'), 'You’ll get a reminder 30 days before.');
+  assert.equal(dateHintWith('2026-11-08', undefined), 'Sun 08/11/2026');
+  assert.equal(dateHintWith(null, undefined), undefined);
+});

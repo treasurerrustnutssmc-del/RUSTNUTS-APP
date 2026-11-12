@@ -509,7 +509,7 @@ export function Field({
           input.style,
         ]}
       />
-      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : hint ? <Small>{hint}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : hint ? <Small aria-live="polite">{hint}</Small> : null}
     </View>
   );
 }

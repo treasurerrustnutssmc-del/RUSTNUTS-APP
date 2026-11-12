@@ -1,7 +1,7 @@
 // Fees: what you owe and how to pay it, a member's charges for the treasurer, and a chapter's
 // rates, PayID details, claims to confirm and who still owes.
 
-import { feesCardMode } from '../domain/feesCard';
+import { compactFeesSubtitle, feesCardMode } from '../domain/feesCard';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
@@ -103,7 +103,7 @@ export function HomeFeesCard() {
           last
           left={<IconBadge icon="cash-outline" />}
           title={`Fees: ${formatCents(owing)}`}
-          subtitle={`Due ${formatAuDate(firstDue)}`}
+          subtitle={compactFeesSubtitle(firstDue, claimed.reduce((sum, p) => sum + p.amountCents, 0))}
           onPress={() => navigation.navigate('MemberFees', { memberId: me.id })}
         />
       </Card>
