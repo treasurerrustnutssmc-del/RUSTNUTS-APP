@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BOARD_TOOLS, boardGroups, needsYou } from './boardLayout';
+import { boardGroups, needsYou } from './boardLayout';
 
 const none = { pending: 0, alerts: 0, noContact: 0, fngs: 0 };
 
@@ -42,9 +42,4 @@ test('each group says in one line what is inside, with counts where there are an
   assert.equal(g.money, 'Chapter fees');
   assert.equal(g.website, 'Enquiries, news, visits and app feedback');
   assert.equal(boardGroups(none).find((x) => x.id === 'people')!.summary, 'Nothing due');
-});
-
-test('the folded Board tools name what they hold, so nobody has to open them to know', () => {
-  assert.equal(BOARD_TOOLS.title, 'Board tools');
-  for (const w of ['meetings and votes', 'road rules sign-off', 'treasury', 'documents', 'conduct', 'merch']) assert.ok(BOARD_TOOLS.summary.toLowerCase().includes(w), w);
 });

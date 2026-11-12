@@ -17,7 +17,7 @@ import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 // Stage 4
 import { fngDue } from '../domain/joining';
-import { BOARD_TOOLS, boardGroups, needsYou, type BoardGroupId } from '../domain/boardLayout';
+import { boardGroups, needsYou, type BoardGroupId } from '../domain/boardLayout';
 import { settleOpen } from '../domain/groupOpen';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
@@ -149,7 +149,6 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   const [done, setDone] = useState<string | null>(null);
   // Which groups the person has opened or closed themselves; the rest follow what is waiting.
   const [chosen, setChosen] = useState<Partial<Record<BoardGroupId, boolean>>>({});
-  const [toolsOpen, setToolsOpen] = useState(false);
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const national = level === 'national';
@@ -197,6 +196,35 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
           {done}
         </Notice>
       ) : null}
+
+      {/* Stage 5: meetings and votes */}
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          left={<IconBadge icon="hammer" />}
+          title="Meetings and votes"
+          subtitle="Agendas, minutes, action items and votes"
+          onPress={() => navigation.navigate('Business')}
+          last={signoffs === null && !books}
+        />
+        {signoffs !== null ? (
+          <ListRow
+            left={<IconBadge icon="document-text-outline" />}
+            title="Road Rules sign-off"
+            subtitle={<Text style={styles.rowMeta}>{signoffs}</Text>}
+            onPress={() => navigation.navigate('RoadRulesSignoffs')}
+            last={!books}
+          />
+        ) : null}
+        {/* Stage 5B: treasurer */}
+        <TreasuryRow />
+        {/* Stage 5C: document library */}
+        <DocumentsBoardRow last />
+      </Card>
+
+      {/* Stage 5D: conduct records, merch, national */}
+      <BoardAdminCard />
+      {/* The National Auditor's requests and reports */}
+      <BoardAuditRow />
 
       <SectionTitle title="Needs you" />
       <Card style={{ padding: 0, gap: 0 }}>
@@ -312,39 +340,6 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
           </Disclosure>
         );
       })}
-
-      {/* The areas of the Board (meetings, treasury...), folded: Needs you comes first */}
-      <Disclosure title={BOARD_TOOLS.title} summary={BOARD_TOOLS.summary} open={toolsOpen} onToggle={() => setToolsOpen((o) => !o)}>
-        {/* Stage 5: meetings and votes */}
-        <Card style={{ padding: 0, gap: 0 }}>
-          <ListRow
-            left={<IconBadge icon="hammer" />}
-            title="Meetings and votes"
-            subtitle="Agendas, minutes, action items and votes"
-            onPress={() => navigation.navigate('Business')}
-            last={signoffs === null && !books}
-          />
-          {signoffs !== null ? (
-            <ListRow
-              left={<IconBadge icon="document-text-outline" />}
-              title="Road Rules sign-off"
-              subtitle={<Text style={styles.rowMeta}>{signoffs}</Text>}
-              onPress={() => navigation.navigate('RoadRulesSignoffs')}
-              last={!books}
-            />
-          ) : null}
-          {/* Stage 5B: treasurer */}
-          <TreasuryRow />
-          {/* Stage 5C: document library */}
-          <DocumentsBoardRow last />
-        </Card>
-
-        {/* Stage 5D: conduct records, merch, national */}
-        <BoardAdminCard />
-        {/* The National Auditor's requests and reports */}
-        <BoardAuditRow />
-
-      </Disclosure>
     </Screen>
   );
 }
