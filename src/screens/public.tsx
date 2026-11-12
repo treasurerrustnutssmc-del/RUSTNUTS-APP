@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { AppState, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { validateAdult, validateApplicationBike } from '../data/clubContext';
+import { useToast } from '../ui/Toast';
+import { JOIN_FIELDS, JOIN_STEPS, shownError, stepProblems, type JoinField } from '../domain/joinSteps';
 import { DEMO_PERSONAS } from '../data/demoData';
 import { STATUS_LABEL } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
@@ -106,6 +108,7 @@ export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
 
 export function SignInScreen({ route }: RootScreen<'SignIn'>) {
   const { isDemo, signInAs, data, sendCode, verifyCode } = useClub();
+  const toast = useToast();
   const joining = route.params?.joining ?? false;
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -125,6 +128,7 @@ export function SignInScreen({ route }: RootScreen<'SignIn'>) {
     setError(null);
     try {
       await sendCode(email);
+      if (step === 'code') toast('New code sent');
       setStep('code');
       setCode('');
     } catch (e) {
@@ -254,10 +258,12 @@ export function JoinScreen() {
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [joinAs, setJoinAs] = useState<JoinAs>('introduced');
   const [adult, setAdult] = useState(false);
-  const [showErrors, setShowErrors] = useState(false);
+  const [touched, setTouched] = useState<Partial<Record<JoinField, boolean>>>({});
+  const [step, setStep] = useState(0);
+  const touch = (...keys: JoinField[]) => setTouched((t) => ({ ...t, ...Object.fromEntries(keys.map((k) => [k, true])) }));
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
-  const errors = {
+  const errors: Record<JoinField, string | null> = {
     fullName: form.fullName.trim() ? null : 'Add your full name.',
     email: !isDemo || /^\S+@\S+\.\S+$/.test(form.email.trim()) ? null : 'Add an email address we can send your code to.',
     phone: form.phone.replace(/\D/g, '').length >= 8 ? null : 'Add a mobile number.',
@@ -274,11 +280,21 @@ export function JoinScreen() {
           : validateApplicationBike({ make: 'any', model: 'any', year: Number(form.year) }, today),
   };
   const valid = Object.values(errors).every((e) => e === null);
-  const err = (k: keyof typeof errors) => (showErrors ? errors[k] : null);
+  const err = (k: JoinField) => shownError(errors[k], !!touched[k]);
+  // Next checks this step's own fields; a problem keeps the person here with the field marked.
+  const next = () => {
+    if (stepProblems(errors, step).length > 0) {
+      touch(...JOIN_STEPS[step].fields);
+      return;
+    }
+    setStep(step + 1);
+  };
 
   const submit = async () => {
     if (!valid || !chapterId) {
-      setShowErrors(true);
+      touch(...JOIN_FIELDS);
+      const blocked = JOIN_STEPS.findIndex((_, i) => stepProblems(errors, i).length > 0);
+      if (blocked >= 0) setStep(blocked);
       return;
     }
     setBusy(true);
@@ -312,85 +328,113 @@ export function JoinScreen() {
         </Body>
       </Stack>
 
-      <Card>
-        <Field label="Full name" value={form.fullName} onChangeText={set('fullName')} autoComplete="name" error={err('fullName')} />
-        <Field label="Road name (if you have one)" value={form.roadName} onChangeText={set('roadName')} hint="What everyone calls you on a ride." />
-        {isDemo ? (
-          <Field
-            label="Email"
-            value={form.email}
-            onChangeText={set('email')}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            inputMode="email"
-            error={err('email')}
+      <Small>
+        Step {step + 1} of {JOIN_STEPS.length}: {JOIN_STEPS[step].title}
+      </Small>
+
+      {step === 0 ? (
+        <>
+          <Card>
+            <Field label="Full name" value={form.fullName} onChangeText={set('fullName')} onBlur={() => touch('fullName')} autoComplete="name" error={err('fullName')} />
+            <Field label="Road name (if you have one)" value={form.roadName} onChangeText={set('roadName')} hint="What everyone calls you on a ride." />
+            {isDemo ? (
+              <Field
+                label="Email"
+                value={form.email}
+                onChangeText={set('email')}
+                onBlur={() => touch('email')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                inputMode="email"
+                error={err('email')}
+              />
+            ) : (
+              <View style={{ gap: 2 }}>
+                <Label>Email</Label>
+                <Body>{authEmail}</Body>
+              </View>
+            )}
+            <Field label="Mobile" value={form.phone} onChangeText={set('phone')} onBlur={() => touch('phone')} keyboardType="phone-pad" autoComplete="tel" inputMode="tel" error={err('phone')} />
+          </Card>
+
+          <Card>
+            <Toggle
+              label="I’m 18 or over"
+              description="The app is for adults, Family included."
+              value={adult}
+              onChange={(v) => {
+                setAdult(v);
+                touch('adult');
+              }}
+            />
+            {err('adult') ? <Small style={{ color: colors.danger }}>{err('adult')}</Small> : null}
+          </Card>
+        </>
+      ) : null}
+
+      {step === 1 ? (
+        <Card>
+          <Choices
+            label="Chapter"
+            options={data.chapters.map((c) => ({ value: c.id, label: `${c.name} · ${c.area}` }))}
+            value={chapterId}
+            onChange={(v) => {
+              setChapterId(v);
+              touch('chapter');
+            }}
           />
-        ) : (
-          <View style={{ gap: 2 }}>
-            <Label>Email</Label>
-            <Body>{authEmail}</Body>
-          </View>
-        )}
-        <Field label="Mobile" value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" autoComplete="tel" inputMode="tel" error={err('phone')} />
-      </Card>
+          {err('chapter') ? <Small style={{ color: colors.danger }}>{err('chapter')}</Small> : null}
+          <Choices<JoinAs>
+            label="I’m joining as"
+            options={[
+              { value: 'introduced', label: 'A rider' },
+              { value: 'supporter', label: STATUS_LABEL.supporter },
+              { value: 'family', label: 'Family of a member' },
+            ]}
+            value={joinAs}
+            onChange={setJoinAs}
+          />
+          <Field label="Who introduced you?" value={form.introducedBy} onChangeText={set('introducedBy')} placeholder="A member’s name or road name" />
+        </Card>
+      ) : null}
 
-      <Card>
-        <Choices
-          label="Chapter"
-          options={data.chapters.map((c) => ({ value: c.id, label: `${c.name} · ${c.area}` }))}
-          value={chapterId}
-          onChange={setChapterId}
-        />
-        {err('chapter') ? <Small style={{ color: colors.danger }}>{err('chapter')}</Small> : null}
-        <Choices<JoinAs>
-          label="I’m joining as"
-          options={[
-            { value: 'introduced', label: 'A rider' },
-            { value: 'supporter', label: STATUS_LABEL.supporter },
-            { value: 'family', label: 'Family of a member' },
-          ]}
-          value={joinAs}
-          onChange={setJoinAs}
-        />
-        <Field label="Who introduced you?" value={form.introducedBy} onChangeText={set('introducedBy')} placeholder="A member's name or road name" />
-      </Card>
+      {step === 2 ? (
+        <>
+          <Card>
+            <Label>Your bike (optional)</Label>
+            <Row style={{ gap: space.sm, alignItems: 'flex-start' }}>
+              <View style={{ flex: 1, minWidth: 140 }}>
+                <Field label="Make" value={form.make} onChangeText={set('make')} onBlur={() => touch('bikeParts')} placeholder="Harley-Davidson" />
+              </View>
+              <View style={{ flex: 1, minWidth: 140 }}>
+                <Field label="Model" value={form.model} onChangeText={set('model')} onBlur={() => touch('bikeParts')} placeholder="Street Bob" error={err('bikeParts')} />
+              </View>
+            </Row>
+            <Field label="Year" value={form.year} onChangeText={set('year')} onBlur={() => touch('year')} keyboardType="number-pad" inputMode="numeric" maxLength={4} error={err('year')} />
+          </Card>
 
-      <Card>
-        <Toggle
-          label="I’m 18 or over"
-          description="The app is for adults, Family included."
-          value={adult}
-          onChange={setAdult}
-        />
-        {err('adult') ? <Small style={{ color: colors.danger }}>{err('adult')}</Small> : null}
-      </Card>
+          <Field
+            label="Anything the board should know?"
+            value={form.note}
+            onChangeText={set('note')}
+            multiline
+            placeholder="How long you’ve been riding, who you ride with…"
+          />
+        </>
+      ) : null}
 
-      <Card>
-        <Label>Your bike (optional)</Label>
-        <Row style={{ gap: space.sm, alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, minWidth: 140 }}>
-            <Field label="Make" value={form.make} onChangeText={set('make')} placeholder="Harley-Davidson" />
-          </View>
-          <View style={{ flex: 1, minWidth: 140 }}>
-            <Field label="Model" value={form.model} onChangeText={set('model')} placeholder="Street Bob" error={err('bikeParts')} />
-          </View>
-        </Row>
-        <Field label="Year" value={form.year} onChangeText={set('year')} keyboardType="number-pad" inputMode="numeric" maxLength={4} error={err('year')} />
-      </Card>
-
-      <Field
-        label="Anything the board should know?"
-        value={form.note}
-        onChangeText={set('note')}
-        multiline
-        placeholder="How long you've been riding, who you ride with…"
-      />
-
-      {showErrors && !valid ? <Notice tone="danger" title="A few things to fix">Check the fields marked in red.</Notice> : null}
+      {stepProblems(errors, step).some((f) => touched[f]) ? <Notice tone="danger" title="A few things to fix">Check the fields marked in red.</Notice> : null}
       {submitError ? <Notice tone="danger">{submitError}</Notice> : null}
       <PrivacyPolicyRow />
-      <Button label="Send my request" icon="paper-plane-outline" onPress={submit} busy={busy} />
+      <Row style={{ gap: space.sm }}>
+        {step > 0 ? <Button label="Back" kind="secondary" onPress={() => setStep(step - 1)} style={{ flex: 1 }} /> : null}
+        {step < JOIN_STEPS.length - 1 ? (
+          <Button label="Next" icon="arrow-forward" onPress={next} style={{ flex: 2 }} />
+        ) : (
+          <Button label="Send my request" icon="paper-plane-outline" onPress={submit} busy={busy} style={{ flex: 2 }} />
+        )}
+      </Row>
       {!isDemo ? <Button label="Sign out" kind="quiet" onPress={() => signOut()} /> : null}
       {/* Delete my account: signed in, but not asked to join yet */}
       {!isDemo && authEmail ? <Button label="Delete my account" kind="quiet" onPress={() => navigation.navigate('DeleteAccount')} /> : null}
