@@ -225,11 +225,14 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       <HomeNextRideCard onOpen={(rideId) => navigation.navigate('RideDetail', { rideId })} />
       {/* Stage 4: today's check-in and what you owe */}
       <HomeCheckinCard />
+      {myAlerts.map((a) => (
+        <Notice key={a.label} tone={a.state === 'expired' ? 'danger' : 'warn'} title={a.label}>
+          {`${a.description}. Update it in your profile once it’s renewed.`}
+        </Notice>
+      ))}
+      {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}
+      <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />
       <HomeFeesCard />
-      {/* Stage 7: birthdays and patch anniversaries this week */}
-      <HomeShoutoutsCard />
-      <HomeOnThisDayCard />
-      <HomeNewsCard />
 
       {isBoard && (pending.length > 0 || boardAlerts.length > 0) ? (
         <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
@@ -273,16 +276,12 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Card>
       ) : null}
 
+      {/* Stage 7: birthdays and patch anniversaries this week */}
+      <HomeShoutoutsCard />
+      <HomeOnThisDayCard />
+      <HomeNewsCard />
       {/* Ask the club, the club assistant */}
       <AskClubHomeRow onOpen={() => navigation.navigate('AskClub')} />
-      {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}
-      <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />
-
-      {myAlerts.map((a) => (
-        <Notice key={a.label} tone={a.state === 'expired' ? 'danger' : 'warn'} title={a.label}>
-          {`${a.description}. Update it in your profile once it’s renewed.`}
-        </Notice>
-      ))}
 
       {showProfileCard(done, checklist.length) ? (
         <Card>
