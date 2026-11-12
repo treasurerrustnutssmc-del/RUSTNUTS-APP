@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { activePositions } from '../domain/access';
 import { compassFor } from '../domain/compass';
-import { formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
+import { dateHint, formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
 import { positionTitles } from '../domain/home';
 import { LICENCE_LABEL, ROLE_LABEL } from '../domain/labels';
 import { displayName, hasEarnedDisc, initials } from '../domain/profile';
@@ -69,7 +69,7 @@ function useDateField(initialIso: string | null) {
   const trimmed = text.trim();
   const iso = trimmed ? parseAuDate(trimmed) : null;
   const error = trimmed && !iso ? 'Use DD/MM/YYYY, like 08/11/2026.' : null;
-  return { text, setText, iso, error };
+  return { text, setText, iso, error, hint: dateHint(iso) };
 }
 
 // ---------------------------------------------------------------------------
@@ -422,7 +422,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
           value={licenceClass}
           onChange={setLicenceClass}
         />
-        <Field label="Licence expiry" value={licence.text} onChangeText={licence.setText} placeholder="DD/MM/YYYY" inputMode="numeric" maxLength={10} error={licence.error} />
+        <Field label="Licence expiry" value={licence.text} onChangeText={licence.setText} placeholder="DD/MM/YYYY" inputMode="numeric" maxLength={10} error={licence.error} hint={licence.hint ?? undefined} />
         <Field
           label="First aid certificate expiry"
           value={firstAid.text}
@@ -431,7 +431,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
           inputMode="numeric"
           maxLength={10}
           error={firstAid.error}
-          hint="Required for Tail Gunners. Leave blank if you don't have one."
+          hint={firstAid.hint ?? 'Required for Tail Gunners. Leave blank if you don’t have one.'}
         />
       </Card>
       <Button label="Save" icon="checkmark" onPress={save} busy={busy} />
@@ -530,7 +530,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
             <LockNote text="You + board" />
           </Row>
           <Field label="Rego" value={rego} onChangeText={setRego} autoCapitalize="characters" placeholder="1AB 2CD" />
-          <Field label="Rego expiry" value={expiry.text} onChangeText={expiry.setText} placeholder="DD/MM/YYYY" inputMode="numeric" maxLength={10} error={expiry.error} hint="You’ll get a reminder 30 days before." />
+          <Field label="Rego expiry" value={expiry.text} onChangeText={expiry.setText} placeholder="DD/MM/YYYY" inputMode="numeric" maxLength={10} error={expiry.error} hint={expiry.hint ?? 'You’ll get a reminder 30 days before.'} />
         </Card>
       ) : null}
       <Button label={bike ? 'Save bike' : 'Add bike'} icon="checkmark" onPress={save} busy={busy} />

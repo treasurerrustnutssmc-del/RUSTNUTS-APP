@@ -105,3 +105,8 @@ export function addDays(iso: string, days: number): string {
   const t = new Date(Date.UTC(y, m - 1, d + days));
   return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`;
 }
+
+/** "Sun 08/11/2026": a typed date read back with its weekday, so a wrong day or month shows up as it is typed. */
+export function dateHint(iso: string | null): string | null {
+  return iso ? `${weekday(iso)} ${formatAuDate(iso)}` : null;
+}

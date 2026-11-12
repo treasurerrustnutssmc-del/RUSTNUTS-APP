@@ -10,6 +10,7 @@ import {
   parseAuDate,
   typeDate,
   weekday,
+  dateHint,
 } from './dates';
 
 test('reads Australian dates', () => {
@@ -76,4 +77,9 @@ test('the weekday of a calendar date', () => {
   assert.equal(weekday('2026-11-08'), 'Sun');
   assert.equal(weekday('2026-10-24'), 'Sat');
   assert.equal(weekday('2027-01-01'), 'Fri');
+});
+
+test('a valid typed date confirms itself with its weekday, so a wrong day or month is caught as it is typed', () => {
+  assert.equal(dateHint('2026-11-08'), 'Sun 08/11/2026');
+  assert.equal(dateHint(null), null);
 });
