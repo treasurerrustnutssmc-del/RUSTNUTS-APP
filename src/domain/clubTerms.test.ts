@@ -19,3 +19,10 @@ test('the member list groups them under Full members', () => {
   const groups = memberGroups([member('full'), member('nomad'), member('introduced')]);
   assert.deepEqual(groups.map((g) => g.title), ['Full members', 'Nomads', 'Hang Arounds']);
 });
+
+import { STATUS_LABEL as SHOP_STATUS } from './shop';
+
+test('shop order states read in plain words, not as insider shorthand', () => {
+  assert.equal(SHOP_STATUS.held, 'Waiting to send');
+  assert.equal(SHOP_STATUS.sent, 'Sent to the shop');
+});

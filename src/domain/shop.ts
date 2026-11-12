@@ -33,8 +33,8 @@ export const SHIPPING_METHODS: ShippingMethod[] = ['standard', 'express'];
 export const ELIGIBILITIES: ShopEligibility[] = ['any', 'patched', 'family'];
 
 export const STATUS_LABEL: Record<ShopOrderStatus, string> = {
-  held: 'Held',
-  sent: 'Sent',
+  held: 'Waiting to send',
+  sent: 'Sent to the shop',
   paid: 'Paid',
   posted: 'Posted',
   collected: 'Collected',
