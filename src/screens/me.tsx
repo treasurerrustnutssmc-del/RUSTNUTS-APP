@@ -17,6 +17,8 @@ import { NotificationSettings } from './notificationSettings';
 import { MeSocialSection } from './social';
 import { colors, space, type } from '../theme';
 import { useToast } from '../ui/Toast';
+import { useUnsavedGuard } from '../ui/useUnsavedGuard';
+import { hasChanges } from '../domain/dirty';
 import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
 import { settleOpen } from '../domain/groupOpen';
 import { meGroups, type MeGroupId } from '../domain/meLayout';
@@ -346,6 +348,12 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
   const firstAid = useDateField(priv?.firstAidExpiry ?? null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const guard = useUnsavedGuard(
+    hasChanges(
+      { fullName: me?.fullName, roadName: me?.roadName, bio: me?.bio, phone: priv?.phone, email: priv?.email, licenceClass: priv?.licenceClass, licence: formatAuDate(priv?.licenceExpiry ?? null), firstAid: formatAuDate(priv?.firstAidExpiry ?? null) },
+      { fullName, roadName, bio, phone, email, licenceClass, licence: licence.text, firstAid: firstAid.text },
+    ),
+  );
   if (!me) return null;
 
   const save = async () => {
@@ -361,6 +369,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
         { email, phone, licenceClass, licenceExpiry: licence.iso, firstAidExpiry: firstAid.iso },
       );
       toast('Profile saved');
+      guard.markSaved();
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -370,6 +379,7 @@ export function EditProfileScreen({ navigation }: RootScreen<'EditProfile'>) {
 
   return (
     <Screen>
+      {guard.prompt}
       <Card>
         <H2>About you</H2>
         <Field label="Full name" value={fullName} onChangeText={setFullName} autoComplete="name" />
@@ -436,6 +446,12 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const guard = useUnsavedGuard(
+    hasChanges(
+      { make: bike?.make, model: bike?.model, year: bike?.year ? String(bike.year) : '', nickname: bike?.nickname, isProject: bike?.isProject ?? false, rego: reg?.rego, expiry: formatAuDate(reg?.regoExpiry ?? null), range: bike?.rangeKm != null ? String(bike.rangeKm) : '' },
+      { make, model, year, nickname, isProject, rego, expiry: expiry.text, range },
+    ),
+  );
   const yearError = year.trim() && !/^\d{4}$/.test(year.trim()) ? 'Use a four-digit year.' : null;
   // Ride planning extras: the range, on a bike that's already in the garage.
   const rangeKm = readRange(range);
@@ -455,6 +471,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
       );
       if (bike && rangeKm !== (bike.rangeKm ?? null)) await setBikeRange(bike.id, rangeKm);
       toast(bike ? 'Bike saved' : 'Bike added');
+      guard.markSaved();
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -464,6 +481,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
 
   return (
     <Screen>
+      {guard.prompt}
       <Card>
         <Row style={{ gap: space.sm, alignItems: 'flex-start' }}>
           <View style={{ flex: 1, minWidth: 140 }}>
@@ -510,7 +528,7 @@ export function EditBikeScreen({ route, navigation }: RootScreen<'EditBike'>) {
           icon="trash-outline"
           onConfirm={() => {
             removeBike(bike.id)
-              .then(() => { toast('Bike removed'); navigation.goBack(); })
+              .then(() => { toast('Bike removed'); guard.markSaved(); navigation.goBack(); })
               .catch((e: Error) => setError(e.message));
           }}
         />
@@ -534,6 +552,9 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
   const [phone, setPhone] = useState(contact?.phone ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const guard = useUnsavedGuard(
+    hasChanges({ name: contact?.name, relationship: contact?.relationship, phone: contact?.phone }, { name, relationship, phone }),
+  );
 
   const save = async () => {
     setError(null);
@@ -541,6 +562,7 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
     try {
       await saveContact({ id: contact?.id ?? null, name, relationship, phone });
       toast(contact ? 'Contact saved' : 'Contact added');
+      guard.markSaved();
       navigation.goBack();
     } catch (e) {
       setError((e as Error).message);
@@ -550,6 +572,7 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
 
   return (
     <Screen>
+      {guard.prompt}
       <Notice title="Who sees this">Only you and your chapter board. On ride day, the Road Captain uses it if something goes wrong.</Notice>
       <Card>
         <Field label="Name" value={name} onChangeText={setName} autoComplete="name" />
@@ -571,7 +594,7 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
           icon="trash-outline"
           onConfirm={() => {
             removeContact(contact.id)
-              .then(() => { toast('Contact removed'); navigation.goBack(); })
+              .then(() => { toast('Contact removed'); guard.markSaved(); navigation.goBack(); })
               .catch((e: Error) => setError(e.message));
           }}
         />
