@@ -394,6 +394,7 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
           <BragRow last />
         </Card>
       </Disclosure>
+      <Button label="What do SAA, RC and the other short names mean?" kind="quiet" onPress={() => navigation.navigate('ClubWords')} />
       {groups.length === 0 ? (
         <Notice title="Nobody matches">Try a road name, a real name or a bike, like “Softail”.</Notice>
       ) : null}
