@@ -32,6 +32,7 @@ import { rideColourLegend } from '../domain/glossary';
 import { RIDE_TOOLS } from '../domain/ridesLayout';
 import { canQuickAnswer } from '../domain/quickAnswer';
 import { useToast } from '../ui/Toast';
+import { useSavedFilters } from '../data/savedFilters';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
@@ -111,13 +112,17 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
   const { me, data, today, isDemo, refresh } = useClub();
   const [shown, setShown] = useState<RideCategory[] | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const saved = useSavedFilters();
   if (!me) return null;
-  const categories = shown ?? defaultCategories(me, data.chapters);
+  const categories = shown ?? saved.filters.rideColours ?? defaultCategories(me, data.chapters);
   const months = upcomingByMonth(data.rides, categories, today);
   const anyComing = upcomingByMonth(data.rides, RIDE_CATEGORIES, today).length > 0;
   const freshness = isDemo ? null : calendarFreshness(data.ridesSyncedAt ?? null, data.rides.length > 0, new Date().toISOString());
-  const toggle = (c: RideCategory) =>
-    setShown(categories.includes(c) ? categories.filter((x) => x !== c) : [...categories, c]);
+  const toggle = (c: RideCategory) => {
+    const next = categories.includes(c) ? categories.filter((x) => x !== c) : [...categories, c];
+    setShown(next);
+    saved.save({ rideColours: next });
+  };
 
   const routeCount = libraryFor(data, 'all').length;
 

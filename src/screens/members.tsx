@@ -46,6 +46,7 @@ import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
 import { HomeNextRideCard } from './rides';
 import { MORE_FROM_CLUB } from '../domain/membersLayout';
+import { useSavedFilters } from '../data/savedFilters';
 import { CLUB_NUMBERS, showProfileCard } from '../domain/homeLayout';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import { memberGroups } from '../domain/memberGroups';
@@ -329,7 +330,14 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
 export function MembersScreen({ navigation }: TabScreen<'Members'>) {
   const { me, data, isDemo, refresh } = useClub();
   const [query, setQuery] = useState('');
-  const [chapterId, setChapterId] = useState<string>('all');
+  const [chosenChapter, setChosenChapter] = useState<string | null>(null);
+  const saved = useSavedFilters();
+  // What was chosen this visit, else what was remembered, else everyone.
+  const chapterId = chosenChapter ?? saved.filters.memberChapter ?? 'all';
+  const setChapterId = (id: string) => {
+    setChosenChapter(id);
+    saved.save({ memberChapter: id });
+  };
   const [moreOpen, setMoreOpen] = useState(false);
 
   const list = useMemo(() => {
