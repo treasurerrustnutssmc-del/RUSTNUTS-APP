@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calendarFreshness, defaultCategories, lastDay, melbourneDate, melbourneTime, nextRide, rsvpCounts, rsvpToast, rsvpProblem, upcomingByMonth } from './rides';
+import { calendarFreshness, defaultCategories, lastDay, melbourneDate, melbourneTime, nextRide, rsvpCounts, rsvpProblem, rsvpToast, upcomingByMonth } from './rides';
 import type { Chapter, Member, Ride, Rsvp } from './types';
 
 const chapters: Chapter[] = [
@@ -121,4 +121,14 @@ test('an RSVP is confirmed in words, with Undo only when there was an earlier an
   assert.deepEqual(rsvpToast('going', 'maybe'), { text: 'Saved: Maybe', undoTo: 'going' });
   assert.deepEqual(rsvpToast('maybe', 'no'), { text: 'Saved: Can’t make it', undoTo: 'maybe' });
   assert.deepEqual(rsvpToast('going', 'going'), { text: 'Saved: Going', undoTo: null }, 'tapping the same answer again changes nothing to undo');
+});
+
+test('a cancelled ride that has a live replacement the same day is not listed twice, but a lone cancelled ride still shows', () => {
+  const rides = [
+    ride({ id: 'old', title: 'West Pink Ribbon ride', startsAt: '2026-11-27T22:30:00.000Z', cancelledAt: '2026-11-20T00:00:00.000Z' }),
+    ride({ id: 'new', title: 'West Pink Ribbon ride', startsAt: '2026-11-27T23:00:00.000Z' }),
+    ride({ id: 'alone', title: 'West twisties', startsAt: '2026-12-12T22:00:00.000Z', cancelledAt: '2026-12-01T00:00:00.000Z' }),
+  ];
+  const ids = upcomingByMonth(rides, ['west'], '2026-11-01').flatMap((m) => m.rides.map((r) => r.id));
+  assert.deepEqual(ids, ['new', 'alone']);
 });

@@ -65,6 +65,17 @@ export function answersClose(ride: Ride): number {
   return ride.allDay ? endOfFirstDay(ride) : new Date(ride.startsAt).getTime();
 }
 
+/**
+ * A cancelled ride is hidden when the same ride (same title and colour, same Melbourne day) is on again, so a
+ * moved start time does not list the ride twice. A cancelled ride with no replacement still shows.
+ */
+function isReplaced(r: Ride, all: Ride[]): boolean {
+  if (!r.cancelledAt) return false;
+  const day = melbourneDate(r.startsAt);
+  const title = r.title.trim().toLowerCase();
+  return all.some((o) => o.id !== r.id && !o.cancelledAt && o.category === r.category && melbourneDate(o.startsAt) === day && o.title.trim().toLowerCase() === title);
+}
+
 /** Rides from today on, a multi-day one until its last day (cancelled ones too, so people see
  *  they're off), by the Melbourne month they start in. */
 export function upcomingByMonth(
@@ -75,6 +86,7 @@ export function upcomingByMonth(
   const months: { key: string; month: string; rides: Ride[] }[] = [];
   const shown = rides
     .filter((r) => categories.includes(r.category) && lastDay(r) >= today)
+    .filter((r, _i, all) => !isReplaced(r, all))
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   for (const ride of shown) {
     const key = melbourneDate(ride.startsAt).slice(0, 7);
