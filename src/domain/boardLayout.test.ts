@@ -39,7 +39,7 @@ test('each group says in one line what is inside, with counts where there are an
   assert.equal(g.approvals, 'Nobody waiting');
   assert.equal(g.people, '1 due, 2 without a contact, 3 FNG reviews');
   assert.equal(g.meetings, 'Attendance and check-ins');
-  assert.equal(g.money, 'Fees');
+  assert.equal(g.money, 'Chapter fees');
   assert.equal(g.website, 'Enquiries, news, visits and app feedback');
   assert.equal(boardGroups(none).find((x) => x.id === 'people')!.summary, 'Nothing due');
 });

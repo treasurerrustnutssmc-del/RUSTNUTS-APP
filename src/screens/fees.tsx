@@ -728,7 +728,7 @@ export function BoardFees() {
   if (chapters.length === 0) return null;
   return (
     <>
-      <SectionTitle title="Fees" />
+      <SectionTitle title="Chapter fees" />
       <Card style={{ padding: 0, gap: 0 }}>
         {chapters.map((c, i) => {
           const charges = (data.charges ?? []).filter((x) => x.chapterId === c.id);

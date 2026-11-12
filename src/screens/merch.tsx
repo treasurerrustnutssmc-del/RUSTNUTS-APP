@@ -98,7 +98,6 @@ export function MerchScreen() {
   return (
     <Screen>
       <Stack gap={space.xs}>
-        <H1>Merch</H1>
         <Small>Members’ designs are here and in the club Discord, public ones on the website.</Small>
       </Stack>
       <ClubShopSection />

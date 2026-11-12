@@ -57,6 +57,9 @@ const RULES: [string, RegExp][] = [
   ['Say "app team", not "app keepers"', /app keepers/],
   ['Say what is due: licence and rego renewals', /'renewal needs' : 'renewals need'/],
   ['Support is called Support in the club links and on Welcome', /(label: 'Support and resources'|label="Support and resources")/],
+  ['The documents rows say Club documents, matching Me', /title="Documents"/],
+  ['The Board row for the shop is not just Merch (that is the tab)', /title="Merch"/],
+  ['The Merch tab does not repeat its own name as a heading', /<H1>Merch<\/H1>/],
   ['The create-ride button says "Create ride"', /Make the ride/i],
 ];
 
@@ -70,4 +73,9 @@ test('the club shop says prices are in AUD (it says nothing about GST until the 
   const shop = FILES.find((f) => f.file === 'screens/shop.tsx')!;
   assert.match(shop.text, /All prices are in AUD\./);
   assert.doesNotMatch(shop.text, /GST/);
+});
+
+test('the Board fees section says Chapter fees, so it is not mistaken for the member Fees on Me', () => {
+  const fees = FILES.find((f) => f.file === 'screens/fees.tsx')!;
+  assert.match(fees.text, /<SectionTitle title="Chapter fees" \/>/);
 });
