@@ -275,6 +275,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
                   {/* Lane E: live ride */}
                   <Small>Live ride location sharing is always your choice, switches off after the ride, and keeps nothing.</Small>
                 </Card>
+                {/* Delete my account: with the settings, away from Sign out */}
+                <Button label="Delete my account" kind="quiet" onPress={() => navigation.navigate('DeleteAccount')} />
               </>
             ) : null}
 
@@ -312,8 +314,6 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       })}
 
       <Button label="Sign out" kind="secondary" icon="log-out-outline" onPress={() => signOut()} />
-      {/* Delete my account */}
-      <Button label="Delete my account" kind="quiet" onPress={() => navigation.navigate('DeleteAccount')} />
       {isDemo ? <Small style={{ textAlign: 'center' }}>Demo build: changes reset when you reload.</Small> : null}
     </Screen>
   );
