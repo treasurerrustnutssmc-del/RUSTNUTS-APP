@@ -6,7 +6,7 @@ Keep the three in step: when the app starts collecting something new, change the
 - **Privacy policy URL (both stores):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/privacy.html
 - **Support URL (both stores):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/support.html
 - **Account deletion web link (Google Play asks for one):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/delete-account.html
-  (in the app: Me, Delete my account; without the app: email apps@rustnutssmc.com.au).
+  (in the app: Me, Notifications and privacy, Delete my account; without the app: email apps@rustnutssmc.com.au).
 - The same pages are also on the club domain (www.rustnutssmc.com.au/app/privacy.html, support.html, delete-account.html). The store forms keep the GitHub Pages addresses until the club domain has stayed up for a good while (it was down on 1 Nov 2026); each GitHub copy carries a note (not a redirect) pointing to the club-domain copy. Switch the forms over later in one go.
 - **Contact email:** apps@rustnutssmc.com.au
 
@@ -40,8 +40,8 @@ Rules used for both forms:
 
 ## Google Play: Data safety form
 
-**Entered and saved in Play Console on 3 Nov 2026** (not yet sent for review). Change this table and the
-policy together if anything changes.
+**Entered and saved in Play Console on 03/11/2026**, sent for review on 04/11/2026 and approved the
+same day. Change this table and the policy together if anything changes.
 
 **Overview questions**
 
