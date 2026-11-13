@@ -122,17 +122,19 @@ test('nothing waits for an AGM reveal: launch day is the day both stores approve
   assert.match(brief, /Launch day is the day both stores approve/);
 });
 
-test('Android installs from the public Google Play listing, with no tester step', () => {
-  // Jeff, 14 Nov 2026: the Android app goes public on Google Play at launch, so members are never put on
-  // a tester list. The iPhone app stays unlisted, reached by the link in the invite.
+test('both apps install from public store listings: no tester step, no link-only iPhone app', () => {
+  // Jeff, 14 Nov 2026: both apps go public at launch. Android members are never put on a Google Play
+  // tester list, and the iPhone app is no longer unlisted, so it can be found by searching the App Store.
   const get = section('get-the-app');
-  assert.match(get, /Android: tap the Google Play link in your invite, then Install\./);
-  assert.match(get, /search Google Play for Rustnuts SMC/);
-  assert.match(get, /iPhone: tap the App Store link in your invite, then Get\. The app is unlisted/);
+  assert.match(get, /Android: tap the Google Play link in your invite, then Install\. You can also search Google Play for Rustnuts SMC\./);
+  assert.match(get, /iPhone: tap the App Store link in your invite, then Get\. You can also search the App Store for Rustnuts SMC\./);
   assert.doesNotMatch(html, /Become a tester|closed test|invited to test|will add it/i, 'the guide page, hidden notes included');
+  assert.doesNotMatch(html, /unlisted|only way in|won’t find it/i, 'the guide page, hidden notes included');
   const brief = readFileSync(join(__dirname, '../../docs/BRIEF-for-collaborators.md'), 'utf8');
-  assert.doesNotMatch(brief, /In the stores but hidden/, 'the collaborator brief');
-  assert.match(brief, /public on Google Play from launch day/);
+  assert.doesNotMatch(brief, /In the stores but hidden|unlisted/i, 'the collaborator brief');
+  assert.match(brief, /public on Google Play and in the App Store from launch day/);
+  const product = readFileSync(join(__dirname, '../../PRODUCT.md'), 'utf8');
+  assert.doesNotMatch(product, /Apple unlisted/i, 'PRODUCT.md');
 });
 
 test('the guide shows the day it was last changed', () => {
