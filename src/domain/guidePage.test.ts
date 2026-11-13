@@ -120,6 +120,13 @@ test('nothing waits for an AGM reveal: launch day is the day both stores approve
   const brief = readFileSync(join(__dirname, '../../docs/BRIEF-for-collaborators.md'), 'utf8');
   assert.doesNotMatch(brief, /reveal is aimed at|\| Reveal \|/i, 'the collaborator brief');
   assert.match(brief, /Launch day is the day both stores approve/);
+  // The website's Get the app section goes live on launch day, not after it, and either store can be the
+  // last to approve: Google reviews the public Android release as well.
+  assert.doesNotMatch(brief, /goes up after launch|after launch, not before|Apple sets the date/i, 'the collaborator brief');
+  const product = readFileSync(join(__dirname, '../../PRODUCT.md'), 'utf8');
+  assert.doesNotMatch(product, /reveal is aimed at|AGM reveal|goes up \(after launch\)/i, 'PRODUCT.md');
+  const sitePage = readFileSync(join(__dirname, './sitePage.ts'), 'utf8');
+  assert.doesNotMatch(sitePage, /until Apple approves/i, 'the launch rule written in sitePage.ts');
 });
 
 test('both apps install from public store listings: no tester step, no link-only iPhone app', () => {
@@ -130,11 +137,15 @@ test('both apps install from public store listings: no tester step, no link-only
   assert.match(get, /iPhone: tap the App Store link in your invite, then Get\. You can also search the App Store for Rustnuts SMC\./);
   assert.doesNotMatch(html, /Become a tester|closed test|invited to test|will add it/i, 'the guide page, hidden notes included');
   assert.doesNotMatch(html, /unlisted|only way in|won’t find it/i, 'the guide page, hidden notes included');
+  // The old plans must not come back in a new sentence either. The hidden note says nobody is put on a
+  // tester list, so this wider check reads only the words a member sees.
+  assert.doesNotMatch(text, /tester|opt-in|join the test|won[’']t find|not (show|appear) in search/i, 'the words a member sees');
   const brief = readFileSync(join(__dirname, '../../docs/BRIEF-for-collaborators.md'), 'utf8');
   assert.doesNotMatch(brief, /In the stores but hidden|unlisted/i, 'the collaborator brief');
   assert.match(brief, /public on Google Play and in the App Store from launch day/);
   const product = readFileSync(join(__dirname, '../../PRODUCT.md'), 'utf8');
-  assert.doesNotMatch(product, /Apple unlisted/i, 'PRODUCT.md');
+  assert.doesNotMatch(product, /unlisted|tester list|Become a tester|closed test/i, 'PRODUCT.md');
+  assert.match(product, /public on the App Store and Google Play from launch day/);
 });
 
 test('the guide shows the day it was last changed', () => {

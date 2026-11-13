@@ -10,7 +10,7 @@
  * when the website is down.
  *
  * Launch rule: none of these pages is linked from the site's nav or sitemap, and none may name the
- * app stores, until Apple approves the iPhone app (`mentionsStores` keeps that honest).
+ * app stores, until launch day, the day both stores approve (`mentionsStores` keeps that honest).
  */
 
 export const SITE_ORIGIN = 'https://www.rustnutssmc.com.au';

@@ -59,7 +59,7 @@ quietly in the background, where mostly only the board sees it.
   secret test crew rides with it first.
 - **Launch day is the day both stores approve** (Jeff, 14/11/2026). Members get their invites and the
   club website's Get the app section goes live together; nothing is held for a later announcement.
-  Apple sets the date. Quality comes before dates.
+  Whichever store approves last sets the date (Apple is the long wait). Quality comes before dates.
 
 ---
 
@@ -85,7 +85,7 @@ Status words used below:
 | 5C Document library | Constitution, Road Rules, bylaws with versions, review dates, member sign-off | **Not started** (next on the Stage 5 thread) |
 | 5D National | Chapter contributions, new chapter setup, term limits, disciplinary records | **Not started** |
 | 6 Phone superpowers | Live ride mode, emergency and dropped-out buttons, offline cache, share a ride out, share into the app, notifications and push, ride comms voice (LiveKit) | **Merged, waiting:** code all merged; push held until launch; real-phone tests outstanding |
-| Launch | Every member gets an invite, and the website's Get the app section goes live | The day both stores approve (waiting on Apple) |
+| Launch | Every member gets an invite, and the website's Get the app section goes live | The day both stores approve (Apple is the long wait; Google also reviews the public Android release) |
 | 7 Fun and wild ones | Garage builds, badges, shout-outs, swap-and-sell, AI assistant, meeting minutes from a recording, catch-ups, ride replays, public site, auto-posting | **Not started** (after the main stages; mostly after launch) |
 
 ---
@@ -180,7 +180,7 @@ Everything in this section is in scope. Each line says where it stands today.
 | Auto-posting to Facebook and Instagram (the weekly post rule) | **Not started** |
 | Merch shop | **Not started** |
 | Sponsors page | **Not started** |
-| "Get the app" link on the club website | **Not started on purpose:** goes up after launch |
+| "Get the app" section on the club website | **Built and hidden** (01/11/2026): goes live on launch day, with both store buttons |
 
 ### The wild ones
 
@@ -345,7 +345,8 @@ proxying link-card images; Rusty Bus editing and running costs.
   `purge-files`, which deletes a departed member's files, before launch).
 - Reviewing PRs, and running the app on a real phone (Chris's phone counts towards the Stage 6 phone
   tests in the project's `build/lane-e/real-phone-tests.md`).
-- Website side: the ride calendar source, and later the "Get the app" link (after launch, not before).
+- Website side: the ride calendar source, and the "Get the app" section, which goes live on launch day
+  (not before).
 - A Stage 7 item that no lane owns, after telling Jeff so a Claude thread doesn't start the same thing.
 
 **Rights in contributions**
