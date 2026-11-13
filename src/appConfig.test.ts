@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { APP_LINK_HOST, APP_LINK_PATH } from './domain/appLinks';
 
 const expo = JSON.parse(readFileSync(join(__dirname, '../app.json'), 'utf8')).expo;
 const eas = JSON.parse(readFileSync(join(__dirname, '../eas.json'), 'utf8'));
@@ -185,13 +186,46 @@ test('the app privacy manifest declares every data type on the App Store privacy
     [`${p}CrashData`]: false,
     [`${p}CustomerSupport`]: true,
     [`${p}OtherDiagnosticData`]: true,
+    [`${p}CoarseLocation`]: true,
+    [`${p}Health`]: true,
+    [`${p}ProductInteraction`]: true,
+  };
+  const purpose = 'NSPrivacyCollectedDataTypePurpose';
+  // Club-chat photos the crew puts on the public website count as the developer's own marketing.
+  const purposes: Record<string, string[]> = {
+    [`${p}PhotosorVideos`]: [`${purpose}AppFunctionality`, `${purpose}DeveloperAdvertising`],
   };
   assert.deepEqual(collected.map((c) => c.NSPrivacyCollectedDataType).sort(), Object.keys(linked).sort());
   for (const c of collected) {
     assert.equal(c.NSPrivacyCollectedDataTypeLinked, linked[c.NSPrivacyCollectedDataType], `${c.NSPrivacyCollectedDataType} linked`);
     assert.equal(c.NSPrivacyCollectedDataTypeTracking, false, `${c.NSPrivacyCollectedDataType} not tracking`);
-    assert.deepEqual(c.NSPrivacyCollectedDataTypePurposes, ['NSPrivacyCollectedDataTypePurposeAppFunctionality']);
+    assert.deepEqual(
+      c.NSPrivacyCollectedDataTypePurposes,
+      purposes[c.NSPrivacyCollectedDataType] ?? [`${purpose}AppFunctionality`],
+      `${c.NSPrivacyCollectedDataType} purposes`,
+    );
   }
+});
+
+// Version 1.0 is iPhone only (Jeff, 13 Nov 2026). iPads run it in the iPhone-size window.
+test('1.0 is an iPhone app: no iPad layout, so no iPad screenshots', () => {
+  assert.equal(expo.ios.supportsTablet, false);
+});
+
+// Website links that open the app: only /open/ on www, so every other club page stays a web page.
+test('Android opens only www.rustnutssmc.com.au/open links in the app, verified', () => {
+  const filters = expo.android.intentFilters ?? [];
+  const https = filters.filter((f: { data?: { scheme?: string }[] }) => (f.data ?? []).some((d) => d.scheme === 'https'));
+  assert.equal(https.length, 1);
+  const [f] = https;
+  assert.equal(f.action, 'VIEW');
+  assert.equal(f.autoVerify, true);
+  assert.deepEqual([...f.category].sort(), ['BROWSABLE', 'DEFAULT']);
+  assert.deepEqual(f.data, [{ scheme: 'https', host: APP_LINK_HOST, pathPrefix: APP_LINK_PATH }]);
+});
+
+test('iPhone opens www.rustnutssmc.com.au links in the app (the website file names the paths)', () => {
+  assert.deepEqual(expo.ios.associatedDomains, [`applinks:${APP_LINK_HOST}`]);
 });
 
 // Google Play asks for a declaration and a video for every foreground-service type an Android app

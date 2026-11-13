@@ -91,11 +91,9 @@ SMS or MMS, Music files, Other audio files, Installed apps.
 
 ## Apple: App Privacy (App Store Connect)
 
-**Before the first iPhone build:** the iOS privacy manifest in `app.json` (`ios.privacyManifests`,
-checked by `src/appConfig.test.ts`) still lists the rows from 31 Oct. Add Coarse Location, Health and
-Product Interaction (linked, not tracking, App Functionality) and Developer's Advertising to Photos or
-Videos there, test first, in the same batch as the next native build (an `app.json` change needs new
-tester builds).
+**iOS privacy manifest:** `app.json` (`ios.privacyManifests`) lists every row of the table below
+(Coarse Location, Health and Product Interaction added, and Developer's Advertising on Photos or
+Videos, 14/11/2026). `src/appConfig.test.ts` fails if the two drift apart.
 
 **Do you or your third-party partners collect data from this app?** Yes.
 **Tracking:** No data is used to track you. (No App Tracking Transparency prompt needed.)

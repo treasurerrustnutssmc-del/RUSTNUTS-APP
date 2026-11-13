@@ -9,26 +9,34 @@ const ride = (over: Partial<Ride> = {}): Ride => ({
 });
 
 test('a timed ride', () => {
-  assert.equal(rideShareText(ride()), 'West breakfast run · Sat 07/11/2026 8:30 am · BP Ravenhall. Answer in the Rustnuts app.');
+  assert.equal(rideShareText(ride()), 'West breakfast run · Sat 07/11/2026 8:30 am · BP Ravenhall. Answer in the Rustnuts app: https://www.rustnutssmc.com.au/open/?ride=r-1');
 });
 
 test('an all-day ride, on one day and over several', () => {
   const day = { allDay: true, startsAt: '2026-11-06T13:00:00.000Z' };
   assert.equal(
     rideShareText(ride({ ...day, title: 'Show day', endsAt: '2026-11-07T13:00:00.000Z' })),
-    'Show day · Sat 07/11/2026 · All day · BP Ravenhall. Answer in the Rustnuts app.',
+    'Show day · Sat 07/11/2026 · All day · BP Ravenhall. Answer in the Rustnuts app: https://www.rustnutssmc.com.au/open/?ride=r-1',
   );
   assert.equal(
     rideShareText(ride({ ...day, title: 'Camp weekend', endsAt: '2026-11-08T13:00:00.000Z' })),
-    'Camp weekend · Sat 07/11/2026 · All day, to 08/11/2026 · BP Ravenhall. Answer in the Rustnuts app.',
+    'Camp weekend · Sat 07/11/2026 · All day, to 08/11/2026 · BP Ravenhall. Answer in the Rustnuts app: https://www.rustnutssmc.com.au/open/?ride=r-1',
   );
 });
 
 test('no location, and cancelled', () => {
-  assert.equal(rideShareText(ride({ location: null })), 'West breakfast run · Sat 07/11/2026 8:30 am. Answer in the Rustnuts app.');
-  assert.equal(rideShareText(ride({ location: '  ' })), 'West breakfast run · Sat 07/11/2026 8:30 am. Answer in the Rustnuts app.');
+  assert.equal(rideShareText(ride({ location: null })), 'West breakfast run · Sat 07/11/2026 8:30 am. Answer in the Rustnuts app: https://www.rustnutssmc.com.au/open/?ride=r-1');
+  assert.equal(rideShareText(ride({ location: '  ' })), 'West breakfast run · Sat 07/11/2026 8:30 am. Answer in the Rustnuts app: https://www.rustnutssmc.com.au/open/?ride=r-1');
   assert.equal(
     rideShareText(ride({ cancelledAt: '2026-11-01T00:00:00.000Z' })),
-    'CANCELLED: West breakfast run · Sat 07/11/2026 8:30 am · BP Ravenhall.',
+    'CANCELLED: West breakfast run · Sat 07/11/2026 8:30 am · BP Ravenhall. https://www.rustnutssmc.com.au/open/?ride=r-1',
   );
+});
+
+test('a shared ride carries its link, which opens the ride in the app', () => {
+  assert.equal(
+    rideShareText(ride()),
+    'West breakfast run · Sat 07/11/2026 8:30 am · BP Ravenhall. Answer in the Rustnuts app: https://www.rustnutssmc.com.au/open/?ride=r-1',
+  );
+  assert.match(rideShareText(ride({ cancelledAt: '2026-11-05T00:00:00Z' })), /^CANCELLED: .*\. https:\/\/www\.rustnutssmc\.com\.au\/open\/\?ride=r-1$/);
 });
