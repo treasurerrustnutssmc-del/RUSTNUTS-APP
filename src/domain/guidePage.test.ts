@@ -122,6 +122,19 @@ test('nothing waits for an AGM reveal: launch day is the day both stores approve
   assert.match(brief, /Launch day is the day both stores approve/);
 });
 
+test('Android installs from the public Google Play listing, with no tester step', () => {
+  // Jeff, 14 Nov 2026: the Android app goes public on Google Play at launch, so members are never put on
+  // a tester list. The iPhone app stays unlisted, reached by the link in the invite.
+  const get = section('get-the-app');
+  assert.match(get, /Android: tap the Google Play link in your invite, then Install\./);
+  assert.match(get, /search Google Play for Rustnuts SMC/);
+  assert.match(get, /iPhone: tap the App Store link in your invite, then Get\. The app is unlisted/);
+  assert.doesNotMatch(html, /Become a tester|closed test|invited to test|will add it/i, 'the guide page, hidden notes included');
+  const brief = readFileSync(join(__dirname, '../../docs/BRIEF-for-collaborators.md'), 'utf8');
+  assert.doesNotMatch(brief, /In the stores but hidden/, 'the collaborator brief');
+  assert.match(brief, /public on Google Play from launch day/);
+});
+
 test('the guide shows the day it was last changed', () => {
   assert.match(text, /Last updated \d{2}\/\d{2}\/\d{4}/);
 });

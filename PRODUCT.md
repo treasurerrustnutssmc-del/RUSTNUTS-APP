@@ -8,7 +8,7 @@ Facts come from Jeff (founder, National Chairman and treasurer) unless marked *(
 
 adaptive
 
-One Expo codebase ships to Android and iPhone through the stores (Apple unlisted, Google under an organisation account), with a web build used for previews. Android comes first in practice: Jeff works from a Samsung Galaxy S25 Ultra.
+One Expo codebase ships to Android and iPhone through the stores (Apple unlisted; Google Play public from launch day, under the club's organisation account), with a web build used for previews. Android comes first in practice: Jeff works from a Samsung Galaxy S25 Ultra.
 
 ## Users
 
