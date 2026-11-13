@@ -34,6 +34,7 @@ test('nothing saved, or junk saved, means not agreed', () => {
     const record = parseAiConsent(raw);
     assert.equal(hasAiConsent(record, 'askClub'), false, String(raw));
     assert.equal(hasAiConsent(record, 'catchUp'), false, String(raw));
+    assert.equal(hasAiConsent(record, 'otterMinutes'), false, String(raw));
   }
 });
 
@@ -43,6 +44,14 @@ test('agreeing to one feature does not agree to the other', () => {
   assert.equal(hasAiConsent(record, 'catchUp'), false);
   const both = withAiConsent(record, 'catchUp', '2026-11-03');
   assert.deepEqual(both, { askClub: '2026-11-02', catchUp: '2026-11-03' });
+});
+
+test('Draft from Otter is the third AI feature and asks on its own', () => {
+  assert.deepEqual([...AI_FEATURES], ['askClub', 'catchUp', 'otterMinutes']);
+  const record = withAiConsent({ askClub: '2026-11-02', catchUp: '2026-11-02' }, 'otterMinutes', '2026-11-14');
+  assert.equal(hasAiConsent(record, 'otterMinutes'), true);
+  assert.equal(hasAiConsent({ askClub: '2026-11-02', catchUp: '2026-11-02' }, 'otterMinutes'), false);
+  assert.equal(hasAiConsent(parseAiConsent('{"otterMinutes":"2026-11-14"}'), 'otterMinutes'), true);
 });
 
 test('a saved agreement round-trips through the store', async () => {
@@ -80,6 +89,11 @@ test('each consent card names Anthropic (Claude), says what is sent, no training
   }
   const catchUp = AI_CONSENT.catchUp.sends.join(' ').toLowerCase();
   for (const words of ['newest messages', 'who wrote', 'when']) assert.ok(catchUp.includes(words), `catchUp sends: ${words}`);
+  // Matches what the ask-club function's minutes mode sends (supabase/functions/_shared/minutesDraft.ts).
+  const otter = AI_CONSENT.otterMinutes.sends.join(' ').toLowerCase();
+  for (const words of ['transcript', 'agenda', 'board', 'names', 'road names', 'chapters', 'membership']) {
+    assert.ok(otter.includes(words), `otterMinutes sends: ${words}`);
+  }
 });
 
 test('the standing provider lines name Anthropic', () => {

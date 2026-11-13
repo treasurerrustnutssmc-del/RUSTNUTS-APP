@@ -5,20 +5,22 @@
 
 import React, { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useAiConsent } from '../data/aiConsent';
 import { useClub } from '../data/ClubStore';
 import { useMinutesApi, type DraftResult } from '../data/minutesApi';
 import { sampleTranscript } from '../data/minutesDemo';
 import { pickTranscript } from '../data/transcriptFile';
+import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { formatAuDate } from '../domain/dates';
 import { attendanceSessionFor, draftMinutesProblem, transcriptProblem, draftPlan, wordCount } from '../domain/otterMinutes';
 import { melbourneDate } from '../domain/rides';
 import type { RootScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
 import { Button, Card, ConfirmButton, Field, H1, Notice, Screen, SectionTitle, Small, Stack } from '../ui/primitives';
+import { AiConsentCard } from '../ui/AiConsentCard';
 import { RadioRow } from './adminBits';
 
 const HOW_TO = 'In Otter, open the recording, tap ⋯ › Export › Text (.txt) and save it to the phone. Or copy the transcript in Otter and paste it here.';
-const PRIVACY = 'The transcript goes to Anthropic, the club’s AI provider, to write the draft and isn’t kept. It comes out of the Ask the club budget.';
 
 const toggle = <T,>(set: Set<T>, id: T): Set<T> => {
   const next = new Set(set);
@@ -37,6 +39,7 @@ export function OtterMinutesScreen({ route, navigation }: RootScreen<'OtterMinut
   const club = useClub();
   const { me, data, isDemo, today, saveMinutes, markAttendance, saveActionItem } = club;
   const api = useMinutesApi();
+  const consent = useAiConsent('otterMinutes');
   const meeting = (data.meetings ?? []).find((m) => m.id === route.params.meetingId);
   const [transcript, setTranscript] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
@@ -78,6 +81,7 @@ export function OtterMinutesScreen({ route, navigation }: RootScreen<'OtterMinut
   };
 
   const draftIt = async () => {
+    if (!consent.agreed) return;
     const problem = transcriptProblem(transcript);
     if (problem) return setError(problem);
     setBusy(true);
@@ -94,6 +98,19 @@ export function OtterMinutesScreen({ route, navigation }: RootScreen<'OtterMinut
       setBusy(false);
     }
   };
+
+  if (!result && !consent.agreed) {
+    // Nothing goes to Anthropic until they agree (App Store Guideline 5.1.2(i)).
+    return (
+      <Screen>
+        <Small>{`${meeting.title} · ${day}`}</Small>
+        {consent.loaded ? (
+          <AiConsentCard feature="otterMinutes" onAgree={consent.agree} onNotNow={() => navigation.goBack()} />
+        ) : null}
+        <Button label="How it works" kind="quiet" icon="help-circle-outline" onPress={() => navigation.navigate('OtterGuide')} />
+      </Screen>
+    );
+  }
 
   if (!result) {
     const words = wordCount(transcript);
@@ -128,7 +145,7 @@ export function OtterMinutesScreen({ route, navigation }: RootScreen<'OtterMinut
         </View>
         <Button label={busy ? 'Writing the minutes…' : 'Draft the minutes'} icon="sparkles-outline" busy={busy} disabled={!transcript.trim()} onPress={draftIt} />
         {busy ? <Small style={styles.center}>This takes about a minute for an hour’s meeting.</Small> : null}
-        <Small>{PRIVACY}</Small>
+        <Small>{AI_PROVIDER_LINE.otterMinutes}</Small>
       </Screen>
     );
   }

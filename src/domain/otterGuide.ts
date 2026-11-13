@@ -61,7 +61,8 @@ export const OTTER_GUIDE: GuideSection[] = [
       'Five drafts a meeting, then finish it by hand.',
       'Each draft is one of your 15 Ask the club questions for the day, and comes out of the club’s monthly AI budget.',
       'About 3 hours of transcript is the most; split a longer meeting in two.',
-      'The transcript goes to the club’s AI provider to write the draft and isn’t kept by the app.',
+      'The transcript goes to Anthropic (Claude), the club’s AI provider, to write the draft and isn’t kept by the app.',
+      'The first time, the app shows what goes to Anthropic and asks you to Agree. Nothing is sent until you do.',
     ],
   },
   {

@@ -1,4 +1,4 @@
-// The one-time card before a member first uses Ask the club or Catch me up: who the data goes to,
+// The one-time card before a member first uses Ask the club, Catch me up or Draft from Otter: who the data goes to,
 // what goes, and Agree / Not now (src/domain/aiConsent.ts).
 
 import React, { useState } from 'react';
