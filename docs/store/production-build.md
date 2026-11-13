@@ -26,7 +26,7 @@
   else means another Play declaration and video.
 - **After the first Play upload:** add Play's app-signing SHA-1 (Play Console › Setup › App
   signing) to the "Rustnuts Android app maps" key in Google Cloud, or maps go blank in store
-  installs.
+  installs. Done on 03/11/2026: Play's signing keys and the EAS upload key are all on that key.
 - **Any `app.json` change moves the Android runtime fingerprint,** which cuts the test phones off
   from over-the-air updates until a new Android build is installed. After such a merge, make a new
   Android preview build (Store build workflow › android-preview, or `eas build --profile preview --platform android`)

@@ -41,8 +41,7 @@ Rules used for both forms:
 ## Google Play: Data safety form
 
 **Entered and saved in Play Console on 03/11/2026**, sent for review on 04/11/2026 and approved the
-same day. Change this table and the
-policy together if anything changes.
+same day. Change this table and the policy together if anything changes.
 
 **Overview questions**
 
