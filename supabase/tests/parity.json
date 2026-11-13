@@ -9112,7 +9112,7 @@
       "allowed": false
     },
     {
-      "name": "5D: a record over 1000 characters",
+      "name": "5D: a record over 1,000 characters",
       "as": "torque",
       "action": "recordConduct",
       "member": "gravel",

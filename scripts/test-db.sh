@@ -39,7 +39,8 @@ done
 "${PSQL[@]}" -d rustnuts_parity -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 (cd "$ROOT" && npx tsx scripts/parity-sql.mts) | "${PSQL[@]}" -d rustnuts_parity
 # The app writes 1,000 with a comma; no database message may still say "1000 characters".
-"${PSQL[@]}" -d rustnuts_parity -tAc "select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosrc like '%1000 characters%'" | grep -qx 0
+[ "$("${PSQL[@]}" -d rustnuts_parity -tAc "select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosrc like '%1000 characters%'")" = 0 ] \
+  || { echo 'A database message still says "1000 characters"'; exit 1; }
 echo 'Database messages write 1,000 with a comma, like the app'
 
 # The founder seed, on a fresh copy of the schema.

@@ -17,4 +17,8 @@ begin
     def := pg_get_functiondef(f);
     execute replace(def, '1000 characters at most', '1,000 characters at most');
   end loop;
+  if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'public' and p.prosrc like '%1000 characters%') then
+    raise exception 'A database message still says "1000 characters"';
+  end if;
 end $$;
