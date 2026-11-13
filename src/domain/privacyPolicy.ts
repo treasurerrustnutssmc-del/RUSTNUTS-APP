@@ -15,7 +15,7 @@ export const PRIVACY_URL = 'https://www.rustnutssmc.com.au/app/privacy.html';
 export const PRIVACY_EMAIL = 'apps@rustnutssmc.com.au';
 
 /** ISO date the policy last changed. */
-export const PRIVACY_UPDATED_ON = '2026-11-03';
+export const PRIVACY_UPDATED_ON = '2026-11-13';
 
 /** A paragraph, or a list of points. */
 export type PrivacyBlock = string | { points: string[] };
@@ -183,7 +183,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
         points: [
           'See and fix your details: most of your information is on the Me screen, where you can change it. For anything else, ask us.',
           'Turn things off: location sharing, notifications and phone sharing are all your choice, and you can change them any time in the app or your phone settings.',
-          `Delete your account: in the app, go to Me and tap Delete my account (if you hold a board or national seat, step down first; the National Chairman’s seat changes by the club’s vote, so the Chairman emails us instead). Or email ${PRIVACY_EMAIL} from the email you sign in with and we’ll delete it within 30 days. Deleting your app account doesn’t end your club membership.`,
+          `Delete your account: in the app, go to Me › Notifications and privacy and tap Delete my account (family members: at the bottom of Me; applicants: at the bottom of the waiting screen or the Ask to join form). If you hold a board or national seat, step down first; the National Chairman’s seat changes by the club’s vote, so the Chairman emails us instead. Or email ${PRIVACY_EMAIL} from the email you sign in with and we’ll delete it within 30 days. Deleting your app account doesn’t end your club membership.`,
           `Get a copy: ask at ${PRIVACY_EMAIL} and we’ll send you the information we hold about you.`,
         ],
       },
