@@ -17,7 +17,9 @@ const plain = (html: string) => html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '
 for (const slug of ['delete-account', 'support', 'guide']) {
   test(`site/${slug}.html sends members to Me › ${settingsTitle} for Delete my account`, () => {
     const text = plain(page(slug));
-    assert.ok(text.includes(settingsTitle), `${slug} should name "${settingsTitle}"`);
+    const path = slug === 'guide' ? `Me › ${settingsTitle} › Delete my account` : settingsTitle;
+    assert.ok(text.includes(path), `${slug} should say "${path}"`);
+    if (slug !== 'guide') assert.match(text, /Family members: it’s at the bottom of Me/);
     assert.doesNotMatch(text, /go to Me[^.]*scroll to the bottom/i);
     assert.doesNotMatch(text, /Me › Delete my account/);
   });
@@ -27,4 +29,5 @@ test('the privacy policy names the settings group for Delete my account', () => 
   const text = JSON.stringify(PRIVACY_SECTIONS);
   assert.ok(text.includes(`Me › ${settingsTitle}`), 'privacy policy should say where the button is');
   assert.doesNotMatch(text, /go to Me and tap Delete my account/);
+  assert.ok(text.includes('family members: at the bottom of Me'), 'privacy policy should cover family members');
 });
