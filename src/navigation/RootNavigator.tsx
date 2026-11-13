@@ -40,6 +40,7 @@ import { LocalAlertSync } from '../data/localAlerts'; // Ride planning extras
 // Lane E: share in
 import { IncomingShare } from '../data/shareIn';
 import { NotificationTaps } from '../data/notificationTaps';
+import { AppLinks } from '../data/appLinks'; // website links that open the app
 import { ShareInScreen } from '../screens/shareIn';
 import {
   DocumentApprovalScreen, DocumentScreen, DocumentSignoffsScreen, DocumentsScreen, NewDocumentScreen, PublishDocumentScreen,
@@ -151,6 +152,7 @@ function MainTabs() {
       {/* Lane E: share in */}
       <IncomingShare />
       <NotificationTaps />
+      <AppLinks />
       <Tabs.Navigator
         // Lane E: ride comms. While a call is on, its bar sits just above the tabs.
         tabBar={(props) => (
@@ -224,6 +226,7 @@ function FamilyTabs() {
     <>
     {/* Family chat: a tapped notification opens the Family chat (or a ride). */}
     <NotificationTaps />
+    <AppLinks />
     <Tabs.Navigator
       screenOptions={({ route }) => ({
         ...headerOptions,
