@@ -56,3 +56,17 @@ two kinds of account apart by password. Anonymous accounts are refused.
 ## Addendum 25/10/2026: phone, emergency contact and bike
 
 Jeff chose to bring these across from the West sheet. The roster gets optional `phone`, `emergency_name`, `emergency_relationship`, `emergency_phone`, `bike_make`, `bike_model` and `bike_rego` columns (CSV columns of the same names, all optional so older sheets still load). At claim, the phone goes into `member_private`, the contact into `emergency_contacts` (labelled "Emergency contact" when the sheet gives no relationship) and the bike into `bikes` plus `bike_registrations`. A contact needs a name and number, and a bike needs a make and model, so the loader and table checks refuse half of either (blank counts as missing) rather than fail a member's first sign-in. Date of birth and home address stay out: the app has nowhere to keep them and Jeff didn't ask for them.
+
+## Addendum 13/11/2026: no passwords, done with a trigger instead of the hook
+
+The Password Verification Attempt hook above turned out to be sold only on Supabase's Teams and
+Enterprise plans (the Free and Pro dashboards don't offer it), so it was never a switch Jeff could
+flip. Migration `20270840000000_no_passwords.sql` does the job inside the database instead: a trigger
+on `auth.users` drops `encrypted_password` on every insert and on every update of that column, and
+the migration clears the random passwords Supabase had already given the email-code accounts. With
+nothing stored, Supabase Auth answers every password sign-in with "Invalid login credentials"; email
+codes never read the column. Confirm email must stay on: with it off a password sign-up gets a
+live session straight away, which no trigger can take back. Checked by `supabase/tests/no_passwords_test.sql`
+and live with a throwaway password sign-up (see the paste queue, item 75). Claude approved this
+design (bounded work, Jeff's 24 Oct rule); the Before User Created hook was rejected because it can't
+see whether a sign-up used a password and can't stop one added to an existing account later.

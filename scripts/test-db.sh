@@ -580,4 +580,13 @@ done
 "${PSQL[@]}" -d rustnuts_blocked_signups -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_blocked_signups -f "$ROOT/supabase/tests/blocked_signups_test.sql"
 
+# No stored passwords, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_no_passwords" >/dev/null
+"${PSQL[@]}" -d rustnuts_no_passwords -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_no_passwords -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_no_passwords -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_no_passwords -f "$ROOT/supabase/tests/no_passwords_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
