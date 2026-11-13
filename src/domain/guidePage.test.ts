@@ -27,6 +27,18 @@ const section = (id: string) => {
 const groups = meGroups({ contacts: 0, bikes: 0, owingCents: 0, onHiatus: false, roadRules: null });
 const group = (id: string) => groups.find((g) => g.id === id)!.title;
 
+// The app's own notes are hard-wrapped, so each is read with every run of white space made one space,
+// the way the guide's words are. A guard must not depend on where a line happens to break.
+const flat = (path: string) => readFileSync(join(__dirname, path), 'utf8').replace(/\s+/g, ' ');
+const brief = flat('../../docs/BRIEF-for-collaborators.md');
+const product = flat('../../PRODUCT.md');
+const sitePageNotes = flat('./sitePage.ts');
+const notes = [
+  ['the collaborator brief', brief],
+  ['PRODUCT.md', product],
+] as const;
+const hiddenNotes = (html.match(/<!--[\s\S]*?-->/g) ?? []).join(' ').replace(/\s+/g, ' ');
+
 // The tab bar is written out in RootNavigator.tsx, so the labels are read from there: each
 // Tabs.Screen shows its title, or its name when it has none.
 const nav = readFileSync(join(__dirname, '../navigation/RootNavigator.tsx'), 'utf8');
@@ -117,16 +129,23 @@ test('help and privacy name the help group, the full list of services and what d
 test('nothing waits for an AGM reveal: launch day is the day both stores approve', () => {
   // Jeff, 14 Nov 2026: invites and the website's Get the app section go live together, with no later reveal.
   assert.doesNotMatch(html, /AGM reveal/i, 'the guide page, hidden notes included');
-  const brief = readFileSync(join(__dirname, '../../docs/BRIEF-for-collaborators.md'), 'utf8');
-  assert.doesNotMatch(brief, /reveal is aimed at|\| Reveal \|/i, 'the collaborator brief');
+  for (const [name, doc] of notes) {
+    assert.doesNotMatch(doc, /reveal is (aimed )?at|AGM reveal|\| Reveal \|/i, `${name}: nothing waits for a reveal`);
+    // The website's Get the app section goes live on launch day, not after it.
+    assert.doesNotMatch(doc, /goes up \(?after launch|after launch, not before/i, `${name}: Get the app goes live on launch day`);
+    assert.match(doc, /goes live on launch day/, `${name}: Get the app goes live on launch day`);
+    // Either store can be the last to approve: Google reviews the public Android release as well.
+    assert.doesNotMatch(
+      doc,
+      /Apple(?:[’']s approval)?(?: alone)? sets the date|\(waiting on Apple\)|when Apple approves/i,
+      `${name}: launch day needs both stores, not Apple alone`,
+    );
+  }
   assert.match(brief, /Launch day is the day both stores approve/);
-  // The website's Get the app section goes live on launch day, not after it, and either store can be the
-  // last to approve: Google reviews the public Android release as well.
-  assert.doesNotMatch(brief, /goes up after launch|after launch, not before|Apple sets the date/i, 'the collaborator brief');
-  const product = readFileSync(join(__dirname, '../../PRODUCT.md'), 'utf8');
-  assert.doesNotMatch(product, /reveal is aimed at|AGM reveal|goes up \(after launch\)/i, 'PRODUCT.md');
-  const sitePage = readFileSync(join(__dirname, './sitePage.ts'), 'utf8');
-  assert.doesNotMatch(sitePage, /until Apple approves/i, 'the launch rule written in sitePage.ts');
+  assert.match(brief, /Whichever store approves last sets the date/);
+  assert.match(product, /until launch day, the day both stores approve/);
+  assert.doesNotMatch(sitePageNotes, /until Apple (approves|has approved)/i, 'the launch rule written in sitePage.ts');
+  assert.match(sitePageNotes, /until launch day, the day both stores approve/, 'the launch rule written in sitePage.ts');
 });
 
 test('both apps install from public store listings: no tester step, no link-only iPhone app', () => {
@@ -135,17 +154,35 @@ test('both apps install from public store listings: no tester step, no link-only
   const get = section('get-the-app');
   assert.match(get, /Android: tap the Google Play link in your invite, then Install\. You can also search Google Play for Rustnuts SMC\./);
   assert.match(get, /iPhone: tap the App Store link in your invite, then Get\. You can also search the App Store for Rustnuts SMC\./);
-  assert.doesNotMatch(html, /Become a tester|closed test|invited to test|will add it/i, 'the guide page, hidden notes included');
-  assert.doesNotMatch(html, /unlisted|only way in|won’t find it/i, 'the guide page, hidden notes included');
+  // The member guide has no reason to name a test programme or an unlisted app anywhere, so these words are
+  // banned on the whole page on purpose, hidden notes included.
+  assert.doesNotMatch(html, /Become a tester|closed test|invited to test|will add it/i, 'the guide page, hidden notes included: no test programme');
+  assert.doesNotMatch(html, /unlisted|won’t find it/i, 'the guide page, hidden notes included: the iPhone app is not link-only');
   // The old plans must not come back in a new sentence either. The hidden note says nobody is put on a
-  // tester list, so this wider check reads only the words a member sees.
-  assert.doesNotMatch(text, /tester|opt-in|join the test|won[’']t find|not (show|appear) in search/i, 'the words a member sees');
-  const brief = readFileSync(join(__dirname, '../../docs/BRIEF-for-collaborators.md'), 'utf8');
-  assert.doesNotMatch(brief, /In the stores but hidden|unlisted/i, 'the collaborator brief');
+  // tester list, so this wider check reads only the words a member sees. "Opt-in" by itself is the club's
+  // word for live ride location, so only an opt-in link or page counts as a tester step.
+  assert.doesNotMatch(
+    text,
+    /tester|opt[- ]in (link|page|URL)|join the test|won[’']t find|not (show|appear) in search/i,
+    'the words a member sees: no tester step, and both apps can be found by searching',
+  );
+  assert.doesNotMatch(`${get} ${hiddenNotes}`, /only way in/i, 'Get the app and the hidden notes: the invite link is not the only way in');
+  for (const [name, doc] of notes) {
+    // The app's own notes may record the fallbacks (an unlisted request if App Review refuses a public
+    // listing, the closed test that stays for Jeff's own phone), so the old claims are banned, not the words.
+    assert.doesNotMatch(
+      doc,
+      /In the stores but hidden|Apple unlisted|(is|stays|app) unlisted|unlisted \(link only\)|Become a tester/i,
+      `${name}: both apps are public, and members are never testers`,
+    );
+    // No Android first (Jeff, 31 Oct 2026): a note about the phone the app is tried on must not read as launch order.
+    assert.doesNotMatch(doc, /Android (comes|goes|launches) first/i, `${name}: neither store goes first at launch`);
+  }
   assert.match(brief, /public on Google Play and in the App Store from launch day/);
-  const product = readFileSync(join(__dirname, '../../PRODUCT.md'), 'utf8');
-  assert.doesNotMatch(product, /unlisted|tester list|Become a tester|closed test/i, 'PRODUCT.md');
-  assert.match(product, /public on the App Store and Google Play from launch day/);
+  // Both listings are for Australia only, so "anyone" means anyone with an Australian store account.
+  assert.match(brief, /Anyone in Australia can install them, but nobody gets past sign-in without board approval/);
+  assert.match(product, /public on the App Store and Google Play from launch day, Australia only/);
+  assert.match(product, /neither store goes first at launch/);
 });
 
 test('the guide shows the day it was last changed', () => {

@@ -43,7 +43,8 @@ quietly in the background, where mostly only the board sees it.
 - **One build, three ways in:** Android and iPhone apps from the stores, and a web build (previews now,
   board work on a laptop later).
 - **In the stores:** both apps are public on Google Play and in the App Store from launch day (Jeff,
-  14/11/2026). Anyone can install them, but nobody gets past sign-in without board approval.
+  14/11/2026), for Australia only. Anyone in Australia can install them, but nobody gets past sign-in
+  without board approval.
 - **Software ownership and club continuity:** the [root licence](../LICENSE) retains Jeff Ostler's
   rights in the original application software, with permanent, non-exclusive use by the club
   without a licence fee. The root grant expressly

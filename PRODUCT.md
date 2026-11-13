@@ -8,7 +8,7 @@ Facts come from Jeff (founder, National Chairman and treasurer) unless marked *(
 
 adaptive
 
-One Expo codebase ships to Android and iPhone through the stores (public on the App Store and Google Play from launch day, under the club's organisation accounts), with a web build used for previews. Android comes first in practice: Jeff works from a Samsung Galaxy S25 Ultra.
+One Expo codebase ships to Android and iPhone through the stores (public on the App Store and Google Play from launch day, Australia only, under the club's organisation accounts), with a web build used for previews. Day to day the app is built and tried on Android first, because Jeff works from a Samsung Galaxy S25 Ultra; neither store goes first at launch.
 
 ## Users
 
@@ -44,7 +44,8 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 - **Navigation:** state-based React Navigation. No URL routing on the web build.
 - **No messages to members** (emails, invites, pushes) until the app is finished.
 - **Live ride location** (not built yet): ride day only, opt-in, switches itself off, nothing kept.
-- **Undecided:** the store listing copy. The website's "Get the app" section is settled: it goes live on launch day, with the invites (Jeff, 14/11/2026).
+- **Store listings:** the copy is written. Google Play's is saved in Play Console; the App Store's is drafted and goes in once the club's Apple account exists.
+- **The website's "Get the app" section** goes live on launch day, with the invites (Jeff, 14/11/2026).
 
 ## Brand Commitments
 
