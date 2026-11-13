@@ -22,6 +22,7 @@ create table auth.users (
   id uuid primary key,
   email text,
   email_confirmed_at timestamptz,
+  encrypted_password text,
   is_anonymous boolean not null default false
 );
 
