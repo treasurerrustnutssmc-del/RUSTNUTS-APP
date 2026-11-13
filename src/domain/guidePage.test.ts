@@ -114,6 +114,14 @@ test('help and privacy name the help group, the full list of services and what d
   assert.match(help, /isn’t resigning from the club: talk to your chapter Secretary/);
 });
 
+test('nothing waits for an AGM reveal: launch day is the day both stores approve', () => {
+  // Jeff, 14 Nov 2026: invites and the website's Get the app section go live together, with no later reveal.
+  assert.doesNotMatch(html, /AGM reveal/i, 'the guide page, hidden notes included');
+  const brief = readFileSync(join(__dirname, '../../docs/BRIEF-for-collaborators.md'), 'utf8');
+  assert.doesNotMatch(brief, /reveal is aimed at|\| Reveal \|/i, 'the collaborator brief');
+  assert.match(brief, /Launch day is the day both stores approve/);
+});
+
 test('the guide shows the day it was last changed', () => {
   assert.match(text, /Last updated \d{2}\/\d{2}\/\d{4}/);
 });
