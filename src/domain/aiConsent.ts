@@ -1,16 +1,17 @@
 /**
- * Asking before anything goes to the club's AI (App Store Guideline 5.1.2(i)): Ask the club and
- * Catch me up send a member's data to Anthropic (Claude), so each shows a one-time card first
- * that says what goes and asks Agree / Not now. Until they agree, the feature sends nothing.
+ * Asking before anything goes to the club's AI (App Store Guideline 5.1.2(i)): Ask the club,
+ * Catch me up and Draft from Otter send members' data to Anthropic (Claude), so each shows a
+ * one-time card first that says what goes and asks Agree / Not now. Until they agree, the
+ * feature sends nothing.
  *
  * The agreement is kept on the phone, per member (no database change): a second member signing
  * in on the same phone is asked again. Each feature is agreed to on its own, because each sends
  * different things.
  */
 
-export type AiFeature = 'askClub' | 'catchUp';
+export type AiFeature = 'askClub' | 'catchUp' | 'otterMinutes';
 
-export const AI_FEATURES: readonly AiFeature[] = ['askClub', 'catchUp'];
+export const AI_FEATURES: readonly AiFeature[] = ['askClub', 'catchUp', 'otterMinutes'];
 
 /** Feature → ISO date (YYYY-MM-DD) the member agreed. */
 export type AiConsentRecord = Partial<Record<AiFeature, string>>;
@@ -53,12 +54,26 @@ export const AI_CONSENT: Record<AiFeature, AiConsentCopy> = {
     agree: 'Agree',
     notNow: 'Not now',
   },
+  // Matches buildMinutesRequest in supabase/functions/_shared/minutesDraft.ts.
+  otterMinutes: {
+    heading: 'Before you draft',
+    intro: 'Draft from Otter is written by Anthropic (Claude), the club’s AI provider. Each time you tap Draft the minutes, the app sends Anthropic:',
+    sends: [
+      'The meeting’s transcript: everything said, as Otter wrote it down.',
+      'The meeting’s details and agenda, and who holds which board role.',
+      'The names, road names, chapters and membership status of members who could have been there, to match who spoke.',
+    ],
+    promise: PROMISE,
+    agree: 'Agree',
+    notNow: 'Not now',
+  },
 };
 
 /** The short line that stays on screen after agreeing. */
 export const AI_PROVIDER_LINE: Record<AiFeature, string> = {
   askClub: 'Your questions go to Anthropic (Claude), the club’s AI provider, to write the answers, and aren’t used to train AI.',
   catchUp: 'Catch me up sends the newest messages to Anthropic (Claude), the club’s AI provider, to write this. Anthropic doesn’t keep them or use them to train AI.',
+  otterMinutes: 'The transcript goes to Anthropic (Claude), the club’s AI provider, to write the draft. The app doesn’t keep it, and Anthropic doesn’t use it to train AI. It comes out of the Ask the club budget.',
 };
 
 export const aiConsentKey = (memberId: string) => `rustnuts.aiConsent.v1.${memberId}`;

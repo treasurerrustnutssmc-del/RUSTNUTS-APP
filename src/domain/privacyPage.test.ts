@@ -50,9 +50,9 @@ test('the policy says what a feedback or issue report collects and who reads it'
   }
 });
 
-test('the policy says Ask the club and Catch me up ask permission before first use', () => {
+test('the policy says Ask the club, Catch me up and Draft from Otter ask permission before first use', () => {
   const services = JSON.stringify(PRIVACY_SECTIONS.find((s) => s.id === 'services'));
-  assert.ok(/ask your permission[^"]*before you first use/i.test(services), 'permission before first use');
+  assert.ok(/Ask the club, Catch me up and Draft from Otter each ask your permission[^"]*before you first use/i.test(services), 'permission before first use');
 });
 
 // Google Play data safety answers (3 Nov 2026): the policy has to say the same things.

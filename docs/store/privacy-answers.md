@@ -31,8 +31,8 @@ Rules used for both forms:
   Catch me up and Draft from Otter send text to Anthropic (a service provider that doesn't train on it and
   may keep API data for up to 30 days); the club doesn't keep the questions, summaries or transcripts, but
   the rows they fall under also cover stored data, so they stay "No".
-- Both Ask the club and Catch me up ask each member's permission in the app, naming Anthropic, before
-  first use. Nothing goes to Anthropic from either until the member says yes.
+- Ask the club, Catch me up and Draft from Otter each ask each member's permission in the app, naming
+  Anthropic, before first use. Nothing goes to Anthropic from any of them until the member says yes.
 - Ride comms voice is live and never stored. Voice notes are stored, so the Audio row stays "Ephemeral: No".
   Weather lookups send the ride's route (plus the phone's IP address) to Open-Meteo.
 - The app is for adults (18 and over), Family accounts included: the join form asks every applicant to say
