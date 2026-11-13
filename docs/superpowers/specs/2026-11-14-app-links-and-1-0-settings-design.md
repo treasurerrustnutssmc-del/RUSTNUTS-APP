@@ -64,7 +64,7 @@ ride page says it is called off).
 ### Phone settings (`app.json`)
 
 - Android: one intent filter, `autoVerify: true`, `https`, host `www.rustnutssmc.com.au`,
-  `pathPrefix: "/open"`. Only www: the bare domain redirects, and Android won't verify a host
+  `pathPrefix: "/open/"` (with the slash, so a page like `/opener.html` never opens the app; the app's own links always carry the slash). Only www: the bare domain redirects, and Android won't verify a host
   that redirects.
 - iPhone: `ios.associatedDomains: ["applinks:www.rustnutssmc.com.au"]`. EAS turns on the
   Associated Domains capability for the App ID at build time.
@@ -89,6 +89,9 @@ ride page says it is called off).
 - No domain or DNS login is needed: both files are plain files in the repo that GitHub Pages
   already serves on www.
 
+A bare `/open/` link tapped inside the app does nothing (the person is already in the app), rather
+than showing the website's fallback page in a browser sheet.
+
 ### Not in this change
 
 Store links on the fallback page (the "Get the app" section stays hidden until launch); links to
@@ -111,7 +114,8 @@ photos the crew puts on the public website). Then drop the "before the first iPh
 ## Tests
 
 - `src/domain/appLinks.test.ts`: which URLs are app links, what each opens, junk ids, other
-  website pages stay web, the share text carries the link.
+  website pages stay web, the five-minute wait; `src/domain/share.test.ts`: the share text
+  carries the link.
 - `src/appConfig.test.ts`: the intent filter (www only, `/open` only, autoVerify), the
   associated domain, `supportsTablet` false, the manifest rows and purposes.
 - Website `test/open-links.test.js`: the fallback page exists, is noindex, names no store; Jekyll

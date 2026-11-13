@@ -4,7 +4,8 @@
 // name the same host and path. Spec: docs/superpowers/specs/2026-11-14-app-links-and-1-0-settings-design.md
 
 export const APP_LINK_HOST = 'www.rustnutssmc.com.au';
-/** The path every app link starts with (Android matches it as a prefix). */
+/** The path every app link starts with. Android matches "/open/" as a prefix (so /opener.html
+ *  stays a web page); the app also accepts the bare "/open". */
 export const APP_LINK_PATH = '/open';
 const ORIGIN = `https://${APP_LINK_HOST}`;
 

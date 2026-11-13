@@ -221,7 +221,7 @@ test('Android opens only www.rustnutssmc.com.au/open links in the app, verified'
   assert.equal(f.action, 'VIEW');
   assert.equal(f.autoVerify, true);
   assert.deepEqual([...f.category].sort(), ['BROWSABLE', 'DEFAULT']);
-  assert.deepEqual(f.data, [{ scheme: 'https', host: APP_LINK_HOST, pathPrefix: APP_LINK_PATH }]);
+  assert.deepEqual(f.data, [{ scheme: 'https', host: APP_LINK_HOST, pathPrefix: `${APP_LINK_PATH}/` }]);
 });
 
 test('iPhone opens www.rustnutssmc.com.au links in the app (the website file names the paths)', () => {

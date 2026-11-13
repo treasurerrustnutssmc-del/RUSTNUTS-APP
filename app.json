@@ -230,7 +230,7 @@
             {
               "scheme": "https",
               "host": "www.rustnutssmc.com.au",
-              "pathPrefix": "/open"
+              "pathPrefix": "/open/"
             }
           ],
           "category": [
