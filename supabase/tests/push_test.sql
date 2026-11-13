@@ -33,9 +33,9 @@ insert into notification_prefs (member_id, ride_changes, new_rides, approvals) v
   ('00000000-0000-0000-0000-0000000000a3', true, true, true),
   ('00000000-0000-0000-0000-0000000000a4', true, true, true);
 
--- 7/11/2026 8:30 am Melbourne is 2026-11-06 21:30 UTC; fixed so the copy can be checked.
+-- 6/11/2027 8:30 am Melbourne is 2027-11-05 21:30 UTC; fixed so the copy can be checked.
 insert into rides (id, source, starts_at, title, category) values
-  ('00000000-0000-0000-0000-0000000000b1', 'app', '2026-11-06 21:30+00', 'West breakfast run', 'west'),
+  ('00000000-0000-0000-0000-0000000000b1', 'app', '2027-11-05 21:30+00', 'West breakfast run', 'west'),
   ('00000000-0000-0000-0000-0000000000b2', 'app', now() - interval '2 days', 'Last week', 'west');
 insert into rsvps (ride_id, member_id, answer) values
   ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a1', 'going'),
@@ -76,15 +76,15 @@ begin
   -- Touching a ride without changing its time or cancelling it (what a sync does) notifies nobody.
   update rides set title = 'West brekkie run', synced_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
   assert (select count(*) from private.push_outbox) = 0, 'a rename or re-sync is quiet';
-  update rides set starts_at = '2026-11-06 22:00+00' where id = '00000000-0000-0000-0000-0000000000b1';
-  assert pg_temp.outbox(rita) = 'Ride time changed / West brekkie run · now Sat 07/11/2026 9:00 am', pg_temp.outbox(rita);
+  update rides set starts_at = '2027-11-05 22:00+00' where id = '00000000-0000-0000-0000-0000000000b1';
+  assert pg_temp.outbox(rita) = 'Ride time changed / West brekkie run · now Sat 06/11/2027 9:00 am', pg_temp.outbox(rita);
   assert pg_temp.outbox(tom) is null, 'Tom turned ride changes off';
   assert pg_temp.outbox(ned) is null, 'Ned can''t make it';
-  update rides set starts_at = '2026-11-06 22:00+00', synced_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
+  update rides set starts_at = '2027-11-05 22:00+00', synced_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
   assert (select count(*) from private.push_outbox where member_id = rita) = 1, 'the same time again is quiet';
   update rides set cancelled_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
   update rides set cancelled_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
-  assert pg_temp.outbox(rita) like '% | Ride cancelled / West brekkie run · Sat 07/11/2026', pg_temp.outbox(rita);
+  assert pg_temp.outbox(rita) like '% | Ride cancelled / West brekkie run · Sat 06/11/2027', pg_temp.outbox(rita);
   assert (select count(*) from private.push_outbox where member_id = rita) = 2, 'cancelled once';
   update rides set cancelled_at = now() where id = '00000000-0000-0000-0000-0000000000b2';
   assert (select count(*) from private.push_outbox where member_id = rita) = 2, 'a ride already over is quiet';
@@ -118,14 +118,14 @@ declare
 begin
   delete from private.push_outbox;
   insert into private.ride_feeds (url, category) values ('https://example.com/west.ics', 'west') returning id into feed;
-  perform public.apply_ride_sync(feed, jsonb_build_array(jsonb_build_object('uid', 'ev-1', 'startsAt', '2026-11-14T21:30:00Z',
+  perform public.apply_ride_sync(feed, jsonb_build_array(jsonb_build_object('uid', 'ev-1', 'startsAt', '2027-11-13T21:30:00Z',
     'title', 'Saturday run', 'category', 'west')));
   select id into first_id from rides where external_uid = 'ev-1';
   insert into rsvps (ride_id, member_id, answer) values (first_id, rita, 'going');
   delete from private.push_outbox;
-  perform public.apply_ride_sync(feed, jsonb_build_array(jsonb_build_object('uid', 'ev-1', 'startsAt', '2026-11-14T22:30:00Z',
+  perform public.apply_ride_sync(feed, jsonb_build_array(jsonb_build_object('uid', 'ev-1', 'startsAt', '2027-11-13T22:30:00Z',
     'title', 'Saturday run', 'category', 'west')));
-  assert pg_temp.outbox(rita) = 'Ride time changed / Saturday run · now Sun 15/11/2026 9:30 am', pg_temp.outbox(rita);
+  assert pg_temp.outbox(rita) = 'Ride time changed / Saturday run · now Sun 14/11/2027 9:30 am', pg_temp.outbox(rita);
   assert pg_temp.outbox(ned) is null, 'not a new ride either';
   assert (select data->>'rideId' from private.push_outbox where member_id = rita)
     = (select id::text from rides where external_uid = 'ev-1' and cancelled_at is null), 'opens the ride where it is now';

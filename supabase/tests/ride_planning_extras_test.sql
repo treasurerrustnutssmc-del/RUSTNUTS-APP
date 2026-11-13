@@ -304,8 +304,8 @@ begin
   perform pg_temp.expect(fran, format('select public.save_hub(%L, true, null, null, null, null)', ndyr), 'Only the board, ride committee or NEC can run the hub.');
   perform pg_temp.expect(wes, format('select public.save_hub(%L, true, null, 0, null, null)', ndyr), 'Group beds: 1 to 500, or leave it blank.');
   perform pg_temp.expect(wes, format('select public.save_hub(%L, true, null, 501, null, null)', ndyr), 'Group beds: 1 to 500, or leave it blank.');
-  perform pg_temp.expect(wes, format('select public.save_hub(%L, true, null, null, %L, null)', ndyr, repeat('x', 1001)), 'That’s too long (1000 characters at most).');
-  perform pg_temp.expect(wes, format('select public.save_hub(%L, true, null, null, null, %L)', ndyr, repeat('x', 1001)), 'That’s too long (1000 characters at most).');
+  perform pg_temp.expect(wes, format('select public.save_hub(%L, true, null, null, %L, null)', ndyr, repeat('x', 1001)), 'That’s too long (1,000 characters at most).');
+  perform pg_temp.expect(wes, format('select public.save_hub(%L, true, null, null, null, %L)', ndyr, repeat('x', 1001)), 'That’s too long (1,000 characters at most).');
 
   -- No hub yet.
   perform pg_temp.expect(fran, format('select public.register_hub(%L, %L, false, null, null)', ndyr, 'group'), 'This ride doesn’t take registrations.');
