@@ -74,11 +74,12 @@ ride page says it is called off).
 - `/open/index.html`: the page anyone without the app sees. `noindex`; says the link opens in the
   Rustnuts members' app, tells members to open it on a phone with the app installed, and offers
   the club website. It names no store (nothing public about the app before Apple approves).
-- `/.well-known/assetlinks.json` (Android): package `au.com.rustnutssmc.app` and two SHA-256
-  fingerprints, both read from Play Console › Test and release › App integrity › App signing:
-  the **app signing key** (every Play install) and the **upload key** (the EAS keystore, which
-  also signs the android-preview test builds). Published when those two values are read; until
-  then Android just opens the link in the browser, which shows the fallback page.
+- `/.well-known/assetlinks.json` (Android): package `au.com.rustnutssmc.app` and the SHA-256
+  fingerprints read from Play Console › App integrity › App signing on 14/11/2026: Play's **app
+  signing key** in use (every Play install), its quantum-ready set (two more), and the **upload
+  key** (the EAS keystore, which also signs the android-preview test builds; its SHA-1 matches
+  EAS F9:83:D3…14). It must be live before the new builds are installed, since Android checks it
+  at install.
 - `/.well-known/apple-app-site-association` (iPhone): `applinks` with `appIDs`
   `["<TEAMID>.au.com.rustnutssmc.app"]` and components `/open` and `/open/*`. **Held** until
   Apple enrols the club and gives a Team ID; the app side is in 1.0 already, so publishing the
@@ -124,6 +125,6 @@ photos the crew puts on the public website). Then drop the "before the first iPh
 
 ## After merge (Jeff's presses, one at a time)
 
-1. Merge the app PR. 2. Merge the website PR. 3. Run Store build › android-preview. 4. Run the
-Android store build for the Play closed test. 5. Claude reads the two SHA-256 values from Play
-Console in Chrome and opens the assetlinks.json PR. 6. After Apple enrols: the AASA PR.
+1. Merge the website PR (assetlinks.json goes live first). 2. Merge the app PR. 3. Run Store
+build › android-preview. 4. Run the Android store build for the Play closed test. 5. After Apple
+enrols: the AASA PR.
