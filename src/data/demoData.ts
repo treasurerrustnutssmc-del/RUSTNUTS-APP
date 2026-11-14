@@ -225,8 +225,9 @@ const TEE_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
 const SITE_SHOP = 'https://www.rustnutssmc.com.au/shop';
 
 /**
- * The whole demo club as it stands at `now`. Everything dated is counted from that one instant, so
- * a fresh club is built for each demo session and two parts of it never disagree about the day.
+ * The whole demo club as it stands at `now`. Everything that follows today is counted from that one
+ * instant (fixed history stays as written), so a fresh club is built for each demo session and two
+ * parts of it never disagree about the day.
  */
 export function buildDemoData(now: Date): ClubData {
   const clock = demoClock(now);
@@ -485,7 +486,11 @@ export function buildDemoData(now: Date): ClubData {
       { rideId: 'r-2', memberId: 'm-crank', role: 'road_captain', assignedBy: 'm-smokey', assignedAt: '2026-10-22T09:30:00.000Z' },
     ],
     // The library, and the West breakfast run uses the West loop. North coffee and curves has no route yet.
-    routes: demoRoutes.map(({ id, name, chapterId, notes, ...shape }) => ({ id, name, chapterId, updatedAt: routeUpdatedAt[id], notes, ...shape })),
+    routes: demoRoutes.map(({ id, name, chapterId, notes, ...shape }) => {
+      const updatedAt = routeUpdatedAt[id];
+      if (!updatedAt) throw new Error(`Demo route ${id} has no updated stamp`);
+      return { id, name, chapterId, updatedAt, notes, ...shape };
+    }),
     rideRoutes: [{ rideId: 'r-1', routeId: 'rt-west-loop' }],
     // The West breakfast run's briefing. Diesel (its Road Captain) read an earlier version, then
     // Torque added the roadworks on the evening of 23 Oct; Spanner read it at 7:42 am the next
