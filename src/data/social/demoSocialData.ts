@@ -101,7 +101,7 @@ export function demoSocialData(today: string): SocialData {
  * Ride for Kids, accepted but not linked yet (so the calendar suggestion shows); a bike show ride
  * Spanner passed on that nobody has answered. Out: two clubs asked to the club lunch ride. The
  * story's stamps and event days move a week at a time with the rides they belong to (inv-1 is
- * r-3's day, inv-2 is r-6's day).
+ * r-3's day, inv-2 is r-6's day; the bike show is a story Saturday, so it stays a Saturday).
  */
 function demoInvites(today: string): { otherClubs: OtherClub[]; invites: ClubInvite[] } {
   const { d, t } = storyDates(today);
@@ -125,7 +125,7 @@ function demoInvites(today: string): { otherClubs: OtherClub[]; invites: ClubInv
     { ...base, id: 'inv-2', direction: 'in', clubId: 'oc-2', chapterId: 'ch-west', title: 'Ride for Kids', eventOn: d('2027-01-17'),
       place: 'Geelong Waterfront', answer: 'yes', calendarLabel: 'supported', note: 'Rusty Bus on recovery.', addedBy: 'm-diesel',
       answeredBy: 'm-diesel', answeredAt: t('2026-10-14T00:00:00.000Z') },
-    { ...base, id: 'inv-3', direction: 'in', clubId: 'oc-3', chapterId: 'ch-west', title: 'Bike show ride', eventOn: addDays(today, 20),
+    { ...base, id: 'inv-3', direction: 'in', clubId: 'oc-3', chapterId: 'ch-west', title: 'Bike show ride', eventOn: d('2026-11-14'),
       place: 'Bendigo Showgrounds', details: 'They ride in together from Castlemaine and park up at the show.', addedBy: 'm-spanner' },
     { ...base, id: 'inv-4', direction: 'out', clubId: 'oc-1', chapterId: null, rideId: 'r-4', answer: 'yes', bikes: 15,
       addedBy: 'm-rusty', answeredBy: 'm-rusty', answeredAt: t('2026-10-20T00:00:00.000Z') },

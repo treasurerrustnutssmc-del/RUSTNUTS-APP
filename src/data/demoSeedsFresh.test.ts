@@ -39,6 +39,10 @@ test('invites match the calendar', () => {
     const invite = (id: string) => social.invites.find((i) => i.id === id)!;
     assert.equal(invite('inv-1').eventOn, melbourneDate(rideOf(data, 'r-3').startsAt), `inv-1 on the Toy Run at ${now}`);
     assert.equal(invite('inv-2').eventOn, melbourneDate(rideOf(data, 'r-6').startsAt), `inv-2 on Ride for Kids at ${now}`);
+    // The bike show ride is a story Saturday moved by weeks: always a Saturday, 14 to 20 days on.
+    const show = invite('inv-3').eventOn!;
+    assert.equal(weekdayName(show), 'Saturday', `inv-3 on ${show} at ${now}`);
+    assert.ok(daysBetween(today, show) >= 14 && daysBetween(today, show) <= 20, `inv-3 ${daysBetween(today, show)} days on at ${now}`);
     assert.ok(invitesIn(social.invites, today).upcoming.length >= 3, `three coming up at ${now}`);
     const out = invitesOutByRide(social.invites, data.rides, today);
     assert.equal(out[0].ride.id, 'r-4', now);
