@@ -1,11 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { crewNeeded, managesRide, showsCrewNeeded } from '../domain/crew';
-import { todayIso } from '../domain/dates';
 import type { ClubData, CrewSpot } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import { leaveCrew, runDemoAction, setCrew, setRsvp, type DemoCtx } from './demoActions';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA, STORY_TODAY } from './demoStory.testkit';
 
 const NOW = '2026-10-24T00:00:00.000Z';
 const spot = (memberId: string, role: CrewSpot['role'], rideId = 'r-1'): CrewSpot => ({
@@ -153,9 +152,9 @@ test('the demo club has crew: an RC and TG on one ride, only an RC on another, a
   }
 });
 
-test('a demo ride shows Crew needed for a manager today, whatever the real date', () => {
-  // The demo provider uses the device's date, so this checks against the real today.
-  const today = todayIso();
+test('a demo ride shows Crew needed for a manager on the demo’s today', () => {
+  // The demo is built for the story instant, so this checks against that day.
+  const today = STORY_TODAY;
   const smokey = DEMO_DATA.members.find((m) => m.id === 'm-smokey')!; // North president
   // Smokey sits on the NEC, so he sees every ride that needs crew: the North one always, and the
   // fixed-date club-wide rides (Toy Run, Christmas ride, Ride for Kids, Big 4) in their fortnights.

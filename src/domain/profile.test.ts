@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_DATA } from '../data/demoData';
+import { DEMO_DATA } from '../data/demoStory.testkit';
 import {
   boardWatchList, displayName, expiryAlerts, FORMER_MEMBER, hasEarnedDisc, initials, memberName, phoneNote, profileChecklist,
 } from './profile';

@@ -12,7 +12,7 @@ import * as charity from './charityActions'; // Charity ride sign-ups
 import * as rides from './rideActions'; // Rides made in the app
 import * as busExtras from './busExtrasActions'; // Rusty Bus extras
 import * as act from './demoActions';
-import { DEMO_DATA, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
+import { buildDemoData, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
 import * as s4 from './demoStage4';
 import * as attendanceRules from './demoAttendance';
@@ -21,13 +21,18 @@ import * as admin from './adminActions'; // Stage 5D
 import * as docs from './documentActions';
 import { forFamily } from './familyData'; // Family view
 import { REVIEWER_DEMO_MEMBER } from '../domain/reviewer'; // Store review demo
-import { appMode } from './reviewMode';
+import { appMode, demoSession } from './reviewMode';
 import * as audit from './auditActions'; // National Auditor
 import * as shop from './shopActions'; // The club shop
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
-  const [data, setData] = useState<ClubData>(() => ({ ...DEMO_DATA, rides: [...DEMO_DATA.rides, demoTodayRide()] }));
+  // The club is built for the demo session's instant, the same one every other demo seed reads.
+  const [data, setData] = useState<ClubData>(() => {
+    const now = demoSession.now();
+    const club = buildDemoData(now);
+    return { ...club, rides: [...club.rides, demoTodayRide(now)] };
+  });
   // Store review demo: the reviewers arrive signed in, as a Full member.
   const reviewing = appMode.reviewing();
   const [meId, setMeId] = useState<string | null>(reviewing ? REVIEWER_DEMO_MEMBER : null);

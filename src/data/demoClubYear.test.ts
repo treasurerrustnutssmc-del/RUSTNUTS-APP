@@ -4,7 +4,7 @@ import { RECORD_AGM_ONLY } from '../domain/clubYear';
 import type { ClubData } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import { withPatchInFee, type DemoCtx } from './demoActions';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 import { raiseFees, recordAgm } from './demoStage4';
 
 const TODAY = '2026-10-15';

@@ -5,7 +5,8 @@ import { libraryFor, routeOf } from '../domain/routes';
 import type { ClubData } from '../domain/types';
 import type { RouteInput } from './clubContext';
 import { archiveRoute, routeGpx, runDemoAction, saveRoute, setRideRoute, storedGpx, type DemoCtx } from './demoActions';
-import { DEMO_DATA, DEMO_ROUTE_GPX } from './demoData';
+import { DEMO_ROUTE_GPX } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 
 const NOW = '2026-10-24T00:00:00.000Z';
 const LATER = '2026-10-25T00:00:00.000Z';

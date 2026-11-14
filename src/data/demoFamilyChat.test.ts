@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NotAllowedError } from './clubContext';
 import { acceptPostingRules, type DemoCtx } from './demoActions';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 import type { ChatData } from './chat/demoChatActions';
 import type { Conversation } from '../domain/chat';
 import { listFor } from './chat/chatList';

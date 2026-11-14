@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_DATA as demoData } from '../demoData';
+import { DEMO_DATA as demoData } from '../demoStory.testkit';
 import { archiveMechanic, saveListing, saveMechanic, setBirthday, setSkills, vouchMechanic, type SocialCtx } from './demoSocialActions';
 import { demoSocialData } from './demoSocialData';
 

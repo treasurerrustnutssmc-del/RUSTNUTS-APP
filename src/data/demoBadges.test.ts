@@ -4,7 +4,7 @@ import { badgesFor } from '../domain/social/badges';
 import { introProgress } from '../domain/joining';
 import { standingOf } from '../domain/standing';
 import type { ClubData } from '../domain/types';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 
 const season = (id: string) => id.startsWith('r-season-') || id.startsWith('cs-season-');
 const without: ClubData = {

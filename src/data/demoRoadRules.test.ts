@@ -18,10 +18,11 @@ import {
 } from '../domain/roadRules';
 import type { ClubData } from '../domain/types';
 import { publishRoadRules, runDemoAction, signRoadRules, type DemoCtx } from './demoActions';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA, STORY_NOW, STORY_TODAY } from './demoStory.testkit';
 
-// The demo's Road Rules are dated from the real today, so its states hold whenever it's opened.
-const TODAY = melbourneDate(new Date().toISOString());
+// The demo's Road Rules are dated from its today, so its states hold whenever it's opened. Here the
+// demo is the one built for the story instant.
+const TODAY = STORY_TODAY;
 const NOW = '2026-10-24T00:00:00.000Z';
 const ctxFor = (meId: string | null, data: ClubData = DEMO_DATA, now = NOW): DemoCtx => ({
   data,
@@ -149,8 +150,8 @@ test('signing: your one sign-off row moves to the current version, now', () => {
   assert.equal((again.roadRulesSignoffs ?? []).find((s) => s.memberId === 'm-torque')?.signedAt, later);
 });
 
-test('signing at the real today: Rusty’s run-out sign-off comes good again', () => {
-  const now = new Date().toISOString();
+test('signing on the demo’s today: Rusty’s run-out sign-off comes good again', () => {
+  const now = STORY_NOW.toISOString();
   const d = signRoadRules(ctxFor('m-rusty', DEMO_DATA, now), 2);
   assert.equal(roadRulesStatus(member('m-rusty'), d, melbourneDate(now)).state, 'current');
 });

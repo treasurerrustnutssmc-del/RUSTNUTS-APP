@@ -5,15 +5,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CREW_NOT_SIGNED, roadRulesStatus, SIGN_FIRST } from '../domain/roadRules';
-import { melbourneDate } from '../domain/rides';
 import type { ClubData } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import { runDemoAction, setCrew, setRsvp, type DemoCtx } from './demoActions';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA, STORY_NOW, STORY_TODAY } from './demoStory.testkit';
 
-// The demo's sign-offs are dated from the real today.
-const TODAY = melbourneDate(new Date().toISOString());
-const NOW = new Date().toISOString();
+// The demo's sign-offs are dated from its today: here, the story instant's.
+const TODAY = STORY_TODAY;
+const NOW = STORY_NOW.toISOString();
 // The West breakfast run (r-1), which Torque manages, is on a fixed date. Here it's moved to the
 // date of North coffee and curves (r-2), always about a week out, so the crew can still change
 // whenever these tests run.

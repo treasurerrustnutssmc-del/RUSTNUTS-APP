@@ -25,11 +25,11 @@ import { managesRide } from '../domain/crew';
 import { lastDay, melbourneDate } from '../domain/rides';
 import type { BusBooking, ClubData } from '../domain/types';
 import { bookBus, cancelBus, decideBus, runDemoAction, type DemoCtx } from './demoActions';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA, STORY_NOW, STORY_TODAY } from './demoStory.testkit';
 
-// The demo's bookings are dated from the real today (the charity one from its ride), so the bus
-// is out today and the waiting request always clashes, whenever the demo is opened.
-const TODAY = melbourneDate(new Date().toISOString());
+// The demo's bookings are dated from its today (the charity one from its ride), so the bus is out
+// today and the waiting request always clashes. Here the demo is the one built for the story instant.
+const TODAY = STORY_TODAY;
 const NOW = '2026-10-24T00:00:00.000Z';
 const ctxFor = (meId: string | null, data: ClubData = DEMO_DATA, now = NOW): DemoCtx => ({
   data,
@@ -105,7 +105,7 @@ test('the demo: a Booked recovery today, driven by Diesel, so the bus is out tod
   assert.equal(b.lastDay, TODAY);
   assert.equal(b.driverId, 'm-diesel');
   assert.equal(melbourneDate(b.bookedAt), TODAY, 'booked earlier today, straight away');
-  assert.ok(b.bookedAt <= new Date().toISOString(), 'never booked in the future');
+  assert.ok(b.bookedAt <= STORY_NOW.toISOString(), 'never booked in the future');
   assert.equal(b.decidedAt, b.bookedAt, 'booked straight away: decided when it was booked');
   assert.equal(b.decidedBy, b.bookedBy);
   assert.equal(busToday(DEMO_DATA, TODAY)?.id, b.id);

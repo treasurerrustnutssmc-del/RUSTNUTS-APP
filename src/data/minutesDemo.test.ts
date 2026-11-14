@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { cleanDraft, transcriptProblem, draftPlan } from '../domain/otterMinutes';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 import { demoDraft, sampleTranscript } from './minutesDemo';
 
 const meeting = DEMO_DATA.meetings!.find((m) => m.id === 'mt-2')!;

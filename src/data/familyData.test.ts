@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 import { forFamily } from './familyData';
 
 const kerry = DEMO_DATA.members.find((m) => m.id === 'm-kerry')!;

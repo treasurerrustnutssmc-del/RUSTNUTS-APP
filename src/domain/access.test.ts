@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_DATA } from '../data/demoData';
+import { DEMO_DATA } from '../data/demoStory.testkit';
 import type { Member, Position, Vote } from './types';
 import {
   accessLevel,
