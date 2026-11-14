@@ -24,10 +24,9 @@
 - `demoTodayRide` keeps its id `'r-today'`, its title `'Today’s coffee run (demo)'`, and its now-minus-1-hour to now-plus-3-hours window. The check-in code stays `'RN2026'`.
 - House wording: every new or changed string must pass `src/houseWording.test.ts`. No em-dashes in user-facing text. Dates shown as DD/MM/YYYY. Curly apostrophes in seed strings, as the file already uses.
 - `src/domain/reviewer.ts` holds the store-review sign-in code. Never copy it into a test name, comment, commit message or report.
-- Commit trailer on every commit:
-  `Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>` and
+- Commit trailer on every commit: the `Co-Authored-By` line your own session's attribution instruction gives (it names whoever wrote the commit), and
   `Claude-Session: https://claude.ai/code/session_01MyjnUrnEZ8ecDYD7iXSxXi`. Branch `claude/project-thread-uuwiox` only. No `git reset --hard`, no force push, no push at all from a task (the coordinator pushes).
-- Before calling any task done: `npm test`, `npm run typecheck`, `npx expo lint` (and `npm run test:db` at the end; it does not read demo data). Baseline on `main`: 3,155 tests, 3,151 pass, 4 skipped.
+- Before calling any task done: `npm test`, `npm run typecheck`, `npx expo lint` (and `npm run test:db` at the end; it does not read demo data). Baseline on `main`: 3,155 tests, 0 fail (4 website tests skip in some checkouts; that is the environment, not this change).
 
 ## The record of today's data (done before Task 1)
 
