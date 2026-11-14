@@ -1,10 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crewNeeded, managesRide, showsCrewNeeded } from '../domain/crew';
 import type { ClubData, CrewSpot } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import { leaveCrew, runDemoAction, setCrew, setRsvp, type DemoCtx } from './demoActions';
-import { DEMO_DATA, STORY_TODAY } from './demoStory.testkit';
+import { DEMO_DATA } from './demoStory.testkit';
 
 const NOW = '2026-10-24T00:00:00.000Z';
 const spot = (memberId: string, role: CrewSpot['role'], rideId = 'r-1'): CrewSpot => ({
@@ -128,43 +127,4 @@ test('the shared parity cases can drive the crew actions', () => {
   assert.deepEqual(spotsOf(left), []);
 });
 
-test('the demo club has crew: an RC and TG on one ride, only an RC on another, and an Officer', () => {
-  const crew = DEMO_DATA.crew ?? [];
-  const ride = (id: string) => DEMO_DATA.rides.find((r) => r.id === id)!;
-  const roles = (id: string) => crew.filter((s) => s.rideId === id).map((s) => s.role).sort();
-  assert.ok(crew.some((s) => s.role === 'officer'));
-  const complete = DEMO_DATA.rides.filter((r) => roles(r.id).includes('road_captain') && roles(r.id).includes('tail_gunner'));
-  const partial = DEMO_DATA.rides.filter((r) => roles(r.id).includes('road_captain') && !roles(r.id).includes('tail_gunner'));
-  assert.ok(complete.length >= 1 && partial.length >= 1);
-  assert.equal(crewNeeded(complete[0], crew), false);
-  assert.equal(crewNeeded(partial[0], crew), true);
-  assert.deepEqual(roles('r-2'), ['road_captain'], 'North coffee and curves has an RC and no TG');
-  assert.equal(crewNeeded(ride('r-2'), crew), true, 'so it needs crew');
-  // Everyone crewing is a Full or Nomad member, going, with first aid for the Tail Gunner spots.
-  for (const s of crew) {
-    const m = DEMO_DATA.members.find((x) => x.id === s.memberId)!;
-    assert.ok(m.status === 'full' || m.status === 'nomad', `${m.fullName} is ${m.status}`);
-    assert.equal(DEMO_DATA.rsvps.find((r) => r.rideId === s.rideId && r.memberId === s.memberId)?.answer, 'going');
-    if (s.role === 'tail_gunner' || s.role === 'assistant_tail_gunner') {
-      const aid = DEMO_DATA.privates.find((p) => p.memberId === s.memberId)?.firstAidExpiry;
-      assert.ok(aid && aid >= ride(s.rideId).startsAt.slice(0, 10), `${m.fullName} first aid`);
-    }
-  }
-});
-
-test('a demo ride shows Crew needed for a manager on the demo’s today', () => {
-  // The demo is built for the story instant, so this checks against that day.
-  const today = STORY_TODAY;
-  const smokey = DEMO_DATA.members.find((m) => m.id === 'm-smokey')!; // North president
-  // Smokey sits on the NEC, so he sees every ride that needs crew: the North one always, and the
-  // fixed-date club-wide rides (Toy Run, Christmas ride, Ride for Kids, Big 4) in their fortnights.
-  const needy = DEMO_DATA.rides.filter((r) => showsCrewNeeded(smokey, r, DEMO_DATA, today));
-  const north = needy.filter((r) => r.category === 'north');
-  assert.ok(north.length >= 1, 'a North ride with no TG starts in the next 14 days');
-  const gravel = DEMO_DATA.members.find((m) => m.id === 'm-gravel')!; // West board: not North's crew
-  assert.equal(north.some((r) => showsCrewNeeded(gravel, r, DEMO_DATA, today)), false, 'not for a West board member');
-  // Every one of them shows for Gravel exactly when he manages that ride (a club-wide one, any board).
-  for (const r of needy) {
-    assert.equal(showsCrewNeeded(gravel, r, DEMO_DATA, today), managesRide(gravel, r, DEMO_DATA), `only for a manager of ${r.title}`);
-  }
-});
+// The demo club's own crew and its Crew needed tag, checked on every day, are in demoFresh.test.ts.

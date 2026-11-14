@@ -1,7 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays } from '../domain/dates';
-import { addMonths } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
 import {
   CHANGES_TOO_LONG,
@@ -13,7 +11,6 @@ import {
   RULES_EMPTY,
   RULES_TOO_LONG,
   SIGN_OUTDATED,
-  signoffBase,
   type RoadRulesInput,
 } from '../domain/roadRules';
 import type { ClubData } from '../domain/types';
@@ -48,51 +45,7 @@ const input = (over: Partial<RoadRulesInput> = {}): RoadRulesInput => ({
 const NO_VERSIONS: ClubData = { ...DEMO_DATA, roadRules: [], roadRulesSignoffs: [] };
 const statusOf = (id: string, data: ClubData = DEMO_DATA) => roadRulesStatus(member(id), data, TODAY);
 
-test('the demo: version 1 is a fresh, clearly labelled sample; version 2 is a small fix', () => {
-  const versions = [...(DEMO_DATA.roadRules ?? [])].sort((a, b) => a.number - b.number);
-  assert.deepEqual(versions.map((v) => v.number), [1, 2]);
-  const [v1, v2] = versions;
-  assert.ok(v1.body.startsWith('# Sample Road Rules (demo only)\n'), 'labelled as a sample on its first line');
-  assert.ok(v1.body.length < 2000 && v2.body.length < 2000, 'short');
-  for (const v of versions) assert.equal(v.body, v.body.trim(), 'stored trimmed, as a publish would');
-  assert.equal(v1.fresh, true);
-  assert.equal(v1.changes, '');
-  assert.equal(v2.fresh, false, 'a small fix: sign-offs carry over');
-  assert.ok(v2.changes.length > 0 && v2.changes.length <= 500, 'says what changed');
-  assert.notEqual(v2.body, v1.body);
-  assert.ok(Math.abs(v2.body.length - v1.body.length) < 40, 'one small wording fix');
-  for (const v of versions) {
-    assert.equal(v.publishedBy, 'm-rusty', 'published by the NEC Chair');
-  }
-  assert.equal(melbourneDate(v1.publishedAt), addMonths(TODAY, -16), 'version 1: 16 months ago');
-  assert.equal(melbourneDate(v2.publishedAt), addDays(TODAY, -24), 'version 2: 24 days ago');
-  assert.equal(currentRoadRules(DEMO_DATA)?.number, 2);
-  assert.equal(signoffBase(DEMO_DATA)?.number, 1);
-});
-
-test('the demo: Torque is signed, Spanner is due soon, Rusty has run out, Diesel never signed', () => {
-  assert.deepEqual(statusOf('m-torque'), {
-    state: 'current', goodUntil: addMonths(addDays(TODAY, -5), 12), signedVersion: 2,
-  });
-  const spanner = statusOf('m-spanner');
-  assert.equal(spanner.state, 'due_soon');
-  assert.equal(spanner.signedVersion, 1);
-  const spannerSigned = (DEMO_DATA.roadRulesSignoffs ?? []).find((s) => s.memberId === 'm-spanner')!;
-  assert.equal(melbourneDate(spannerSigned.signedAt), addDays(addMonths(TODAY, -11), -20), '11 months and 20 days ago');
-  const rusty = statusOf('m-rusty');
-  assert.equal(rusty.state, 'expired');
-  const rustySigned = (DEMO_DATA.roadRulesSignoffs ?? []).find((s) => s.memberId === 'm-rusty')!;
-  assert.equal(melbourneDate(rustySigned.signedAt), addMonths(TODAY, -13), '13 months ago');
-  assert.equal(statusOf('m-diesel').state, 'unsigned');
-  assert.equal((DEMO_DATA.roadRulesSignoffs ?? []).some((s) => s.memberId === 'm-diesel'), false);
-  // Every sign-off is after the version it signed was published, and on a real member.
-  for (const s of DEMO_DATA.roadRulesSignoffs ?? []) {
-    const v = (DEMO_DATA.roadRules ?? []).find((x) => x.number === s.version);
-    assert.ok(v, `${s.memberId} signed a version that exists`);
-    assert.ok(Date.parse(s.signedAt) > Date.parse(v.publishedAt), `${s.memberId} signed after it was published`);
-    assert.ok(DEMO_DATA.members.some((m) => m.id === s.memberId));
-  }
-});
+// The demo's own versions and sign-off states, checked on every day, are in demoFresh.test.ts.
 
 test('publishing: the NEC adds the next version, cleaned, stamped with who and when', () => {
   const d = publishRoadRules(ctxFor('m-rusty'), input({ body: '  # Road Rules v3\n\nRide safe.  ', changes: '  Tidied up. ', fresh: false }), 2);

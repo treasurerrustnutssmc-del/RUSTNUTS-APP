@@ -13,14 +13,9 @@ import { DEMO_DATA, STORY_NOW, STORY_TODAY } from './demoStory.testkit';
 // The demo's sign-offs are dated from its today: here, the story instant's.
 const TODAY = STORY_TODAY;
 const NOW = STORY_NOW.toISOString();
-// The West breakfast run (r-1), which Torque manages, is on a fixed date. Here it's moved to the
-// date of North coffee and curves (r-2), always about a week out, so the crew can still change
-// whenever these tests run.
-const r2 = DEMO_DATA.rides.find((r) => r.id === 'r-2')!;
-const DATA: ClubData = {
-  ...DEMO_DATA,
-  rides: DEMO_DATA.rides.map((r) => (r.id === 'r-1' ? { ...r, startsAt: r2.startsAt, endsAt: r2.endsAt } : r)),
-};
+// The West breakfast run (r-1), which Torque manages, is a fortnight after the story's today, so
+// its crew can still change.
+const DATA: ClubData = DEMO_DATA;
 const ctxFor = (meId: string, data: ClubData = DATA): DemoCtx => ({
   data,
   me: data.members.find((m) => m.id === meId) ?? null,
@@ -43,18 +38,8 @@ const answerOf = (data: ClubData, memberId: string, rideId: string) =>
 // North coffee and curves, still to come, with no answer yet from Rusty, Diesel or Torque.
 const RIDE = 'r-2';
 
-test('the demo keeps unsigned members to show the prompt: Rusty (the National persona) ran out, Diesel never signed', () => {
-  assert.equal(stateOf('m-rusty'), 'expired');
-  assert.equal(stateOf('m-diesel'), 'unsigned');
-  assert.equal(stateOf('m-torque'), 'current');
-  assert.equal(stateOf('m-spanner'), 'due_soon');
-});
-
-test('most demo members have signed, so the crew picker and the Member persona still work', () => {
-  const asked = DEMO_DATA.members.filter((m) => m.approval === 'approved' && m.status !== 'legacy');
-  const notSigned = asked.filter((m) => ['unsigned', 'expired'].includes(stateOf(m.id))).map((m) => m.id).sort();
-  assert.deepEqual(notSigned, ['m-diesel', 'm-rusty']);
-});
+// The demo's own sign-off states (Rusty ran out, Diesel never signed, most have signed), checked on
+// every day, are in demoFresh.test.ts.
 
 test('an expired or unsigned member can’t say Going; Maybe and Can’t make it work', () => {
   assert.equal(refusal(() => setRsvp(ctxFor('m-rusty'), RIDE, 'going')), SIGN_FIRST);

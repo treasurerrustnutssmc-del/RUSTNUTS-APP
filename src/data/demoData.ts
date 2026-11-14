@@ -2,15 +2,18 @@
 // Replaced by the live database once Supabase is connected.
 
 // Stage 4
+import { melbourneInstant } from '../domain/business';
 import { addDays } from '../domain/dates';
 import { melbourneDate } from '../domain/rides';
-import { clubYearOf } from '../domain/clubYear';
+import { clubYearLabel, clubYearOf } from '../domain/clubYear';
 import { fyOf, receiptNo } from '../domain/fees';
 import { readGpx } from '../domain/gpx';
+import { noticeRecordFrom } from '../domain/notices';
 import { addMonths } from '../domain/profile';
+import { standingOf } from '../domain/standing';
 import type { Attendance, BusCost, BusCostKind, BusKm, CheckinSession, ClubData, LedgerCode, LedgerEntry, Member, MemberPrivate, MemberStatus, Ride, RideRoute, Route } from '../domain/types';
-import { isCredit } from '../domain/ledger';
-import { dayOrdinal, demoClock, monthName } from './demoStory';
+import { isCredit, monthEnd, monthOf } from '../domain/ledger';
+import { dayOrdinal, demoClock, fixed, monthName } from './demoStory';
 import { V4_CONSTITUTION } from './demoConstitution';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
@@ -244,13 +247,13 @@ export function buildDemoData(now: Date): ClubData {
   const northMeetingAt = t('2026-09-16T09:30:00.000Z');
 
   /**
-   * An instant `days` days after now (UTC), at a UTC clock time. The demo's other rides are story
-   * dates, moved a week at a time; North coffee and curves uses this so there's always a ride in
-   * the next fortnight with no Tail Gunner, and crew managers see the "Crew needed" tag whatever
-   * the date.
+   * North coffee and curves: the one ride counted from today, not moved with the story, so there's
+   * always a ride six days out with no Tail Gunner and crew managers see the "Crew needed" tag
+   * whatever the date. 9 am to 2 pm Melbourne, both always real times.
    */
-  const daysFromNow = (days: number, utcTime: string): string =>
-    `${new Date(now.getTime() + days * 86_400_000).toISOString().slice(0, 10)}T${utcTime}`;
+  const coffeeDay = addDays(clock.today, 6);
+  const coffeeStarts = melbourneInstant(coffeeDay, '09:00')!;
+  const coffeeEnds = melbourneInstant(coffeeDay, '14:00')!;
 
   // When each library route was last changed: story instants, moved with the rest.
   const routeUpdatedAt: Record<string, string> = {
@@ -399,8 +402,8 @@ export function buildDemoData(now: Date): ClubData {
     rides: [
       { id: 'r-1', title: 'West breakfast run', startsAt: t('2026-11-07T21:30:00.000Z'), endsAt: t('2026-11-08T01:00:00.000Z'), allDay: false,
         location: 'Caltex Laverton North', notes: 'KSU 8:30. Breakfast at Daylesford, home by lunch.', category: 'west', cancelledAt: null, source: 'feed', website: true },
-      // About a week out (9 am Melbourne in summer time, 8 am in winter), so it always needs crew soon.
-      { id: 'r-2', title: 'North coffee and curves', startsAt: daysFromNow(6, '22:00:00.000Z'), endsAt: daysFromNow(7, '03:00:00.000Z'), allDay: false,
+      // Six days out, 9 am to 2 pm Melbourne, so it always needs crew soon.
+      { id: 'r-2', title: 'North coffee and curves', startsAt: coffeeStarts, endsAt: coffeeEnds, allDay: false,
         location: 'Kilmore Bakery', notes: 'Up through Pyalong and back via Lancefield.', category: 'north', cancelledAt: null, source: 'feed', website: true },
       { id: 'r-3', title: 'Toy Run (Non-Nuts)', startsAt: t('2026-11-28T23:00:00.000Z'), endsAt: null, allDay: false,
         location: 'Werribee Racecourse', notes: 'Another club’s charity run. Bring a wrapped toy.', category: 'non_nuts', cancelledAt: null, source: 'feed', website: true },
@@ -591,15 +594,23 @@ export function buildDemoData(now: Date): ClubData {
   const s4Today = clock.today; // the same "today" as the app
   const s4Fy = fyOf(s4Today); // the treasurer's books
   const s4Year = clubYearOf(s4Today, []); // fees run AGM to AGM; no AGM recorded in the demo, so 1 August
-  const s4Due = `${s4Year}-12-31`;
+  // The fees' due day, the seed's own assumption (not a club rule): 31/12 of the club year until it
+  // has passed, then the last day of next month, never after the club year's last day (31/07), so
+  // Home never opens on a red Overdue.
+  const s4December = `${s4Year}-12-31`;
+  const s4Due = s4Today <= s4December
+    ? s4December
+    : [monthEnd(monthOf(addDays(monthOf(s4Today), 40))), `${s4Year + 1}-07-31`].sort()[0];
   const ago = (days: number) => addDays(s4Today, -days);
   const paid = (monthDay: string) => (`${s4Year}-${monthDay}` > s4Today ? s4Today : `${s4Year}-${monthDay}`); // early in the year, never ahead of today
   const at = (date: string, time = '09:30:00') => `${date}T${time}.000Z`;
+  /** at() for something that has happened: never stamped ahead of now (09:30 UTC is still to come in Melbourne's morning). */
+  const was = (date: string, time?: string) => clock.notAfterNow(at(date, time));
   const went = (sessionId: string, memberIds: string[], date: string) =>
-    memberIds.map((memberId) => ({ sessionId, memberId, checkedInAt: at(date), markedBy: null }));
+    memberIds.map((memberId) => ({ sessionId, memberId, checkedInAt: was(date), markedBy: null }));
   const annual = (id: string, memberId: string, chapterId: string, amountCents: number) => ({
     id, memberId, chapterId, fy: s4Year, kind: 'annual' as const, description: null, amountCents, dueOn: s4Due,
-    createdAt: at(`${s4Year}-08-01`), waivedAt: null,
+    createdAt: was(`${s4Year}-08-01`), waivedAt: null,
   });
   const rate = (chapterId: string, status: MemberStatus, amountCents: number) => ({ chapterId, fy: s4Year, status, amountCents, dueOn: s4Due });
 
@@ -631,21 +642,21 @@ export function buildDemoData(now: Date): ClubData {
       annual('ch-3', 'm-spanner', 'ch-west', 25000),
       annual('ch-4', 'm-gravel', 'ch-west', 25000),
       annual('ch-5', 'm-throttle', 'ch-west', 15000),
-      { ...annual('ch-6', 'm-patches', 'ch-west', 5000), waivedAt: at(`${s4Year}-08-02`) },
+      { ...annual('ch-6', 'm-patches', 'ch-west', 5000), waivedAt: was(`${s4Year}-08-02`) },
       annual('ch-7', 'm-jet', 'ch-north', 25000),
       annual('ch-8', 'm-crank', 'ch-north', 25000),
     ],
     payments: [
       { id: 'pay-1', chargeId: 'ch-1', amountCents: 25000, paidOn: paid('08-02'), method: 'payid', reference: 'RUSTY FEES',
-        state: 'confirmed', claimedBy: 'm-rusty', receiptNo: receiptNo('west', s4Year, 1), decidedAt: at(paid('08-03')) },
+        state: 'confirmed', claimedBy: 'm-rusty', receiptNo: receiptNo('west', s4Year, 1), decidedAt: was(paid('08-03')) },
       { id: 'pay-2', chargeId: 'ch-3', amountCents: 12500, paidOn: paid('08-10'), method: 'cash', reference: null,
-        state: 'confirmed', claimedBy: null, receiptNo: receiptNo('west', s4Year, 2), decidedAt: at(paid('08-10')) },
+        state: 'confirmed', claimedBy: null, receiptNo: receiptNo('west', s4Year, 2), decidedAt: was(paid('08-10')) },
       { id: 'pay-3', chargeId: 'ch-4', amountCents: 10000, paidOn: paid('09-01'), method: 'payid', reference: 'GRAVEL FEES',
-        state: 'confirmed', claimedBy: 'm-gravel', receiptNo: receiptNo('west', s4Year, 3), decidedAt: at(paid('09-02')) },
+        state: 'confirmed', claimedBy: 'm-gravel', receiptNo: receiptNo('west', s4Year, 3), decidedAt: was(paid('09-02')) },
       { id: 'pay-4', chargeId: 'ch-4', amountCents: 15000, paidOn: ago(1), method: 'payid', reference: 'GRAVEL FEES',
         state: 'claimed', claimedBy: 'm-gravel', receiptNo: null, decidedAt: null },
       { id: 'pay-5', chargeId: 'ch-7', amountCents: 25000, paidOn: paid('08-15'), method: 'payid', reference: 'JET FEES',
-        state: 'confirmed', claimedBy: 'm-jet', receiptNo: receiptNo('north', s4Year, 1), decidedAt: at(paid('08-16')) },
+        state: 'confirmed', claimedBy: 'm-jet', receiptNo: receiptNo('north', s4Year, 1), decidedAt: was(paid('08-16')) },
     ],
     paymentDetails: [
       { chapterId: 'ch-west', payid: 'west@rustnuts.example', payidName: 'Rustnuts SMC West', bsb: '000-000', accountNo: '12345678' },
@@ -698,17 +709,16 @@ export function buildDemoData(now: Date): ClubData {
   // The Rusty Bus: Booked for Ride for Kids on its own date, out today on a recovery that Diesel is
   // driving, a Waiting request of Spanner's that clashes with the charity booking, and a no to
   // Spanner from last week. Dated from the same today as Stage 4 (s4Today), with at()'s times in UTC.
-  // From the day before Ride for Kids, the charity booking moves to a month from today with no ride
-  // (the spec's fallback), so the demo always has a booking and a clashing request still to come,
-  // and neither ever shares a day with today's recovery (two Booked bookings never share a day).
+  // Ride for Kids moves with the story and is always weeks ahead, so the charity booking and the
+  // clashing request are always still to come and never share a day with today's recovery (two
+  // Booked bookings never share a day).
   // Also: a request of Spanner's from a fortnight ago that nobody answered, and a Booked charity ride
   // whose ride the website moved half an hour (the sync cancels the old ride and adds a new one), so
   // the booking hangs off a cancelled ride and the new ride shows "Rusty Bus booked those days".
   // ---------------------------------------------------------------------------
 
   const rideForKids = data.rides.find((r) => r.id === 'r-6')!;
-  const kidsDayAhead = melbourneDate(rideForKids.startsAt) > addDays(s4Today, 1);
-  const charityDay = kidsDayAhead ? melbourneDate(rideForKids.startsAt) : addDays(s4Today, 30);
+  const charityDay = melbourneDate(rideForKids.startsAt);
   /** Today's recovery was booked earlier today: three hours ago, or just now in Melbourne's first hours. */
   const recoveryBookedAt = (() => {
     const nowMs = new Date(clock.now).getTime();
@@ -733,9 +743,9 @@ export function buildDemoData(now: Date): ClubData {
     busBookings: [
       {
         // Booked by the West Secretary, a bus manager, so it was Booked straight away.
-        id: 'bus-1', firstDay: charityDay, lastDay: charityDay, purpose: 'charity_ride', rideId: kidsDayAhead ? 'r-6' : null,
+        id: 'bus-1', firstDay: charityDay, lastDay: charityDay, purpose: 'charity_ride', rideId: 'r-6',
         driverId: 'm-gravel',
-        notes: `Support vehicle for ${kidsDayAhead ? 'Ride for Kids' : 'the charity ride'}: water, spares, and room in the back for a bike that gives up.`,
+        notes: 'Support vehicle for Ride for Kids: water, spares, and room in the back for a bike that gives up.',
         status: 'approved', bookedBy: 'm-torque', bookedAt: at(ago(20), '08:00:00'),
         decidedBy: 'm-torque', decidedAt: at(ago(20), '08:00:00'), declineReason: '', cancelledBy: null, cancelledAt: null,
       },
@@ -832,22 +842,25 @@ export function buildDemoData(now: Date): ClubData {
     payeeMemberId: null, payeeName: null, paymentId: null, state: 'paid', recordedBy: 'm-sparks', recordedAt: at(ago(daysAgo)),
     updatedAt: at(ago(daysAgo)), voidReason: null, voidedBy: null, approvals: [], ...over,
   });
+  // Openings and the float are for the financial year of the oldest entry (70 days ago), so in July
+  // the June report still counts from them and no fund closes below zero.
+  const booksFy = fyOf(ago(70));
   const twoOk = (daysAgo: number) => [{ memberId: 'm-sparks', approvedAt: at(ago(daysAgo)) }, { memberId: 'm-torque', approvedAt: at(ago(daysAgo)) }];
 
   Object.assign(data, {
     fundOpenings: [
-      { chapterId: null, fy: s4Fy, amountCents: 466031 },
-      { chapterId: 'ch-west', fy: s4Fy, amountCents: 254000 },
-      { chapterId: 'ch-north', fy: s4Fy, amountCents: 90000 },
+      { chapterId: null, fy: booksFy, amountCents: 466031 },
+      { chapterId: 'ch-west', fy: booksFy, amountCents: 254000 },
+      { chapterId: 'ch-north', fy: booksFy, amountCents: 90000 },
     ],
-    cashFloats: [{ fy: s4Fy, amountCents: 40000 }],
+    cashFloats: [{ fy: booksFy, amountCents: 40000 }],
     ledger: [
       book('le-1', 'ch-west', 'CR-001', 'Member fees: Rusty', 25000, 70, { paymentId: 'pay-1', receivedOn: rustyPaid, entryOn: rustyPaid }),
       book('le-2', 'ch-north', 'CR-001', 'Member fees', 36000, 66),
       book('le-3', null, 'CR-005', 'Hoodie order', 82000, 60),
       book('le-4', null, 'DB-005', 'Hoodies from the printer', 61100, 58, { payeeName: 'Ink & Iron Printing', approvals: twoOk(59) }),
       book('le-5', null, 'DB-004', 'Account fee', 40, 54, { payeeName: 'Bank' }),
-      book('le-6', 'ch-west', 'CR-006', 'Meeting sausage sizzle', 9500, 41, { receivedOn: ago(50) }), // banked late
+      book('le-6', 'ch-west', 'CR-006', 'Meeting sausage sizzle', 9500, 41, { receivedOn: ago(51) }), // banked late: ten days is more than five working days, whatever the weekday
       book('le-7', 'ch-west', 'DB-007', 'Clubhouse hire', 15000, 33, { payeeName: 'Laverton Community Hall', approvals: twoOk(34) }),
       book('le-8', null, 'DB-002', 'Ride for Kids donation', 50000, 26, { payeeName: 'Ride for Kids', approvals: twoOk(27) }),
       book('le-9', 'ch-west', 'DB-003', 'Cable ties, entered twice', 1200, 20, {
@@ -864,12 +877,12 @@ export function buildDemoData(now: Date): ClubData {
       { chapterId: 'ch-west', fy: s4Fy, lines: { 'CR-001': 500000, 'CR-006': 30000, 'DB-001': 120000, 'DB-007': 60000, 'DB-002': 50000 },
         approvedVoteId: null, approvedAt: null, approvedBy: null, updatedAt: at(ago(60)) },
     ],
-    treasurerReports: [{ month: lastMonth, presentedAt: at(thisMonth), presentedBy: 'm-sparks' }],
+    treasurerReports: [{ month: lastMonth, presentedAt: was(thisMonth), presentedBy: 'm-sparks' }],
     // Last month's meeting report, presented with Sparks's notes. A new one runs on from it.
     meetingReports: [{
       id: 'mr-1', fromOn: lastMonth, toOn: addDays(thisMonth, -1),
-      notes: 'The hoodie money came in ahead of the printer’s bill, so the Club fund looks flush. It isn’t: the second run is still to pay.\n\nGravel’s double payment is approved for a refund and goes out this month.',
-      savedBy: 'm-sparks', savedAt: at(thisMonth), presentedBy: 'm-sparks', presentedAt: at(thisMonth),
+      notes: 'The hoodie money came in ahead of the printer’s bill, so the Club fund looks flush. It isn’t: the second run is still to pay.\n\nGravel paid twice by mistake. His refund is on the way.',
+      savedBy: 'm-sparks', savedAt: was(thisMonth), presentedBy: 'm-sparks', presentedAt: was(thisMonth),
     }],
   } satisfies Partial<ClubData>);
 
@@ -921,7 +934,7 @@ export function buildDemoData(now: Date): ClubData {
     ],
     contributions: [
       {
-        id: 'nc-1', title: 'National run 2027', purpose: 'Deposit on the campground at Bright for the first national run, and the patches for it.',
+        id: 'nc-1', title: `National run ${Number(s4Today.slice(0, 4)) + 1}`, purpose: 'Deposit on the campground at Bright for the first national run, and the patches for it.',
         totalCents: 120000, status: 'proposed', proposedBy: 'm-rusty', proposedAt: at(ago(4)), settledAt: null,
         shares: [{ chapterId: 'ch-north', votingMembers: 5, cents: 50000 }, { chapterId: 'ch-west', votingMembers: 7, cents: 70000 }],
         decisions: [],
@@ -945,9 +958,12 @@ export function buildDemoData(now: Date): ClubData {
 
   // ---------------------------------------------------------------------------
   // The National Auditor (11.8): Ace, eleven months into his twelve, so his renewal is coming up. He
-  // asked West about the late-banked sausage sizzle (answered) and the NEC for September's bank
-  // statement (overdue), issued a first findings report and has a second one in draft.
+  // asked West about the late-banked sausage sizzle (answered) and the NEC for a bank statement (the
+  // month before the one he asked in; overdue), issued a first findings report and has a second one
+  // in draft.
   // ---------------------------------------------------------------------------
+
+  const statementMonth = monthName(addDays(monthOf(ago(17)), -1));
 
   Object.assign(data, {
     positions: [
@@ -957,14 +973,14 @@ export function buildDemoData(now: Date): ClubData {
     auditRequests: [
       {
         id: 'ar-1', chapterId: 'ch-west', kind: 'correction', area: 'bank', title: 'Sausage sizzle banked late',
-        details: 'The meeting sausage sizzle came in nine days before it was banked. Please say why, and how the next one gets banked within five working days (13.1).',
+        details: 'The meeting sausage sizzle came in ten days before it was banked. Please say why, and how the next one gets banked within five working days (13.1).',
         dueOn: ago(-7), ledgerEntryId: 'le-6', raisedBy: 'm-ace', raisedAt: at(ago(12)),
-        answer: 'The float tin sat with Sparks over the long weekend. From next month the Treasurer banks it on the Monday after the meeting.',
+        answer: 'The float tin sat with Sparks for more than a week. From next month the Treasurer banks it on the Monday after the meeting.',
         answeredBy: 'm-sparks', answeredAt: at(ago(10)), closedAt: null, closedBy: null, closeNote: null,
       },
       {
-        id: 'ar-2', chapterId: null, kind: 'information', area: 'bank', title: 'September bank statement',
-        details: 'Please send the Club fund’s September statement so I can match it to the books.',
+        id: 'ar-2', chapterId: null, kind: 'information', area: 'bank', title: `${statementMonth} bank statement`,
+        details: `Please send the Club fund’s ${statementMonth} statement so I can match it to the books.`,
         dueOn: ago(3), ledgerEntryId: null, raisedBy: 'm-ace', raisedAt: at(ago(17)),
         answer: null, answeredBy: null, answeredAt: null, closedAt: null, closedBy: null, closeNote: null,
       },
@@ -1007,7 +1023,7 @@ export function buildDemoData(now: Date): ClubData {
       ...noApproval, publishedBy: null, publishedAt: '2026-10-25T03:00:00.000Z',
     },
     {
-      id: 'dv-fees-1', documentId: 'doc-fees', number: 1, label: '2025–26', whatChanged: '', freshSignOff: true,
+      id: 'dv-fees-1', documentId: 'doc-fees', number: 1, label: clubYearLabel(clubYearOf(docDay(-14), [])), whatChanged: '', freshSignOff: true,
       body: `# Sample fee schedule (demo only)
 
 A made-up sample to show how an NEC schedule looks in the app. The NEC publishes the real one.
@@ -1069,8 +1085,10 @@ After any crash, injury or near miss on a club ride, the Road Captain writes dow
   Object.assign(data, {
     rides: [...data.rides, big4Past],
     big4Rides: [
-      { rideId: 'r-7', chapterId: null, designatedBy: 'm-rusty', designatedAt: at(`${s4Year}-08-02`) },
-      { rideId: big4Past.id, chapterId: null, designatedBy: 'm-rusty', designatedAt: at(`${s4Year}-08-02`) },
+      { rideId: 'r-7', chapterId: null, designatedBy: 'm-rusty', designatedAt: was(`${s4Year}-08-02`) },
+      // Designated on 2 August, or a week before its ride when that came first (early in a club year).
+      { rideId: big4Past.id, chapterId: null, designatedBy: 'm-rusty',
+        designatedAt: clock.notAfterNow([at(`${s4Year}-08-02`), at(addDays(melbourneDate(big4Past.startsAt), -7))].sort()[0]) },
     ],
     checkinSessions: [
       ...(data.checkinSessions ?? []).map((s) => ({ ...s, meetingType: s.id === 'cs-week' ? ('special' as const) : ('ordinary' as const) })),
@@ -1087,19 +1105,7 @@ After any crash, injury or near miss on a club ride, the Road Captain writes dow
       ...went('cs-bbq', ['m-torque', 'm-spanner', 'm-kerry', 'm-patches'], ago(14)),
       ...went('cs-big4', ['m-rusty', 'm-torque', 'm-spanner', 'm-sparks', 'm-throttle', 'm-jet', 'm-ratchet'], addDays(ago(42), 1)),
     ],
-    exemptions: [{ sessionId: 'cs-today', memberId: 'm-gravel', reason: 'Working away', grantedBy: 'm-torque', grantedAt: at(s4Today, '08:00:00') }],
-  } satisfies Partial<ClubData>);
-
-  // Big 4 RSVP rules and the 5.5 notice: Gravel has an open attendance notice from the Secretary.
-  Object.assign(data, {
-    big4Waivers: [],
-    statusNotices: [{
-      id: 'sn-gravel', memberId: 'm-gravel', chapterId: 'ch-west', about: 'attendance' as const,
-      record: 'Since 01/08:\nMonthly meetings · 80%: 1 of 3 (needs 3)\nBig 4 rides: 0 (needs 2, 1 still to come)',
-      proposal: 'Move to Supporter status from the November meeting, unless the board grants relief (4.12).',
-      givenOn: addDays(s4Today, -3), respondBy: addDays(s4Today, 11), givenBy: 'm-torque', response: '', respondedAt: null,
-      outcome: null, outcomeNote: '', closedOn: null, closedBy: null,
-    }],
+    exemptions: [{ sessionId: 'cs-today', memberId: 'm-gravel', reason: 'Working away', grantedBy: 'm-torque', grantedAt: was(s4Today, '08:00:00') }],
   } satisfies Partial<ClubData>);
 
   // ---------------------------------------------------------------------------
@@ -1111,7 +1117,7 @@ After any crash, injury or near miss on a club ride, the Road Captain writes dow
       location: 'Halls Gap', notes: 'Up through the gaps and back for tea.', category: 'club', cancelledAt: null, source: 'feed', website: true },
     { id: 'r-brag-2', title: 'Cape Otway run', startsAt: at(ago(100), '21:30:00'), endsAt: null, allDay: false,
       location: 'Apollo Bay', notes: null, category: 'west', cancelledAt: null, source: 'feed', website: true },
-    { id: 'r-brag-3', title: 'High Country weekend', startsAt: at(ago(20), '21:00:00'), endsAt: null, allDay: false,
+    { id: 'r-brag-3', title: 'High Country run', startsAt: at(ago(20), '21:00:00'), endsAt: null, allDay: false,
       location: 'Mansfield', notes: 'Two nights. Bring layers.', category: 'club', cancelledAt: null, source: 'feed', website: true },
   );
 
@@ -1127,10 +1133,12 @@ After any crash, injury or near miss on a club ride, the Road Captain writes dow
     const pastSessions: CheckinSession[] = [];
     const pastAttendance: Attendance[] = [];
     // Fixed dates in 2025, a fortnight apart: before Throttle's and Lefty's FNG year and outside this
-    // club year, so FNG and Big 4 standings stay as they were.
+    // club year, so FNG and Big 4 standings stay as they were. Each ride starts at 22:00 UTC on a
+    // Saturday, which is Sunday morning in Melbourne (the day its check-in is held).
+    const seasonFirstDay = fixed('2025-01-11');
     const titles = ['Sunday run', 'Bacchus Marsh breakfast', 'Lal Lal loop', 'Ballan bakery run', 'You Yangs sunset', 'Sunday run', 'Werribee Gorge run'];
     for (let i = 0; i < 22; i++) {
-      const day = addDays('2025-01-12', i * 14);
+      const day = addDays(seasonFirstDay, i * 14);
       const id = `r-season-${i + 1}`;
       const big = i === 3 || i === 9;
       const trip = i === 5 ? 'rt-murray' : i === 12 ? 'rt-coorong' : null;
@@ -1151,10 +1159,36 @@ After any crash, injury or near miss on a club ride, the Road Captain writes dow
       rideRoutes: [...(data.rideRoutes ?? []), ...pastRoutes],
       big4Rides: [
         ...(data.big4Rides ?? []),
-        ...[3, 9].map((i) => ({ rideId: `r-season-${i + 1}`, chapterId: null, designatedBy: 'm-rusty', designatedAt: at(addDays('2025-01-12', i * 14 - 30)) })),
+        // Designated 30 days before the ride's Sunday.
+        ...[3, 9].map((i) => ({ rideId: `r-season-${i + 1}`, chapterId: null, designatedBy: 'm-rusty', designatedAt: at(addDays(seasonFirstDay, i * 14 - 29)) })),
       ],
       checkinSessions: [...(data.checkinSessions ?? []), ...pastSessions],
       attendance: [...(data.attendance ?? []), ...pastAttendance],
+    } satisfies Partial<ClubData>);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Big 4 RSVP rules and the 5.5 notice: Gravel has an open attendance notice from the Secretary.
+  // Its record is the app's own, taken as at the notice day, or as at the 31 July before it when a
+  // new club year has only just started and he can't be behind yet. Worked out last, once every
+  // check-in, ride and the 2025 season are in.
+  // ---------------------------------------------------------------------------
+
+  {
+    const gravel = data.members.find((m) => m.id === 'm-gravel')!;
+    const noticeDay = addDays(s4Today, -3);
+    const asAt = (day: string) => standingOf(gravel, data, day)!;
+    const behind = (day: string) => asAt(day).lines.find((l) => l.key === 'meetings')?.state === 'behind';
+    const recordDay = behind(noticeDay) ? noticeDay : `${clubYearOf(noticeDay, data.agms)}-07-31`;
+    Object.assign(data, {
+      big4Waivers: [],
+      statusNotices: [{
+        id: 'sn-gravel', memberId: 'm-gravel', chapterId: 'ch-west', about: 'attendance' as const,
+        record: noticeRecordFrom(asAt(recordDay)),
+        proposal: 'Move to Supporter status from the next meeting after the reply date, unless the board grants relief (4.12).',
+        givenOn: noticeDay, respondBy: addDays(s4Today, 11), givenBy: 'm-torque', response: '', respondedAt: null,
+        outcome: null, outcomeNote: '', closedOn: null, closedBy: null,
+      }],
     } satisfies Partial<ClubData>);
   }
 
