@@ -21,7 +21,7 @@ const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName
   approval: 'approved',
   // Everyone in the demo has agreed to the club rules for chats and posts, except Spanner (the
   // reviewer's persona), who is shown them first.
-  postingRulesAcceptedOn: m.id === 'm-spanner' ? null : '2026-10-01',
+  postingRulesAcceptedOn: m.id === 'm-spanner' ? null : fixed('2026-10-01'),
   joinedOn: null,
   patchedOn: null,
   fngStartedOn: null,
@@ -272,23 +272,23 @@ export function buildDemoData(now: Date): ClubData {
 
     members: [
       // West
-      member({ id: 'm-rusty', chapterId: 'ch-west', fullName: 'Gary Kowalski', roadName: 'Rusty', status: 'full', joinedOn: '2019-05-11', patchedOn: '2020-04-18', sharePhone: true, bio: 'Founding member. If it has two wheels and leaks oil, I want it.' }),
-      member({ id: 'm-torque', chapterId: 'ch-west', fullName: 'Tania Walsh', roadName: 'Torque', status: 'full', joinedOn: '2020-02-08', patchedOn: '2021-02-20' }),
-      member({ id: 'm-diesel', chapterId: 'ch-west', fullName: 'Dean Mercer', roadName: 'Diesel', status: 'full', joinedOn: '2019-09-14', patchedOn: '2020-09-26', sharePhone: true }),
-      member({ id: 'm-sparks', chapterId: 'ch-west', fullName: 'Lisa Romano', roadName: 'Sparks', status: 'full', joinedOn: '2021-06-05', patchedOn: '2022-06-18', sharePhone: true }),
-      member({ id: 'm-gravel', chapterId: 'ch-west', fullName: 'Brett Hughes', roadName: 'Gravel', status: 'full', joinedOn: '2020-11-21', patchedOn: '2021-11-27' }),
-      member({ id: 'm-spanner', chapterId: 'ch-west', fullName: 'Mick Doherty', roadName: 'Spanner', status: 'full', joinedOn: '2022-03-12', patchedOn: '2023-03-25', sharePhone: true, bio: 'Tail Gunner. Carries the first aid kit and the cable ties.' }),
-      member({ id: 'm-chook', chapterId: 'ch-west', fullName: 'Shane Fitzgerald', roadName: 'Chook', status: 'full', joinedOn: '2022-08-20', patchedOn: '2023-09-02' }),
+      member({ id: 'm-rusty', chapterId: 'ch-west', fullName: 'Gary Kowalski', roadName: 'Rusty', status: 'full', joinedOn: fixed('2019-05-11'), patchedOn: fixed('2020-04-18'), sharePhone: true, bio: 'Founding member. If it has two wheels and leaks oil, I want it.' }),
+      member({ id: 'm-torque', chapterId: 'ch-west', fullName: 'Tania Walsh', roadName: 'Torque', status: 'full', joinedOn: fixed('2020-02-08'), patchedOn: fixed('2021-02-20') }),
+      member({ id: 'm-diesel', chapterId: 'ch-west', fullName: 'Dean Mercer', roadName: 'Diesel', status: 'full', joinedOn: fixed('2019-09-14'), patchedOn: fixed('2020-09-26'), sharePhone: true }),
+      member({ id: 'm-sparks', chapterId: 'ch-west', fullName: 'Lisa Romano', roadName: 'Sparks', status: 'full', joinedOn: fixed('2021-06-05'), patchedOn: fixed('2022-06-18'), sharePhone: true }),
+      member({ id: 'm-gravel', chapterId: 'ch-west', fullName: 'Brett Hughes', roadName: 'Gravel', status: 'full', joinedOn: fixed('2020-11-21'), patchedOn: fixed('2021-11-27') }),
+      member({ id: 'm-spanner', chapterId: 'ch-west', fullName: 'Mick Doherty', roadName: 'Spanner', status: 'full', joinedOn: fixed('2022-03-12'), patchedOn: fixed('2023-03-25'), sharePhone: true, bio: 'Tail Gunner. Carries the first aid kit and the cable ties.' }),
+      member({ id: 'm-chook', chapterId: 'ch-west', fullName: 'Shane Fitzgerald', roadName: 'Chook', status: 'full', joinedOn: fixed('2022-08-20'), patchedOn: fixed('2023-09-02') }),
       member({ id: 'm-throttle', chapterId: 'ch-west', fullName: 'Nikki Barnes', roadName: 'Throttle', status: 'fng', joinedOn: d('2025-12-13'), fngStartedOn: throttleFngFrom, sharePhone: true }),
-      member({ id: 'm-patches', chapterId: 'ch-west', fullName: 'Paul Nguyen', roadName: 'Patches', status: 'supporter', joinedOn: '2024-04-06' }),
-      member({ id: 'm-kerry', chapterId: 'ch-west', fullName: 'Kerry Mercer', status: 'family', joinedOn: '2021-01-16' }),
-      member({ id: 'm-rooster', chapterId: 'ch-west', fullName: 'Rob Kennedy', roadName: 'Rooster', status: 'legacy', joinedOn: '2019-06-15', patchedOn: '2020-01-18', bio: 'Patched in 2020. Moved on in 2025, still drops in for a beer.' }),
+      member({ id: 'm-patches', chapterId: 'ch-west', fullName: 'Paul Nguyen', roadName: 'Patches', status: 'supporter', joinedOn: fixed('2024-04-06') }),
+      member({ id: 'm-kerry', chapterId: 'ch-west', fullName: 'Kerry Mercer', status: 'family', joinedOn: fixed('2021-01-16') }),
+      member({ id: 'm-rooster', chapterId: 'ch-west', fullName: 'Rob Kennedy', roadName: 'Rooster', status: 'legacy', joinedOn: fixed('2019-06-15'), patchedOn: fixed('2020-01-18'), bio: 'Patched in 2020. Moved on in 2025, still drops in for a beer.' }),
       // North
-      member({ id: 'm-smokey', chapterId: 'ch-north', fullName: 'Steve Brennan', roadName: 'Smokey', status: 'full', joinedOn: '2023-01-28', patchedOn: '2024-02-10', sharePhone: true }),
-      member({ id: 'm-jet', chapterId: 'ch-north', fullName: 'Jodie Harper', roadName: 'Jet', status: 'full', joinedOn: '2023-02-25', patchedOn: '2024-03-09', sharePhone: true }),
-      member({ id: 'm-crank', chapterId: 'ch-north', fullName: 'Craig Morrison', roadName: 'Crank', status: 'full', joinedOn: '2023-04-15', patchedOn: '2024-05-04' }),
-      member({ id: 'm-ace', chapterId: 'ch-north', fullName: 'Aaron Delaney', roadName: 'Ace', status: 'full', joinedOn: '2024-01-20', patchedOn: '2025-02-01', sharePhone: true }),
-      member({ id: 'm-ratchet', chapterId: 'ch-north', fullName: 'Ray Simmons', roadName: 'Ratchet', status: 'nomad', joinedOn: '2023-03-11', patchedOn: '2024-03-23', bio: 'Moved to the Sunshine Coast in 2025. Phones in to North meetings.' }),
+      member({ id: 'm-smokey', chapterId: 'ch-north', fullName: 'Steve Brennan', roadName: 'Smokey', status: 'full', joinedOn: fixed('2023-01-28'), patchedOn: fixed('2024-02-10'), sharePhone: true }),
+      member({ id: 'm-jet', chapterId: 'ch-north', fullName: 'Jodie Harper', roadName: 'Jet', status: 'full', joinedOn: fixed('2023-02-25'), patchedOn: fixed('2024-03-09'), sharePhone: true }),
+      member({ id: 'm-crank', chapterId: 'ch-north', fullName: 'Craig Morrison', roadName: 'Crank', status: 'full', joinedOn: fixed('2023-04-15'), patchedOn: fixed('2024-05-04') }),
+      member({ id: 'm-ace', chapterId: 'ch-north', fullName: 'Aaron Delaney', roadName: 'Ace', status: 'full', joinedOn: fixed('2024-01-20'), patchedOn: fixed('2025-02-01'), sharePhone: true }),
+      member({ id: 'm-ratchet', chapterId: 'ch-north', fullName: 'Ray Simmons', roadName: 'Ratchet', status: 'nomad', joinedOn: fixed('2023-03-11'), patchedOn: fixed('2024-03-23'), bio: 'Moved to the Sunshine Coast in 2025. Phones in to North meetings.' }),
       member({ id: 'm-lefty', chapterId: 'ch-north', fullName: 'Luke Carter', roadName: 'Lefty', status: 'fng', joinedOn: d('2026-04-18'), fngStartedOn: d('2026-07-25') }),
       member({ id: 'm-ben', chapterId: 'ch-north', fullName: 'Ben Whitfield', status: 'introduced', joinedOn: d('2026-09-26') }),
       // Waiting for approval
@@ -378,24 +378,24 @@ export function buildDemoData(now: Date): ClubData {
     ],
 
     positions: [
-      { id: 'p-1', memberId: 'm-rusty', chapterId: 'ch-west', role: 'president', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-2', memberId: 'm-rusty', chapterId: null, role: 'nec_chair', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-3', memberId: 'm-torque', chapterId: 'ch-west', role: 'secretary', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-4', memberId: 'm-diesel', chapterId: 'ch-west', role: 'road_captain', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-5', memberId: 'm-sparks', chapterId: 'ch-west', role: 'treasurer', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-6', memberId: 'm-gravel', chapterId: 'ch-west', role: 'sergeant_at_arms', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-7', memberId: 'm-spanner', chapterId: 'ch-west', role: 'tail_gunner', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-8', memberId: 'm-chook', chapterId: 'ch-west', role: 'officer', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-9', memberId: 'm-smokey', chapterId: 'ch-north', role: 'president', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-10', memberId: 'm-jet', chapterId: 'ch-north', role: 'vice_president', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-11', memberId: 'm-crank', chapterId: 'ch-north', role: 'road_captain', startedOn: '2025-08-16', endedOn: null },
-      { id: 'p-12', memberId: 'm-ace', chapterId: 'ch-north', role: 'officer', startedOn: '2025-08-16', endedOn: null },
+      { id: 'p-1', memberId: 'm-rusty', chapterId: 'ch-west', role: 'president', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-2', memberId: 'm-rusty', chapterId: null, role: 'nec_chair', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-3', memberId: 'm-torque', chapterId: 'ch-west', role: 'secretary', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-4', memberId: 'm-diesel', chapterId: 'ch-west', role: 'road_captain', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-5', memberId: 'm-sparks', chapterId: 'ch-west', role: 'treasurer', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-6', memberId: 'm-gravel', chapterId: 'ch-west', role: 'sergeant_at_arms', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-7', memberId: 'm-spanner', chapterId: 'ch-west', role: 'tail_gunner', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-8', memberId: 'm-chook', chapterId: 'ch-west', role: 'officer', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-9', memberId: 'm-smokey', chapterId: 'ch-north', role: 'president', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-10', memberId: 'm-jet', chapterId: 'ch-north', role: 'vice_president', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-11', memberId: 'm-crank', chapterId: 'ch-north', role: 'road_captain', startedOn: fixed('2025-08-16'), endedOn: null },
+      { id: 'p-12', memberId: 'm-ace', chapterId: 'ch-north', role: 'officer', startedOn: fixed('2025-08-16'), endedOn: null },
       // The club's history: made-up founders and past office holders for the hall of fame.
-      { id: 'p-13', memberId: 'm-rusty', chapterId: null, role: 'founder', startedOn: '2019-03-09', endedOn: null },
-      { id: 'p-14', memberId: 'm-torque', chapterId: null, role: 'founder', startedOn: '2019-03-09', endedOn: null },
-      { id: 'p-15', memberId: 'm-torque', chapterId: 'ch-west', role: 'president', startedOn: '2019-03-09', endedOn: '2023-08-19' },
-      { id: 'p-16', memberId: 'm-diesel', chapterId: 'ch-west', role: 'president', startedOn: '2023-08-19', endedOn: '2025-08-16' },
-      { id: 'p-17', memberId: 'm-gravel', chapterId: 'ch-west', role: 'treasurer', startedOn: '2019-03-09', endedOn: '2021-08-21' },
+      { id: 'p-13', memberId: 'm-rusty', chapterId: null, role: 'founder', startedOn: fixed('2019-03-09'), endedOn: null },
+      { id: 'p-14', memberId: 'm-torque', chapterId: null, role: 'founder', startedOn: fixed('2019-03-09'), endedOn: null },
+      { id: 'p-15', memberId: 'm-torque', chapterId: 'ch-west', role: 'president', startedOn: fixed('2019-03-09'), endedOn: fixed('2023-08-19') },
+      { id: 'p-16', memberId: 'm-diesel', chapterId: 'ch-west', role: 'president', startedOn: fixed('2023-08-19'), endedOn: fixed('2025-08-16') },
+      { id: 'p-17', memberId: 'm-gravel', chapterId: 'ch-west', role: 'treasurer', startedOn: fixed('2019-03-09'), endedOn: fixed('2021-08-21') },
     ],
     // Made-up rides, spread over the website's five colours. Times are Melbourne local, as instants,
     // moved on with the story so each ride stays on its weekday at its clock time.
@@ -1011,7 +1011,7 @@ export function buildDemoData(now: Date): ClubData {
   const noApproval = { approvingBody: null, approvedOn: null, commencesOn: null };
 
   data.documents = [
-    { id: 'doc-v4', chapterId: null, kind: 'constitution', title: 'Constitution', asksSignOff: false, reviewMonths: 12, reviewedOn: null, createdBy: null, createdAt: '2026-10-25T03:00:00.000Z' },
+    { id: 'doc-v4', chapterId: null, kind: 'constitution', title: 'Constitution', asksSignOff: false, reviewMonths: 12, reviewedOn: null, createdBy: null, createdAt: fixed('2026-10-25T03:00:00.000Z') },
     { id: 'doc-fees', chapterId: null, kind: 'policy', title: 'Fee schedule', asksSignOff: false, reviewMonths: 12, reviewedOn: null, createdBy: 'm-rusty', createdAt: docAt(-15) },
     { id: 'doc-west', chapterId: 'ch-west', kind: 'policy', title: 'West Chapter bylaws', asksSignOff: true, reviewMonths: 24, reviewedOn: null, createdBy: 'm-torque', createdAt: docAt(-14) },
     { id: 'doc-incident', chapterId: null, kind: 'procedure', title: 'Incident report', asksSignOff: false, reviewMonths: null, reviewedOn: null, createdBy: 'm-rusty', createdAt: docAt(-6) },
@@ -1020,7 +1020,7 @@ export function buildDemoData(now: Date): ClubData {
   data.documentVersions = [
     {
       id: 'dv-v4', documentId: 'doc-v4', number: 1, label: 'v4', body: V4_CONSTITUTION, whatChanged: '', freshSignOff: true,
-      ...noApproval, publishedBy: null, publishedAt: '2026-10-25T03:00:00.000Z',
+      ...noApproval, publishedBy: null, publishedAt: fixed('2026-10-25T03:00:00.000Z'),
     },
     {
       id: 'dv-fees-1', documentId: 'doc-fees', number: 1, label: clubYearLabel(clubYearOf(docDay(-14), [])), whatChanged: '', freshSignOff: true,

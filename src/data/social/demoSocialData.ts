@@ -11,7 +11,7 @@ import type { BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, Honour } from '../../domain/social/history';
 import type { Award, Nomination, Vote } from '../../domain/social/brag';
 import type { ClubInvite, OtherClub } from '../../domain/invites';
-import { storyDates } from '../demoStory';
+import { fixed, storyDates } from '../demoStory';
 import type { SocialData } from './demoSocialActions';
 
 const monthDay = (iso: string) => ({ month: Number(iso.slice(5, 7)), day: Number(iso.slice(8, 10)) });
@@ -178,17 +178,17 @@ function demoBragging(today: string): { awards: Award[]; nominations: Nomination
 
 /** A made-up story of the club, from its first ride on. The founding comes from the founder positions. */
 const DEMO_HISTORY: HistoryEntry[] = [
-  { id: 'history-1', happenedOn: '2019-04-13', precision: 'day', title: 'The first club ride',
+  { id: 'history-1', happenedOn: fixed('2019-04-13'), precision: 'day', title: 'The first club ride',
     story: 'Six bikes out to Daylesford and back. It rained the whole way home.', addedBy: 'm-torque', archivedAt: null },
-  { id: 'history-2', happenedOn: '2019-11-01', precision: 'month', title: 'Patches arrive',
+  { id: 'history-2', happenedOn: fixed('2019-11-01'), precision: 'month', title: 'Patches arrive',
     story: 'The first run of RUSTNUTS patches, sewn on at the pub that night.', addedBy: 'm-torque', archivedAt: null },
-  { id: 'history-3', happenedOn: '2020-01-01', precision: 'year', title: 'A year of riding alone',
+  { id: 'history-3', happenedOn: fixed('2020-01-01'), precision: 'year', title: 'A year of riding alone',
     story: 'Lockdowns kept us apart, so the group chat did the riding.', addedBy: 'm-rusty', archivedAt: null },
-  { id: 'history-4', happenedOn: '2021-08-21', precision: 'day', title: 'North chapter starts',
+  { id: 'history-4', happenedOn: fixed('2021-08-21'), precision: 'day', title: 'North chapter starts',
     story: 'Smokey and the Hume Highway crew become the North chapter.', addedBy: 'm-rusty', archivedAt: null },
-  { id: 'history-5', happenedOn: '2022-12-01', precision: 'month', title: 'The Rusty Bus joins the club',
+  { id: 'history-5', happenedOn: fixed('2022-12-01'), precision: 'month', title: 'The Rusty Bus joins the club',
     story: 'An old Coaster bought for charity rides and getting broken bikes home.', addedBy: 'm-rusty', archivedAt: null },
-  { id: 'history-6', happenedOn: '2024-03-16', precision: 'day', title: 'First toy run',
+  { id: 'history-6', happenedOn: fixed('2024-03-16'), precision: 'day', title: 'First toy run',
     story: 'Forty bikes and a bus full of toys for the hospital.', addedBy: 'm-diesel', archivedAt: null },
 ];
 
