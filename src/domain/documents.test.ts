@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_DATA } from '../data/demoData';
+import { DEMO_DATA } from '../data/demoStory.testkit';
 import {
   ALREADY_IN_LIBRARY, ALREADY_RECORDED, APPROVAL_TOGETHER, approvalFieldsProblem, authorityLevel, BEFORE_APPROVED, BODY_EMPTY, BODY_TOO_LONG,
   CHANGES_TOO_LONG, CLUB_WIDE_ONLY, createDocumentProblem, documentBanner, documentContents, findInDocument, FUTURE_APPROVAL, inForce,

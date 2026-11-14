@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 import type { KeyValue } from './liveQueue';
 import { authStorageKeys, createClubCache, isConnectionError, offlineText, startupUser } from './offlineCache';
 

@@ -18,7 +18,7 @@ import {
 } from '../domain/briefings';
 import type { ClubData } from '../domain/types';
 import { readBriefing, runDemoAction, saveBriefing, type DemoCtx } from './demoActions';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 
 const NOW = '2026-10-24T00:00:00.000Z';
 const LATER = '2026-10-25T00:00:00.000Z';

@@ -13,8 +13,8 @@ import { displayName } from '../domain/profile';
 import { prepareUpload } from './chat/media';
 import { uploadName } from './chat/liveChat';
 import { NotAllowedError, useClub } from './clubContext';
-import { DEMO_FEEDBACK, demoAnswerFeedback, demoSendFeedback, toFeedback, type AppDetails, type FeedbackDraft, type FeedbackRow } from './feedbackData';
-import { appMode, liveDataOn } from './reviewMode';
+import { demoAnswerFeedback, demoFeedback, demoSendFeedback, toFeedback, type AppDetails, type FeedbackDraft, type FeedbackRow } from './feedbackData';
+import { appMode, demoSession, liveDataOn } from './reviewMode';
 import { friendlyError, supabase } from './supabase';
 
 const BUCKET = 'feedback-media';
@@ -78,7 +78,7 @@ interface State {
 const startState = (): State =>
   liveDataOn()
     ? { forId: undefined, ready: false, feedback: [], loadError: null }
-    : { forId: null, ready: true, feedback: DEMO_FEEDBACK, loadError: null };
+    : { forId: null, ready: true, feedback: demoFeedback(demoSession.now()), loadError: null };
 let state: State = startState();
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => {

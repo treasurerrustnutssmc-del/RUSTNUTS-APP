@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { saveBike } from './demoActions';
-import { DEMO_DATA as demoData } from './demoData';
+import { DEMO_DATA as demoData } from './demoStory.testkit';
 
 test('saving a bike in the demo keeps its range (save_bike leaves range_km alone)', () => {
   const me = demoData.members.find((m) => m.id === 'm-spanner')!;

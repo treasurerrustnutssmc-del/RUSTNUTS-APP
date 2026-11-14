@@ -87,15 +87,23 @@ function seed(text: string): number {
   return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32;
 }
 
-/** Made-up hours for the demo: mild, a breeze, the odd shower. The same for the same ride every time. */
+/** Melbourne's typical top of the day in each month, January first (degrees). */
+const MONTH_TOP = [26, 26, 24, 21, 17, 15, 14, 15, 17, 20, 22, 24];
+
+/**
+ * Made-up hours for the demo: the month's usual top give or take a few degrees, a breeze, the odd
+ * shower. The same for the same ride every time.
+ */
 export function demoSeries(key: string, count: number, hours: string[]): HourlySeries[] {
   return Array.from({ length: count }, (_, p) => {
-    const base = 12 + seed(`${key}:${p}`) * 14;
+    // Each point is up to 2.5 degrees either side of the month's usual top; the night is 10 below it.
+    const spread = (seed(`${key}:${p}`) - 0.5) * 5;
     const wet = seed(`${key}:wet:${p}`);
     return {
       time: hours,
       temp: hours.map((h) => {
         const hr = Number(h.slice(11, 13));
+        const base = MONTH_TOP[Number(h.slice(5, 7)) - 1] - 5 + spread;
         return Math.round((base + 5 * Math.sin(((hr - 9) / 24) * 2 * Math.PI)) * 10) / 10;
       }),
       rain: hours.map((h, i) => Math.round(wet * 70 * (0.5 + 0.5 * Math.sin(i / 3 + p)))),

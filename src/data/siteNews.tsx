@@ -8,8 +8,8 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { boardNewsOrder, cleanNews, newsProblem, publicNews, removeNewsProblem, type NewsInput, type PublicNews, type SiteNews } from '../domain/siteNews';
 import { isAnyBoard } from '../domain/social/help';
 import { NotAllowedError, useClub } from './clubContext';
-import { appMode, liveDataOn } from './reviewMode';
-import { DEMO_SITE_NEWS, demoPostNews, demoRemoveNews, toSiteNews, type SiteNewsRow } from './siteNewsData';
+import { appMode, demoSession, liveDataOn } from './reviewMode';
+import { demoPostNews, demoRemoveNews, demoSiteNews, toSiteNews, type SiteNewsRow } from './siteNewsData';
 import { friendlyError, supabase } from './supabase';
 
 export interface SiteNewsValue {
@@ -39,7 +39,7 @@ interface State {
 const startState = (): State =>
   liveDataOn()
     ? { forId: undefined, ready: false, news: [], loadError: null }
-    : { forId: null, ready: true, news: DEMO_SITE_NEWS, loadError: null };
+    : { forId: null, ready: true, news: demoSiteNews(demoSession.now()), loadError: null };
 let state: State = startState();
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => {

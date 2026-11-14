@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { charityCounts, charityFor, placesLeft, signupsFor } from '../domain/charity';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 
 test('the demo: Ride for Kids takes sign-ups, every helper’s job is on its list, and it isn’t full', () => {
   const charity = charityFor('r-6', DEMO_DATA)!;

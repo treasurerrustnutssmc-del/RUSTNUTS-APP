@@ -5,7 +5,7 @@ import { ALREADY_HAS_KEYS, KM_OUT_OF_ORDER, LITRES_NOT_FUEL, NOT_STRIKER } from 
 import type { BusBooking, ClubData, Member } from '../domain/types';
 import { changeBus, handBusKeys, logBusCost, logBusKm, strikeBusCost, strikeBusKm } from './busExtrasActions';
 import { changeBusArgs, handBusKeysArgs, loadBusExtras, logBusCostArgs, logBusKmArgs } from './busExtrasLive';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 import type { DemoCtx } from './demoActions';
 
 const TODAY = '2026-10-29';

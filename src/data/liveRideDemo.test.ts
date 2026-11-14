@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { splitWarning } from '../domain/liveRide';
 import type { ClubData, Member } from '../domain/types';
-import { DEMO_DATA, demoTodayRide } from './demoData';
+import { demoTodayRide } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 import { createDemoLiveBackend } from './liveRideDemo';
 
 const NOW = new Date('2026-11-06T23:00:00.000Z');

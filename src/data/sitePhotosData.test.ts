@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_SITE_PHOTO_CREW, demoAddPhoto, demoSitePhotos } from './sitePhotosData';
+import { demoAddPhoto, demoSitePhotoCrew, demoSitePhotos } from './sitePhotosData';
+import { STORY_NOW } from './demoStory.testkit';
 
 // Jeff's call (2 Nov 2026): an editor's tick alone puts any club chat photo up; the poster gets a
 // heads-up and can take it down, but isn't asked first.
@@ -15,6 +16,6 @@ test('a pick goes live at once, whoever posted the photo', () => {
 });
 
 test('the demo samples are all live or taken down, and the crew is Torque and Jet', () => {
-  assert.deepEqual([...new Set(demoSitePhotos('m-torque', (path) => `mm-${path}`).map((p) => p.status))].sort(), ['live', 'removed']);
-  assert.deepEqual(DEMO_SITE_PHOTO_CREW.map((c) => c.memberId), ['m-torque', 'm-jet']);
+  assert.deepEqual([...new Set(demoSitePhotos('m-torque', (path) => `mm-${path}`, STORY_NOW).map((p) => p.status))].sort(), ['live', 'removed']);
+  assert.deepEqual(demoSitePhotoCrew(STORY_NOW).map((c) => c.memberId), ['m-torque', 'm-jet']);
 });

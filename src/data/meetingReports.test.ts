@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 import * as act from './ledgerActions';
 import { toMeetingReports } from './ledgerLive';
 import type { DemoCtx } from './demoActions';

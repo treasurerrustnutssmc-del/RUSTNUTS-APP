@@ -3,16 +3,19 @@
 
 import React, { useCallback, useState } from 'react';
 import { memberProblem } from '../../domain/chat';
+import { melbourneDate } from '../../domain/rides';
 import { useChat } from '../chat/ChatProvider';
-import { DEMO_MEDIA } from '../chat/demoChatData';
+import { DEMO_MEDIA } from '../chat/demoMedia';
 import { useClub } from '../clubContext';
+import { demoSession } from '../reviewMode';
 import * as act from './demoSocialActions';
 import { demoSocialData } from './demoSocialData';
 import { SocialContext, type SocialContextValue } from './socialContext';
 
 export function DemoSocialProvider({ children }: { children: React.ReactNode }) {
   const { data, me, today, demoClearBio } = useClub();
-  const [social, setSocial] = useState<act.SocialData>(() => demoSocialData(today));
+  // Seeded for the demo session's day, the same instant the club and the chats are built for.
+  const [social, setSocial] = useState<act.SocialData>(() => demoSocialData(melbourneDate(demoSession.now().toISOString())));
   const ctx = (): act.SocialCtx => ({ social, club: data, me, today });
   // Kept the same between renders, so a screen that loads on change doesn't load forever.
   // Like the database: nothing from anyone you've blocked.

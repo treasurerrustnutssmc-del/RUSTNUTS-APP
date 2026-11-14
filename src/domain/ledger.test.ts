@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_DATA } from '../data/demoData';
+import { DEMO_DATA } from '../data/demoStory.testkit';
 import {
   addFeeProblem, approveBudgetProblem, approveProblem, approvesFor, bankedLate, BUDGET_VOTE, budgetLines, budgetProblem,
   creditProblem, debitProblem, feesToAdd, fundBalance, keepsBooks, KEEPS_ONLY, monthReport, NEEDS_TWO, PAYEE_CANT_APPROVE,

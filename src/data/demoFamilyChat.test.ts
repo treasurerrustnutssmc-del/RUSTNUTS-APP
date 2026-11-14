@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NotAllowedError } from './clubContext';
 import { acceptPostingRules, type DemoCtx } from './demoActions';
-import { DEMO_DATA } from './demoData';
+import { DEMO_DATA } from './demoStory.testkit';
 import type { ChatData } from './chat/demoChatActions';
 import type { Conversation } from '../domain/chat';
 import { listFor } from './chat/chatList';
@@ -22,7 +22,7 @@ test('Family agree to the club rules for chats and posts, like members', () => {
   assert.throws(() => acceptPostingRules(ctx('m-josh')), NotAllowedError, 'pending Family can’t');
 });
 
-// demoChatData pulls in the demo's pictures, which node can't load, so the chats are written out here.
+// The chats are written out here, so this test reads only the conversations it needs.
 const conv = (id: string, over: Partial<Conversation> & Pick<Conversation, 'kind'>): Conversation => ({
   id, chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], ...over,
 });

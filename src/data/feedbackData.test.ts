@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_FEEDBACK, demoAnswerFeedback, demoSendFeedback, toFeedback } from './feedbackData';
+import { demoAnswerFeedback, demoFeedback, demoSendFeedback, toFeedback } from './feedbackData';
+import { STORY_NOW } from './demoStory.testkit';
 import { FEEDBACK_KINDS, FEEDBACK_STATUSES } from '../domain/feedback';
+
+const DEMO_FEEDBACK = demoFeedback(STORY_NOW);
 
 test('rows from the database become reports', () => {
   const [f] = toFeedback([{

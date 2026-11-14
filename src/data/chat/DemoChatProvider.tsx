@@ -8,7 +8,9 @@ import { useClub } from '../clubContext';
 import { ChatContext, type Attachment, type ChatContextValue, type ReportView } from './chatContext';
 import { feedFrom, listFor, rideWallFrom, rideWallsFrom, withoutBlocked } from './chatList';
 import * as act from './demoChatActions';
-import { DEMO_MEDIA, DEMO_PAST_RIDES, DEMO_PREVIEWS, demoChatData } from './demoChatData';
+import { demoSession } from '../reviewMode';
+import { DEMO_PREVIEWS, demoChatData, demoPastRides } from './demoChatData';
+import { DEMO_MEDIA } from './demoMedia';
 
 const toNewMedia = (a: Attachment): Omit<MessageMedia, 'id' | 'messageId' | 'position'> =>
   a.kind === 'gif'
@@ -24,8 +26,10 @@ const voiceOf = (m: { media: MessageMedia[] }) => {
 
 export function DemoChatProvider({ children }: { children: React.ReactNode }) {
   const { data, me, today } = useClub();
-  const club: ClubData = useMemo(() => ({ ...data, rides: [...DEMO_PAST_RIDES, ...data.rides] }), [data]);
-  const [chat, setChat] = useState<act.ChatData>(() => demoChatData(new Date(), data.rides));
+  // The chats and the past ride are built for the demo session's instant, like the club itself.
+  const [pastRides] = useState(() => demoPastRides(demoSession.now()));
+  const club: ClubData = useMemo(() => ({ ...data, rides: [...pastRides, ...data.rides] }), [data, pastRides]);
+  const [chat, setChat] = useState<act.ChatData>(() => demoChatData(demoSession.now(), data.rides));
   const ctx = (): act.ChatCtx => ({ chat, club, me, now: new Date().toISOString() });
 
   const list = useMemo(() => listFor(chat, club, me, today), [chat, club, me, today]);

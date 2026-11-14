@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEMO_ENQUIRIES, demoHandleEnquiry, toEnquiries } from './enquiriesData';
+import { demoEnquiries, demoHandleEnquiry, toEnquiries } from './enquiriesData';
+import { STORY_NOW } from './demoStory.testkit';
 import { ENQUIRY_CHAPTERS } from '../domain/enquiries';
+
+const DEMO_ENQUIRIES = demoEnquiries(STORY_NOW);
 
 test('rows from the database become enquiries', () => {
   const [e] = toEnquiries([{

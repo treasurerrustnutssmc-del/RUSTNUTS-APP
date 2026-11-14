@@ -1,6 +1,7 @@
 // Made-up social data for the demo build, dated from the demo's today so the Home cards always have
 // something on. Nobody here is a real person, and the photos are drawn scenes.
 
+import { melbourneInstant } from '../../domain/business';
 import { addDays } from '../../domain/dates';
 import type { Birthday } from '../../domain/social/shoutouts';
 import type { FeedItem } from '../chat/chatContext';
@@ -10,6 +11,7 @@ import type { BuildUpdate } from '../../domain/social/builds';
 import type { HistoryEntry, Honour } from '../../domain/social/history';
 import type { Award, Nomination, Vote } from '../../domain/social/brag';
 import type { ClubInvite, OtherClub } from '../../domain/invites';
+import { fixed, storyDates } from '../demoStory';
 import type { SocialData } from './demoSocialActions';
 
 const monthDay = (iso: string) => ({ month: Number(iso.slice(5, 7)), day: Number(iso.slice(8, 10)) });
@@ -42,7 +44,8 @@ export function demoSocialData(today: string): SocialData {
     photo('otd-3', 'demo/twisties.jpg', 'm-rusty', back(3, 2), 900, 1200),
   ];
   // Made-up workshops: the names are invented and the numbers are the 555 range kept for drama.
-  const added = '2026-09-01T00:00:00.000Z';
+  // Added in the story's September, moved a week at a time with the rest of the story.
+  const added = storyDates(today).t('2026-09-01T00:00:00.000Z');
   const shop = (id: string, over: Partial<Mechanic> & Pick<Mechanic, 'name' | 'addedBy'>): Mechanic => ({
     id, suburb: null, phone: null, website: null, speciality: null, notes: null, addedAt: added, archivedAt: null, ...over,
   });
@@ -81,12 +84,13 @@ export function demoSocialData(today: string): SocialData {
     ...demoBragging(today),
     ...demoInvites(today),
     // One open report, so a board persona sees "Reports to look at" straight away (the reviewer
-    // opens as Spanner, who didn't make it, so Spanner still sees the listing).
+    // opens as Spanner, who didn't make it, so Spanner still sees the listing). Made at 9 am
+    // yesterday, Melbourne time, so it is never ahead of now.
     contentReports: [
       {
         id: 'cr-1', kind: 'listing', targetId: 'listing-2', authorId: 'm-chook', reporterId: 'm-gravel',
         reason: 'He’s had a go at me over this before. Not on.', snapshot: 'Heated grips for a tank bag\nOxford heated grips, barely used. After a magnetic tank bag.',
-        createdAt: `${addDays(today, -1)}T22:00:00.000Z`, resolvedAt: null, resolvedBy: null, outcome: null,
+        createdAt: melbourneInstant(addDays(today, -1), '09:00')!, resolvedAt: null, resolvedBy: null, outcome: null,
       },
     ],
   };
@@ -95,10 +99,13 @@ export function demoSocialData(today: string): SocialData {
 /**
  * Invites to and from other clubs (made-up clubs). In: the Toy Run, accepted and on the calendar;
  * Ride for Kids, accepted but not linked yet (so the calendar suggestion shows); a bike show ride
- * Spanner passed on that nobody has answered. Out: two clubs asked to the Christmas ride.
+ * Spanner passed on that nobody has answered. Out: two clubs asked to the club lunch ride. The
+ * story's stamps and event days move a week at a time with the rides they belong to (inv-1 is
+ * r-3's day, inv-2 is r-6's day; the bike show is a story Saturday, so it stays a Saturday).
  */
 function demoInvites(today: string): { otherClubs: OtherClub[]; invites: ClubInvite[] } {
-  const at = '2026-10-10T00:00:00.000Z';
+  const { d, t } = storyDates(today);
+  const at = t('2026-10-10T00:00:00.000Z');
   const club = (id: string, name: string, town: string, contact: string | null, addedBy: string): OtherClub => ({
     id, name, town, contact, note: null, addedBy, addedAt: at, archivedAt: null,
   });
@@ -112,16 +119,16 @@ function demoInvites(today: string): { otherClubs: OtherClub[]; invites: ClubInv
     bikes: null, note: null, addedAt: at, answeredBy: null, answeredAt: null, archivedAt: null,
   };
   const invites: ClubInvite[] = [
-    { ...base, id: 'inv-1', direction: 'in', clubId: 'oc-1', chapterId: null, rideId: 'r-3', title: 'Toy Run', eventOn: '2026-11-29',
+    { ...base, id: 'inv-1', direction: 'in', clubId: 'oc-1', chapterId: null, rideId: 'r-3', title: 'Toy Run', eventOn: d('2026-11-29'),
       place: 'Werribee Racecourse', details: 'Charity run for the children’s hospital. Bring a wrapped toy.', answer: 'yes',
-      calendarLabel: 'non_nuts', addedBy: 'm-rusty', answeredBy: 'm-rusty', answeredAt: '2026-10-12T00:00:00.000Z' },
-    { ...base, id: 'inv-2', direction: 'in', clubId: 'oc-2', chapterId: 'ch-west', title: 'Ride for Kids', eventOn: '2027-01-17',
+      calendarLabel: 'non_nuts', addedBy: 'm-rusty', answeredBy: 'm-rusty', answeredAt: t('2026-10-12T00:00:00.000Z') },
+    { ...base, id: 'inv-2', direction: 'in', clubId: 'oc-2', chapterId: 'ch-west', title: 'Ride for Kids', eventOn: d('2027-01-17'),
       place: 'Geelong Waterfront', answer: 'yes', calendarLabel: 'supported', note: 'Rusty Bus on recovery.', addedBy: 'm-diesel',
-      answeredBy: 'm-diesel', answeredAt: '2026-10-14T00:00:00.000Z' },
-    { ...base, id: 'inv-3', direction: 'in', clubId: 'oc-3', chapterId: 'ch-west', title: 'Bike show ride', eventOn: addDays(today, 20),
+      answeredBy: 'm-diesel', answeredAt: t('2026-10-14T00:00:00.000Z') },
+    { ...base, id: 'inv-3', direction: 'in', clubId: 'oc-3', chapterId: 'ch-west', title: 'Bike show ride', eventOn: d('2026-11-14'),
       place: 'Bendigo Showgrounds', details: 'They ride in together from Castlemaine and park up at the show.', addedBy: 'm-spanner' },
     { ...base, id: 'inv-4', direction: 'out', clubId: 'oc-1', chapterId: null, rideId: 'r-4', answer: 'yes', bikes: 15,
-      addedBy: 'm-rusty', answeredBy: 'm-rusty', answeredAt: '2026-10-20T00:00:00.000Z' },
+      addedBy: 'm-rusty', answeredBy: 'm-rusty', answeredAt: t('2026-10-20T00:00:00.000Z') },
     { ...base, id: 'inv-5', direction: 'out', clubId: 'oc-3', chapterId: null, rideId: 'r-4', addedBy: 'm-rusty' },
   ];
   return { otherClubs, invites };
@@ -171,17 +178,17 @@ function demoBragging(today: string): { awards: Award[]; nominations: Nomination
 
 /** A made-up story of the club, from its first ride on. The founding comes from the founder positions. */
 const DEMO_HISTORY: HistoryEntry[] = [
-  { id: 'history-1', happenedOn: '2019-04-13', precision: 'day', title: 'The first club ride',
+  { id: 'history-1', happenedOn: fixed('2019-04-13'), precision: 'day', title: 'The first club ride',
     story: 'Six bikes out to Daylesford and back. It rained the whole way home.', addedBy: 'm-torque', archivedAt: null },
-  { id: 'history-2', happenedOn: '2019-11-01', precision: 'month', title: 'Patches arrive',
+  { id: 'history-2', happenedOn: fixed('2019-11-01'), precision: 'month', title: 'Patches arrive',
     story: 'The first run of RUSTNUTS patches, sewn on at the pub that night.', addedBy: 'm-torque', archivedAt: null },
-  { id: 'history-3', happenedOn: '2020-01-01', precision: 'year', title: 'A year of riding alone',
+  { id: 'history-3', happenedOn: fixed('2020-01-01'), precision: 'year', title: 'A year of riding alone',
     story: 'Lockdowns kept us apart, so the group chat did the riding.', addedBy: 'm-rusty', archivedAt: null },
-  { id: 'history-4', happenedOn: '2021-08-21', precision: 'day', title: 'North chapter starts',
+  { id: 'history-4', happenedOn: fixed('2021-08-21'), precision: 'day', title: 'North chapter starts',
     story: 'Smokey and the Hume Highway crew become the North chapter.', addedBy: 'm-rusty', archivedAt: null },
-  { id: 'history-5', happenedOn: '2022-12-01', precision: 'month', title: 'The Rusty Bus joins the club',
+  { id: 'history-5', happenedOn: fixed('2022-12-01'), precision: 'month', title: 'The Rusty Bus joins the club',
     story: 'An old Coaster bought for charity rides and getting broken bikes home.', addedBy: 'm-rusty', archivedAt: null },
-  { id: 'history-6', happenedOn: '2024-03-16', precision: 'day', title: 'First toy run',
+  { id: 'history-6', happenedOn: fixed('2024-03-16'), precision: 'day', title: 'First toy run',
     story: 'Forty bikes and a bus full of toys for the hospital.', addedBy: 'm-diesel', archivedAt: null },
 ];
 
