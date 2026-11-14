@@ -521,7 +521,7 @@ keeps and tests.
   ("Nothing logged this year.", until 31 July) and no budget spending (the club fund's first
   spending lands on about 27 July, West's on about 3 August).
 - Viewed on a Thursday, the clubhouse open day (Home news) and the West Pink Ribbon ride fall on
-  the same Saturday. The Pink Ribbon ride is in the today-counted half (16 or 19 days on), so its
+  the same Saturday. The Pink Ribbon ride is in the today-counted half (always 16 days on), so its
   weekday moves with today.
 - Viewed from 30/12 to 01/01, Spanner's declined bus request (the house move) falls on Christmas
   Day or Boxing Day (25 to 26 December when viewed on 31/12).
@@ -540,8 +540,11 @@ Story contradictions that are the same on every day. Worth a tidy-up after launc
 - The auditor's first review is dated before the late deposit it mentions.
 - North's chat talks about a coffee run yesterday while North coffee and curves is 6 days ahead.
 - The family day: a chat post, a bus booking weeks ahead and a family barbecue 14 days ago.
+
+And one layout follow-up:
+
 - At 390 wide the Board tab's Needs attention row cuts "Expires in 19 days" to "Expires in 19 …"
-  beside the DUE SOON chip. A layout follow-up.
+  beside the DUE SOON chip.
 
 ## Calls Claude made (Jeff can veto)
 
