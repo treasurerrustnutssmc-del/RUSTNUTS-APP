@@ -26,3 +26,20 @@ test('the Welcome page folds the club links into one group', () => {
   const welcome = pub.slice(start, pub.indexOf('export function SignInScreen'));
   assert.match(welcome, /<Disclosure[^>]*title="Find the club online"/);
 });
+
+test('the three one-tap answers under Next ride on Home stay one row of equal buttons', () => {
+  // "Can’t go" is the longest of the three. With the full button padding it wrapped to two lines in a
+  // third of a phone's width, which left that button taller than Going and Maybe.
+  const rides = read('rides.tsx');
+  const start = rides.indexOf('export function HomeNextRideCard');
+  const card = rides.slice(start, rides.indexOf('export function RideRow'));
+  const at = card.indexOf("a === 'no' ? 'Can’t go'");
+  assert.ok(at >= 0, 'the Home card keeps its own short label');
+  const button = card.slice(at, card.indexOf('/>', at));
+  // Slim sides give the label room; stretching keeps the three the same height when one still wraps
+  // (a narrow phone, or large text).
+  assert.match(button, /paddingHorizontal: space\.xs/);
+  assert.match(button, /alignSelf: 'stretch'/);
+  // The answers stay full-size buttons: the 48pt touch target comes from the regular size.
+  assert.doesNotMatch(button, /size="small"/);
+});

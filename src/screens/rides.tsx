@@ -303,7 +303,10 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
                 busy={busy === a}
                 disabled={busy !== null}
                 onPress={() => answer(a)}
-                style={{ flex: 1 }}
+                // Slim sides so "Can’t go" (about 91pt wide) fits on one line in a third of a phone 375pt or
+                // wider; stretched so the three stay the same height when a label still wraps (a 360pt
+                // phone, or large text). The label is centred, so the gap to the edge only shrinks for it.
+                style={{ flex: 1, alignSelf: 'stretch', paddingHorizontal: space.xs }}
               />
             ))}
           </Row>
