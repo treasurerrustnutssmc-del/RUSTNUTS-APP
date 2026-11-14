@@ -2,7 +2,7 @@
 // Going / Maybe / Can't make it, its route and its crew. Rides come from the calendar sync, or are made in the
 // app by the people who run them (src/screens/editRide.tsx); only app rides change here.
 
-import React, { useId, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { briefingOf, editBriefingProblem, hazardSummary, moreLabel, readCount, readCountLine, readState } from '../domain/briefings';
@@ -255,6 +255,8 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
   const { me, data, today, setRsvp } = useClub();
   const toast = useToast();
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
+  // True while an answer is being saved. A ref, so a Retry from an older toast sees it too.
+  const saving = useRef(false);
   if (!me || me.approval !== 'approved') return null;
   const ride = nextRide(data.rides, defaultCategories(me, data.chapters), today);
   if (!ride) return null;
@@ -263,8 +265,10 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
   const whyNot = quickAnswerReason(me, ride, data, today, new Date().toISOString());
   const quick = whyNot === null;
   const answer = async (a: RsvpAnswer) => {
-    // The answer being saved stays lit and tappable-looking (see the buttons below), so a second tap waits.
-    if (busy !== null) return;
+    // The answer being saved stays lit (see the buttons below), so another tap, or a Retry from an older
+    // toast, does nothing until this save has finished.
+    if (saving.current) return;
+    saving.current = true;
     setBusy(a);
     try {
       await setRsvp(ride.id, a);
@@ -274,6 +278,7 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
       const err = e as Error;
       toast(err.message, isConnectionProblem(err) ? { label: 'Retry', onPress: () => void answer(a) } : undefined);
     } finally {
+      saving.current = false;
       setBusy(null);
     }
   };
