@@ -27,6 +27,8 @@ test('in the story week every instant comes back unchanged, by the real path', (
   // One per kind of time in the seeds: summer and winter time, Melbourne midnight, odd seconds.
   for (const iso of ['2026-11-07T21:30:00.000Z', '2026-10-23T20:42:17.250Z', '2027-01-29T13:00:00.000Z', '2026-09-16T09:30:00.000Z',
     '2026-07-25T00:00:00.000Z', '2026-10-24T05:30:00.000Z', '2027-02-13T08:00:00.000Z']) assert.equal(t(iso), iso);
+  // The real path writes the instant back in full form; a shortcut at shift 0 would hand it back as typed.
+  assert.equal(storyDates('2026-10-25').t('2026-11-07T21:30:00Z'), '2026-11-07T21:30:00.000Z');
 });
 
 test('a moved instant keeps its weekday and its Melbourne clock time across daylight saving', () => {
@@ -131,6 +133,24 @@ test('a cold build makes no Intl.DateTimeFormat per date or per call, clock-chan
     Intl.DateTimeFormat = Real;
   }
   assert.ok(made <= 1, `made ${made} Intl.DateTimeFormat objects`);
+  // The offset per date is kept: the same builds a second time read the formatter only for the
+  // instants on a clock-change day (5 reads with the offsets kept, 965 without).
+  const proto = Intl.DateTimeFormat.prototype;
+  const realFormatToParts = proto.formatToParts;
+  let reads = 0;
+  proto.formatToParts = function (this: Intl.DateTimeFormat, ...args: Parameters<typeof realFormatToParts>) {
+    reads++;
+    return realFormatToParts.apply(this, args);
+  };
+  try {
+    for (const today of builds) {
+      const { t } = storyDates(today);
+      for (const iso of stories) t(iso);
+    }
+  } finally {
+    proto.formatToParts = realFormatToParts;
+  }
+  assert.ok(reads <= 6, `a second pass read the formatter ${reads} times: keep the offset per calendar date`);
   // And the answers are the ones melbourneInstant gives.
   let i = 0;
   for (const today of builds) {

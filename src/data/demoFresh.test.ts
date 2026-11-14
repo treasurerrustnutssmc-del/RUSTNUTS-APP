@@ -17,6 +17,7 @@ test('the demo is built for the instant it is given, not for the machine clock',
 
 test('building the demo never reads the machine clock', () => {
   // A Date that throws on the two ways to read the clock: `new Date()` with nothing, and `Date.now()`.
+  // Built for every instant, since a clock read can hide on an arm that only runs on some days.
   const RealDate = Date;
   class NoClock extends RealDate {
     constructor(...args: unknown[]) {
@@ -25,11 +26,14 @@ test('building the demo never reads the machine clock', () => {
     }
     static now(): number { throw new Error('read the machine clock: Date.now()'); }
   }
-  const now = new RealDate('2027-03-10T02:00:00.000Z');
+  // The Dates are made before the clock is taken away.
+  const nows = INSTANTS.map((instant) => ({ instant, now: new RealDate(instant) }));
   globalThis.Date = NoClock as DateConstructor;
   try {
-    assert.doesNotThrow(() => buildDemoData(now));
-    assert.doesNotThrow(() => demoTodayRide(now));
+    for (const { instant, now } of nows) {
+      assert.doesNotThrow(() => buildDemoData(now), `buildDemoData for ${instant}`);
+      assert.doesNotThrow(() => demoTodayRide(now), `demoTodayRide for ${instant}`);
+    }
   } finally {
     globalThis.Date = RealDate;
   }
