@@ -418,10 +418,17 @@ function seedCallsIn(file: string, source: string) {
   });
   const resets = (n: ts.Node) => isCallOf(n, 'set') && n.arguments.length === 1
     && isCallOf(unwrap(n.arguments[0]), 'startState') && (unwrap(n.arguments[0]) as ts.CallExpression).arguments.length === 0;
+  // A callback that always calls set(startState()): its expression body is that call, or the call
+  // is a statement of its own body (not under a condition, not inside a nested function).
+  const alwaysResets = (f: ts.Node): boolean => {
+    if (!(ts.isArrowFunction(f) || ts.isFunctionExpression(f))) return false;
+    if (!ts.isBlock(f.body)) return resets(unwrap(f.body));
+    return f.body.statements.some((st) => ts.isExpressionStatement(st) && resets(unwrap(st.expression)));
+  };
   // appMode.subscribe(() => { … set(startState()) … }), handed over when the module loads.
   const reseeds = all(sf).some((n) => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression)
     && ts.isIdentifier(n.expression.expression) && n.expression.expression.text === 'appMode' && n.expression.name.text === 'subscribe'
-    && loads(n) && n.arguments.some((a) => ts.isFunctionLike(unwrap(a)) && has(unwrap(a), resets)));
+    && loads(n) && n.arguments.some((a) => alwaysResets(unwrap(a))));
   return { calls, reseeds };
 }
 
@@ -496,4 +503,8 @@ test('the seed-call reader sees where each call runs', () => {
   assert.equal(reseeds('otherMode.subscribe(() => set(startState()));'), false);
   assert.equal(reseeds('function later() { appMode.subscribe(() => set(startState())); }'), false, 'never handed over');
   assert.equal(reseeds('// appMode.subscribe(() => set(startState()));'), false);
+  // Only a set(startState()) that always runs counts: not one under a condition or in a nested function.
+  assert.equal(reseeds('appMode.subscribe(() => {\n  if (liveDataOn()) set(startState());\n});'), false, 'under a condition');
+  assert.equal(reseeds('appMode.subscribe(() => {\n  const fresh = () => set(startState());\n});'), false, 'in a nested function');
+  assert.equal(reseeds('appMode.subscribe(function () {\n  set(startState());\n});'), true);
 });
