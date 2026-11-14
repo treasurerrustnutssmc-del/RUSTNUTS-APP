@@ -3,7 +3,6 @@
 // story sits in the current Melbourne week: weekdays hold, and every time keeps its Melbourne
 // clock time across daylight saving. Pure: no pictures, no React, no reading of the machine clock.
 
-import { melbourneHhmm, melbourneInstant } from '../domain/business';
 import { addDays, daysBetween } from '../domain/dates';
 import { melbourneDate } from '../domain/rides';
 
@@ -42,22 +41,36 @@ function dateOf(ms: number): string {
 }
 
 /**
+ * One Melbourne formatter for the whole module, made on first use: making a formatter is the slow
+ * part (a formatter per call made a build slow), reading one is cheap.
+ */
+let melbourneParts: Intl.DateTimeFormat | null = null;
+
+/** Melbourne's offset from UTC (ms) at an instant. */
+function offsetAt(ms: number): number {
+  melbourneParts ??= new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  });
+  const parts = melbourneParts.formatToParts(new Date(ms));
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const wall = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'));
+  return wall - (ms - (((ms % 60_000) + 60_000) % 60_000));
+}
+
+/**
  * Melbourne's offset from UTC (ms) on a calendar date, or null on a day the clocks change.
- * Looked up once per date and kept: a formatter per call made a build slow.
+ * Melbourne's clocks change at 16:00 UTC the day before (2 am standard time), so two reads cover
+ * the whole day: 14:00 UTC the day before (its first hour) and 12:59 UTC on the day (its last).
+ * Looked up once per date and kept.
  */
 const offsets = new Map<string, number | null>();
 
 function offsetOn(date: string): number | null {
   const kept = offsets.get(date);
   if (kept !== undefined) return kept;
-  const at = (hhmm: string) => {
-    const iso = melbourneInstant(date, hhmm);
-    const [h, min] = hhmm.split(':').map(Number);
-    return iso === null ? null : dateMs(date) + h * HOUR + min * 60_000 - Date.parse(iso);
-  };
-  const start = at('00:00');
-  const end = at('23:59');
-  const offset = start !== null && start === end ? start : null;
+  const start = offsetAt(dateMs(date) - 10 * HOUR);
+  const end = offsetAt(dateMs(date) + 12 * HOUR + 59 * 60_000);
+  const offset = start === end ? start : null;
   offsets.set(date, offset);
   return offset;
 }
@@ -68,22 +81,24 @@ function wallOf(ms: number): { date: string; sinceMidnight: number } {
     const date = dateOf(ms + hours * HOUR);
     if (offsetOn(date) === hours * HOUR) return { date, sinceMidnight: ms + hours * HOUR - dateMs(date) };
   }
-  // On a day the clocks change: ask the formatter (whole-hour offsets, so seconds and ms carry over).
-  const iso = new Date(ms).toISOString();
-  const [h, min] = melbourneHhmm(iso).split(':').map(Number);
-  return { date: melbourneDate(iso), sinceMidnight: h * HOUR + min * 60_000 + (ms % 60_000 + 60_000) % 60_000 };
+  // On a day the clocks change: read the offset at the instant itself.
+  const wall = ms + offsetAt(ms);
+  const date = dateOf(wall);
+  return { date, sinceMidnight: wall - dateMs(date) };
 }
 
 /** The instant at a Melbourne wall time on a date. A skipped time moves to the next hour; a repeated one is the first. */
 function instantAt(date: string, sinceMidnight: number): number {
   const offset = offsetOn(date);
   if (offset !== null) return dateMs(date) + sinceMidnight - offset;
-  const minutes = Math.floor(sinceMidnight / 60_000);
-  const rest = sinceMidnight - minutes * 60_000;
-  const hhmm = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
-  const iso = melbourneInstant(date, hhmm(minutes)) ?? melbourneInstant(date, hhmm(minutes + 60));
-  if (iso === null) throw new Error(`No Melbourne instant for ${date} ${hhmm(minutes)}`);
-  return Date.parse(iso) + rest;
+  // On a day the clocks change: summer time (+11) first, so a repeated time is its first; then the next hour.
+  for (const wall of [sinceMidnight, sinceMidnight + HOUR]) {
+    for (const hours of [11, 10]) {
+      const ms = dateMs(date) + wall - hours * HOUR;
+      if (offsetAt(ms) === hours * HOUR) return ms;
+    }
+  }
+  throw new Error(`No Melbourne instant for ${date} at ${sinceMidnight} ms`);
 }
 
 /** Whole weeks, in days, from the story week to the week holding `today` (a Melbourne date). */
