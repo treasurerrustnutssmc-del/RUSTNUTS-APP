@@ -207,6 +207,7 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
 - **Danger:** an outline in the danger colour. Anything destructive goes through **ConfirmButton** (tap twice) because pop-up dialogs aren't allowed.
 - **Quiet:** text only, with a steel pressed state.
 - **Focus:** a 2px ring in red text colour. **Disabled:** 45% opacity. **Busy:** a spinner in place of the icon.
+- **Home's Next ride answers** (Going, Maybe, Can't go) are the one row of buttons with slim sides: the three share the card's width equally, use 4 at the sides so "Can't go" fits on one line on phones about 380 wide and up, and stretch to one height where a label still wraps. While an answer saves it shows as chosen and the other two dim, with no spinner, so the row never changes height; another tap does nothing until the save has finished.
 
 ### Chips
 - **Style:** small squared tags with uppercase stencil text at 11.5 and an optional icon.
