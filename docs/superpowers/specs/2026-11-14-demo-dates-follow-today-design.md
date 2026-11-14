@@ -80,7 +80,11 @@ Not in:
   are shown in store pictures: one Late action item (ai-2), one meeting with overdue minutes
   (mt-2), one expired rego (Gravel's), a closed vote (v-3), the declined and the unanswered bus
   requests (bus-4, bus-6), the overdue audit request (ar-2), the fee schedule overdue for review,
-  the deposit banked late (le-6), Gravel's attendance notice.
+  the deposit banked late (le-6), Gravel's attendance notice. Also warning on purpose: Throttle's
+  9-month FNG review, shown Overdue (it is why his patch vote is open; `demoFresh.test.ts` pins
+  it); the Pink Ribbon ride's Rusty Bus booking, whose ride moved ("The ride was called off or
+  moved."); Spanner's Road Rules sign-off, due soon (amber); Spanner's bus request that clashes
+  with a charity ride; and CREW NEEDED on today's coffee run for the board.
 - Moving a real-world date: the constitution's 25/10/2026, `TERMS_BEGAN`, the posting rules,
   privacy and Road Rules guide dates, the club's 2019 founding.
 - A change of ids or of array order in the demo data (tests use `votes[0]`, `payments[0]`,
@@ -496,13 +500,31 @@ keeps and tests.
   reports read "Presented" on the last day of that month. Their stamps are before now, as they must
   be, and the screens take the stamp's UTC date, not its Melbourne date (`treasury.tsx`,
   `meetingReport.tsx`); a live report presented in Melbourne's morning shows the same. Follow-up
-  outside this job: those screens should use `melbourneDate(presentedAt)`.
+  outside this job: those screens should read every stamp they show with `melbourneDate(...)`,
+  not `.slice(0, 10)`. In `treasury.tsx`: an entry's "Recorded by" date (line 468), its approvals
+  (479), the Presented chip and the report list's Presented line (704, 998) and the budget's
+  Approved chip (823). In `meetingReport.tsx`: the Presented chip (262) and the PDF's prepared-on
+  date (241).
 - The Big 4 weekend lands on 25 to 27/12/2027 when viewed in the week of 19/09/2027.
 - The minutes demo's drafted action item is due 14 days after its meeting, which can be a few
   days past. Realistic.
-- Five form hints on screens ("Toy run, Sunday 7 December", "November board meeting", "September
-  bank statement", "Review of the books, July to September 2026", "National run 2027") and the
-  23 "Use DD/MM/YYYY, like 08/11/2026." hints. Not demo data; the live app shows them too.
+- Seven form hints on screens ("Toy run, Sunday 7 December", "November board meeting", "September
+  bank statement", "Review of the books, July to September 2026", "National run 2027", "Spring run
+  to Lorne" (`src/screens/sitePhotos.tsx:71`) and "e.g. v2 or 2026–27"
+  (`src/screens/documents.tsx:1019`)) and the 23 "Use DD/MM/YYYY, like 08/11/2026." hints. Not
+  demo data; the live app shows them too.
+- A demo opened late on a Saturday is built for that Saturday and keeps it until the app is fully
+  closed and opened again (designed, section 8). Spanner's action item, due on the Sunday, then
+  shows Late from the Monday, about a day later, and the gazebo vote closes on the Monday at
+  7 pm, about 46 hours after a 9 pm opening. A session opened on a Sunday holds for about a week.
+- For about the first 30 days of each July the new financial year has no Rusty Bus running costs
+  ("Nothing logged this year.", until 31 July) and no budget spending (the club fund's first
+  spending lands on about 27 July, West's on about 3 August).
+- Viewed on a Thursday, the clubhouse open day (Home news) and the West Pink Ribbon ride fall on
+  the same Saturday. The Pink Ribbon ride is in the today-counted half (16 or 19 days on), so its
+  weekday moves with today.
+- Viewed from 30/12 to 01/01, Spanner's declined bus request (the house move) falls on Christmas
+  Day or Boxing Day (25 to 26 December when viewed on 31/12).
 - The breakfast run's chat is reached from the ride's page, not the chat list (the list shows
   rides within 7 days).
 - The demo feedback's "v0.1.0" line (not a date).
@@ -518,6 +540,8 @@ Story contradictions that are the same on every day. Worth a tidy-up after launc
 - The auditor's first review is dated before the late deposit it mentions.
 - North's chat talks about a coffee run yesterday while North coffee and curves is 6 days ahead.
 - The family day: a chat post, a bus booking weeks ahead and a family barbecue 14 days ago.
+- At 390 wide the Board tab's Needs attention row cuts "Expires in 19 days" to "Expires in 19 …"
+  beside the DUE SOON chip. A layout follow-up.
 
 ## Calls Claude made (Jeff can veto)
 
@@ -528,6 +552,14 @@ Story contradictions that are the same on every day. Worth a tidy-up after launc
 4. From January the demo's fee due date moves along, so Home never opens on a red "Overdue".
 5. The demo voice note is re-made from a written script (nobody knew what the old one said).
 6. One set of Toy Run facts (section 6).
+7. Today's coffee run never starts before Melbourne midnight: in the first hour of the day its
+   window starts at midnight, not an hour back, so it is always today's ride (section 8).
+8. The demo's made-up ride weather follows the month: Melbourne's usual top for the month, give or
+   take 2.5 degrees (section 8).
+9. Two strings with a date-word were allowed during the build because each is true on any day:
+   the Murray run's "A weekender: ..." (a route's length, two days) and the ride title "Big 4:
+   Phillip Island weekend" (r-7 moves by whole weeks, so it is always Saturday and Sunday in
+   Melbourne). Both are on section 9's allowed list.
 
 ## How it reaches phones
 
