@@ -134,7 +134,8 @@ function lex(file: string, src: string): Source {
       }
       if (c === "'" || c === '"') { i = readString(i, c); continue; }
       if (c === '`') { i = readTemplate(i); continue; }
-      if (c === '/' && (code.length === 0 || /[(,=:[!&|?{};]/.test(lastSignificant()))) { i = readRegex(i); continue; }
+      // A slash opens a regex after an operator, an arrow or a keyword; anywhere else it divides.
+      if (c === '/' && (code.length === 0 || /[(,=:[!&|?{};>]/.test(lastSignificant()) || /\b(return|typeof|case)\s*$/.test(code))) { i = readRegex(i); continue; }
       if (c === '{') depth++;
       if (c === '}') depth--;
       code += c;
@@ -254,8 +255,13 @@ const ALLOWED: [string, string][] = [
   ['G’day all, Ben here. Rode with North last month. Keen for the club lunch ride if there’s room.', 'Ben joined weeks before the message, and both move with the story: true on any day'],
 ];
 
-/** A string's text with its ISO dates taken out: those are the date-literal rule's business. */
-const words = (l: Literal) => l.text.replace(ISO_ALL, '');
+/**
+ * A string's text as the word rules read it: each escape (\n, \u2019, \') becomes a space, so a
+ * word at the start of a new line still has its boundary, and the ISO dates are taken out (those
+ * are the date-literal rule's business).
+ */
+const words = (l: Literal) =>
+  l.text.replace(/\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|[\s\S])/g, ' ').replace(ISO_ALL, '');
 const dateWordIn = (l: Literal) => DATE_WORDS.find(([, p]) => p.test(words(l)))?.[0] ?? null;
 
 test('no seed string names a date-word the calendar could contradict', () => {
@@ -299,12 +305,21 @@ test('the lexer finds what the rules look for', () => {
     "const a = d('2026-11-08'), b = t('2026-11-07T21:30:00.000Z'), c = fixed('2019-03-09');",
     "const e = '2026-01-01'; /* 'Christmas' */ const f = x.replace(/'/g, '’');",
     'const g = `Breakfast run on the ${dayOrdinal(d(\'2026-11-08\'))}, see you Sunday`;',
+    // A new line inside a quoted string is written \n: the word after it still counts.
+    "const h = 'Present: 14.\\nNovember figures';",
+    // A regex after => (or return) is a regex, not a division: what follows it is still read.
+    "const isLink = (s: string) => /^https?:\\/\\//.test(s), k = '2031-03-04';",
+    "function isNote(s: string) { return /'/.test(s) ? '2031-03-05' : ''; }",
   ].join('\n'));
   assert.deepEqual(sample.literals.map((l) => [l.line, l.text, callOf(l)]), [
     [2, '2026-11-08', 'd'], [2, '2026-11-07T21:30:00.000Z', 't'], [2, '2019-03-09', 'fixed'],
     [3, '2026-01-01', null], [3, '’', null],
     [4, 'Breakfast run on the ${…}, see you Sunday', null], [4, '2026-11-08', 'd'],
+    [5, 'Present: 14.\\nNovember figures', null],
+    [6, '2031-03-04', null],
+    [7, '2031-03-05', null], [7, '', null],
   ]);
   assert.equal(dateWordIn(sample.literals[5]), 'a weekday name');
+  assert.equal(dateWordIn(sample.literals[7]), 'a month name');
   assert.ok(!sample.code.includes('comment') && !sample.code.includes('Christmas'));
 });
