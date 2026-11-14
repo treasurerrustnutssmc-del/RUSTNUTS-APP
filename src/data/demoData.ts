@@ -532,7 +532,7 @@ export function buildDemoData(now: Date): ClubData {
     ],
     // Ride planning extras. Diesel planned the West breakfast run's stops; Throttle's Vulcan has the
     // smallest tank in that pack. Three members have rated the West loop. The club lunch ride takes
-    // registrations for the clubhouse sleepover, closing on the Saturday of the week before it.
+    // registrations for the clubhouse sleepover, closing on the Saturday eight days before it.
     ridePlans: [
       {
         rideId: 'r-1',
