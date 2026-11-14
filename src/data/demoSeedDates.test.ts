@@ -294,6 +294,27 @@ test('every story date and instant comes back unchanged in the story week, by th
   }
 });
 
+/**
+ * The fixed() literals that are real-world dates inside the story's own months, fixed on purpose
+ * (spec section 2, the fixed rows). Every other fixed() is history from before September 2025:
+ * joined and patched dates, office terms, the founders, the 2025 season, the social history.
+ */
+const REAL: [string, string][] = [
+  ['2026-10-01', 'postingRulesAcceptedOn, "agreed the posting rules on": never shown, only null or not matters'],
+  ['2026-10-25T03:00:00.000Z', 'the constitution’s published stamps: the real document’s date'],
+];
+
+test('fixed history is from before September 2025, except the real-world stamps the spec names', () => {
+  // fixed() takes any date, so a story stamp turned into fixed() would stop moving and pass every
+  // other test: the walk in demoFresh.test.ts bounds "happened" stamps only from above.
+  const real = new Set(REAL.map(([text]) => text));
+  const late = moved('fixed').filter((l) => l.text >= '2025-09' && !real.has(l.text)).map(where);
+  assert.deepEqual(late, [], 'a story date moves with d(…) and a story instant with t(…); fixed() is for history before the story');
+  assert.ok(moved('fixed').length > 40, `found ${moved('fixed').length} fixed() literals`);
+  // Each real-world allowance is still in a seed.
+  assert.deepEqual(REAL.filter(([text]) => !moved('fixed').some((l) => l.text === text)).map(([text]) => text), []);
+});
+
 test('no story instant sits on a Sunday before 4 am Melbourne, where daylight saving would move it', () => {
   const early = moved('t').filter((l) => weekdayName(melbourneDate(l.text)) === 'Sunday' && melbourneHhmm(l.text) < '04:00').map(where);
   assert.deepEqual(early, []);

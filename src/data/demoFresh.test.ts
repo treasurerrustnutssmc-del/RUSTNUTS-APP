@@ -116,6 +116,16 @@ test('the business story', () => {
   }
 });
 
+test('the closed vote and the approved North meeting stay their distance behind', () => {
+  // The walk below bounds "happened" stamps only from above, so a story stamp turned into fixed()
+  // would pass it and drift further back each week. These two are on screen (the closed vote's day
+  // on Votes, the North meeting on Meetings), so they are held from below as well.
+  for (const { now, today, data } of eachInstant()) {
+    assert.ok(between(-daysTo(today, voteOf(data, 'v-3').closedAt!), 10, 16), `v-3 closed ${-daysTo(today, voteOf(data, 'v-3').closedAt!)} days ago at ${now}`);
+    assert.ok(between(-daysTo(today, meetingOf(data, 'mt-3').startsAt), 39, 45), `mt-3 held ${-daysTo(today, meetingOf(data, 'mt-3').startsAt)} days ago at ${now}`);
+  }
+});
+
 test('days to each vote’s close', () => {
   for (const { now, today, data } of eachInstant()) {
     const close = (id: string) => voteOf(data, id).closesAt;
