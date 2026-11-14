@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import ts from 'typescript';
 import { melbourneHhmm, melbourneInstant } from '../domain/business';
 import { addDays, daysBetween } from '../domain/dates';
 import { invitesIn, invitesOutByRide } from '../domain/invites';
@@ -304,30 +305,105 @@ test('a store that reseeds on a mode change sees the new session', async () => {
   assert.ok(!lines.slice(0, at + 1).some((l) => /\.subscribe\(/.test(l)), 'nothing subscribes before the session');
 });
 
-test('the session feeds every demo provider and store', () => {
-  // Every call of a demo seed in these files is handed demoSession.now() in its own argument list,
-  // however it is laid out, so no store can slip the machine clock (or an alias of it) into a seed.
-  const SEED = /\b(buildDemoData|demoTodayRide|demoChatData|demoPastRides|demoSocialData|demoSiteNews|demoEnquiries|demoFeedback|demoSitePhotos|demoSitePhotoCrew)\(/g;
-  const argsAt = (src: string, open: number) => {
-    let depth = 0;
-    for (let i = open; i < src.length; i++) {
-      if (src[i] === '(') depth++;
-      else if (src[i] === ')' && --depth === 0) return src.slice(open + 1, i);
+/** The demo's seed functions: each builds demo data for the instant it is handed. */
+const SEED_FUNCTIONS = new Set([
+  'buildDemoData', 'demoTodayRide', 'demoChatData', 'demoPastRides', 'demoSocialData', 'demoSiteNews', 'demoEnquiries', 'demoFeedback',
+  'demoSitePhotos', 'demoSitePhotoCrew',
+]);
+/** Each file that seeds the demo. A provider builds its seeds in a useState initialiser, once, when it first renders. */
+const SEEDED_IN = [
+  { file: 'DemoClubProvider.tsx', provider: true },
+  { file: 'chat/DemoChatProvider.tsx', provider: true },
+  { file: 'social/DemoSocialProvider.tsx', provider: true },
+  { file: 'siteNews.tsx', provider: false },
+  { file: 'enquiries.tsx', provider: false },
+  { file: 'feedback.tsx', provider: false },
+  { file: 'sitePhotos.tsx', provider: false },
+];
+
+/** Where each call of a demo seed sits, read with the TypeScript compiler (so layout and comments don't matter). */
+function seedCallsIn(file: string, source: string) {
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const has = (node: ts.Node, hit: (n: ts.Node) => boolean): boolean => hit(node) || ts.forEachChild(node, (c) => has(c, hit) || undefined) === true;
+  const isSessionNow = (n: ts.Node) =>
+    ts.isCallExpression(n) && n.arguments.length === 0 && ts.isPropertyAccessExpression(n.expression)
+    && ts.isIdentifier(n.expression.expression) && n.expression.expression.text === 'demoSession' && n.expression.name.text === 'now';
+  const calleeName = (call: ts.CallExpression) =>
+    ts.isIdentifier(call.expression) ? call.expression.text : ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : null;
+  const found: {
+    at: string;
+    handedSessionNow: boolean;
+    /** The nearest function the call sits in; none means it runs when the module loads. */
+    inFunction: boolean;
+    /** That function is called where it is written, so it runs when the module loads too. */
+    calledOnTheSpot: boolean;
+    /** That function is the initialiser handed to useState(…), so it runs once, on the first render. */
+    inUseStateInitialiser: boolean;
+  }[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && SEED_FUNCTIONS.has(node.expression.text)) {
+      let fn: ts.Node | undefined = node.parent;
+      while (fn && !ts.isFunctionLike(fn)) fn = fn.parent;
+      // The function as its caller sees it (brackets round it count as the same thing), and what holds it.
+      let held = fn;
+      while (held && ts.isParenthesizedExpression(held.parent)) held = held.parent;
+      const outer = held?.parent;
+      const called = outer !== undefined && ts.isCallExpression(outer) ? outer : null;
+      found.push({
+        at: `${file}:${sf.getLineAndCharacterOfPosition(node.getStart()).line + 1}: ${node.expression.text}(…)`,
+        handedSessionNow: node.arguments.some((a) => has(a, isSessionNow)),
+        inFunction: fn !== undefined,
+        calledOnTheSpot: called !== null && called.expression === held,
+        inUseStateInitialiser: called !== null && calleeName(called) === 'useState' && called.arguments[0] === held,
+      });
     }
-    return src.slice(open + 1);
+    ts.forEachChild(node, visit);
   };
+  visit(sf);
+  return found;
+}
+
+test('the session feeds every demo provider and store, and no seed is built when its module loads', () => {
+  // Every call of a demo seed in these files is handed demoSession.now() in its own argument list,
+  // so no store can slip the machine clock (or an alias of it) into a seed. And each call runs when
+  // the demo starts, not when the app's code loads: a seed built at module load is the instant the
+  // code loaded (days before a reviewer signs in, and never rebuilt on a mode change).
   let calls = 0;
-  for (const file of ['DemoClubProvider.tsx', 'chat/DemoChatProvider.tsx', 'social/DemoSocialProvider.tsx', 'siteNews.tsx', 'enquiries.tsx', 'feedback.tsx', 'sitePhotos.tsx']) {
-    const source = readFileSync(join(__dirname, file), 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/(^|[\s;,({])\/\/.*$/gm, '$1');
-    const found = [...source.matchAll(SEED)];
+  for (const { file, provider } of SEEDED_IN) {
+    const found = seedCallsIn(file, readFileSync(join(__dirname, file), 'utf8'));
     assert.ok(found.length > 0, `${file} calls a demo seed`);
-    for (const m of found) {
+    for (const call of found) {
       calls++;
-      const args = argsAt(source, m.index! + m[0].length - 1);
-      assert.ok(args.includes('demoSession.now()'), `${file}: ${m[1]}(${args.replace(/\s+/g, ' ')}) is not handed demoSession.now()`);
+      assert.ok(call.handedSessionNow, `${call.at} is not handed demoSession.now()`);
+      assert.ok(call.inFunction, `${call.at} runs when the module loads: build it inside the function that starts the demo`);
+      assert.ok(!call.calledOnTheSpot, `${call.at} sits in a function called where it is written, so it still runs when the module loads`);
+      // A provider builds it in the initialiser it hands useState, so it is built once, on the first
+      // render: not at module load, and not again on every render.
+      if (provider) assert.ok(call.inUseStateInitialiser, `${call.at} is not built in a useState(() => …) initialiser`);
     }
   }
   assert.ok(calls >= 12, `${calls} seed calls found`);
+});
+
+test('the seed-call reader sees where each call runs', () => {
+  const read = (src: string) => seedCallsIn('sample.tsx', src).map(({ handedSessionNow, inFunction, calledOnTheSpot, inUseStateInitialiser }) =>
+    ({ handedSessionNow, inFunction, calledOnTheSpot, inUseStateInitialiser }));
+  const call = (over: Partial<ReturnType<typeof read>[number]>) =>
+    ({ handedSessionNow: true, inFunction: true, calledOnTheSpot: false, inUseStateInitialiser: false, ...over });
+  // Built at module load, in an object literal (as deep as a function body), and on the spot.
+  assert.deepEqual(read('const NEWS = demoSiteNews(demoSession.now());'), [call({ inFunction: false })]);
+  assert.deepEqual(read('const state = { news: demoSiteNews(demoSession.now()) };'), [call({ inFunction: false })]);
+  assert.deepEqual(read('const NEWS = (() => demoSiteNews(demoSession.now()))();'), [call({ calledOnTheSpot: true })]);
+  // Built when the demo starts: in a start-state function, and in a provider's useState initialiser.
+  assert.deepEqual(read('const startState = () => ({ news: demoSiteNews(demoSession.now()) });'), [call({})]);
+  assert.deepEqual(read('function P() { const [c] = useState<X>(() => { return buildDemoData(demoSession.now()); }); }'), [call({ inUseStateInitialiser: true })]);
+  assert.deepEqual(read('function P() { const [c] = React.useState(() => buildDemoData(demoSession.now())); }'), [call({ inUseStateInitialiser: true })]);
+  // Built again on every render: the seed is useState's value, not its initialiser.
+  assert.deepEqual(read('function P() { const [c] = useState(buildDemoData(demoSession.now())); }'), [call({})]);
+  assert.deepEqual(read('function P() { const c = useMemo(() => buildDemoData(demoSession.now()), []); }'), [call({})]);
+  // Handed the machine clock, or an alias of the session's instant.
+  assert.deepEqual(read('const s = () => demoEnquiries(new Date()); const at = demoSession.now(); const f = () => demoFeedback(at);'),
+    [call({ handedSessionNow: false }), call({ handedSessionNow: false })]);
+  // Not a call of a seed: a comment, a string, a seed handed on uncalled.
+  assert.deepEqual(read('// demoSiteNews(demoSession.now())\nconst s = "demoSiteNews(x)"; const f = demoSiteNews;'), []);
 });

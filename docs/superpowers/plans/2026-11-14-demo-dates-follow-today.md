@@ -42,7 +42,7 @@ Each task from 2 on runs it and puts the output in its report. The expected diff
 2. **The Saturday night of a week** (23:55, the last minutes before the shift steps on): nothing "open" may already be behind now. Tests in Task 3.
 3. **The first minutes of a Melbourne day and the 1st of a month** (00:05, when UTC is still on yesterday): today's rows are on today's Melbourne date and no stamp is ahead of now. The walk in Task 4.
 4. **The turn of the club year and the financial year** (30/06 to 31/07, 01/08 to 26/09): fees, books, Big 4 and Gravel's notice. Tests in Task 4.
-5. **A reviewer signing in days after the app's code loaded:** the demo is built for the session instant, not for module load. Tests in Tasks 1 and 5; the source guard in Task 6 pins it.
+5. **A reviewer signing in days after the app's code loaded:** the demo is built for the session instant, not for module load. The session's own rules are tested in Task 1 (`demoSession.test.ts`) and Task 5 ("a store that reseeds on a mode change sees the new session"). What pins that no seed is built at module load is `demoSeedsFresh.test.ts`'s "the session feeds every demo provider and store, and no seed is built when its module loads": it reads the seven provider and store files with the TypeScript compiler and requires every seed call to be handed `demoSession.now()`, to sit inside a function that is not called where it is written, and, in the three providers, to sit in the initialiser handed to `useState`. The source guard in Task 6 (`demoSeedDates.test.ts`) only keeps the machine clock and bare dates out of the seed files; it cannot see where a seed is called.
 
 ---
 
