@@ -168,11 +168,13 @@ test('every date literal in the seeds is moved by the story clock or marked fixe
 
 test('no seed file reads the machine clock', () => {
   const CLOCK: [string, RegExp][] = [
-    ['new Date() with no argument', /\bnew Date\(\s*\)/],
-    ['new Date with no brackets', /\bnew Date(?!\s*\()/],
-    ['Date.now()', /\bDate\.now\s*\(/],
-    ['todayIso() with no argument', /\btodayIso\(\s*\)/],
-    ['a parameter default that reads the clock', /[(,]\s*[\w$]+\??\s*(:[^=,()]+)?=\s*(new Date|Date\.now|todayIso)\b/],
+    ['new Date() with no argument', /\bnew\s+Date\s*\(\s*\)/],
+    ['new Date with no brackets', /\bnew\s+Date\b(?!\s*\()/],
+    // Called or not: a clock handed on (`read = Date.now`) reads the machine clock later.
+    ['Date.now', /\bDate\s*\.\s*now\b/],
+    ['todayIso() with no argument', /\btodayIso\s*\(\s*\)/],
+    ['todayIso handed on as a default or a value', /=\s*todayIso\b(?!\s*\()/],
+    ['a parameter default that reads the clock', /[(,]\s*[\w$]+\??\s*(:[^=,()]+)?=\s*(new\s+Date|Date\s*\.\s*now|todayIso)\b/],
   ];
   const found: string[] = [];
   for (const { file, code } of SOURCES) {
@@ -182,7 +184,21 @@ test('no seed file reads the machine clock', () => {
     });
   }
   // The rule can bite: each pattern finds its case.
-  assert.ok(CLOCK.every(([, p], i) => p.test(['new Date()', 'x = new Date;', 'Date.now()', 'todayIso()', '(now = new Date(0))'][i])));
+  assert.ok(CLOCK.every(([, p], i) => p.test(['new Date()', 'x = new Date;', 'Date.now()', 'todayIso()', 'today = todayIso,', '(now = new Date(0))'][i])));
+  // Other spellings of the same clock, each caught by some rule: a space before the bracket, a
+  // clock handed on without being called, a default on a line of its own or after a function type.
+  const spellings = [
+    'export const LOADED = new Date ().toISOString();',
+    'export function demoEnquiries(now: Date, read: () => number = Date.now) {',
+    '  read = Date.now,',
+    'const clock = Date.now;',
+    '  today = todayIso,',
+    '  today: string = todayIso,',
+  ];
+  assert.deepEqual(spellings.filter((s) => !CLOCK.some(([, p]) => p.test(s))), []);
+  // A date worked out from a clock that was handed in is not the machine clock.
+  const handedIn = ['const earlier = new Date(now.getTime() - 5);', 'const today = todayIso(clock);'];
+  assert.deepEqual(handedIn.filter((s) => CLOCK.some(([, p]) => p.test(s))), []);
   assert.deepEqual(found, []);
 });
 
@@ -233,6 +249,8 @@ const ALLOWED: [string, string][] = [
   ['Big 4: Summer send-off', 'the 2025 season: fixed history, in the summer of 2025'],
   ['Big 4: Winter warmer', 'the 2025 season: fixed history'],
   ['Chook’s bike died near Bacchus Marsh on the way home last night. Bringing it back to the clubhouse.', 'a recovery booked for today, the morning after the breakdown'],
+  ['A weekender: up the Hume to Albury, along the river to Echuca for the night, home through Bendigo.', 'a route’s length (two days), not a date'],
+  ['Big 4: Phillip Island weekend', 'r-7 moves by whole weeks: always Saturday and Sunday in Melbourne'],
   ['G’day all, Ben here. Rode with North last month. Keen for the club lunch ride if there’s room.', 'Ben joined weeks before the message, and both move with the story: true on any day'],
 ];
 

@@ -420,7 +420,9 @@ buildDemoData(STORY_NOW)`.
     "first Tuesday" and "third Sunday"; "the Monday after the meeting" (twice); the sample
     bylaws' "last Thursday" and "last Wednesday" lines; the 2025 season's "Sunday run", "Big 4:
     Summer send-off" and "Big 4: Winter warmer"; the enquiry's "Sunday runs"; the bus log's
-    "last night"; "Rode with North last month".
+    "last night"; "Rode with North last month"; the Murray run's "A weekender" (a route's length,
+    two days, not a date); the ride title "Big 4: Phillip Island weekend" (r-7 moves by whole
+    weeks, so it is always Saturday and Sunday in Melbourne).
 
 **Existing tests:**
 
