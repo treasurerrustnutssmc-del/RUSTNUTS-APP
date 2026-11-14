@@ -47,34 +47,47 @@ export function toSitePhotoCrew(rows: SitePhotoCrewRow[]): SitePhotoCrew[] {
   return rows.map((r) => ({ memberId: r.member_id, addedBy: r.added_by, addedAt: r.added_at }));
 }
 
-/** The demo's crew: Torque and Jet, put on by Rusty. Jet is never the demo's own account, so Jet does the asking. */
-export const DEMO_SITE_PHOTO_CREW: SitePhotoCrew[] = [
-  { memberId: 'm-torque', addedBy: 'm-rusty', addedAt: '2026-10-12T03:00:00.000Z' },
-  { memberId: 'm-jet', addedBy: 'm-rusty', addedAt: '2026-10-12T03:00:00.000Z' },
-];
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+const before = (now: Date, ms: number) => new Date(now.getTime() - ms).toISOString();
+const after = (iso: string, ms: number) => new Date(Date.parse(iso) + ms).toISOString();
+
+/** The demo's crew: Torque and Jet, put on by Rusty 20 days ago. Jet is never the demo's own account, so Jet does the asking. */
+export function demoSitePhotoCrew(now: Date): SitePhotoCrew[] {
+  const addedAt = before(now, 20 * DAY_MS);
+  return [
+    { memberId: 'm-torque', addedBy: 'm-rusty', addedAt },
+    { memberId: 'm-jet', addedBy: 'm-rusty', addedAt },
+  ];
+}
 
 /**
  * Three sample photos so the demo shows what the list looks like: one live from the ride wall,
  * one of the demo member's own that Jet put up, and one taken down whose chat message is no
  * longer in the demo chats (so the servo-night chat photo stays free to pick). `mediaIdFor` finds
- * a demo chat photo's media id by its path (the demo chat makes them in order).
+ * a demo chat photo's media id by its path (the demo chat makes them in order). Stamps count back
+ * from `now`: the dusk-run photo is picked 10 hours ago, after its chat picture went up (20 hours ago).
  */
-export function demoSitePhotos(meId: string, mediaIdFor: (path: string) => string | null): SitePhoto[] {
+export function demoSitePhotos(meId: string, mediaIdFor: (path: string) => string | null, now: Date): SitePhoto[] {
+  const lornePicked = before(now, 12 * DAY_MS);
+  const duskPicked = before(now, 10 * HOUR_MS);
+  const gonePicked = before(now, 11 * DAY_MS);
   return [
     {
       id: 'demo-sp-1', source: 'chat', mediaId: mediaIdFor('demo/coast-road.jpg'), bucket: 'chat-media', path: 'demo/coast-road.jpg', width: 1200, height: 900,
-      caption: 'Spring run to Lorne', postedBy: 'm-sparks', pickedBy: 'm-torque', pickedAt: '2026-10-13T06:10:00.000Z', status: 'live',
-      decidedAt: '2026-10-13T08:30:00.000Z', removedAt: null,
+      caption: 'Run to Lorne', postedBy: 'm-sparks', pickedBy: 'm-torque', pickedAt: lornePicked, status: 'live',
+      decidedAt: after(lornePicked, 2 * HOUR_MS + 20 * MINUTE_MS), removedAt: null,
     },
     {
       id: 'demo-sp-2', source: 'chat', mediaId: mediaIdFor('demo/dusk-run.jpg'), bucket: 'chat-media', path: 'demo/dusk-run.jpg', width: 1200, height: 900,
-      caption: 'Dusk run out past Bacchus Marsh', postedBy: meId, pickedBy: 'm-jet', pickedAt: '2026-10-30T09:00:00.000Z', status: 'live',
-      decidedAt: '2026-10-30T09:00:00.000Z', removedAt: null,
+      caption: 'Dusk run out past Bacchus Marsh', postedBy: meId, pickedBy: 'm-jet', pickedAt: duskPicked, status: 'live',
+      decidedAt: duskPicked, removedAt: null,
     },
     {
       id: 'demo-sp-3', source: 'chat', mediaId: 'demo-media-gone', bucket: 'chat-media', path: 'demo/twisties.jpg', width: 1200, height: 900,
-      caption: null, postedBy: 'm-sparks', pickedBy: 'm-torque', pickedAt: '2026-10-14T06:10:00.000Z', status: 'removed',
-      decidedAt: '2026-10-14T06:10:00.000Z', removedAt: '2026-10-14T10:00:00.000Z',
+      caption: null, postedBy: 'm-sparks', pickedBy: 'm-torque', pickedAt: gonePicked, status: 'removed',
+      decidedAt: gonePicked, removedAt: after(gonePicked, 4 * HOUR_MS),
     },
   ];
 }

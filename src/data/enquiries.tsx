@@ -7,8 +7,8 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { enquiriesSeenBy, handleEnquiryProblem, type Enquiry } from '../domain/enquiries';
 import { isAnyBoard } from '../domain/social/help';
 import { NotAllowedError, useClub } from './clubContext';
-import { DEMO_ENQUIRIES, demoHandleEnquiry, toEnquiries, type EnquiryRow } from './enquiriesData';
-import { appMode, liveDataOn } from './reviewMode';
+import { demoEnquiries, demoHandleEnquiry, toEnquiries, type EnquiryRow } from './enquiriesData';
+import { appMode, demoSession, liveDataOn } from './reviewMode';
 import { friendlyError, supabase } from './supabase';
 
 export interface EnquiriesValue {
@@ -36,7 +36,7 @@ interface State {
 const startState = (): State =>
   liveDataOn()
     ? { forId: undefined, ready: false, enquiries: [], loadError: null }
-    : { forId: null, ready: true, enquiries: DEMO_ENQUIRIES, loadError: null };
+    : { forId: null, ready: true, enquiries: demoEnquiries(demoSession.now()), loadError: null };
 let state: State = startState();
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => {

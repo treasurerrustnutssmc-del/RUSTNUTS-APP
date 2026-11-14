@@ -54,44 +54,50 @@ export interface FeedbackDraft {
   screenshotPath: string | null;
 }
 
-/** Two sample reports so the demo shows what the screens look like (on real demo members). */
-export const DEMO_FEEDBACK: Feedback[] = [
-  {
-    id: 'demo-feedback-1',
-    memberId: 'm-gravel',
-    memberName: 'Brett Hughes',
-    memberEmail: 'brett@example.com',
-    kind: 'bug',
-    body: 'The ride map went blank after I turned the phone sideways. Came back when I reopened the ride.',
-    whereInApp: 'Rides, the map',
-    screenshotPath: null,
-    appVersion: '0.1.0',
-    build: 'embedded',
-    device: 'Android 15 · SM-S938B',
-    status: 'new',
-    reply: null,
-    repliedAt: null,
-    createdAt: '2026-10-31T08:40:00Z',
-  },
-  {
-    id: 'demo-feedback-2',
-    memberId: 'm-torque',
-    memberName: 'Tania Walsh',
-    memberEmail: 'tania@example.com',
-    kind: 'idea',
-    body: 'Could the ride list show how far each ride is from home?',
-    whereInApp: 'Rides',
-    screenshotPath: null,
-    appVersion: '0.1.0',
-    build: 'embedded',
-    device: 'iOS 19.1 · iPhone 17',
-    status: 'done',
-    reply: 'Good one. It’s on the list for the next update.',
-    repliedAt: '2026-10-29T03:15:00Z',
-    createdAt: '2026-10-28T22:10:00Z',
-  },
-];
+const HOUR_MS = 3_600_000;
 
+/** Two sample reports so the demo shows what the screens look like (on real demo members): one 5 hours old, one answered. */
+export function demoFeedback(now: Date): Feedback[] {
+  const ago = (hours: number) => new Date(now.getTime() - hours * HOUR_MS).toISOString();
+  return [
+    {
+      id: 'demo-feedback-1',
+      memberId: 'm-gravel',
+      memberName: 'Brett Hughes',
+      memberEmail: 'brett@example.com',
+      kind: 'bug',
+      body: 'The ride map went blank after I turned the phone sideways. Came back when I reopened the ride.',
+      whereInApp: 'Rides, the map',
+      screenshotPath: null,
+      appVersion: '0.1.0',
+      build: 'embedded',
+      device: 'Android 15 · SM-S938B',
+      status: 'new',
+      reply: null,
+      repliedAt: null,
+      createdAt: ago(5),
+    },
+    {
+      id: 'demo-feedback-2',
+      memberId: 'm-torque',
+      memberName: 'Tania Walsh',
+      memberEmail: 'tania@example.com',
+      kind: 'idea',
+      body: 'Could the ride list show how far each ride is from home?',
+      whereInApp: 'Rides',
+      screenshotPath: null,
+      appVersion: '0.1.0',
+      build: 'embedded',
+      device: 'iOS 26.1 · iPhone 17',
+      status: 'done',
+      reply: 'Good one. It’s on the list for the next update.',
+      repliedAt: ago(3 * 24 - 5),
+      createdAt: ago(3 * 24),
+    },
+  ];
+}
+
+/** Adds a report to the demo list, stamped with the moment the caller says it was sent. */
 export function demoSendFeedback(
   list: Feedback[],
   me: { id: string; name: string },
@@ -102,7 +108,7 @@ export function demoSendFeedback(
   const where = draft.whereInApp.trim();
   return [
     {
-      id: `demo-feedback-${Date.now()}`,
+      id: `demo-feedback-${Date.parse(now)}`,
       memberId: me.id,
       memberName: me.name,
       memberEmail: null,

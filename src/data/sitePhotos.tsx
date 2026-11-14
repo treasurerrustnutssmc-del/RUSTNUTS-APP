@@ -14,9 +14,9 @@ import { demoChatData } from './chat/demoChatData';
 import { prepareUpload } from './chat/media';
 import { uploadName } from './chat/liveChat';
 import { NotAllowedError, useClub } from './clubContext';
-import { appMode, liveDataOn } from './reviewMode';
+import { appMode, demoSession, liveDataOn } from './reviewMode';
 import {
-  DEMO_SITE_PHOTO_CREW, demoAddPhoto, demoRemovePhoto, demoSetCrew, demoSitePhotos, toSitePhotoCrew, toSitePhotos,
+  demoAddPhoto, demoRemovePhoto, demoSetCrew, demoSitePhotoCrew, demoSitePhotos, toSitePhotoCrew, toSitePhotos,
   type SitePhotoCrewRow, type SitePhotoRow,
 } from './sitePhotosData';
 import { friendlyError, supabase } from './supabase';
@@ -25,7 +25,8 @@ export const SITE_BUCKET = 'site-media';
 
 /** A demo chat photo's media id, found by its path, so the demo's samples match the chat's photos. */
 const demoMediaId = (path: string): string | null => {
-  for (const m of demoChatData().messages) {
+  // The media ids follow the messages' order, which no ride or instant changes.
+  for (const m of demoChatData(demoSession.now(), []).messages) {
     const hit = m.media.find((x) => x.path === path);
     if (hit) return hit.id;
   }
@@ -67,7 +68,7 @@ interface State {
 const startState = (): State =>
   liveDataOn()
     ? { forId: undefined, ready: false, photos: [], crew: [], loadError: null }
-    : { forId: undefined, ready: true, photos: [], crew: DEMO_SITE_PHOTO_CREW, loadError: null };
+    : { forId: undefined, ready: true, photos: [], crew: demoSitePhotoCrew(demoSession.now()), loadError: null };
 let state: State = startState();
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => {
@@ -116,7 +117,8 @@ export function useSitePhotos(): SitePhotosValue {
   useEffect(() => {
     if (state.forId === forId) return;
     if (!liveDataOn()) {
-      set({ forId, photos: forId ? demoSitePhotos(forId, demoMediaId) : [], crew: DEMO_SITE_PHOTO_CREW });
+      const now = demoSession.now();
+      set({ forId, photos: forId ? demoSitePhotos(forId, demoMediaId, now) : [], crew: demoSitePhotoCrew(now) });
       return;
     }
     if (!forId) {

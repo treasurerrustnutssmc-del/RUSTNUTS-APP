@@ -27,31 +27,36 @@ export function toEnquiries(rows: EnquiryRow[]): Enquiry[] {
   }));
 }
 
-/** Two sample enquiries so the demo Board screen shows what the section looks like. */
-export const DEMO_ENQUIRIES: Enquiry[] = [
-  {
-    id: 'demo-enquiry-1',
-    name: 'Sam Rider',
-    email: 'sam.rider@example.com',
-    chapter: 'west',
-    about: 'Ride a 2019 Street Glide, out Werribee way. Keen for the Sunday runs and a beer after.',
-    createdAt: '2026-10-30T09:12:00Z',
-    handledAt: null,
-    handledBy: null,
-    note: null,
-  },
-  {
-    id: 'demo-enquiry-2',
-    name: 'Priya Nair',
-    email: 'priya.n@example.com',
-    chapter: 'either',
-    about: 'New to Melbourne, Triumph Bonneville. Which chapter rides nearest Sunbury?',
-    createdAt: '2026-10-27T22:40:00Z',
-    handledAt: '2026-10-28T08:05:00Z',
-    handledBy: 'demo-pres',
-    note: 'Emailed her the North ride calendar.',
-  },
-];
+const HOUR_MS = 3_600_000;
+
+/** Two sample enquiries so the demo Board screen shows what the section looks like: one 38 hours old, one handled. */
+export function demoEnquiries(now: Date): Enquiry[] {
+  const ago = (hours: number) => new Date(now.getTime() - hours * HOUR_MS).toISOString();
+  return [
+    {
+      id: 'demo-enquiry-1',
+      name: 'Sam Rider',
+      email: 'sam.rider@example.com',
+      chapter: 'west',
+      about: 'Ride a 2019 Street Glide, out Werribee way. Keen for the Sunday runs and a beer after.',
+      createdAt: ago(38),
+      handledAt: null,
+      handledBy: null,
+      note: null,
+    },
+    {
+      id: 'demo-enquiry-2',
+      name: 'Priya Nair',
+      email: 'priya.n@example.com',
+      chapter: 'either',
+      about: 'New to Melbourne, Triumph Bonneville. Which chapter rides nearest Sunbury?',
+      createdAt: ago(4 * 24),
+      handledAt: ago(4 * 24 - 10),
+      handledBy: 'demo-pres',
+      note: 'Emailed her the North ride calendar.',
+    },
+  ];
+}
 
 /** Marks one handled in the demo list. */
 export function demoHandleEnquiry(list: Enquiry[], id: string, handledBy: string, note: string, now: string): Enquiry[] {
