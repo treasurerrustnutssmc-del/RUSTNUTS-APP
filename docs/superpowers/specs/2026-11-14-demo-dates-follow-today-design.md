@@ -477,6 +477,9 @@ keeps and tests.
 - From 1 August to about 12 September the new club year has no Big 4 history. From about 1 May
   to 31 July the Big 4 weekend falls in the next club year, so standing lines read "needs 1"
   with none to come.
+- Viewed from 11 to 25 September, Gravel's notice record ends "Big 4 rides: 0 (needs 0)", and on
+  10 September "needs 1, 1 still to come": the app's own words, as at 31 July, for the club year
+  that has ended. Its meetings line reads behind on all of those days.
 - On 1 August the claimed payment pay-4 is a day older than its charge.
 - On the 1st of a month before 10:00 (11:00 in summer time) last month's treasurer's and meeting
   reports read "Presented" on the last day of that month. Their stamps are before now, as they must

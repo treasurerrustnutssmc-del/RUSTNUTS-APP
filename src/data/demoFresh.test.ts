@@ -288,7 +288,7 @@ const HAPPENED = [
 const DATE_VALUE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z)?$/;
 
 /**
- * The constitution's published stamps: fixed (the real document's date, spec sections 3 and 9), so
+ * The constitution's published stamps: fixed (the real document's date, spec sections 2 and 9), so
  * before 25/10/2026 they are ahead of now. Keyed by path and value: the same paths carry
  * today-counted stamps for the other documents, which stay happened.
  */
