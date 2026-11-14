@@ -51,7 +51,7 @@ export function demoSiteNews(now: Date): SiteNews[] {
     {
       id: 'demo-news-2',
       title: 'Clubhouse open day',
-      body: `Saturday ${dayMonth(openDay)}, 11am to 3pm. Come and meet the club, see the bikes, have a sausage.`,
+      body: `${weekdayName(openDay)} ${dayMonth(openDay)}, 11am to 3pm. Come and meet the club, see the bikes, have a sausage.`,
       link: null,
       postedBy: 'demo-pres',
       createdAt: ago(12),

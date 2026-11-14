@@ -29,9 +29,9 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
   // The club is built for the demo session's instant, the same one every other demo seed reads.
   const [data, setData] = useState<ClubData>(() => {
-    const now = demoSession.now();
-    const club = buildDemoData(now);
-    return { ...club, rides: [...club.rides, demoTodayRide(now)] };
+    // The session returns the same instant on every call, so both seeds see one moment.
+    const club = buildDemoData(demoSession.now());
+    return { ...club, rides: [...club.rides, demoTodayRide(demoSession.now())] };
   });
   // Store review demo: the reviewers arrive signed in, as a Full member.
   const reviewing = appMode.reviewing();

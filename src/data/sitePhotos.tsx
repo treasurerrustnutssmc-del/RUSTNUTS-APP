@@ -117,8 +117,7 @@ export function useSitePhotos(): SitePhotosValue {
   useEffect(() => {
     if (state.forId === forId) return;
     if (!liveDataOn()) {
-      const now = demoSession.now();
-      set({ forId, photos: forId ? demoSitePhotos(forId, demoMediaId, now) : [], crew: demoSitePhotoCrew(now) });
+      set({ forId, photos: forId ? demoSitePhotos(forId, demoMediaId, demoSession.now()) : [], crew: demoSitePhotoCrew(demoSession.now()) });
       return;
     }
     if (!forId) {

@@ -48,6 +48,18 @@ test('invites match the calendar', () => {
     }
     for (const m of social.mechanics) assert.ok(m.addedAt <= now, `${m.id} added after now at ${now}`);
     for (const c of social.otherClubs) assert.ok(c.addedAt <= now, `${c.id} added after now at ${now}`);
+    // The social stamps are story dates moved by weeks: each stays the same distance before today.
+    const back = (iso: string) => daysBetween(melbourneDate(iso), today);
+    const within = (iso: string, lo: number, hi: number, what: string) => {
+      const d = back(iso);
+      assert.ok(d >= lo && d <= hi, `${what} ${d} days back at ${now}, not ${lo} to ${hi}`);
+    };
+    within(invite('inv-1').answeredAt!, 13, 19, 'inv-1 answered');
+    within(invite('inv-2').answeredAt!, 11, 17, 'inv-2 answered');
+    within(invite('inv-4').answeredAt!, 5, 11, 'inv-4 answered');
+    for (const i of social.invites) within(i.addedAt, 15, 21, `${i.id} added`);
+    for (const c of social.otherClubs) within(c.addedAt, 15, 21, `${c.id} added`);
+    for (const m of social.mechanics) within(m.addedAt, 54, 60, `${m.id} added`);
     const report = social.contentReports.find((r) => r.id === 'cr-1')!;
     assert.ok(report.createdAt <= now, `cr-1 after now at ${now}`);
     assert.equal(report.createdAt, melbourneInstant(addDays(today, -1), '09:00'), `cr-1 at 9 am yesterday at ${now}`);
@@ -293,10 +305,29 @@ test('a store that reseeds on a mode change sees the new session', async () => {
 });
 
 test('the session feeds every demo provider and store', () => {
-  const seeds = /\b(buildDemoData|demoTodayRide|demoChatData|demoPastRides|demoSocialData|demoSiteNews|demoEnquiries|demoFeedback|demoSitePhotos|demoSitePhotoCrew)\([^;\n]*new Date\(\)/;
+  // Every call of a demo seed in these files is handed demoSession.now() in its own argument list,
+  // however it is laid out, so no store can slip the machine clock (or an alias of it) into a seed.
+  const SEED = /\b(buildDemoData|demoTodayRide|demoChatData|demoPastRides|demoSocialData|demoSiteNews|demoEnquiries|demoFeedback|demoSitePhotos|demoSitePhotoCrew)\(/g;
+  const argsAt = (src: string, open: number) => {
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === '(') depth++;
+      else if (src[i] === ')' && --depth === 0) return src.slice(open + 1, i);
+    }
+    return src.slice(open + 1);
+  };
+  let calls = 0;
   for (const file of ['DemoClubProvider.tsx', 'chat/DemoChatProvider.tsx', 'social/DemoSocialProvider.tsx', 'siteNews.tsx', 'enquiries.tsx', 'feedback.tsx', 'sitePhotos.tsx']) {
-    const source = readFileSync(join(__dirname, file), 'utf8');
-    assert.ok(source.includes('demoSession.now()'), `${file} reads the demo session`);
-    assert.doesNotMatch(source, seeds, `${file} hands a demo seed the machine clock`);
+    const source = readFileSync(join(__dirname, file), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[\s;,({])\/\/.*$/gm, '$1');
+    const found = [...source.matchAll(SEED)];
+    assert.ok(found.length > 0, `${file} calls a demo seed`);
+    for (const m of found) {
+      calls++;
+      const args = argsAt(source, m.index! + m[0].length - 1);
+      assert.ok(args.includes('demoSession.now()'), `${file}: ${m[1]}(${args.replace(/\s+/g, ' ')}) is not handed demoSession.now()`);
+    }
   }
+  assert.ok(calls >= 12, `${calls} seed calls found`);
 });
