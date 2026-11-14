@@ -134,3 +134,19 @@ test('the demo forecast is made up from the ride, the same every time, and cover
   assert.deepEqual(a[0].time, HOURS);
   assert.ok(a.every((s) => s.temp.every((t) => t > 0 && t < 40)));
 });
+
+test('the demo forecast follows Melbourne’s seasons: no 28° in July, no cold January', () => {
+  const dayOf = (date: string) => Array.from({ length: 24 }, (_, h) => `${date}T${String(h).padStart(2, '0')}:00`);
+  // Many rides and points, so the seeded spread is covered.
+  const keys = Array.from({ length: 60 }, (_, i) => `Laverton|Ballan|Daylesford:2027-0${1 + (i % 9)}-${10 + (i % 18)}:${i}`);
+  for (const key of keys) {
+    for (const s of demoSeries(key, 3, dayOf('2027-07-25'))) {
+      assert.ok(s.temp.every((t) => t <= 20), `July ${key}: ${Math.max(...s.temp)}°`);
+      assert.ok(s.temp.every((t) => t > 0), `July ${key}: ${Math.min(...s.temp)}°`);
+    }
+    for (const s of demoSeries(key, 3, dayOf('2027-01-17'))) {
+      const top = Math.max(...s.temp);
+      assert.ok(top >= 20 && top <= 33, `January ${key}: top of the day ${top}°`);
+    }
+  }
+});

@@ -370,6 +370,11 @@ seed's length is set from the new file; the words sit in a comment beside the me
   midnight it starts at midnight, so it is still today's ride (seen on screen at 00:10, Home's tile
   showed yesterday's day and the board lost its CREW NEEDED chip). The picture recipe takes the
   live ride at 08:00 Melbourne and Home at 06:30, so it is not affected.
+- The made-up ride weather follows the month. `demoSeries` in `src/data/weather.ts` is used only
+  by the demo's `demoSource` (the live source asks Open-Meteo). Each day's top is Melbourne's usual
+  top for the month of the hours it is given (26 degrees in January down to 14 in July), give or
+  take 2.5 degrees, with the same day curve, rain, gusts and weather codes. Before, every month had
+  tops of 17 to 31 degrees, so a West breakfast run in August read "Clear 13–28°".
 - The club context's shape (`ClubContextValue`) does not change.
 
 ### 9. Tests
