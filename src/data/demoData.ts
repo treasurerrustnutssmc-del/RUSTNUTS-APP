@@ -244,9 +244,10 @@ export function buildDemoData(now: Date): ClubData {
   const northMeetingAt = t('2026-09-16T09:30:00.000Z');
 
   /**
-   * An instant `days` days after now (UTC), at a UTC clock time. The demo's other rides are fixed
-   * dates; North coffee and curves uses this so there's always a ride in the next fortnight with no
-   * Tail Gunner, and crew managers see the "Crew needed" tag whatever the date.
+   * An instant `days` days after now (UTC), at a UTC clock time. The demo's other rides are story
+   * dates, moved a week at a time; North coffee and curves uses this so there's always a ride in
+   * the next fortnight with no Tail Gunner, and crew managers see the "Crew needed" tag whatever
+   * the date.
    */
   const daysFromNow = (days: number, utcTime: string): string =>
     `${new Date(now.getTime() + days * 86_400_000).toISOString().slice(0, 10)}T${utcTime}`;
@@ -531,7 +532,7 @@ export function buildDemoData(now: Date): ClubData {
     ],
     // Ride planning extras. Diesel planned the West breakfast run's stops; Throttle's Vulcan has the
     // smallest tank in that pack. Three members have rated the West loop. The club lunch ride takes
-    // registrations for the clubhouse sleepover, closing the Saturday before it.
+    // registrations for the clubhouse sleepover, closing on the Saturday of the week before it.
     ridePlans: [
       {
         rideId: 'r-1',

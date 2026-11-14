@@ -92,6 +92,8 @@ test('the business story', () => {
     }
     assert.ok(voteOf(data, 'v-3').closedAt! <= now, now);
     for (const id of ['ai-1', 'ai-4']) assert.ok(itemOf(data, id).dueOn! >= today, `${id} at ${now}`);
+    // Spec section 5: Spanner's first aid kit is due in 7 days on a Sunday, tomorrow on a Saturday.
+    assert.ok(between(daysTo(today, itemOf(data, 'ai-1').dueOn!), 1, 7), `ai-1 distance at ${now}`);
     assert.ok(between(daysBetween(itemOf(data, 'ai-2').dueOn!, today), 5, 11), `ai-2 at ${now}`);
     const ai3 = itemOf(data, 'ai-3');
     assert.ok(ai3.doneOn! < ai3.dueOn!, `ai-3 at ${now}`);
@@ -133,6 +135,17 @@ test('rides', () => {
     assert.equal(melbourneHhmm(r7.startsAt), '00:00', now);
     assert.equal(melbourneHhmm(r7.endsAt!), '00:00', now);
     assert.ok(rideOf(data, 'r-5').cancelledAt! <= now, `r-5 cancelled at ${now}`);
+    // Spec section 5: each far ride, the cancelled one too, is its designed distance ahead (5 to 16
+    // weeks on a Sunday, less 6 days by Saturday).
+    for (const [id, least] of [['r-3', 29], ['r-4', 36], ['r-5', 43], ['r-6', 78], ['r-7', 91], ['r-8', 105]] as const) {
+      const days = daysTo(today, rideOf(data, id).startsAt);
+      assert.ok(between(days, least, least + 6) && between(days, 35 - 6, 112), `${id} distance at ${now}`);
+    }
+    const r4 = rideOf(data, 'r-4');
+    assert.equal(melbourneDate(r4.endsAt!), melbourneDate(r4.startsAt), now);
+    assert.equal(melbourneHhmm(r4.endsAt!), '17:00', now);
+    assert.equal(daysBetween(melbourneDate(r7.startsAt), melbourneDate(r7.endsAt!)), 2, now);
+    for (const r of data.rides.filter((x) => x.endsAt)) assert.ok(r.endsAt! > r.startsAt, `${r.id} ends after it starts at ${now}`);
   }
 });
 
@@ -149,6 +162,10 @@ test('the breakfast run’s paperwork', () => {
     for (const c of data.crew!.filter((x) => x.role === 'tail_gunner' || x.role === 'assistant_tail_gunner')) {
       const aid = data.privates.find((p) => p.memberId === c.memberId)!.firstAidExpiry;
       assert.ok(aid !== null && aid >= melbourneDate(rideOf(data, c.rideId).startsAt), `${c.memberId} first aid on ${c.rideId} at ${now}`);
+    }
+    // The app's own crew rule, where it reads the first aid date against the ride day.
+    for (const c of data.crew!) {
+      assert.equal(eligibilityProblem(memberOf(data, c.memberId), c.role, rideOf(data, c.rideId), data), null, `${c.memberId} on ${c.rideId} at ${now}`);
     }
   }
 });
