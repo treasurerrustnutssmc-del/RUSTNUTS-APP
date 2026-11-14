@@ -10,7 +10,7 @@ import { readGpx } from '../domain/gpx';
 import { addMonths } from '../domain/profile';
 import type { Attendance, BusCost, BusCostKind, BusKm, CheckinSession, ClubData, LedgerCode, LedgerEntry, Member, MemberPrivate, MemberStatus, Ride, RideRoute, Route } from '../domain/types';
 import { isCredit } from '../domain/ledger';
-import { demoClock } from './demoStory';
+import { dayOrdinal, demoClock, monthName } from './demoStory';
 import { V4_CONSTITUTION } from './demoConstitution';
 
 const member = (m: Partial<Member> & Pick<Member, 'id' | 'chapterId' | 'fullName' | 'status'>): Member => ({
@@ -231,6 +231,17 @@ const SITE_SHOP = 'https://www.rustnutssmc.com.au/shop';
  */
 export function buildDemoData(now: Date): ClubData {
   const clock = demoClock(now);
+  // The story: written for the week of Sun 25/10/2026 and moved on by whole weeks to today's week,
+  // so weekdays and Melbourne clock times hold (d() for a date, t() for an instant).
+  const { d, t } = clock;
+
+  // Words generated from the moved dates, so they can never disagree with them.
+  const boardMeetingAt = t('2026-11-04T08:30:00.000Z');
+  const boardMeetingDay = melbourneDate(boardMeetingAt);
+  const patchVoteClosesAt = t('2026-11-04T08:00:00.000Z');
+  const throttleFngFrom = d('2026-01-17');
+  const generalMeetingAt = t('2026-10-14T08:30:00.000Z');
+  const northMeetingAt = t('2026-09-16T09:30:00.000Z');
 
   /**
    * An instant `days` days after now (UTC), at a UTC clock time. The demo's other rides are fixed
@@ -240,13 +251,13 @@ export function buildDemoData(now: Date): ClubData {
   const daysFromNow = (days: number, utcTime: string): string =>
     `${new Date(now.getTime() + days * 86_400_000).toISOString().slice(0, 10)}T${utcTime}`;
 
-  // When each library route was last changed.
+  // When each library route was last changed: story instants, moved with the rest.
   const routeUpdatedAt: Record<string, string> = {
-    'rt-west-loop': '2026-10-18T09:00:00.000Z',
-    'rt-north-hills': '2026-10-12T09:00:00.000Z',
-    'rt-club-run': '2026-10-05T09:00:00.000Z',
-    'rt-murray': '2026-04-02T09:00:00.000Z',
-    'rt-coorong': '2026-02-20T09:00:00.000Z',
+    'rt-west-loop': t('2026-10-18T09:00:00.000Z'),
+    'rt-north-hills': t('2026-10-12T09:00:00.000Z'),
+    'rt-club-run': t('2026-10-05T09:00:00.000Z'),
+    'rt-murray': t('2026-04-02T09:00:00.000Z'),
+    'rt-coorong': t('2026-02-20T09:00:00.000Z'),
   };
 
   const data: ClubData = {
@@ -264,7 +275,7 @@ export function buildDemoData(now: Date): ClubData {
       member({ id: 'm-gravel', chapterId: 'ch-west', fullName: 'Brett Hughes', roadName: 'Gravel', status: 'full', joinedOn: '2020-11-21', patchedOn: '2021-11-27' }),
       member({ id: 'm-spanner', chapterId: 'ch-west', fullName: 'Mick Doherty', roadName: 'Spanner', status: 'full', joinedOn: '2022-03-12', patchedOn: '2023-03-25', sharePhone: true, bio: 'Tail Gunner. Carries the first aid kit and the cable ties.' }),
       member({ id: 'm-chook', chapterId: 'ch-west', fullName: 'Shane Fitzgerald', roadName: 'Chook', status: 'full', joinedOn: '2022-08-20', patchedOn: '2023-09-02' }),
-      member({ id: 'm-throttle', chapterId: 'ch-west', fullName: 'Nikki Barnes', roadName: 'Throttle', status: 'fng', joinedOn: '2025-12-13', fngStartedOn: '2026-01-17', sharePhone: true }),
+      member({ id: 'm-throttle', chapterId: 'ch-west', fullName: 'Nikki Barnes', roadName: 'Throttle', status: 'fng', joinedOn: d('2025-12-13'), fngStartedOn: throttleFngFrom, sharePhone: true }),
       member({ id: 'm-patches', chapterId: 'ch-west', fullName: 'Paul Nguyen', roadName: 'Patches', status: 'supporter', joinedOn: '2024-04-06' }),
       member({ id: 'm-kerry', chapterId: 'ch-west', fullName: 'Kerry Mercer', status: 'family', joinedOn: '2021-01-16' }),
       member({ id: 'm-rooster', chapterId: 'ch-west', fullName: 'Rob Kennedy', roadName: 'Rooster', status: 'legacy', joinedOn: '2019-06-15', patchedOn: '2020-01-18', bio: 'Patched in 2020. Moved on in 2025, still drops in for a beer.' }),
@@ -274,32 +285,32 @@ export function buildDemoData(now: Date): ClubData {
       member({ id: 'm-crank', chapterId: 'ch-north', fullName: 'Craig Morrison', roadName: 'Crank', status: 'full', joinedOn: '2023-04-15', patchedOn: '2024-05-04' }),
       member({ id: 'm-ace', chapterId: 'ch-north', fullName: 'Aaron Delaney', roadName: 'Ace', status: 'full', joinedOn: '2024-01-20', patchedOn: '2025-02-01', sharePhone: true }),
       member({ id: 'm-ratchet', chapterId: 'ch-north', fullName: 'Ray Simmons', roadName: 'Ratchet', status: 'nomad', joinedOn: '2023-03-11', patchedOn: '2024-03-23', bio: 'Moved to the Sunshine Coast in 2025. Phones in to North meetings.' }),
-      member({ id: 'm-lefty', chapterId: 'ch-north', fullName: 'Luke Carter', roadName: 'Lefty', status: 'fng', joinedOn: '2026-04-18', fngStartedOn: '2026-07-25' }),
-      member({ id: 'm-ben', chapterId: 'ch-north', fullName: 'Ben Whitfield', status: 'introduced', joinedOn: '2026-09-26' }),
+      member({ id: 'm-lefty', chapterId: 'ch-north', fullName: 'Luke Carter', roadName: 'Lefty', status: 'fng', joinedOn: d('2026-04-18'), fngStartedOn: d('2026-07-25') }),
+      member({ id: 'm-ben', chapterId: 'ch-north', fullName: 'Ben Whitfield', status: 'introduced', joinedOn: d('2026-09-26') }),
       // Waiting for approval
-      member({ id: 'm-dylan', chapterId: 'ch-west', fullName: 'Dylan Pryce', status: 'introduced', approval: 'pending', appliedOn: '2026-10-21' }),
-      member({ id: 'm-josh', chapterId: 'ch-north', fullName: 'Josh Tran', status: 'family', approval: 'pending', appliedOn: '2026-10-23' }),
+      member({ id: 'm-dylan', chapterId: 'ch-west', fullName: 'Dylan Pryce', status: 'introduced', approval: 'pending', appliedOn: d('2026-10-21') }),
+      member({ id: 'm-josh', chapterId: 'ch-north', fullName: 'Josh Tran', status: 'family', approval: 'pending', appliedOn: d('2026-10-23') }),
     ],
 
     privates: [
-      priv({ memberId: 'm-rusty', email: 'rusty@example.com', phone: '0412 555 100', licenceExpiry: '2029-06-30' }),
-      priv({ memberId: 'm-torque', email: 'torque@example.com', phone: '0423 555 214', licenceExpiry: '2027-09-03' }),
-      priv({ memberId: 'm-diesel', email: 'diesel@example.com', phone: '0438 555 377', licenceExpiry: '2028-05-19', firstAidExpiry: '2027-02-11' }),
-      priv({ memberId: 'm-sparks', email: 'sparks@example.com', phone: '0401 555 468', licenceExpiry: '2030-01-08' }),
-      priv({ memberId: 'm-gravel', email: 'gravel@example.com', phone: '0415 555 592', licenceExpiry: '2026-11-15' }),
-      priv({ memberId: 'm-spanner', email: 'spanner@example.com', phone: '0427 555 603', licenceExpiry: '2028-02-14', firstAidExpiry: '2027-07-01' }),
+      priv({ memberId: 'm-rusty', email: 'rusty@example.com', phone: '0412 555 100', licenceExpiry: d('2029-06-30') }),
+      priv({ memberId: 'm-torque', email: 'torque@example.com', phone: '0423 555 214', licenceExpiry: d('2027-09-03') }),
+      priv({ memberId: 'm-diesel', email: 'diesel@example.com', phone: '0438 555 377', licenceExpiry: d('2028-05-19'), firstAidExpiry: d('2027-02-11') }),
+      priv({ memberId: 'm-sparks', email: 'sparks@example.com', phone: '0401 555 468', licenceExpiry: d('2030-01-08') }),
+      priv({ memberId: 'm-gravel', email: 'gravel@example.com', phone: '0415 555 592', licenceExpiry: d('2026-11-15') }),
+      priv({ memberId: 'm-spanner', email: 'spanner@example.com', phone: '0427 555 603', licenceExpiry: d('2028-02-14'), firstAidExpiry: d('2027-07-01') }),
       priv({ memberId: 'm-chook', email: 'chook@example.com', phone: '0433 555 719', licenceExpiry: null }),
-      priv({ memberId: 'm-throttle', email: 'throttle@example.com', phone: '0409 555 826', licenceClass: 'probationary_open', licenceExpiry: '2027-01-30' }),
-      priv({ memberId: 'm-patches', email: 'patches@example.com', phone: '0419 555 937', licenceExpiry: '2028-08-22' }),
+      priv({ memberId: 'm-throttle', email: 'throttle@example.com', phone: '0409 555 826', licenceClass: 'probationary_open', licenceExpiry: d('2027-01-30') }),
+      priv({ memberId: 'm-patches', email: 'patches@example.com', phone: '0419 555 937', licenceExpiry: d('2028-08-22') }),
       priv({ memberId: 'm-kerry', email: 'kerry@example.com', phone: '0402 555 048', licenceClass: null }),
-      priv({ memberId: 'm-smokey', email: 'smokey@example.com', phone: '0414 555 151', licenceExpiry: '2027-12-01' }),
-      priv({ memberId: 'm-jet', email: 'jet@example.com', phone: '0425 555 262', licenceExpiry: '2029-03-17' }),
-      priv({ memberId: 'm-crank', email: 'crank@example.com', phone: '0436 555 373', licenceExpiry: '2027-06-09', firstAidExpiry: '2026-11-20' }),
-      priv({ memberId: 'm-ace', email: 'ace@example.com', phone: '0447 555 484', licenceExpiry: '2028-10-30' }),
-      priv({ memberId: 'm-ratchet', email: 'ratchet@example.com', phone: '0458 555 595', licenceExpiry: '2027-04-12' }),
-      priv({ memberId: 'm-lefty', email: 'lefty@example.com', phone: '0469 555 606', licenceClass: 'probationary_open', licenceExpiry: '2027-07-25' }),
-      priv({ memberId: 'm-ben', email: 'ben@example.com', phone: '0470 555 717', licenceExpiry: '2028-01-04' }),
-      priv({ memberId: 'm-dylan', email: 'dylan@example.com', phone: '0481 555 828', licenceExpiry: '2029-02-19', introducedBy: 'Spanner', applicationNote: 'Been riding with the West crew since August. Ride a 2019 Street Bob.' }),
+      priv({ memberId: 'm-smokey', email: 'smokey@example.com', phone: '0414 555 151', licenceExpiry: d('2027-12-01') }),
+      priv({ memberId: 'm-jet', email: 'jet@example.com', phone: '0425 555 262', licenceExpiry: d('2029-03-17') }),
+      priv({ memberId: 'm-crank', email: 'crank@example.com', phone: '0436 555 373', licenceExpiry: d('2027-06-09'), firstAidExpiry: d('2026-11-20') }),
+      priv({ memberId: 'm-ace', email: 'ace@example.com', phone: '0447 555 484', licenceExpiry: d('2028-10-30') }),
+      priv({ memberId: 'm-ratchet', email: 'ratchet@example.com', phone: '0458 555 595', licenceExpiry: d('2027-04-12') }),
+      priv({ memberId: 'm-lefty', email: 'lefty@example.com', phone: '0469 555 606', licenceClass: 'probationary_open', licenceExpiry: d('2027-07-25') }),
+      priv({ memberId: 'm-ben', email: 'ben@example.com', phone: '0470 555 717', licenceExpiry: d('2028-01-04') }),
+      priv({ memberId: 'm-dylan', email: 'dylan@example.com', phone: '0481 555 828', licenceExpiry: d('2029-02-19'), introducedBy: 'Spanner', applicationNote: 'Been riding with the West crew for a few months. Ride a 2019 Street Bob.' }),
       priv({ memberId: 'm-josh', email: 'josh@example.com', phone: '0492 555 939', licenceClass: null, introducedBy: 'Jet', applicationNote: "Jet's partner. Keen to see ride days and come along to the family BBQs." }),
     ],
 
@@ -327,23 +338,23 @@ export function buildDemoData(now: Date): ClubData {
     ],
 
     registrations: [
-      { bikeId: 'b-1', rego: '1RN 7GK', regoExpiry: '2027-03-02' },
-      { bikeId: 'b-2', rego: '2TW 4BN', regoExpiry: '2027-01-14' },
-      { bikeId: 'b-3', rego: '9DM 3MN', regoExpiry: '2026-11-19' },
-      { bikeId: 'b-4', rego: '4LR 8SB', regoExpiry: '2027-05-20' },
-      { bikeId: 'b-5', rego: '6BH 1FT', regoExpiry: '2026-10-12' },
-      { bikeId: 'b-6', rego: '3MD 5SS', regoExpiry: '2026-11-08' },
-      { bikeId: 'b-8', rego: '7SF 2XV', regoExpiry: '2027-04-02' },
-      { bikeId: 'b-9', rego: '5NB 6VS', regoExpiry: '2027-02-27' },
-      { bikeId: 'b-10', rego: '8PN 9GS', regoExpiry: '2027-08-15' },
-      { bikeId: 'b-11', rego: '1SB 4HC', regoExpiry: '2027-06-03' },
-      { bikeId: 'b-12', rego: '2JH 7SG', regoExpiry: '2027-03-29' },
-      { bikeId: 'b-13', rego: '3CM 1VX', regoExpiry: '2026-12-18' },
-      { bikeId: 'b-14', rego: '4AD 8ST', regoExpiry: '2027-09-10' },
-      { bikeId: 'b-15', rego: '772 RAY', regoExpiry: '2027-02-05' },
-      { bikeId: 'b-16', rego: '6LC 2IE', regoExpiry: '2027-07-25' },
-      { bikeId: 'b-17', rego: '7BW 3HR', regoExpiry: '2027-09-26' },
-      { bikeId: 'b-18', rego: '8DP 4SB', regoExpiry: '2027-05-01' },
+      { bikeId: 'b-1', rego: '1RN 7GK', regoExpiry: d('2027-03-02') },
+      { bikeId: 'b-2', rego: '2TW 4BN', regoExpiry: d('2027-01-14') },
+      { bikeId: 'b-3', rego: '9DM 3MN', regoExpiry: d('2026-11-19') },
+      { bikeId: 'b-4', rego: '4LR 8SB', regoExpiry: d('2027-05-20') },
+      { bikeId: 'b-5', rego: '6BH 1FT', regoExpiry: d('2026-10-12') },
+      { bikeId: 'b-6', rego: '3MD 5SS', regoExpiry: d('2026-11-08') },
+      { bikeId: 'b-8', rego: '7SF 2XV', regoExpiry: d('2027-04-02') },
+      { bikeId: 'b-9', rego: '5NB 6VS', regoExpiry: d('2027-02-27') },
+      { bikeId: 'b-10', rego: '8PN 9GS', regoExpiry: d('2027-08-15') },
+      { bikeId: 'b-11', rego: '1SB 4HC', regoExpiry: d('2027-06-03') },
+      { bikeId: 'b-12', rego: '2JH 7SG', regoExpiry: d('2027-03-29') },
+      { bikeId: 'b-13', rego: '3CM 1VX', regoExpiry: d('2026-12-18') },
+      { bikeId: 'b-14', rego: '4AD 8ST', regoExpiry: d('2027-09-10') },
+      { bikeId: 'b-15', rego: '772 RAY', regoExpiry: d('2027-02-05') },
+      { bikeId: 'b-16', rego: '6LC 2IE', regoExpiry: d('2027-07-25') },
+      { bikeId: 'b-17', rego: '7BW 3HR', regoExpiry: d('2027-09-26') },
+      { bikeId: 'b-18', rego: '8DP 4SB', regoExpiry: d('2027-05-01') },
     ],
 
     emergencyContacts: [
@@ -382,86 +393,90 @@ export function buildDemoData(now: Date): ClubData {
       { id: 'p-16', memberId: 'm-diesel', chapterId: 'ch-west', role: 'president', startedOn: '2023-08-19', endedOn: '2025-08-16' },
       { id: 'p-17', memberId: 'm-gravel', chapterId: 'ch-west', role: 'treasurer', startedOn: '2019-03-09', endedOn: '2021-08-21' },
     ],
-    // Made-up rides, spread over the website's five colours. Times are Melbourne local, as instants.
+    // Made-up rides, spread over the website's five colours. Times are Melbourne local, as instants,
+    // moved on with the story so each ride stays on its weekday at its clock time.
     rides: [
-      { id: 'r-1', title: 'West breakfast run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: '2026-11-08T01:00:00.000Z', allDay: false,
+      { id: 'r-1', title: 'West breakfast run', startsAt: t('2026-11-07T21:30:00.000Z'), endsAt: t('2026-11-08T01:00:00.000Z'), allDay: false,
         location: 'Caltex Laverton North', notes: 'KSU 8:30. Breakfast at Daylesford, home by lunch.', category: 'west', cancelledAt: null, source: 'feed', website: true },
       // About a week out (9 am Melbourne in summer time, 8 am in winter), so it always needs crew soon.
       { id: 'r-2', title: 'North coffee and curves', startsAt: daysFromNow(6, '22:00:00.000Z'), endsAt: daysFromNow(7, '03:00:00.000Z'), allDay: false,
         location: 'Kilmore Bakery', notes: 'Up through Pyalong and back via Lancefield.', category: 'north', cancelledAt: null, source: 'feed', website: true },
-      { id: 'r-3', title: 'Toy Run (Non-Nuts)', startsAt: '2026-11-28T23:00:00.000Z', endsAt: null, allDay: false,
+      { id: 'r-3', title: 'Toy Run (Non-Nuts)', startsAt: t('2026-11-28T23:00:00.000Z'), endsAt: null, allDay: false,
         location: 'Werribee Racecourse', notes: 'Another club’s charity run. Bring a wrapped toy.', category: 'non_nuts', cancelledAt: null, source: 'feed', website: true },
-      { id: 'r-4', title: 'Rustnuts Christmas ride', startsAt: '2026-12-05T23:00:00.000Z', endsAt: '2026-12-06T06:00:00.000Z', allDay: false,
-        location: 'Clubhouse, Williams Landing', notes: 'Both chapters. Lunch and the Kris Kringle after.', category: 'club', cancelledAt: null,
+      { id: 'r-4', title: 'Rustnuts club lunch ride', startsAt: t('2026-12-05T23:00:00.000Z'), endsAt: t('2026-12-06T06:00:00.000Z'), allDay: false,
+        location: 'Clubhouse, Williams Landing', notes: 'Both chapters. Lunch and the raffle after.', category: 'club', cancelledAt: null,
         source: 'app', website: true },
-      { id: 'r-5', title: 'West twisties', startsAt: '2026-12-12T22:00:00.000Z', endsAt: null, allDay: false,
-        location: 'Bacchus Marsh McDonald’s', notes: null, category: 'west', cancelledAt: '2026-12-01T00:00:00.000Z', source: 'feed', website: true },
-      { id: 'r-6', title: 'Ride for Kids (supported)', startsAt: '2027-01-16T23:00:00.000Z', endsAt: null, allDay: false,
+      { id: 'r-5', title: 'West twisties', startsAt: t('2026-12-12T22:00:00.000Z'), endsAt: null, allDay: false,
+        location: 'Bacchus Marsh McDonald’s', notes: null, category: 'west', cancelledAt: t('2026-10-19T03:00:00.000Z'), source: 'feed', website: true },
+      { id: 'r-6', title: 'Ride for Kids (supported)', startsAt: t('2027-01-16T23:00:00.000Z'), endsAt: null, allDay: false,
         location: 'Geelong Waterfront', notes: 'Supporting a mate’s club. Rusty Bus on recovery.', category: 'supported', cancelledAt: null, source: 'feed', website: true },
-      { id: 'r-7', title: 'Big 4: Phillip Island weekend', startsAt: '2027-01-29T13:00:00.000Z', endsAt: '2027-01-31T13:00:00.000Z', allDay: true,
+      { id: 'r-7', title: 'Big 4: Phillip Island weekend', startsAt: t('2027-01-29T13:00:00.000Z'), endsAt: t('2027-01-31T13:00:00.000Z'), allDay: true,
         location: 'Phillip Island', notes: 'Two nights. Book your own room.', category: 'club', cancelledAt: null, source: 'feed', website: true },
-      { id: 'r-8', title: 'North night ride', startsAt: '2027-02-13T08:00:00.000Z', endsAt: null, allDay: false,
+      { id: 'r-8', title: 'North night ride', startsAt: t('2027-02-13T08:00:00.000Z'), endsAt: null, allDay: false,
         location: 'Wallan servo', notes: null, category: 'north', cancelledAt: null, source: 'feed', website: true },
     ],
     rsvps: [
-      { rideId: 'r-1', memberId: 'm-rusty', answer: 'going', updatedAt: '2026-10-20T08:00:00.000Z' },
-      { rideId: 'r-1', memberId: 'm-spanner', answer: 'going', updatedAt: '2026-10-20T09:00:00.000Z' },
-      { rideId: 'r-1', memberId: 'm-gravel', answer: 'maybe', updatedAt: '2026-10-21T09:00:00.000Z' },
-      { rideId: 'r-1', memberId: 'm-throttle', answer: 'going', updatedAt: '2026-10-21T10:00:00.000Z' },
-      { rideId: 'r-1', memberId: 'm-diesel', answer: 'going', updatedAt: '2026-10-21T11:00:00.000Z' },
-      { rideId: 'r-1', memberId: 'm-chook', answer: 'going', updatedAt: '2026-10-21T12:00:00.000Z' },
-      { rideId: 'r-2', memberId: 'm-crank', answer: 'going', updatedAt: '2026-10-22T09:00:00.000Z' },
-      { rideId: 'r-2', memberId: 'm-smokey', answer: 'going', updatedAt: '2026-10-22T10:00:00.000Z' },
-      { rideId: 'r-2', memberId: 'm-jet', answer: 'going', updatedAt: '2026-10-22T11:00:00.000Z' },
-      { rideId: 'r-4', memberId: 'm-rusty', answer: 'going', updatedAt: '2026-10-22T12:00:00.000Z' },
-      { rideId: 'r-4', memberId: 'm-crank', answer: 'going', updatedAt: '2026-10-22T12:30:00.000Z' },
-      { rideId: 'r-4', memberId: 'm-chook', answer: 'no', updatedAt: '2026-10-23T08:00:00.000Z' },
+      { rideId: 'r-1', memberId: 'm-rusty', answer: 'going', updatedAt: t('2026-10-20T08:00:00.000Z') },
+      { rideId: 'r-1', memberId: 'm-spanner', answer: 'going', updatedAt: t('2026-10-20T09:00:00.000Z') },
+      { rideId: 'r-1', memberId: 'm-gravel', answer: 'maybe', updatedAt: t('2026-10-21T09:00:00.000Z') },
+      { rideId: 'r-1', memberId: 'm-throttle', answer: 'going', updatedAt: t('2026-10-21T10:00:00.000Z') },
+      { rideId: 'r-1', memberId: 'm-diesel', answer: 'going', updatedAt: t('2026-10-21T11:00:00.000Z') },
+      { rideId: 'r-1', memberId: 'm-chook', answer: 'going', updatedAt: t('2026-10-21T12:00:00.000Z') },
+      { rideId: 'r-2', memberId: 'm-crank', answer: 'going', updatedAt: t('2026-10-22T09:00:00.000Z') },
+      { rideId: 'r-2', memberId: 'm-smokey', answer: 'going', updatedAt: t('2026-10-22T10:00:00.000Z') },
+      { rideId: 'r-2', memberId: 'm-jet', answer: 'going', updatedAt: t('2026-10-22T11:00:00.000Z') },
+      { rideId: 'r-4', memberId: 'm-rusty', answer: 'going', updatedAt: t('2026-10-22T12:00:00.000Z') },
+      { rideId: 'r-4', memberId: 'm-crank', answer: 'going', updatedAt: t('2026-10-22T12:30:00.000Z') },
+      { rideId: 'r-4', memberId: 'm-chook', answer: 'no', updatedAt: t('2026-10-23T08:00:00.000Z') },
     ],
 
-    // Stage 5: made-up meetings, action items and votes. Times are Melbourne local, as instants.
+    // Stage 5: made-up meetings, action items and votes. Times are Melbourne local, as instants, moved
+    // on with the story. Meeting titles and the agenda notes that name a month or day are made from
+    // the moved dates.
     meetings: [
-      { id: 'mt-1', chapterId: 'ch-west', kind: 'board', title: 'November board meeting', startsAt: '2026-11-04T08:30:00.000Z',
+      { id: 'mt-1', chapterId: 'ch-west', kind: 'board', title: `${monthName(boardMeetingDay)} board meeting`, startsAt: boardMeetingAt,
         location: 'Clubhouse, Williams Landing', minutes: null, minutesApprovedAt: null, minutesApprovedBy: null, cancelledAt: null,
         createdBy: 'm-torque', agenda: [
-          { title: 'Treasurer’s report', notes: 'Sparks to table the October figures.' },
+          // The figures for the month before the meeting's month.
+          { title: 'Treasurer’s report', notes: `Sparks to table the ${monthName(addDays(`${boardMeetingDay.slice(0, 7)}-01`, -1))} figures.` },
           { title: 'Gazebo for charity rides', notes: null },
-          { title: 'Throttle’s patch vote', notes: 'Result due by the 4th.' },
+          { title: 'Throttle’s patch vote', notes: `Result due by the ${dayOrdinal(melbourneDate(patchVoteClosesAt))}.` },
         ] },
-      { id: 'mt-2', chapterId: 'ch-west', kind: 'general', title: 'October general meeting', startsAt: '2026-10-14T08:30:00.000Z',
-        location: 'Clubhouse, Williams Landing', agenda: [{ title: 'Christmas ride', notes: null }, { title: 'Toy Run', notes: null }],
-        minutes: 'Present: 14 members.\n\nChristmas ride: lunch at the clubhouse, Kris Kringle $30.\nToy Run: West rides together, KSU 9:00 from Laverton.',
+      { id: 'mt-2', chapterId: 'ch-west', kind: 'general', title: `${monthName(melbourneDate(generalMeetingAt))} general meeting`, startsAt: generalMeetingAt,
+        location: 'Clubhouse, Williams Landing', agenda: [{ title: 'Club lunch ride', notes: null }, { title: 'Toy Run', notes: null }],
+        minutes: 'Present: 14 members.\n\nClub lunch ride: lunch at the clubhouse, raffle tickets $5.\nToy Run: West rides together, KSU 9:00 from Laverton.',
         minutesApprovedAt: null, minutesApprovedBy: null, cancelledAt: null, createdBy: 'm-torque' },
-      { id: 'mt-3', chapterId: 'ch-north', kind: 'general', title: 'September general meeting', startsAt: '2026-09-16T09:30:00.000Z',
+      { id: 'mt-3', chapterId: 'ch-north', kind: 'general', title: `${monthName(melbourneDate(northMeetingAt))} general meeting`, startsAt: northMeetingAt,
         location: 'Kilmore Bakery', agenda: [{ title: 'Night ride route', notes: null }],
-        minutes: 'Night ride route agreed: Wallan, Whittlesea, home by 11.', minutesApprovedAt: '2026-09-20T00:00:00.000Z',
+        minutes: 'Night ride route agreed: Wallan, Whittlesea, home by 11.', minutesApprovedAt: t('2026-09-20T00:00:00.000Z'),
         minutesApprovedBy: 'm-jet', cancelledAt: null, createdBy: 'm-jet' },
-      { id: 'mt-4', chapterId: null, kind: 'nec', title: 'NEC meeting', startsAt: '2026-11-11T08:00:00.000Z', location: 'Video call',
+      { id: 'mt-4', chapterId: null, kind: 'nec', title: 'NEC meeting', startsAt: t('2026-11-11T08:00:00.000Z'), location: 'Video call',
         agenda: [{ title: 'Chapter contributions', notes: null }], minutes: null, minutesApprovedAt: null, minutesApprovedBy: null,
         cancelledAt: null, createdBy: 'm-rusty' },
     ],
     actionItems: [
-      { id: 'ai-1', meetingId: 'mt-2', chapterId: 'ch-west', title: 'Restock the first aid kit', ownerId: 'm-spanner', dueOn: '2026-11-01', doneOn: null },
-      { id: 'ai-2', meetingId: 'mt-2', chapterId: 'ch-west', title: 'Get three quotes for a gazebo', ownerId: 'm-sparks', dueOn: '2026-10-20', doneOn: null },
-      { id: 'ai-3', meetingId: 'mt-2', chapterId: 'ch-west', title: 'Book the clubhouse for Christmas', ownerId: 'm-torque', dueOn: '2026-10-21', doneOn: '2026-10-19' },
-      { id: 'ai-4', meetingId: 'mt-3', chapterId: 'ch-north', title: 'Scout the night ride fuel stop', ownerId: 'm-crank', dueOn: '2026-11-08', doneOn: null },
+      { id: 'ai-1', meetingId: 'mt-2', chapterId: 'ch-west', title: 'Restock the first aid kit', ownerId: 'm-spanner', dueOn: d('2026-11-01'), doneOn: null },
+      { id: 'ai-2', meetingId: 'mt-2', chapterId: 'ch-west', title: 'Get three quotes for a gazebo', ownerId: 'm-sparks', dueOn: d('2026-10-20'), doneOn: null },
+      { id: 'ai-3', meetingId: 'mt-2', chapterId: 'ch-west', title: 'Book the clubhouse for the club lunch ride', ownerId: 'm-torque', dueOn: d('2026-10-21'), doneOn: d('2026-10-19') },
+      { id: 'ai-4', meetingId: 'mt-3', chapterId: 'ch-north', title: 'Scout the night ride fuel stop', ownerId: 'm-crank', dueOn: d('2026-11-08'), doneOn: null },
     ],
     votes: [
       { id: 'v-1', chapterId: 'ch-west', meetingId: null, subjectMemberId: 'm-throttle', subjectRole: null, question: 'Patch Throttle as a Full member?',
-        details: 'Nine months as an FNG, every ride since January.',
-        electorate: 'chapter_patched', threshold: 'unanimous', secret: true, quorum: 3, openedAt: '2026-10-21T08:00:00.000Z',
-        closesAt: '2026-11-04T08:00:00.000Z', closedAt: null, result: null, castingVote: null, tally: null,
+        details: `Nine months as an FNG, every ride since ${monthName(throttleFngFrom)}.`,
+        electorate: 'chapter_patched', threshold: 'unanimous', secret: true, quorum: 3, openedAt: t('2026-10-21T08:00:00.000Z'),
+        closesAt: patchVoteClosesAt, closedAt: null, result: null, castingVote: null, tally: null,
         electorIds: ['m-chook', 'm-diesel', 'm-gravel', 'm-rusty', 'm-spanner', 'm-sparks', 'm-torque'],
         votedIds: ['m-diesel', 'm-rusty', 'm-torque'],
         ballots: [{ memberId: null, choice: 'yes' }, { memberId: null, choice: 'yes' }, { memberId: null, choice: 'yes' }],
         createdBy: 'm-torque' },
       { id: 'v-2', chapterId: 'ch-west', meetingId: 'mt-1', subjectMemberId: null, subjectRole: null, question: 'Spend up to $600 on a club gazebo?',
         details: 'For charity rides and the Toy Run stall.', electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 3,
-        openedAt: '2026-10-22T08:00:00.000Z', closesAt: '2026-10-30T08:00:00.000Z', closedAt: null, result: null, castingVote: null,
+        openedAt: t('2026-10-22T08:00:00.000Z'), closesAt: t('2026-11-02T08:00:00.000Z'), closedAt: null, result: null, castingVote: null,
         tally: null, electorIds: ['m-diesel', 'm-gravel', 'm-rusty', 'm-sparks', 'm-torque'], votedIds: ['m-sparks'],
         ballots: [{ memberId: 'm-sparks', choice: 'yes' }], createdBy: 'm-torque' },
-      { id: 'v-3', chapterId: null, meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Move the Christmas ride to the first Sunday of December?',
-        details: null, electorate: 'club_patched', threshold: 'majority', secret: true, quorum: 7, openedAt: '2026-10-01T08:00:00.000Z',
-        closesAt: '2026-10-15T08:00:00.000Z', closedAt: '2026-10-15T09:00:00.000Z', result: 'carried', castingVote: null,
+      { id: 'v-3', chapterId: null, meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Move the club lunch ride a week earlier?',
+        details: null, electorate: 'club_patched', threshold: 'majority', secret: true, quorum: 7, openedAt: t('2026-10-01T08:00:00.000Z'),
+        closesAt: t('2026-10-15T08:00:00.000Z'), closedAt: t('2026-10-15T09:00:00.000Z'), result: 'carried', castingVote: null,
         tally: { yes: 8, no: 2, abstain: 1 },
         electorIds: ['m-ace', 'm-chook', 'm-crank', 'm-diesel', 'm-gravel', 'm-jet', 'm-ratchet', 'm-rusty', 'm-smokey', 'm-spanner', 'm-sparks', 'm-torque'],
         votedIds: ['m-ace', 'm-chook', 'm-crank', 'm-diesel', 'm-gravel', 'm-jet', 'm-rusty', 'm-smokey', 'm-spanner', 'm-sparks', 'm-torque'],
@@ -469,7 +484,7 @@ export function buildDemoData(now: Date): ClubData {
       // Everyone's voted and it's tied, so it waits on the chair (9.10).
       { id: 'v-4', chapterId: 'ch-west', meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Move board meetings to Tuesdays?',
         details: null, electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 3,
-        openedAt: '2026-10-20T08:00:00.000Z', closesAt: '2026-11-03T08:00:00.000Z', closedAt: null, result: null, castingVote: null,
+        openedAt: t('2026-10-20T08:00:00.000Z'), closesAt: t('2026-11-03T08:00:00.000Z'), closedAt: null, result: null, castingVote: null,
         tally: null, electorIds: ['m-diesel', 'm-gravel', 'm-rusty', 'm-sparks', 'm-torque'],
         votedIds: ['m-diesel', 'm-gravel', 'm-rusty', 'm-sparks', 'm-torque'],
         ballots: [
@@ -480,10 +495,10 @@ export function buildDemoData(now: Date): ClubData {
     // The West breakfast run is fully crewed; North coffee and curves (always about a week out) still needs a Tail Gunner.
     // Tail Gunners here have first aid dates that pass.
     crew: [
-      { rideId: 'r-1', memberId: 'm-diesel', role: 'road_captain', assignedBy: 'm-torque', assignedAt: '2026-10-21T11:30:00.000Z' },
-      { rideId: 'r-1', memberId: 'm-spanner', role: 'tail_gunner', assignedBy: 'm-spanner', assignedAt: '2026-10-20T09:30:00.000Z' },
-      { rideId: 'r-1', memberId: 'm-chook', role: 'officer', assignedBy: 'm-torque', assignedAt: '2026-10-21T12:30:00.000Z' },
-      { rideId: 'r-2', memberId: 'm-crank', role: 'road_captain', assignedBy: 'm-smokey', assignedAt: '2026-10-22T09:30:00.000Z' },
+      { rideId: 'r-1', memberId: 'm-diesel', role: 'road_captain', assignedBy: 'm-torque', assignedAt: t('2026-10-21T11:30:00.000Z') },
+      { rideId: 'r-1', memberId: 'm-spanner', role: 'tail_gunner', assignedBy: 'm-spanner', assignedAt: t('2026-10-20T09:30:00.000Z') },
+      { rideId: 'r-1', memberId: 'm-chook', role: 'officer', assignedBy: 'm-torque', assignedAt: t('2026-10-21T12:30:00.000Z') },
+      { rideId: 'r-2', memberId: 'm-crank', role: 'road_captain', assignedBy: 'm-smokey', assignedAt: t('2026-10-22T09:30:00.000Z') },
     ],
     // The library, and the West breakfast run uses the West loop. North coffee and curves has no route yet.
     routes: demoRoutes.map(({ id, name, chapterId, notes, ...shape }) => {
@@ -493,8 +508,9 @@ export function buildDemoData(now: Date): ClubData {
     }),
     rideRoutes: [{ rideId: 'r-1', routeId: 'rt-west-loop' }],
     // The West breakfast run's briefing. Diesel (its Road Captain) read an earlier version, then
-    // Torque added the roadworks on the evening of 23 Oct; Spanner read it at 7:42 am the next
-    // morning. Fixed instants, well before the ride's fixed start. North coffee and curves has none.
+    // Torque added the roadworks on the Friday evening before the story's week; Spanner read it at
+    // 7:42 am the next morning. Story instants, moved with the ride, so all three stay before now
+    // and well before the ride. North coffee and curves has none.
     briefings: [
       {
         rideId: 'r-1',
@@ -505,17 +521,17 @@ export function buildDemoData(now: Date): ClubData {
         ],
         changes: 'Single file through Myrniong, no staggered formation',
         notes: 'Breakfast at the Daylesford bakery, cash only.',
-        updatedAt: '2026-10-23T09:15:00.000Z',
+        updatedAt: t('2026-10-23T09:15:00.000Z'),
         updatedBy: 'm-torque',
       },
     ],
     briefingReads: [
-      { rideId: 'r-1', memberId: 'm-diesel', readAt: '2026-10-22T10:05:00.000Z' },
-      { rideId: 'r-1', memberId: 'm-spanner', readAt: '2026-10-23T20:42:00.000Z' },
+      { rideId: 'r-1', memberId: 'm-diesel', readAt: t('2026-10-22T10:05:00.000Z') },
+      { rideId: 'r-1', memberId: 'm-spanner', readAt: t('2026-10-23T20:42:00.000Z') },
     ],
     // Ride planning extras. Diesel planned the West breakfast run's stops; Throttle's Vulcan has the
-    // smallest tank in that pack. Three members have rated the West loop. The Christmas ride takes
-    // registrations for the clubhouse sleepover.
+    // smallest tank in that pack. Three members have rated the West loop. The club lunch ride takes
+    // registrations for the clubhouse sleepover, closing the Saturday before it.
     ridePlans: [
       {
         rideId: 'r-1',
@@ -524,25 +540,25 @@ export function buildDemoData(now: Date): ClubData {
           { kind: 'coffee', name: 'Breakfast, Daylesford bakery', km: 96, time: '10:15' },
           { kind: 'fuel', name: 'Ballan servo', km: 140, time: '11:30' },
         ],
-        updatedAt: '2026-10-22T08:30:00.000Z',
+        updatedAt: t('2026-10-22T08:30:00.000Z'),
         updatedBy: 'm-diesel',
       },
     ],
     routeRatings: [
-      { routeId: 'rt-west-loop', memberId: 'm-diesel', stars: 5, comment: 'Best breakfast loop we’ve got.', ratedAt: '2026-10-19T09:00:00.000Z' },
-      { routeId: 'rt-west-loop', memberId: 'm-spanner', stars: 4, comment: 'Watch the gravel after Korweinguboora.', ratedAt: '2026-10-20T09:00:00.000Z' },
-      { routeId: 'rt-west-loop', memberId: 'm-chook', stars: 4, comment: '', ratedAt: '2026-10-21T09:00:00.000Z' },
+      { routeId: 'rt-west-loop', memberId: 'm-diesel', stars: 5, comment: 'Best breakfast loop we’ve got.', ratedAt: t('2026-10-19T09:00:00.000Z') },
+      { routeId: 'rt-west-loop', memberId: 'm-spanner', stars: 4, comment: 'Watch the gravel after Korweinguboora.', ratedAt: t('2026-10-20T09:00:00.000Z') },
+      { routeId: 'rt-west-loop', memberId: 'm-chook', stars: 4, comment: '', ratedAt: t('2026-10-21T09:00:00.000Z') },
     ],
     rideCalls: [],
     rideHubs: [
       {
-        rideId: 'r-4', membersOnly: true, closesOn: '2026-11-28', beds: 12,
+        rideId: 'r-4', membersOnly: true, closesOn: d('2026-11-28'), beds: 12,
         accommodation: 'Swags and spare rooms at the clubhouse, Williams Landing. Showers on site.',
-        notes: 'Bring a plate for the Kris Kringle lunch.', updatedBy: 'm-torque', updatedAt: '2026-10-22T08:00:00.000Z',
+        notes: 'Bring a plate for the lunch.', updatedBy: 'm-torque', updatedAt: t('2026-10-22T08:00:00.000Z'),
       },
     ],
     hubRegistrations: [
-      { rideId: 'r-4', memberId: 'm-crank', staying: 'group', pillion: true, shareWith: 'Smokey', notes: '', registeredAt: '2026-10-22T12:40:00.000Z', withdrawnAt: null },
+      { rideId: 'r-4', memberId: 'm-crank', staying: 'group', pillion: true, shareWith: 'Smokey', notes: '', registeredAt: t('2026-10-22T12:40:00.000Z'), withdrawnAt: null },
     ],
     crewSwaps: [],
     // Charity ride sign-ups: Ride for Kids, with riders, a guest and helpers. Spanner isn't in yet.
@@ -550,20 +566,20 @@ export function buildDemoData(now: Date): ClubData {
       {
         rideId: 'r-6', cause: 'Royal Children’s Hospital Good Friday Appeal',
         about: 'Gold coin at the gate, BBQ after. The Rusty Bus carries the toys and anyone’s bike that gives up.',
-        closesOn: null, places: 60, jobs: ['BBQ', 'Marshal', 'Collection bucket', 'Rusty Bus'], website: true, updatedBy: 'm-torque', updatedAt: '2026-10-20T08:00:00.000Z',
+        closesOn: null, places: 60, jobs: ['BBQ', 'Marshal', 'Collection bucket', 'Rusty Bus'], website: true, updatedBy: 'm-torque', updatedAt: t('2026-10-20T08:00:00.000Z'),
       },
     ],
     // People who signed up on the club website (not in the app); the ride's organisers see them.
     websiteSignups: [
-      { id: 'w-1', rideId: 'r-6', name: 'Sam Rider', email: 'sam.rider@example.com', phone: '0400 000 001', riding: true, pillion: true, guests: 0, guestNames: '', job: null, notes: 'Coming from Geelong', createdAt: '2026-10-23T03:00:00.000Z', updatedAt: '2026-10-23T03:00:00.000Z' },
-      { id: 'w-2', rideId: 'r-6', name: 'Kim Nguyen', email: 'kim.n@example.com', phone: '', riding: false, pillion: false, guests: 0, guestNames: '', job: 'BBQ', notes: '', createdAt: '2026-10-24T05:30:00.000Z', updatedAt: '2026-10-24T05:30:00.000Z' },
+      { id: 'w-1', rideId: 'r-6', name: 'Sam Rider', email: 'sam.rider@example.com', phone: '0400 000 001', riding: true, pillion: true, guests: 0, guestNames: '', job: null, notes: 'Coming from Geelong', createdAt: t('2026-10-23T03:00:00.000Z'), updatedAt: t('2026-10-23T03:00:00.000Z') },
+      { id: 'w-2', rideId: 'r-6', name: 'Kim Nguyen', email: 'kim.n@example.com', phone: '', riding: false, pillion: false, guests: 0, guestNames: '', job: 'BBQ', notes: '', createdAt: t('2026-10-24T05:30:00.000Z'), updatedAt: t('2026-10-24T05:30:00.000Z') },
     ],
     charitySignups: [
-      { rideId: 'r-6', memberId: 'm-diesel', riding: true, pillion: true, guests: 1, guestNames: 'Mate from work', job: null, notes: '', signedAt: '2026-10-20T09:00:00.000Z', withdrawnAt: null },
-      { rideId: 'r-6', memberId: 'm-chook', riding: true, pillion: false, guests: 0, guestNames: '', job: 'Marshal', notes: '', signedAt: '2026-10-20T10:00:00.000Z', withdrawnAt: null },
-      { rideId: 'r-6', memberId: 'm-sparks', riding: false, pillion: false, guests: 0, guestNames: '', job: 'Rusty Bus', notes: 'Driving the bus', signedAt: '2026-10-21T07:30:00.000Z', withdrawnAt: null },
-      { rideId: 'r-6', memberId: 'm-jet', riding: false, pillion: false, guests: 0, guestNames: '', job: 'BBQ', notes: '', signedAt: '2026-10-21T08:00:00.000Z', withdrawnAt: null },
-      { rideId: 'r-6', memberId: 'm-patches', riding: true, pillion: false, guests: 2, guestNames: 'Kids, on the back of their mum’s', job: null, notes: '', signedAt: '2026-10-22T06:00:00.000Z', withdrawnAt: null },
+      { rideId: 'r-6', memberId: 'm-diesel', riding: true, pillion: true, guests: 1, guestNames: 'Mate from work', job: null, notes: '', signedAt: t('2026-10-20T09:00:00.000Z'), withdrawnAt: null },
+      { rideId: 'r-6', memberId: 'm-chook', riding: true, pillion: false, guests: 0, guestNames: '', job: 'Marshal', notes: '', signedAt: t('2026-10-20T10:00:00.000Z'), withdrawnAt: null },
+      { rideId: 'r-6', memberId: 'm-sparks', riding: false, pillion: false, guests: 0, guestNames: '', job: 'Rusty Bus', notes: 'Driving the bus', signedAt: t('2026-10-21T07:30:00.000Z'), withdrawnAt: null },
+      { rideId: 'r-6', memberId: 'm-jet', riding: false, pillion: false, guests: 0, guestNames: '', job: 'BBQ', notes: '', signedAt: t('2026-10-21T08:00:00.000Z'), withdrawnAt: null },
+      { rideId: 'r-6', memberId: 'm-patches', riding: true, pillion: false, guests: 2, guestNames: 'Kids, on the back of their mum’s', job: null, notes: '', signedAt: t('2026-10-22T06:00:00.000Z'), withdrawnAt: null },
     ],
   };
 
