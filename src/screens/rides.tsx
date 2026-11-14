@@ -263,6 +263,8 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
   const whyNot = quickAnswerReason(me, ride, data, today, new Date().toISOString());
   const quick = whyNot === null;
   const answer = async (a: RsvpAnswer) => {
+    // The answer being saved stays lit and tappable-looking (see the buttons below), so a second tap waits.
+    if (busy !== null) return;
     setBusy(a);
     try {
       await setRsvp(ride.id, a);
@@ -299,13 +301,15 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
                 // "Can't make it" wrapped to three lines in a third of the width; the full words are on the ride.
                 label={a === 'no' ? 'Can’t go' : RSVP_LABEL[a]}
                 accessibilityLabel={RSVP_LABEL[a]}
-                kind={mine === a ? 'primary' : 'secondary'}
-                busy={busy === a}
-                disabled={busy !== null}
+                // While an answer saves it shows as chosen and the other two dim, as on the ride screen.
+                // No spinner here: beside the label it takes 28pt, which pushes "Can’t go" onto a second
+                // line and makes the whole row jump taller for as long as the save takes.
+                kind={(busy ?? mine) === a ? 'primary' : 'secondary'}
+                disabled={busy !== null && busy !== a}
                 onPress={() => answer(a)}
-                // Slim sides so "Can’t go" (about 91pt wide) fits on one line in a third of a phone 375pt or
-                // wider; stretched so the three stay the same height when a label still wraps (a 360pt
-                // phone, or large text). The label is centred, so the gap to the edge only shrinks for it.
+                // Slim sides so "Can’t go" (about 91pt wide) fits on one line in a third of a phone about
+                // 380pt or wider; stretched so the three stay the same height where it still wraps (375pt
+                // and 360pt phones, or large text). The label is centred, so only its gap to the edge shrinks.
                 style={{ flex: 1, alignSelf: 'stretch', paddingHorizontal: space.xs }}
               />
             ))}

@@ -36,10 +36,27 @@ test('the three one-tap answers under Next ride on Home stay one row of equal bu
   const at = card.indexOf("a === 'no' ? 'Can’t go'");
   assert.ok(at >= 0, 'the Home card keeps its own short label');
   const button = card.slice(at, card.indexOf('/>', at));
-  // Slim sides give the label room; stretching keeps the three the same height when one still wraps
-  // (a narrow phone, or large text).
+  // Equal thirds; slim sides give the label room; stretching keeps the three the same height where one
+  // still wraps (a narrow phone, or large text).
+  assert.match(button, /flex: 1/);
   assert.match(button, /paddingHorizontal: space\.xs/);
   assert.match(button, /alignSelf: 'stretch'/);
   // The answers stay full-size buttons: the 48pt touch target comes from the regular size.
   assert.doesNotMatch(button, /size="small"/);
+});
+
+test('saving an answer on Home does not make the row jump', () => {
+  // A spinner beside the label takes 28pt, enough to push "Can’t go" onto a second line and stretch all
+  // three buttons for the length of the save. The answer being saved shows as chosen instead, the other
+  // two dim, and a second tap waits for the first.
+  const rides = read('rides.tsx');
+  const start = rides.indexOf('export function HomeNextRideCard');
+  const card = rides.slice(start, rides.indexOf('export function RideRow'));
+  const at = card.indexOf("a === 'no' ? 'Can’t go'");
+  const button = card.slice(at, card.indexOf('/>', at));
+  assert.doesNotMatch(button, /\bbusy=\{/, 'no spinner beside these labels');
+  assert.match(button, /kind=\{\(busy \?\? mine\) === a \? 'primary' : 'secondary'\}/);
+  assert.match(button, /disabled=\{busy !== null && busy !== a\}/);
+  const answer = card.slice(card.indexOf('const answer = async'), card.indexOf('setBusy(a)'));
+  assert.match(answer, /if \(busy !== null\) return;/, 'a second tap waits for the first');
 });
