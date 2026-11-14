@@ -170,6 +170,26 @@ test('rides', () => {
   }
 });
 
+test('today’s coffee run is on today’s Melbourne date and under way, at every hour', () => {
+  // The App Review notes and the Google Play location notes open it ("Today’s coffee run (demo)",
+  // then "Open live ride"), and Home's tile shows its day: in the first hour after Melbourne
+  // midnight an hour back would be yesterday, so it starts at midnight then.
+  const HOUR_MS = 3_600_000;
+  const shift = (iso: string, ms: number) => new Date(Date.parse(iso) + ms).toISOString();
+  for (const now of INSTANTS) {
+    const today = melbourneDate(now);
+    const ride = demoTodayRide(new Date(now));
+    assert.equal(ride.id, 'r-today', now);
+    assert.equal(ride.title, 'Today’s coffee run (demo)', now);
+    assert.equal(melbourneDate(ride.startsAt), today, `starts today at ${now}`);
+    assert.ok(ride.startsAt <= now, `started by ${now}`);
+    assert.ok(ride.endsAt! > now, `not over at ${now}`);
+    assert.equal(ride.endsAt, shift(now, 3 * HOUR_MS), now);
+    const hourBack = shift(now, -HOUR_MS);
+    assert.equal(ride.startsAt, melbourneDate(hourBack) === today ? hourBack : melbourneInstant(today, '00:00'), now);
+  }
+});
+
 test('the breakfast run’s paperwork', () => {
   for (const { now, data } of eachInstant()) {
     const r1 = rideOf(data, 'r-1');

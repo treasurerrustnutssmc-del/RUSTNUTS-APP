@@ -365,7 +365,11 @@ seed's length is set from the new file; the words sit in a comment beside the me
   `src/data/chat/demoMedia.ts`, so `demoChatData.ts` loads under node and its words can be
   tested.
 - "Today's coffee run (demo)" keeps its id, title and its always-on window (the Google Play
-  location video notes and the picture recipe rely on them).
+  location video notes and the picture recipe rely on them). The window runs from an hour before
+  now to three hours after, but it never starts before Melbourne midnight: in the first hour after
+  midnight it starts at midnight, so it is still today's ride (seen on screen at 00:10, Home's tile
+  showed yesterday's day and the board lost its CREW NEEDED chip). The picture recipe takes the
+  live ride at 08:00 Melbourne and Home at 06:30, so it is not affected.
 - The club context's shape (`ClubContextValue`) does not change.
 
 ### 9. Tests

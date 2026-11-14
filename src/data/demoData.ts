@@ -181,13 +181,19 @@ export const DEMO_PERSONAS = [
 ] as const;
 
 // Lane E: live ride
-/** A made-up ride that's always on now (started an hour ago, ends in three), so live mode can be shown. */
+/**
+ * A made-up ride that's always on now (started an hour ago, ends in three), so live mode can be
+ * shown. It never starts before Melbourne midnight, so in the first hour of the day it is still
+ * today's ride.
+ */
 export function demoTodayRide(now: Date): Ride {
   const hour = 3600_000;
+  const hourBack = new Date(now.getTime() - hour).toISOString();
+  const midnight = melbourneInstant(melbourneDate(now.toISOString()), '00:00')!;
   return {
     id: 'r-today',
     title: 'Today’s coffee run (demo)',
-    startsAt: new Date(now.getTime() - hour).toISOString(),
+    startsAt: hourBack > midnight ? hourBack : midnight,
     endsAt: new Date(now.getTime() + 3 * hour).toISOString(),
     allDay: false,
     location: 'BP Ravenhall',

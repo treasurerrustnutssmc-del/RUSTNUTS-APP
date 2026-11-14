@@ -21,7 +21,7 @@
 - No seed file may read the machine clock: no `new Date()` without an argument, no `Date.now()`, no clock parameter with a default.
 - Never moved: joined/patched dates from 2019 to 2025, every office term in the story half, the 2025 badge season, the constitution stamps `'2026-10-25T03:00:00.000Z'`, `postingRulesAcceptedOn`, `TERMS_BEGAN`, `PRIVACY_UPDATED_ON`, `POSTING_RULES_UPDATED_ON`, the Road Rules guide date, the social history and honours years.
 - Stale on purpose, and must stay so on every instant: ai-2 Late; mt-2 minutes overdue; Gravel's rego expired; v-3 closed and carried; bus-4 declined; bus-6 never answered; ar-2 overdue; the fee schedule overdue for review; le-6 banked late; Gravel's open attendance notice.
-- `demoTodayRide` keeps its id `'r-today'`, its title `'Today’s coffee run (demo)'`, and its now-minus-1-hour to now-plus-3-hours window. The check-in code stays `'RN2026'`.
+- `demoTodayRide` keeps its id `'r-today'`, its title `'Today’s coffee run (demo)'`, and its now-minus-1-hour to now-plus-3-hours window (since the final fixes, never starting before Melbourne midnight: spec section 8). The check-in code stays `'RN2026'`.
 - House wording: every new or changed string must pass `src/houseWording.test.ts`. No em-dashes in user-facing text. Dates shown as DD/MM/YYYY. Curly apostrophes in seed strings, as the file already uses.
 - `src/domain/reviewer.ts` holds the store-review sign-in code. Never copy it into a test name, comment, commit message or report.
 - Commit trailer on every commit: the `Co-Authored-By` line your own session's attribution instruction gives (it names whoever wrote the commit), and
