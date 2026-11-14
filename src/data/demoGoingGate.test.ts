@@ -39,7 +39,7 @@ const answerOf = (data: ClubData, memberId: string, rideId: string) =>
 const RIDE = 'r-2';
 
 // The demo's own sign-off states (Rusty ran out, Diesel never signed, most have signed), checked on
-// every day, are in demoFresh.test.ts.
+// every instant in the testkit's list, in demoFresh.test.ts.
 
 test('an expired or unsigned member can’t say Going; Maybe and Can’t make it work', () => {
   assert.equal(refusal(() => setRsvp(ctxFor('m-rusty'), RIDE, 'going')), SIGN_FIRST);

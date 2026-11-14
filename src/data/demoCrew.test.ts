@@ -127,4 +127,4 @@ test('the shared parity cases can drive the crew actions', () => {
   assert.deepEqual(spotsOf(left), []);
 });
 
-// The demo club's own crew and its Crew needed tag, checked on every day, are in demoFresh.test.ts.
+// The demo club's own crew and its Crew needed tag, checked on every instant in the testkit's list, are in demoFresh.test.ts.

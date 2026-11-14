@@ -9,7 +9,7 @@ import { businessFor, melbourneHhmm, melbourneInstant } from '../domain/business
 import { clubYearOf } from '../domain/clubYear';
 import { crewNeeded, eligibilityProblem, managesRide, showsCrewNeeded } from '../domain/crew';
 import { addDays, daysBetween } from '../domain/dates';
-import { chargeBalance, dueState } from '../domain/fees';
+import { chargeBalance, dueState, fyOf } from '../domain/fees';
 import { fngDue } from '../domain/joining';
 import { bankedLate, monthEnd, monthOf, reportFor } from '../domain/ledger';
 import { noticeRecordFrom } from '../domain/notices';
@@ -287,30 +287,54 @@ const HAPPENED = [
 ];
 const DATE_VALUE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z)?$/;
 
+/**
+ * The constitution's published stamps: fixed (the real document's date, spec sections 3 and 9), so
+ * before 25/10/2026 they are ahead of now. Keyed by path and value: the same paths carry
+ * today-counted stamps for the other documents, which stay happened.
+ */
+const FIXED: Record<string, string> = {
+  'documents.createdAt': '2026-10-25T03:00:00.000Z',
+  'documentVersions.publishedAt': '2026-10-25T03:00:00.000Z',
+};
+
+/** Calls `visit` with each date value in the data and its path (array indexes dropped). */
+const eachDate = (data: ClubData, visit: (key: string, value: string) => void) => {
+  const walk = (value: unknown, path: string[]) => {
+    if (typeof value === 'string') {
+      if (DATE_VALUE.test(value)) visit(path.join('.'), value);
+      return;
+    }
+    if (Array.isArray(value)) value.forEach((v) => walk(v, path));
+    else if (value && typeof value === 'object') for (const [k, v] of Object.entries(value)) walk(v, [...path, k]);
+  };
+  walk(data, []);
+};
+
 test('the two lists of date paths are the 99 in the data, each once', () => {
   assert.equal(PLANNED.length, 15);
   assert.equal(new Set([...PLANNED, ...HAPPENED]).size, PLANNED.length + HAPPENED.length);
   assert.equal(PLANNED.length + HAPPENED.length, 99);
+  // The lists are the date paths the data really has: none missing, none left over.
+  const found = new Set<string>();
+  for (const instant of INSTANTS) eachDate(builtFor(instant), (key) => found.add(key));
+  assert.deepEqual([...found].sort(), [...PLANNED, ...HAPPENED].sort());
 });
 
 test('every date in the demo is on the right side of now', () => {
+  // Collected over every instant and asserted once, so one instant never hides the rest.
+  const wrong: string[] = [];
+  const fixedSeen = new Set<string>();
   for (const { now, today, data } of eachInstant()) {
-    const wrong: string[] = [];
-    const walk = (value: unknown, path: string[]) => {
-      if (typeof value === 'string') {
-        if (!DATE_VALUE.test(value)) return;
-        const key = path.join('.');
-        if (PLANNED.includes(key)) return;
-        if (!HAPPENED.includes(key)) wrong.push(`${key}: a date path neither list knows (${value})`);
-        else if (value > (value.length > 10 ? now : today)) wrong.push(`${key}: ${value} is ahead of now`);
-        return;
-      }
-      if (Array.isArray(value)) value.forEach((v) => walk(v, path));
-      else if (value && typeof value === 'object') for (const [k, v] of Object.entries(value)) walk(v, [...path, k]);
-    };
-    walk(data, []);
-    assert.deepEqual([...new Set(wrong)], [], now);
+    eachDate(data, (key, value) => {
+      if (PLANNED.includes(key)) return;
+      if (FIXED[key] === value) { fixedSeen.add(key); return; }
+      if (!HAPPENED.includes(key)) wrong.push(`${now} ${key}: a date path neither list knows (${value})`);
+      else if (value > (value.length > 10 ? now : today)) wrong.push(`${now} ${key}: ${value} is ahead of now`);
+    });
   }
+  assert.deepEqual([...new Set(wrong)], []);
+  // A fixed value the data no longer carries is a stale exemption.
+  assert.deepEqual([...fixedSeen].sort(), Object.keys(FIXED).sort());
 });
 
 const julyBefore = (date: string) => `${date.slice(5) >= '08-01' ? Number(date.slice(0, 4)) : Number(date.slice(0, 4)) - 1}-07-31`;
@@ -355,6 +379,10 @@ test('the books balance all year', () => {
       for (const [fund, cents] of Object.entries(report.funds)) assert.ok(cents >= 0, `${fund} closes ${month} at ${cents} at ${now}`);
       assert.equal(report.floatCents, 40000, `float for ${month} at ${now}`);
     }
+    // Openings and the float are keyed to the financial year of the oldest entry (70 days ago).
+    const booksFy = fyOf(addDays(today, -70));
+    for (const o of data.fundOpenings!) assert.equal(o.fy, booksFy, `${o.chapterId ?? 'club'} opening at ${now}`);
+    for (const f of data.cashFloats!) assert.equal(f.fy, booksFy, `float at ${now}`);
   }
 });
 

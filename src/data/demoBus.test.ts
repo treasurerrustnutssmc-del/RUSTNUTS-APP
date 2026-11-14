@@ -19,7 +19,7 @@ import { bookBus, cancelBus, decideBus, runDemoAction, type DemoCtx } from './de
 import { DEMO_DATA, STORY_TODAY } from './demoStory.testkit';
 
 // The Rusty Bus actions, on the demo built for the story instant (its own bookings are checked on
-// every day in demoFresh.test.ts).
+// every instant in the testkit's list, in demoFresh.test.ts).
 const TODAY = STORY_TODAY;
 const NOW = '2026-10-24T00:00:00.000Z';
 const ctxFor = (meId: string | null, data: ClubData = DEMO_DATA, now = NOW): DemoCtx => ({
@@ -61,7 +61,7 @@ const withBooked = (first: string, last: string): ClubData => ({
   ],
 });
 
-// The demo's own bookings, checked on every day the demo can be opened, are in demoFresh.test.ts.
+// The demo's own bookings, checked on every instant in the testkit's list, are in demoFresh.test.ts.
 
 // ---------------------------------------------------------------------------
 // Booking

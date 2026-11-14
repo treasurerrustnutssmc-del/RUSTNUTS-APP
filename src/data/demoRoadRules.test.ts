@@ -45,7 +45,7 @@ const input = (over: Partial<RoadRulesInput> = {}): RoadRulesInput => ({
 const NO_VERSIONS: ClubData = { ...DEMO_DATA, roadRules: [], roadRulesSignoffs: [] };
 const statusOf = (id: string, data: ClubData = DEMO_DATA) => roadRulesStatus(member(id), data, TODAY);
 
-// The demo's own versions and sign-off states, checked on every day, are in demoFresh.test.ts.
+// The demo's own versions and sign-off states, checked on every instant in the testkit's list, are in demoFresh.test.ts.
 
 test('publishing: the NEC adds the next version, cleaned, stamped with who and when', () => {
   const d = publishRoadRules(ctxFor('m-rusty'), input({ body: '  # Road Rules v3\n\nRide safe.  ', changes: '  Tidied up. ', fresh: false }), 2);

@@ -478,6 +478,11 @@ keeps and tests.
   to 31 July the Big 4 weekend falls in the next club year, so standing lines read "needs 1"
   with none to come.
 - On 1 August the claimed payment pay-4 is a day older than its charge.
+- On the 1st of a month before 10:00 (11:00 in summer time) last month's treasurer's and meeting
+  reports read "Presented" on the last day of that month. Their stamps are before now, as they must
+  be, and the screens take the stamp's UTC date, not its Melbourne date (`treasury.tsx`,
+  `meetingReport.tsx`); a live report presented in Melbourne's morning shows the same. Follow-up
+  outside this job: those screens should use `melbourneDate(presentedAt)`.
 - The Big 4 weekend lands on 25 to 27/12/2027 when viewed in the week of 19/09/2027.
 - The minutes demo's drafted action item is due 14 days after its meeting, which can be a few
   days past. Realistic.
