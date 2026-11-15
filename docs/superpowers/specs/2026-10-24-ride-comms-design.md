@@ -16,8 +16,9 @@ service, native code, an Edge Function and a new screen section).
 
 ## Decisions (Claude's, Jeff can veto)
 
-- **One voice room per ride.** It's open during the same live window as live ride mode: from 2 hours
-  before the start to 2 hours after the end.
+- **One voice room per ride.** It's open during the same live window as live ride mode: from 12:00 am
+  Melbourne on the day before the ride to midnight as ride day ends (widened from 2 hours either side
+  on 15/11/2026, Jeff's call; migration `20270860000000_live_window_ride_day.sql`).
 - **Who can join:** the people who can go live on that ride. The database decides with the live ride
   rules (`private.live_problem`): approved members, within the window.
 - **No location needed:** voice doesn't need live location to be on. They're separate switches.

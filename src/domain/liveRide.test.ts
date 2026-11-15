@@ -36,34 +36,36 @@ const ride = (over: Partial<Ride> = {}): Ride => ({
   location: null, notes: null, category: 'west', cancelledAt: null, ...over,
 });
 
-test('live window: 2 hours either side of a timed ride', () => {
-  assert.deepEqual(liveWindow(ride()), { opens: '2026-11-06T20:30:00.000Z', closes: '2026-11-07T04:00:00.000Z' });
+test('live window: from the start of the day before a timed ride to midnight at the end of ride day', () => {
+  // Opens 12:00 am Fri 06/11, closes 12:00 am as Sat 07/11 ends (Melbourne, AEDT).
+  assert.deepEqual(liveWindow(ride()), { opens: '2026-11-05T13:00:00.000Z', closes: '2026-11-07T13:00:00.000Z' });
 });
 
-test('live window: no end time closes at Melbourne midnight', () => {
+test('live window: no end time still closes at Melbourne midnight on ride day', () => {
   // 6 pm Melbourne start.
   const w = liveWindow(ride({ startsAt: '2026-11-07T07:00:00.000Z', endsAt: null }));
-  assert.deepEqual(w, { opens: '2026-11-07T05:00:00.000Z', closes: '2026-11-07T13:00:00.000Z' });
+  assert.deepEqual(w, { opens: '2026-11-05T13:00:00.000Z', closes: '2026-11-07T13:00:00.000Z' });
 });
 
-test('live window: an overnight ride closes 2 hours after it ends', () => {
+test('live window: an overnight ride stays open until midnight at the end of the day it finishes', () => {
+  // 8 pm Sat 07/11 to 1:30 am Sun 08/11: closes as Sun 08/11 ends.
   const w = liveWindow(ride({ startsAt: '2026-11-07T09:00:00.000Z', endsAt: '2026-11-07T14:30:00.000Z' }));
-  assert.equal(w?.closes, '2026-11-07T16:30:00.000Z');
+  assert.deepEqual(w, { opens: '2026-11-05T13:00:00.000Z', closes: '2026-11-08T13:00:00.000Z' });
 });
 
-test('live window: an all-day ride runs midnight to midnight over its days', () => {
+test('live window: an all-day ride opens the day before its first day and closes as its last day ends', () => {
   // Fri 29/01 to Sun 31/01/2027, as a calendar lists it (end is the midnight after).
   const w = liveWindow(ride({ startsAt: '2027-01-28T13:00:00.000Z', endsAt: '2027-01-31T13:00:00.000Z', allDay: true }));
-  assert.deepEqual(w, { opens: '2027-01-28T13:00:00.000Z', closes: '2027-01-31T13:00:00.000Z' });
+  assert.deepEqual(w, { opens: '2027-01-27T13:00:00.000Z', closes: '2027-01-31T13:00:00.000Z' });
 });
 
-test('live window: daylight saving starts (05/10/2025) are handled', () => {
-  // 10 am AEDT on the changeover day is 23:00Z the day before; no end, so it closes at midnight AEDT.
+test('live window: daylight saving changes (05/10/2025, 05/04/2026) are handled', () => {
+  // 10 am AEDT on the changeover day. The day before is still AEST, so it opens at 14:00Z.
   const w = liveWindow(ride({ startsAt: '2025-10-04T23:00:00.000Z', endsAt: null }));
-  assert.deepEqual(w, { opens: '2025-10-04T21:00:00.000Z', closes: '2025-10-05T13:00:00.000Z' });
-  // And when it ends (05/04/2026), midnight is back on AEST.
+  assert.deepEqual(w, { opens: '2025-10-03T14:00:00.000Z', closes: '2025-10-05T13:00:00.000Z' });
+  // And when it ends: the day before is AEDT, ride day's midnight is back on AEST.
   const back = liveWindow(ride({ startsAt: '2026-04-04T23:00:00.000Z', endsAt: null }));
-  assert.equal(back?.closes, '2026-04-05T14:00:00.000Z');
+  assert.deepEqual(back, { opens: '2026-04-03T13:00:00.000Z', closes: '2026-04-05T14:00:00.000Z' });
 });
 
 test('live window: a cancelled ride has none', () => {
@@ -79,15 +81,16 @@ test('who can switch live mode on, and when', () => {
     liveProblem(member(), ride({ cancelledAt: '2026-11-01T00:00:00.000Z' }), '2026-11-06T21:00:00.000Z'),
     'That ride was cancelled.',
   );
-  assert.equal(liveProblem(member(), r, '2026-11-06T20:29:00.000Z'), 'Live ride opens 2 hours before the start.');
-  assert.equal(liveProblem(member(), r, '2026-11-06T20:30:00.000Z'), null);
-  assert.equal(liveProblem(member(), r, '2026-11-07T03:59:00.000Z'), null);
-  assert.equal(liveProblem(member(), r, '2026-11-07T04:00:00.000Z'), 'This ride’s finished.');
+  assert.equal(liveProblem(member(), r, '2026-11-05T12:59:00.000Z'), 'Live ride opens the day before the ride.');
+  assert.equal(liveProblem(member(), r, '2026-11-05T13:00:00.000Z'), null);
+  assert.equal(liveProblem(member(), r, '2026-11-07T12:59:00.000Z'), null);
+  assert.equal(liveProblem(member(), r, '2026-11-07T13:00:00.000Z'), 'This ride’s finished.');
   assert.equal(liveProblem(member({ status: 'legacy' }), r, '2026-11-06T21:00:00.000Z'), null, 'Legacy can ride too');
 });
 
 test('your sharing stops after 12 hours or at the window close, whichever is first', () => {
-  assert.equal(personalStop(ride(), '2026-11-06T21:00:00.000Z'), '2026-11-07T04:00:00.000Z');
+  assert.equal(personalStop(ride(), '2026-11-06T21:00:00.000Z'), '2026-11-07T09:00:00.000Z');
+  assert.equal(personalStop(ride(), '2026-11-07T05:00:00.000Z'), '2026-11-07T13:00:00.000Z');
   const weekend = ride({ startsAt: '2027-01-28T13:00:00.000Z', endsAt: '2027-01-31T13:00:00.000Z', allDay: true });
   assert.equal(personalStop(weekend, '2027-01-29T20:00:00.000Z'), '2027-01-30T08:00:00.000Z');
 });
@@ -195,7 +198,9 @@ test('split groups: riders within 3 km of each other stay together', () => {
 });
 
 test('every refusal reads the same in the database', () => {
-  const sql = readFileSync(join(__dirname, '../../supabase/migrations/20270201000000_live_ride.sql'), 'utf8');
+  const dir = join(__dirname, '../../supabase/migrations');
+  const sql = ['20270201000000_live_ride.sql', '20270860000000_live_window_ride_day.sql']
+    .map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
   for (const text of Object.values(LIVE_MSG)) {
     assert.ok(sql.includes(text.replace(/'/g, "''")), `the database says "${text}"`);
   }

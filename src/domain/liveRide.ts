@@ -2,7 +2,7 @@
 // distance, direction and split-group sums the live screen shows. The database's live ride actions
 // (supabase/migrations/20270201000000_live_ride.sql) apply the same rules with the same words.
 
-import { formatAuDate } from './dates';
+import { addDays, formatAuDate } from './dates';
 import { BOARD_ROLES } from './labels';
 import { lastDay, melbourneDate, melbourneTime } from './rides';
 import { activePositions, NEC_OFFICER_ROLES } from './access';
@@ -18,7 +18,7 @@ export const LIVE_MSG = {
   approved: 'Only approved members can do that.',
   noRide: 'No such ride.',
   cancelled: 'That ride was cancelled.',
-  notYet: 'Live ride opens 2 hours before the start.',
+  notYet: 'Live ride opens the day before the ride.',
   finished: 'This ride’s finished.',
   notSharing: 'Share your location first.',
   leadersOnly: 'Only ride leaders can set a regroup pin.',
@@ -29,8 +29,6 @@ export const LIVE_MSG = {
 } as const;
 
 const HOUR = 3600_000;
-const BEFORE_START = 2 * HOUR;
-const AFTER_END = 2 * HOUR;
 const PERSONAL_CAP = 12 * HOUR;
 const STALE_AFTER = 5 * 60_000;
 const SAME_GROUP_KM = 3;
@@ -59,15 +57,15 @@ export function locationDenialStops(isDemo: boolean, platform: string): boolean 
   return !isDemo || platform !== 'web';
 }
 
-/** When live mode is open for a ride, or null for a cancelled ride. */
+/**
+ * When live mode (ride comms and location sharing) is open for a ride, or null for a cancelled ride:
+ * from 12:00 am Melbourne on the day before the ride's first day, to midnight as its last day ends.
+ * An overnight ride's last day is the day it finishes. Mirrors private.live_window.
+ */
 export function liveWindow(ride: Ride): { opens: string; closes: string } | null {
   if (ride.cancelledAt) return null;
-  const start = new Date(ride.startsAt).getTime();
-  if (ride.allDay) return { opens: ride.startsAt, closes: melbourneMidnightAfter(lastDay(ride)) };
-  const closes = ride.endsAt
-    ? iso(new Date(ride.endsAt).getTime() + AFTER_END)
-    : melbourneMidnightAfter(melbourneDate(ride.startsAt));
-  return { opens: iso(start - BEFORE_START), closes };
+  const firstDay = melbourneDate(ride.startsAt);
+  return { opens: melbourneMidnightAfter(addDays(firstDay, -2)), closes: melbourneMidnightAfter(lastDay(ride)) };
 }
 
 /** Why `me` can't share on this ride right now, or null when they can. Mirrors start_live_ride. */
