@@ -36,6 +36,15 @@ export interface ExpiryAlert {
   expiry: string;
   state: Exclude<ExpiryState, 'ok' | 'missing'>;
   description: string;
+  /** The bike a rego belongs to. */
+  bikeId?: string;
+}
+
+/** Where a member updates what an alert is about: that bike's rego, or the licence and first aid on their profile. */
+export type AlertFix = { screen: 'EditBike'; bikeId: string } | { screen: 'EditProfile' };
+
+export function alertFix(a: Pick<ExpiryAlert, 'kind' | 'bikeId'>): AlertFix {
+  return a.kind === 'rego' && a.bikeId ? { screen: 'EditBike', bikeId: a.bikeId } : { screen: 'EditProfile' };
 }
 
 /** Who a board keeps an eye on: approved riders of that chapter (every chapter when null). Legacy
@@ -49,10 +58,10 @@ export function boardWatchList(members: Member[], chapterId: string | null): Mem
 /** Regos, licences and first aid certificates that have expired or expire within 30 days. */
 export function expiryAlerts(members: Member[], data: ClubData, today: string): ExpiryAlert[] {
   const alerts: ExpiryAlert[] = [];
-  const push = (memberId: string, kind: ExpiryAlert['kind'], label: string, expiry: string | null) => {
+  const push = (memberId: string, kind: ExpiryAlert['kind'], label: string, expiry: string | null, bikeId?: string) => {
     const state = expiryState(expiry, today);
     if (expiry && (state === 'soon' || state === 'expired')) {
-      alerts.push({ memberId, kind, label, expiry, state, description: describeExpiry(expiry, today) });
+      alerts.push({ memberId, kind, label, expiry, state, description: describeExpiry(expiry, today), ...(bikeId ? { bikeId } : {}) });
     }
   };
 
@@ -65,7 +74,7 @@ export function expiryAlerts(members: Member[], data: ClubData, today: string): 
       const name = bike.nickname ?? `${bike.make} ${bike.model}`;
       // A no-break space keeps a plate such as "6BH 1FT" on one line when the label wraps.
       const plate = reg?.rego ? ` (${reg.rego.replace(/ /g, '\u00a0')})` : '';
-      push(m.id, 'rego', `Rego · ${name}${plate}`, reg?.regoExpiry ?? null);
+      push(m.id, 'rego', `Rego · ${name}${plate}`, reg?.regoExpiry ?? null, bike.id);
     }
   }
   return alerts.sort((a, b) => a.expiry.localeCompare(b.expiry));

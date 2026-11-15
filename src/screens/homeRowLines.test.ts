@@ -45,3 +45,18 @@ test('only those two Home rows lift the limit', () => {
   assert.equal(home.match(/\blines="all"/g)?.length, 2);
   assert.equal(home.match(/\blines=/g)?.length, 2, 'no other Home row changes its line limit');
 });
+
+// Jeff, 15 Nov: your own rego, licence or first aid box on Home opens the screen where you update it.
+test('your own due boxes on Home can be tapped', () => {
+  const at = home.indexOf('myAlerts.map(');
+  const box = home.slice(at, home.indexOf('))}', at));
+  assert.match(box, /onPress=\{\(\) => openFix\(a\)\}/);
+  assert.ok(box.includes('Tap to update it'));
+});
+
+test('a Notice can be tapped when given onPress, and says so to screen readers', () => {
+  const notice = ui.slice(ui.indexOf('export function Notice'), ui.indexOf('export function LockNote'));
+  assert.ok(notice.includes('onPress'));
+  assert.ok(notice.includes('accessibilityRole="button"'));
+  assert.ok(notice.includes('chevron-forward'));
+});

@@ -17,7 +17,7 @@ import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { clubCounts, positionTitles, seatTitle, type StatusSplit } from '../domain/home';
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, ROLE_SHORT, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
-import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
+import { alertFix, displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist, type ExpiryAlert } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
 import type { MemberFocus, RootScreen, TabScreen } from '../navigation/types';
 import { MemberChatButtons } from './chat';
@@ -180,6 +180,12 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
   const checklist = profileChecklist(me, data);
   const done = checklist.filter((c) => c.done).length;
   const myAlerts = expiryAlerts([me], data, today);
+  // Your own due box opens where you update it: that bike's rego, or your profile.
+  const openFix = (a: ExpiryAlert) => {
+    const fix = alertFix(a);
+    if (fix.screen === 'EditBike') navigation.navigate('EditBike', { bikeId: fix.bikeId });
+    else navigation.navigate('EditProfile');
+  };
   const isBoard = level === 'board' || level === 'national';
   const pending = isBoard ? pendingFor(me, data) : [];
   const boardScope = isBoard
@@ -224,8 +230,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       {/* Stage 4: today's check-in and what you owe */}
       <HomeCheckinCard />
       {myAlerts.map((a) => (
-        <Notice key={a.label} tone={a.state === 'expired' ? 'danger' : 'warn'} title={a.label}>
-          {`${a.description}. Update it in your profile once it’s renewed.`}
+        <Notice key={`${a.kind}-${a.bikeId ?? ''}-${a.label}`} tone={a.state === 'expired' ? 'danger' : 'warn'} title={a.label} onPress={() => openFix(a)}>
+          {`${a.description}. Tap to update it once it’s renewed.`}
         </Notice>
       ))}
       {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}

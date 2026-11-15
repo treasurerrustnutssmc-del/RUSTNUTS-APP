@@ -634,21 +634,47 @@ export function ListRow({
 
 type NoticeTone = 'info' | 'ok' | 'warn' | 'danger';
 
-export function Notice({ tone = 'info', title, children }: { tone?: NoticeTone; title?: string; children?: React.ReactNode }) {
+export function Notice({
+  tone = 'info',
+  title,
+  children,
+  onPress,
+}: {
+  tone?: NoticeTone;
+  title?: string;
+  children?: React.ReactNode;
+  /** Makes the whole notice a button to where it gets dealt with, with a chevron to say so. */
+  onPress?: () => void;
+}) {
   const t = {
     info: { bg: colors.steel, fg: colors.boneDim, icon: 'information-circle' as IconName },
     ok: { bg: colors.okBg, fg: colors.ok, icon: 'checkmark-circle' as IconName },
     warn: { bg: colors.warnBg, fg: colors.warn, icon: 'alert-circle' as IconName },
     danger: { bg: colors.dangerBg, fg: colors.danger, icon: 'warning' as IconName },
   }[tone];
-  return (
-    <View style={[styles.notice, { backgroundColor: t.bg }]}>
+  const content = (
+    <>
       <Ionicons name={t.icon} size={20} color={t.fg} style={{ marginTop: 1 }} />
       <View style={{ flex: 1, gap: 2 }}>
         {title ? <Text style={[type.name, { color: t.fg }]}>{title}</Text> : null}
         {typeof children === 'string' ? <Small style={{ color: colors.boneDim }}>{children}</Small> : children}
       </View>
-    </View>
+      {onPress ? <Ionicons name="chevron-forward" size={18} color={t.fg} style={{ alignSelf: 'center' }} /> : null}
+    </>
+  );
+  if (!onPress) return <View style={[styles.notice, { backgroundColor: t.bg }]}>{content}</View>;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      // An outline in the notice's own colour on press, hover or keyboard focus, so the text keeps its contrast.
+      style={({ pressed, hovered, focused }: { pressed: boolean; hovered?: boolean; focused?: boolean }) => [
+        styles.notice,
+        { backgroundColor: t.bg, borderWidth: 1, borderColor: pressed || hovered || focused ? t.fg : 'transparent' },
+      ]}
+    >
+      {content}
+    </Pressable>
   );
 }
 

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import {
-  boardWatchList, displayName, expiryAlerts, FORMER_MEMBER, hasEarnedDisc, initials, memberName, phoneNote, profileChecklist,
+  alertFix, boardWatchList, displayName, expiryAlerts, FORMER_MEMBER, hasEarnedDisc, initials, memberName, phoneNote, profileChecklist,
 } from './profile';
 
 const d = DEMO_DATA;
@@ -38,6 +38,19 @@ test('expiry alerts for the West chapter', () => {
     ],
   );
   assert.equal(alerts[0].label, 'Rego · Tank (6BH\u00a01FT)', 'the plate is joined by a no-break space, so it never splits across two lines');
+});
+
+// Jeff, 15 Nov: a member's own due box on Home opens the screen where they update it.
+test('a due rego opens that bike; a due licence or first aid certificate opens the profile', () => {
+  const alerts = expiryAlerts([m('m-gravel')], d, '2026-10-24');
+  const rego = alerts.find((a) => a.kind === 'rego')!;
+  const tank = d.bikes.find((b) => b.memberId === 'm-gravel' && b.nickname === 'Tank')!;
+  assert.equal(rego.bikeId, tank.id);
+  assert.deepEqual(alertFix(rego), { screen: 'EditBike', bikeId: tank.id });
+  const licence = alerts.find((a) => a.kind === 'licence')!;
+  assert.equal(licence.bikeId, undefined);
+  assert.deepEqual(alertFix(licence), { screen: 'EditProfile' });
+  assert.deepEqual(alertFix({ ...licence, kind: 'first_aid' }), { screen: 'EditProfile' });
 });
 
 test('names and initials', () => {
