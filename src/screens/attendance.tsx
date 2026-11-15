@@ -21,6 +21,7 @@ import { ChapterNotices } from './notices'; // the 5.5 notice
 import { ROLE_LABEL } from '../domain/labels';
 import { termEndsOn, termState } from '../domain/terms';
 import { seatTitle } from '../domain/home';
+import { stintLine, stintsDue, stintTone, termsDue } from '../domain/boardLayout';
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -163,7 +164,10 @@ export function AttendanceScreen({ route, navigation }: RootScreen<'Attendance'>
   );
 }
 
-/** On the Board screen: who's behind, and terms that have ended or end soon (9.2, 17.6). */
+/**
+ * On the Board screen: who's behind, terms that have ended or end soon (9.2, 17.6), and, apart from
+ * them, every open stint with what comes next (warning colour in its last 7 days).
+ */
 export function BoardAttendance({ chapterId }: { chapterId: string | null }) {
   const { me, data, today } = useClub();
   const navigation = useNavigation<NavigationProp<RootParams>>();
@@ -173,9 +177,13 @@ export function BoardAttendance({ chapterId }: { chapterId: string | null }) {
     (m) => m.approval === 'approved' && inScope(m.chapterId) && seesBoardOf(me, m.chapterId, data.positions) &&
       (standingOf(m, data, today)?.lines.some((l) => l.state === 'behind') ?? false),
   ).length;
-  const terms = data.positions
-    .filter((p) => inScope(p.chapterId) && termState(p, today) !== null && termState(p, today) !== 'running')
-    .sort((a, b) => (termEndsOn(a) ?? '').localeCompare(termEndsOn(b) ?? ''));
+  // Stints aren't terms: they end on their until date, and nobody is re-elected to one, so they're listed apart.
+  const terms = termsDue(data.positions, chapterId, today);
+  const stints = stintsDue(data.positions, chapterId);
+  const open = (memberId: string) => {
+    const m = data.members.find((x) => x.id === memberId);
+    return m ? () => navigation.navigate(canManageMember(me, m, data.positions) ? 'ManageMember' : 'MemberDetail', { memberId: m.id }) : undefined;
+  };
   return (
     <>
       <SectionTitle title="Attendance and terms" />
@@ -185,7 +193,7 @@ export function BoardAttendance({ chapterId }: { chapterId: string | null }) {
           title="Attendance"
           subtitle={behind > 0 ? `${behind} behind this club year` : 'Nobody behind this club year'}
           onPress={() => navigation.navigate('Attendance', chapterId ? { chapterId } : undefined)}
-          last={terms.length === 0}
+          last={terms.length === 0 && stints.length === 0}
         />
         {terms.map((p, i) => {
           const m = data.members.find((x) => x.id === p.memberId);
@@ -198,8 +206,25 @@ export function BoardAttendance({ chapterId }: { chapterId: string | null }) {
               lines="all"
               subtitle={`Term ${ended ? 'ended' : 'ends'} ${formatAuDate(termEndsOn(p))}. Re-elected? End it and appoint again.`}
               right={<Chip label={ended ? 'Ended' : 'Ending'} tone="warn" />}
-              onPress={m ? () => navigation.navigate(canManageMember(me, m, data.positions) ? 'ManageMember' : 'MemberDetail', { memberId: m.id }) : undefined}
-              last={i === terms.length - 1}
+              onPress={open(p.memberId)}
+              last={i === terms.length - 1 && stints.length === 0}
+            />
+          );
+        })}
+        {stints.map((p, i) => {
+          const who = data.members.find((x) => x.id === p.memberId);
+          const ending = stintTone(p, today) === 'warning';
+          return (
+            <ListRow
+              key={p.id}
+              left={<IconBadge icon="swap-horizontal" />}
+              title={`${who ? displayName(who) : 'Someone'} · ${seatTitle(p, data.chapters, ROLE_LABEL)}`}
+              lines="all"
+              subtitle={<Small style={ending ? { color: colors.warn } : undefined}>{stintLine(p, data)}</Small>}
+              // The title already says Acting; in the last 7 days a chip says so as well as the colour.
+              right={ending ? <Chip label="Ending" tone="warn" /> : undefined}
+              onPress={open(p.memberId)}
+              last={i === stints.length - 1}
             />
           );
         })}

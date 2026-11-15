@@ -426,6 +426,7 @@ export function ConfirmButton({
   disabled,
   size,
   confirmAccessibilityLabel,
+  onArmedChange,
 }: {
   label: string;
   confirmLabel: string;
@@ -442,9 +443,19 @@ export function ConfirmButton({
   confirmNote?: string;
   /** Off, and back to the first step if it was armed, while there's a reason it can't go ahead. */
   disabled?: boolean;
+  /**
+   * Told true while the confirm step shows and false once it goes (confirmed, cancelled, turned off
+   * or gone), so a form can hide lines its confirmNote repeats. Pass a stable function, such as a state setter.
+   */
+  onArmedChange?: (armed: boolean) => void;
 }) {
   const [armed, setArmed] = useState(false);
   if (armed && disabled) setArmed(false);
+  useEffect(() => {
+    if (!armed || !onArmedChange) return;
+    onArmedChange(true);
+    return () => onArmedChange(false);
+  }, [armed, onArmedChange]);
   if (!armed || disabled) {
     return (
       <Button

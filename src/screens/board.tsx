@@ -3,21 +3,31 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useClub } from '../data/ClubStore';
 import {
-  appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, holdsBoardSeat, isBoardOf, isChairman, isStepDown, pendingFor, renewAuditorProblem, restoreAccessProblem, statusChangeProblem, suspendAccessProblem,
+  actingCap, actingDefaultUntil, actingWarnings, appointActingProblem, appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, isBoardOf, isChairman, isStepDown, pendingFor, renewAuditorProblem, requestActingProblem, restoreAccessProblem, setActingUntilProblem, statusChangeProblem, suspendAccessProblem, WHY_MAX, WHY_NEEDED,
 } from '../domain/access';
+import { heldPositions, heldRows, isActing } from '../domain/acting';
+import {
+  actingSeatOptions, appointChoices, arrangeCover, backNote, boardVoteStep, changeDateLatest, confirmText, coverLine, doneMessage, endVoteBlock, pageRequests,
+  PROPOSED_MESSAGE, replaceNote, stintNote, TERM_ACTION, termActionsFor, termLine, untilHint, WHY_HINT, whyLabel, type AppointKind,
+} from '../domain/actingCopy';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
 import { signoffSummary } from '../domain/roadRules';
 import { melbourneDate } from '../domain/rides';
-import { auditorVoteFor, nineMonthsAfter, patchVoteFor, patchVoteTooEarly, REINSTATABLE, reinstateVoteFor, removalVoteFor, seatVoteFor } from '../domain/votes';
+import {
+  ACTING_END_SHAPE, actingVoteQuestion, auditorVoteFor, nineMonthsAfter, patchVoteFor, patchVoteTooEarly, REINSTATABLE, reinstateVoteFor, removalVoteFor, seatVoteFor,
+} from '../domain/votes';
 import { APPROVE_AS, BOARD_ROLES, CLUB_ROLES, NATIONAL_ROLES, RESULT_LABEL, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER, TITLE_ROLES } from '../domain/labels';
 import { boardWatchList, displayName, expiryAlerts, initials, nextFngReview } from '../domain/profile';
-import type { Member, MemberStatus, Position, PositionRole, Votes } from '../domain/types';
+import type { ActingRequest, Member, MemberStatus, Position, PositionRole, Votes } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 // Stage 4
 import { fngDue } from '../domain/joining';
-import { boardGroups, needsYou, type BoardGroupId } from '../domain/boardLayout';
+import {
+  boardGroups, boardRequests, boardScope, needsYou, requestActions, requestConfirmNote, requestLine, requestNext, scopeText, vpFallbackLine,
+  type BoardGroupId,
+} from '../domain/boardLayout';
 import { settleOpen } from '../domain/groupOpen';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
@@ -25,7 +35,7 @@ import { WebsiteEnquiries } from './enquiries';
 import { WebsiteNews } from './siteNews'; // club news for the website
 import { WebsiteVisits } from './siteVisits'; // website page views
 import { AppFeedbackSection } from './feedback'; // Feedback and issues
-import { termEndsOn, termState } from '../domain/terms';
+import { termState } from '../domain/terms';
 import { seatTitle } from '../domain/home';
 import { BoardFees } from './fees';
 import { TreasuryRow } from './treasury';
@@ -34,6 +44,7 @@ import { BoardAuditRow } from './audit'; // National Auditor
 import { DocumentsBoardRow } from './documents'; // Stage 5C
 import { seesAnyLedger } from '../domain/ledger';
 import { IntroProgressCard, VotesFields } from './fng';
+import { DateField, useDate } from './adminBits';
 import { sortedPositions } from '../ui/MemberBits';
 import {
   Avatar,
@@ -145,14 +156,16 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
 }
 
 export function BoardScreen({ navigation }: TabScreen<'Board'>) {
-  const { me, data, level, today, isDemo, refresh } = useClub();
+  const { me, data, today, isDemo, refresh } = useClub();
   const [done, setDone] = useState<string | null>(null);
   // Which groups the person has opened or closed themselves; the rest follow what is waiting.
   const [chosen, setChosen] = useState<Partial<Record<BoardGroupId, boolean>>>({});
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
-  const national = level === 'national';
-  const scope = boardWatchList(data.members, national ? null : me.chapterId);
+  // Every chapter only for someone who sees every chapter: an Acting President is on the NEC but sees North's board alone.
+  const scopeChapter = boardScope(me, data.positions);
+  const national = scopeChapter === null;
+  const scope = boardWatchList(data.members, scopeChapter);
   const pending = pendingFor(me, data);
   const alerts = expiryAlerts(scope, data, today);
   const noContact = scope.filter(
@@ -177,18 +190,17 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   // Road Rules: who's signed, for anyone who can open that list (the NEC and the chapter boards).
   const signoffs = signoffSummary(me, data, today);
   const books = seesAnyLedger(me, data);
-  // National roles see every chapter's board; they act only where they hold a seat (8.2, 12.3).
-  const seatNames = data.chapters.filter((c) => holdsBoardSeat(me.id, c.id, data.positions)).map((c) => c.name).join(' and ');
+  // Open acting requests with a step for me, and the 11.2 line wherever my chapter's VP casts the NEC vote through the fallback.
+  const requests = boardRequests(me, data, new Date().toISOString());
+  const fallbacks = data.chapters.filter((c) => vpFallbackLine(c.id, me, data, today) !== null).map((c) => c.id);
+  const nothingNeedsYou = attention.length === 0 && requests.length === 0 && fallbacks.length === 0;
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
       <Stack gap={space.sm}>
         <Chip label={national ? 'All chapters' : `${chapter?.name} chapter`} tone="redOutline" />
-        <Small>
-          {national
-            ? `You sit on the NEC, so you see every chapter’s board records. ${seatNames ? `You act for ${seatNames}.` : 'Acting is each chapter board’s.'}`
-            : `You can act for the ${chapter?.name} chapter.`}
-        </Small>
+        {/* National roles see every chapter's board; they decide only where they hold a seat (8.2, 12.3). */}
+        <Small>{scopeText(me, data)}</Small>
       </Stack>
 
       {done ? (
@@ -198,13 +210,16 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
       ) : null}
 
       <SectionTitle title="Needs you" />
-      <Card style={{ padding: 0, gap: 0 }}>
-        {attention.length === 0 ? (
+      {nothingNeedsYou ? (
+        <Card style={{ padding: 0, gap: 0 }}>
           <View style={{ padding: space.lg }}>
             <Small>Nothing needs you right now.</Small>
           </View>
-        ) : (
-          attention.map((n, i) => (
+        </Card>
+      ) : null}
+      {attention.length > 0 ? (
+        <Card style={{ padding: 0, gap: 0 }}>
+          {attention.map((n, i) => (
             <ListRow
               key={n.text}
               last={i === attention.length - 1}
@@ -213,9 +228,15 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
               // Groups with something waiting are already open below; a tap only helps when one has been closed.
               onPress={settled[n.group] ? undefined : () => setChosen((c) => ({ ...c, [n.group]: true }))}
             />
-          ))
-        )}
-      </Card>
+          ))}
+        </Card>
+      ) : null}
+      {fallbacks.map((c) => (
+        <VpFallback key={c} chapterId={c} onDone={setDone} />
+      ))}
+      {requests.map((r) => (
+        <BoardRequest key={r.id} request={r} onDone={setDone} />
+      ))}
 
       {/* Stage 5: meetings and votes */}
       <Card style={{ padding: 0, gap: 0 }}>
@@ -329,8 +350,8 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
             ) : null}
             {g.id === 'meetings' ? (
               <>
-                <BoardAttendance chapterId={national ? null : me.chapterId} />
-                <BoardCheckins chapterId={national ? null : me.chapterId} />
+                <BoardAttendance chapterId={scopeChapter} />
+                <BoardCheckins chapterId={scopeChapter} />
               </>
             ) : null}
             {g.id === 'money' ? <BoardFees /> : null}
@@ -351,15 +372,166 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
 }
 
 // ---------------------------------------------------------------------------
+// The Board tab's acting lines: open requests, and the 11.2 VP fallback
+// ---------------------------------------------------------------------------
+
+/**
+ * An open request on the Board tab: what was asked, then `me`'s one next step (Confirm cover or
+ * Confirm acting where the rules allow it, or the board vote to start or follow), then Withdraw
+ * request or Decline for those who may close it.
+ */
+function BoardRequest({ request, onDone }: { request: ActingRequest; onDone: (text: string) => void }) {
+  const { me, data, today, confirmActing, withdrawActingRequest, openActingVote } = useClub();
+  const navigation = useNavigation<RootScreen<'ManageMember'>['navigation']>();
+  const [error, setError] = useState<string | null>(null);
+  if (!me) return null;
+  const next = requestNext(request, me, data, new Date().toISOString());
+  const actions = requestActions(request, me, data, today);
+  const standIn = data.members.find((m) => m.id === request.memberId);
+  // Several requests can sit here at once, so each button says which one it acts on.
+  const about = `${standIn ? displayName(standIn) : 'Someone'} as ${ROLE_LABEL[request.role]}`;
+  const settle = (work: Promise<unknown>, text: string) => work.then(() => { setError(null); onDone(text); }, (e: Error) => setError(e.message));
+  return (
+    <Card style={{ gap: space.sm }}>
+      <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+        <IconBadge icon="swap-horizontal" tone="red" />
+        <Body style={{ flex: 1 }}>{requestLine(request, data)}</Body>
+      </Row>
+      {next?.kind === 'start' && next.last ? <Small>{next.last}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
+      {next?.kind === 'confirm' ? (
+        <ConfirmButton
+          label={next.label}
+          accessibilityLabel={`${next.label}: ${about}`}
+          confirmLabel="Yes, confirm"
+          confirmAccessibilityLabel={`Yes, ${next.label.toLowerCase()}: ${about}`}
+          kind="secondary"
+          confirmNote={requestConfirmNote(request, data, today)}
+          onConfirm={() => settle(confirmActing(request.id), standIn ? doneMessage(standIn, request.role, request.until) : 'Confirmed.')}
+        />
+      ) : next?.kind === 'start' ? (
+        <ConfirmButton
+          label={next.label}
+          accessibilityLabel={`${next.label}: ${about}`}
+          confirmLabel="Yes, start the vote"
+          kind="secondary"
+          confirmNote={next.note}
+          onConfirm={() =>
+            openActingVote(request.id, next.quorum, next.closesAt, null).then(
+              (voteId) => navigation.navigate('Vote', { voteId }),
+              (e: Error) => setError(e.message),
+            )
+          }
+        />
+      ) : next?.kind === 'see' ? (
+        <Button
+          label={next.label}
+          accessibilityLabel={`${next.label}: ${about}`}
+          kind="secondary"
+          onPress={() => navigation.navigate('Vote', { voteId: next.voteId })}
+        />
+      ) : null}
+      {actions.map((a) => (
+        <ConfirmButton
+          key={a}
+          label={a}
+          accessibilityLabel={`${a}: ${about}`}
+          confirmLabel={a === 'Decline' ? 'Yes, decline' : 'Yes, withdraw'}
+          confirmNote="This closes the request. Nothing about the seat changes."
+          kind="quiet"
+          onConfirm={() => settle(withdrawActingRequest(request.id), a === 'Decline' ? 'Declined. The request is closed.' : 'Request withdrawn.')}
+        />
+      ))}
+    </Card>
+  );
+}
+
+/**
+ * The 11.2 line for a chapter's board while its VP casts the NEC vote with the President seat
+ * empty, and "Make Jet Acting President" where `me` could record it: Until and Why open in place,
+ * checked as typed, and the confirm repeats the warnings, as Appoint does on Manage member.
+ */
+function VpFallback({ chapterId, onDone }: { chapterId: string; onDone: (text: string) => void }) {
+  const { me, data, today, appointActing } = useClub();
+  const [open, setOpen] = useState(false);
+  const until = useDate(null);
+  const [why, setWhy] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  // While the confirm is armed its note repeats the warnings and it has its own Cancel.
+  const [armed, setArmed] = useState(false);
+  if (!me) return null;
+  const line = vpFallbackLine(chapterId, me, data, today);
+  const target = line ? data.members.find((m) => m.id === line.memberId) : undefined;
+  if (!line || !target) return null;
+  const block = appointActingProblem(me, target, chapterId, 'president', until.iso, why, data, today);
+  // The Why is required: say nothing about it until something is typed, and the button stays off.
+  const blockShown = block === WHY_NEEDED && !why.trim() ? null : block;
+  const warnings = until.iso ? actingWarnings(target, chapterId, 'president', null, until.iso, data, today) : [];
+  const close = () => { setOpen(false); setWhy(''); setError(null); };
+  return (
+    <Card style={{ gap: space.sm }}>
+      <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+        <IconBadge icon="alert-circle-outline" tone="red" />
+        <Body style={{ flex: 1 }}>{line.text}</Body>
+      </Row>
+      {line.button && !open ? (
+        <Button
+          label={line.button}
+          kind="secondary"
+          onPress={() => {
+            setOpen(true);
+            until.setText(formatAuDate(actingDefaultUntil(chapterId, 'president', false, today, data)));
+          }}
+        />
+      ) : null}
+      {line.button && open ? (
+        <View style={styles.coverForm}>
+          <DateField label="Until" date={until} hint={untilHint(actingCap(chapterId, 'president', false, today, data))} />
+          <Field label={whyLabel(target, chapterId, 'president', data)} value={why} onChangeText={setWhy} maxLength={WHY_MAX} hint={WHY_HINT} />
+          {armed ? null : warnings.map((w) => (
+            <Small key={w} style={{ color: colors.warn }}>{w}</Small>
+          ))}
+          {/* The reason the button is off reads apart from the advisory warnings above it. */}
+          {blockShown ? <Small style={{ color: colors.danger }}>{blockShown}</Small> : null}
+          {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
+          <ConfirmButton
+            label="Appoint"
+            confirmLabel="Yes, appoint acting"
+            confirmAccessibilityLabel={`Yes, make ${displayName(target)} Acting President`}
+            kind="secondary"
+            disabled={block !== null}
+            onArmedChange={setArmed}
+            confirmNote={confirmText({ route: 'record', target, chapterId, role: 'president', until: until.iso }, data, today)}
+            onConfirm={() => {
+              const last = until.iso;
+              appointActing(target.id, chapterId, 'president', last, why.trim()).then(
+                () => { onDone(doneMessage(target, 'president', last)); close(); },
+                (e: Error) => setError(e.message),
+              );
+            }}
+          />
+          {armed ? null : <Button label="Cancel" kind="quiet" size="small" onPress={close} />}
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Manage one member: status and positions
 // ---------------------------------------------------------------------------
 
 export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMember'>) {
-  const { me, data, today, setMemberStatus, appoint, renewAuditor, suspendAccess, restoreAccess } = useClub();
+  const { me, data, today, setMemberStatus, appoint, renewAuditor, suspendAccess, restoreAccess, appointActing, requestActing } = useClub();
   const member = data.members.find((m) => m.id === route.params.memberId);
   const [status, setStatus] = useState<MemberStatus | null>(member?.status ?? null);
   const [byRequest, setByRequest] = useState(false);
+  const [kind, setKind] = useState<AppointKind | null>(null);
   const [role, setRole] = useState<PositionRole | null>(null);
+  const until = useDate(null);
+  const [why, setWhy] = useState('');
+  // While the acting confirm is armed its note repeats the warnings, so the warn lines step aside.
+  const [actingArmed, setActingArmed] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'danger'; text: string } | null>(null);
   if (!member || !me) return null;
   const chapter = data.chapters.find((c) => c.id === member.chapterId);
@@ -368,6 +540,31 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const roleOptions = [...BOARD_ROLES, ...CLUB_ROLES, ...NATIONAL_ROLES].filter(
     (r) => appointProblem(me, member, member.chapterId, r, data, today) === null,
   );
+  // Appoint is acting until a date (route 1, or a board vote first for a President who isn't the
+  // sitting VP) or a full term; acting is the default for a board seat (9.8).
+  const actingSeats = actingSeatOptions(me, member, data, today);
+  const kinds = appointChoices({ acting: actingSeats.map((s) => s.role), full: roleOptions });
+  const appointKind = kind !== null && kinds.options.some((o) => o.value === kind) ? kind : kinds.initial;
+  const seatChoices = appointKind === 'acting'
+    ? actingSeats.map((s) => ({ value: s.role, label: s.label }))
+    : roleOptions.map((r) => ({ value: r, label: ROLE_LABEL[r] }));
+  const picked = role !== null && seatChoices.some((o) => o.value === role) ? role : null;
+  const actingSeat = appointKind === 'acting' && picked ? actingSeats.find((s) => s.role === picked) ?? null : null;
+  const pickRole = (r: PositionRole) => {
+    setRole(r);
+    if (appointKind === 'acting') until.setText(formatAuDate(actingDefaultUntil(member.chapterId, r, false, today, data)));
+  };
+  const actingBlock = actingSeat
+    ? actingSeat.needsVote
+      ? requestActingProblem(me, member, member.chapterId, actingSeat.role, null, until.iso, why, data, today)
+      : appointActingProblem(me, member, member.chapterId, actingSeat.role, until.iso, why, data, today)
+    : null;
+  // The Why is required: say nothing about it until something is typed, and the button stays off.
+  const actingBlockShown = actingBlock === WHY_NEEDED && !why.trim() ? null : actingBlock;
+  const actingNotes = actingSeat && until.iso
+    ? actingWarnings(member, member.chapterId, actingSeat.role, null, until.iso, data, today, actingSeat.needsVote ? true : undefined)
+    : [];
+  const replacing = appointKind === 'full' && picked ? replaceNote(member, member.chapterId, picked, data) : null;
   const statusBlock = status && status !== member.status ? statusChangeProblem(me, member, status, data, today, byRequest) : null;
   // Moving an FNG, Full Member or Nomad down to Supporter, Legacy or FNG follows a decided 5.5 notice, unless it's at
   // their request (L2). The toggle shows only when the request is what stands between the board and the move.
@@ -376,7 +573,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
     && statusChangeProblem(me, member, status, data, today, true) === null;
   const decidedNotice = stepDown ? decidedNoticeFor(member.id, data, today) : null;
   const history = (data.statusChanges ?? []).filter((c) => c.memberId === member.id).sort((a, b) => b.changedAt.localeCompare(a.changedAt));
-  const warnings = role ? appointWarnings(member, role, data, today) : [];
+  const warnings = appointKind === 'full' && picked ? appointWarnings(member, picked, data, today) : actingNotes;
   const holdsNothing = member.status !== 'full' && member.status !== 'nomad';
   // Stage 5: the patch vote on this FNG (open, or the latest result), or the chance to start one.
   const patchVote = patchVoteFor(member.id, data.votes ?? []);
@@ -401,7 +598,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const auditorVote = member.status === 'full' ? auditorVoteFor(member.id, data.votes ?? []) : null;
   const auditorVoteOpen = auditorVote !== null && auditorVote.closedAt === null;
   const auditorYes = hasCarriedAuditorVote(member.id, data, today);
-  const apart = positions.some((p) => p.endedOn === null && (p.role === 'president' || p.role === 'treasurer')); // acting: pending
+  const apart = heldPositions(member.id, data.positions).some((p) => p.role === 'president' || p.role === 'treasurer');
   const seatFree = !seat || (sitting && termState(seat, today) !== 'running');
   const canStartAuditorVote =
     member.status === 'full' && member.approval === 'approved' && !apart && seatFree && !auditorVoteOpen && !auditorYes &&
@@ -409,11 +606,11 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const canRenew = sitting && renewAuditorProblem(me, data, today) === null;
   // The National Secretary: a two-thirds NEC vote first, then the Chairman appoints (11.6). The vote
   // can open while a Secretary sits (their successor's); only the appointment needs the seat free.
-  const secretarySeat = data.positions.find((p) => p.role === 'nec_secretary' && p.endedOn === null) ?? null; // acting: pending
+  const secretarySeat = heldRows(data.positions).find((p) => p.role === 'nec_secretary') ?? null;
   const secretaryVote = member.status === 'full' ? seatVoteFor(member.id, data.votes ?? [], 'nec_secretary') : null;
   const secretaryVoteOpen = secretaryVote !== null && secretaryVote.closedAt === null;
   const secretaryYes = hasCarriedSeatVote(member.id, 'nec_secretary', data, today);
-  const onNec = positions.some((p) => p.endedOn === null && (p.role === 'nec_chair' || p.role === 'nec_secretary' || p.role === 'nec_auditor')); // acting: pending
+  const onNec = heldPositions(member.id, data.positions).some((p) => p.role === 'nec_chair' || p.role === 'nec_secretary' || p.role === 'nec_auditor');
   const canStartSecretaryVote =
     member.status === 'full' && member.approval === 'approved' && !onNec && !secretaryVoteOpen && !secretaryYes &&
     runsScope(me, null, data.positions);
@@ -543,18 +740,23 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
       <Card style={{ gap: space.md }}>
         <H2>Positions</H2>
         {positions.length === 0 ? <Small>No positions held.</Small> : null}
-        {positions.map((p) => (
-          <View key={p.id} style={{ gap: space.sm }}>
-            <KeyValue label={seatTitle(p, data.chapters, ROLE_LABEL)} value={`Since ${formatLongDate(p.startedOn)}`} />
-            {termEndsOn(p) ? (
-              <KeyValue
-                label="Term"
-                value={`${termState(p, today) === 'ended' ? 'Ended' : 'Ends'} ${formatAuDate(termEndsOn(p))}`}
-                tone={termState(p, today) === 'running' ? undefined : 'warn'}
-              />
-            ) : null}
-            <TermActions position={p} member={member} />
-          </View>
+        {positions.map((p) => {
+          const line = termLine(p, today);
+          const note = stintNote(p, data);
+          const cover = coverLine(p, data);
+          return (
+            <View key={p.id} style={{ gap: space.sm }}>
+              <KeyValue label={seatTitle(p, data.chapters, ROLE_LABEL)} value={`Since ${formatLongDate(p.startedOn)}`} />
+              {line ? <KeyValue label={line.label} value={line.value} tone={line.tone} /> : null}
+              {note ? <Small>{note}</Small> : null}
+              {cover ? <Small>{cover}</Small> : null}
+              {isActing(p) ? <ActingActions position={p} /> : <TermActions position={p} member={member} />}
+              <ArrangeCover seat={p} onDone={(text) => setMsg({ tone: 'ok', text })} />
+            </View>
+          );
+        })}
+        {pageRequests(member, data).map((r) => (
+          <RequestStep key={r.id} request={r} />
         ))}
         {/* The National Auditor (11.8) */}
         {sitting && termState(seat!, today) !== 'running' && isChairman(me.id, data.positions) ? (
@@ -605,29 +807,89 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
             onConfirm={() => run(() => renewAuditor(), `${displayName(member)} is National Auditor for another twelve months.`)}
           />
         ) : null}
-        {roleOptions.length > 0 ? (
+        {kinds.options.length > 0 && seatChoices.length > 0 ? (
           <>
-            <Label>Appoint to</Label>
-            <Choices<PositionRole>
-              options={roleOptions.map((r) => ({ value: r, label: ROLE_LABEL[r] }))}
-              value={role}
-              onChange={setRole}
+            <Choices<AppointKind>
+              label="Appoint"
+              options={kinds.options}
+              value={appointKind}
+              onChange={(k) => { setKind(k); setRole(null); }}
             />
-            {warnings.map((w) => (
+            <Choices<PositionRole>
+              label={appointKind === 'acting' ? 'Act as' : 'Appoint to'}
+              options={seatChoices}
+              value={picked}
+              onChange={pickRole}
+            />
+            {actingSeat ? (
+              <>
+                <DateField label="Until" date={until} hint={untilHint(actingCap(member.chapterId, actingSeat.role, false, today, data))} />
+                <Field
+                  label={whyLabel(member, member.chapterId, actingSeat.role, data)}
+                  value={why}
+                  onChangeText={setWhy}
+                  maxLength={WHY_MAX}
+                  hint={WHY_HINT}
+                />
+              </>
+            ) : null}
+            {actingArmed ? null : warnings.map((w) => (
               <Small key={w} style={{ color: colors.warn }}>{w}</Small>
             ))}
-            <Button
-              label="Appoint"
-              kind="secondary"
-              disabled={!role}
-              onPress={() =>
-                role &&
-                run(async () => {
-                  await appoint(member.id, member.chapterId, role);
+            {actingSeat ? (
+              <>
+                {/* The reason the button is off reads apart from the advisory warnings above it. */}
+                {actingBlockShown ? <Small style={{ color: colors.danger }}>{actingBlockShown}</Small> : null}
+                <ConfirmButton
+                  label={actingSeat.needsVote ? 'Ask the board to vote' : 'Appoint'}
+                  confirmLabel={actingSeat.needsVote ? 'Yes, ask the board' : 'Yes, appoint acting'}
+                  kind="secondary"
+                  disabled={actingBlock !== null}
+                  onArmedChange={setActingArmed}
+                  confirmNote={confirmText(
+                    actingSeat.needsVote
+                      ? { route: 'propose', target: member, chapterId: member.chapterId, role: actingSeat.role, covers: null, until: until.iso }
+                      : { route: 'record', target: member, chapterId: member.chapterId, role: actingSeat.role, until: until.iso },
+                    data,
+                    today,
+                  )}
+                  onConfirm={() => {
+                    const { role: r, needsVote } = actingSeat;
+                    const last = until.iso;
+                    run(async () => {
+                      if (needsVote) await requestActing(member.id, member.chapterId, r, null, last, why.trim());
+                      else await appointActing(member.id, member.chapterId, r, last, why.trim());
+                      setRole(null);
+                      setWhy('');
+                    }, needsVote ? PROPOSED_MESSAGE : doneMessage(member, r, last));
+                  }}
+                />
+              </>
+            ) : replacing && picked ? (
+              <ConfirmButton
+                label="Appoint"
+                confirmLabel="Yes, appoint in full"
+                kind="secondary"
+                confirmNote={replacing}
+                onConfirm={() => run(async () => {
+                  await appoint(member.id, member.chapterId, picked);
                   setRole(null);
-                }, `${displayName(member)} is now ${ROLE_LABEL[role]}.`)
-              }
-            />
+                }, `${displayName(member)} is now ${ROLE_LABEL[picked]}.`)}
+              />
+            ) : (
+              <Button
+                label="Appoint"
+                kind="secondary"
+                disabled={!picked}
+                onPress={() =>
+                  picked &&
+                  run(async () => {
+                    await appoint(member.id, member.chapterId, picked);
+                    setRole(null);
+                  }, `${displayName(member)} is now ${ROLE_LABEL[picked]}.`)
+                }
+              />
+            )}
           </>
         ) : (
           <Small>
@@ -729,7 +991,246 @@ function TermActions({ position: p, member }: { position: Position; member: Memb
   );
 }
 
+/**
+ * What `me` can do about an acting seat (termActionsFor): Change date (a DD/MM/YYYY field, saved
+ * through setActingUntil), Step down from acting, I’m back for the covered holder, and for the rest
+ * of the chapter's board the vote to end acting, a board majority (9.3), never a removal vote.
+ */
+function ActingActions({ position: p }: { position: Position }) {
+  const { me, data, today, endPosition, setActingUntil } = useClub();
+  const navigation = useNavigation<RootScreen<'ManageMember'>['navigation']>();
+  const [changing, setChanging] = useState(false);
+  const until = useDate(p.actingUntil ?? null);
+  const [error, setError] = useState<string | null>(null);
+  if (!me) return null;
+  const actions = termActionsFor(p, me, data, today);
+  if (actions.length === 0) return null;
+  const title = seatTitle(p, data.chapters, ROLE_LABEL);
+  const latest = changeDateLatest(p, me, data, today);
+  // Nothing to say until a new date is typed: the field starts on the current one.
+  const dateBlock = until.iso && until.iso !== p.actingUntil ? setActingUntilProblem(me, p, until.iso, data, today) : null;
+  const vote = removalVoteFor(p, data.votes ?? []);
+  const endBlock = endVoteBlock(p, data, today);
+  const settle = (work: Promise<void>, after?: () => void) => work.then(() => { setError(null); after?.(); }, (e: Error) => setError(e.message));
+  const voteLine = (
+    <Small key="vote-line">
+      {vote && vote.closedAt !== null && vote.result !== 'carried'
+        ? `Vote to end acting closed ${formatAuDate(melbourneDate(vote.closedAt))}: ${RESULT_LABEL[vote.result!]}.`
+        : ACTING_END_SHAPE}
+    </Small>
+  );
+  return (
+    <>
+      {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+      {changing && latest ? (
+        <>
+          <DateField label="Until" date={until} hint={untilHint(latest)} />
+          {dateBlock ? <Small style={{ color: colors.warn }}>{dateBlock}</Small> : null}
+          <Row style={{ gap: space.sm }}>
+            <Button
+              label="Save date"
+              kind="secondary"
+              size="small"
+              disabled={!until.iso || until.iso === p.actingUntil || dateBlock !== null}
+              onPress={() => settle(setActingUntil(p.id, until.iso), () => setChanging(false))}
+            />
+            <Button label="Cancel" kind="quiet" size="small" onPress={() => { setChanging(false); until.setText(formatAuDate(p.actingUntil)); }} />
+          </Row>
+        </>
+      ) : null}
+      {actions.map((a) => {
+        switch (a) {
+          case TERM_ACTION.changeDate:
+            return changing ? null : (
+              <Button key={a} label={a} kind="secondary" size="small" accessibilityLabel={`Change the date ${title} ends`} onPress={() => setChanging(true)} />
+            );
+          case TERM_ACTION.stepDown:
+            return (
+              <ConfirmButton
+                key={a}
+                label={a}
+                confirmLabel="Yes, step down"
+                confirmAccessibilityLabel={`Yes, step down from acting as ${title}`}
+                kind="secondary"
+                size="small"
+                onConfirm={() => settle(endPosition(p.id))}
+              />
+            );
+          case TERM_ACTION.back:
+            return (
+              <ConfirmButton
+                key={a}
+                label={a}
+                confirmLabel="Yes, I’m back"
+                confirmNote={backNote(p, data)}
+                kind="secondary"
+                size="small"
+                onConfirm={() => settle(endPosition(p.id))}
+              />
+            );
+          case TERM_ACTION.endActing:
+            return (
+              <ConfirmButton
+                key={a}
+                label={a}
+                confirmLabel="Yes, end acting"
+                confirmAccessibilityLabel={`Yes, end acting as ${title}`}
+                confirmNote="The board’s vote to end it carried, so it ends today."
+                kind="secondary"
+                size="small"
+                onConfirm={() => settle(endPosition(p.id))}
+              />
+            );
+          case TERM_ACTION.seeEndVote:
+            return vote ? (
+              <React.Fragment key={a}>
+                {voteLine}
+                <Button label={a} kind="secondary" size="small" onPress={() => navigation.navigate('Vote', { voteId: vote.id })} />
+              </React.Fragment>
+            ) : null;
+          case TERM_ACTION.startEndVote:
+            // On a board too small to decide it, the button stays, off, with the reason under it.
+            return (
+              <React.Fragment key={a}>
+                {voteLine}
+                <Button
+                  label={a}
+                  kind="secondary"
+                  size="small"
+                  disabled={endBlock !== null}
+                  onPress={() => navigation.navigate('NewVote', { chapterId: p.chapterId, subjectMemberId: p.memberId, subjectRole: p.role, acting: true })}
+                />
+                {endBlock ? <Small>{endBlock}</Small> : null}
+              </React.Fragment>
+            );
+        }
+      })}
+    </>
+  );
+}
+
+/**
+ * On an away holder's page, for another member of that chapter's board: "Arrange cover (board
+ * vote)" proposes a stand-in from the board (route 3), when the holder can't be asked. Nothing moves
+ * until the board votes yes and a board member confirms it; the confirm text repeats the warnings.
+ */
+function ArrangeCover({ seat, onDone }: { seat: Position; onDone: (text: string) => void }) {
+  const { me, data, today, requestActing } = useClub();
+  const [open, setOpen] = useState(false);
+  const [standIn, setStandIn] = useState<string | null>(null);
+  const until = useDate(null);
+  const [why, setWhy] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  // While the confirm is armed its note repeats the warnings and it has its own Cancel.
+  const [armed, setArmed] = useState(false);
+  if (!me || seat.chapterId === null) return null;
+  const state = arrangeCover(me, seat, data, today);
+  if (!state) return null;
+  const chapterId = seat.chapterId;
+  const title = seatTitle(seat, data.chapters, ROLE_LABEL);
+  if (!open || state.blocked !== null) {
+    // When nobody can cover (a board too small to vote, say), the button stays, off, with the reason under it.
+    return (
+      <>
+        <Button
+          label="Arrange cover (board vote)"
+          kind="secondary"
+          size="small"
+          disabled={state.blocked !== null}
+          accessibilityLabel={`Arrange cover of ${title} (board vote)`}
+          onPress={() => {
+            setOpen(true);
+            until.setText(formatAuDate(actingDefaultUntil(chapterId, seat.role, true, today, data)));
+          }}
+        />
+        {state.blocked ? <Small>{state.blocked}</Small> : null}
+      </>
+    );
+  }
+  const target = standIn ? data.members.find((m) => m.id === standIn) : undefined;
+  const block = target ? requestActingProblem(me, target, chapterId, seat.role, seat, until.iso, why, data, today) : null;
+  const blockShown = block === WHY_NEEDED && !why.trim() ? null : block;
+  const warnings = target && until.iso ? actingWarnings(target, chapterId, seat.role, seat, until.iso, data, today, true) : [];
+  const close = () => { setOpen(false); setStandIn(null); setWhy(''); setError(null); };
+  return (
+    <View style={styles.coverForm}>
+      <Label>{`Cover ${title}`}</Label>
+      <Choices<string> label="Who covers" options={state.standIns} value={standIn} onChange={setStandIn} />
+      <DateField label="Until" date={until} hint={untilHint(actingCap(chapterId, seat.role, true, today, data))} />
+      <Field
+        label={target ? whyLabel(target, chapterId, seat.role, data) : 'Why'}
+        value={why}
+        onChangeText={setWhy}
+        maxLength={WHY_MAX}
+        hint={WHY_HINT}
+      />
+      {armed ? null : warnings.map((w) => (
+        <Small key={w} style={{ color: colors.warn }}>{w}</Small>
+      ))}
+      {/* The reason the button is off reads apart from the advisory warnings above it. */}
+      {blockShown ? <Small style={{ color: colors.danger }}>{blockShown}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
+      <ConfirmButton
+        label="Ask the board to vote"
+        confirmLabel="Yes, ask the board"
+        kind="secondary"
+        disabled={!target || block !== null}
+        onArmedChange={setArmed}
+        confirmNote={target ? confirmText({ route: 'propose', target, chapterId, role: seat.role, covers: seat, until: until.iso }, data, today) : undefined}
+        onConfirm={() => {
+          if (!target) return;
+          requestActing(target.id, chapterId, seat.role, seat.id, until.iso, why.trim()).then(
+            () => { close(); onDone(PROPOSED_MESSAGE); },
+            (e: Error) => setError(e.message),
+          );
+        }}
+      />
+      {armed ? null : <Button label="Cancel" kind="quiet" size="small" onPress={close} />}
+    </View>
+  );
+}
+
+/**
+ * An open request about this member (as the stand-in, or for their seat): what was asked, then the
+ * board vote's next step: start it, a week long with the least quorum, or follow it. Confirming
+ * happens on the Board tab.
+ */
+function RequestStep({ request }: { request: ActingRequest }) {
+  const { me, data, openActingVote } = useClub();
+  const navigation = useNavigation<RootScreen<'ManageMember'>['navigation']>();
+  const [error, setError] = useState<string | null>(null);
+  if (!me) return null;
+  const step = boardVoteStep(me, request, data, new Date().toISOString());
+  return (
+    <View style={{ gap: space.sm }}>
+      <Label>Asked for</Label>
+      <Body>{actingVoteQuestion(request, data)}</Body>
+      {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+      {step?.kind === 'start' && step.last ? <Small>{step.last}</Small> : null}
+      {step?.kind === 'start' ? (
+        <ConfirmButton
+          label="Start the board vote"
+          confirmLabel="Yes, start the vote"
+          kind="secondary"
+          size="small"
+          confirmNote={step.note}
+          onConfirm={() =>
+            openActingVote(request.id, step.quorum, step.closesAt, null).then(
+              (voteId) => navigation.navigate('Vote', { voteId }),
+              (e: Error) => setError(e.message),
+            )
+          }
+        />
+      ) : step?.kind === 'see' ? (
+        <Button label="See the board vote" kind="secondary" size="small" onPress={() => navigation.navigate('Vote', { voteId: step.voteId })} />
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   // Counts on rows are stencil, as on Who's signed.
   rowMeta: { fontFamily: fonts.stencil, fontSize: 13, lineHeight: 18, letterSpacing: 0.3, color: colors.boneDim },
+  // Arrange cover opens in place under its seat, set off by a hairline rather than a nested card.
+  coverForm: { gap: space.sm, paddingTop: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.lineStrong },
 });
