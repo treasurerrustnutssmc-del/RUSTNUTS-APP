@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useClub } from '../data/ClubStore';
@@ -17,7 +17,8 @@ import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 // Stage 4
 import { fngDue } from '../domain/joining';
-import { boardGroups, needsYou, type BoardGroupId } from '../domain/boardLayout';
+import { boardGroups, NEED_GROUP, needsYou, needsYouTarget, type BoardGroupId, type NeedsYou, type NeedsYouKind } from '../domain/boardLayout';
+import { useJump } from '../ui/useJump';
 import { settleOpen } from '../domain/groupOpen';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
@@ -144,11 +145,26 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
   );
 }
 
-export function BoardScreen({ navigation }: TabScreen<'Board'>) {
+export function BoardScreen({ navigation, route }: TabScreen<'Board'>) {
   const { me, data, level, today, isDemo, refresh } = useClub();
   const [done, setDone] = useState<string | null>(null);
   // Which groups the person has opened or closed themselves; the rest follow what is waiting.
   const [chosen, setChosen] = useState<Partial<Record<BoardGroupId, boolean>>>({});
+  // Each Needs-you row can scroll the Board to the list it stands for.
+  const { scroller, mark, jump } = useJump<NeedsYouKind | BoardGroupId>();
+  const showList = (kind: NeedsYouKind) => {
+    setChosen((c) => ({ ...c, [NEED_GROUP[kind]]: true }));
+    // The list itself, or the group around it if the list isn't there (the count changed meanwhile).
+    jump(kind, NEED_GROUP[kind]);
+  };
+  // Home's board rows open the Board at the matching list.
+  const focus = route.params?.focus;
+  if (focus && !chosen[NEED_GROUP[focus]]) setChosen((c) => ({ ...c, [NEED_GROUP[focus]]: true }));
+  useEffect(() => {
+    if (!focus) return;
+    jump(focus, NEED_GROUP[focus]);
+    navigation.setParams({ focus: undefined });
+  }, [focus, jump, navigation]);
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const national = level === 'national';
@@ -164,6 +180,19 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
     .sort((a, b) => (a.due?.date ?? a.review.date).localeCompare(b.due?.date ?? b.review.date));
 
   const counts = { pending: pending.length, alerts: alerts.length, noContact: noContact.length, fngs: fngs.length };
+  const memberIds: Record<NeedsYouKind, string[]> = {
+    pending: pending.map((m) => m.id),
+    alerts: alerts.map((a) => a.memberId),
+    noContact: noContact.map((m) => m.id),
+    fngs: fngs.map((f) => f.m.id),
+  };
+  // A Needs-you row opens the place it gets dealt with: the one member or FNG review, or the list here.
+  const openNeed = (n: NeedsYou) => {
+    const target = needsYouTarget(n.kind, memberIds[n.kind]);
+    if (target.to === 'member') navigation.navigate('MemberDetail', { memberId: target.memberId, focus: target.focus });
+    else if (target.to === 'fng') navigation.navigate('FngReview', { memberId: target.memberId });
+    else showList(target.kind);
+  };
   const attention = needsYou(counts);
   const groups = boardGroups(counts);
   // A group that needs the board opens, and stays open once the thing that opened it is dealt with.
@@ -181,7 +210,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   const seatNames = data.chapters.filter((c) => holdsBoardSeat(me.id, c.id, data.positions)).map((c) => c.name).join(' and ');
 
   return (
-    <Screen onRefresh={isDemo ? undefined : refresh}>
+    <Screen onRefresh={isDemo ? undefined : refresh} scroller={scroller}>
       <Stack gap={space.sm}>
         <Chip label={national ? 'All chapters' : `${chapter?.name} chapter`} tone="redOutline" />
         <Small>
@@ -210,8 +239,8 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
               last={i === attention.length - 1}
               left={<IconBadge icon="alert-circle-outline" tone="red" />}
               title={n.text}
-              // Groups with something waiting are already open below; a tap only helps when one has been closed.
-              onPress={settled[n.group] ? undefined : () => setChosen((c) => ({ ...c, [n.group]: true }))}
+              lines="all"
+              onPress={() => openNeed(n)}
             />
           ))
         )}
@@ -249,7 +278,8 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
       {groups.map((g) => {
         const isOpen = chosen[g.id] ?? false;
         return (
-          <Disclosure key={g.id} title={g.title} summary={g.summary} open={isOpen} onToggle={() => setChosen((c) => ({ ...c, [g.id]: !isOpen }))}>
+          <View key={g.id} ref={mark(g.id)} collapsable={false}>
+          <Disclosure title={g.title} summary={g.summary} open={isOpen} onToggle={() => setChosen((c) => ({ ...c, [g.id]: !isOpen }))}>
             {g.id === 'approvals' ? (
               pending.length === 0 ? (
                 <Card>
@@ -268,7 +298,9 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
                 ) : null}
                 {alerts.length > 0 ? (
                   <>
-                    <SectionTitle title="Needs attention" action={<Small>{alerts.length}</Small>} />
+                    <View ref={mark('alerts')} collapsable={false}>
+                      <SectionTitle title="Needs attention" action={<Small>{alerts.length}</Small>} />
+                    </View>
                     <Card style={{ padding: 0, gap: 0 }}>
                       {alerts.map((a, i) => (
                         <ListRow
@@ -291,7 +323,9 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
                 ) : null}
                 {noContact.length > 0 ? (
                   <>
-                    <SectionTitle title="No emergency contact" action={<Small>{noContact.length}</Small>} />
+                    <View ref={mark('noContact')} collapsable={false}>
+                      <SectionTitle title="No emergency contact" action={<Small>{noContact.length}</Small>} />
+                    </View>
                     <Card style={{ padding: 0, gap: 0 }}>
                       {noContact.map((m, i) => (
                         <ListRow
@@ -308,7 +342,9 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
                 ) : null}
                 {fngs.length > 0 ? (
                   <>
-                    <SectionTitle title="FNG reviews" action={<Small>{fngs.length}</Small>} />
+                    <View ref={mark('fngs')} collapsable={false}>
+                      <SectionTitle title="FNG reviews" action={<Small>{fngs.length}</Small>} />
+                    </View>
                     <Card style={{ padding: 0, gap: 0 }}>
                       {fngs.map(({ m, review, due }, i) => (
                         <ListRow
@@ -344,6 +380,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
               </>
             ) : null}
           </Disclosure>
+          </View>
         );
       })}
     </Screen>

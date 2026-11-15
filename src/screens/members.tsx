@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import {
@@ -19,7 +19,7 @@ import { clubCounts, positionTitles, seatTitle, type StatusSplit } from '../doma
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, ROLE_SHORT, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
-import type { RootScreen, TabScreen } from '../navigation/types';
+import type { MemberFocus, RootScreen, TabScreen } from '../navigation/types';
 import { MemberChatButtons } from './chat';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
 import { reportedByMe } from '../domain/reports';
@@ -51,6 +51,7 @@ import { useSavedFilters } from '../data/savedFilters';
 import { CLUB_NUMBERS, showProfileCard } from '../domain/homeLayout';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import { memberGroups } from '../domain/memberGroups';
+import { useJump } from '../ui/useJump';
 import {
   Avatar,
   Body,
@@ -244,7 +245,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
               left={<IconBadge icon="person-add" tone="red" />}
               title={`${pending.length} waiting for approval`}
               subtitle={pending.map((p) => p.fullName).join(', ')}
-              onPress={() => navigation.navigate('Board')}
+              onPress={() => navigation.navigate('Board', { focus: 'pending' })}
               last={boardAlerts.length === 0}
             />
           ) : null}
@@ -253,7 +254,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
               left={<IconBadge icon="alert-circle" />}
               title={`${boardAlerts.length} ${boardAlerts.length === 1 ? 'rego, licence or first aid renewal needs' : 'rego, licence or first aid renewals need'} attention`}
               subtitle={`${boardAlerts.filter((a) => a.state === 'expired').length} expired, ${boardAlerts.filter((a) => a.state === 'soon').length} due within 30 days`}
-              onPress={() => navigation.navigate('Board')}
+              onPress={() => navigation.navigate('Board', { focus: 'alerts' })}
               last
               lines="all"
             />
@@ -440,6 +441,14 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
   const { me, data, today } = useClub();
   const { myOpenReports } = useSocial();
   const member = data.members.find((m) => m.id === route.params.memberId);
+  // The Board's Needs-you rows open a member at the part that needs fixing.
+  const { scroller, mark: focusRef, jump } = useJump<MemberFocus>();
+  const focus = route.params.focus;
+  useEffect(() => {
+    if (!focus) return;
+    jump(focus);
+    navigation.setParams({ focus: undefined });
+  }, [focus, jump, navigation]);
   if (!member || !me) {
     return (
       <Screen>
@@ -461,7 +470,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
   const review = member.status === 'fng' && member.fngStartedOn ? nextFngReview(member.fngStartedOn, today) : null;
 
   return (
-    <Screen>
+    <Screen scroller={scroller}>
       <Card>
         <Row style={{ gap: space.lg, flexWrap: 'nowrap' }}>
           <Avatar text={initials(member)} size={72} />
@@ -568,7 +577,9 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
 
       {showPrivate ? (
         <>
-          <SectionTitle title="Ride-ready" action={<LockNote text={isSelf ? 'You + board' : 'Board only'} />} />
+          <View ref={focusRef('ride-ready')} collapsable={false}>
+            <SectionTitle title="Ride-ready" action={<LockNote text={isSelf ? 'You + board' : 'Board only'} />} />
+          </View>
           <Card>
             <KeyValue
               label="Licence"
@@ -597,7 +608,9 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
               })}
           </Card>
 
-          <SectionTitle title="Emergency contacts" action={<LockNote text={isSelf ? 'You + board' : 'Board only'} />} />
+          <View ref={focusRef('contacts')} collapsable={false}>
+            <SectionTitle title="Emergency contacts" action={<LockNote text={isSelf ? 'You + board' : 'Board only'} />} />
+          </View>
           <Card style={{ padding: 0, gap: 0 }}>
             {contacts.length === 0 ? (
               <View style={{ padding: space.lg }}>
