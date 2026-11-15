@@ -114,6 +114,17 @@ export interface EmergencyContact {
   phone: string;
 }
 
+/** Why a row ended. Set by every path that ends a row from acting roles on; older rows have none. */
+export type EndedReason =
+  | 'stepped_down'
+  | 'holder_back'
+  | 'removed'
+  | 'replaced'
+  | 'lapsed'
+  | 'forgotten'
+  | 'renewed'
+  | 'left_board';
+
 export interface Position {
   id: string;
   memberId: string;
@@ -121,6 +132,52 @@ export interface Position {
   role: PositionRole;
   startedOn: string;
   endedOn: string | null;
+  // Acting roles. Optional, so older saved copies and rows still load. src/domain/acting.ts reads them.
+  /** The last acting day (inclusive); null or missing = a normal term. */
+  actingUntil?: string | null;
+  /** A cover: the holder's row this stands in for, who stays seated. */
+  covers?: string | null;
+  /** Why someone is acting, in 120 characters or fewer. */
+  actingWhy?: string | null;
+  /** The carried board vote behind the stint, when one was needed. */
+  actingVote?: string | null;
+  /** The request the stint was confirmed from. */
+  actingRequestId?: string | null;
+  /** Who recorded or confirmed it. */
+  appointedBy?: string | null;
+  endedReason?: EndedReason | null;
+}
+
+export type ActingOutcome = 'confirmed' | 'withdrawn' | 'lapsed' | 'rejected';
+
+/** A request for acting that waits for a third board member's confirm, or a board vote. */
+export interface ActingRequest {
+  id: string;
+  chapterId: string;
+  role: PositionRole;
+  /** The stand-in. */
+  memberId: string;
+  /** The holder's row, for a cover; null for an empty seat. */
+  covers: string | null;
+  /** The last acting day asked for. */
+  until: string;
+  why: string;
+  requestedBy: string;
+  createdAt: string;
+  closedAt: string | null;
+  outcome: ActingOutcome | null;
+}
+
+/** A change to a stint's date, or a stint a seat ending took with it (newUntil null). */
+export interface ActingChange {
+  id: string;
+  positionId: string;
+  chapterId: string;
+  oldUntil: string | null;
+  newUntil: string | null;
+  changedBy: string | null;
+  changedAt: string;
+  note: string | null;
 }
 
 export type RideCategory = 'north' | 'west' | 'club' | 'supported' | 'non_nuts';
@@ -278,6 +335,10 @@ export interface ClubData extends LedgerData, AdminData, AuditData, ShopData {
   registrations: BikeRegistration[];
   emergencyContacts: EmergencyContact[];
   positions: Position[];
+  /** Acting requests the viewer may read: their chapter board's, or their own as stand-in. Missing means none. */
+  actingRequests?: ActingRequest[];
+  /** Changes to stints' dates, for the chapter board and the Auditor. Missing means none. */
+  actingChanges?: ActingChange[];
   rides: Ride[];
   rsvps: Rsvp[];
   /** Who is crewing which ride. Missing means none. */
@@ -550,6 +611,10 @@ export interface Vote {
   /** How people voted: open votes only, after closing. A secret ballot never carries a member. */
   ballots: { memberId: string | null; choice: BallotChoice }[];
   createdBy: string | null;
+  /** An acting vote: the request it decides. Null or missing for every other vote. */
+  actingRequestId?: string | null;
+  /** An NEC vote: the chapter each elector's ballot belongs to (11.2). Missing or empty otherwise. */
+  electorChapters?: Record<string, string>;
 }
 
 // Lane E: live ride

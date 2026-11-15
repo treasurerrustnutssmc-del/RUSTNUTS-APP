@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ANDROID_CHANNELS, RETIRED_ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, phoneNotificationState, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, foregroundPlan, type Reminder,
+  actingReminderPlan, ANDROID_CHANNELS, RETIRED_ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, phoneNotificationState, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, foregroundPlan, type Reminder,
 } from './notifications';
-import type { Ride, Rsvp } from './types';
+import { DEMO_DATA } from '../data/demoStory.testkit';
+import type { ClubData, Position, Ride, Rsvp } from './types';
 
 const NOW = '2026-11-05T00:00:00.000Z';
 const ride = (over: Partial<Ride> = {}): Ride => ({
@@ -204,4 +205,47 @@ test('no club banner on screen (signed out, or still starting): the phone shows 
     phone: { banner: true, list: true, sound: true },
     inApp: false,
   });
+});
+
+// Acting reminders ----------------------------------------------------------------------------------
+
+const stint = (over: Partial<Position> & Pick<Position, 'id' | 'memberId' | 'role'>): Position => ({
+  chapterId: 'ch-north', startedOn: '2026-11-15', endedOn: null, actingUntil: '2026-12-13', actingWhy: 'Away', ...over,
+});
+const smokeyPres = stint({ id: 'p-9', memberId: 'm-smokey', role: 'president', startedOn: '2025-08-16', actingUntil: null, actingWhy: null });
+const jetCovers = stint({ id: 'jet-covers', memberId: 'm-jet', role: 'president', covers: 'p-9' });
+const crankTre = stint({ id: 'crank-tre', memberId: 'm-crank', role: 'treasurer', actingWhy: 'No Treasurer since the ACM' });
+const acting = (positions: Position[]): ClubData => ({ ...DEMO_DATA, positions });
+const ACTING_NOW = '2026-11-20T00:00:00.000Z';
+
+test('the acting person gets a reminder at 9 am Melbourne a week and a day before the until date', () => {
+  const plan = actingReminderPlan('m-crank', acting([smokeyPres, crankTre]), ACTING_NOW);
+  const body = 'You’re Acting Treasurer (North) until 13/12/2026.';
+  assert.deepEqual(plan, [
+    { id: 'acting-crank-tre-7', at: '2026-12-05T22:00:00.000Z', title: 'Acting ends in a week', body, channelId: 'club-rev2', sound: REV_SOUND },
+    { id: 'acting-crank-tre-1', at: '2026-12-11T22:00:00.000Z', title: 'Acting ends tomorrow', body, channelId: 'club-rev2', sound: REV_SOUND },
+  ]);
+  assert.ok(plan.every((r) => r.rideId === undefined), 'not about a ride');
+});
+
+test('the covered holder hears when they take the seat back', () => {
+  const plan = actingReminderPlan('m-smokey', acting([smokeyPres, jetCovers]), ACTING_NOW);
+  assert.deepEqual(plan.map((r) => r.id), ['acting-jet-covers-7', 'acting-jet-covers-1']);
+  assert.equal(plan[0].body, 'Jet is acting as President (North) until 13/12/2026. You take the seat back on 14/12/2026.');
+  assert.equal(actingReminderPlan('m-jet', acting([smokeyPres, jetCovers]), ACTING_NOW)[0].body, 'You’re Acting President (North) until 13/12/2026.');
+});
+
+test('acting reminders skip past times, ended stints, other people and nobody signed in', () => {
+  assert.deepEqual(actingReminderPlan('m-crank', acting([crankTre]), '2026-12-07T00:00:00.000Z').map((r) => r.id), ['acting-crank-tre-1']);
+  assert.deepEqual(actingReminderPlan('m-crank', acting([crankTre]), '2026-12-12T00:00:00.000Z'), []);
+  assert.deepEqual(actingReminderPlan('m-crank', acting([{ ...crankTre, endedOn: '2026-11-19', endedReason: 'stepped_down' }]), ACTING_NOW), []);
+  assert.deepEqual(actingReminderPlan('m-jet', acting([smokeyPres, crankTre]), ACTING_NOW), []);
+  assert.deepEqual(actingReminderPlan(null, acting([crankTre]), ACTING_NOW), []);
+});
+
+test('acting reminders keep 9 am in winter, and follow the rev setting', () => {
+  const winter = { ...crankTre, startedOn: '2027-05-01', actingUntil: '2027-07-10' };
+  assert.equal(actingReminderPlan('m-crank', acting([winter]), '2027-05-02T00:00:00.000Z')[0].at, '2027-07-02T23:00:00.000Z');
+  const [plain] = actingReminderPlan('m-crank', acting([crankTre]), ACTING_NOW, { ...DEFAULT_PREFS, revSound: false });
+  assert.deepEqual([plain.channelId, plain.sound], ['club', 'default']);
 });

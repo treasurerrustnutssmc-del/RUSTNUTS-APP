@@ -631,7 +631,7 @@ export function ChaptersScreen({ navigation }: RootScreen<'Chapters'>) {
   const { data } = useClub();
   const approved = data.members.filter((m) => m.approval === 'approved');
   const necSeats = data.positions.filter(
-    (p) => p.endedOn === null && (NATIONAL_ROLES.includes(p.role) || p.role === 'president'),
+    (p) => p.endedOn === null && (NATIONAL_ROLES.includes(p.role) || p.role === 'president'), // acting: pending
   );
 
   return (
@@ -639,7 +639,7 @@ export function ChaptersScreen({ navigation }: RootScreen<'Chapters'>) {
       {data.chapters.map((c) => {
         const members = approved.filter((m) => m.chapterId === c.id);
         const board = data.positions
-          .filter((p) => p.endedOn === null && p.chapterId === c.id && BOARD_ROLES.includes(p.role))
+          .filter((p) => p.endedOn === null && p.chapterId === c.id && BOARD_ROLES.includes(p.role)) // acting: pending
           .sort((a, b) => BOARD_ROLES.indexOf(a.role) - BOARD_ROLES.indexOf(b.role));
         return (
           <Card key={c.id} style={{ padding: 0, gap: 0 }}>
@@ -690,7 +690,7 @@ export function ChapterDetailScreen({ route, navigation }: RootScreen<'ChapterDe
   const members = sortMembers(
     visibleMembers(me, data).filter((m) => m.chapterId === chapter.id && m.approval === 'approved'),
   );
-  const seats = data.positions.filter((p) => p.endedOn === null && p.chapterId === chapter.id);
+  const seats = data.positions.filter((p) => p.endedOn === null && p.chapterId === chapter.id); // acting: pending
   const board = seats.filter((p) => BOARD_ROLES.includes(p.role)).sort((a, b) => BOARD_ROLES.indexOf(a.role) - BOARD_ROLES.indexOf(b.role));
   const club = seats.filter((p) => CLUB_ROLES.includes(p.role)).sort((a, b) => CLUB_ROLES.indexOf(a.role) - CLUB_ROLES.indexOf(b.role));
   const counts = STATUS_ORDER.map((s) => [s, members.filter((m) => m.status === s).length] as const).filter(([, n]) => n > 0);

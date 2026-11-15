@@ -53,18 +53,18 @@ const AUDITOR_APART = 'The National Auditor can’t also be a President or Treas
 test('only Full and Nomad members hold Club positions', () => {
   const data = v4Club();
   const sec = who(data, 'sec');
-  assert.equal(appointProblem(sec, who(data, 'fng'), 'west', 'officer', data), ONLY_PATCHED);
-  assert.equal(appointProblem(sec, who(data, 'sup'), 'west', 'officer', data), ONLY_PATCHED);
-  assert.equal(appointProblem(sec, who(data, 'fam'), 'west', 'tail_gunner', data), ONLY_PATCHED);
-  assert.equal(appointProblem(sec, who(data, 'rider'), 'west', 'officer', data), null);
+  assert.equal(appointProblem(sec, who(data, 'fng'), 'west', 'officer', data, '2026-10-25'), ONLY_PATCHED);
+  assert.equal(appointProblem(sec, who(data, 'sup'), 'west', 'officer', data, '2026-10-25'), ONLY_PATCHED);
+  assert.equal(appointProblem(sec, who(data, 'fam'), 'west', 'tail_gunner', data, '2026-10-25'), ONLY_PATCHED);
+  assert.equal(appointProblem(sec, who(data, 'rider'), 'west', 'officer', data, '2026-10-25'), null);
 });
 
 test('Nomads hold Non-Board roles only', () => {
   const data = v4Club();
   const sec = who(data, 'sec');
-  assert.equal(appointProblem(sec, who(data, 'nomad'), 'west', 'officer', data), null);
-  assert.equal(appointProblem(sec, who(data, 'nomad'), 'west', 'road_captain', data), NO_NOMAD_SEAT);
-  assert.equal(appointProblem(who(data, 'chair'), who(data, 'nomad'), null, 'nec_secretary', data), NO_NOMAD_SEAT);
+  assert.equal(appointProblem(sec, who(data, 'nomad'), 'west', 'officer', data, '2026-10-25'), null);
+  assert.equal(appointProblem(sec, who(data, 'nomad'), 'west', 'road_captain', data, '2026-10-25'), NO_NOMAD_SEAT);
+  assert.equal(appointProblem(who(data, 'chair'), who(data, 'nomad'), null, 'nec_secretary', data, '2026-10-25'), NO_NOMAD_SEAT);
   // A Full Member can be, once the NEC has voted them in by two-thirds (11.6).
   assert.equal(appointProblem(who(data, 'chair'), who(data, 'rider'), null, 'nec_secretary', data, '2026-10-25'), SECRETARY_NEEDS_VOTE);
   const voted = { ...data, votes: [{ ...necVote('rider', 'carried'), threshold: 'two_thirds' as const, subjectRole: 'nec_secretary' as const }] };
@@ -74,13 +74,13 @@ test('Nomads hold Non-Board roles only', () => {
 test('the National Auditor stays apart from Presidents and Treasurers', () => {
   const data = v4Club();
   const chair = who(data, 'chair');
-  assert.equal(appointProblem(chair, who(data, 'pres'), null, 'nec_auditor', data), AUDITOR_APART);
-  assert.equal(appointProblem(chair, who(data, 'tre'), null, 'nec_auditor', data), AUDITOR_APART);
-  assert.equal(appointProblem(who(data, 'northsec'), who(data, 'auditor'), 'north', 'treasurer', data), AUDITOR_APART);
+  assert.equal(appointProblem(chair, who(data, 'pres'), null, 'nec_auditor', data, '2026-10-25'), AUDITOR_APART);
+  assert.equal(appointProblem(chair, who(data, 'tre'), null, 'nec_auditor', data, '2026-10-25'), AUDITOR_APART);
+  assert.equal(appointProblem(who(data, 'northsec'), who(data, 'auditor'), 'north', 'treasurer', data, '2026-10-25'), AUDITOR_APART);
   // The testkit's auditor holds the seat, so a second one waits; ending it frees the seat, and a
   // carried two-thirds NEC vote about them lets the Chairman seat them (11.8).
   const free = { ...data, positions: data.positions.filter((p) => p.role !== 'nec_auditor') };
-  assert.equal(appointProblem(chair, who(free, 'rider'), null, 'nec_auditor', free), AUDITOR_NEEDS_VOTE);
+  assert.equal(appointProblem(chair, who(free, 'rider'), null, 'nec_auditor', free, '2026-10-25'), AUDITOR_NEEDS_VOTE);
   const voted = { ...free, votes: [{ ...necVote('rider', 'carried'), threshold: 'two_thirds' as const, subjectRole: 'nec_auditor' as const }] };
   assert.equal(appointProblem(chair, who(voted, 'rider'), null, 'nec_auditor', voted, '2026-10-25'), null);
 });

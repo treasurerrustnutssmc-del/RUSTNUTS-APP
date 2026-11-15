@@ -3,6 +3,7 @@
 // database's save_history_entry, archive_history_entry, save_honour and archive_honour apply the
 // same checks with the same words, in the same order.
 
+import { isActing, isEnded } from '../acting';
 import { ROLE_ORDER } from '../labels';
 import { formatAuDate, isRealIsoDate } from '../dates';
 import { signedInProblem } from '../routes';
@@ -276,14 +277,14 @@ export interface PastRole {
   holders: PastHolder[];
 }
 
-/** Everyone who has held an office and stepped down, by role in the club's order, latest first. */
+/** Everyone who has held an office and stepped down, by role in the club's order, latest first. Acting stints aren't offices held. */
 export function pastOfficeHolders(members: Member[], positions: Position[]): PastRole[] {
   const byId = new Map(members.map((m) => [m.id, m]));
   const groups: PastRole[] = [];
   for (const role of ROLE_ORDER) {
     if (role === 'founder') continue;
     const holders = positions
-      .filter((p): p is Position & { endedOn: string } => p.role === role && p.endedOn !== null)
+      .filter((p): p is Position & { endedOn: string } => p.role === role && isEnded(p) && !isActing(p))
       .sort((a, b) => b.endedOn.localeCompare(a.endedOn) || b.startedOn.localeCompare(a.startedOn))
       .map((p) => ({ member: byId.get(p.memberId) ?? null, chapterId: p.chapterId, startedOn: p.startedOn, endedOn: p.endedOn }));
     if (holders.length) groups.push({ role, holders });

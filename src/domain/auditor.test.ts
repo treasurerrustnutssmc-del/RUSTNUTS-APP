@@ -68,7 +68,7 @@ test('the Auditor can’t approve, manage, seat or end Presidents', () => {
   assert.equal(canApprove(aud, who(d, 'applicant'), d.positions), false);
   assert.equal(canManageMember(aud, who(d, 'rider'), d.positions), false);
   assert.notEqual(statusChangeProblem(aud, who(d, 'rider'), 'supporter', d, TODAY), null);
-  assert.notEqual(appointProblem(aud, who(d, 'rider'), 'west', 'president', d), null);
+  assert.notEqual(appointProblem(aud, who(d, 'rider'), 'west', 'president', d, TODAY), null);
   const presSeat = d.positions.find((p) => p.id === 'p-pres')!;
   assert.notEqual(endTermProblem(aud, presSeat, d, TODAY), null);
   // The Chairman still can, once the chapter's two-thirds removal vote has carried (9.3).
@@ -162,7 +162,7 @@ test('appointing the Auditor needs a carried two-thirds NEC vote about them in 9
   const d = { ...free, positions: free.positions.filter((p) => p.role !== 'nec_auditor') };
   const chair = who(d, 'chair');
   const rider = who(d, 'rider');
-  assert.equal(appointProblem(chair, rider, null, 'nec_auditor', d), AUDITOR_NEEDS_VOTE);
+  assert.equal(appointProblem(chair, rider, null, 'nec_auditor', d, TODAY), AUDITOR_NEEDS_VOTE);
   const carried = { ...d, votes: [auditorVote('rider')] };
   assert.equal(hasCarriedAuditorVote('rider', carried, TODAY), true);
   assert.equal(appointProblem(chair, rider, null, 'nec_auditor', carried, TODAY), null);

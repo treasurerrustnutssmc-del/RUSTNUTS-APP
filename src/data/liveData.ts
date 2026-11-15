@@ -115,6 +115,11 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     },
     () => [],
   );
+  // Acting roles: the requests and date changes, alongside the rest. Empty rather than blocking the
+  // app (also before the live database has the tables).
+  const actingLoad = Promise.all([db.from('acting_requests').select('*'), db.from('acting_changes').select('*')]).catch(
+    () => [null, null] as const,
+  );
   const [
     members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs, bus,
   ] = await Promise.all([
@@ -228,6 +233,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     return r?.error ? [] : (r?.data ?? []);
   };
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
+  const [actingRequests, actingChanges] = await actingLoad;
   const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
   const charity = await charityLoad;
@@ -321,6 +327,24 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       role: p.role,
       startedOn: p.started_on,
       endedOn: p.ended_on,
+      // Acting roles. A database from before acting has none of these columns: a normal term, then.
+      actingUntil: p.acting_until ?? null,
+      covers: p.covers ?? null,
+      actingWhy: p.acting_why ?? null,
+      actingVote: p.acting_vote ?? null,
+      actingRequestId: p.acting_request ?? null,
+      appointedBy: p.appointed_by ?? null,
+      endedReason: p.ended_reason ?? null,
+    })),
+    // Acting roles: the requests and date changes this person may read.
+    actingRequests: rowsOf(actingRequests, 'acting_requests').map((r) => ({
+      id: r.id, chapterId: r.chapter_id, role: r.role, memberId: r.member_id, covers: r.covers, until: r.until, why: r.why,
+      requestedBy: r.requested_by, createdAt: instant(r.created_at), closedAt: r.closed_at ? instant(r.closed_at) : null,
+      outcome: r.outcome,
+    })),
+    actingChanges: rowsOf(actingChanges, 'acting_changes').map((c) => ({
+      id: String(c.id), positionId: c.position_id, chapterId: c.chapter_id, oldUntil: c.old_until, newUntil: c.new_until,
+      changedBy: c.changed_by, changedAt: instant(c.changed_at), note: c.note,
     })),
     rides: [...(calendar.data?.rides ?? []), ...familyRides].map((r) => ({
       id: r.id,

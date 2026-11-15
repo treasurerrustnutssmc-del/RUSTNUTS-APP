@@ -5,7 +5,7 @@
  * mirrors these rules (supabase/migrations/*_app_feedback.sql); change both together.
  * Spec: docs/superpowers/specs/2026-11-01-app-feedback-design.md
  */
-import { activePositions } from './access';
+import { clubwidePositions } from './acting';
 import type { Member, Position } from './types';
 
 export const FEEDBACK_KINDS = ['bug', 'idea', 'other'] as const;
@@ -69,10 +69,10 @@ function usesApp(me: Member | null): string | null {
   return null;
 }
 
-/** A sitting Treasurer (either chapter) or NEC Chairman / Secretary. Mirrors private.is_feedback_keeper. */
+/** A sitting Treasurer (either chapter) or NEC Chairman / Secretary, none of them acting or covered. Mirrors private.is_feedback_keeper. */
 export function isFeedbackKeeper(me: Member | null, positions: Position[]): boolean {
   if (!me || me.approval !== 'approved' || me.status === 'family') return false;
-  return activePositions(me.id, positions).some((p) => p.role === 'treasurer' || p.role === 'nec_chair' || p.role === 'nec_secretary');
+  return clubwidePositions(me.id, positions).some((p) => p.role === 'treasurer' || p.role === 'nec_chair' || p.role === 'nec_secretary');
 }
 
 /** Why this report can't be sent, or null when it can. Mirrors send_app_feedback, in its order. */

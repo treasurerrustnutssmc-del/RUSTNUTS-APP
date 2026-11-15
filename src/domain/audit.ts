@@ -3,11 +3,14 @@
 // and asks; they never change the records themselves. The database's actions
 // (supabase/migrations/20270535000000_national_auditor.sql) apply the same rules with the same words.
 
-import { activePositions, isAuditor, isNational } from './access';
-import { BOARD_ROLES } from './labels';
+import { actingRunAcm, isAuditor, isNational } from './access';
+import { coverOf, heldPositions, heldRows, isActing, isEnded, necVoterRow, settleActing } from './acting';
+import { longSeatTitle, seatTitle } from './home';
+import { BOARD_ROLES, ROLE_LABEL } from './labels';
 import { BANK_FEES, bankedLate, budgetOf, fundName, monthOf, isDebit } from './ledger';
 import { fyOf } from './fees';
 import { minutesState, runsScope, signedInProblem } from './meetings';
+import { addMonths, displayName } from './profile';
 import { melbourneDate } from './rides';
 import { standingOf } from './standing';
 import { termEndsOn, termState } from './terms';
@@ -174,9 +177,9 @@ export function saveReportProblem(me: Member | null, input: ReportInput, data: C
 export const issueReportProblem = (me: Member | null, id: string, data: ClubData): string | null => draftProblem(me, id, data);
 export const deleteReportProblem = (me: Member | null, id: string, data: ClubData): string | null => draftProblem(me, id, data);
 
-/** A board seat in any chapter, or the NEC. */
+/** A board seat in any chapter (held, so a covered holder still counts), or the NEC. */
 function onAnyBoard(me: Member, positions: Position[]): boolean {
-  return isNational(me.id, positions) || activePositions(me.id, positions).some((p) => BOARD_ROLES.includes(p.role));
+  return isNational(me.id, positions) || heldPositions(me.id, positions).some((p) => BOARD_ROLES.includes(p.role));
 }
 
 /** Drafts stay with the Auditor; an issued report goes to the NEC and every chapter board. */
@@ -206,12 +209,90 @@ const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
+const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+const COVER_REVIEW_MONTHS = 3;
+
+const personOf = (id: string, data: ClubData) => {
+  const m = data.members.find((x) => x.id === id);
+  return m ? displayName(m) : 'A member';
+};
+const chapterName = (id: string | null, data: ClubData) => data.chapters.find((c) => c.id === id)?.name ?? 'the chapter';
+
+/**
+ * The chapter's VP when they cast its NEC vote through the fallback (11.2): nobody holds the
+ * President seat, not even as acting, so the VP votes without being formally Acting President. A
+ * National Chairman who is also the President isn't this case (that's the follow-on). Feeds the
+ * Board tab's line and its "Make Jet Acting President" button. Expects settled data.
+ */
+export function vpFallbackFor(chapterId: string, data: ClubData): { memberId: string } | null {
+  if (heldRows(data.positions).some((p) => p.chapterId === chapterId && p.role === 'president')) return null;
+  const voter = necVoterRow(chapterId, data.positions);
+  return voter?.role === 'vice_president' ? { memberId: voter.memberId } : null;
+}
+
+/** When the cover of `seat` has run unbroken from: back from its current cover through covers with no day between. */
+function coveredSince(seat: Position, current: Position, positions: Position[]): string {
+  const covers = positions.filter((c) => c.covers === seat.id);
+  let since = current.startedOn;
+  for (;;) {
+    const before = covers.filter((c) => c.startedOn < since && (!isEnded(c) || c.endedOn! >= since));
+    if (before.length === 0) return since;
+    since = before.reduce((min, c) => (c.startedOn < min ? c.startedOn : min), since);
+  }
+}
+
+/** The acting findings (9.8, 9.5, 11.2). */
+function actingChecks(data: ClubData, today: string): AuditCheck[] {
+  const out: AuditCheck[] = [];
+  const held = heldRows(data.positions);
+  const acmScheduled = (chapterId: string) =>
+    (data.meetings ?? []).some((m) => m.chapterId === chapterId && m.kind === 'agm' && m.cancelledAt === null && melbourneDate(m.startsAt) >= today);
+
+  for (const p of held) {
+    if (!isActing(p) || p.covers != null || p.chapterId === null || !BOARD_ROLES.includes(p.role)) continue;
+    const name = personOf(p.memberId, data);
+    const detail = `${name} · ${longSeatTitle(p, data.chapters)}`;
+    if (!acmScheduled(p.chapterId)) {
+      out.push({ key: `acting-no-election:${p.id}`, area: 'membership', chapterId: p.chapterId, ledgerEntryId: null,
+        title: `No election scheduled while ${name} acts (9.8)`, detail });
+    }
+    const acm = actingRunAcm(p.chapterId, p.role, p.startedOn, data);
+    if (acm !== null && p.actingUntil! > acm) {
+      out.push({ key: `acting-past-acm:${p.id}`, area: 'membership', chapterId: p.chapterId, ledgerEntryId: null,
+        title: `${name}’s acting runs past ${chapterName(p.chapterId, data)}’s ACM on ${dm(acm)} (9.8)`, detail });
+    }
+  }
+
+  for (const seat of held) {
+    const cover = isActing(seat) ? null : coverOf(seat, data.positions);
+    if (!cover) continue;
+    const since = coveredSince(seat, cover, data.positions);
+    if (today <= addMonths(since, COVER_REVIEW_MONTHS)) continue;
+    const holder = personOf(seat.memberId, data);
+    out.push({ key: `cover-over-3-months:${seat.id}`, area: 'membership', chapterId: seat.chapterId, ledgerEntryId: null,
+      title: `${holder}’s seat has been covered for more than three months in a row (9.5 review)`,
+      detail: `${holder} · ${seatTitle(seat, data.chapters, ROLE_LABEL)} · covered since ${dmy(since)}` });
+  }
+
+  for (const chapter of data.chapters) {
+    const vp = vpFallbackFor(chapter.id, data);
+    if (!vp) continue;
+    const name = personOf(vp.memberId, data);
+    out.push({ key: `vp-fallback:${chapter.id}`, area: 'membership', chapterId: chapter.id, ledgerEntryId: null,
+      title: `${name} casts ${chapter.name}’s NEC vote without being formally Acting President (11.2)`,
+      detail: `${name} · ${ROLE_LABEL.vice_president} (${chapter.name})` });
+  }
+  return out;
+}
+
 /**
  * What the books and records show that the Auditor may want to ask about. Worked out from what the
- * Auditor can read, nothing stored. `now` is an instant; dates are the club's (Melbourne) day.
+ * Auditor can read, nothing stored. `now` is an instant; dates are the club's (Melbourne) day, and
+ * stints past their until date are settled first.
  */
-export function auditChecks(data: ClubData, now: string): AuditCheck[] {
+export function auditChecks(raw: ClubData, now: string): AuditCheck[] {
   const today = melbourneDate(now);
+  const data = settleActing(raw, today);
   const checks: AuditCheck[] = [];
   const push = (c: AuditCheck) => checks.push(c);
   const lines = data.ledger ?? [];
@@ -263,12 +344,15 @@ export function auditChecks(data: ClubData, now: string): AuditCheck[] {
   }
 
   for (const p of data.positions) {
-    if (p.endedOn !== null || termState(p, today) !== 'ended') continue;
+    // An acting stint isn't a term: it ends on its own at its until date.
+    if (isEnded(p) || isActing(p) || termState(p, today) !== 'ended') continue;
     const holder = data.members.find((m) => m.id === p.memberId);
     push({ key: `term-ended:${p.id}`, area: 'membership', chapterId: p.chapterId, ledgerEntryId: null,
       title: 'A term has run past its end',
       detail: `${holder?.roadName ?? holder?.fullName ?? 'A member'} · ${p.role.replace(/_/g, ' ')} · ended ${dmy(termEndsOn(p)!)}` });
   }
+
+  checks.push(...actingChecks(data, today));
 
   for (const m of data.meetings ?? []) {
     if (minutesState(m, now) !== 'overdue') continue;

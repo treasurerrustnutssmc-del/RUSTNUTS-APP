@@ -4,12 +4,13 @@
 // same figures (private.meeting_report in supabase/migrations/20270430000000_meeting_reports.sql)
 // and refuses with the same words.
 
-import { activePositions } from './access';
+import { heldPositions, isActing } from './acting';
 import { formatAuDate } from './dates';
 import { formatCents, fyOf } from './fees';
 import {
   CREDIT_CODES, DEBIT_CODES, floatFor, fundBalance, fundKey, isCredit, keepsBooks, KEEPS_ONLY, monthEnd, seesLedger,
 } from './ledger';
+import { longSeatTitle } from './home';
 import { signedInProblem } from './meetings';
 import type { ClubData, LedgerCode, LedgerEntry, MeetingFigures, MeetingReport, Member } from './types';
 
@@ -229,18 +230,25 @@ export function defaultPeriod(data: ClubData, today: string): { fromOn: string; 
   return { fromOn, toOn: today };
 }
 
-/** "Jeff Ostler, Treasurer, West and North Chapters", or their NEC seat. */
+/**
+ * "Jeff Ostler, Treasurer, West and North Chapters", or their NEC seat, from the seats they hold (a
+ * covered Treasurer keeps the title). An Acting Treasurer gets the long form: "Craig Morrison, Acting
+ * Treasurer (North) until 13/12/2026".
+ */
 export function preparedBy(memberId: string | null, data: ClubData): string {
   const member = data.members.find((m) => m.id === memberId);
   if (!member) return 'the Treasurer';
-  const seats = activePositions(member.id, data.positions);
-  const chapters = data.chapters.filter((c) => seats.some((p) => p.role === 'treasurer' && p.chapterId === c.id)).map((c) => c.name);
+  const seats = heldPositions(member.id, data.positions);
+  const full = seats.filter((p) => !isActing(p));
+  const chapters = data.chapters.filter((c) => full.some((p) => p.role === 'treasurer' && p.chapterId === c.id)).map((c) => c.name);
+  const acting = seats.filter((p) => isActing(p) && p.role === 'treasurer').map((p) => longSeatTitle(p, data.chapters));
   const name = member.fullName || member.roadName || 'Member';
-  if (chapters.length > 0) {
+  if (chapters.length > 0 || acting.length > 0) {
     const list = chapters.length === 1 ? chapters[0] : `${chapters.slice(0, -1).join(', ')} and ${chapters[chapters.length - 1]}`;
-    return `${name}, Treasurer, ${list} Chapter${chapters.length === 1 ? '' : 's'}`;
+    const treasurer = chapters.length > 0 ? [`Treasurer, ${list} Chapter${chapters.length === 1 ? '' : 's'}`] : [];
+    return `${name}, ${[...treasurer, ...acting].join('; ')}`;
   }
-  if (seats.some((p) => p.role === 'nec_chair')) return `${name}, National Chairman`;
-  if (seats.some((p) => p.role === 'nec_secretary')) return `${name}, National Secretary`;
+  if (full.some((p) => p.role === 'nec_chair')) return `${name}, National Chairman`;
+  if (full.some((p) => p.role === 'nec_secretary')) return `${name}, National Secretary`;
   return name;
 }

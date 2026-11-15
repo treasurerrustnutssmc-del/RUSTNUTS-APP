@@ -47,3 +47,16 @@ test('roles that don’t stop a delete, and past seats, aren’t listed', () => 
   assert.deepEqual(stepDownSeats(member('rider'), club(), TODAY), []);
   assert.deepEqual(stepDownSeats(null, club(), TODAY), []);
 });
+
+test('Delete account lists an acting Officer seat', () => {
+  // Acting, in any role, is a seat the club has to fill again; a covered holder still holds theirs.
+  const acting = seat('chook', 'officer', { actingUntil: '2026-12-13', actingWhy: 'No Officer since the ACM' });
+  const positions = [acting];
+  assert.equal(deleteAccountProblem(member('chook'), positions), STEP_DOWN_FIRST);
+  assert.deepEqual(stepDownSeats(member('chook'), club({ positions }), TODAY).map((s) => [s.position.id, s.selfEnd]), [[acting.id, true]]);
+  const covered = club();
+  const cover = { ...seat('tre', 'secretary'), id: 'p-cover', actingUntil: '2026-12-13', covers: 'p-sec', actingWhy: 'Away' };
+  const withCover = { ...covered, positions: [...covered.positions, cover] };
+  assert.equal(deleteAccountProblem(member('sec'), withCover.positions), STEP_DOWN_FIRST, 'a covered holder');
+  assert.deepEqual(stepDownSeats(member('sec'), withCover, TODAY).map((s) => s.position.id), ['p-sec']);
+});

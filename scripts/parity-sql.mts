@@ -15,6 +15,7 @@ import {
   BRIEFED_AT, BUS_AT, busKeyAt, PLANNED_AT, BUS_DECLINE_REASON, caseAction, fixtureSignedAt, RULES_AT, demoAnswer, fixture as fx, fixtureGpx, fngStart, parityToday,
   resolveCase, type ParityCase,
 } from '../src/data/parityFixture.testkit';
+import { rowEndedReason, voteDays } from '../src/data/parityFixture.testkit'; // Acting roles
 import { DOCS_AT } from '../src/data/parityFixture.testkit'; // Stage 5C
 import { ADMIN_AT, ADMIN_PLAN } from '../src/data/parityFixture.testkit'; // Stage 5D
 import { CASE_PLAN } from '../src/data/adminActions'; // Stage 5D
@@ -650,6 +651,25 @@ const call = (c: ParityCase & Record<string, any>): string => {
   switch (c.action) {
     case 'appoint':
       return `public.appoint_position(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)})`;
+    // Acting roles: dates count from the database's own today, as actingExtras does.
+    case 'appointActing':
+      return (
+        `public.appoint_acting(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)}, ` +
+        `private.club_date() + ${Number(c.untilDays)}, ${q(c.why)})`
+      );
+    case 'requestCover':
+      return `public.request_cover(${id('p', c.seat)}, ${id('m', c.member)}, private.club_date() + ${Number(c.untilDays)}, ${q(c.why)})`;
+    case 'requestActing':
+      return (
+        `public.request_acting(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)}, ${c.covers ? id('p', c.covers) : 'null'}, ` +
+        `private.club_date() + ${Number(c.untilDays)}, ${q(c.why)})`
+      );
+    case 'withdrawActingRequest':
+      return `public.withdraw_acting_request(${id('ar', c.request)})`;
+    case 'confirmActing':
+      return `public.confirm_acting(${id('ar', c.request)})`;
+    case 'setActingUntil':
+      return `public.set_acting_until(${id('p', c.position)}, private.club_date() + ${Number(c.untilDays)})`;
     case 'endTerm':
       return `public.end_position(${id('p', c.position)})`;
     case 'approve':
@@ -1265,6 +1285,109 @@ if (sh) {
   }
 }
 
+// Acting roles: a case's extra rows, requests and votes, as the owner, in the order their keys need
+// (rows, then requests that may cover them, then votes that may name a request, then each row's
+// vote and request). Dates count from the database's own today, instants from now, as
+// fixtureData does on the app side.
+function actingExtras(c: ParityCase) {
+  const day = (n: number) => `private.club_date() + ${n}`;
+  const at = (n: number) => `now() + ${n} * interval '1 day'`;
+  const orNull = <T,>(v: T | undefined | null, f: (x: T) => string) => (v === undefined || v === null ? 'null' : f(v));
+  const rows = c.with ?? [];
+  for (const r of rows) {
+    sql(
+      `insert into public.positions (id, member_id, chapter_id, role, started_on, ended_on, acting_until, covers, acting_why, ` +
+        `appointed_by, ended_reason) values (${id('p', r.key)}, ${id('m', r.member)}, ${chapter(r.chapter)}, ${q(r.role)}, ` +
+        `${day(r.startedDays ?? 0)}, ${orNull(r.endedDays, day)}, ${orNull(r.actingUntilDays, day)}, ${orNull(r.covers, (k) => id('p', k))}, ` +
+        `${orNull(r.why, q)}, ${orNull(r.appointedBy, (k) => id('m', k))}, ${orNull(rowEndedReason(r), q)});`,
+    );
+  }
+  for (const x of c.withRequests ?? []) {
+    sql(
+      `insert into public.acting_requests (id, chapter_id, role, member_id, covers, until, why, requested_by) values (` +
+        `${id('ar', x.key)}, ${chapter(x.chapter)}, ${q(x.role)}, ${id('m', x.member)}, ${orNull(x.covers, (k) => id('p', k))}, ` +
+        `${day(x.untilDays)}, ${q(x.why)}, ${id('m', x.requestedBy)});`,
+    );
+  }
+  for (const r of rows.filter((x) => x.requestedBy)) {
+    sql(
+      `insert into public.acting_requests (id, chapter_id, role, member_id, covers, until, why, requested_by, closed_at, outcome) values (` +
+        `${id('ar', r.key)}, ${chapter(r.chapter)}, ${q(r.role)}, ${id('m', r.member)}, ${orNull(r.covers, (k) => id('p', k))}, ` +
+        `${day(r.actingUntilDays!)}, ${q(r.why)}, ${id('m', r.requestedBy!)}, now(), 'confirmed');`,
+    );
+  }
+  for (const v of c.withVotes ?? []) {
+    const d = voteDays(v);
+    sql(
+      `insert into public.votes (id, chapter_id, subject_member_id, subject_role, question, electorate, threshold, quorum, opened_at, ` +
+        `closes_at, closed_at, result, acting_request) values (${id('v', v.key)}, ${chapter(v.chapter)}, ${orNull(v.subject, (k) => id('m', k))}, ` +
+        `${orNull(v.role, q)}, ${q(v.key)}, ${q(v.electorate)}, ${q(v.threshold)}, ${v.quorum ?? v.electors.length}, ${at(d.opened)}, ` +
+        `${at(d.closes)}, ${orNull(d.closed, at)}, ${orNull(v.result, q)}, ${orNull(v.actingRequest, (k) => id('ar', k))});`,
+    );
+    for (const e of v.electors) {
+      const voted = (v.voted ?? []).includes(e);
+      const forChapter = v.electorate === 'nec' ? `(select chapter_id from public.members where id = ${id('m', e)})` : 'null';
+      sql(
+        `insert into public.vote_electors (vote_id, member_id, voted_at, for_chapter) values (` +
+          `${id('v', v.key)}, ${id('m', e)}, ${voted ? (d.closed === null ? 'now()' : at(d.closed)) : 'null'}, ${forChapter});`,
+      );
+    }
+    for (const e of v.voted ?? []) {
+      sql(`insert into public.vote_ballots (vote_id, member_id, choice) values (${id('v', v.key)}, ${id('m', e)}, 'yes');`);
+    }
+  }
+  const linked = rows.filter((x) => x.actingVote || x.requestedBy);
+  for (const r of linked) {
+    sql(
+      `update public.positions set acting_vote = ${orNull(r.actingVote, (k) => id('v', k))}, ` +
+        `acting_request = ${r.requestedBy ? id('ar', r.key) : 'null'} where id = ${id('p', r.key)};`,
+    );
+  }
+  // Every extra went in, so no case passes because one was dropped.
+  const votes = c.withVotes ?? [];
+  if (rows.length === 0 && (c.withRequests ?? []).length === 0 && votes.length === 0) return;
+  const ids = (kind: string, keys: string[]) => (keys.length === 0 ? 'null' : keys.map((k) => id(kind, k)).join(', '));
+  const voteIds = ids('v', votes.map((v) => v.key));
+  const landed: [string, string, number][] = [
+    ['row', `select count(*) from public.positions where id in (${ids('p', rows.map((r) => r.key))})`, rows.length],
+    [
+      'row link',
+      `select count(*) from public.positions where false` +
+        linked
+          .map(
+            (r) =>
+              ` or (id = ${id('p', r.key)} and acting_vote is not distinct from ${orNull(r.actingVote, (k) => id('v', k))}` +
+              ` and acting_request is not distinct from ${r.requestedBy ? id('ar', r.key) : 'null'})`,
+          )
+          .join(''),
+      linked.length,
+    ],
+    [
+      'open request',
+      `select count(*) from public.acting_requests where closed_at is null and id in (${ids('ar', (c.withRequests ?? []).map((x) => x.key))})`,
+      (c.withRequests ?? []).length,
+    ],
+    [
+      'confirmed request',
+      `select count(*) from public.acting_requests where outcome = 'confirmed' and id in (${ids('ar', rows.filter((r) => r.requestedBy).map((r) => r.key))})`,
+      rows.filter((r) => r.requestedBy).length,
+    ],
+    ['vote', `select count(*) from public.votes where id in (${voteIds})`, votes.length],
+    ['elector', `select count(*) from public.vote_electors where vote_id in (${voteIds})`, votes.reduce((n, v) => n + v.electors.length, 0)],
+    [
+      'NEC elector’s chapter',
+      `select count(*) from public.vote_electors where for_chapter is not null and vote_id in (${voteIds})`,
+      votes.reduce((n, v) => n + (v.electorate === 'nec' ? v.electors.length : 0), 0),
+    ],
+    ['ballot', `select count(*) from public.vote_ballots where vote_id in (${voteIds})`, votes.reduce((n, v) => n + (v.voted ?? []).length, 0)],
+  ];
+  sql('do $extras$ begin');
+  for (const [what, query, n] of landed) {
+    sql(`  if (${query}) <> ${n} then raise exception 'PARITY: "%": not every % went in', ${q(c.name)}, ${q(what)}; end if;`);
+  }
+  sql('end $extras$;');
+}
+
 sql('\\echo Parity: the demo and the database agree on who can do what');
 for (const c of fx.cases) {
   const name = q(c.name);
@@ -1274,6 +1397,7 @@ for (const c of fx.cases) {
   }
   sql('begin;');
   for (const key of c.without ?? []) sql(`delete from public.positions where id = ${id('p', key)};`);
+  actingExtras(c);
   if (c.noRoadRules) {
     // Nothing published yet, for this case only (rolled back with it).
     sql('delete from public.road_rules_signoffs;');

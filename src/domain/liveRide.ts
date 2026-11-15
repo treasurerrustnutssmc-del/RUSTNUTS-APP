@@ -5,7 +5,8 @@
 import { addDays, formatAuDate } from './dates';
 import { BOARD_ROLES } from './labels';
 import { lastDay, melbourneDate, melbourneTime } from './rides';
-import { activePositions, NEC_OFFICER_ROLES } from './access';
+import { NEC_OFFICER_ROLES } from './access';
+import { heldPositions } from './acting';
 import type { AlertKind, LatLng, LiveRider, Member, Position, PositionRole, Ride, RideAlert } from './types';
 
 // Shown on the live ride card before the location prompt. Google Play wants this disclosure (what's
@@ -90,9 +91,9 @@ export function personalStop(ride: Ride, now: string): string {
 
 const LEADER_ROLES: PositionRole[] = ['road_captain', 'tail_gunner', 'assistant_tail_gunner', ...BOARD_ROLES, ...NEC_OFFICER_ROLES];
 
-/** Road Captain, Tail Gunner or Assistant TG, or a board or NEC officer seat (not the Auditor, who runs nothing). Mirrors private.is_ride_leader. */
+/** Holds Road Captain, Tail Gunner or Assistant TG, or a board or NEC officer seat (not the Auditor, who runs nothing). Mirrors private.is_ride_leader. */
 export function isRideLeader(memberId: string, positions: Position[]): boolean {
-  return activePositions(memberId, positions).some((p) => LEADER_ROLES.includes(p.role));
+  return heldPositions(memberId, positions).some((p) => LEADER_ROLES.includes(p.role));
 }
 
 /** A fix has to be a real place (null, for "the phone doesn't know", is fine). */

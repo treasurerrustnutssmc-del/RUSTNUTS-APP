@@ -625,7 +625,7 @@ still has three electors, Jet chairs, and Jet is North's NEC voter.
   after `begin;` in `parity-sql.mts` and added in `fixtureData` on the app side. The shared 12 rows
   and the existing 1,400 answers stay as they are. New actions: `appointActing`, `requestCover`,
   `requestActing`, `withdrawActingRequest`, `confirmActing`, `setActingUntil`, `openActingVote`. A case
-  can name its exact refusal (`message`). About 50 cases:
+  can name its exact refusal (`refusal`; chat cases already use `message` for the message they act on). About 50 cases:
   - each route and each refusal, including the Auditor in a second seat;
   - ending by each person, and by the board with and without a vote;
   - a full appointment ending acting;

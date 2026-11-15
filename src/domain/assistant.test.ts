@@ -256,3 +256,35 @@ test('a member who isn’t in the data still gets a sensible snapshot', () => {
   const stranger = member('stranger');
   assert.doesNotThrow(() => buildSnapshot(stranger, data, [], NOW));
 });
+
+test('the snapshot names held seats in the long form: a covered holder keeps theirs, acting shows its date', () => {
+  const base = club();
+  const data: ClubData = {
+    ...base,
+    positions: [
+      ...base.positions,
+      { id: 'p-npres', memberId: 'chair', chapterId: 'north', role: 'president', startedOn: '2025-01-01', endedOn: null },
+      { id: 'p-cover', memberId: 'northsec', chapterId: 'north', role: 'president', startedOn: '2026-10-20', endedOn: null, actingUntil: '2026-12-13', covers: 'p-npres', actingWhy: 'Away' },
+    ],
+  };
+  const snap = (id: string) => JSON.parse(buildSnapshot(who(data, id), data, [], NOW).replace(/^<club_snapshot>\n/, '').replace(/\n<\/club_snapshot>$/, ''));
+  assert.deepEqual(snap('chair').me.positions, ['National Chairman', 'President (North)']);
+  assert.deepEqual(snap('northsec').me.positions, ['Secretary (North)', 'Acting President (North) until 13/12/2026']);
+});
+
+test('a ride idea goes as to the President when the Road Captain’s duties sit with the asker (duties, not open rows)', () => {
+  const base = club();
+  const data: ClubData = {
+    ...base,
+    positions: [
+      ...base.positions,
+      { id: 'p-npres', memberId: 'npres', chapterId: 'north', role: 'president', startedOn: '2025-01-01', endedOn: null },
+      { id: 'p-nrc', memberId: 'npres', chapterId: 'north', role: 'road_captain', startedOn: '2025-01-01', endedOn: null },
+      { id: 'p-cover', memberId: 'northsec', chapterId: 'north', role: 'road_captain', startedOn: '2026-10-20', endedOn: null, actingUntil: '2026-12-13', covers: 'p-nrc', actingWhy: 'Away' },
+    ],
+    members: [...base.members, member('npres', { chapterId: 'north' })],
+  };
+  const card = cardFor(p('add_ride', draftInput(DRAFT)), { me: who(data, 'northsec'), data, chats: [], now: NOW });
+  assert.equal(card.plan?.kind === 'send_idea' && card.plan.toId, 'npres');
+  assert.equal(card.confirm, 'SEND TO THE PRESIDENT');
+});

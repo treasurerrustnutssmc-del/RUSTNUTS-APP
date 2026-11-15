@@ -690,3 +690,91 @@ test('signup_counts loads as the numbers behind each ride’s sign-ups; a databa
   } as never;
   assert.equal((await loadClub(missing, true)).signupCounts, undefined);
 });
+
+// Acting roles
+test('signed in: positions map the acting columns, appointed_by and ended_reason', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      positions: [
+        {
+          id: 'p1', member_id: 'm1', chapter_id: 'c1', role: 'president', started_on: '2025-08-16', ended_on: null,
+          appointed_by: null, ended_by: null, acting_until: null, covers: null, acting_why: null, acting_vote: null,
+          acting_request: null, ended_reason: null,
+        },
+        {
+          id: 'p2', member_id: 'm2', chapter_id: 'c1', role: 'president', started_on: '2026-11-15', ended_on: '2026-11-20',
+          appointed_by: 'm3', ended_by: 'm1', acting_until: '2026-12-13', covers: 'p1', acting_why: 'Rusty overseas',
+          acting_vote: 'v1', acting_request: 'ar1', ended_reason: 'holder_back',
+        },
+        // A database from before acting has none of the new columns.
+        { id: 'p3', member_id: 'm3', chapter_id: 'c1', role: 'secretary', started_on: '2025-08-16', ended_on: null },
+      ],
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.positions[1], {
+    id: 'p2', memberId: 'm2', chapterId: 'c1', role: 'president', startedOn: '2026-11-15', endedOn: '2026-11-20',
+    actingUntil: '2026-12-13', covers: 'p1', actingWhy: 'Rusty overseas', actingVote: 'v1', actingRequestId: 'ar1',
+    appointedBy: 'm3', endedReason: 'holder_back',
+  });
+  const plain = {
+    actingUntil: null, covers: null, actingWhy: null, actingVote: null, actingRequestId: null, appointedBy: null, endedReason: null,
+  };
+  assert.deepEqual(data.positions[0], { id: 'p1', memberId: 'm1', chapterId: 'c1', role: 'president', startedOn: '2025-08-16', endedOn: null, ...plain });
+  assert.deepEqual(data.positions[2], { id: 'p3', memberId: 'm3', chapterId: 'c1', role: 'secretary', startedOn: '2025-08-16', endedOn: null, ...plain });
+});
+
+test('signed in: acting requests and changes load', async () => {
+  const data = await loadClub(
+    stubClient({
+      chapters: [west],
+      acting_requests: [{
+        id: 'ar1', chapter_id: 'c1', role: 'president', member_id: 'm2', covers: 'p1', until: '2026-12-13', why: 'Rusty overseas',
+        requested_by: 'm1', created_at: '2026-11-15T09:00:00+11:00', closed_at: null, outcome: null,
+      }],
+      acting_changes: [{
+        id: 7, position_id: 'p2', chapter_id: 'c1', old_until: '2026-12-13', new_until: '2026-12-01', changed_by: 'm1',
+        changed_at: '2026-11-16T01:00:00+00:00', note: null,
+      }],
+    } as never),
+    true,
+  );
+  assert.deepEqual(data.actingRequests, [{
+    id: 'ar1', chapterId: 'c1', role: 'president', memberId: 'm2', covers: 'p1', until: '2026-12-13', why: 'Rusty overseas',
+    requestedBy: 'm1', createdAt: '2026-11-14T22:00:00.000Z', closedAt: null, outcome: null,
+  }]);
+  assert.deepEqual(data.actingChanges, [{
+    id: '7', positionId: 'p2', chapterId: 'c1', oldUntil: '2026-12-13', newUntil: '2026-12-01', changedBy: 'm1',
+    changedAt: '2026-11-16T01:00:00.000Z', note: null,
+  }]);
+});
+
+test('signed in: before the live database has the acting tables, the club still loads without them', async () => {
+  const data = await loadClub(tableFails('acting_requests', 'Could not find the table', 'PGRST205'), true);
+  assert.deepEqual(data.actingRequests, []);
+  const noChanges = await loadClub(tableFails('acting_changes', 'Could not find the table', 'PGRST205'), true);
+  assert.deepEqual(noChanges.actingChanges, []);
+});
+
+test('signed in: the acting tables are asked for with the first reads, not after them (no extra round trip)', async () => {
+  const calls: string[] = [];
+  const client = {
+    from: (name: string) => {
+      calls.push(`from:${name}`);
+      const chain = chainOf({ data: name === 'chapters' ? [west] : [], error: null });
+      return { select: () => chain };
+    },
+    rpc: (name: string) => {
+      calls.push(`rpc:${name}`);
+      return Promise.resolve({ data: null, error: null });
+    },
+  } as never;
+  await loadClub(client, true);
+  const firstWait = calls.indexOf('rpc:club_business'); // asked only once the first reads are back
+  assert.ok(firstWait > 0);
+  for (const table of ['acting_requests', 'acting_changes']) {
+    const at = calls.indexOf(`from:${table}`);
+    assert.ok(at >= 0 && at < firstWait, `${table} is asked for before the club business waits on the first reads`);
+  }
+});

@@ -4067,6 +4067,1004 @@
       "allowed": false
     },
     {
+      "name": "A lapsed acting VP gets no board ballot",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 4,
+      "days": 7,
+      "allowed": false,
+      "with": [
+        { "key": "spanner-acting-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "startedDays": -30, "actingUntilDays": -1, "why": "No VP since the ACM" }
+      ]
+    },
+    {
+      "name": "An acting VP in date gets a board ballot",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 4,
+      "days": 7,
+      "allowed": true,
+      "with": [
+        { "key": "spanner-acting-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "startedDays": -30, "actingUntilDays": 0, "why": "No VP since the ACM" }
+      ]
+    },
+    {
+      "name": "An acting VP confirmed after a board vote gets a board ballot, beside an open cover request and an NEC vote",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 4,
+      "days": 7,
+      "allowed": true,
+      "with": [
+        { "key": "spanner-voted-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "startedDays": -2, "actingUntilDays": 20, "why": "No VP since the ACM", "appointedBy": "torque", "requestedBy": "rusty", "actingVote": "spanner-vp-vote" }
+      ],
+      "withRequests": [
+        { "key": "hal-covers-torque", "chapter": "west", "role": "secretary", "member": "hal", "covers": "torque-secretary", "untilDays": 20, "why": "Torque overseas", "requestedBy": "rusty" }
+      ],
+      "withVotes": [
+        { "key": "spanner-vp-vote", "chapter": "west", "electorate": "chapter_board", "threshold": "majority", "subject": "spanner", "role": "vice_president", "actingRequest": "spanner-voted-vp", "electors": ["rusty", "torque", "penny"], "voted": ["rusty", "torque", "penny"], "result": "carried", "closedDays": -3 },
+        { "key": "nec-open", "chapter": null, "electorate": "nec", "threshold": "majority", "electors": ["rusty", "smokey"], "voted": ["rusty"] }
+      ]
+    },
+    {
+      "name": "A covered President opens a board vote, and North still has three board electors",
+      "as": "smokey",
+      "action": "openVote",
+      "chapter": "north",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 3,
+      "days": 7,
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "A covered President can’t open an NEC vote",
+      "as": "smokey",
+      "action": "openVote",
+      "chapter": null,
+      "subject": null,
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7,
+      "allowed": false,
+      "refusal": "Only the NEC can do that.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "A President’s stand-in opens an NEC vote, as their chapter’s NEC voter",
+      "as": "jet",
+      "action": "openVote",
+      "chapter": null,
+      "subject": null,
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7,
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "A covered President gives the second approval on chapter spending",
+      "as": "rusty",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": true,
+      "with": [
+        { "key": "torque-covers-rusty", "member": "torque", "chapter": "west", "role": "president", "actingUntilDays": 20, "covers": "rusty-president", "why": "Rusty overseas", "appointedBy": "penny" }
+      ]
+    },
+    {
+      "name": "A covered President can’t approve Club fund spending",
+      "as": "rusty",
+      "action": "approveDebit",
+      "entry": "club-awaiting",
+      "allowed": false,
+      "refusal": "You can’t approve spending from this fund.",
+      "with": [
+        { "key": "torque-covers-rusty", "member": "torque", "chapter": "west", "role": "president", "actingUntilDays": 20, "covers": "rusty-president", "why": "Rusty overseas", "appointedBy": "penny" }
+      ]
+    },
+    {
+      "name": "A lapsed acting VP can’t approve chapter spending",
+      "as": "spanner",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false,
+      "refusal": "You can’t approve spending from this fund.",
+      "with": [
+        { "key": "spanner-acting-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "startedDays": -30, "actingUntilDays": -1, "why": "No VP since the ACM" }
+      ]
+    },
+    {
+      "name": "A President records Jet as Acting VP in North’s empty VP seat",
+      "as": "smokey",
+      "action": "appointActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "vice_president",
+      "untilDays": 28,
+      "why": "No VP since the ACM",
+      "allowed": true
+    },
+    {
+      "name": "Rusty records Gravel as Acting Tail Gunner beside Spanner",
+      "as": "rusty",
+      "action": "appointActing",
+      "member": "gravel",
+      "chapter": "west",
+      "role": "tail_gunner",
+      "untilDays": 28,
+      "why": "Spanner needs a hand",
+      "allowed": true
+    },
+    {
+      "name": "Someone off the board can’t record acting",
+      "as": "jet",
+      "action": "appointActing",
+      "member": "crank",
+      "chapter": "north",
+      "role": "treasurer",
+      "untilDays": 28,
+      "why": "No Treasurer since the ACM",
+      "allowed": false,
+      "refusal": "Only that chapter’s board can record acting here."
+    },
+    {
+      "name": "Acting can’t go in a seat that has a holder",
+      "as": "crank",
+      "action": "appointActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "president",
+      "untilDays": 28,
+      "why": "Smokey overseas",
+      "allowed": false,
+      "refusal": "That seat has a holder. Arrange a cover instead."
+    },
+    {
+      "name": "Someone already acting can’t take a second stint",
+      "as": "smokey",
+      "action": "appointActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "vice_president",
+      "untilDays": 28,
+      "why": "No VP since the ACM",
+      "allowed": false,
+      "refusal": "They’re already acting in a role. One stint at a time.",
+      "with": [
+        { "key": "jet-acting-treasurer", "member": "jet", "chapter": "north", "role": "treasurer", "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "The VP seated before the President stepped down is recorded Acting President with no vote",
+      "as": "crank",
+      "action": "appointActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "president",
+      "untilDays": 28,
+      "why": "No President since Smokey stepped down",
+      "allowed": true,
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "smokey-ended", "member": "smokey", "chapter": "north", "role": "president", "startedDays": -400, "endedDays": -5 },
+        { "key": "jet-old-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 }
+      ]
+    },
+    {
+      "name": "A VP seated after the President seat fell empty needs a board vote to act as President",
+      "as": "crank",
+      "action": "appointActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "president",
+      "untilDays": 28,
+      "why": "No President since Smokey stepped down",
+      "allowed": false,
+      "refusal": "Anyone but the sitting VP needs a carried board vote to act as President (8.2, 9.8).",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "smokey-ended", "member": "smokey", "chapter": "north", "role": "president", "startedDays": -400, "endedDays": -5 },
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "Anyone but the VP needs a board vote to act as President",
+      "as": "crank",
+      "action": "appointActing",
+      "member": "lou",
+      "chapter": "north",
+      "role": "president",
+      "untilDays": 28,
+      "why": "No President since the ACM",
+      "allowed": false,
+      "refusal": "Anyone but the sitting VP needs a carried board vote to act as President (8.2, 9.8).",
+      "without": ["smokey-president"]
+    },
+    {
+      "name": "The chapter’s Treasurer can’t be recorded Acting President (chair and books stay apart)",
+      "as": "jet",
+      "action": "appointActing",
+      "member": "crank",
+      "chapter": "north",
+      "role": "president",
+      "untilDays": 28,
+      "why": "No President since the ACM",
+      "allowed": false,
+      "refusal": "An Acting President can’t also keep the chapter’s books (9.5).",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "crank-treasurer", "member": "crank", "chapter": "north", "role": "treasurer" },
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "An NEC officer off North’s board can’t record its Acting President",
+      "as": "lou",
+      "action": "appointActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "president",
+      "untilDays": 28,
+      "why": "No President since the ACM",
+      "allowed": false,
+      "refusal": "Only that chapter’s board can record acting here.",
+      "without": ["smokey-president"]
+    },
+    {
+      "name": "A suspended member can’t be recorded acting",
+      "as": "rusty",
+      "action": "appointActing",
+      "member": "benched",
+      "chapter": "west",
+      "role": "tail_gunner",
+      "untilDays": 28,
+      "why": "Spanner needs a hand",
+      "allowed": false,
+      "refusal": "Approve them first."
+    },
+    {
+      "name": "The National Auditor on West’s board can’t record its Acting Treasurer",
+      "as": "kim",
+      "action": "appointActing",
+      "member": "spanner",
+      "chapter": "west",
+      "role": "treasurer",
+      "untilDays": 28,
+      "why": "No Treasurer since the ACM",
+      "allowed": false,
+      "refusal": "The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).",
+      "without": ["penny-treasurer"],
+      "with": [
+        { "key": "kim-west-vp", "member": "kim", "chapter": "west", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "The National Auditor on West’s board can record its Acting Secretary",
+      "as": "kim",
+      "action": "appointActing",
+      "member": "spanner",
+      "chapter": "west",
+      "role": "secretary",
+      "untilDays": 28,
+      "why": "No Secretary since the ACM",
+      "allowed": true,
+      "without": ["torque-secretary"],
+      "with": [
+        { "key": "kim-west-vp", "member": "kim", "chapter": "west", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "Rusty records an Acting Treasurer once Penny’s seat is empty",
+      "as": "rusty",
+      "action": "appointActing",
+      "member": "spanner",
+      "chapter": "west",
+      "role": "treasurer",
+      "untilDays": 28,
+      "why": "No Treasurer since the ACM",
+      "allowed": true,
+      "without": ["penny-treasurer"]
+    },
+    {
+      "name": "Smokey asks for Jet, his VP, to cover him",
+      "as": "smokey",
+      "action": "requestCover",
+      "seat": "smokey-president",
+      "member": "jet",
+      "untilDays": 28,
+      "why": "Smokey overseas",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "Smokey can’t ask for Crank, who isn’t the VP, without a board vote",
+      "as": "smokey",
+      "action": "requestCover",
+      "seat": "smokey-president",
+      "member": "crank",
+      "untilDays": 28,
+      "why": "Smokey overseas",
+      "allowed": false,
+      "refusal": "Anyone but the sitting VP needs a carried board vote to act as President (8.2, 9.8).",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "A cover can’t go to someone off the chapter’s board",
+      "as": "smokey",
+      "action": "requestCover",
+      "seat": "smokey-president",
+      "member": "lou",
+      "untilDays": 28,
+      "why": "Smokey overseas",
+      "allowed": false,
+      "refusal": "A cover goes to someone already on that chapter’s board.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "A board of two can’t arrange a cover in the app",
+      "as": "smokey",
+      "action": "requestCover",
+      "seat": "smokey-president",
+      "member": "jet",
+      "untilDays": 28,
+      "why": "Smokey overseas",
+      "allowed": false,
+      "refusal": "Too few board members outside this can decide it in the app. Refer it to the NEC (8.6)."
+    },
+    {
+      "name": "Nobody asks to cover their own seat themselves",
+      "as": "smokey",
+      "action": "requestCover",
+      "seat": "smokey-president",
+      "member": "smokey",
+      "untilDays": 28,
+      "why": "Smokey overseas",
+      "allowed": false,
+      "refusal": "You can’t record yourself as acting.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "Only the holder asks for cover of their seat",
+      "as": "crank",
+      "action": "requestCover",
+      "seat": "smokey-president",
+      "member": "jet",
+      "untilDays": 28,
+      "why": "Smokey overseas",
+      "allowed": false,
+      "refusal": "You can only ask for cover of your own board seat.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "Only a board seat can be covered",
+      "as": "spanner",
+      "action": "requestCover",
+      "seat": "spanner-tail-gunner",
+      "member": "gravel",
+      "untilDays": 28,
+      "why": "Spanner away",
+      "allowed": false,
+      "refusal": "You can only ask for cover of your own board seat."
+    },
+    {
+      "name": "After the board voted his proposal down, Smokey waits 28 days to ask for that seat again",
+      "as": "smokey",
+      "action": "requestCover",
+      "seat": "smokey-president",
+      "member": "jet",
+      "untilDays": 28,
+      "why": "Smokey overseas",
+      "allowed": false,
+      "refusal": "The board voted down your request for this seat in the last 28 days.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "smokey-asks-crank", "chapter": "north", "role": "president", "member": "crank", "covers": "smokey-president", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "smokey" }
+      ],
+      "withVotes": [
+        { "key": "smokey-asks-crank-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "crank", "role": "president", "actingRequest": "smokey-asks-crank", "electors": ["jet"], "closedDays": -1, "result": "lost" }
+      ]
+    },
+    {
+      "name": "Crank proposes a voted cover of Smokey’s seat",
+      "as": "crank",
+      "action": "requestActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "president",
+      "covers": "smokey-president",
+      "untilDays": 28,
+      "why": "Smokey can’t be reached",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "lou-north-secretary", "member": "lou", "chapter": "north", "role": "secretary" },
+        { "key": "chair-north-treasurer", "member": "chair", "chapter": "north", "role": "treasurer" }
+      ]
+    },
+    {
+      "name": "The holder asking from his own seat records the cover instead of proposing a vote",
+      "as": "smokey",
+      "action": "requestActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "president",
+      "covers": "smokey-president",
+      "untilDays": 28,
+      "why": "Smokey can’t be reached",
+      "allowed": false,
+      "refusal": "This doesn’t need a vote. Record it as acting, or ask for cover from your own seat.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "lou-north-secretary", "member": "lou", "chapter": "north", "role": "secretary" },
+        { "key": "chair-north-treasurer", "member": "chair", "chapter": "north", "role": "treasurer" }
+      ]
+    },
+    {
+      "name": "A proposal naming another seat’s row is refused as ended",
+      "as": "crank",
+      "action": "requestActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "sergeant_at_arms",
+      "covers": "smokey-president",
+      "untilDays": 28,
+      "why": "Smokey can’t be reached",
+      "allowed": false,
+      "refusal": "The seat they asked to cover has ended.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "lou-north-secretary", "member": "lou", "chapter": "north", "role": "secretary" },
+        { "key": "chair-north-treasurer", "member": "chair", "chapter": "north", "role": "treasurer" }
+      ]
+    },
+    {
+      "name": "A cover of a seat that has ended is refused, even when its old holder proposes it",
+      "as": "smokey",
+      "action": "requestActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "president",
+      "covers": "smokey-ended",
+      "untilDays": 28,
+      "why": "Smokey can’t be reached",
+      "allowed": false,
+      "refusal": "The seat they asked to cover has ended.",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "smokey-ended", "member": "smokey", "chapter": "north", "role": "president", "startedDays": -400, "endedDays": -5 },
+        { "key": "smokey-secretary", "member": "smokey", "chapter": "north", "role": "secretary" },
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "chair-north-treasurer", "member": "chair", "chapter": "north", "role": "treasurer" }
+      ]
+    },
+    {
+      "name": "An NEC officer off North’s board can’t propose its Acting President",
+      "as": "lou",
+      "action": "requestActing",
+      "member": "crank",
+      "chapter": "north",
+      "role": "president",
+      "untilDays": 28,
+      "why": "No President since the ACM",
+      "allowed": false,
+      "refusal": "Only that chapter’s board can record acting here.",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ]
+    },
+    {
+      "name": "A third board member confirms Smokey’s cover",
+      "as": "crank",
+      "action": "confirmActing",
+      "request": "smokey-asks-jet",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "smokey-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-president", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "The holder can’t confirm the cover he asked for",
+      "as": "smokey",
+      "action": "confirmActing",
+      "request": "smokey-asks-jet",
+      "allowed": false,
+      "refusal": "A third board member confirms the cover you asked for (9.5).",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "smokey-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-president", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "The stand-in can’t confirm their own acting",
+      "as": "jet",
+      "action": "confirmActing",
+      "request": "smokey-asks-jet",
+      "allowed": false,
+      "refusal": "The stand-in can’t confirm their own acting.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "smokey-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-president", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A request past its until date has lapsed, so there’s nothing to confirm",
+      "as": "crank",
+      "action": "confirmActing",
+      "request": "smokey-asks-jet",
+      "allowed": false,
+      "refusal": "That request isn’t open.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "smokey-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-president", "untilDays": -1, "why": "Smokey overseas", "requestedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A cover the holder didn’t ask for needs a carried board vote before it’s confirmed",
+      "as": "crank",
+      "action": "confirmActing",
+      "request": "crank-asks-jet",
+      "allowed": false,
+      "refusal": "This needs a carried board vote on the request in the last 90 days.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "crank-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-president", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "crank" }
+      ]
+    },
+    {
+      "name": "After a carried board vote, the board member who asked confirms the cover",
+      "as": "crank",
+      "action": "confirmActing",
+      "request": "crank-asks-jet",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "crank-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-president", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "crank" }
+      ],
+      "withVotes": [
+        { "key": "crank-asks-jet-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "jet", "role": "president", "actingRequest": "crank-asks-jet", "electors": ["crank"], "voted": ["crank"], "openedDays": -8, "closedDays": -1, "result": "carried" }
+      ]
+    },
+    {
+      "name": "An NEC officer off North’s board can’t confirm its cover",
+      "as": "lou",
+      "action": "confirmActing",
+      "request": "crank-asks-jet",
+      "allowed": false,
+      "refusal": "Only that chapter’s board can record acting here.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "crank-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-president", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "crank" }
+      ],
+      "withVotes": [
+        { "key": "crank-asks-jet-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "jet", "role": "president", "actingRequest": "crank-asks-jet", "electors": ["crank"], "voted": ["crank"], "openedDays": -8, "closedDays": -1, "result": "carried" }
+      ]
+    },
+    {
+      "name": "The stand-in steps down from a cover",
+      "as": "jet",
+      "action": "endTerm",
+      "position": "jet-covers-smokey",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "The holder says I’m back and ends the cover",
+      "as": "smokey",
+      "action": "endTerm",
+      "position": "jet-covers-smokey",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "The holder says I’m back from a voted cover too",
+      "as": "smokey",
+      "action": "endTerm",
+      "position": "jet-covers-smokey",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank", "requestedBy": "crank", "actingVote": "jet-cover-vote" }
+      ],
+      "withVotes": [
+        { "key": "jet-cover-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "jet", "role": "president", "actingRequest": "jet-covers-smokey", "electors": ["crank"], "voted": ["crank"], "openedDays": -13, "closedDays": -11, "result": "carried" }
+      ]
+    },
+    {
+      "name": "Another board member can’t end a cover without a board vote",
+      "as": "crank",
+      "action": "endTerm",
+      "position": "jet-covers-smokey",
+      "allowed": false,
+      "refusal": "Ending someone’s acting needs a carried majority vote of the chapter board in the last 90 days (9.3).",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "A carried board-majority vote lets the board end a cover",
+      "as": "crank",
+      "action": "endTerm",
+      "position": "jet-covers-smokey",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ],
+      "withVotes": [
+        { "key": "end-jet-acting", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "jet", "role": "president", "electors": ["crank"], "voted": ["crank"], "closedDays": -1, "result": "carried" }
+      ]
+    },
+    {
+      "name": "An NEC officer off the board can’t end a cover",
+      "as": "lou",
+      "action": "endTerm",
+      "position": "jet-covers-smokey",
+      "allowed": false,
+      "refusal": "Only that chapter’s board can end this term.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ],
+      "withVotes": [
+        { "key": "end-jet-acting", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "jet", "role": "president", "electors": ["crank"], "voted": ["crank"], "closedDays": -1, "result": "carried" }
+      ]
+    },
+    {
+      "name": "Seating someone else in full over an Acting Treasurer waits for the acting to end",
+      "as": "smokey",
+      "action": "appoint",
+      "member": "jet",
+      "chapter": "north",
+      "role": "treasurer",
+      "allowed": false,
+      "refusal": "Someone is acting in that seat. They step down first, or a carried board vote ends their acting.",
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -10, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A full Tail Gunner is seated beside an acting one",
+      "as": "rusty",
+      "action": "appoint",
+      "member": "torque",
+      "chapter": "west",
+      "role": "tail_gunner",
+      "allowed": true,
+      "with": [
+        { "key": "gravel-acting-tail-gunner", "member": "gravel", "chapter": "west", "role": "tail_gunner", "actingUntilDays": 20, "why": "Spanner needs a hand", "appointedBy": "rusty" }
+      ]
+    },
+    {
+      "name": "Electing the Acting Treasurer in full ends their acting",
+      "as": "smokey",
+      "action": "appoint",
+      "member": "crank",
+      "chapter": "north",
+      "role": "treasurer",
+      "allowed": true,
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -10, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A stint that lapsed last night leaves its seat free to fill",
+      "as": "rusty",
+      "action": "appoint",
+      "member": "hal",
+      "chapter": "west",
+      "role": "vice_president",
+      "allowed": true,
+      "with": [
+        { "key": "spanner-acting-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "startedDays": -30, "actingUntilDays": -1, "why": "No VP since the ACM" }
+      ]
+    },
+    {
+      "name": "An Acting Treasurer can’t be seated President in full",
+      "as": "lou",
+      "action": "appoint",
+      "member": "crank",
+      "chapter": "north",
+      "role": "president",
+      "allowed": false,
+      "refusal": "An Acting Treasurer can’t also be the chapter’s President (9.5).",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -10, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "The Acting Treasurer brings their own date forward",
+      "as": "crank",
+      "action": "setActingUntil",
+      "position": "crank-acting-treasurer",
+      "untilDays": 7,
+      "allowed": true,
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -10, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "Another board member gives the Acting Treasurer more time",
+      "as": "smokey",
+      "action": "setActingUntil",
+      "position": "crank-acting-treasurer",
+      "untilDays": 40,
+      "allowed": true,
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -10, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "The Acting Treasurer can’t give themselves more time",
+      "as": "crank",
+      "action": "setActingUntil",
+      "position": "crank-acting-treasurer",
+      "untilDays": 40,
+      "allowed": false,
+      "refusal": "Only another board member can give this more time.",
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -10, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "The covered holder keeps the cover going longer",
+      "as": "smokey",
+      "action": "setActingUntil",
+      "position": "jet-covers-smokey",
+      "untilDays": 40,
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "The stand-in can’t keep a cover going longer",
+      "as": "jet",
+      "action": "setActingUntil",
+      "position": "jet-covers-smokey",
+      "untilDays": 40,
+      "allowed": false,
+      "refusal": "Only Dean can keep this cover going longer.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "A voted cover needs a new vote to run longer, even for the holder",
+      "as": "smokey",
+      "action": "setActingUntil",
+      "position": "jet-covers-smokey",
+      "untilDays": 40,
+      "allowed": false,
+      "refusal": "The board voted for this stint, so it needs a new vote to run longer.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank", "requestedBy": "crank", "actingVote": "jet-cover-vote" }
+      ],
+      "withVotes": [
+        { "key": "jet-cover-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "jet", "role": "president", "actingRequest": "jet-covers-smokey", "electors": ["crank"], "voted": ["crank"], "openedDays": -13, "closedDays": -11, "result": "carried" }
+      ]
+    },
+    {
+      "name": "A voted cover needs a new vote to run longer, whoever asks",
+      "as": "jet",
+      "action": "setActingUntil",
+      "position": "jet-covers-smokey",
+      "untilDays": 40,
+      "allowed": false,
+      "refusal": "The board voted for this stint, so it needs a new vote to run longer.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank", "requestedBy": "crank", "actingVote": "jet-cover-vote" }
+      ],
+      "withVotes": [
+        { "key": "jet-cover-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "jet", "role": "president", "actingRequest": "jet-covers-smokey", "electors": ["crank"], "voted": ["crank"], "openedDays": -13, "closedDays": -11, "result": "carried" }
+      ]
+    },
+    {
+      "name": "Only the acting person or the holder brings a cover’s date forward",
+      "as": "crank",
+      "action": "setActingUntil",
+      "position": "jet-covers-smokey",
+      "untilDays": 10,
+      "allowed": false,
+      "refusal": "Only the acting person or the holder can bring the date forward.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -10 },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "An until date can’t be in the past",
+      "as": "crank",
+      "action": "setActingUntil",
+      "position": "crank-acting-treasurer",
+      "untilDays": -1,
+      "allowed": false,
+      "refusal": "Pick today or later. To end it now, step down.",
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -10, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A lapsed stint has already ended, so its date can’t change",
+      "as": "smokey",
+      "action": "setActingUntil",
+      "position": "crank-acting-treasurer",
+      "untilDays": 7,
+      "allowed": false,
+      "refusal": "That term has already ended.",
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -30, "actingUntilDays": -1, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A full term has no until date to change",
+      "as": "smokey",
+      "action": "setActingUntil",
+      "position": "crank-road-captain",
+      "untilDays": 7,
+      "allowed": false,
+      "refusal": "That isn’t an acting seat."
+    },
+    {
+      "name": "The stand-in declines a cover request",
+      "as": "jet",
+      "action": "withdrawActingRequest",
+      "request": "smokey-asks-jet",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "smokey-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-president", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "Another board member can’t withdraw someone else’s proposal",
+      "as": "jet",
+      "action": "withdrawActingRequest",
+      "request": "crank-asks-lou",
+      "allowed": false,
+      "refusal": "Only the stand-in or the holder can withdraw this, or the person who asked before a vote on it opens.",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "crank-asks-lou", "chapter": "north", "role": "president", "member": "lou", "untilDays": 28, "why": "No President since the ACM", "requestedBy": "crank" }
+      ]
+    },
+    {
+      "name": "The board member who proposed it withdraws it before a vote opens",
+      "as": "crank",
+      "action": "withdrawActingRequest",
+      "request": "crank-asks-lou",
+      "allowed": true,
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "crank-asks-lou", "chapter": "north", "role": "president", "member": "lou", "untilDays": 28, "why": "No President since the ACM", "requestedBy": "crank" }
+      ]
+    },
+    {
+      "name": "Once a vote on it is open, its proposer can’t withdraw it",
+      "as": "crank",
+      "action": "withdrawActingRequest",
+      "request": "crank-asks-lou",
+      "allowed": false,
+      "refusal": "Only the stand-in or the holder can withdraw this, or the person who asked before a vote on it opens.",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "crank-asks-lou", "chapter": "north", "role": "president", "member": "lou", "untilDays": 28, "why": "No President since the ACM", "requestedBy": "crank" }
+      ],
+      "withVotes": [
+        { "key": "crank-asks-lou-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "lou", "role": "president", "actingRequest": "crank-asks-lou", "electors": ["jet", "crank"], "closesDays": 2 }
+      ]
+    },
+    {
+      "name": "A request the board voted down has closed",
+      "as": "lou",
+      "action": "withdrawActingRequest",
+      "request": "crank-asks-lou",
+      "allowed": false,
+      "refusal": "That request isn’t open.",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "crank-asks-lou", "chapter": "north", "role": "president", "member": "lou", "untilDays": 28, "why": "No President since the ACM", "requestedBy": "crank" }
+      ],
+      "withVotes": [
+        { "key": "crank-asks-lou-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "lou", "role": "president", "actingRequest": "crank-asks-lou", "electors": ["jet", "crank"], "closedDays": -1, "result": "lost" }
+      ]
+    },
+    {
+      "name": "A holder who has since stepped down can’t withdraw a cover request for that seat",
+      "as": "smokey",
+      "action": "withdrawActingRequest",
+      "request": "crank-asks-jet",
+      "allowed": false,
+      "refusal": "Only the stand-in or the holder can withdraw this, or the person who asked before a vote on it opens.",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "smokey-ended", "member": "smokey", "chapter": "north", "role": "president", "startedDays": -400, "endedDays": -5 },
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" }
+      ],
+      "withRequests": [
+        { "key": "crank-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-ended", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "crank" }
+      ]
+    },
+    {
       "name": "A Full member asks for the Rusty Bus (it waits for a yes)",
       "as": "gravel",
       "action": "bookBus",
