@@ -566,7 +566,21 @@ begin
     ('private.on_position_end()'),
     ('private.push_acting_holder()'),
     ('private.sees_every_chapter()'),
-    ('private.nec_voter_before(uuid, date)')
+    ('private.nec_voter_before(uuid, date)'),
+    ('public.appoint_acting(uuid, uuid, public.position_role, date, text)'),
+    ('public.request_cover(uuid, uuid, date, text)'),
+    ('public.request_acting(uuid, uuid, public.position_role, uuid, date, text)'),
+    ('public.withdraw_acting_request(uuid)'),
+    ('public.confirm_acting(uuid)'),
+    ('public.set_acting_until(uuid, date)'),
+    ('private.acting_problem(uuid, uuid, public.position_role, uuid, date)'),
+    ('private.acting_cap(uuid, public.position_role, boolean, date)'),
+    ('private.ended_by_vote(uuid, uuid, public.position_role)'),
+    ('private.acting_needs_vote(uuid, uuid, public.position_role)'),
+    ('private.request_needs_vote(uuid)'),
+    ('private.has_carried_acting_vote(uuid)'),
+    ('private.auditor_stays_out(public.position_role)'),
+    ('private.acting_electors(uuid, public.position_role, uuid, uuid)')
   ) as l(x) loop
     assert not has_function_privilege('anon', fn, 'execute'), fn || ': not for anon';
     if (select pronamespace = 'public'::regnamespace from pg_proc where oid = fn) then
@@ -585,8 +599,21 @@ begin
             'private.push_acting_holder()']::regprocedure[]::oid[])),
     'the locks, the lazy close and the triggers run as their owner with an empty search path';
   assert (select bool_and(prosecdef and provolatile = 's' and proconfig @> array['search_path=""']) from pg_proc
-          where oid = any (array['private.sees_every_chapter()', 'private.nec_voter_before(uuid, date)']::regprocedure[]::oid[])),
+          where oid = any (array['private.sees_every_chapter()', 'private.nec_voter_before(uuid, date)',
+            'private.acting_problem(uuid, uuid, public.position_role, uuid, date)',
+            'private.acting_cap(uuid, public.position_role, boolean, date)',
+            'private.ended_by_vote(uuid, uuid, public.position_role)',
+            'private.acting_needs_vote(uuid, uuid, public.position_role)', 'private.request_needs_vote(uuid)',
+            'private.has_carried_acting_vote(uuid)', 'private.auditor_stays_out(public.position_role)',
+            'private.acting_electors(uuid, public.position_role, uuid, uuid)']::regprocedure[]::oid[])),
     'the new readers are stable, and run as their owner with an empty search path';
+  assert (select bool_and(prosecdef and provolatile = 'v' and proconfig @> array['search_path=""']) from pg_proc
+          where oid = any (array['public.appoint_acting(uuid, uuid, public.position_role, date, text)',
+            'public.request_cover(uuid, uuid, date, text)',
+            'public.request_acting(uuid, uuid, public.position_role, uuid, date, text)',
+            'public.withdraw_acting_request(uuid)', 'public.confirm_acting(uuid)',
+            'public.set_acting_until(uuid, date)']::regprocedure[]::oid[])),
+    'the acting RPCs run as their owner with an empty search path';
 end $$;
 
 \echo 'acting: unchanged rows'
@@ -1003,5 +1030,800 @@ begin
   from pg_policies where coalesce(qual, '') ~ '\ypositions\y' or coalesce(with_check, '') ~ '\ypositions\y';
   assert off is null, 'these policies name positions: ' || off;
 end $$;
+
+-- §4 Acting RPCs and caps ------------------------------------------------------------------------
+
+-- The words each refusal uses (the spec's Appendix A), by the app's constant name.
+create temp table acting_words (k text primary key, t text not null);
+insert into acting_words (k, t) values
+  ('ACTING_CHAPTER_ONLY', 'Acting is for chapter roles, not national seats or honours.'),
+  ('SEAT_HAS_HOLDER', 'That seat has a holder. Arrange a cover instead.'),
+  ('SEAT_HAS_ACTING', 'Someone is already acting in that seat, or a request is waiting.'),
+  ('ONE_STINT', 'They’re already acting in a role. One stint at a time.'),
+  ('OWN_SEAT_COVERED', 'Their own seat is covered, so they can’t act for anyone.'),
+  ('CHAIR_NOT_BOOKS', 'An Acting President can’t also keep the chapter’s books (9.5).'),
+  ('BOOKS_NOT_CHAIR', 'An Acting Treasurer can’t also be the chapter’s President (9.5).'),
+  ('HIATUS_NO_LEAD', 'Members on hiatus can’t lead rides.'),
+  ('COVER_BOARD_SEATS', 'Only board seats can be covered.'),
+  ('COVER_FROM_BOARD', 'A cover goes to someone already on that chapter’s board.'),
+  ('PRESIDENT_NEEDS_BOARD_VOTE', 'Anyone but the sitting VP needs a carried board vote to act as President (8.2, 9.8).'),
+  ('ENDED_BY_VOTE', 'A carried vote ended their time in this seat in the last 90 days. Acting there again needs a new board vote.'),
+  ('WHY_NEEDED', 'Say why, in 120 characters or fewer.'),
+  ('RUN_OVER', 'Acting in this seat has reached its limit (its ACM, or six or twelve months), so it can’t start or run longer. Seat someone in full (9.2, 9.8).'),
+  ('ASKED_RECENTLY', 'The board voted down your request for this seat in the last 28 days.'),
+  ('SMALL_BOARD', 'Too few board members outside this can decide it in the app. Refer it to the NEC (8.6).'),
+  ('LICENCE_ENDS', 'Their recorded licence ends before the until date (9.7).'),
+  ('RECORD_INSTEAD', 'This doesn’t need a vote. Record it as acting, or ask for cover from your own seat.'),
+  ('AUDITOR_STAYS_OUT', 'The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).'),
+  ('BOARD_RECORDS_ACTING', 'Only that chapter’s board can record acting here.'),
+  ('NOT_YOURSELF', 'You can’t record yourself as acting.'),
+  ('OWN_SEAT_ONLY', 'You can only ask for cover of your own board seat.'),
+  ('NO_REQUEST', 'That request isn’t open.'),
+  ('CONFIRM_NOT_STANDIN', 'The stand-in can’t confirm their own acting.'),
+  ('CONFIRM_NOT_HOLDER', 'A third board member confirms the cover you asked for (9.5).'),
+  ('NEEDS_ACTING_VOTE', 'This needs a carried board vote on the request in the last 90 days.'),
+  ('SEAT_ENDED', 'The seat they asked to cover has ended.'),
+  ('WITHDRAW_WHO', 'Only the stand-in or the holder can withdraw this, or the person who asked before a vote on it opens.'),
+  ('NOT_ACTING', 'That isn’t an acting seat.'),
+  ('UNTIL_NOT_PAST', 'Pick today or later. To end it now, step down.'),
+  ('EARLIER_WHO', 'Only the acting person or the holder can bring the date forward.'),
+  ('LATER_WHO_EMPTY', 'Only another board member can give this more time.'),
+  ('VOTED_NEEDS_NEW_VOTE', 'The board voted for this stint, so it needs a new vote to run longer.');
+create function pg_temp.w(key text) returns text language sql stable as $$
+  select t from acting_words where k = key
+$$;
+create function pg_temp.until_range(cap date) returns text language sql immutable as $$
+  select 'Pick an until date from today to ' || to_char(cap, 'DD/MM/YYYY') || '.'
+$$;
+
+-- Each RPC call, as SQL text.
+create function pg_temp.appoint_acting_sql(who int, ch uuid, r text, until date, why text default 'Short-handed')
+returns text language sql stable as $$
+  select format('public.appoint_acting(%L, %L, %L, %L, %L)', pg_temp.f(who), ch, r, until, why)
+$$;
+create function pg_temp.request_cover_sql(seat uuid, who int, until date, why text default 'Away for a while')
+returns text language sql stable as $$
+  select format('public.request_cover(%L, %L, %L, %L)', seat, pg_temp.f(who), until, why)
+$$;
+create function pg_temp.request_acting_sql(who int, ch uuid, r text, covers uuid, until date, why text default 'Can''t be reached')
+returns text language sql stable as $$
+  select format('public.request_acting(%L, %L, %L, %L, %L, %L)', pg_temp.f(who), ch, r, covers, until, why)
+$$;
+create function pg_temp.confirm_sql(req uuid) returns text language sql immutable as $$
+  select format('public.confirm_acting(%L)', req)
+$$;
+create function pg_temp.withdraw_sql(req uuid) returns text language sql immutable as $$
+  select format('public.withdraw_acting_request(%L)', req)
+$$;
+create function pg_temp.set_until_sql(pos uuid, until date) returns text language sql immutable as $$
+  select format('public.set_acting_until(%L, %L)', pos, until)
+$$;
+
+-- Makes the call as member n: null when it goes through (its changes stay), else its refusal.
+create function pg_temp.by(n int, call text) returns text language sql as $$
+  select pg_temp.try_as(pg_temp.f(n), 'select ' || call)
+$$;
+-- Makes the call as member n and returns the id it hands back; a refusal stops the run.
+create function pg_temp.id_by(n int, call text) returns uuid language sql as $$
+  select pg_temp.value_as(pg_temp.f(n), call)::uuid
+$$;
+
+-- A vote as the owner, about member n in that role: closed n days ago after a week open with that
+-- result, or (result null) open since yesterday for two more days.
+create function pg_temp.vote(ch uuid, subject int, r text, electorate text, threshold text, result text,
+  closed_days_ago int default 1, request uuid default null) returns uuid language plpgsql as $$
+declare v uuid;
+begin
+  insert into public.votes (chapter_id, subject_member_id, subject_role, question, electorate, threshold, quorum,
+                            opened_at, closes_at, closed_at, result, acting_request)
+  values (ch, pg_temp.f(subject), r::public.position_role, 'About a seat', electorate::public.electorate,
+          threshold::public.vote_threshold, 3,
+          case when result is null then now() - interval '1 day' else now() - (closed_days_ago + 7) * interval '1 day' end,
+          case when result is null then now() + interval '2 days' else now() - closed_days_ago * interval '1 day' end,
+          case when result is null then null else now() - closed_days_ago * interval '1 day' end,
+          result::public.vote_result, request)
+  returning id into v;
+  return v;
+end $$;
+
+-- The moment that reads as Melbourne date d on the club clock as it stands (moved or not).
+create function pg_temp.on_day(d date) returns timestamptz language sql stable as $$
+  select now() + (d - private.club_date()) * interval '1 day'
+$$;
+
+-- An ACM (or another meeting) as the owner.
+create function pg_temp.meeting(ch uuid, k text, at timestamptz, cancelled boolean default false) returns void language sql as $$
+  insert into public.meetings (chapter_id, kind, title, starts_at, cancelled_at)
+  values (ch, k::public.meeting_kind, 'A meeting', at, case when cancelled then now() end)
+$$;
+
+\echo 'routes: Smokey records Crank as Acting Treasurer (North)'
+begin;
+do $$
+declare
+  stint uuid;
+  u date := pg_temp.today() + 28;
+begin
+  stint := pg_temp.id_by(1, pg_temp.appoint_acting_sql(3, pg_temp.north(), 'treasurer', u, 'No Treasurer since the ACM'));
+  assert (select member_id = pg_temp.f(3) and chapter_id = pg_temp.north() and role = 'treasurer' and started_on = pg_temp.today()
+            and acting_until = u and acting_why = 'No Treasurer since the ACM' and appointed_by = pg_temp.f(1)
+            and covers is null and acting_vote is null and acting_request is null and ended_on is null
+          from positions where id = stint), 'Crank acts as Treasurer from today until the date, recorded by Smokey';
+  assert (select ended_on is null from positions where id = pg_temp.f(103)), 'and keeps his Road Captain seat';
+end $$;
+rollback;
+
+\echo 'routes: every refusal, in order'
+begin;
+do $$
+declare
+  n uuid := pg_temp.north();
+  t date := pg_temp.today();
+  u date := pg_temp.today() + 28;
+  cap date := (pg_temp.today() + interval '6 months')::date;
+  cover uuid;
+  req uuid;
+  v uuid;
+begin
+  -- 1 Signed in and approved.
+  perform set_config('request.jwt.claim.sub', '', true);
+  assert pg_temp.refusal('select ' || pg_temp.appoint_acting_sql(5, n, 'treasurer', u)) = 'Sign in first.', 'signed out';
+  update members set approval = 'suspended' where id = pg_temp.f(6);
+  assert pg_temp.by(6, pg_temp.appoint_acting_sql(5, n, 'treasurer', u)) = 'Only approved members can do that.', 'a suspended member';
+  update members set approval = 'approved' where id = pg_temp.f(6);
+
+  -- 2 The caller's standing: an NEC officer has none.
+  assert pg_temp.by(4, pg_temp.appoint_acting_sql(5, n, 'treasurer', u)) = pg_temp.w('BOARD_RECORDS_ACTING'),
+    'Lou, National Secretary, isn''t on North''s board';
+  assert pg_temp.by(7, pg_temp.appoint_acting_sql(5, n, 'treasurer', u)) = pg_temp.w('BOARD_RECORDS_ACTING'), 'nor is Rusty';
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(3, n, 'treasurer', u)) = pg_temp.w('NOT_YOURSELF'), 'Crank can''t record himself';
+
+  -- 3 The Auditor stays out (11.8).
+  perform pg_temp.seat(12, pg_temp.west(), 'vice_president');
+  assert pg_temp.by(12, pg_temp.appoint_acting_sql(10, pg_temp.west(), 'treasurer', u)) = pg_temp.w('AUDITOR_STAYS_OUT'),
+    'Kim, the Auditor, also West''s VP, can''t record a Treasurer';
+  assert pg_temp.by(12, pg_temp.appoint_acting_sql(10, pg_temp.west(), 'president', u)) = pg_temp.w('AUDITOR_STAYS_OUT'), 'nor a President';
+  assert pg_temp.by(12, pg_temp.appoint_acting_sql(10, pg_temp.west(), 'secretary', u)) = pg_temp.w('SEAT_HAS_HOLDER'),
+    'a Secretary gets past that check';
+
+  -- 5 Who may act.
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'nec_auditor', u)) = pg_temp.w('ACTING_CHAPTER_ONLY'), 'not a national seat';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'founder', u)) = pg_temp.w('ACTING_CHAPTER_ONLY'), 'nor an honour';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(10, n, 'treasurer', u)) = 'They’re not a member of that chapter.', 'Spanner is West''s';
+  update members set approval = 'suspended' where id = pg_temp.f(5);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'treasurer', u)) = 'Approve them first.', 'a suspended member';
+  update members set approval = 'approved', status = 'supporter' where id = pg_temp.f(5);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'treasurer', u)) = 'Only Full and Nomad members hold Club positions (4.6, 5.8).',
+    'hold_problem: a Supporter';
+  update members set status = 'nomad' where id = pg_temp.f(5);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'treasurer', u)) = 'Nomads can’t hold a board or national seat (9.1).',
+    'hold_problem: a Nomad on the board';
+  update members set status = 'full' where id = pg_temp.f(5);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(3, n, 'road_captain', u)) = 'They already hold that role.', 'Crank is Road Captain';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'vice_president', u)) = pg_temp.w('SEAT_HAS_HOLDER'), 'Jet holds the VP seat';
+  req := pg_temp.request(n, 'treasurer', 6, null, u, 'No Treasurer since the ACM', 3);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'treasurer', u)) = pg_temp.w('SEAT_HAS_ACTING'), 'a request is waiting';
+  update acting_requests set closed_at = now(), outcome = 'withdrawn' where id = req;
+  perform pg_temp.seat(6, n, 'sergeant_at_arms', u, 'No Sergeant since the ACM');
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'sergeant_at_arms', u)) = pg_temp.w('SEAT_HAS_ACTING'), 'Gus acts there';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(6, n, 'treasurer', u)) = pg_temp.w('ONE_STINT'), 'Gus acts already';
+  cover := pg_temp.seat(2, n, 'president', u, 'Smokey overseas', pg_temp.f(101));
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(1, n, 'treasurer', u)) = pg_temp.w('OWN_SEAT_COVERED'), 'Jet covers Smokey''s seat';
+  perform pg_temp.end_row(cover, 'holder_back');
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(1, n, 'treasurer', u)) = pg_temp.w('BOOKS_NOT_CHAIR'), 'Smokey is President';
+  update members set on_hiatus = true where id = pg_temp.f(5);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'secretary', u)) = pg_temp.w('HIATUS_NO_LEAD'), 'Ned is on hiatus';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'officer', u, ' ')) = pg_temp.w('WHY_NEEDED'),
+    'an Officer doesn''t lead rides, so hiatus is no bar there';
+  update members set on_hiatus = false where id = pg_temp.f(5);
+  insert into member_private (member_id, licence_class, licence_expiry) values (pg_temp.f(5), 'full_open', u - 1);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'secretary', u)) = pg_temp.w('LICENCE_ENDS'), 'Ned''s licence ends the day before';
+  update member_private set licence_expiry = u where member_id = pg_temp.f(5);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'secretary', u, ' ')) = pg_temp.w('WHY_NEEDED'), 'one lasting the stint is fine';
+  update member_private set licence_class = 'learner', licence_expiry = null where member_id = pg_temp.f(5);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'secretary', u)) = pg_temp.w('LICENCE_ENDS'), 'a learner''s licence';
+  update member_private set licence_class = 'full_open' where member_id = pg_temp.f(5);
+
+  -- 6 The vote rule.
+  v := pg_temp.vote(n, 5, 'secretary', 'chapter_board', 'majority', 'carried', 2);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'secretary', u)) = pg_temp.w('ENDED_BY_VOTE'), 'a board vote ended his acting there';
+  delete from votes where id = v;
+  perform pg_temp.vote(n, 5, 'secretary', 'chapter_board', 'majority', 'carried', 91);
+  req := pg_temp.request(n, 'secretary', 5, null, u, 'No Secretary since the ACM', 3);
+  update acting_requests set closed_at = now(), outcome = 'confirmed' where id = req;
+  perform pg_temp.vote(n, 5, 'secretary', 'chapter_board', 'majority', 'carried', 2, req);
+  perform pg_temp.vote(n, 5, 'secretary', 'chapter_board', 'majority', 'lost', 2);
+  perform pg_temp.vote(n, 5, 'treasurer', 'chapter_board', 'majority', 'carried', 2);
+  perform pg_temp.vote(pg_temp.west(), 5, 'secretary', 'chapter_board', 'majority', 'carried', 2);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, n, 'secretary', u, ' ')) = pg_temp.w('WHY_NEEDED'),
+    'one closed 91 days ago, a vote for acting, a lost one, or one about another seat or chapter doesn''t count';
+  perform pg_temp.end_row(pg_temp.f(101));
+  perform pg_temp.seat(5, n, 'treasurer');
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'president', u)) = pg_temp.w('CHAIR_NOT_BOOKS'), 'Ned is Treasurer';
+  perform pg_temp.end_row(id) from positions where member_id = pg_temp.f(5) and ended_on is null;
+  v := pg_temp.vote(n, 5, 'president', 'chapter_board', 'majority', 'carried', 2);
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'president', u)) = pg_temp.w('ENDED_BY_VOTE'), 'an end vote comes first';
+  delete from votes where id = v;
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'president', u)) = pg_temp.w('PRESIDENT_NEEDS_BOARD_VOTE'), 'Ned isn''t the VP';
+
+  -- 7 Why, and 8 the date.
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'secretary', u, null)) = pg_temp.w('WHY_NEEDED'), 'no why';
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'secretary', u, '  ')) = pg_temp.w('WHY_NEEDED'), 'a blank why';
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'secretary', u, repeat('x', 121))) = pg_temp.w('WHY_NEEDED'), '121 characters';
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'secretary', t - 1)) = pg_temp.until_range(cap), 'until yesterday';
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'secretary', null)) = pg_temp.until_range(cap), 'no until';
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'secretary', cap + 1)) = pg_temp.until_range(cap), 'past the cap';
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'secretary', cap, ' ' || repeat('x', 120) || ' ')) is null,
+    'up to the cap, with 120 characters of why';
+  assert (select acting_why = repeat('x', 120) from positions where member_id = pg_temp.f(5) and role = 'secretary'), 'stored trimmed';
+end $$;
+rollback;
+
+\echo 'routes: President (Smokey''s row ended): Crank records Jet (VP before it ended), no vote; anyone else needs one'
+begin;
+do $$
+declare
+  n uuid := pg_temp.north();
+  u date := pg_temp.today() + 28;
+  stint uuid;
+begin
+  update positions set ended_on = pg_temp.today() - 3, ended_by = pg_temp.f(1) where id = pg_temp.f(101);
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'president', u)) = pg_temp.w('PRESIDENT_NEEDS_BOARD_VOTE'),
+    'Ned, with a VP in the chapter';
+  stint := pg_temp.id_by(3, pg_temp.appoint_acting_sql(2, n, 'president', u, 'No President since Smokey stepped down'));
+  assert (select member_id = pg_temp.f(2) and role = 'president' and covers is null and acting_vote is null and appointed_by = pg_temp.f(3)
+          from positions where id = stint), 'Jet, VP since before the seat fell empty, acts as President with no vote (8.2)';
+end $$;
+rollback;
+begin;
+do $$
+declare
+  n uuid := pg_temp.north();
+  u date := pg_temp.today() + 28;
+begin
+  update positions set ended_on = pg_temp.today() - 3, ended_by = pg_temp.f(1) where id = pg_temp.f(101);
+  update positions set ended_on = pg_temp.today() - 3, ended_by = pg_temp.f(2) where id = pg_temp.f(102);
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'president', u)) = pg_temp.w('PRESIDENT_NEEDS_BOARD_VOTE'),
+    'Ned, with no VP in the chapter';
+  insert into positions (member_id, chapter_id, role, started_on, appointed_by)
+  values (pg_temp.f(5), n, 'vice_president', pg_temp.today() - 3, pg_temp.f(3));
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'president', u)) = pg_temp.w('PRESIDENT_NEEDS_BOARD_VOTE'),
+    'Ned, seated VP by Crank the day the President seat fell empty';
+  update positions set started_on = pg_temp.today() - 1 where member_id = pg_temp.f(5) and role = 'vice_president';
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'president', u)) = pg_temp.w('PRESIDENT_NEEDS_BOARD_VOTE'),
+    'or after it';
+  update positions set started_on = pg_temp.today() - 4 where member_id = pg_temp.f(5) and role = 'vice_president';
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(5, n, 'president', u)) is null, 'a VP seated the day before can act with no vote';
+end $$;
+rollback;
+begin;
+do $$ begin
+  assert pg_temp.by(7, pg_temp.request_cover_sql(pg_temp.f(107), 8, pg_temp.today() + 28, 'Rusty overseas'))
+    = pg_temp.w('PRESIDENT_NEEDS_BOARD_VOTE'), 'West has no VP, so Rusty''s Secretary needs a vote to cover him';
+end $$;
+rollback;
+
+\echo 'routes: Lou can''t record, propose or confirm North''s Acting President'
+begin;
+do $$
+declare
+  n uuid := pg_temp.north();
+  u date := pg_temp.today() + 28;
+  req uuid := pg_temp.request(pg_temp.north(), 'president', 2, pg_temp.f(101), pg_temp.today() + 28, 'Smokey overseas', 1);
+begin
+  assert pg_temp.by(4, pg_temp.confirm_sql(req)) = pg_temp.w('BOARD_RECORDS_ACTING'), 'confirm';
+  update acting_requests set closed_at = now(), outcome = 'withdrawn' where id = req;
+  perform pg_temp.end_row(pg_temp.f(101));
+  assert pg_temp.by(4, pg_temp.appoint_acting_sql(2, n, 'president', u)) = pg_temp.w('BOARD_RECORDS_ACTING'), 'record';
+  assert pg_temp.by(4, pg_temp.request_acting_sql(5, n, 'president', null, u)) = pg_temp.w('BOARD_RECORDS_ACTING'), 'propose';
+end $$;
+rollback;
+
+\echo 'routes: after a carried end vote on Jet''s stint, or a 9.3 removal of Penny as Treasurer, re-recording gets ENDED_BY_VOTE; request_acting takes it'
+begin;
+do $$
+declare
+  n uuid := pg_temp.north();
+  u date := pg_temp.today() + 28;
+  stint uuid;
+  req uuid;
+begin
+  perform pg_temp.end_row(pg_temp.f(101));
+  stint := pg_temp.seat(2, n, 'president', u, 'No President since Smokey stepped down');
+  perform pg_temp.vote(n, 2, 'president', 'chapter_board', 'majority', 'carried', 1);
+  perform pg_temp.end_row(stint, 'removed');
+  assert pg_temp.by(3, pg_temp.appoint_acting_sql(2, n, 'president', u)) = pg_temp.w('ENDED_BY_VOTE'),
+    'the board voted Jet out of acting there yesterday, so Crank can''t record him again';
+  perform pg_temp.seat(5, n, 'secretary');
+  perform pg_temp.seat(6, n, 'treasurer');
+  req := pg_temp.id_by(3, pg_temp.request_acting_sql(2, n, 'president', null, u, 'Jet again, if the board agrees'));
+  assert (select member_id = pg_temp.f(2) and covers is null and requested_by = pg_temp.f(3) and closed_at is null
+          from acting_requests where id = req), 'a new board vote can, so Crank proposes it';
+end $$;
+rollback;
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  u date := pg_temp.today() + 28;
+  req uuid;
+begin
+  perform pg_temp.vote(w, 9, 'treasurer', 'chapter_patched', 'two_thirds', 'carried', 1);
+  perform pg_temp.end_row(pg_temp.f(109), 'removed');
+  assert pg_temp.by(8, pg_temp.appoint_acting_sql(9, w, 'treasurer', u)) = pg_temp.w('ENDED_BY_VOTE'),
+    'West''s Full Members removed Penny as Treasurer yesterday (9.3), so Torque can''t record her acting there';
+  perform pg_temp.seat(10, w, 'sergeant_at_arms');
+  perform pg_temp.seat(11, w, 'road_captain');
+  req := pg_temp.id_by(8, pg_temp.request_acting_sql(9, w, 'treasurer', null, u, 'Penny again, if the board agrees'));
+  assert (select member_id = pg_temp.f(9) and requested_by = pg_temp.f(8) from acting_requests where id = req), 'a board vote can';
+end $$;
+rollback;
+
+\echo 'caps: from 30/11/2026 and 31/01/2027'
+do $$
+declare n uuid := pg_temp.north();
+begin
+  assert private.acting_cap(n, 'president', true, '2026-11-30') = '2027-02-28', 'a cover: three months, to the month''s end';
+  assert private.acting_cap(n, 'treasurer', false, '2026-11-30') = '2027-05-30', 'an empty board seat with no ACM saved: six months';
+  assert private.acting_cap(n, 'president', true, '2027-01-31') = '2027-04-30', 'a cover from 31/01';
+  assert private.acting_cap(n, 'treasurer', false, '2027-01-31') = '2027-07-31', 'an empty seat from 31/01';
+end $$;
+
+\echo 'caps: a North agm on 14/02/2027 caps the empty seat at 2027-02-14'
+begin;
+do $$
+declare
+  n uuid := pg_temp.north();
+begin
+  perform pg_temp.meeting(n, 'agm', '2027-02-14 00:30 Australia/Melbourne');
+  perform pg_temp.meeting(n, 'agm', '2027-01-10 19:00 Australia/Melbourne', true);
+  perform pg_temp.meeting(n, 'special', '2027-01-05 19:00 Australia/Melbourne');
+  perform pg_temp.meeting(n, 'general', '2027-01-06 19:00 Australia/Melbourne');
+  perform pg_temp.meeting(pg_temp.west(), 'agm', '2027-01-03 19:00 Australia/Melbourne');
+  perform pg_temp.meeting(null, 'agm', '2027-01-04 19:00 Australia/Melbourne');
+  perform pg_temp.meeting(n, 'agm', '2026-11-29 19:00 Australia/Melbourne');
+  assert private.acting_cap(n, 'treasurer', false, '2026-11-30') = '2027-02-14',
+    'the first uncancelled North ACM on or after the start, by its Melbourne date';
+  assert private.acting_cap(n, 'treasurer', true, '2026-11-30') = '2027-02-28', 'a cover ignores it';
+  assert private.acting_cap(n, 'tail_gunner', false, '2026-11-30') = '2027-05-30', 'so does a non-board role';
+end $$;
+rollback;
+
+\echo 'caps: a 2029 agm caps at run start + 12 months'
+begin;
+do $$ begin
+  perform pg_temp.meeting(pg_temp.north(), 'agm', '2029-03-01 19:00 Australia/Melbourne');
+  assert private.acting_cap(pg_temp.north(), 'treasurer', false, '2026-11-30') = '2027-11-30', 'never more than twelve months';
+end $$;
+rollback;
+
+\echo 'caps: re-recorded the day after stepping down keeps the first start'
+-- These move the club clock and touch only dates (started_on, ended_on, acting_until), which stay
+-- put when it moves.
+begin;
+select pg_temp.clock_at('2026-11-30 12:00 Australia/Melbourne');
+do $$ begin
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'treasurer', '2026-12-31')) is null, 'Ned acts from 30/11';
+end $$;
+select pg_temp.clock_at('2026-12-10 12:00 Australia/Melbourne');
+select pg_temp.end_row(id) from positions where member_id = pg_temp.f(5) and ended_on is null;
+select pg_temp.clock_at('2026-12-11 12:00 Australia/Melbourne');
+do $$ begin
+  assert private.acting_cap(pg_temp.north(), 'treasurer', false, '2026-12-11') = '2027-05-30', 'the run started on 30/11';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'treasurer', '2027-05-31')) = pg_temp.until_range('2027-05-30'),
+    'so re-recording Ned the day after he stepped down can''t reach past 30/05/2027';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(6, pg_temp.north(), 'treasurer', '2027-05-31')) = pg_temp.until_range('2027-05-30'),
+    'nor can recording Gus there instead';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'treasurer', '2027-05-30')) is null, 'up to it is fine';
+end $$;
+rollback;
+
+\echo 'caps: an agm held since the run began: RUN_OVER for a new stint or an extension; one before it doesn''t count'
+begin;
+do $$
+declare
+  t date := pg_temp.today();
+  stint uuid := pg_temp.seat(5, pg_temp.north(), 'treasurer', pg_temp.today() + 10, 'No Treasurer since the ACM', null, pg_temp.today() - 30);
+begin
+  perform pg_temp.meeting(pg_temp.north(), 'agm', pg_temp.on_day(t - 40));
+  assert private.acting_cap(pg_temp.north(), 'treasurer', false, t - 30) = (t - 30 + interval '6 months')::date,
+    'an ACM before the run began doesn''t count';
+  assert pg_temp.by(3, pg_temp.set_until_sql(stint, t + 20)) is null, 'so Ned''s stint can run longer';
+  perform pg_temp.meeting(pg_temp.north(), 'agm', pg_temp.on_day(t - 5));
+  assert private.acting_cap(pg_temp.north(), 'treasurer', false, t - 30) = t - 5, 'the run''s ACM was five days ago';
+  assert pg_temp.by(3, pg_temp.set_until_sql(stint, t + 25)) = pg_temp.w('RUN_OVER'), 'so it can''t run longer now';
+  assert pg_temp.by(5, pg_temp.set_until_sql(stint, t + 1)) is null, 'though Ned can bring it forward';
+  perform pg_temp.end_row(stint);
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(6, pg_temp.north(), 'treasurer', t + 10)) = pg_temp.w('RUN_OVER'),
+    'nor can a new stint start in the seat';
+end $$;
+rollback;
+
+\echo 'caps: 29 days after the last stint ended, a new run'
+begin;
+select pg_temp.clock_at('2026-11-30 12:00 Australia/Melbourne');
+do $$ begin
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'treasurer', '2026-12-31')) is null, 'Ned acts from 30/11';
+end $$;
+select pg_temp.clock_at('2027-01-29 12:00 Australia/Melbourne');
+select private.close_lapsed_acting();
+do $$ begin
+  assert (select ended_on = '2027-01-01' from positions where member_id = pg_temp.f(5) and role = 'treasurer'), 'it lapsed: last day 31/12';
+  assert private.acting_cap(pg_temp.north(), 'treasurer', false, '2027-01-29') = '2027-05-30', '28 days on, the same run';
+end $$;
+select pg_temp.clock_at('2027-01-30 12:00 Australia/Melbourne');
+do $$ begin
+  assert private.acting_cap(pg_temp.north(), 'treasurer', false, '2027-01-30') = '2027-07-30', '29 days on, a new run';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(6, pg_temp.north(), 'treasurer', '2027-07-30')) is null, 'so Gus gets six months';
+end $$;
+rollback;
+begin;
+select pg_temp.clock_at('2026-11-30 12:00 Australia/Melbourne');
+do $$ begin
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'treasurer', '2026-12-31')) is null, 'Ned acts from 30/11';
+end $$;
+select pg_temp.clock_at('2026-12-05 12:00 Australia/Melbourne');
+select pg_temp.end_row(id) from positions where member_id = pg_temp.f(5) and ended_on is null;
+select pg_temp.seat(6, pg_temp.north(), 'treasurer');
+select pg_temp.clock_at('2026-12-06 12:00 Australia/Melbourne');
+select pg_temp.end_row(id) from positions where member_id = pg_temp.f(6) and ended_on is null;
+do $$ begin
+  assert private.acting_cap(pg_temp.north(), 'treasurer', false, '2026-12-06') = '2027-06-06',
+    'a stint before the seat''s last elected holder ended isn''t in the run';
+end $$;
+rollback;
+
+\echo 'caps: an Acting Tail Gunner beside a sitting one caps at its start + 6 months'
+begin;
+select pg_temp.seat(6, pg_temp.north(), 'tail_gunner');
+select pg_temp.meeting(pg_temp.north(), 'agm', now() + interval '10 days');
+do $$
+declare cap date := (pg_temp.today() + interval '6 months')::date;
+begin
+  assert private.acting_cap(pg_temp.north(), 'tail_gunner', false, pg_temp.today()) = cap, 'six months, ACM or not';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'tail_gunner', cap + 1)) = pg_temp.until_range(cap), 'not a day more';
+  assert pg_temp.by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'tail_gunner', cap)) is null, 'Ned acts beside Gus';
+  assert (select count(*) from positions where chapter_id = pg_temp.north() and role = 'tail_gunner' and ended_on is null) = 2, 'two Tail Gunners';
+end $$;
+rollback;
+
+\echo 'routes: Smokey asks for Jet; Crank confirms'
+begin;
+do $$
+declare
+  u date := pg_temp.today() + 28;
+  req uuid;
+  pos uuid;
+begin
+  req := pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, u, 'Smokey overseas'));
+  assert (select chapter_id = pg_temp.north() and role = 'president' and member_id = pg_temp.f(2) and covers = pg_temp.f(101)
+            and until = u and why = 'Smokey overseas' and requested_by = pg_temp.f(1) and closed_at is null
+          from acting_requests where id = req), 'Smokey asks for Jet to cover his seat';
+  assert not exists (select 1 from positions where covers = pg_temp.f(101)), 'nothing moves yet';
+  pos := pg_temp.id_by(3, pg_temp.confirm_sql(req));
+  assert (select member_id = pg_temp.f(2) and chapter_id = pg_temp.north() and role = 'president' and covers = pg_temp.f(101)
+            and started_on = pg_temp.today() and acting_until = u and acting_why = 'Smokey overseas' and appointed_by = pg_temp.f(3)
+            and acting_vote is null and acting_request = req
+          from positions where id = pos), 'Crank confirms: Jet covers Smokey, with no vote behind it';
+  assert (select outcome = 'confirmed' and closed_at is not null from acting_requests where id = req), 'the request is confirmed';
+  assert pg_temp.by(3, pg_temp.confirm_sql(req)) = pg_temp.w('NO_REQUEST'), 'a second confirm';
+  assert (select count(*) from positions where covers = pg_temp.f(101)) = 1, 'one cover';
+end $$;
+rollback;
+
+\echo 'routes: asking for a cover: the refusals'
+begin;
+do $$
+declare
+  u date := pg_temp.today() + 28;
+  tg uuid := pg_temp.seat(3, pg_temp.north(), 'tail_gunner');
+  req uuid;
+begin
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(101), 1, u)) = pg_temp.w('NOT_YOURSELF'), 'Smokey can''t cover himself';
+  assert pg_temp.by(3, pg_temp.request_cover_sql(pg_temp.f(101), 2, u)) = pg_temp.w('OWN_SEAT_ONLY'), 'Crank can''t ask for Smokey''s seat';
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(102), 3, u)) = pg_temp.w('OWN_SEAT_ONLY'), 'nor Smokey for Jet''s';
+  assert pg_temp.by(3, pg_temp.request_cover_sql(tg, 2, u)) = pg_temp.w('OWN_SEAT_ONLY'), 'a Tail Gunner seat isn''t a board seat';
+  req := pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms', u, 'No Sergeant since the ACM');
+  assert pg_temp.by(6, pg_temp.request_cover_sql(req, 2, u)) = pg_temp.w('OWN_SEAT_ONLY'), 'nor is an acting one Gus''s own to hand on';
+  perform pg_temp.end_row(req);
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(101), 5, u)) = pg_temp.w('COVER_FROM_BOARD'), 'Ned isn''t on the board';
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(101), 3, u)) = pg_temp.w('PRESIDENT_NEEDS_BOARD_VOTE'), 'Crank isn''t the VP';
+  req := pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 'carried', 1);
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, u)) = pg_temp.w('ENDED_BY_VOTE'), 'a board vote ended Jet''s acting there';
+  delete from votes where id = req;
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, u, ' ')) = pg_temp.w('WHY_NEEDED'), 'a why';
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, (pg_temp.today() + interval '3 months')::date + 1))
+    = pg_temp.until_range((pg_temp.today() + interval '3 months')::date), 'a cover runs three months at most';
+  req := pg_temp.request(pg_temp.north(), 'president', 2, pg_temp.f(101), u, 'Smokey overseas', 3);
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, u)) = pg_temp.w('SEAT_HAS_ACTING'), 'a request is waiting';
+  perform pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 'lost', 1, req);
+  assert pg_temp.by(3, pg_temp.request_cover_sql(pg_temp.f(103), 2, u)) is null, 'Crank asks for Jet to cover his Road Captain seat';
+  assert (select outcome = 'rejected' from acting_requests where id = req), 'which closed the voted-down request';
+  update acting_requests set requested_by = pg_temp.f(1) where id = req;
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, u)) = pg_temp.w('ASKED_RECENTLY'), 'had Smokey asked, he''d wait';
+  update acting_requests set closed_at = now() - interval '28 days' where id = req;
+  update acting_requests set closed_at = now(), outcome = 'withdrawn' where closed_at is null;
+  perform pg_temp.end_row(pg_temp.f(102));
+  assert pg_temp.by(1, pg_temp.request_cover_sql(pg_temp.f(101), 3, u)) = pg_temp.w('SMALL_BOARD'), 'a board of two';
+end $$;
+rollback;
+
+\echo 'routes: confirm re-runs every check'
+begin;
+do $$
+declare req uuid := pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, pg_temp.today() + 28, 'Smokey overseas'));
+begin
+  assert pg_temp.by(1, pg_temp.confirm_sql(req)) = pg_temp.w('CONFIRM_NOT_HOLDER'), 'not Smokey';
+  assert pg_temp.by(2, pg_temp.confirm_sql(req)) = pg_temp.w('CONFIRM_NOT_STANDIN'), 'not Jet';
+  perform pg_temp.end_row(pg_temp.f(101));
+  assert pg_temp.by(3, pg_temp.confirm_sql(req)) = pg_temp.w('SEAT_ENDED'), 'Smokey''s seat ended';
+  assert (select closed_at is null from acting_requests where id = req), 'a refused confirm leaves the request open';
+end $$;
+rollback;
+begin;
+do $$
+declare req uuid := pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, pg_temp.today() + 28, 'Smokey overseas'));
+begin
+  perform pg_temp.end_row(pg_temp.f(102));
+  assert pg_temp.by(3, pg_temp.confirm_sql(req)) = pg_temp.w('COVER_FROM_BOARD'), 'Jet left the board';
+end $$;
+rollback;
+begin;
+do $$
+declare req uuid := pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, pg_temp.today() + 28, 'Smokey overseas'));
+begin
+  perform pg_temp.seat(2, pg_temp.north(), 'tail_gunner', pg_temp.today() + 10, 'Short a Tail Gunner');
+  assert pg_temp.by(3, pg_temp.confirm_sql(req)) = pg_temp.w('ONE_STINT'), 'Jet is acting elsewhere';
+end $$;
+rollback;
+begin;
+do $$
+declare req uuid := pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, pg_temp.today() + 28, 'Smokey overseas'));
+begin
+  perform pg_temp.seat(2, pg_temp.north(), 'secretary');
+  perform pg_temp.end_row(pg_temp.f(102));
+  assert pg_temp.by(3, pg_temp.confirm_sql(req)) = pg_temp.w('NEEDS_ACTING_VOTE'),
+    'Jet is still on the board as Secretary, but no longer the VP, so a cover of the President needs a vote';
+end $$;
+rollback;
+begin;
+create temp table ids as
+  select pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, pg_temp.today() + 3, 'Smokey overseas')) as req;
+select pg_temp.clock_at(now() + interval '4 days');
+do $$
+declare
+  req uuid := (select req from ids);
+  again uuid;
+begin
+  assert pg_temp.by(3, pg_temp.confirm_sql(req)) = pg_temp.w('NO_REQUEST'), 'its date passed';
+  again := pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, pg_temp.today() + 3, 'Smokey still overseas'));
+  assert (select outcome = 'lapsed' from acting_requests where id = req), 'the old one lapsed';
+  assert pg_temp.by(3, pg_temp.confirm_sql(again)) is null, 'a new request fits, and goes through';
+end $$;
+rollback;
+
+\echo 'routes: a voted cover'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+do $$
+declare
+  n uuid := pg_temp.north();
+  u date := pg_temp.today() + 28;
+  req uuid;
+  v uuid;
+  pos uuid;
+begin
+  req := pg_temp.id_by(3, pg_temp.request_acting_sql(2, n, 'president', pg_temp.f(101), u, 'Smokey can''t be reached'));
+  assert pg_temp.by(5, pg_temp.confirm_sql(req)) = pg_temp.w('NEEDS_ACTING_VOTE'), 'Crank asked, not Smokey, so it needs a vote';
+  perform pg_temp.vote(n, 2, 'president', 'chapter_board', 'majority', 'carried', 91, req);
+  assert pg_temp.by(5, pg_temp.confirm_sql(req)) = pg_temp.w('NEEDS_ACTING_VOTE'), 'one that closed 91 days ago doesn''t count';
+  v := pg_temp.vote(n, 2, 'president', 'chapter_board', 'majority', 'carried', 1, req);
+  assert (select private.club_date(opened_at) = pg_temp.today() - 8 from votes where id = v), 'opened 8 days ago, closed yesterday';
+  pos := pg_temp.id_by(5, pg_temp.confirm_sql(req));
+  assert (select covers = pg_temp.f(101) and acting_vote = v and acting_request = req and appointed_by = pg_temp.f(5)
+          from positions where id = pos), 'Ned confirms it; the row records the vote and the request';
+end $$;
+rollback;
+begin;
+do $$ begin
+  assert pg_temp.by(3, pg_temp.request_acting_sql(2, pg_temp.north(), 'president', pg_temp.f(101), pg_temp.today() + 28))
+    = pg_temp.w('SMALL_BOARD'), 'North''s board of three, less Jet and Smokey, leaves Crank alone';
+end $$;
+rollback;
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+do $$ begin
+  assert pg_temp.by(3, pg_temp.request_acting_sql(4, pg_temp.north(), 'treasurer', null, pg_temp.today() + 28))
+    = pg_temp.w('RECORD_INSTEAD'), 'an empty Treasurer seat needs no vote';
+  assert pg_temp.by(1, pg_temp.request_acting_sql(2, pg_temp.north(), 'president', pg_temp.f(101), pg_temp.today() + 28))
+    = pg_temp.w('RECORD_INSTEAD'), 'nor does Smokey''s own cover by Jet: he asks from his seat';
+  assert pg_temp.by(3, pg_temp.request_acting_sql(2, pg_temp.north(), 'tail_gunner', pg_temp.seat(4, pg_temp.north(), 'tail_gunner'),
+    pg_temp.today() + 28)) = pg_temp.w('COVER_BOARD_SEATS'), 'Lou''s Tail Gunner seat can''t be covered';
+end $$;
+rollback;
+
+\echo 'routes: withdraw by requester, stand-in and holder; Crank once his vote opened, Gus (seated) and Spanner get WITHDRAW_WHO'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+create function pg_temp.crank_asks() returns uuid language sql as $$
+  select pg_temp.id_by(3, pg_temp.request_acting_sql(2, pg_temp.north(), 'president', pg_temp.f(101), pg_temp.today() + 28))
+$$;
+do $$
+declare req uuid;
+begin
+  req := pg_temp.crank_asks();
+  assert pg_temp.by(3, pg_temp.withdraw_sql(req)) is null, 'Crank withdraws his own request';
+  assert (select outcome = 'withdrawn' and closed_at is not null from acting_requests where id = req), 'withdrawn';
+  assert pg_temp.by(3, pg_temp.withdraw_sql(req)) = pg_temp.w('NO_REQUEST'), 'once';
+  req := pg_temp.crank_asks();
+  assert pg_temp.by(2, pg_temp.withdraw_sql(req)) is null, 'Jet, the stand-in, declines';
+  req := pg_temp.crank_asks();
+  assert pg_temp.by(1, pg_temp.withdraw_sql(req)) is null, 'Smokey, the holder, says no';
+  req := pg_temp.crank_asks();
+  perform pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', null, 1, req);
+  assert pg_temp.by(3, pg_temp.withdraw_sql(req)) = pg_temp.w('WITHDRAW_WHO'), 'Crank, once a vote on it opened';
+  assert pg_temp.by(6, pg_temp.withdraw_sql(req)) = pg_temp.w('WITHDRAW_WHO'), 'Gus, on the board';
+  assert pg_temp.by(10, pg_temp.withdraw_sql(req)) = pg_temp.w('WITHDRAW_WHO'), 'Spanner';
+  assert pg_temp.by(2, pg_temp.withdraw_sql(req)) is null, 'Jet still can';
+  req := pg_temp.crank_asks();
+  perform pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 'carried', 1, req);
+  assert pg_temp.by(3, pg_temp.withdraw_sql(req)) = pg_temp.w('WITHDRAW_WHO'), 'Crank, once a vote on it carried';
+  assert pg_temp.by(1, pg_temp.withdraw_sql(req)) is null, 'Smokey still can';
+  perform pg_temp.end_row(pg_temp.f(101));
+  req := pg_temp.id_by(3, pg_temp.request_acting_sql(5, pg_temp.north(), 'president', null, pg_temp.today() + 28, 'No President since Smokey stepped down'));
+  assert pg_temp.by(6, pg_temp.withdraw_sql(req)) = pg_temp.w('WITHDRAW_WHO'), 'an empty seat has no holder: Gus still can''t';
+  assert pg_temp.by(5, pg_temp.withdraw_sql(req)) is null, 'Ned, the stand-in, can';
+end $$;
+rollback;
+
+\echo 'routes: after a lost vote, Crank asking again gets ASKED_RECENTLY'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+do $$
+declare
+  ask text := pg_temp.request_acting_sql(2, pg_temp.north(), 'president', pg_temp.f(101), pg_temp.today() + 28);
+  req uuid := pg_temp.id_by(3, pg_temp.request_acting_sql(2, pg_temp.north(), 'president', pg_temp.f(101), pg_temp.today() + 28));
+begin
+  perform pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 'lost', 1, req);
+  assert pg_temp.by(3, ask) = pg_temp.w('ASKED_RECENTLY'), 'the board voted it down';
+  perform private.close_lapsed_acting();
+  assert (select outcome = 'rejected' from acting_requests where id = req), 'which closes it (a refusal rolls its own lazy close back)';
+  update acting_requests set closed_at = now() - interval '27 days' where id = req;
+  assert pg_temp.by(3, ask) = pg_temp.w('ASKED_RECENTLY'), '27 days on';
+  assert pg_temp.by(5, ask) is null, 'another board member can ask';
+  update acting_requests set closed_at = now(), outcome = 'withdrawn' where closed_at is null;
+  update acting_requests set closed_at = now() - interval '28 days' where id = req;
+  assert pg_temp.by(3, ask) is null, '28 days on, Crank can too';
+end $$;
+rollback;
+
+\echo 'dates: set_acting_until'
+begin;
+do $$
+declare
+  n uuid := pg_temp.north();
+  t date := pg_temp.today();
+  cap date := (pg_temp.today() + interval '6 months')::date;
+  stint uuid := pg_temp.id_by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'treasurer', pg_temp.today() + 20, 'No Treasurer since the ACM'));
+begin
+  assert pg_temp.by(5, pg_temp.set_until_sql(stint, t - 1)) = pg_temp.w('UNTIL_NOT_PAST'), 'not before today';
+  assert pg_temp.by(3, pg_temp.set_until_sql(stint, t + 10)) = pg_temp.w('EARLIER_WHO'), 'Crank can''t bring it forward';
+  assert pg_temp.by(5, pg_temp.set_until_sql(stint, t + 10)) is null, 'Ned can';
+  assert pg_temp.by(5, pg_temp.set_until_sql(stint, t + 30)) = pg_temp.w('LATER_WHO_EMPTY'), 'but not give himself more time';
+  assert pg_temp.by(10, pg_temp.set_until_sql(stint, t + 30)) = pg_temp.w('LATER_WHO_EMPTY'), 'nor can Spanner, off the board';
+  assert pg_temp.by(3, pg_temp.set_until_sql(stint, cap + 1)) = pg_temp.until_range(cap), 'nor anyone past the cap';
+  assert pg_temp.by(3, pg_temp.set_until_sql(stint, cap)) is null, 'Crank gives him more time';
+  assert (select acting_until = cap and started_on = t from positions where id = stint), 'the start stays';
+  assert (select array_agg(array[old_until::text, new_until::text, changed_by::text] order by id) from acting_changes where position_id = stint)
+    = array[array[(t + 20)::text, (t + 10)::text, pg_temp.f(5)::text], array[(t + 10)::text, cap::text, pg_temp.f(3)::text]],
+    'one change logged each time, with who';
+  assert pg_temp.by(1, pg_temp.set_until_sql(pg_temp.f(103), t + 10)) = pg_temp.w('NOT_ACTING'), 'Crank''s Road Captain seat';
+end $$;
+rollback;
+begin;
+do $$
+declare
+  t date := pg_temp.today();
+  cap date := (pg_temp.today() + interval '3 months')::date;
+  cover uuid := pg_temp.id_by(3, pg_temp.confirm_sql(
+    pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, pg_temp.today() + 20, 'Smokey overseas'))));
+begin
+  assert pg_temp.by(1, pg_temp.set_until_sql(cover, t + 15)) is null, 'Smokey brings it forward';
+  assert pg_temp.by(2, pg_temp.set_until_sql(cover, t + 10)) is null, 'so can Jet';
+  assert pg_temp.by(3, pg_temp.set_until_sql(cover, t + 5)) = pg_temp.w('EARLIER_WHO'), 'Crank can''t';
+  assert pg_temp.by(2, pg_temp.set_until_sql(cover, t + 30)) = 'Only Smokey can keep this cover going longer.', 'Jet can''t extend it';
+  assert pg_temp.by(3, pg_temp.set_until_sql(cover, t + 30)) = 'Only Smokey can keep this cover going longer.', 'nor Crank';
+  assert pg_temp.by(1, pg_temp.set_until_sql(cover, cap + 1)) = pg_temp.until_range(cap), 'three months at most';
+  assert pg_temp.by(1, pg_temp.set_until_sql(cover, cap)) is null, 'Smokey is still away';
+  assert (select count(*) from acting_changes where position_id = cover) = 3, 'three changes';
+end $$;
+rollback;
+begin;
+do $$
+declare
+  n uuid := pg_temp.north();
+  t date := pg_temp.today();
+  v uuid := pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 'carried', 1);
+  cover uuid := pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey can''t be reached', pg_temp.f(101));
+  stint uuid;
+begin
+  update positions set acting_vote = v where id = cover;
+  assert pg_temp.by(1, pg_temp.set_until_sql(cover, t + 30)) = pg_temp.w('VOTED_NEEDS_NEW_VOTE'), 'a voted cover needs a new vote';
+  assert pg_temp.by(1, pg_temp.set_until_sql(cover, t + 10)) is null, 'though Smokey can bring it forward';
+  perform pg_temp.end_row(pg_temp.f(101));
+  perform pg_temp.seat(5, n, 'secretary');
+  stint := pg_temp.seat(5, n, 'president', t + 20, 'No President since Smokey stepped down');
+  update positions set acting_vote = v where id = stint;
+  assert pg_temp.by(3, pg_temp.set_until_sql(stint, t + 30)) = pg_temp.w('VOTED_NEEDS_NEW_VOTE'), 'so does a voted empty-seat President';
+end $$;
+rollback;
+begin;
+do $$
+declare
+  t date := pg_temp.today();
+  stint uuid;
+begin
+  perform pg_temp.end_row(pg_temp.f(101));
+  stint := pg_temp.id_by(3, pg_temp.appoint_acting_sql(2, pg_temp.north(), 'president', t + 20, 'No President since Smokey stepped down'));
+  assert pg_temp.by(3, pg_temp.set_until_sql(stint, t + 30)) is null, 'Jet, still the VP, can be given more time';
+  perform pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 'carried', 1);
+  assert pg_temp.by(3, pg_temp.set_until_sql(stint, t + 40)) = pg_temp.w('ENDED_BY_VOTE'), 'not once the board voted to end it';
+end $$;
+rollback;
+begin;
+do $$
+declare stint uuid := pg_temp.seat(11, pg_temp.west(), 'vice_president', pg_temp.today() - 1, 'No VP since the ACM', null, pg_temp.today() - 10);
+begin
+  assert pg_temp.by(7, pg_temp.set_until_sql(stint, pg_temp.today() + 5)) = 'That term has already ended.', 'Hal''s stint lapsed last night';
+end $$;
+rollback;
+
+\echo 'auditor: Kim in a West VP seat can''t record, propose, confirm or change acting for West''s President or Treasurer, but can for Secretary'
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  u date := pg_temp.today() + 28;
+  stint uuid;
+begin
+  perform pg_temp.seat(12, w, 'vice_president');
+  perform pg_temp.end_row(pg_temp.f(109));
+  perform pg_temp.end_row(pg_temp.f(108));
+  assert pg_temp.by(12, pg_temp.appoint_acting_sql(10, w, 'treasurer', u)) = pg_temp.w('AUDITOR_STAYS_OUT'), 'record a Treasurer';
+  stint := pg_temp.id_by(7, pg_temp.appoint_acting_sql(10, w, 'treasurer', u));
+  assert pg_temp.by(12, pg_temp.set_until_sql(stint, u + 10)) = pg_temp.w('AUDITOR_STAYS_OUT'), 'change one';
+  assert pg_temp.by(12, pg_temp.appoint_acting_sql(11, w, 'secretary', u)) is null, 'Kim records Hal as Acting Secretary';
+  stint := (select id from positions where member_id = pg_temp.f(11) and ended_on is null);
+  assert pg_temp.by(12, pg_temp.set_until_sql(stint, u + 10)) is null, 'and gives him more time';
+end $$;
+rollback;
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  u date := pg_temp.today() + 28;
+  req uuid;
+begin
+  perform pg_temp.seat(12, w, 'vice_president');
+  perform pg_temp.seat(10, w, 'sergeant_at_arms');
+  assert (select array_agg(e order by e) from private.acting_electors(w, 'president', pg_temp.f(8), pg_temp.f(107)) e)
+    = array[pg_temp.f(9), pg_temp.f(10)], 'on Torque covering Rusty: not Torque, not Rusty, not Kim (11.8)';
+  assert (select array_agg(e order by e) from private.acting_electors(w, 'secretary', pg_temp.f(10), pg_temp.f(108)) e)
+    = array[pg_temp.f(7), pg_temp.f(9), pg_temp.f(12)], 'on Spanner covering Torque: Kim decides a Secretary''s';
+  assert pg_temp.by(9, pg_temp.request_acting_sql(8, w, 'president', pg_temp.f(107), u)) = pg_temp.w('SMALL_BOARD'),
+    'so Penny''s proposal for Rusty''s seat has two to decide it';
+  assert pg_temp.by(12, pg_temp.request_acting_sql(8, w, 'president', pg_temp.f(107), u)) = pg_temp.w('AUDITOR_STAYS_OUT'), 'propose a President cover';
+  assert pg_temp.by(12, pg_temp.request_acting_sql(10, w, 'secretary', pg_temp.f(108), u)) is null, 'but a Secretary cover, yes';
+  update acting_requests set closed_at = now(), outcome = 'withdrawn' where closed_at is null;
+  req := pg_temp.id_by(9, pg_temp.request_cover_sql(pg_temp.f(109), 8, u, 'Penny overseas'));
+  assert pg_temp.by(12, pg_temp.confirm_sql(req)) = pg_temp.w('AUDITOR_STAYS_OUT'), 'confirm a Treasurer cover';
+  req := pg_temp.id_by(8, pg_temp.request_cover_sql(pg_temp.f(108), 9, u, 'Torque overseas'));
+  assert pg_temp.by(12, pg_temp.confirm_sql(req)) is null, 'Kim confirms Penny covering Torque''s Secretary seat';
+end $$;
+rollback;
 
 \echo 'ACTING CHECKS PASSED'
