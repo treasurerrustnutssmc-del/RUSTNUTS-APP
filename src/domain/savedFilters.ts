@@ -45,3 +45,13 @@ export async function saveFilters(storage: FilterStorage, memberId: string, patc
 export function sameColours(a: RideCategory[], b: RideCategory[]): boolean {
   return a.length === b.length && a.every((c) => b.includes(c));
 }
+
+/**
+ * Which way the ride colours shown differ from the member's usual set: 'hidden' when any usual
+ * colour is off (whether or not others were added), 'extra' when every usual colour is on and others
+ * were added, and null when they are the same.
+ */
+export function colourNote(shown: RideCategory[], usual: RideCategory[]): 'hidden' | 'extra' | null {
+  if (usual.some((c) => !shown.includes(c))) return 'hidden';
+  return shown.some((c) => !usual.includes(c)) ? 'extra' : null;
+}
