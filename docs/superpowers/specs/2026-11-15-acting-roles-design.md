@@ -49,7 +49,8 @@ temporary, and nothing ends it. The constitution already has acting:
   works the same with or without covers.
 - The 8.6 referral, where a board without quorum sends the matter to the NEC. A chapter with fewer
   than three board members can fill an empty seat as acting, but can't arrange a cover in the app.
-  The panel says to refer it to the NEC (8.6).
+  The panel says to refer it to the NEC (8.6), and `request_cover` and `request_acting` refuse with
+  the same words.
 - Relabelling 17.6's cross-chapter temporary Treasurer arrangement.
 
 ## Anti-goals (what must not happen)
@@ -93,7 +94,7 @@ other.
 | **Held** | Open rows whose stint hasn't lapsed | Titles, eligibility (`hold_problem`), "end their positions first", history |
 | **Board member** | A distinct person with a held board row in the chapter, covered or not | Board ballot and quorum (8.1, 8.5), acting as the board (`is_board_of`), board records, chapter-fund approvals (13.3), board notifications, ride leader |
 | **Duties** | Held rows, minus any row a live cover points at | Chairing and the casting vote (`chair_of`), the NEC seat and vote (`nec_voter_for`, `is_national`), the chapter's books and fees (`keeps_books(chapter)`, `can_manage_fees`), every other check naming one role (Road Captain, Tail Gunner, committees) |
-| **Club-wide** | Duties rows that aren't acting | Every chapter's private details (the national branch of `sees_board_of`), the Club fund's books (any chapter Treasurer, inferred) and approvals (sitting Presidents), the shop (`shop_seat`) |
+| **Club-wide** | Duties rows that aren't acting | Every chapter's private details (the national branch of `sees_board_of`, other chapters' chapter chats), the Club fund's books (any chapter Treasurer, inferred) and approvals (sitting Presidents), the shop (`shop_seat`), the app feedback inbox (`is_feedback_keeper`) |
 
 What this means for each person:
 
@@ -136,9 +137,9 @@ Refused for everyone, with the same words in `actingProblem` (app) and `private.
 - **One stint at a time**: someone already acting anywhere, and anyone whose own seat is covered.
 - **Chair and books stay apart**: no Acting President who holds any Treasurer row in the chapter,
   acting or elected, and no Acting Treasurer who holds a President row (9.5 "compatible duties",
-  inferred).
+  inferred). A full `appoint_position` keeps them apart too, both ways.
 - Members on hiatus, for Road Captain, Tail Gunner and Assistant TG ("Members on hiatus can't lead
-  rides", as `crew.ts:35`).
+  rides", worded like `crew.ts:35`'s crew refusal).
 - A cover's stand-in must hold a board seat in that chapter. For a President that means **the
   sitting VP**. Anyone else on the board needs a carried board vote, unless the chapter has no VP
   with duties (8.2, 10.9).
@@ -146,7 +147,8 @@ Refused for everyone, with the same words in `actingProblem` (app) and `private.
   chapter has a VP with duties, for the same reason.
 - A required "Why" of up to 120 characters ("Smokey overseas", "No Treasurer since the ACM"),
   stored on the row and shown on the Board tab and in the audit. This is 9.5's "reasons recorded",
-  and the until date is its review.
+  and the until date is its review. Every approved member can read it, as with every position row,
+  so its hint says "Every member can read this. Keep health details out."
 
 Shown as warnings, like `appointWarnings` (`access.ts:288-308`), and repeated in the confirm text:
 
@@ -171,17 +173,19 @@ Every route takes a seat lock and runs the lazy close first (see below).
    so the NEC officers have no part. This is the same trust a full appointment to an empty seat has
    today (`audit_fixes.sql:242`), so it adds no new power. It starts today.
 2. **Agreed cover.** The away holder asks from their own Me page:
-   `request_cover(p_member, p_until, p_why)`, naming the stand-in. That creates an
+   `request_cover(p_position, p_member, p_until, p_why)`, naming their own board seat and the
+   stand-in. That creates an
    `acting_requests` row and nothing moves yet. A board member who is **neither the holder nor the
    stand-in** then confirms it with `confirm_acting(p_request)`, which inserts the acting row (8.2:
    the board acts collectively). Agreed covers of a President need the sitting VP as stand-in, or
-   route 3.
+   route 3. The requester, the stand-in or the holder can close an open request with
+   `withdraw_acting_request(p_request)`, so a declined one never blocks the seat.
 3. **Voted.** For a cover when the holder can't be asked (in hospital, say), a non-VP Acting
    President, or a non-VP empty-seat Acting President: a board member who isn't the stand-in
    proposes it with `request_acting(...)`, then opens a board vote with `open_acting_vote(p_request,
    p_quorum, p_closes_at, p_meeting)`. The vote is fixed as `chapter_board`, majority, with a
    question built from the request ("Jet acts as President (North) for Smokey until 13/12/2026:
-   Smokey in hospital"). Once it has carried, in the last 90 days, a board member who isn't the
+   Smokey can't be reached"). Once it has carried, in the last 90 days, a board member who isn't the
    stand-in confirms. The vote's screen notes that the stand-in and the holder shouldn't vote on it
    (11.10). That is a note only, as for every other vote in the app today.
 
@@ -200,7 +204,7 @@ check goes into the full `appoint_position` (see "Rules tightened for everyone")
 
 ## Changing the date
 
-`set_acting_until(p_position, p_until)`:
+`set_acting_until(p_position, p_until)`, never to a date before today:
 
 - **Earlier**: the acting person, and for a cover also the covered holder.
 - **Later**: for an empty seat, a board member who isn't the acting person, within the cap. For an
@@ -231,12 +235,14 @@ check goes into the full `appoint_position` (see "Rules tightened for everyone")
   (`covers = null`, logged in `acting_changes`). It keeps its date, so it carries on until the
   date or the election, and no one row is left pointing at an ended row. On re-election the
   screen says "This ends Jet's acting. Arrange a new cover if Smokey is still away."
+- **If the stand-in's own last non-acting board seat in the chapter ends**, the same trigger ends
+  their cover there (`left_board`), or the cover alone would be a board ballot ("Extra voters").
 
 `ended_on` is always the first day without the seat: today for an early end (as `end_position`
 does now), and `acting_until + 1` for a lapse. History shows "Acting until DD/MM/YYYY" from
 `acting_until`. `ended_reason` is set by every path that ends any row (`stepped_down`,
-`holder_back`, `removed`, `replaced`, `lapsed`, `forgotten`, `renewed`, and any others the plan
-finds). A catalogue test fails on any function that sets `ended_on` without it. Old rows stay
+`holder_back`, `removed`, `replaced`, `lapsed`, `forgotten`, `renewed`, `left_board`, and any others
+the plan finds). A catalogue test fails on any function that sets `ended_on` without it. Old rows stay
 null.
 
 ## Votes and ballots
@@ -299,8 +305,9 @@ covers        uuid null references public.positions(id) on delete restrict
 acting_why    text null
 acting_vote   uuid null references public.votes(id)   -- the carried vote, when one was needed
 ended_reason  text null check (ended_reason in ('stepped_down','holder_back','removed','replaced',
-                                                'lapsed','forgotten','renewed'))
+                                                'lapsed','forgotten','renewed','left_board'))
 check (acting_until is null or acting_until >= started_on)
+check (acting_why is null or char_length(btrim(acting_why)) between 1 and 120)
 check (acting_until is null or chapter_id is not null)          -- never national or Founder
 check (covers is null or acting_until is not null)
 check ((acting_until is null) = (acting_why is null))
@@ -325,18 +332,20 @@ check (acting_until is null or (ended_on is null) = (ended_reason is null))
 - **A seat lock.** `private.lock_seat(chapter, role)` (`pg_advisory_xact_lock`) runs first in
   every writer that touches a seat: `appoint_position`, `appoint_acting`, `confirm_acting`,
   `end_position`, `set_acting_until`, `add_roster_position`, `settle_chapter_proposal`,
-  `renew_auditor`. Their plain `exists` checks then can't race.
+  `renew_auditor`, and the request RPCs. Their plain `exists` checks then can't race.
 - `public.acting_requests` (`id, chapter_id, role, member_id` = stand-in, `covers, until, why,
-  requested_by, created_at, closed_at, outcome`). One open request per seat. A request lapses at
+  requested_by, created_at, closed_at, outcome`, where `outcome` is `confirmed`, `withdrawn` or
+  `lapsed`). One open request per seat. A request lapses at
   read time once its until date passes. The chapter's board and the stand-in can read it, and only
   the RPCs write it.
-- `public.acting_changes` (`position_id, old_until, new_until, old_covers, changed_by, changed_at,
-  note`). The chapter's board and the Auditor can read it.
+- `public.acting_changes` (`position_id, chapter_id, old_until, new_until, old_covers, changed_by,
+  changed_at, note`). The chapter's board and the Auditor can read it.
 - `votes.acting_request` (null unless it's an acting vote). `isRemovalVote` becomes "a chapter
   vote naming a role, and not an acting vote". `vote_electors.for_chapter` is for NEC votes. Open
-  NEC votes are backfilled from each elector's chapter.
-- App: `Position` (`types.ts:117-124`) gains optional `actingUntil`, `covers`, `actingWhy` and
-  `endedReason`, mapped in `liveData.ts:317-324`. They're optional, so the ~53 test literals and
+  NEC votes are backfilled from the chapter of each elector's open President or VP seat, else
+  their own chapter.
+- App: `Position` (`types.ts:117-124`) gains optional `actingUntil`, `covers`, `actingWhy`,
+  `actingVote`, `appointedBy` and `endedReason`, mapped in `liveData.ts:317-324`. They're optional, so the ~53 test literals and
   old offline copies still load. `database.types.ts` is regenerated.
 
 ## Ending on its own, with no scheduled job
@@ -458,23 +467,25 @@ still has three electors, Jet chairs, and Jet is North's NEC voter.
   `with_check`). It fails on any text that mentions `positions` unless it reads one of the three
   views or sits on a short allow-list with a one-line comment for each entry: the writers,
   `has_carried_nec_vote`'s history read, and the views themselves.
-- **Parity** (`supabase/tests/parity.json`). Each case gets an optional `with` list of extra
-  position rows (`actingUntilDays`, `covers`, `why`), inserted after `begin;` in `parity-sql.mts`
-  and added in `fixtureData` on the app side. The shared 12 rows and the existing 1,400 answers stay
-  as they are. New actions: `appointActing`, `requestCover`, `confirmActing`, `setActingUntil`.
+- **Parity** (`supabase/tests/parity.json`). Each case gets optional `with` (extra position rows:
+  `actingUntilDays`, `covers`, `why`, `appointedBy`), `withRequests` and `withVotes` lists, inserted
+  after `begin;` in `parity-sql.mts` and added in `fixtureData` on the app side. The shared 12 rows
+  and the existing 1,400 answers stay as they are. New actions: `appointActing`, `requestCover`,
+  `requestActing`, `withdrawActingRequest`, `confirmActing`, `setActingUntil`, `openActingVote`.
   About 30 cases:
   - each route and each refusal, including the Auditor in a second seat;
   - ending by each person, and by the board with and without a vote;
   - a full appointment ending acting;
   - North opening a board vote with three electors while Jet covers Smokey;
   - both independence refusals;
-  - a lapsed row still open (`actingUntilDays: -1`) that can't `approveDebit`, can't `castVote`,
+  - a lapsed row still open (`actingUntilDays: -1`) that can't `approveDebit`, can't `castBallot`,
     gets no `openVote` ballot and leaves its seat free to `appoint`. That group proves expiry
     needs no cron.
 
 ## The live SQL step
 
-One migration, `supabase/migrations/20270860000000_acting_roles.sql`, contains:
+One migration, `supabase/migrations/20270870000000_acting_roles.sql` (`main` already has
+`20270860000000`), contains:
 
 - the columns, checks, two tables, triggers and the `votes`/`vote_electors` columns, with the NEC
   backfill;
@@ -489,7 +500,8 @@ One migration, `supabase/migrations/20270860000000_acting_roles.sql`, contains:
 Grants follow the repo's pattern (`removal_and_gate.sql:230`). The migration runs `revoke all ...
 from public, anon` on every new RPC, then grants execute to `authenticated`. It revokes `public,
 anon, authenticated` on `private.close_lapsed_acting()`, `private.lock_seat()`,
-`private.acting_problem()` and select on the three views. Every existing row gets `acting_until`
+`private.acting_problem()`, `private.approval_conflict()`, `private.sees_every_chapter()` and
+select on the three views. Every existing row gets `acting_until`
 null, so nothing changes except the three tightenings.
 
 There is one paste-queue item, `build/acting_roles.sql`, byte for byte the same. The "Apply pending
@@ -572,6 +584,9 @@ tests. The 11.2 Chair case isn't lost, because it's a follow-on either way.
     open Founder row and `add_roster_position` skips a second silently. `approvesFor` lets an
     Auditor in another board seat approve chapter spending. A board member who fills an empty seat
     in full can then be that person's second approver; the independence rule covers acting only.
+26. Readers this spec didn't name, sorted by the plan: the feedback inbox and other chapters'
+    chapter chats are club-wide; `club_audit` and `assistant_status` are NEC business (duties);
+    road-rules sign-off chapters and `can_designate_big4` read duties.
 
 ## Review notes
 
