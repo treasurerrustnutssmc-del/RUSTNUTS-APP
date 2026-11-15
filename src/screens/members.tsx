@@ -23,6 +23,7 @@ import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phon
 import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { MemberChatButtons } from './chat';
+import { CoverPanels } from './me';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
 import { reportedByMe } from '../domain/reports';
 import { ReportBox } from '../ui/ReportBox';
@@ -48,6 +49,7 @@ import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
 import { HomeNextRideCard } from './rides';
 import { MORE_FROM_CLUB } from '../domain/membersLayout';
+import { homeCoverPanels } from '../domain/meLayout';
 import { FirstRunCard } from '../ui/FirstRunCard';
 import { useSavedFilters } from '../data/savedFilters';
 import { CLUB_NUMBERS, showProfileCard } from '../domain/homeLayout';
@@ -228,6 +230,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Row>
       </Flannel>
 
+      {/* A covered holder: who is acting for them, and I'm back */}
+      <CoverPanels panels={homeCoverPanels(me, data, today)} />
       {/* New here? Where things are, once */}
       <FirstRunCard />
       {/* The next ride, so it is one tap from opening the app */}

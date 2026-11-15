@@ -111,3 +111,27 @@ test('Me’s titles read held rows, with a stint’s until date', () => {
   assert.doesNotMatch(me, /activePositions/);
   assert.match(screen, /`Acting until \$\{\w+\}`/);
 });
+
+// Acting roles, Task 20: Me and Home for cover. The words and what shows come from meLayout's
+// coverPanels (tested there); these pin that the screens draw them and wire each button.
+test('Me and Home show the covered holder’s notice with an I’m back ConfirmButton', () => {
+  assert.match(fn(me, 'MeScreen'), /<CoverPanels panels=\{coverPanels\(me, data, today\)\} \/>/, 'Me: every board seat’s panel');
+  assert.match(fn(members, 'HomeScreen'), /<CoverPanels panels=\{homeCoverPanels\(me, data, today\)\} \/>/, 'Home: the covered notice only');
+  assert.match(members, /import \{ CoverPanels \} from '\.\/me';/, 'Home draws the same panel as Me');
+  const covered = fn(me, 'CoveredSeat');
+  assert.match(covered, /<ConfirmButton\b[^>]*label=\{panel\.button\.label\}/s, 'I’m back is a ConfirmButton');
+  assert.match(covered, /endPosition\(panel\.cover\.id\)/, 'I’m back ends the cover (holder_back)');
+  assert.match(covered, /\{panel\.notice\}/);
+});
+
+test('Me asks for cover with the stand-ins, Until and Why, and the note on the ConfirmButton', () => {
+  const arrange = fn(me, 'ArrangeCover');
+  assert.match(arrange, /<Choices\b(<\w+>)?[^>]*options=\{panel\.choices\}/s);
+  assert.match(arrange, /<DateField\b/);
+  assert.match(arrange, /requestCoverProblem\(me, panel\.seat, \w+, [\w.]+, \w+, data, today\)/, 'the button waits on the rule');
+  assert.match(arrange, /confirmNote=\{[^}]*coverConfirmNote\(panel\.seat, \w+, [\w.]+, data, today\)/s);
+  assert.match(arrange, /requestCover\(panel\.seat\.id, /);
+  const asked = fn(me, 'AskedCover');
+  assert.match(asked, /<ConfirmButton\b[^>]*label=\{panel\.button\.label\}/s, 'Withdraw request is a ConfirmButton');
+  assert.match(asked, /withdrawActingRequest\(panel\.request\.id\)/);
+});
