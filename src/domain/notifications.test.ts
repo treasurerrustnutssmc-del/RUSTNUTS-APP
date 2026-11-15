@@ -167,23 +167,15 @@ test('the first, harsh rev channels are retired and never reused', () => {
   for (const id of RETIRED_ANDROID_CHANNELS) assert.ok(!ANDROID_CHANNELS.some((c) => c.id === id), id);
 });
 
-// A push that arrives while the app is open: the app shows its own banner at the top and plays the
-// bike itself (Android's chat channels don't pop up over an open app), so the phone just files it.
-const ready = { inAppBanner: true, revSound: true };
+// A push that arrives while the app is open: the app shows its own banner at the top (Android's chat
+// channels don't pop up over an open app), and the phone files it and plays the channel's sound (the
+// bike for members who keep the rev; the phone's silent mode still rules).
+const ready = { inAppBanner: true };
 
-test('open app: a chat message shows the club banner and plays the bike, the phone only files it', () => {
+test('open app: a chat message shows the club banner, and the phone files it with its sound', () => {
   assert.deepEqual(foregroundPlan({ kind: 'chat', chatId: 'c2' }, 'c1', ready), {
-    phone: { banner: false, list: true, sound: false },
-    inApp: true,
-    playRev: true,
-  });
-});
-
-test('open app with the plain sound: the phone plays its own sound under the club banner', () => {
-  assert.deepEqual(foregroundPlan({ kind: 'chat', chatId: 'c2' }, null, { inAppBanner: true, revSound: false }), {
     phone: { banner: false, list: true, sound: true },
     inApp: true,
-    playRev: false,
   });
 });
 
@@ -191,7 +183,6 @@ test('open app on that same chat: nothing at all, the message is already on scre
   assert.deepEqual(foregroundPlan({ kind: 'chat', chatId: 'c1' }, 'c1', ready), {
     phone: { banner: false, list: false, sound: false },
     inApp: false,
-    playRev: false,
   });
 });
 
@@ -205,14 +196,12 @@ test('a live ride alert keeps the phone’s own urgent alert, never the club ban
   assert.deepEqual(foregroundPlan({ kind: 'live-alert', rideId: 'r1' }, 'c1', ready), {
     phone: { banner: true, list: true, sound: true },
     inApp: false,
-    playRev: false,
   });
 });
 
 test('no club banner on screen (signed out, or still starting): the phone shows it as before', () => {
-  assert.deepEqual(foregroundPlan({ kind: 'chat', chatId: 'c2' }, null, { inAppBanner: false, revSound: true }), {
+  assert.deepEqual(foregroundPlan({ kind: 'chat', chatId: 'c2' }, null, { inAppBanner: false }), {
     phone: { banner: true, list: true, sound: true },
     inApp: false,
-    playRev: false,
   });
 });

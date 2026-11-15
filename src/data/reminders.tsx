@@ -10,8 +10,8 @@ import { DEFAULT_PREFS, reminderDiff, reminderPlan, type Reminder } from '../dom
 import { mayAskAutomatically } from '../domain/notifyIntro';
 import { useClub } from './ClubStore';
 import { ensureChannels } from './notificationChannels';
-import { introAnswer, setIntroAnswer, useIntroAnswer } from './notifyIntro';
-import { registerThisDevice } from './pushDevice';
+import { introAnswer, useIntroAnswer } from './notifyIntro';
+import { askForNotifications, registerThisDevice } from './pushDevice';
 
 const KIND = 'ride-reminder';
 
@@ -39,8 +39,7 @@ export function syncReminders(plan: Reminder[]): Promise<void> {
     // phone's settings rather than asking at every launch.
     let permission = await Notifications.getPermissionsAsync().catch(() => null);
     if (!permission?.granted && permission?.canAskAgain && mayAskAutomatically(await introAnswer())) {
-      permission = await Notifications.requestPermissionsAsync().catch(() => null);
-      if (permission) await setIntroAnswer(permission.granted ? 'on' : 'later');
+      permission = await askForNotifications();
     }
     if (!permission?.granted) return;
     for (const r of add) {

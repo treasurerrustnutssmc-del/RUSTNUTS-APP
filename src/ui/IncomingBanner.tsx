@@ -1,7 +1,7 @@
 // The club's own banner for a notification that arrives while the app is open (a chat message, ride
 // news, a reply), since Android's chat and club channels don't pop up over an open app. It drops in at
-// the top over whatever screen is open, plays the bike (src/data/foregroundNotifications.ts), and goes
-// after a few seconds. Tapping it opens what it's about; the cross puts it away. Never for the chat
+// the top over whatever screen is open while the phone plays its sound (src/data/foregroundNotifications.ts),
+// and goes after a few seconds. Tapping it opens what it's about; the cross puts it away. Never for the chat
 // that's on screen.
 
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,7 @@ import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, T
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useClub } from '../data/ClubStore';
 import { presentIncoming, type IncomingNotice } from '../data/foregroundNotifications';
-import { DEFAULT_PREFS, notificationTarget } from '../domain/notifications';
+import { notificationTarget } from '../domain/notifications';
 import type { RootParams } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 
@@ -20,9 +20,10 @@ const SHOW_MS = 6_000;
 const SHOW_MS_READER = 12_000;
 
 export function IncomingBanner({ navigation }: { navigation: NavigationContainerRefWithCurrent<RootParams> }) {
-  const { me, isDemo, data } = useClub();
-  const revSound = (data.notificationPrefs ?? DEFAULT_PREFS).revSound;
-  const [notice, setNotice] = useState<IncomingNotice | null>(null);
+  const { me, isDemo, level } = useClub();
+  // Kept with who it came for, so it never carries over to the next person signed in.
+  const [held, setHeld] = useState<{ notice: IncomingNotice; for: string } | null>(null);
+  const notice = held && held.for === me?.id ? held.notice : null;
   const insets = useSafeAreaInsets();
   const [drop] = useState(() => new Animated.Value(0));
   const [reader, setReader] = useState(false);
@@ -33,27 +34,31 @@ export function IncomingBanner({ navigation }: { navigation: NavigationContainer
     AccessibilityInfo.isReduceMotionEnabled().then(setCalm).catch(() => undefined);
   }, []);
 
-  // Only for a signed-in member on a real phone; the demo's club is made up.
-  const on = (Platform.OS === 'ios' || Platform.OS === 'android') && !!me && !isDemo;
+  // Only for someone signed in past the waiting screen, on a real phone; the demo's club is made up.
+  const meId = me?.id ?? null;
+  const on = (Platform.OS === 'ios' || Platform.OS === 'android') && !!meId && !isDemo && level !== 'pending' && level !== 'public';
   useEffect(() => {
-    if (!on) return undefined;
-    return presentIncoming(setNotice, revSound);
-  }, [on, revSound]);
+    if (!on || !meId) return undefined;
+    return presentIncoming((n) => setHeld({ notice: n, for: meId }));
+  }, [on, meId]);
+  const dismiss = () => setHeld(null);
   useEffect(() => {
     if (!notice) return undefined;
     drop.setValue(calm ? 1 : 0);
     if (!calm) Animated.timing(drop, { toValue: 1, duration: 220, easing: Easing.out(Easing.exp), useNativeDriver: true }).start();
     AccessibilityInfo.announceForAccessibility(`${notice.title}. ${notice.body}`);
-    const timer = setTimeout(() => setNotice((n) => (n?.id === notice.id ? null : n)), reader ? SHOW_MS_READER : SHOW_MS);
+    const timer = setTimeout(() => setHeld((h) => (h?.notice.id === notice.id ? null : h)), reader ? SHOW_MS_READER : SHOW_MS);
     return () => clearTimeout(timer);
   }, [notice, calm, reader, drop]);
 
   // Signed out with one still up: it goes.
   if (!notice || !on) return null;
   const target = notificationTarget(notice.data);
+  // Only to a screen this person has (family have no live ride, a member held at the rules has no chat).
+  const reachable = !!target && navigation.isReady() && !!navigation.getRootState()?.routeNames.includes(target.screen);
   const open = () => {
-    setNotice(null);
-    if (target && navigation.isReady()) navigation.navigate(target.screen, target.params as never);
+    dismiss();
+    if (target && reachable) navigation.navigate(target.screen, target.params as never);
   };
   const icon = notice.data.kind === 'chat' ? 'chatbubbles-outline' : 'notifications-outline';
 
@@ -65,11 +70,11 @@ export function IncomingBanner({ navigation }: { navigation: NavigationContainer
         { opacity: drop, transform: [{ translateY: drop.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] }) }] },
       ]}
     >
-      <View style={[styles.banner, { paddingTop: insets.top + space.sm }]} accessibilityLiveRegion="polite">
+      <View style={[styles.banner, { paddingTop: insets.top + space.sm }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${notice.title}. ${notice.body}`}
-          accessibilityHint={target ? 'Opens it' : undefined}
+          accessibilityHint={reachable ? 'Opens it' : 'Puts it away'}
           onPress={open}
           style={({ pressed }) => [styles.main, pressed && { opacity: 0.7 }]}
         >
@@ -88,7 +93,7 @@ export function IncomingBanner({ navigation }: { navigation: NavigationContainer
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Dismiss"
-          onPress={() => setNotice(null)}
+          onPress={dismiss}
           hitSlop={4}
           style={({ pressed }) => [styles.close, pressed && { backgroundColor: colors.steelHi }]}
         >

@@ -13,6 +13,25 @@ import { supabase } from './supabase';
 const KEY = 'push.token';
 const ASKED = 'push.asked';
 
+let asking: Promise<Notifications.NotificationPermissionsStatus | null> | null = null;
+
+/** Brings up the phone's notifications prompt and keeps the answer, so a no isn't asked again by
+ *  itself. The push sign-up and the ride reminders share one prompt: a second ask while it's up waits
+ *  for the same answer. Null when the prompt couldn't come up. */
+export function askForNotifications(): Promise<Notifications.NotificationPermissionsStatus | null> {
+  asking ??= Notifications.requestPermissionsAsync()
+    .catch(() => null)
+    .then(async (p) => {
+      // A yes syncs the ride reminders again (they were skipped while the answer was open).
+      if (p) await setIntroAnswer(p.granted ? 'on' : 'later');
+      return p;
+    })
+    .finally(() => {
+      asking = null;
+    });
+  return asking;
+}
+
 export async function registerThisDevice(): Promise<void> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
   try {
@@ -24,10 +43,9 @@ export async function registerThisDevice(): Promise<void> {
     // Me, Notifications or the phone's settings (on Android a second no is final).
     if (!permission.granted && permission.canAskAgain && mayAskAutomatically(await introAnswer()) && !(await AsyncStorage.getItem(ASKED))) {
       await AsyncStorage.setItem(ASKED, '1');
-      permission = await Notifications.requestPermissionsAsync();
-      // A yes syncs the ride reminders again (they were skipped while the answer was open); a no
-      // means nothing asks again by itself.
-      await setIntroAnswer(permission.granted ? 'on' : 'later');
+      const answer = await askForNotifications();
+      if (!answer) return;
+      permission = answer;
     }
     if (!permission.granted) return;
     const { data: token } = await Notifications.getExpoPushTokenAsync();
