@@ -214,6 +214,13 @@ test('founders still on their old chapter’s board end it first; a founder who 
   assert.equal(settleChapterProblem(who(held, 'chair'), 'cp1', 'nec-yes', held), 'Founders have to end their positions in their old chapter first.');
   // A lost vote needs no checks on the founders.
   assert.equal(settleChapterProblem(who(held, 'chair'), 'cp1', 'nec-no', held), null);
+  // A founder whose seat is covered still holds it.
+  const cover = {
+    id: 'p-tre-covers-sec', memberId: 'tre', chapterId: 'west', role: 'secretary' as const, startedOn: '2026-10-20', endedOn: null,
+    actingUntil: '2026-11-20', covers: 'p-sec', actingWhy: 'Away',
+  };
+  const covered = { ...held, positions: [...held.positions, cover] };
+  assert.equal(settleChapterProblem(who(covered, 'chair'), 'cp1', 'nec-yes', covered), 'Founders have to end their positions in their old chapter first.');
   const left = data({ chapterProposals: [proposal({ founderIds: ['f1', 'f2', 'f3', 'f4', 'legacy'] })] });
   assert.equal(settleChapterProblem(who(left, 'chair'), 'cp1', 'nec-yes', left), 'Founders must be approved Full or Nomad members (12.1).');
 });

@@ -1,7 +1,8 @@
 // Delete my account (both app stores require it). The database's delete_my_account() refuses with
 // the same words.
 
-import { activePositions, endTermProblem } from './access';
+import { endTermProblem } from './access';
+import { heldPositions, isActing } from './acting';
 import { BOARD_ROLES, NATIONAL_ROLES } from './labels';
 import type { ClubData, Member, Position } from './types';
 
@@ -12,13 +13,16 @@ export const STEP_DOWN_FIRST = 'Step down from your seat first, so the club can 
 /** The Chairman can't step down in the app (the seat changes by the club's vote), so email instead. */
 export const CHAIR_EMAILS_US = 'The National Chairman’s seat changes by the club’s vote. To delete your account, email apps@rustnutssmc.com.au.';
 
-/** Why `me` can't delete their account now, or null when they can. A board or national seat comes first. */
+const SEATS = [...BOARD_ROLES, ...NATIONAL_ROLES];
+/** A row that stops a delete: a board or national seat (covered or not), or acting in any role. */
+const blocksDelete = (p: Position) => SEATS.includes(p.role) || isActing(p);
+
+/** Why `me` can't delete their account now, or null when they can. A board or national seat, or a stint, comes first. */
 export function deleteAccountProblem(me: Member | null, positions: Position[]): string | null {
   if (!me) return 'Sign in first.';
-  const seats = [...BOARD_ROLES, ...NATIONAL_ROLES];
-  const mine = activePositions(me.id, positions);
+  const mine = heldPositions(me.id, positions);
   if (mine.some((p) => p.role === 'nec_chair')) return CHAIR_EMAILS_US;
-  if (mine.some((p) => seats.includes(p.role))) return STEP_DOWN_FIRST;
+  if (mine.some(blocksDelete)) return STEP_DOWN_FIRST;
   return null;
 }
 
@@ -34,9 +38,8 @@ export interface SeatToStepDown {
  *  here (the term rules in access.ts decide) or who has to record the change instead. */
 export function stepDownSeats(me: Member | null, data: ClubData, today: string): SeatToStepDown[] {
   if (!me) return [];
-  const seats = [...BOARD_ROLES, ...NATIONAL_ROLES];
-  return activePositions(me.id, data.positions)
-    .filter((p) => seats.includes(p.role))
+  return heldPositions(me.id, data.positions)
+    .filter(blocksDelete)
     .map((position) => {
       const note = endTermProblem(me, position, data, today);
       return { position, selfEnd: note === null, note };

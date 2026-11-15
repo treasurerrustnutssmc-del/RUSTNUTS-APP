@@ -4119,6 +4119,87 @@
       ]
     },
     {
+      "name": "A covered President opens a board vote, and North still has three board electors",
+      "as": "smokey",
+      "action": "openVote",
+      "chapter": "north",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 3,
+      "days": 7,
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "A covered President can’t open an NEC vote",
+      "as": "smokey",
+      "action": "openVote",
+      "chapter": null,
+      "subject": null,
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7,
+      "allowed": false,
+      "refusal": "Only the NEC can do that.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "A President’s stand-in opens an NEC vote, as their chapter’s NEC voter",
+      "as": "jet",
+      "action": "openVote",
+      "chapter": null,
+      "subject": null,
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7,
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
+      ]
+    },
+    {
+      "name": "A covered President gives the second approval on chapter spending",
+      "as": "rusty",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": true,
+      "with": [
+        { "key": "torque-covers-rusty", "member": "torque", "chapter": "west", "role": "president", "actingUntilDays": 20, "covers": "rusty-president", "why": "Rusty overseas", "appointedBy": "penny" }
+      ]
+    },
+    {
+      "name": "A covered President can’t approve Club fund spending",
+      "as": "rusty",
+      "action": "approveDebit",
+      "entry": "club-awaiting",
+      "allowed": false,
+      "refusal": "You can’t approve spending from this fund.",
+      "with": [
+        { "key": "torque-covers-rusty", "member": "torque", "chapter": "west", "role": "president", "actingUntilDays": 20, "covers": "rusty-president", "why": "Rusty overseas", "appointedBy": "penny" }
+      ]
+    },
+    {
+      "name": "A lapsed acting VP can’t approve chapter spending",
+      "as": "spanner",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false,
+      "refusal": "You can’t approve spending from this fund.",
+      "with": [
+        { "key": "spanner-acting-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "startedDays": -30, "actingUntilDays": -1, "why": "No VP since the ACM" }
+      ]
+    },
+    {
       "name": "A Full member asks for the Rusty Bus (it waits for a yes)",
       "as": "gravel",
       "action": "bookBus",

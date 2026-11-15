@@ -2,7 +2,7 @@
 // (row-level security in supabase/migrations), so the app can never show
 // more than the server would hand over.
 
-import { dutyPositions } from './acting';
+import { clubwidePositions, dutyPositions, heldPositions, isActing } from './acting';
 import { BOARD_ROLES, NATIONAL_ROLES, TITLE_ROLES } from './labels';
 import { addMonths } from './profile';
 import { melbourneDate } from './rides';
@@ -29,9 +29,12 @@ export function isFamily(viewer: Member | null): boolean {
 /** The rows whose duties this member does now (the duties reading, src/domain/acting.ts). The name is kept. */
 export const activePositions = dutyPositions;
 
-/** Holds an executive board seat in this chapter. */
+/**
+ * Holds an executive board seat in this chapter: the board-member reading, so a covered holder
+ * still does and a lapsed stint doesn't. Mirrors private.holds_board_seat.
+ */
 export function holdsBoardSeat(memberId: string, chapterId: string, positions: Position[]): boolean {
-  return activePositions(memberId, positions).some(
+  return heldPositions(memberId, positions).some(
     (p) => p.chapterId === chapterId && BOARD_ROLES.includes(p.role),
   );
 }
@@ -44,7 +47,11 @@ export const NEC_OFFICER_ROLES: PositionRole[] = ['nec_chair', 'nec_secretary'];
 /** The seats the NEC votes people into by two-thirds, and the Chairman then fills (11.6, 11.8). */
 export const NEC_SEATS: NecSeatRole[] = ['nec_auditor', 'nec_secretary'];
 
-/** Sits on the National Executive Committee: the Chairman, the Secretary, or any sitting chapter President. */
+/**
+ * Sits on the National Executive Committee: the Chairman, the Secretary, or a chapter President with
+ * the seat's duties (an Acting President takes part; a covered one is off it until the cover ends).
+ * Mirrors private.is_national.
+ */
 export function isNational(memberId: string, positions: Position[]): boolean {
   return activePositions(memberId, positions).some(
     (p) => NEC_OFFICER_ROLES.includes(p.role) || p.role === 'president',
@@ -87,17 +94,29 @@ export function accessLevel(viewer: Member | null, positions: Position[]): Acces
   if (viewer.approval !== 'approved') return 'pending';
   if (viewer.status === 'family') return 'family';
   if (isNational(viewer.id, positions)) return 'national';
-  const board = activePositions(viewer.id, positions).some((p) => BOARD_ROLES.includes(p.role));
+  // A board member: a held board row, covered or not.
+  const board = heldPositions(viewer.id, positions).some((p) => BOARD_ROLES.includes(p.role));
   return board ? 'board' : 'member';
 }
 
 /**
- * Sees a chapter's board records (private details, conduct, notices, attendance): a seated board
- * member of that chapter, or anyone national. Mirrors private.sees_board_of.
+ * Sees every chapter's private details (emails, licences, emergency contacts, other chapters' chats):
+ * the National Chairman or Secretary, or a sitting President, none of them acting or covered. An
+ * Acting President takes part in NEC business but reads member data of their own chapter only.
+ * Mirrors private.sees_every_chapter.
+ */
+export function seesEveryChapter(viewer: Member | null, positions: Position[]): boolean {
+  if (!isApprovedMember(viewer)) return false;
+  return clubwidePositions(viewer.id, positions).some((p) => p.role === 'president' || NEC_OFFICER_ROLES.includes(p.role));
+}
+
+/**
+ * Sees a chapter's board records (private details, conduct, notices, attendance): a board member
+ * of that chapter (a covered holder included), or whoever sees every chapter. Mirrors private.sees_board_of.
  */
 export function seesBoardOf(viewer: Member | null, chapterId: string, positions: Position[]): boolean {
   if (!viewer || viewer.approval !== 'approved') return false;
-  return holdsBoardSeat(viewer.id, chapterId, positions) || isNational(viewer.id, positions);
+  return holdsBoardSeat(viewer.id, chapterId, positions) || seesEveryChapter(viewer, positions);
 }
 
 /**
@@ -270,12 +289,12 @@ const SEAT_ROLES: PositionRole[] = [...BOARD_ROLES, ...NATIONAL_ROLES];
  * Whether `target` may hold `role` (constitution v4): only Full and Nomad members hold Club
  * positions (4.6, 5.8); Nomads hold Non-Board roles only (9.1); the National Auditor can't also
  * be a President or Treasurer (11.8), nor National Chairman or Secretary, since they aren't on the
- * NEC (11.2, 11.8). Mirrors private.hold_problem.
+ * NEC (11.2, 11.8). Reads held rows: a covered holder still holds their seat. Mirrors private.hold_problem.
  */
 function holdProblem(target: Member, role: PositionRole, positions: Position[]): string | null {
   if (!patched(target.status)) return 'Only Full and Nomad members hold Club positions (4.6, 5.8).';
   if (target.status === 'nomad' && SEAT_ROLES.includes(role)) return 'Nomads can’t hold a board or national seat (9.1).';
-  const holds = (roles: PositionRole[]) => activePositions(target.id, positions).some((p) => roles.includes(p.role));
+  const holds = (roles: PositionRole[]) => heldPositions(target.id, positions).some((p) => roles.includes(p.role));
   if ((role === 'nec_auditor' && holds(['president', 'treasurer'])) || ((role === 'president' || role === 'treasurer') && holds(['nec_auditor']))) {
     return 'The National Auditor can’t also be a President or Treasurer (11.8).';
   }
@@ -288,7 +307,7 @@ function holdProblem(target: Member, role: PositionRole, positions: Position[]):
 /**
  * Rules with exemptions the app can't see (founding officers, an NEC waiver), so they're shown on
  * the Appoint screen rather than refused: two years as a Full Member for a board seat (9.1), and a
- * full term in another board seat before President or Vice President (9.4).
+ * full term in another board seat before President or Vice President (9.4). A stint isn't a term.
  */
 export function appointWarnings(target: Member, role: PositionRole, data: ClubData, today: string): string[] {
   if (!BOARD_ROLES.includes(role)) return [];
@@ -298,7 +317,8 @@ export function appointWarnings(target: Member, role: PositionRole, data: ClubDa
   }
   if (role === 'president' || role === 'vice_president') {
     const servedTerm = data.positions.some(
-      (p) => p.memberId === target.id && p.role !== role && BOARD_ROLES.includes(p.role) && addMonths(p.startedOn, 24) <= (p.endedOn ?? today),
+      (p) => p.memberId === target.id && p.role !== role && BOARD_ROLES.includes(p.role) && !isActing(p)
+        && addMonths(p.startedOn, 24) <= (p.endedOn ?? today),
     );
     if (!servedTerm) {
       warnings.push('A President or Vice President should have served a full term in another board seat, unless they’re a founding officer or the NEC gave an exemption (9.4).');
@@ -386,7 +406,7 @@ export function statusChangeProblem(
     if (patched(status) && target.status === 'fng' && !hasCarriedPatchVote(target.id, data)) return NEEDS_PATCH_VOTE;
   }
   if (status === 'fng' && isLearner(target.id, data)) return LEARNER_FNG;
-  const held = activePositions(target.id, data.positions).filter((p) => !TITLE_ROLES.includes(p.role));
+  const held = heldPositions(target.id, data.positions).filter((p) => !TITLE_ROLES.includes(p.role));
   if (!patched(status) && held.length > 0) return 'End their positions first.';
   if (status === 'nomad' && held.some((p) => SEAT_ROLES.includes(p.role))) return 'End their board and national seats first (9.1).';
   if (isStepDown(target.status, status) && !byRequest && !decidedNoticeFor(target.id, data, today)) return DOWNWARD_NEEDS_NOTICE;

@@ -2,7 +2,8 @@
 // shared by Voting Members, and new chapters. The database's actions refuse with the same words,
 // in the same order.
 
-import { activePositions, holdsBoardSeat, isApprovedMember, isNational } from './access';
+import { holdsBoardSeat, isApprovedMember, isNational } from './access';
+import { heldPositions } from './acting';
 import { TITLE_ROLES } from './labels';
 import { signedInProblem } from './meetings';
 import { isAnyBoard } from './social/help';
@@ -264,8 +265,9 @@ export function settleChapterProblem(me: Member | null, id: string, voteId: stri
   if (nameTaken(p.name, data, p.id)) return NAME_TAKEN;
   const founders = foundersProblem(p.founderIds, p.presidentId, p.saaId, data);
   if (founders) return founders;
+  // Held rows: a founder whose seat is covered still holds it.
   const holdsChapterPost = p.founderIds.some((fid) =>
-    activePositions(fid, data.positions).some((x) => x.chapterId !== null && !TITLE_ROLES.includes(x.role)),
+    heldPositions(fid, data.positions).some((x) => x.chapterId !== null && !TITLE_ROLES.includes(x.role)),
   );
   if (holdsChapterPost) return 'Founders have to end their positions in their old chapter first.';
   return null;

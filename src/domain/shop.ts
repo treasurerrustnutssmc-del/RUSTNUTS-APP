@@ -6,6 +6,7 @@
 
 import { KEEPS_ONLY, keepsBooks } from './ledger';
 import { isApprovedMember } from './access';
+import { clubwidePositions } from './acting';
 import { melbourneDate } from './rides';
 import { isIsoDate } from './conduct';
 import type {
@@ -104,7 +105,6 @@ export function signedInProblem(me: Member | null): string | null {
 const length = (s: string) => [...s].length;
 const approved = (me: Member | null): me is Member => isApprovedMember(me);
 const patched = (m: Member) => m.status === 'full' || m.status === 'nomad';
-const active = (memberId: string, positions: Position[]) => positions.filter((p) => p.memberId === memberId && p.endedOn === null); // acting: pending
 const SHOP_SEATS = new Set<Position['role']>(['nec_chair', 'nec_secretary', 'president', 'treasurer']);
 
 export interface CartLine {
@@ -168,9 +168,9 @@ export interface AddressInput {
 
 // Who -------------------------------------------------------------------------------------------
 
-/** Holds a seat that runs the shop: NEC Chair or Secretary, a President or a Treasurer. Mirrors private.shop_seat. */
+/** Holds a seat that runs the shop: NEC Chair or Secretary, a President or a Treasurer, none of them acting or covered. Mirrors private.shop_seat. */
 export function holdsShopSeat(me: Member | null, positions: Position[]): boolean {
-  return approved(me) && active(me.id, positions).some((p) => SHOP_SEATS.has(p.role));
+  return approved(me) && clubwidePositions(me.id, positions).some((p) => SHOP_SEATS.has(p.role));
 }
 
 /** Runs the shop: a shop seat, or named as a shop runner. Mirrors private.runs_shop. */

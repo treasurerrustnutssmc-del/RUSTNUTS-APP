@@ -91,6 +91,16 @@ test('a chapter chat is for its own members and the NEC', () => {
   assert.equal(readProblem(westie, north, data), 'That chat is for North chapter members.');
 });
 
+test('an Acting President can’t read West’s chapter chat; a sitting President can', () => {
+  // Northie (North's Road Captain) covers the North President's seat while they're away.
+  const cover: Position = { ...seat('p5', 'northie', 'ch-north', 'president'), actingUntil: '2026-12-13', covers: 'p2', actingWhy: 'Away' };
+  const covered: ClubData = { ...data, positions: [...data.positions, cover] };
+  assert.equal(readProblem(northie, west, covered), 'That chat is for West chapter members.', 'another chapter’s chat is member data');
+  assert.equal(readProblem(northie, chat({ kind: 'nec' }), covered), null, 'NEC business is theirs');
+  assert.equal(readProblem(northPres, west, covered), 'That chat is for West chapter members.', 'covered, so off the NEC');
+  assert.equal(readProblem(northPres, west, data), null, 'sitting');
+});
+
 test('a private chat is for its two people only', () => {
   assert.equal(readProblem(westie, direct, data), null);
   assert.equal(readProblem(northie, direct, data), null);

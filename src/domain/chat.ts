@@ -2,7 +2,7 @@
 // Who can read, post, remove and react. The database's chat actions apply the same rules with
 // the same words (supabase/migrations/20261101000100_chat.sql).
 
-import { accessLevel, activePositions, isBoardOf, isNational, seesBoardOf } from './access';
+import { accessLevel, activePositions, isBoardOf, isNational, seesBoardOf, seesEveryChapter } from './access';
 import { daysBetween, formatAuDate } from './dates';
 import { postingRulesProblem } from './postingRules';
 import { displayName } from './profile';
@@ -122,7 +122,8 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
     return conv.kind === 'chapter' ? 'Chapter chats open up once you’re an FNG.' : 'That chat opens up once you’re an FNG.';
   }
   if (conv.kind === 'chapter') {
-    if (me.chapterId === conv.chapterId || isNational(me.id, data.positions)) return null;
+    // Another chapter's chat is member data: club-wide seats only, so not an Acting President.
+    if (me.chapterId === conv.chapterId || seesEveryChapter(me, data.positions)) return null;
     const name = data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'that';
     return `That chat is for ${name} chapter members.`;
   }

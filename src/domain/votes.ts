@@ -5,7 +5,7 @@
 // ones it doesn't settle.
 
 import { activePositions, isNecSeat, NEC_OFFICER_ROLES } from './access';
-import { necVoterFor } from './acting';
+import { heldPositions, necVoterFor } from './acting';
 import { BOARD_ROLES, electoratesFor, TITLE_ROLES } from './labels';
 import { reviewsScope, runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
@@ -73,7 +73,8 @@ export function electorsFor(electorate: Electorate, chapterId: string | null, da
       if (m.approval !== 'approved' || m.status === 'legacy') return false;
       switch (electorate) {
         case 'chapter_board':
-          return activePositions(m.id, data.positions).some((p) => p.chapterId === chapterId && BOARD_ROLES.includes(p.role));
+          // Board members: a held board row, covered or not, one ballot each (8.1, 9.5).
+          return heldPositions(m.id, data.positions).some((p) => p.chapterId === chapterId && BOARD_ROLES.includes(p.role));
         case 'chapter_patched':
           return m.chapterId === chapterId && m.status === 'full';
         case 'club_patched':

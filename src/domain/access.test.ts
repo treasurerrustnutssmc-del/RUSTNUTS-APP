@@ -5,6 +5,7 @@ import type { Member, Position, Vote } from './types';
 import {
   accessLevel,
   appointProblem,
+  appointWarnings,
   AUDITOR_NEEDS_VOTE,
   BOARD_SEAT_NEEDS_VOTE,
   canApprove,
@@ -17,11 +18,13 @@ import {
   endTermProblem,
   hasCarriedRemovalVote,
   isBoardOf,
+  isNational,
   isNecOfficer,
   PRESIDENT_ENDED_BY,
   PRESIDENT_NEEDS_VOTE,
   ROLE_NEEDS_VOTE,
   seesBoardOf,
+  seesEveryChapter,
   pendingFor,
   SECRETARY_NEEDS_VOTE,
   DOWNWARD_NEEDS_NOTICE,
@@ -29,6 +32,14 @@ import {
   withHolders,
 } from './access';
 import { isChapterless } from './labels';
+import { settleActing } from './acting';
+import { canRunCheckin } from './attendance';
+import { managesBus } from './bus';
+import { isFeedbackKeeper } from './feedback';
+import { isRideLeader } from './liveRide';
+import { holdsShopSeat } from './shop';
+import { isAnyBoard } from './social/help';
+import { electorsFor } from './votes';
 
 const d = DEMO_DATA;
 const TODAY = '2026-10-29';
@@ -374,4 +385,113 @@ test('suspend and restore app access: the chapter board only, not yourself, and 
   assert.equal(restoreAccessProblem(sec, target, positions), 'Their access isn’t suspended.');
   assert.equal(restoreAccessProblem(sec, sec, positions), 'You can’t restore your own access.');
   assert.equal(restoreAccessProblem(pres, benched, positions), 'Only that member’s chapter board can do that.');
+});
+
+// ---------------------------------------------------------------------------
+// Acting: the four readings (held, board member, duties, club-wide), as the database's views
+// ---------------------------------------------------------------------------
+
+/** Jet (North's VP) covers Smokey's President seat while he's away; Crank recorded it. */
+const jetCoversSmokey: Position = {
+  id: 'p-jet-covers-smokey', memberId: 'm-jet', chapterId: 'ch-north', role: 'president', startedOn: '2026-10-20', endedOn: null,
+  actingUntil: '2026-11-20', covers: 'p-9', actingWhy: 'Smokey overseas', appointedBy: 'm-crank',
+};
+/** Torque (West's Secretary) covers Sparks's Treasurer seat. */
+const torqueCoversSparks: Position = {
+  id: 'p-torque-covers-sparks', memberId: 'm-torque', chapterId: 'ch-west', role: 'treasurer', startedOn: '2026-10-20', endedOn: null,
+  actingUntil: '2026-11-20', covers: 'p-5', actingWhy: 'Sparks overseas', appointedBy: 'm-rusty',
+};
+const COVERED = [...P, jetCoversSmokey];
+const coveredData = { ...d, positions: COVERED };
+
+test('a covered President keeps the board level and board records and is off the NEC', () => {
+  const smokey = m('m-smokey');
+  assert.equal(accessLevel(smokey, COVERED), 'board');
+  assert.equal(isBoardOf(smokey, 'ch-north', COVERED), true, 'still acts as the board');
+  assert.equal(seesBoardOf(smokey, 'ch-north', COVERED), true, 'still reads North’s board records');
+  assert.equal(canSeePrivate(smokey, m('m-crank'), COVERED), true);
+  assert.equal(isNational(smokey.id, COVERED), false, 'the NEC seat goes to the stand-in');
+  assert.equal(seesBoardOf(smokey, 'ch-west', COVERED), false, 'nor every chapter’s records');
+  assert.equal(seesEveryChapter(smokey, COVERED), false);
+});
+
+test('an Acting President is national but sees no other chapter’s private details', () => {
+  const jet = m('m-jet');
+  assert.equal(isNational(jet.id, COVERED), true, 'takes part in NEC business (11.2)');
+  assert.equal(accessLevel(jet, COVERED), 'national');
+  assert.equal(seesEveryChapter(jet, COVERED), false);
+  assert.equal(seesBoardOf(jet, 'ch-west', COVERED), false);
+  assert.equal(canSeePrivate(jet, m('m-torque'), COVERED), false, 'a West member’s private details');
+  assert.equal(canManageMember(jet, m('m-torque'), COVERED), false);
+  assert.equal(canSeePrivate(jet, m('m-crank'), COVERED), true, 'his own chapter’s, as a board member');
+  // The club-wide seats still see every chapter: a sitting President, the Chairman.
+  assert.equal(seesEveryChapter(m('m-smokey'), P), true);
+  assert.equal(seesEveryChapter(m('m-rusty'), COVERED), true);
+  assert.equal(seesEveryChapter(m('m-ace'), P), false, 'the Auditor reviews but isn’t on the NEC');
+  assert.equal(seesEveryChapter(m('m-torque'), P), false);
+  assert.equal(seesEveryChapter(null, P), false);
+});
+
+test('empty-seat acting makes a board member; a settled lapsed one doesn’t', () => {
+  // West has no Vice President; Chook (an Officer) acts in the seat.
+  const chookVp: Position = {
+    id: 'p-chook-vp', memberId: 'm-chook', chapterId: 'ch-west', role: 'vice_president', startedOn: '2026-10-01', endedOn: null,
+    actingUntil: '2026-11-30', actingWhy: 'No VP since the ACM',
+  };
+  const acting = [...P, chookVp];
+  assert.equal(accessLevel(m('m-chook'), acting), 'board');
+  assert.equal(isBoardOf(m('m-chook'), 'ch-west', acting), true);
+  const lapsed = settleActing({ ...d, positions: [...P, { ...chookVp, actingUntil: '2026-10-28' }] }, TODAY).positions;
+  assert.equal(accessLevel(m('m-chook'), lapsed), 'member');
+  assert.equal(isBoardOf(m('m-chook'), 'ch-west', lapsed), false);
+});
+
+test('board-member mirrors count a covered holder; club-wide mirrors skip acting rows', () => {
+  const smokey = m('m-smokey');
+  // Board member: a distinct person with a held board row, covered or not.
+  assert.equal(isAnyBoard(smokey, COVERED), true);
+  assert.equal(managesBus(smokey, coveredData), true);
+  assert.equal(canRunCheckin(smokey, null, COVERED), true, 'a whole-club ride');
+  assert.equal(canRunCheckin(smokey, 'ch-north', COVERED), true);
+  assert.equal(isRideLeader(smokey.id, COVERED), true);
+  assert.deepEqual(electorsFor('chapter_board', 'ch-north', coveredData), ['m-crank', 'm-jet', 'm-smokey'], 'one ballot each, no second one for Jet');
+  // Club-wide: duty rows that aren't acting. The shop and the feedback inbox are club-wide.
+  assert.equal(holdsShopSeat(m('m-jet'), COVERED), false, 'an Acting President');
+  assert.equal(holdsShopSeat(smokey, COVERED), false, 'a covered President');
+  assert.equal(holdsShopSeat(m('m-rusty'), COVERED), true);
+  const books = [...P, torqueCoversSparks];
+  assert.equal(isFeedbackKeeper(m('m-torque'), books), false, 'an Acting Treasurer');
+  assert.equal(isFeedbackKeeper(m('m-sparks'), books), false, 'a covered Treasurer');
+  assert.equal(isFeedbackKeeper(m('m-sparks'), P), true);
+});
+
+test('holdProblem: a covered Treasurer can’t be seated as Auditor', () => {
+  const data = { ...d, positions: [...P, torqueCoversSparks] };
+  assert.equal(
+    appointProblem(m('m-rusty'), m('m-sparks'), null, 'nec_auditor', data, TODAY),
+    'The National Auditor can’t also be a President or Treasurer (11.8).',
+  );
+});
+
+test('an acting Officer, or a covered holder, must end their positions first', () => {
+  const ratchetOfficer: Position = {
+    id: 'p-ratchet-officer', memberId: 'm-ratchet', chapterId: 'ch-north', role: 'officer', startedOn: '2026-10-01', endedOn: null,
+    actingUntil: '2026-11-30', actingWhy: 'No Officer since the ACM',
+  };
+  const acting = { ...d, positions: [...P, ratchetOfficer] };
+  assert.equal(statusChangeProblem(m('m-smokey'), m('m-ratchet'), 'supporter', acting, TODAY, true), 'End their positions first.');
+  const covered = { ...d, positions: [...P, torqueCoversSparks] };
+  assert.equal(statusChangeProblem(m('m-rusty'), m('m-sparks'), 'supporter', covered, TODAY, true), 'End their positions first.');
+});
+
+test('a stint isn’t a 9.4 served term', () => {
+  const NINE_FOUR = 'A President or Vice President should have served a full term in another board seat, unless they’re a founding officer or the NEC gave an exemption (9.4).';
+  // A row long enough to be a full term (no stint runs this long; the rule is what's checked).
+  const long: Position = {
+    id: 'p-crank-old-treasurer', memberId: 'm-crank', chapterId: 'ch-north', role: 'treasurer', startedOn: '2022-07-01', endedOn: '2024-08-01',
+  };
+  const served = { ...d, positions: [...P, long] };
+  assert.ok(!appointWarnings(m('m-crank'), 'president', served, TODAY).includes(NINE_FOUR), 'a full term in another seat');
+  const stint = { ...d, positions: [...P, { ...long, actingUntil: '2024-07-31', actingWhy: 'No Treasurer since the ACM', endedReason: 'lapsed' as const }] };
+  assert.ok(appointWarnings(m('m-crank'), 'president', stint, TODAY).includes(NINE_FOUR), 'acting there isn’t one');
 });

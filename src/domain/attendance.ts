@@ -2,7 +2,8 @@
 // The database's open_checkin, check_in, mark_attendance and close_checkin actions apply the same
 // rules with the same words.
 
-import { activePositions, isBoardOf, isNational, reviewsChapter } from './access';
+import { isBoardOf, isNational, reviewsChapter } from './access';
+import { heldPositions } from './acting';
 import { BOARD_ROLES } from './labels';
 import type { Chapter, CheckinKind, CheckinSession, ClubData, MeetingType, Member, Position, Ride } from './types';
 
@@ -34,11 +35,11 @@ export function rideChapterId(ride: Ride, chapters: Chapter[]): string | null {
   return chapters.find((c) => c.slug === ride.category)?.id ?? null;
 }
 
-/** That chapter's board or the NEC; for a whole-club ride, any chapter's board. */
+/** That chapter's board or the NEC; for a whole-club ride, any chapter's board (covered holders included). Mirrors private.can_run_checkin. */
 export function canRunCheckin(viewer: Member | null, chapterId: string | null, positions: Position[]): boolean {
   if (!viewer || viewer.approval !== 'approved') return false;
   if (chapterId !== null) return isBoardOf(viewer, chapterId, positions);
-  return isNational(viewer.id, positions) || activePositions(viewer.id, positions).some((p) => BOARD_ROLES.includes(p.role));
+  return isNational(viewer.id, positions) || heldPositions(viewer.id, positions).some((p) => BOARD_ROLES.includes(p.role));
 }
 
 /** Approved members, and applicants still in their introduction phase (it's their meetings that count). */
