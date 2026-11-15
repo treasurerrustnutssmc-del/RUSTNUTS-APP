@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { accessLevel } from '../domain/access';
 import { melbourneDate } from '../domain/rides';
 import type { ClubData } from '../domain/types';
-import { ClubContext, type ClubContextValue } from './clubContext';
+import { ClubContext, RouteNotOnRideError, type ClubContextValue } from './clubContext';
 import * as business from './businessActions';
 import * as planning from './planningActions'; // Ride planning extras
 import * as charity from './charityActions'; // Charity ride sign-ups
@@ -176,10 +176,17 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     rejectPayment: async (paymentId) => setData(s4.rejectPayment(ctx, paymentId)),
     setCrew: async (rideId, memberId, role) => setData(act.setCrew(ctx, rideId, memberId, role)),
     leaveCrew: async (rideId, memberId) => setData(act.leaveCrew(ctx, rideId, memberId)),
-    saveRoute: async (input) => {
-      const result = act.saveRoute(ctx, input);
+    saveRoute: async (input, rideId) => {
+      const result = act.saveRoute(fresh(), input);
       if (input.gpx !== null) routeFiles.current.set(result.id, act.storedGpx(input.gpx));
-      setData(result.data);
+      keep(result.data);
+      if (rideId) {
+        try {
+          keep(act.setRideRoute(fresh(), rideId, result.id));
+        } catch (e) {
+          throw new RouteNotOnRideError(result.id, (e as Error).message);
+        }
+      }
       return result.id;
     },
     archiveRoute: async (routeId) => setData(act.archiveRoute(ctx, routeId)),
