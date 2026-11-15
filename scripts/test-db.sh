@@ -593,4 +593,13 @@ done
 "${PSQL[@]}" -d rustnuts_no_passwords -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_no_passwords -f "$ROOT/supabase/tests/no_passwords_test.sql"
 
+# Acting in a role, until a date, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_acting" >/dev/null
+"${PSQL[@]}" -d rustnuts_acting -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_acting -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_acting -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_acting -f "$ROOT/supabase/tests/acting_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'
