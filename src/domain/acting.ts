@@ -12,7 +12,7 @@
 import { addDays } from './dates';
 import { BOARD_ROLES } from './labels';
 import { melbourneDate } from './rides';
-import type { ActingChange, ActingRequest, ClubData, EndedReason, Position, Vote } from './types';
+import type { ActingChange, ActingRequest, ClubData, Electorate, EndedReason, Position, PositionRole, Threshold, Vote } from './types';
 
 /** A stint: a row with an until date. */
 export const isActing = (p: Position): boolean => p.actingUntil != null;
@@ -223,21 +223,27 @@ export function endPositionRows(
 // ---------------------------------------------------------------------------
 
 /**
- * The row that casts a chapter's NEC vote now: the President with the seat's duties, unless they
- * chair the NEC (an Acting President counts); then a Vice President row that isn't acting and that
- * no cover points at, since a VP takes part only while formally acting as President. The newest
- * holder acts during a handover (9.8); a cover with no vote behind it dates from the row it covers.
- * Mirrors private.nec_voter_for.
+ * The row that casts a chapter's NEC vote on a vote opened on `day`, counting only rows that started
+ * before it (`day` null: now, any start). The President with the seat's duties, unless they chair
+ * the NEC (an Acting President counts); then a Vice President row that isn't acting and that no
+ * cover points at, since a VP takes part only while formally acting as President. The newest holder
+ * acts during a handover (9.8). A cover with no vote behind it counts from the start of the row it
+ * covers, because the holder chose the stand-in; while a President row from before the day is under
+ * a cover that doesn't count, it's nobody: the covered President is off the NEC, and the board
+ * didn't pick who casts. Mirrors private.nec_voter_before.
  */
-export function necVoterRow(chapterId: string, positions: Position[]): Position | null {
+function necVoterRowBefore(chapterId: string, day: string | null, positions: Position[]): Position | null {
   const held = heldRows(positions);
   const covered = coveredIds(positions);
   const chairs = new Set(dutyRows(positions).filter((p) => p.role === 'nec_chair').map((p) => p.memberId));
   const countsFrom = (x: Position) =>
     (x.covers != null && x.actingVote == null ? held.find((c) => c.id === x.covers)?.startedOn : undefined) ?? x.startedOn;
-  const candidates = held.filter(
+  const before = (x: Position) => day === null || countsFrom(x) < day;
+  const seat = held.filter((x) => x.chapterId === chapterId && (x.role === 'president' || x.role === 'vice_president'));
+  if (seat.some((p) => p.role === 'president' && before(p) && seat.some((s) => s.covers === p.id && !before(s)))) return null;
+  const candidates = seat.filter(
     (x) =>
-      x.chapterId === chapterId &&
+      before(x) &&
       !covered.has(x.id) &&
       ((x.role === 'president' && !chairs.has(x.memberId)) || (x.role === 'vice_president' && !isActing(x))),
   );
@@ -247,7 +253,41 @@ export function necVoterRow(chapterId: string, positions: Position[]): Position 
   return candidates[0] ?? null;
 }
 
+/** The row that casts a chapter's NEC vote now. Mirrors private.nec_voter_for. */
+export function necVoterRow(chapterId: string, positions: Position[]): Position | null {
+  return necVoterRowBefore(chapterId, null, positions);
+}
+
 /** Who casts a chapter's NEC vote now (11.2). */
 export function necVoterFor(chapterId: string, positions: Position[]): string | null {
   return necVoterRow(chapterId, positions)?.memberId ?? null;
+}
+
+/**
+ * Who would cast a chapter's NEC ballot on a vote opened on `day` (a Melbourne date): its voter
+ * from rows that started before that day, so a seat that starts on or after it neither takes the
+ * ballot nor takes it away. Mirrors private.nec_voter_before.
+ */
+export function necVoterBefore(chapterId: string, day: string, positions: Position[]): string | null {
+  return necVoterRowBefore(chapterId, day, positions)?.memberId ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// The shape of a vote that ends a term (9.3)
+// ---------------------------------------------------------------------------
+
+export type VoteShape = { electorate: Electorate; threshold: Threshold };
+
+/** Ending someone's acting, or a Non-Board role: a majority of the chapter board (9.3). */
+export const END_ACTING_SHAPE: VoteShape = { electorate: 'chapter_board', threshold: 'majority' };
+
+/**
+ * The shape a vote to end someone's time in a chapter role takes (9.3): two-thirds of the chapter's
+ * Full Members for a board seat, a majority of the chapter board for any other chapter role, and
+ * for ending someone's acting (`acting`) a majority of the chapter board, the shape 9.3 gives a
+ * Non-Board removal. Mirrors private.has_carried_removal_vote and open_vote.
+ */
+export function removalShape(role: PositionRole, acting = false): VoteShape {
+  if (acting || !BOARD_ROLES.includes(role)) return END_ACTING_SHAPE;
+  return { electorate: 'chapter_patched', threshold: 'two_thirds' };
 }

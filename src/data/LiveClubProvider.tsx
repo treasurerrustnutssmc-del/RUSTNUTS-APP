@@ -576,7 +576,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       return r.data as string;
     },
     castBallot: async (voteId, choice) => {
-      const problem = castProblem(visibleMe, (data.votes ?? []).find((v) => v.id === voteId), new Date().toISOString());
+      const problem = castProblem(visibleMe, (data.votes ?? []).find((v) => v.id === voteId), new Date().toISOString(), data);
       if (problem) throw new NotAllowedError(problem);
       ok(await supabase().rpc('cast_ballot', { p_vote: voteId, p_choice: choice }));
       await after();

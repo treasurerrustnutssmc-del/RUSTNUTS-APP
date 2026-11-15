@@ -670,6 +670,8 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.confirm_acting(${id('ar', c.request)})`;
     case 'setActingUntil':
       return `public.set_acting_until(${id('p', c.position)}, private.club_date() + ${Number(c.untilDays)})`;
+    case 'openActingVote':
+      return `public.open_acting_vote(${id('ar', c.request)}, ${Number(c.quorum)}, now() + interval '${Number(c.days) * 24} hours', null)`;
     case 'endTerm':
       return `public.end_position(${id('p', c.position)})`;
     case 'approve':

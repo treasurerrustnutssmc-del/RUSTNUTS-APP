@@ -5,11 +5,12 @@
 // settled club.
 
 import {
-  appointActingProblem, carriedActingVote, confirmActingProblem, NO_REQUEST, requestActingProblem, requestCoverProblem,
+  actingElectors, appointActingProblem, carriedActingVote, confirmActingProblem, NO_REQUEST, requestActingProblem, requestCoverProblem,
   requestNeedsVote, setActingUntilProblem, withdrawRequestProblem,
 } from '../domain/access';
 import { settleActing } from '../domain/acting';
-import type { ActingRequest, ClubData, Member, Position, PositionRole } from '../domain/types';
+import type { ActingRequest, ClubData, Member, Position, PositionRole, Vote } from '../domain/types';
+import { actingVoteQuestion, openActingVoteProblem } from '../domain/votes';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
 
@@ -131,10 +132,33 @@ export function setActingUntil(ctx: DemoCtx, positionId: string, until: string):
   };
 }
 
+/**
+ * Route 3's board vote on a request: a chapter board majority, not secret, about the stand-in in that
+ * role, its electors the board without the stand-in, the holder and, for a President or Treasurer
+ * seat, the Auditor (public.open_acting_vote).
+ */
+export function openActingVote(
+  ctx: DemoCtx, requestId: string, quorum: number, closesAt: string, meetingId: string | null,
+): { data: ClubData; id: string } {
+  const data = settleActing(ctx.data, ctx.today);
+  const now = nowOf(ctx);
+  const request = (data.actingRequests ?? []).find((r) => r.id === requestId);
+  refuse(openActingVoteProblem(ctx.me, request, quorum, closesAt, meetingId, data, now));
+  const r = request!;
+  const vote: Vote = {
+    id: newId('v'), chapterId: r.chapterId, meetingId, subjectMemberId: r.memberId, subjectRole: r.role,
+    question: actingVoteQuestion(r, data), details: null, electorate: 'chapter_board', threshold: 'majority', secret: false, quorum,
+    openedAt: now, closesAt, closedAt: null, result: null, castingVote: null, tally: null,
+    electorIds: actingElectors(r.chapterId, r.role, r.memberId, r.covers, data), votedIds: [], ballots: [], createdBy: ctx.me!.id,
+    actingRequestId: r.id, electorChapters: {},
+  };
+  return { data: { ...data, votes: [...(data.votes ?? []), vote] }, id: vote.id };
+}
+
 // The shared demo/database cases (supabase/tests/parity.json) ------------------------------------
 
 export const ACTING_ACTIONS = new Set<string>([
-  'appointActing', 'requestCover', 'requestActing', 'withdrawActingRequest', 'confirmActing', 'setActingUntil',
+  'appointActing', 'requestCover', 'requestActing', 'withdrawActingRequest', 'confirmActing', 'setActingUntil', 'openActingVote',
 ]);
 
 /** The acting actions as parity.json names them, with their …Days dates resolved. */
@@ -144,7 +168,9 @@ export type ActingAction =
   | { action: 'requestActing'; member: string; chapter: string; role: PositionRole; covers?: string | null; until: string; why: string }
   | { action: 'withdrawActingRequest'; request: string }
   | { action: 'confirmActing'; request: string }
-  | { action: 'setActingUntil'; position: string; until: string };
+  | { action: 'setActingUntil'; position: string; until: string }
+  /** Closing `days` from now, as the database's case closes it. */
+  | { action: 'openActingVote'; request: string; quorum: number; days: number };
 
 export function runActingAction(ctx: DemoCtx, a: ActingAction): ClubData {
   switch (a.action) {
@@ -160,5 +186,9 @@ export function runActingAction(ctx: DemoCtx, a: ActingAction): ClubData {
       return confirmActing(ctx, a.request);
     case 'setActingUntil':
       return setActingUntil(ctx, a.position, a.until);
+    case 'openActingVote': {
+      const closesAt = new Date(Date.parse(nowOf(ctx)) + a.days * 86_400_000).toISOString();
+      return openActingVote(ctx, a.request, a.quorum, closesAt, null).data;
+    }
   }
 }

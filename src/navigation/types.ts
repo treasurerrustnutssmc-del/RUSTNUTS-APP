@@ -43,7 +43,8 @@ export type RootParams = {
   OtterGuide: undefined; // the secretary's guide to Draft from Otter
   EditMeeting: { meetingId?: string; chapterId?: string | null } | undefined;
   Vote: { voteId: string };
-  NewVote: { chapterId?: string | null; meetingId?: string; subjectMemberId?: string; subjectRole?: PositionRole } | undefined;
+  // `acting`: a vote to end the subject's acting in that role (9.3), a chapter board majority.
+  NewVote: { chapterId?: string | null; meetingId?: string; subjectMemberId?: string; subjectRole?: PositionRole; acting?: boolean } | undefined;
   // ride crew
   PickCrew: { rideId: string; role: CrewRole };
   // ride routes

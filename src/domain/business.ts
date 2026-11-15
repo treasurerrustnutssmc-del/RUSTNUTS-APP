@@ -42,7 +42,7 @@ export function businessFor(me: Member | null, data: ClubData, now: string): Bus
   const P = data.positions;
   const votes = (data.votes ?? []).filter((v) => canSeeVote(me, v, P));
   const open = votes.filter((v) => v.closedAt === null).sort((a, b) => a.closesAt.localeCompare(b.closesAt));
-  const needsMe = open.filter((v) => castProblem(me, v, now) === null);
+  const needsMe = open.filter((v) => castProblem(me, v, now, data) === null);
   const items = (data.actionItems ?? []).filter((a) => a.doneOn === null && canSeeActionItem(me, a, P)).sort(byDue);
   const meetings = (data.meetings ?? []).filter((m) => canSeeMeeting(me, m, P));
   const t = new Date(now).getTime();

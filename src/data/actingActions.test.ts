@@ -10,11 +10,14 @@ import {
 } from '../domain/access';
 import { endPositionRows, HOLDER_SEAT_ENDED } from '../domain/acting';
 import type { ActingRequest, ChapterProposal, ClubData, Member, Position, PositionRole, Vote } from '../domain/types';
+import { ACTING_VOTE_OPEN, castNecCast } from '../domain/votes';
 import {
-  ACTING_ACTIONS, appointActing, confirmActing, requestActing, requestCover, runActingAction, setActingUntil, withdrawActingRequest,
+  ACTING_ACTIONS, appointActing, confirmActing, openActingVote, requestActing, requestCover, runActingAction, setActingUntil,
+  withdrawActingRequest,
 } from './actingActions';
 import { settleChapter } from './adminActions';
 import { renewAuditor } from './auditActions';
+import { castBallot, openVote } from './businessActions';
 import { NotAllowedError } from './clubContext';
 import { appoint, deleteMyAccount, endTerm, type DemoCtx } from './demoActions';
 import { DEMO_DATA } from './demoStory.testkit';
@@ -249,10 +252,54 @@ test('settling a new chapter closes a founder’s stint that lapsed last night f
 });
 
 test('the shared cases run the acting writers by name, with their dates resolved', () => {
-  assert.deepEqual([...ACTING_ACTIONS].sort(), ['appointActing', 'confirmActing', 'requestActing', 'requestCover', 'setActingUntil', 'withdrawActingRequest']);
+  assert.deepEqual([...ACTING_ACTIONS].sort(), [
+    'appointActing', 'confirmActing', 'openActingVote', 'requestActing', 'requestCover', 'setActingUntil', 'withdrawActingRequest',
+  ]);
   const before = world();
   const after = runActingAction(ctx(before, 'smokey'), {
     action: 'appointActing', member: 'crank', chapter: 'north', role: 'treasurer', until: UNTIL, why: 'No Treasurer since the ACM',
   });
   assert.equal(added(before, after)[0].actingUntil, UNTIL);
+});
+
+test('openActingVote opens the board’s majority vote on the request, without the stand-in or the holder', () => {
+  const before = world({ seats: FIVE, requests: [ask('crank-asks-jet', { requestedBy: 'crank', why: 'Smokey can’t be reached' })] });
+  const closesAt = '2026-11-22T08:00:00.000Z';
+  const { data, id } = openActingVote(ctx(before, 'crank'), 'crank-asks-jet', 3, closesAt, null);
+  const opened = data.votes!.find((v) => v.id === id)!;
+  assert.deepEqual({ ...opened, id: 'x' }, {
+    id: 'x', chapterId: 'north', meetingId: null, subjectMemberId: 'jet', subjectRole: 'president',
+    question: 'Jet acts as President (North) for Smokey until 13/12/2026: Smokey can’t be reached', details: null,
+    electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 3, openedAt: NOW, closesAt, closedAt: null, result: null,
+    castingVote: null, tally: null, electorIds: ['crank', 'gus', 'ned'], votedIds: [], ballots: [], createdBy: 'crank',
+    actingRequestId: 'crank-asks-jet', electorChapters: {},
+  });
+  refuses(() => openActingVote(ctx(before, 'crank'), 'crank-asks-jet', 3, '2026-11-16T08:00:00.000Z', null), ACTING_VOTE_OPEN);
+  // The shared cases name it with its closing time in days.
+  const ran = runActingAction(ctx(before, 'crank'), { action: 'openActingVote', request: 'crank-asks-jet', quorum: 3, days: 7 });
+  assert.equal(ran.votes!.at(-1)!.actingRequestId, 'crank-asks-jet');
+});
+
+test('openVote writes whose chapter each NEC ballot is, and castBallot passes an uncast one to its chapter’s voter', () => {
+  // Sam chairs the NEC, so each chapter's President casts its vote.
+  const before = world();
+  const { data, id } = openVote(ctx(before, 'lou'), {
+    chapterId: null, meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Tuesdays?', details: null,
+    electorate: 'nec', threshold: 'majority', secret: false, quorum: 2, closesAt: '2026-11-22T08:00:00.000Z',
+  });
+  const opened = data.votes!.find((v) => v.id === id)!;
+  assert.deepEqual(opened.electorIds, ['rusty', 'smokey']);
+  assert.deepEqual(opened.electorChapters, { rusty: 'west', smokey: 'north' });
+  // Smokey's seat ends mid-vote, so Jet, North's VP from before it opened, casts its ballot.
+  const ended = { ...data, positions: data.positions.map((p) => (p.id === 'smokey-president' ? { ...p, endedOn: AT } : p)) };
+  const cast = castBallot(ctx(ended, 'jet'), id, 'yes');
+  const after = cast.votes!.find((v) => v.id === id)!;
+  assert.deepEqual(after.electorIds, ['jet', 'rusty'], 'the ballot row moves to him');
+  assert.deepEqual(after.electorChapters, { jet: 'north', rusty: 'west' });
+  assert.deepEqual(after.votedIds, ['jet']);
+  assert.deepEqual(after.ballots, [{ memberId: 'jet', choice: 'yes' }]);
+  refuses(() => castBallot(ctx(cast, 'jet'), id, 'no'), 'You’ve already voted.');
+  // Had Smokey stayed, a cast ballot would stand.
+  const stayed = { ...cast, positions: before.positions };
+  refuses(() => castBallot(ctx(stayed, 'smokey'), id, 'no'), castNecCast('North'));
 });

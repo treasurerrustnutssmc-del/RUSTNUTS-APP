@@ -2,13 +2,13 @@
 // (row-level security in supabase/migrations), so the app can never show
 // more than the server would hand over.
 
-import { clubwidePositions, coverOf, dutyPositions, heldPositions, heldRows, isActing, isEnded, settleActing } from './acting';
+import { clubwidePositions, coverOf, dutyPositions, heldPositions, heldRows, isActing, isEnded, END_ACTING_SHAPE, removalShape, settleActing, type VoteShape } from './acting';
 import { BOARD_ROLES, NATIONAL_ROLES, TITLE_ROLES } from './labels';
 import { addMonths, displayName } from './profile';
 import { melbourneDate } from './rides';
 import { addDays, formatAuDate } from './dates';
 import { termState } from './terms';
-import type { ActingRequest, ClubData, Electorate, Member, MemberStatus, NecSeatRole, Position, PositionRole, StatusNotice, Threshold, Vote } from './types';
+import type { ActingRequest, ClubData, Member, MemberStatus, NecSeatRole, Position, PositionRole, StatusNotice, Vote } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'family' | 'member' | 'board' | 'national';
 
@@ -446,13 +446,6 @@ export const BOARD_SEAT_NEEDS_VOTE = 'Removing a board member needs a carried tw
 export const PRESIDENT_NEEDS_VOTE = 'Removing a President needs a carried two-thirds vote of the chapter’s Full Members in the last 90 days (9.3).';
 export const PRESIDENT_ENDED_BY = 'Only that chapter’s board or the National Chairman or Secretary can end a President’s term.';
 
-type VoteShape = { electorate: Electorate; threshold: Threshold };
-/** The shape 9.3 gives a removal from this role: two-thirds of the Full Members for a board seat, a board majority otherwise. */
-const removalShapeOf = (role: PositionRole): VoteShape =>
-  BOARD_ROLES.includes(role) ? { electorate: 'chapter_patched', threshold: 'two_thirds' } : { electorate: 'chapter_board', threshold: 'majority' };
-/** Ending someone's acting: a majority of the chapter board, the shape 9.3 gives a Non-Board removal. */
-const END_ACTING_SHAPE: VoteShape = { electorate: 'chapter_board', threshold: 'majority' };
-
 /**
  * A carried chapter vote in the last 90 days naming this member and role there, in one of these
  * shapes, that isn't an acting vote (one that seats acting never ends it).
@@ -478,7 +471,7 @@ function carriedVoteOn(
  */
 export function hasCarriedRemovalVote(position: Position, data: ClubData, today: string): boolean {
   if (position.chapterId === null) return false;
-  const shapes = isActing(position) ? [removalShapeOf(position.role), END_ACTING_SHAPE] : [removalShapeOf(position.role)];
+  const shapes = isActing(position) ? [removalShape(position.role), END_ACTING_SHAPE] : [removalShape(position.role)];
   return carriedVoteOn(position.memberId, position.chapterId, position.role, shapes, data, today, position.startedOn) !== undefined;
 }
 
@@ -671,7 +664,7 @@ function isSittingVp(memberId: string, chapterId: string, positions: Position[])
 
 /** A carried vote ended their time in this seat in the last 90 days: a 9.3 removal, or one that ended their acting. */
 function endedByVote(memberId: string, chapterId: string, role: PositionRole, data: ClubData, today: string): boolean {
-  return carriedVoteOn(memberId, chapterId, role, [removalShapeOf(role), END_ACTING_SHAPE], data, today) !== undefined;
+  return carriedVoteOn(memberId, chapterId, role, [removalShape(role), END_ACTING_SHAPE], data, today) !== undefined;
 }
 
 /** Step 6: ENDED_BY_VOTE, then anyone but the sitting VP as President. */
