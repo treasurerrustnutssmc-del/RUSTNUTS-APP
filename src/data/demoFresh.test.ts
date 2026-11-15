@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { clubwidePositions } from '../domain/acting';
 import { busOverRide, busToday, canBookBus, clashesWith, managesBus, myRecentOff, notAnswered, rideCalledOff, waitingForYes } from '../domain/bus';
 import { businessFor, melbourneHhmm, melbourneInstant } from '../domain/business';
 import { clubYearOf } from '../domain/clubYear';
@@ -11,14 +12,14 @@ import { crewNeeded, eligibilityProblem, managesRide, showsCrewNeeded } from '..
 import { addDays, daysBetween } from '../domain/dates';
 import { chargeBalance, dueState, fyOf } from '../domain/fees';
 import { fngDue } from '../domain/joining';
-import { bankedLate, monthEnd, monthOf, reportFor } from '../domain/ledger';
+import { bankedLate, keepsBooks, monthEnd, monthOf, reportFor } from '../domain/ledger';
 import { noticeRecordFrom } from '../domain/notices';
 import { addMonths, expiryAlerts } from '../domain/profile';
 import { currentRoadRules, roadRulesStatus, signoffBase } from '../domain/roadRules';
 import { lastDay, melbourneDate } from '../domain/rides';
 import { standingOf } from '../domain/standing';
 import type { ClubData } from '../domain/types';
-import { patchVoteTooEarly } from '../domain/votes';
+import { electorsFor, patchVoteTooEarly } from '../domain/votes';
 import type { DemoCtx } from './demoActions';
 import { buildDemoData, demoTodayRide } from './demoData';
 import { checkIn } from './demoStage4';
@@ -261,6 +262,11 @@ test('p-19 is Crank, Acting Treasurer (North), 28 days each side of today', () =
     assert.deepEqual(data.positions.filter((p) => p.chapterId === 'ch-north' && p.role === 'treasurer').map((p) => p.id), ['p-19'], now);
     assert.deepEqual(data.positions.filter((p) => p.memberId === 'm-crank' && p.endedOn === null).map((p) => p.id), ['p-11', 'p-19'], now);
     assert.equal(data.positions.at(-1)!.id, 'p-19', `appended last, at ${now}`);
+    // No ballot count moves: North's board is still the same three people.
+    assert.deepEqual(electorsFor('chapter_board', 'ch-north', data), ['m-crank', 'm-jet', 'm-smokey'], now);
+    // He keeps North's books, and his Treasurer seat isn't club-wide, so the Club fund's books aren't his.
+    assert.equal(keepsBooks(memberOf(data, 'm-crank'), 'ch-north', data.positions), true, now);
+    assert.deepEqual(clubwidePositions('m-crank', data.positions).map((p) => p.id), ['p-11'], now);
   }
 });
 
