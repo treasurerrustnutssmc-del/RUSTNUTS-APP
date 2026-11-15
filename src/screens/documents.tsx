@@ -219,6 +219,8 @@ function DocumentRow({ doc, last, onPress }: { doc: ClubDocument; last: boolean;
   const mustSign = !!me && signStatus(me, doc, data, today) === 'unsigned';
   const review = publishesDocument(me, doc.chapterId, data.positions) ? reviewLine(doc, data, today) : null;
   const overdue = review?.startsWith('Review overdue') ?? false;
+  // The Sign or Review chip sits under the meta line, not beside the title: beside it, a title like
+  // "Fee schedule" had 68pt at 360 wide and broke mid-word.
   return (
     <ListRow
       last={last}
@@ -226,16 +228,16 @@ function DocumentRow({ doc, last, onPress }: { doc: ClubDocument; last: boolean;
       title={doc.title}
       lines="all"
       subtitle={
-        <Text style={styles.rowMeta}>
-          {shown && state ? `${shown.label} · ${stateLabel(state, shown)}` : 'No version yet'}
-        </Text>
-      }
-      right={
-        mustSign ? (
-          <Chip label="Sign" tone="red" />
-        ) : review ? (
-          <Chip label={overdue ? 'Review overdue' : 'Review due'} tone={overdue ? 'danger' : 'warn'} />
-        ) : undefined
+        <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
+          <Text style={styles.rowMeta}>
+            {shown && state ? `${shown.label} · ${stateLabel(state, shown)}` : 'No version yet'}
+          </Text>
+          {mustSign ? (
+            <Chip label="Sign" tone="red" />
+          ) : review ? (
+            <Chip label={overdue ? 'Review overdue' : 'Review due'} tone={overdue ? 'danger' : 'warn'} />
+          ) : null}
+        </View>
       }
       onPress={onPress}
     />

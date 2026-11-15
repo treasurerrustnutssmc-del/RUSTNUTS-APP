@@ -78,18 +78,25 @@ test('Board: an FNG review row shows its review date beside the Overdue chip', (
   assert.match(tag, ALL);
 });
 
-test('Chat list: a chat name takes two lines beside the time', () => {
-  const list = block(read('chat.tsx'), 'export function ChatListScreen(');
+test('Chat list: a chat name takes two lines, with the time on its first line', () => {
+  const chat = read('chat.tsx');
+  const list = block(chat, 'export function ChatListScreen(');
   assert.match(tagHolding(list, '{s.title}</Text>', 'Text'), TWO);
+  // The row's top, not its middle: a two-line name keeps the time beside its first line.
+  assert.match(tagHolding(list, '<Text numberOfLines={2} style={[type.name, { flex: 1 }]}>{s.title}', 'Row'), /alignItems: 'flex-start'/);
+  // 2pt down centres the 18pt time on the name's 22pt first line, where a one-line name had it.
+  assert.match(chat, /listTime: \{ \.\.\.type\.small, fontFamily: fonts\.stencil, fontSize: 12, marginTop: 2 \},/);
 });
 
 test('Chat and ride wall: the header title wraps to two lines in the header stencil, and the title is still set', () => {
   const nav = read('../navigation/RootNavigator.tsx');
   // The header's own stencil and colour, with a line height that fits two lines in the bar. iOS lays
   // a custom title out as wide as the screen, under its back arrow, so it keeps its native title.
+  // On web the back arrow is 66pt, not the 52pt React Navigation leaves for it, so the title box ran
+  // 2pt past the edge: 18pt in from its right end leaves the usual 16pt gutter.
   assert.match(
     nav,
-    /const twoLineHeader: NativeStackNavigationOptions =\s*Platform\.OS === 'ios'\s*\? \{\}\s*: \{ headerTitle: \(props\) => <HeaderTitle \{\.\.\.props\} numberOfLines=\{2\} style=\{\[headerOptions\.headerTitleStyle, \{ lineHeight: 24 \}\]\} \/> \};/,
+    /const twoLineHeader: NativeStackNavigationOptions =\s*Platform\.OS === 'ios'\s*\? \{\}\s*: \{\s*headerTitle: \(props\) => \(\s*<HeaderTitle\s*\{\.\.\.props\}\s*numberOfLines=\{2\}\s*style=\{\[headerOptions\.headerTitleStyle, \{ lineHeight: 24 \}, Platform\.OS === 'web' && \{ paddingRight: 18 \}\]\}\s*\/>\s*\),\s*\};/,
   );
   assert.match(nav, /import \{ HeaderBackButton, HeaderTitle \} from '@react-navigation\/elements';/);
   const chats = nav.match(/<Stack\.Screen name="Chat" [^\n]*\/>/g) ?? [];
@@ -112,9 +119,17 @@ test('Rides list and Home Next ride: a ride title is never cut short', () => {
   assert.doesNotMatch(next, CLAMP, 'with no clamp of its own');
 });
 
-test('Club documents: a title shows in full beside a Review overdue or Sign chip', () => {
-  const tag = tagHolding(block(read('documents.tsx'), 'function DocumentRow('), 'title={doc.title}', 'ListRow');
+test('Club documents: a title shows in full, with the Sign or Review chip under its meta line', () => {
+  const row = block(read('documents.tsx'), 'function DocumentRow(');
+  const tag = tagHolding(row, 'title={doc.title}', 'ListRow');
   assert.match(tag, ALL);
+  // At 360 a chip beside the title left it 68pt ("Fee / schedul / e"), so nothing sits beside it.
+  assert.doesNotMatch(tag, /\bright=/, 'no chip beside the title');
+  assert.match(
+    tag,
+    /subtitle=\{\s*<View style=\{\{ gap: space\.xs, alignItems: 'flex-start' \}\}>\s*<Text style=\{styles\.rowMeta\}>[\s\S]*?<\/Text>\s*\{mustSign \? \(\s*<Chip label="Sign" tone="red" \/>\s*\) : review \? \(\s*<Chip label=\{overdue \? 'Review overdue' : 'Review due'\} tone=\{overdue \? 'danger' : 'warn'\} \/>\s*\) : null\}\s*<\/View>\s*\}/,
+    'the chip sits under the meta line, as on merch orders and National contributions',
+  );
 });
 
 test('Treasury ledger: an entry title takes two lines', () => {
@@ -261,4 +276,31 @@ test('Chat list: the last-message preview still keeps to one line', () => {
 test('A chat’s pinned bar (the Family chat too) still keeps to two lines', () => {
   const chat = read('chat.tsx');
   assert.match(tagHolding(chat, '{nameOf(pinned.authorId)}: ', 'Small'), TWO);
+});
+
+test('Quoted replies and the Replying-to bar still keep the name to one line and the words to two', () => {
+  const quote = block(read('../ui/ChatBits.tsx'), 'export function ReplyQuote(');
+  assert.match(tagHolding(quote, '{author}</Text>', 'Text'), /\bnumberOfLines=\{1\}/);
+  assert.match(tagHolding(quote, '{words}</Small>', 'Small'), TWO);
+  // Both are that one quote: in a message, and in the bar over the message being typed.
+  const chat = read('chat.tsx');
+  assert.match(chat, /\{m\.replyToId \? <ReplyQuote message=\{replied\} author=\{replied \? nameOf\(replied\.authorId\) : ''\} \/> : null\}/);
+  assert.match(chat, /<View style=\{styles\.replyBar\}>\s*<View style=\{\{ flex: 1 \}\}>\s*<ReplyQuote message=\{replyTo\} author=\{`Replying to \$\{nameOf\(replyTo\.authorId\)\}`\} \/>/);
+});
+
+test('Free text still keeps its clamp: the registrations card’s accommodation and a bus booking’s decline reason', () => {
+  const hub = block(read('ridePlanning.tsx'), 'export function HubSection(');
+  assert.match(tagHolding(hub, '{hub.accommodation}</Body>', 'Body'), TWO);
+  const bus = block(read('bus.tsx'), 'export function BusScreen(');
+  assert.match(tagHolding(bus, '{b.declineReason}', 'Small'), TWO);
+  // The charity helper lists, with their notes, keep ListRow's two lines (see the charity test above).
+});
+
+test('Ride replay video: the title still wraps to two lines of 20, and the stop and route lines still clip at 34', () => {
+  assert.match(read('rideReplay.tsx'), /titleLines: wrapLines\(caption\.title, 20, 2\),/);
+  const card = read('../ui/ReplayCard.tsx');
+  assert.match(card, /\{clip\(`STOP \$\{stopNumber\}  ·  \$\{frame\.atStop\.name\.toUpperCase\(\)\}`, 34\)\}/);
+  assert.match(card, /\{clip\(routeName\.toUpperCase\(\), 34\)\}/);
+  assert.equal(card.match(/\bclip\(/g)?.length, 2, 'no other line is clipped');
+  assert.doesNotMatch(card, CLAMP);
 });

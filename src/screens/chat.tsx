@@ -171,7 +171,7 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
                 last={i === chat.list.length - 1}
                 left={other ? <Avatar text={initials(other)} /> : <IconBadge icon={KIND_ICON[s.conversation.kind] ?? 'chatbubbles'} />}
                 title={
-                  <Row style={{ gap: space.sm, flexWrap: 'nowrap' }}>
+                  <Row style={{ gap: space.sm, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
                     <Text numberOfLines={2} style={[type.name, { flex: 1 }]}>{s.title}</Text>
                     {s.last ? <Text style={styles.listTime}>{when(s.last.createdAt, today)}</Text> : null}
                   </Row>
@@ -879,7 +879,7 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
 const MINE_META_COLOR = pickReadable([colors.boneMute, colors.boneDim], colors.steelHi);
 
 const styles = StyleSheet.create({
-  listTime: { ...type.small, fontFamily: fonts.stencil, fontSize: 12 },
+  listTime: { ...type.small, fontFamily: fonts.stencil, fontSize: 12, marginTop: 2 },
   unread: {
     minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: colors.redBright,
     alignItems: 'center', justifyContent: 'center',

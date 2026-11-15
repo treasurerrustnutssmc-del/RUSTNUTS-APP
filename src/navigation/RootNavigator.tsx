@@ -131,12 +131,22 @@ const stackHeaderOptions: NativeStackNavigationOptions = {
  * Ride and chat names run long: these headers take a second line before they cut, in the header's own
  * stencil, with a line height that fits two lines in the bar. The title string is still set, for
  * screen readers and the web tab. iOS lays a custom title out as wide as the screen, where it can run
- * under the back arrow, so it keeps its native title.
+ * under the back arrow, so it keeps its native title. On web the back arrow is 66pt, not the 52pt
+ * React Navigation leaves for it, so the title box ran 2pt past the edge: 18pt in from its right end
+ * leaves the usual 16pt gutter.
  */
 const twoLineHeader: NativeStackNavigationOptions =
   Platform.OS === 'ios'
     ? {}
-    : { headerTitle: (props) => <HeaderTitle {...props} numberOfLines={2} style={[headerOptions.headerTitleStyle, { lineHeight: 24 }]} /> };
+    : {
+        headerTitle: (props) => (
+          <HeaderTitle
+            {...props}
+            numberOfLines={2}
+            style={[headerOptions.headerTitleStyle, { lineHeight: 24 }, Platform.OS === 'web' && { paddingRight: 18 }]}
+          />
+        ),
+      };
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const TAB_ICONS: Record<keyof TabParams, [IconName, IconName]> = {
