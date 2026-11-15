@@ -592,4 +592,159 @@ do $$ begin
   assert pg_temp.refusal(pg_temp.seat_sql(10, pg_temp.west(), 'secretary')) = 'one_holder_per_board_seat', 'two elected West Secretaries still clash';
 end $$;
 
+-- §2 Readers: board member and held ----------------------------------------------------------------
+
+-- Which board-member helpers answer yes for member n in that chapter, by name, in this order. It
+-- makes a ride in the chapter's category and a new applicant to the chapter, so call it only inside
+-- begin … rollback.
+create function pg_temp.board_helpers(n int, slug text) returns text[] language plpgsql as $$
+declare
+  ch uuid := (select id from public.chapters c where c.slug = board_helpers.slug);
+  who uuid := pg_temp.f(n);
+  ride uuid;
+  applicant uuid := gen_random_uuid();
+  yes text[] := '{}';
+  h record;
+begin
+  insert into public.rides (source, starts_at, title, category)
+  values ('app', now() + interval '7 days', 'Chapter run', slug::public.ride_category) returning id into ride;
+  for h in select * from (values
+    ('is_board_of', format('private.is_board_of(%L)', ch)),
+    ('holds_board_seat', format('private.holds_board_seat(%L)', ch)),
+    ('is_any_board', 'private.is_any_board()'),
+    ('manages_bus', 'private.manages_bus()'),
+    ('can_run_checkin', format('private.can_run_checkin(%L)', ch)),
+    ('can_run_checkin(club)', 'private.can_run_checkin(null)'),
+    ('sees_site_enquiry', format('private.sees_site_enquiry(%L)', slug)),
+    ('sees_site_enquiry(either)', 'private.sees_site_enquiry(''either'')'),
+    ('is_ride_leader', format('private.is_ride_leader(%L)', who)),
+    ('manages_ride', format('private.manages_ride(%L)', ride)),
+    ('manages_chapter_rides', format('private.manages_chapter_rides(%L)', ch)),
+    ('manages_chapter_rides(club)', 'private.manages_chapter_rides(null)'),
+    ('manages_ride_category', format('private.manages_ride_category(%L)', slug)),
+    ('can_set_fees', format('private.can_set_fees(%L)', ch))
+  ) as v(name, expr) loop
+    if pg_temp.helper_as(who, h.expr)::boolean then yes := yes || h.name::text; end if;
+  end loop;
+  if who in (select private.electors_for('chapter_board', ch)) then yes := yes || 'electors_for'::text; end if;
+  insert into auth.users (id, email, email_confirmed_at) values (applicant, applicant || '@example.com', now());
+  insert into public.members (id, chapter_id, full_name, status, approval) values (applicant, ch, 'Pete Pending', 'introduced', 'pending');
+  if exists (select 1 from private.push_outbox where member_id = who and dedupe_key = 'applicant:' || applicant) then
+    yes := yes || 'push_applicant'::text;
+  end if;
+  return yes;
+end $$;
+
+create function pg_temp.every_board_helper() returns text[] language sql immutable as $$
+  select array['is_board_of', 'holds_board_seat', 'is_any_board', 'manages_bus', 'can_run_checkin', 'can_run_checkin(club)',
+    'sees_site_enquiry', 'sees_site_enquiry(either)', 'is_ride_leader', 'manages_ride', 'manages_chapter_rides',
+    'manages_chapter_rides(club)', 'manages_ride_category', 'can_set_fees', 'electors_for', 'push_applicant']
+$$;
+
+\echo 'board member: a covered President keeps every board-member helper above'
+begin;
+select pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey overseas', pg_temp.f(101));
+do $$
+declare got text[] := pg_temp.board_helpers(1, 'north');
+begin
+  assert got = pg_temp.every_board_helper(), 'Jet covers Smokey, who is still on North''s board: ' || got::text;
+end $$;
+rollback;
+
+\echo 'board member: North still has three chapter_board electors under a cover'
+begin;
+select pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey overseas', pg_temp.f(101));
+do $$ begin
+  assert (select array_agg(e order by e) from private.electors_for('chapter_board', pg_temp.north()) e)
+    = array[pg_temp.f(1), pg_temp.f(2), pg_temp.f(3)], 'Smokey, Jet (once, with two rows) and Crank';
+end $$;
+rollback;
+
+\echo 'board member: empty-seat acting makes a board member'
+begin;
+select pg_temp.seat(11, pg_temp.west(), 'vice_president', pg_temp.today() + 20, 'No VP since the ACM');
+do $$
+declare got text[] := pg_temp.board_helpers(11, 'west');
+begin
+  assert got = pg_temp.every_board_helper(), 'Hal acts in West''s empty VP seat, so he''s on West''s board: ' || got::text;
+  assert pg_temp.board_helpers(10, 'west') = '{}', 'Spanner, with no seat, has none';
+end $$;
+rollback;
+
+\echo 'board member: a lapsed but open row loses it'
+begin;
+select pg_temp.clock_at('2026-12-13 23:59:59 Australia/Melbourne');
+select pg_temp.seat(11, pg_temp.west(), 'vice_president', '2026-12-13', 'No VP since the ACM', null, '2026-12-01');
+do $$
+declare got text[] := pg_temp.board_helpers(11, 'west');
+begin
+  assert got = pg_temp.every_board_helper(), 'until today, Hal is on West''s board: ' || got::text;
+end $$;
+select pg_temp.clock_at('2026-12-14 00:00:00 Australia/Melbourne');
+do $$
+declare got text[] := pg_temp.board_helpers(11, 'west');
+begin
+  assert (select ended_on is null from positions where member_id = pg_temp.f(11)), 'nothing closed Hal''s stint';
+  assert got = '{}', 'from Melbourne midnight Hal has no board-member helper, no ballot and no applicant push: ' || got::text;
+end $$;
+rollback;
+
+\echo 'board member: the ride_committee branch is unchanged'
+begin;
+select pg_temp.seat(10, pg_temp.west(), 'ride_committee');
+select pg_temp.seat(5, pg_temp.north(), 'ride_committee', pg_temp.today(), 'Short on the Ride Committee', null, pg_temp.today() - 10);
+select pg_temp.seat(6, pg_temp.north(), 'ride_committee', pg_temp.today() - 1, 'Short on the Ride Committee', null, pg_temp.today() - 10);
+do $$
+declare
+  rides constant text[] := array['manages_ride', 'manages_chapter_rides', 'manages_chapter_rides(club)', 'manages_ride_category'];
+  got text[];
+begin
+  got := pg_temp.board_helpers(10, 'west');
+  assert got = rides, 'Spanner, on West''s Ride Committee, manages West''s rides and no more: ' || got::text;
+  got := pg_temp.board_helpers(10, 'north');
+  assert got = array['manages_chapter_rides(club)'], 'but not North''s: ' || got::text;
+  assert pg_temp.helper_as(pg_temp.f(10), 'private.manages_ride_category(''club'')') = 'true', 'and any club ride';
+  got := pg_temp.board_helpers(5, 'north');
+  assert got = rides, 'Ned acting on North''s Ride Committee until today manages its rides: ' || got::text;
+  got := pg_temp.board_helpers(6, 'north');
+  assert got = '{}', 'Gus''s stint there ran until yesterday, so he doesn''t: ' || got::text;
+end $$;
+rollback;
+
+\echo 'board member: can_set_fees = can_manage_fees or is_board_of'
+begin;
+select pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey overseas', pg_temp.f(101));
+select pg_temp.seat(11, pg_temp.west(), 'vice_president', pg_temp.today() + 20, 'No VP since the ACM');
+select pg_temp.seat(6, pg_temp.north(), 'treasurer', pg_temp.today() + 20, 'No Treasurer since the ACM');
+select pg_temp.seat(10, pg_temp.west(), 'sergeant_at_arms', pg_temp.today() - 1, 'No Sergeant since the ACM', null, pg_temp.today() - 10);
+do $$
+declare
+  n int;
+  ch uuid;
+begin
+  for n in 1..12 loop
+    foreach ch in array array[pg_temp.north(), pg_temp.west()] loop
+      assert pg_temp.helper_as(pg_temp.f(n), format('private.can_set_fees(%L)', ch))
+        = pg_temp.helper_as(pg_temp.f(n), format('private.can_manage_fees(%L) or private.is_board_of(%L)', ch, ch)),
+        'f' || n || ' in ' || ch;
+    end loop;
+  end loop;
+  assert pg_temp.helper_as(pg_temp.f(4), format('private.can_set_fees(%L)', pg_temp.west())) = 'true', 'Lou, as National Secretary, handles money';
+  assert pg_temp.helper_as(pg_temp.f(10), format('private.can_set_fees(%L)', pg_temp.west())) = 'false', 'Spanner''s lapsed stint doesn''t';
+end $$;
+rollback;
+
+\echo 'held: hold_problem sees a covered Treasurer as Treasurer and ignores a lapsed stint'
+begin;
+select pg_temp.seat(8, pg_temp.west(), 'treasurer', pg_temp.today() + 20, 'Penny overseas', pg_temp.f(109));
+select pg_temp.seat(6, pg_temp.north(), 'treasurer', pg_temp.today() - 1, 'No Treasurer since the ACM', null, pg_temp.today() - 10);
+do $$ begin
+  assert private.hold_problem(pg_temp.f(9), 'nec_auditor') = 'The National Auditor can’t also be a President or Treasurer (11.8).',
+    'Torque covers Penny, who is still West''s Treasurer';
+  assert private.hold_problem(pg_temp.f(6), 'nec_auditor') is null, 'Gus''s Treasurer stint ran until yesterday';
+  assert private.hold_problem(pg_temp.f(12), 'treasurer') = 'The National Auditor can’t also be a President or Treasurer (11.8).',
+    'Kim is still the Auditor';
+end $$;
+rollback;
+
 \echo 'ACTING CHECKS PASSED'

@@ -322,3 +322,221 @@ revoke all on function private.role_label(public.position_role), private.lock_se
   private.lock_people(uuid[]), private.close_lapsed_acting(), private.check_covers(), private.on_position_end(),
   private.push_acting_holder()
   from public, anon, authenticated;
+
+-- §2 Readers: board member and held ----------------------------------------------------------------
+
+-- "Board member" is a distinct person with a held board row in the chapter, covered or not: a
+-- covered holder keeps the board's ballot, records and approvals, a stand-in was on the board
+-- already, and acting in an empty board seat seats someone on it (9.8). A lapsed stint gives none of
+-- it from Melbourne midnight, closed or not. Each body below is the latest one, re-pointed at
+-- private.held_positions; their Ride Committee parts read private.duty_positions, and their
+-- is_national and is_nec_officer calls stay as they are (§3 gives those the duties reading).
+
+-- Acts as a chapter's board: a seated board member of that chapter (8.2, 12.3).
+create or replace function private.is_board_of(target_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.held_positions
+    where member_id = auth.uid() and chapter_id = target_chapter
+      and role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+  );
+$$;
+
+-- Sits on that chapter's board (not just the NEC). Mirrors holdsBoardSeat.
+create or replace function private.holds_board_seat(p_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.held_positions where member_id = auth.uid() and chapter_id = p_chapter
+      and role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain'));
+$$;
+
+/** Holds a board seat in any chapter, or sits on the NEC. */
+create or replace function private.is_any_board()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    private.is_national() or exists (
+      select 1 from private.held_positions
+      where member_id = auth.uid()
+        and role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+    )
+  );
+$$;
+
+-- Who manages the bus, saying yes or no: the NEC (private.is_national, the app's isNational), or
+-- anyone holding a sitting (not ended) board seat in any chapter; the Ride Committee isn't a board
+-- seat. The club has one bus, so any board can. The app's managesBus.
+create or replace function private.manages_bus()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    private.is_national() or exists (
+      select 1 from private.held_positions
+      where member_id = auth.uid() and chapter_id is not null
+        and role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+    )
+  );
+$$;
+
+-- That chapter's board or the NEC; for a whole-club ride (null), any chapter's board.
+create or replace function private.can_run_checkin(target_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select case when target_chapter is not null then private.is_board_of(target_chapter)
+              else private.is_approved_member() and (private.is_national() or exists (
+                select 1 from private.held_positions where member_id = auth.uid()
+                  and role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')))
+         end;
+$$;
+
+-- The chapter's board sets the amounts, as can whoever handles its money. (Not the wider NEC.)
+create or replace function private.can_set_fees(target_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.can_manage_fees(target_chapter) or private.is_board_of(target_chapter);
+$$;
+
+-- Everyone who gets a ballot. Legacy members and anyone not approved never vote. Nomads vote on
+-- national matters only (10.7); the NEC has one vote per chapter, cast by its President (11.2).
+create or replace function private.electors_for(p_electorate public.electorate, p_chapter uuid)
+returns setof uuid language sql stable security definer set search_path = '' as $$
+  select m.id from public.members m
+  where m.approval = 'approved' and m.status <> 'legacy' and case p_electorate
+    when 'chapter_board' then exists (
+      select 1 from private.held_positions p
+      where p.member_id = m.id and p.chapter_id = p_chapter
+        and p.role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain'))
+    when 'chapter_patched' then m.chapter_id = p_chapter and m.status = 'full'
+    when 'club_patched' then m.status in ('full', 'nomad')
+    when 'nec' then m.id in (select private.nec_voter_for(c.id) from public.chapters c)
+  end
+  order by m.id;
+$$;
+
+-- Someone asks to join: that chapter's board hears about it.
+create or replace function private.push_applicant()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.approval <> 'pending' then return new; end if;
+  insert into private.push_outbox (member_id, dedupe_key, title, body, data)
+  select distinct pos.member_id, 'applicant:' || new.id, 'Waiting for approval',
+    new.full_name || ' asked to join ' || c.name, jsonb_build_object('kind', 'applicant', 'memberId', new.id)
+  from private.held_positions pos
+  join public.members b on b.id = pos.member_id
+  join public.chapters c on c.id = new.chapter_id
+  left join public.notification_prefs p on p.member_id = pos.member_id
+  where pos.chapter_id = new.chapter_id and b.approval = 'approved'
+    and pos.role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+    and coalesce(p.approvals, true)
+  on conflict (member_id, dedupe_key) do nothing;
+  return new;
+end;
+$$;
+
+-- Who sees an enquiry: a board seat in the chapter it names, any board seat for "either", and the
+-- NEC officers (Chairman, Secretary) for the lot. The same as enquiriesSeenBy in the app.
+create or replace function private.sees_site_enquiry(target_slug text)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    private.is_nec_officer() or exists (
+      select 1 from private.held_positions p
+      join public.chapters c on c.id = p.chapter_id
+      where p.member_id = auth.uid()
+        and p.role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+        and (target_slug = 'either' or c.slug = target_slug)
+    )
+  );
+$$;
+
+-- Off the NEC, so not a ride leader either: Road Captain, Tail Gunner or Assistant TG, or a board
+-- or NEC officer seat.
+create or replace function private.is_ride_leader(who uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from private.held_positions p join public.members m on m.id = p.member_id
+    where p.member_id = who and m.approval = 'approved'
+      and p.role in ('road_captain', 'tail_gunner', 'assistant_tail_gunner', 'president', 'vice_president',
+                     'secretary', 'treasurer', 'sergeant_at_arms', 'nec_chair', 'nec_secretary')
+  );
+$$;
+
+-- Who manages a ride's crew: anyone on the NEC; for a North or West ride, that chapter's board or
+-- Ride Committee; for any other ride, any chapter's board or Ride Committee. Same as managesRide.
+create or replace function private.manages_ride(p_ride uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    private.is_national() or exists (
+      select 1
+      from public.rides r
+      join (select member_id, chapter_id from private.held_positions
+            where role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+            union all
+            select member_id, chapter_id from private.duty_positions where role = 'ride_committee') p
+        on p.member_id = auth.uid()
+      left join public.chapters c on c.slug = r.category::text
+      where r.id = p_ride
+        and (r.category not in ('north', 'west') or p.chapter_id = c.id)
+    )
+  );
+$$;
+
+-- manages_ride, for a chapter instead of a ride.
+create or replace function private.manages_chapter_rides(p_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    private.is_national() or exists (
+      select 1
+      from (select member_id, chapter_id from private.held_positions
+            where role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+            union all
+            select member_id, chapter_id from private.duty_positions where role = 'ride_committee') p
+      where p.member_id = auth.uid()
+        and (p_chapter is null or p.chapter_id = p_chapter)
+    )
+  );
+$$;
+
+-- The managesRide rule (crew.ts) asked of a category: North and West need that chapter's board or
+-- ride committee (or the NEC); the rest take any board seat, ride committee seat or the NEC.
+create or replace function private.manages_ride_category(p_category public.ride_category)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    private.is_national() or exists (
+      select 1
+      from (select member_id, chapter_id from private.held_positions
+            where role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+            union all
+            select member_id, chapter_id from private.duty_positions where role = 'ride_committee') p
+      left join public.chapters c on c.slug = p_category::text
+      where p.member_id = auth.uid()
+        and (p_category not in ('north', 'west') or p.chapter_id = c.id)
+    )
+  );
+$$;
+
+-- Why p_member can't hold p_role, or null. Now also: the Auditor can't be National Chairman or
+-- Secretary at the same time, since they aren't on the NEC (11.2, 11.8). Reads held rows: a covered
+-- holder still holds their seat; a lapsed stint holds nothing.
+create or replace function private.hold_problem(p_member uuid, p_role public.position_role)
+returns text language plpgsql stable security definer set search_path = '' as $$
+declare target public.members%rowtype;
+begin
+  select * into target from public.members where id = p_member;
+  if target.status not in ('full', 'nomad') then
+    return 'Only Full and Nomad members hold Club positions (4.6, 5.8).';
+  end if;
+  if target.status = 'nomad' and p_role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms',
+                                            'road_captain', 'nec_chair', 'nec_secretary', 'nec_auditor') then
+    return 'Nomads can’t hold a board or national seat (9.1).';
+  end if;
+  if (p_role = 'nec_auditor' and exists (
+        select 1 from private.held_positions where member_id = p_member and role in ('president', 'treasurer')))
+     or (p_role in ('president', 'treasurer') and exists (
+        select 1 from private.held_positions where member_id = p_member and role = 'nec_auditor')) then
+    return 'The National Auditor can’t also be a President or Treasurer (11.8).';
+  end if;
+  if (p_role = 'nec_auditor' and exists (
+        select 1 from private.held_positions where member_id = p_member and role in ('nec_chair', 'nec_secretary')))
+     or (p_role in ('nec_chair', 'nec_secretary') and exists (
+        select 1 from private.held_positions where member_id = p_member and role = 'nec_auditor')) then
+    return 'The National Auditor isn’t on the NEC, so can’t also be National Chairman or Secretary (11.8).';
+  end if;
+  return null;
+end;
+$$;
