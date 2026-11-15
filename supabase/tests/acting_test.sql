@@ -1016,9 +1016,6 @@ begin
     ('acting_cap', 'a run''s start, from ended rows (Task 4)'),
     ('acting_needs_vote', 'when the President seat fell empty, from ended rows (Task 4)'),
     ('approval_conflict', 'rows held on an approval''s day (Task 7)'),
-    ('has_carried_removal_vote', 'pending: re-pointed in Task 5'),
-    ('set_member_status', 'pending: re-pointed in Task 5'),
-    ('delete_my_account', 'pending: re-pointed in Task 5'),
     ('open_vote', 'pending: re-pointed in Task 6')
   )
   select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname) into off
@@ -1825,5 +1822,549 @@ begin
   assert pg_temp.by(12, pg_temp.confirm_sql(req)) is null, 'Kim confirms Penny covering Torque''s Secretary seat';
 end $$;
 rollback;
+
+-- §5 Writers and endings, the lock catalogue, two sessions ---------------------------------------
+
+insert into acting_words (k, t) values
+  ('REPLACE_NEEDS_END', 'Someone is acting in that seat. They step down first, or a carried board vote ends their acting.'),
+  ('ACTING_END_NEEDS_VOTE', 'Ending someone’s acting needs a carried majority vote of the chapter board in the last 90 days (9.3).');
+
+create function pg_temp.appoint_sql(who int, ch uuid, r text) returns text language sql stable as $$
+  select format('public.appoint_position(%L, %L, %L)', pg_temp.f(who), ch, r)
+$$;
+create function pg_temp.end_sql(pos uuid) returns text language sql immutable as $$
+  select format('public.end_position(%L)', pos)
+$$;
+-- How a row ended: its reason, its first day without the seat and who ended it, or 'open'.
+create function pg_temp.how_ended(pos uuid) returns text language sql stable as $$
+  select concat_ws(' ', coalesce(ended_reason, 'open'), ended_on, coalesce(ended_by::text, 'nobody'))
+  from public.positions where id = pos
+$$;
+-- The same, as expected: ended today (or on day d) for that reason, by member n (null: nobody).
+create function pg_temp.ended(reason text, by_n int, d date default null) returns text language sql stable as $$
+  select concat_ws(' ', reason, coalesce(d, private.club_date()), coalesce(pg_temp.f(by_n)::text, 'nobody'))
+$$;
+-- Smokey asks for Jet to cover his seat, and Crank confirms it: Jet's cover row.
+create function pg_temp.jet_covers_smokey(why text default 'Smokey overseas') returns uuid language sql as $$
+  select pg_temp.id_by(3, pg_temp.confirm_sql(pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, pg_temp.today() + 28, why))))
+$$;
+
+\echo 'writers: electing the acting person ends their acting (replaced)'
+begin;
+do $$
+declare
+  stint uuid := pg_temp.id_by(1, pg_temp.appoint_acting_sql(3, pg_temp.north(), 'treasurer', pg_temp.today() + 28, 'No Treasurer since the ACM'));
+  tg uuid := pg_temp.id_by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'tail_gunner', pg_temp.today() + 28, 'Short a Tail Gunner'));
+  full_row uuid;
+begin
+  full_row := pg_temp.id_by(2, pg_temp.appoint_sql(3, pg_temp.north(), 'treasurer'));
+  assert pg_temp.how_ended(stint) = pg_temp.ended('replaced', 2),
+    'Jet seats Crank as Treasurer in full, which ends his acting today: ' || pg_temp.how_ended(stint);
+  assert (select member_id = pg_temp.f(3) and acting_until is null and ended_on is null and appointed_by = pg_temp.f(2)
+          from positions where id = full_row), 'and starts his full term';
+  full_row := pg_temp.id_by(1, pg_temp.appoint_sql(5, pg_temp.north(), 'tail_gunner'));
+  assert pg_temp.how_ended(tg) = pg_temp.ended('replaced', 1), 'the same for an Acting Tail Gunner: ' || pg_temp.how_ended(tg);
+  assert (select count(*) from positions where member_id = pg_temp.f(5) and ended_on is null) = 1, 'Ned holds one Tail Gunner row';
+end $$;
+rollback;
+
+\echo 'writers: Jet seating Lou over Crank''s acting gets REPLACE_NEEDS_END, with or without a North agm since'
+begin;
+do $$
+declare stint uuid := pg_temp.id_by(1, pg_temp.appoint_acting_sql(3, pg_temp.north(), 'treasurer', pg_temp.today() + 28, 'No Treasurer since the ACM'));
+begin
+  assert pg_temp.by(2, pg_temp.appoint_sql(4, pg_temp.north(), 'treasurer')) = pg_temp.w('REPLACE_NEEDS_END'), 'Crank steps down first, or the board votes';
+  perform pg_temp.meeting(pg_temp.north(), 'agm', now() - interval '1 day');
+  assert pg_temp.by(2, pg_temp.appoint_sql(4, pg_temp.north(), 'treasurer')) = pg_temp.w('REPLACE_NEEDS_END'),
+    'a saved ACM proves no election, so it changes nothing';
+  assert pg_temp.how_ended(stint) = 'open nobody', 'Crank still acts';
+end $$;
+rollback;
+
+\echo 'writers: Lou can''t replace an Acting President'
+begin;
+do $$
+declare stint uuid;
+begin
+  perform pg_temp.end_row(pg_temp.f(101));
+  stint := pg_temp.id_by(3, pg_temp.appoint_acting_sql(2, pg_temp.north(), 'president', pg_temp.today() + 28, 'No President since Smokey stepped down'));
+  assert pg_temp.by(4, pg_temp.appoint_sql(5, pg_temp.north(), 'president')) = pg_temp.w('REPLACE_NEEDS_END'), 'Lou can''t seat Ned over Jet''s acting';
+  assert pg_temp.how_ended(stint) = 'open nobody', 'Jet still acts';
+  assert pg_temp.by(4, pg_temp.appoint_sql(2, pg_temp.north(), 'president')) is null, 'but can seat Jet himself in full';
+  assert pg_temp.how_ended(stint) = pg_temp.ended('replaced', 4), 'which ends his acting: ' || pg_temp.how_ended(stint);
+end $$;
+rollback;
+
+\echo 'writers: a full Tail Gunner sits beside an acting one'
+begin;
+do $$
+declare stint uuid := pg_temp.id_by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'tail_gunner', pg_temp.today() + 28, 'Short a Tail Gunner'));
+begin
+  assert pg_temp.by(1, pg_temp.appoint_sql(6, pg_temp.north(), 'tail_gunner')) is null, 'Smokey seats Gus as Tail Gunner in full';
+  assert pg_temp.how_ended(stint) = 'open nobody', 'Ned still acts';
+  assert (select count(*) from positions where chapter_id = pg_temp.north() and role = 'tail_gunner' and ended_on is null) = 2, 'two Tail Gunners';
+end $$;
+rollback;
+
+\echo 'writers: a stint that lapsed last night leaves its seat free for a full appointment'
+begin;
+do $$
+declare stint uuid := pg_temp.seat(11, pg_temp.west(), 'vice_president', pg_temp.today() - 1, 'No VP since the ACM', null, pg_temp.today() - 10);
+begin
+  assert pg_temp.by(7, pg_temp.appoint_sql(10, pg_temp.west(), 'vice_president')) is null, 'Rusty seats Spanner as VP in full';
+  assert pg_temp.how_ended(stint) = pg_temp.ended('lapsed', null), 'Hal''s stint closed as lapsed first: ' || pg_temp.how_ended(stint);
+end $$;
+rollback;
+
+\echo 'writers: covered Smokey steps down (the cover ends left_board) and is re-seated in full: one President row has duties'
+begin;
+do $$
+declare
+  cover uuid := pg_temp.jet_covers_smokey();
+  again uuid;
+begin
+  assert pg_temp.by(1, pg_temp.end_sql(pg_temp.f(101))) is null, 'Smokey steps down';
+  assert pg_temp.how_ended(pg_temp.f(101)) = pg_temp.ended('stepped_down', 1), 'stepped down: ' || pg_temp.how_ended(pg_temp.f(101));
+  assert pg_temp.how_ended(cover) = pg_temp.ended('left_board', null), 'Jet''s cover ends with his seat: ' || pg_temp.how_ended(cover);
+  again := pg_temp.id_by(4, pg_temp.appoint_sql(1, pg_temp.north(), 'president'));
+  assert (select array_agg(id) from private.duty_positions where chapter_id = pg_temp.north() and role = 'president') = array[again],
+    'Lou seats Smokey again after his re-election: one President row has the duties, his new one';
+end $$;
+rollback;
+
+\echo 'writers: seating Crank Treasurer in full after a vote ended his acting there: ENDED_BY_VOTE'
+begin;
+do $$
+declare
+  stint uuid := pg_temp.id_by(1, pg_temp.appoint_acting_sql(3, pg_temp.north(), 'treasurer', pg_temp.today() + 28, 'No Treasurer since the ACM'));
+  v uuid := pg_temp.vote(pg_temp.north(), 3, 'treasurer', 'chapter_board', 'majority', 'carried', 0);
+begin
+  assert pg_temp.by(2, pg_temp.end_sql(stint)) is null, 'Jet ends Crank''s acting on the board''s vote';
+  assert pg_temp.by(1, pg_temp.appoint_sql(3, pg_temp.north(), 'treasurer')) = pg_temp.w('ENDED_BY_VOTE'), 'Smokey can''t seat him in full now';
+  update votes set opened_at = opened_at - interval '91 days', closes_at = closes_at - interval '91 days',
+    closed_at = closed_at - interval '91 days' where id = v;
+  assert pg_temp.by(1, pg_temp.appoint_sql(3, pg_temp.north(), 'treasurer')) is null, 'once the vote is 91 days old, he can';
+end $$;
+rollback;
+begin;
+do $$ begin
+  perform pg_temp.vote(pg_temp.west(), 9, 'treasurer', 'chapter_patched', 'two_thirds', 'carried', 1);
+  assert pg_temp.by(7, pg_temp.end_sql(pg_temp.f(109))) is null, 'Rusty removes Penny on a 9.3 vote';
+  assert pg_temp.how_ended(pg_temp.f(109)) = pg_temp.ended('removed', 7), 'removed: ' || pg_temp.how_ended(pg_temp.f(109));
+  assert pg_temp.by(7, pg_temp.appoint_sql(9, pg_temp.west(), 'treasurer')) is null,
+    'and can seat her in full again: only acting has the board-majority shape on a board seat (the spec''s call 25)';
+end $$;
+rollback;
+
+\echo 'writers: full chair and books refused only against an acting row (a full Treasurer can be seated President, 17.6)'
+begin;
+do $$ begin
+  perform pg_temp.id_by(1, pg_temp.appoint_acting_sql(3, pg_temp.north(), 'treasurer', pg_temp.today() + 28, 'No Treasurer since the ACM'));
+  perform pg_temp.end_row(pg_temp.f(101));
+  assert pg_temp.by(4, pg_temp.appoint_sql(3, pg_temp.north(), 'president')) = pg_temp.w('BOOKS_NOT_CHAIR'),
+    'Lou can''t seat Acting Treasurer Crank as President in full';
+  perform pg_temp.end_row(pg_temp.f(107));
+  assert pg_temp.by(4, pg_temp.appoint_sql(9, pg_temp.west(), 'president')) is null, 'but seats Penny, West''s Treasurer in full, as President';
+end $$;
+rollback;
+begin;
+do $$ begin
+  perform pg_temp.jet_covers_smokey();
+  assert pg_temp.by(1, pg_temp.appoint_sql(2, pg_temp.north(), 'treasurer')) = pg_temp.w('CHAIR_NOT_BOOKS'),
+    'Smokey can''t seat Jet, acting as President for him, as Treasurer in full';
+  assert pg_temp.by(1, pg_temp.appoint_sql(5, pg_temp.north(), 'treasurer')) is null, 'Ned, yes';
+end $$;
+rollback;
+
+\echo 'writers: a roster claimant ends a live acting row in their seat (replaced) and fills a lapsed one'
+begin;
+insert into auth.users (id, email, email_confirmed_at) values
+  (pg_temp.f(13), 'f13@example.com', now()), (pg_temp.f(14), 'f14@example.com', now());
+insert into private.roster (email, chapter_id, full_name, status, roles) values
+  ('f13@example.com', pg_temp.north(), 'Bolt Upright', 'full', '{treasurer}'),
+  ('f14@example.com', pg_temp.west(), 'Nut Case', 'full', '{vice_president}');
+do $$
+declare
+  stint uuid := pg_temp.id_by(1, pg_temp.appoint_acting_sql(3, pg_temp.north(), 'treasurer', pg_temp.today() + 28, 'No Treasurer since the ACM'));
+  lapsed uuid := pg_temp.seat(11, pg_temp.west(), 'vice_president', pg_temp.today() - 1, 'No VP since the ACM', null, pg_temp.today() - 10);
+begin
+  assert pg_temp.value_as(pg_temp.f(13), 'public.claim_roster()') = 'true', 'Bolt claims his place';
+  assert pg_temp.how_ended(stint) = pg_temp.ended('replaced', null),
+    'the sheet records his election (17.6), so Crank''s acting ends, by nobody: ' || pg_temp.how_ended(stint);
+  assert (select array_agg(array[old_until::text, coalesce(new_until::text, 'ended'), changed_by::text, note])
+          from acting_changes where position_id = stint)
+    = array[array[(pg_temp.today() + 28)::text, 'ended', pg_temp.f(13)::text, 'Elected holder claimed the seat (17.6)']], 'and logged';
+  assert (select started_on = '2026-08-01' and acting_until is null from positions
+          where member_id = pg_temp.f(13) and role = 'treasurer' and ended_on is null), 'Bolt is North''s Treasurer from 1/8/2026';
+  assert pg_temp.value_as(pg_temp.f(14), 'public.claim_roster()') = 'true', 'Nut claims his place';
+  assert pg_temp.how_ended(lapsed) = pg_temp.ended('lapsed', null), 'Hal''s stint lapsed last night, and closes so: ' || pg_temp.how_ended(lapsed);
+  assert exists (select 1 from positions where member_id = pg_temp.f(14) and role = 'vice_president' and ended_on is null),
+    'and Nut sits in West''s VP seat';
+end $$;
+rollback;
+
+\echo 'endings: stepped_down, holder_back (agreed and voted covers), removed with a carried chapter_board majority, ACTING_END_NEEDS_VOTE without one, Lou refused'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+do $$
+declare
+  n uuid := pg_temp.north();
+  t date := pg_temp.today();
+  stint uuid;
+  cover uuid;
+  req uuid;
+begin
+  stint := pg_temp.id_by(1, pg_temp.appoint_acting_sql(3, n, 'treasurer', t + 28, 'No Treasurer since the ACM'));
+  assert pg_temp.by(3, pg_temp.end_sql(stint)) is null, 'Crank steps down from acting';
+  assert pg_temp.how_ended(stint) = pg_temp.ended('stepped_down', 3), 'stepped down: ' || pg_temp.how_ended(stint);
+
+  cover := pg_temp.jet_covers_smokey();
+  assert pg_temp.by(1, pg_temp.end_sql(cover)) is null, 'Smokey is back';
+  assert pg_temp.how_ended(cover) = pg_temp.ended('holder_back', 1), 'holder back: ' || pg_temp.how_ended(cover);
+  req := pg_temp.request(n, 'president', 2, pg_temp.f(101), t + 20, 'Smokey can''t be reached', 3);
+  perform pg_temp.vote(n, 2, 'president', 'chapter_board', 'majority', 'carried', 1, req);
+  cover := pg_temp.id_by(5, pg_temp.confirm_sql(req));
+  assert (select acting_vote is not null from positions where id = cover), 'a voted cover';
+  assert pg_temp.by(1, pg_temp.end_sql(cover)) is null, 'Smokey is back from that too';
+  assert pg_temp.how_ended(cover) = pg_temp.ended('holder_back', 1), 'holder back: ' || pg_temp.how_ended(cover);
+
+  stint := pg_temp.id_by(1, pg_temp.appoint_acting_sql(3, n, 'treasurer', t + 28, 'No Treasurer since the ACM'));
+  assert pg_temp.by(2, pg_temp.end_sql(stint)) = pg_temp.w('ACTING_END_NEEDS_VOTE'), 'Jet can''t end Crank''s acting without a vote';
+  assert pg_temp.by(4, pg_temp.end_sql(stint)) = 'Only that chapter’s board can end this term.', 'Lou, an NEC officer, has no part';
+  perform pg_temp.vote(n, 3, 'treasurer', 'chapter_board', 'majority', 'carried', 0);
+  assert pg_temp.by(4, pg_temp.end_sql(stint)) = 'Only that chapter’s board can end this term.', 'not even after a vote';
+  assert pg_temp.by(2, pg_temp.end_sql(stint)) is null, 'with a carried board majority, Jet ends it';
+  assert pg_temp.how_ended(stint) = pg_temp.ended('removed', 2), 'removed: ' || pg_temp.how_ended(stint);
+end $$;
+rollback;
+
+\echo 'endings: a normal row ends stepped_down or removed'
+begin;
+do $$ begin
+  assert pg_temp.by(3, pg_temp.end_sql(pg_temp.f(103))) is null, 'Crank steps down as Road Captain';
+  assert pg_temp.how_ended(pg_temp.f(103)) = pg_temp.ended('stepped_down', 3), 'stepped down: ' || pg_temp.how_ended(pg_temp.f(103));
+  perform pg_temp.vote(pg_temp.west(), 8, 'secretary', 'chapter_patched', 'two_thirds', 'carried', 1);
+  assert pg_temp.by(7, pg_temp.end_sql(pg_temp.f(108))) is null, 'Rusty removes Torque on a 9.3 vote';
+  assert pg_temp.how_ended(pg_temp.f(108)) = pg_temp.ended('removed', 7), 'removed: ' || pg_temp.how_ended(pg_temp.f(108));
+end $$;
+rollback;
+
+\echo 'endings: the Auditor in a West VP seat can''t end West''s Acting Treasurer, even on a vote'
+begin;
+do $$
+declare stint uuid;
+begin
+  perform pg_temp.seat(12, pg_temp.west(), 'vice_president');
+  perform pg_temp.end_row(pg_temp.f(109));
+  stint := pg_temp.id_by(7, pg_temp.appoint_acting_sql(10, pg_temp.west(), 'treasurer', pg_temp.today() + 28));
+  assert pg_temp.by(12, pg_temp.end_sql(stint)) = pg_temp.w('AUDITOR_STAYS_OUT'), 'not Kim, with no vote';
+  perform pg_temp.vote(pg_temp.west(), 10, 'treasurer', 'chapter_board', 'majority', 'carried', 0);
+  assert pg_temp.by(12, pg_temp.end_sql(stint)) = pg_temp.w('AUDITOR_STAYS_OUT'), 'nor with one';
+  assert pg_temp.by(8, pg_temp.end_sql(stint)) is null, 'Torque ends it on the vote';
+end $$;
+rollback;
+
+\echo 'endings: an acting vote never counts as a removal vote'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+do $$
+declare
+  req uuid := pg_temp.id_by(3, pg_temp.request_acting_sql(2, pg_temp.north(), 'president', pg_temp.f(101), pg_temp.today() + 28));
+  cover uuid;
+begin
+  perform pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 'carried', 0, req);
+  cover := pg_temp.id_by(5, pg_temp.confirm_sql(req));
+  assert not private.has_carried_removal_vote(cover), 'the board majority that seated Jet doesn''t end him';
+  assert pg_temp.by(3, pg_temp.end_sql(cover)) = pg_temp.w('ACTING_END_NEEDS_VOTE'), 'so Crank can''t end the cover on it';
+  perform pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 'carried', 0);
+  assert private.has_carried_removal_vote(cover), 'a vote to end it does';
+end $$;
+rollback;
+
+\echo 'endings: a removal vote closed before the stint started doesn''t count; a 9.3 vote open when Penny stepped down and was recorded acting ends the stint once carried'
+begin;
+do $$
+declare
+  stint uuid;
+  v uuid;
+begin
+  perform pg_temp.vote(pg_temp.north(), 3, 'treasurer', 'chapter_board', 'majority', 'carried', 5);
+  stint := pg_temp.seat(3, pg_temp.north(), 'treasurer', pg_temp.today() + 28, 'No Treasurer since the ACM');
+  assert pg_temp.by(1, pg_temp.end_sql(stint)) = pg_temp.w('ACTING_END_NEEDS_VOTE'), 'a vote that closed before the stint began doesn''t end it';
+
+  v := pg_temp.vote(pg_temp.west(), 9, 'treasurer', 'chapter_patched', 'two_thirds', null);
+  assert pg_temp.by(9, pg_temp.end_sql(pg_temp.f(109))) is null, 'Penny steps down while a 9.3 vote about her is open';
+  stint := pg_temp.id_by(7, pg_temp.appoint_acting_sql(9, pg_temp.west(), 'treasurer', pg_temp.today() + 28, 'No Treasurer since Penny stepped down'));
+  assert pg_temp.by(8, pg_temp.end_sql(stint)) = pg_temp.w('ACTING_END_NEEDS_VOTE'), 'while it''s open, Torque can''t end her acting';
+  update votes set closed_at = now(), result = 'carried' where id = v;
+  assert pg_temp.by(8, pg_temp.end_sql(stint)) is null, 'once it carries, he can';
+  assert pg_temp.how_ended(stint) = pg_temp.ended('removed', 8), 'removed: ' || pg_temp.how_ended(stint);
+end $$;
+rollback;
+
+\echo 'endings: end_position on a lapsed open row: "That term has already ended.", still lapsed'
+begin;
+do $$
+declare stint uuid := pg_temp.seat(11, pg_temp.west(), 'vice_president', pg_temp.today() - 1, 'No VP since the ACM', null, pg_temp.today() - 10);
+begin
+  assert pg_temp.by(11, pg_temp.end_sql(stint)) = 'That term has already ended.', 'Hal''s stint lapsed last night';
+  assert pg_temp.by(7, pg_temp.end_sql(stint)) = 'That term has already ended.', 'for Rusty too';
+  assert not exists (select 1 from private.held_positions where id = stint), 'it holds nothing';
+  perform private.close_lapsed_acting();
+  assert pg_temp.how_ended(stint) = pg_temp.ended('lapsed', null), 'and closes as lapsed: ' || pg_temp.how_ended(stint);
+end $$;
+rollback;
+
+\echo 'endings: ending the stand-in''s own Road Captain row ends their cover (left_board)'
+begin;
+do $$
+declare cover uuid := pg_temp.id_by(1, pg_temp.confirm_sql(pg_temp.id_by(2, pg_temp.request_cover_sql(pg_temp.f(102), 3, pg_temp.today() + 28, 'Jet away'))));
+begin
+  assert pg_temp.by(3, pg_temp.end_sql(pg_temp.f(103))) is null, 'Crank steps down as Road Captain';
+  assert pg_temp.how_ended(pg_temp.f(103)) = pg_temp.ended('stepped_down', 3), 'stepped down: ' || pg_temp.how_ended(pg_temp.f(103));
+  assert pg_temp.how_ended(cover) = pg_temp.ended('left_board', null), 'his cover of Jet''s VP seat ends: ' || pg_temp.how_ended(cover);
+  assert (select note from acting_changes where position_id = cover) = 'Stand-in left the board', 'logged';
+end $$;
+rollback;
+
+\echo 'endings: renewed; forgotten (forgetting the stand-in ends the acting; forgetting the holder ends the cover)'
+begin;
+select pg_temp.seat(5, null, 'nec_chair');
+update positions set started_on = private.club_date() - 330 where id = pg_temp.f(112);
+select pg_temp.vote(null, 12, 'nec_auditor', 'nec', 'two_thirds', 'carried', 1);
+do $$
+declare again uuid := pg_temp.id_by(5, 'public.renew_auditor()');
+begin
+  assert pg_temp.how_ended(pg_temp.f(112)) = pg_temp.ended('renewed', 5), 'Ned renews Kim: her old term ends, renewed: ' || pg_temp.how_ended(pg_temp.f(112));
+  assert (select member_id = pg_temp.f(12) and ended_on is null from positions where id = again), 'and her new one starts';
+end $$;
+rollback;
+begin;
+do $$
+declare cover uuid := pg_temp.jet_covers_smokey();
+begin
+  perform private.forget_member(pg_temp.f(2), null);
+  assert pg_temp.how_ended(cover) = pg_temp.ended('forgotten', null), 'forgetting Jet ends his acting: ' || pg_temp.how_ended(cover);
+  assert pg_temp.how_ended(pg_temp.f(102)) = pg_temp.ended('forgotten', null), 'and his VP seat: ' || pg_temp.how_ended(pg_temp.f(102));
+end $$;
+rollback;
+begin;
+do $$
+declare
+  cover uuid := pg_temp.jet_covers_smokey();
+  lapsed uuid := pg_temp.seat(11, pg_temp.west(), 'vice_president', pg_temp.today() - 1, 'No VP since the ACM', null, pg_temp.today() - 10);
+begin
+  perform private.forget_member(pg_temp.f(11), null);
+  assert pg_temp.how_ended(lapsed) = pg_temp.ended('lapsed', null), 'forgetting Hal closes his stint that lapsed last night as lapsed: ' || pg_temp.how_ended(lapsed);
+  perform private.forget_member(pg_temp.f(1), null);
+  assert pg_temp.how_ended(pg_temp.f(101)) = pg_temp.ended('forgotten', null), 'forgetting Smokey ends his seat: ' || pg_temp.how_ended(pg_temp.f(101));
+  assert pg_temp.how_ended(cover) = pg_temp.ended('left_board', null), 'and Jet''s cover of it: ' || pg_temp.how_ended(cover);
+end $$;
+rollback;
+
+\echo 'endings: delete_my_account refuses an acting Officer; set_member_status refuses an acting row and ignores a lapsed one'
+begin;
+do $$
+declare
+  stint uuid := pg_temp.id_by(1, pg_temp.appoint_acting_sql(5, pg_temp.north(), 'officer', pg_temp.today() + 28, 'Short an Officer'));
+  to_supporter text := format('public.set_member_status(%L, %L, true)', pg_temp.f(5), 'supporter');
+begin
+  assert pg_temp.by(5, 'public.delete_my_account()')
+    = 'Step down from your seat first, so the club can fill it. Then you can delete your account.', 'Ned acts as Officer';
+  assert pg_temp.by(1, to_supporter) = 'End their positions first.', 'Smokey can''t move him to Supporter while he acts';
+  update positions set started_on = pg_temp.today() - 10, acting_until = pg_temp.today() - 1 where id = stint;
+  assert pg_temp.by(1, to_supporter) is null, 'once the stint has lapsed, he can';
+  assert pg_temp.how_ended(stint) = pg_temp.ended('lapsed', null), 'and it closed as lapsed: ' || pg_temp.how_ended(stint);
+end $$;
+rollback;
+
+\echo 'catalogue: every statement setting positions.ended_on names ended_reason'
+do $$
+declare
+  scanned text[];
+  off text;
+begin
+  with stmts as (
+    select n.nspname || '.' || p.proname as fn, s
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace, regexp_split_to_table(p.prosrc, ';') s
+    where n.nspname in ('public', 'private') and s ~* 'update\s+public\.positions\y' and s ~* 'ended_on\s*=')
+  select array_agg(distinct fn), string_agg(distinct fn, ', ') filter (where s !~* 'ended_reason') into scanned, off from stmts;
+  assert scanned @> array['public.end_position', 'public.renew_auditor', 'private.forget_member', 'private.close_lapsed_acting',
+    'private.on_position_end'], 'the scan finds the writers that end rows: ' || array_to_string(scanned, ', ');
+  assert off is null, 'these end a position without saying why: ' || off;
+end $$;
+
+\echo 'catalogue: every seat writer calls private.lock_seat'
+do $$
+declare
+  writers text[];
+  off text;
+begin
+  -- Each of these writes positions without the seat lock, for the reason given.
+  with allowed(name, why) as (values
+    ('close_lapsed_acting', 'the lazy close: every writer runs it under its own locks, and it only ends stints already past their date'),
+    ('forget_member', 'forgetting a deleted account ends its rows; nothing seats a forgotten member'),
+    ('on_position_end', 'a trigger: it runs inside the writer''s statement, under that writer''s locks'),
+    ('check_covers', 'a trigger: it checks the row its writer is writing, under that writer''s locks')
+  ), w as (
+    select p.proname::text as name, p.prosrc ~ 'private\.lock_seat\(' as locks
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'private') and p.prosrc ~* '(insert\s+into|update)\s+public\.positions\y')
+  select array_agg(name order by name), string_agg(name, ', ' order by name) filter (where not locks and name not in (select name from allowed))
+  into writers, off from w;
+  assert writers @> array['appoint_position', 'end_position', 'add_roster_position', 'settle_chapter_proposal', 'renew_auditor',
+    'appoint_acting', 'confirm_acting', 'set_acting_until'], 'the scan finds the seat writers: ' || array_to_string(writers, ', ');
+  assert off is null, 'these write a seat without the seat lock: ' || off;
+end $$;
+
+-- Two sessions. The fixtures are committed, so a second session sees them; each scenario commits
+-- what it needs first, leaves session A's transaction open while B runs, and ends by putting the
+-- fixtures back (pg_temp.reset_acting).
+create extension if not exists dblink;
+-- The same database, socket, port and user as the connection the test runs on.
+create function pg_temp.here() returns text language sql as $$
+  select format('dbname=%s host=%s port=%s user=%s', current_database(),
+    split_part(current_setting('unix_socket_directories'), ',', 1), current_setting('port'), session_user);
+$$;
+-- Opens a session as member n, in a transaction it leaves open.
+create function pg_temp.open_as(conn text, n int) returns void language plpgsql as $$
+begin
+  perform dblink_connect(conn, pg_temp.here());
+  perform dblink_exec(conn, 'begin');
+  perform dblink_exec(conn, 'set local role authenticated');
+  perform dblink_exec(conn, format('set local request.jwt.claim.sub = %L', pg_temp.f(n)));
+end $$;
+-- A session's backend process.
+create function pg_temp.pid_of(conn text) returns int language sql as $$
+  select p from dblink(conn, 'select pg_backend_pid()') as t(p int);
+$$;
+-- Waits until a session's backend is stuck waiting on a lock. True when it is, false after 10 seconds.
+create function pg_temp.waits(pid int) returns boolean language plpgsql as $$
+begin
+  for i in 1..200 loop
+    if exists (select 1 from pg_locks where pg_locks.pid = waits.pid and not granted) then return true; end if;
+    perform pg_sleep(0.05);
+  end loop;
+  return false;
+end $$;
+-- The outcome of a statement sent with dblink_send_query: its error, or null.
+create function pg_temp.outcome(conn text) returns text language plpgsql as $$
+declare err text;
+begin
+  begin
+    perform * from dblink_get_result(conn) as t(r text);
+  exception when others then
+    err := sqlerrm;
+  end;
+  -- Read to the end, so the connection is free again.
+  perform * from dblink_get_result(conn, false) as t(r text);
+  return err;
+end $$;
+-- Runs call in session A, which keeps its transaction open; sends call in session B, which should
+-- wait for A; commits A; and returns whether B waited and B's outcome. B's transaction stays open.
+create function pg_temp.race(a_call text, b_call text, out waited boolean, out err text) language plpgsql as $$
+declare b_pid int;
+begin
+  perform * from dblink('a', 'select ' || a_call || '::text') as t(r text);
+  b_pid := pg_temp.pid_of('b');
+  perform dblink_send_query('b', 'select ' || b_call || '::text');
+  waited := pg_temp.waits(b_pid);
+  perform dblink_exec('a', 'commit');
+  err := pg_temp.outcome('b');
+end $$;
+-- Closes both sessions: B commits when it went through, else rolls back.
+create function pg_temp.close_sessions(b_went_through boolean) returns void language plpgsql as $$
+begin
+  perform dblink_exec('b', case when b_went_through then 'commit' else 'rollback' end);
+  perform dblink_disconnect('a');
+  perform dblink_disconnect('b');
+end $$;
+-- Puts the committed fixtures back: removes the rows, requests, changes and pushes a scenario
+-- made (covers first), and reopens the fixture rows it ended.
+create function pg_temp.reset_acting() returns void language plpgsql as $$
+begin
+  delete from public.acting_changes;
+  delete from public.positions where covers is not null;
+  delete from public.positions where id not in (select pg_temp.f(100 + n) from generate_series(1, 12) n);
+  delete from public.acting_requests;
+  delete from private.push_outbox where data ->> 'kind' = 'acting';
+  update public.positions set ended_on = null, ended_by = null, ended_reason = null where ended_on is not null;
+end $$;
+
+\echo 'two sessions: Smokey records Crank as Acting Treasurer while Crank records Jet: SEAT_HAS_ACTING'
+do $$
+declare r record;
+begin
+  perform pg_temp.open_as('a', 1);
+  perform pg_temp.open_as('b', 3);
+  select * into r from pg_temp.race(pg_temp.appoint_acting_sql(3, pg_temp.north(), 'treasurer', pg_temp.today() + 28),
+                    pg_temp.appoint_acting_sql(2, pg_temp.north(), 'treasurer', pg_temp.today() + 28));
+  perform pg_temp.close_sessions(r.err is null);
+  assert r.waited, 'Crank''s record waited for Smokey''s';
+  assert r.err = pg_temp.w('SEAT_HAS_ACTING'), format('then found Crank acting, not %s', coalesce(r.err, 'nothing'));
+  assert (select count(*) from positions where chapter_id = pg_temp.north() and role = 'treasurer' and ended_on is null) = 1, 'one Acting Treasurer';
+end $$;
+select pg_temp.reset_acting();
+
+\echo 'two sessions: Crank and Ned confirm Smokey''s request at once: one acting row, the other NO_REQUEST'
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+create temp table smokey_asks as
+  select pg_temp.request(pg_temp.north(), 'president', 2, pg_temp.f(101), pg_temp.today() + 28, 'Smokey overseas', 1) as id;
+do $$
+declare
+  req uuid := (select id from smokey_asks);
+  r record;
+begin
+  perform pg_temp.open_as('a', 3);
+  perform pg_temp.open_as('b', 5);
+  select * into r from pg_temp.race(pg_temp.confirm_sql(req), pg_temp.confirm_sql(req));
+  perform pg_temp.close_sessions(r.err is null);
+  assert r.waited, 'Ned''s confirm waited for Crank''s';
+  assert r.err = pg_temp.w('NO_REQUEST'), format('then found it confirmed, not %s', coalesce(r.err, 'nothing'));
+  assert (select count(*) from positions where covers = pg_temp.f(101)) = 1, 'one cover';
+end $$;
+select pg_temp.reset_acting();
+drop table smokey_asks;
+
+\echo 'two sessions: Crank confirms Jet''s cover while Jet steps down as VP: the cover ends (left_board)'
+create temp table smokey_asks as
+  select pg_temp.request(pg_temp.north(), 'president', 2, pg_temp.f(101), pg_temp.today() + 28, 'Smokey overseas', 1) as id;
+do $$
+declare
+  req uuid := (select id from smokey_asks);
+  r record;
+begin
+  perform pg_temp.open_as('a', 3);
+  perform pg_temp.open_as('b', 2);
+  select * into r from pg_temp.race(pg_temp.confirm_sql(req), pg_temp.end_sql(pg_temp.f(102)));
+  perform pg_temp.close_sessions(r.err is null);
+  assert r.waited, 'Jet''s step-down waited for Crank''s confirm';
+  assert r.err is null, format('then went through, not %s', r.err);
+  assert pg_temp.how_ended(pg_temp.f(102)) = pg_temp.ended('stepped_down', 2), 'Jet left the board: ' || pg_temp.how_ended(pg_temp.f(102));
+  assert (select pg_temp.how_ended(id) from positions where covers = pg_temp.f(101)) = pg_temp.ended('left_board', null),
+    'and his new cover ended with it: ' || coalesce((select pg_temp.how_ended(id) from positions where covers = pg_temp.f(101)), 'no cover');
+end $$;
+select pg_temp.reset_acting();
+drop table smokey_asks;
+
+\echo 'two sessions: Crank confirms Jet as Acting President while Smokey seats Jet Treasurer in full: CHAIR_NOT_BOOKS'
+create temp table smokey_asks as
+  select pg_temp.request(pg_temp.north(), 'president', 2, pg_temp.f(101), pg_temp.today() + 28, 'Smokey overseas', 1) as id;
+do $$
+declare
+  req uuid := (select id from smokey_asks);
+  r record;
+begin
+  perform pg_temp.open_as('a', 3);
+  perform pg_temp.open_as('b', 1);
+  select * into r from pg_temp.race(pg_temp.confirm_sql(req), pg_temp.appoint_sql(2, pg_temp.north(), 'treasurer'));
+  perform pg_temp.close_sessions(r.err is null);
+  assert r.waited, 'Smokey''s appointment waited for Crank''s confirm';
+  assert r.err = pg_temp.w('CHAIR_NOT_BOOKS'), format('then found Jet acting as President, not %s', coalesce(r.err, 'nothing'));
+  assert not exists (select 1 from positions where member_id = pg_temp.f(2) and role = 'treasurer'), 'Jet keeps no books';
+end $$;
+select pg_temp.reset_acting();
+drop table smokey_asks;
 
 \echo 'ACTING CHECKS PASSED'

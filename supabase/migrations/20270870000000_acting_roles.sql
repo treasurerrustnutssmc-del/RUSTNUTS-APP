@@ -1481,3 +1481,508 @@ grant execute on function public.appoint_acting(uuid, uuid, public.position_role
   public.request_acting(uuid, uuid, public.position_role, uuid, date, text),
   public.withdraw_acting_request(uuid), public.confirm_acting(uuid), public.set_acting_until(uuid, date)
   to authenticated;
+
+-- §5 Writers and endings ----------------------------------------------------------------------------
+
+-- Every writer that touches a seat takes the seat lock and the person locks, then runs the lazy
+-- close, so it never trips over a stint that lapsed last night (spec "Data shape"); forgetting a
+-- member, deleting an account and changing a status run only the lazy close. Every ending says why
+-- (ended_reason).
+
+-- A removal vote about this term has carried (9.3): the chapter's vote, naming the holder and the
+-- role, in the shape the role takes, closed in the last 90 days and since the term began. An acting
+-- row also ends on the chapter board's majority (the shape 9.3 gives a Non-Board removal), and a
+-- vote for acting is never one to end it. A 9.3 vote that closes after a stint began counts for it,
+-- so a holder can't step down, be recorded acting and outlast the vote.
+create or replace function private.has_carried_removal_vote(p_position uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from private.held_positions p
+    join public.votes v on v.subject_member_id = p.member_id and v.subject_role = p.role and v.chapter_id = p.chapter_id
+    where p.id = p_position
+      and v.acting_request is null
+      and ((v.electorate = case
+              when p.role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+                then 'chapter_patched' else 'chapter_board' end::public.electorate
+            and v.threshold = case
+              when p.role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+                then 'two_thirds' else 'majority' end::public.vote_threshold)
+        or (p.acting_until is not null and v.electorate = 'chapter_board' and v.threshold = 'majority'))
+      and v.closed_at is not null and v.result = 'carried'
+      and private.club_date(v.closed_at) >= private.club_date() - 90
+      and private.club_date(v.closed_at) >= p.started_on
+  );
+$$;
+
+-- A full appointment. Over acting: seating the acting person in full ends their stint (replaced);
+-- anyone else waits until they step down or a board vote ends it, because no meeting row proves an
+-- election (spec "How it ends"). The seat check counts only full holders, so a cover never takes a
+-- seat. Chair and books stay apart only against an acting row, so no sitting holder or 17.6
+-- arrangement changes. A carried board vote that ended someone's acting in a board seat holds for
+-- 90 days here too.
+create or replace function public.appoint_position(p_member uuid, p_chapter uuid, p_role public.position_role)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  board constant public.position_role[] := array['president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain'];
+  me uuid := auth.uid();
+  target public.members%rowtype;
+  is_national_role boolean := p_role in ('nec_chair', 'nec_secretary', 'nec_auditor');
+  seat uuid;
+  unfit text;
+  new_id uuid;
+begin
+  if me is null then raise exception 'Sign in first.'; end if;
+  if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
+  if p_role = 'founder' then raise exception 'Founder is an honour the club’s admin records.'; end if;
+  if p_member = me then raise exception 'You can’t appoint yourself.'; end if;
+  seat := case when is_national_role then null else p_chapter end;
+  perform private.lock_seat(seat, p_role);
+  perform private.lock_people(array[p_member]);
+  perform private.close_lapsed_acting();
+  select * into target from public.members where id = p_member;
+  if not found then raise exception 'That member no longer exists.'; end if;
+  if target.approval <> 'approved' then raise exception 'Approve them first.'; end if;
+  if target.status = 'legacy' then raise exception 'Legacy members don’t hold positions.'; end if;
+
+  if is_national_role then
+    if p_role = 'nec_chair' then
+      raise exception 'The National Chairman changes after the vote, and the club’s admin records it.';
+    end if;
+    if not private.is_chairman() then raise exception 'Only the National Chairman hands out national roles.'; end if;
+  else
+    if seat is null or seat <> target.chapter_id then raise exception 'They’re not a member of that chapter.'; end if;
+    if p_role = 'president' then
+      if not private.is_nec_officer() then
+        raise exception 'Only the National Chairman or Secretary can seat a President.';
+      end if;
+    elsif not private.is_board_of(seat) then
+      raise exception 'Only that chapter’s board can appoint here.';
+    end if;
+  end if;
+
+  unfit := private.hold_problem(p_member, p_role);
+  if unfit is not null then raise exception '%', unfit; end if;
+
+  -- Their own acting in an empty seat is the one row this appointment replaces.
+  if exists (
+    select 1 from private.held_positions
+    where member_id = p_member and role = p_role and chapter_id is not distinct from seat
+      and not (acting_until is not null and covers is null)
+  ) then
+    raise exception 'They already hold that role.';
+  end if;
+  if (is_national_role or p_role = any (board))
+    and exists (
+      select 1 from private.held_positions
+      where role = p_role and chapter_id is not distinct from seat and acting_until is null
+    ) then
+    raise exception 'That seat is taken. End the current term first.';
+  end if;
+  if p_role = 'president' and exists (
+    select 1 from private.held_positions
+    where member_id = p_member and chapter_id = seat and role = 'treasurer' and acting_until is not null) then
+    raise exception 'An Acting Treasurer can’t also be the chapter’s President (9.5).';
+  end if;
+  if p_role = 'treasurer' and exists (
+    select 1 from private.held_positions
+    where member_id = p_member and chapter_id = seat and role = 'president' and acting_until is not null) then
+    raise exception 'An Acting President can’t also keep the chapter’s books (9.5).';
+  end if;
+  if p_role = any (board) then
+    if exists (
+      select 1 from private.held_positions
+      where chapter_id = seat and role = p_role and acting_until is not null and covers is null and member_id <> p_member) then
+      raise exception 'Someone is acting in that seat. They step down first, or a carried board vote ends their acting.';
+    end if;
+    -- On a board seat only acting has the board-majority shape, so this is a vote that ended acting.
+    if exists (
+      select 1 from public.votes v
+      where v.subject_member_id = p_member and v.chapter_id = seat and v.subject_role = p_role
+        and v.electorate = 'chapter_board' and v.threshold = 'majority' and v.acting_request is null
+        and v.closed_at is not null and v.result = 'carried'
+        and private.club_date(v.closed_at) >= private.club_date() - 90) then
+      raise exception 'A carried vote ended their time in this seat in the last 90 days. Acting there again needs a new board vote.';
+    end if;
+  end if;
+  -- The Auditor (11.8) and the Secretary (11.6) are seated after a carried two-thirds NEC vote about them.
+  if p_role in ('nec_auditor', 'nec_secretary') and not private.has_carried_nec_vote(p_member, p_role) then
+    raise exception 'Appointing the National % needs a carried two-thirds NEC vote about them in the last 90 days (%).',
+      case p_role when 'nec_auditor' then 'Auditor' else 'Secretary' end,
+      case p_role when 'nec_auditor' then '11.8' else '11.6' end;
+  end if;
+
+  update public.positions
+  set ended_on = greatest(private.club_date(), started_on), ended_by = me, ended_reason = 'replaced'
+  where member_id = p_member and role = p_role and chapter_id is not distinct from seat
+    and ended_on is null and acting_until is not null and covers is null;
+  insert into public.positions (member_id, chapter_id, role, started_on, appointed_by)
+  values (p_member, seat, p_role, private.club_date(), me)
+  returning id into new_id;
+  return new_id;
+end;
+$$;
+
+-- Ending a term. Anyone can step down from their own seat, even while suspended (ChatGPT audit
+-- F10). An acting row: the acting person steps down; the covered holder ends a cover of their own
+-- seat whenever they're back, agreed or voted, since keeping a willing holder out would be a
+-- suspension; anyone else is the chapter board on a carried board-majority vote (9.3), with no NEC
+-- officer branch and the Auditor out of President and Treasurer seats (11.8). A normal row is as
+-- before: a removal follows its vote (9.3).
+create or replace function public.end_position(p_position uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  pos public.positions%rowtype;
+  reason text;
+begin
+  if me is null then raise exception 'Sign in first.'; end if;
+  select * into pos from public.positions where id = p_position;
+  if not found then raise exception 'That position no longer exists.'; end if;
+  -- Stepping down from your own seat needs no standing. Ending anyone else's needs approval.
+  if pos.member_id <> me and not private.is_approved_member() then
+    raise exception 'Only approved members can do that.';
+  end if;
+  perform private.lock_seat(pos.chapter_id, pos.role);
+  perform private.lock_people(array[pos.member_id, (select h.member_id from public.positions h where h.id = pos.covers)]);
+  perform private.close_lapsed_acting();
+  select * into pos from public.positions where id = p_position for update;
+  if pos.ended_on is not null then raise exception 'That term has already ended.'; end if;
+
+  if pos.acting_until is not null then
+    if pos.member_id = me then
+      reason := 'stepped_down';
+    elsif exists (select 1 from public.positions h where h.id = pos.covers and h.member_id = me) then
+      reason := 'holder_back';
+    else
+      if not private.is_board_of(pos.chapter_id) then raise exception 'Only that chapter’s board can end this term.'; end if;
+      if private.auditor_stays_out(pos.role) then
+        raise exception 'The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).';
+      end if;
+      if not private.has_carried_removal_vote(p_position) then
+        raise exception 'Ending someone’s acting needs a carried majority vote of the chapter board in the last 90 days (9.3).';
+      end if;
+      reason := 'removed';
+    end if;
+  else
+    if pos.role = 'founder' then raise exception 'Founder is an honour the club’s admin records.'; end if;
+    if pos.role = 'nec_chair' then
+      raise exception 'The National Chairman changes after the vote, and the club’s admin records it.';
+    end if;
+    -- Ending someone else's takes the right standing and, for a chapter role, a carried removal vote (9.3).
+    if pos.member_id <> me then
+      if pos.chapter_id is null then
+        if not private.is_chairman() then raise exception 'Only the National Chairman can end a national role.'; end if;
+      elsif pos.role = 'president' then
+        if not (private.is_board_of(pos.chapter_id) or private.is_nec_officer()) then
+          raise exception 'Only that chapter’s board or the National Chairman or Secretary can end a President’s term.';
+        end if;
+        if not private.has_carried_removal_vote(p_position) then
+          raise exception 'Removing a President needs a carried two-thirds vote of the chapter’s Full Members in the last 90 days (9.3).';
+        end if;
+      else
+        if not private.is_board_of(pos.chapter_id) then raise exception 'Only that chapter’s board can end this term.'; end if;
+        if not private.has_carried_removal_vote(p_position) then
+          if pos.role in ('vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain') then
+            raise exception 'Removing a board member needs a carried two-thirds vote of the chapter’s Full Members in the last 90 days (9.3).';
+          end if;
+          raise exception 'Ending someone’s chapter role needs a carried majority vote of the chapter board in the last 90 days (9.3).';
+        end if;
+      end if;
+    end if;
+    reason := case when pos.member_id = me then 'stepped_down' else 'removed' end;
+  end if;
+
+  update public.positions
+  set ended_on = greatest(private.club_date(), pos.started_on), ended_by = me, ended_reason = reason
+  where id = p_position;
+end;
+$$;
+
+-- A seat from the club's sheet is one of the terms the constitution records as beginning
+-- 1 August 2026 (17.6), so it runs from then. The sheet records the claimant's 2026 election, so the
+-- seat was never a 9.8 vacancy: someone acting in it in the meantime stops (replaced, by nobody,
+-- logged), and a stint that lapsed last night has closed first. A seat with a holder is skipped, as
+-- before.
+create or replace function private.add_roster_position(p_member uuid, p_seat uuid, p_role public.position_role)
+returns boolean language plpgsql set search_path = '' as $$
+declare
+  stint public.positions%rowtype;
+begin
+  select * into stint from private.held_positions
+  where chapter_id = p_seat and role = p_role and acting_until is not null and covers is null
+    and p_role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain');
+  perform private.lock_seat(p_seat, p_role);
+  perform private.lock_people(array[p_member, stint.member_id]);
+  perform private.close_lapsed_acting();
+  select * into stint from public.positions
+  where chapter_id = p_seat and role = p_role and ended_on is null and acting_until is not null and covers is null
+    and p_role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+  for update;
+  if found then
+    update public.positions
+    set ended_on = greatest(private.club_date(), stint.started_on), ended_reason = 'replaced', ended_by = null
+    where id = stint.id;
+    insert into public.acting_changes (position_id, chapter_id, old_until, new_until, changed_by, note)
+    values (stint.id, stint.chapter_id, stint.acting_until, null, p_member, 'Elected holder claimed the seat (17.6)');
+  end if;
+  insert into public.positions (member_id, chapter_id, role, started_on)
+  values (p_member, p_seat, p_role,
+          case when p_role = 'founder' then private.club_date() else least(private.club_date(), date '2026-08-01') end);
+  return true;
+exception when unique_violation then
+  return false;
+end;
+$$;
+
+-- Settles a proposal by the NEC's closed vote on it. Carried: the chapter is made (its chats make
+-- themselves), the founders move to it (12.4) and the President and SAA take their seats today.
+-- The new chapter's two seats and the founders are locked before the founders' seats are checked,
+-- and a founder still acting in their old chapter ends that first. Returns the new chapter's id,
+-- or null when the vote didn't carry.
+create or replace function public.settle_chapter_proposal(p_id uuid, p_vote uuid)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare me uuid := private.require_member(); p public.chapter_proposals := private.open_chapter_proposal(p_id);
+  v public.votes; problem text; new_id uuid := gen_random_uuid();
+begin
+  if not private.is_national() then raise exception 'Only the NEC can approve a new chapter (12.1).'; end if;
+  select * into v from public.votes where id = p_vote and chapter_id is null and electorate = 'nec'
+    and closed_at is not null and opened_at > p.proposed_at and not private.vote_used(id);
+  if not found then raise exception 'Pick the NEC’s closed vote on it (12.1).'; end if;
+  if v.result is distinct from 'carried' then
+    update public.chapter_proposals set status = 'not_approved', vote_id = v.id, decided_by = me, decided_at = now() where id = p.id;
+    return null;
+  end if;
+  perform private.lock_seat(new_id, 'president');
+  perform private.lock_seat(new_id, 'sergeant_at_arms');
+  perform private.lock_people(p.founder_ids);
+  perform private.close_lapsed_acting();
+  if private.chapter_name_taken(p.name, p.id) then raise exception 'There’s already a chapter called that.'; end if;
+  problem := private.founders_problem(p.founder_ids, p.president_id, p.saa_id);
+  if problem is not null then raise exception '%', problem; end if;
+  if exists (select 1 from private.held_positions where member_id = any (p.founder_ids)
+             and chapter_id is not null and role <> 'founder') then
+    raise exception 'Founders have to end their positions in their old chapter first.';
+  end if;
+  insert into public.chapters (id, slug, name, area, state) values (new_id, private.slug_of(p.name), p.name, p.area, p.state);
+  update public.members set chapter_id = new_id where id = any (p.founder_ids);
+  insert into public.positions (member_id, chapter_id, role, started_on) values
+    (p.president_id, new_id, 'president', private.club_date()),
+    (p.saa_id, new_id, 'sergeant_at_arms', private.club_date());
+  update public.chapter_proposals set status = 'approved', vote_id = v.id, decided_by = me, decided_at = now(), chapter_id = new_id
+  where id = p.id;
+  return new_id;
+end;
+$$;
+
+-- With a fresh carried vote, the Chairman renews the sitting Auditor in the last 60 days of their
+-- term or after it: the old term ends today (renewed) and a new twelve-month one starts today (11.8).
+create or replace function public.renew_auditor()
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+  seat public.positions%rowtype;
+  unfit text;
+  new_id uuid;
+begin
+  if me is null then raise exception 'Sign in first.'; end if;
+  if not private.is_approved_member() then raise exception 'Only approved members can do that.'; end if;
+  if not private.is_chairman() then raise exception 'Only the National Chairman renews the National Auditor.'; end if;
+  select * into seat from public.positions where role = 'nec_auditor' and ended_on is null;
+  if not found then raise exception 'There’s no sitting National Auditor to renew.'; end if;
+  perform private.lock_seat(null, 'nec_auditor');
+  perform private.lock_people(array[seat.member_id]);
+  perform private.close_lapsed_acting();
+  select * into seat from public.positions where id = seat.id and ended_on is null for update;
+  if not found then raise exception 'There’s no sitting National Auditor to renew.'; end if;
+  if seat.member_id = me then raise exception 'You can’t renew yourself.'; end if;
+  if (seat.started_on + interval '1 year')::date - private.club_date() > 60 then
+    raise exception 'The Auditor’s term isn’t ending yet. Renew in its last 60 days.';
+  end if;
+  unfit := private.hold_problem(seat.member_id, 'nec_auditor');
+  if unfit is not null then raise exception '%', unfit; end if;
+  if not private.has_carried_auditor_vote(seat.member_id) then
+    raise exception 'Appointing the National Auditor needs a carried two-thirds NEC vote about them in the last 90 days (11.8).';
+  end if;
+  update public.positions set ended_on = greatest(private.club_date(), seat.started_on), ended_by = me, ended_reason = 'renewed'
+  where id = seat.id;
+  insert into public.positions (member_id, chapter_id, role, started_on, appointed_by)
+  values (seat.member_id, null, 'nec_auditor', private.club_date(), me)
+  returning id into new_id;
+  return new_id;
+end;
+$$;
+
+-- Forgets a deleted account (as before): closes stints that lapsed last night first, then ends the
+-- member's open rows as forgotten. Ending a covered holder's row ends the cover with it (left_board).
+create or replace function private.forget_member(p_member uuid, p_email text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  today constant date := private.club_date();
+begin
+  perform private.close_lapsed_acting();
+  delete from public.member_private where member_id = p_member;
+  delete from public.bikes where member_id = p_member; -- regos go with them
+  delete from public.emergency_contacts where member_id = p_member;
+  delete from public.notification_prefs where member_id = p_member;
+  delete from public.push_devices where member_id = p_member;
+  delete from private.push_outbox where member_id = p_member;
+  -- Chat
+  -- Their messages go, with photos and reactions, apart from any someone has reported: those stay
+  -- for the board to deal with.
+  delete from public.messages m where m.author_id = p_member
+    and not exists (select 1 from public.message_reports r where r.message_id = m.id);
+  delete from public.message_reactions where member_id = p_member;
+  delete from public.message_reports where reporter_id = p_member;
+  delete from public.chat_reads where member_id = p_member;
+  delete from public.conversation_members where member_id = p_member;
+  delete from public.member_blocks where blocker_id = p_member or blocked_id = p_member;
+  -- Rides
+  delete from public.rsvps where member_id = p_member;
+  delete from public.ride_crew where member_id = p_member;
+  delete from public.crew_swaps where asked_by = p_member or asked_to = p_member;
+  delete from public.ride_briefing_reads where member_id = p_member;
+  delete from public.road_rules_signoffs where member_id = p_member;
+  delete from public.live_riders where member_id = p_member;
+  delete from public.ride_alerts where member_id = p_member;
+  delete from public.route_ratings where member_id = p_member;
+  delete from public.hub_registrations where member_id = p_member;
+  delete from public.charity_signups where member_id = p_member;
+  delete from public.document_signoffs where member_id = p_member;
+  -- Social
+  delete from public.member_birthdays where member_id = p_member;
+  delete from public.member_skills where member_id = p_member;
+  delete from public.mechanic_vouches where member_id = p_member;
+  delete from public.listings where seller_id = p_member;
+  delete from public.build_updates where author_id = p_member;
+  delete from public.brag_nominations where nominated_by = p_member; -- with the votes on them
+  delete from public.brag_votes where member_id = p_member;
+  -- The club shop: the orders stay for the books, without the name, email, address and phone.
+  delete from public.shop_runners where member_id = p_member;
+  update public.shop_orders set buyer_name = 'Former member', road_name = null, email = '', phone = null,
+         street = null, suburb = null, state = null, postcode = null where member_id = p_member;
+  update private.roster
+     set phone = null, emergency_name = null, emergency_relationship = null, emergency_phone = null,
+         bike_make = null, bike_model = null, bike_rego = null, roles = '{}',
+         -- Used for good: claim_roster only takes a place never claimed (ChatGPT audit F01).
+         claimed_at = coalesce(claimed_at, now())
+   where claimed_by = p_member or (p_email is not null and lower(trim(email)) = lower(trim(p_email)));
+
+  -- Their files (deep audit F1): everything they uploaded to the personal buckets that no surviving
+  -- row still names. A file on a reported message stays with the message, for the board. The
+  -- purge-files Edge Function deletes what's queued; the database can't reach Storage itself.
+  insert into private.storage_purge (bucket, path, member_id)
+  select o.bucket_id, o.name, p_member
+  from storage.objects o
+  where o.owner_id = p_member::text
+    and o.bucket_id in ('chat-media', 'swap-media', 'build-media', 'brag-media')
+    and not exists (select 1 from public.message_media mm where mm.path = o.name or mm.poster_path = o.name)
+    and not exists (select 1 from public.listings l where l.photos @> jsonb_build_array(jsonb_build_object('path', o.name)))
+    and not exists (select 1 from public.build_updates u where u.photos @> jsonb_build_array(jsonb_build_object('path', o.name)))
+    and not exists (select 1 from public.brag_nominations n where n.photo->>'path' = o.name);
+
+  delete from public.positions where member_id = p_member and ended_on is null and started_on > today;
+  update public.positions set ended_on = today, ended_reason = 'forgotten' where member_id = p_member and ended_on is null;
+  update public.members
+     set full_name = 'Former member', road_name = null, bio = null, share_phone = false, on_hiatus = false,
+         approval = 'declined', account_deleted_on = today, updated_at = now()
+   where id = p_member;
+end $function$;
+
+-- Delete my account (as before): a seat the club has to fill comes first, and so does any stint,
+-- acting in any role. A stint that lapsed last night doesn't count.
+create or replace function public.delete_my_account()
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := auth.uid();
+begin
+  if me is null then raise exception 'Sign in first.'; end if;
+  perform private.close_lapsed_acting();
+  if exists (select 1 from private.held_positions where member_id = me and role = 'nec_chair') then
+    raise exception 'The National Chairman’s seat changes by the club’s vote. To delete your account, email apps@rustnutssmc.com.au.';
+  end if;
+  if exists (
+    select 1 from private.held_positions
+    where member_id = me
+      and (acting_until is not null
+           or role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain',
+                       'nec_chair', 'nec_secretary', 'nec_auditor'))
+  ) then
+    raise exception 'Step down from your seat first, so the club can fill it. Then you can delete your account.';
+  end if;
+  delete from auth.users where id = me; -- the trigger forgets the member
+end;
+$$;
+
+-- A member's status (as downward_notice_gate.sql): "End their positions first" reads held rows, so
+-- an acting row blocks the change and a stint that lapsed last night doesn't, and it closes first.
+create or replace function public.set_member_status(p_member uuid, p_status public.member_status, p_by_request boolean default false)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  target public.members%rowtype;
+  today date := private.club_date();
+  notice uuid;
+begin
+  if p_member = auth.uid() then raise exception 'You can’t change your own status.'; end if;
+  perform private.close_lapsed_acting();
+  select * into target from public.members where id = p_member for update;
+  if not found then raise exception 'No such member.'; end if;
+  -- Bringing an approved Supporter, Family or Legacy member back to Full or Nomad is the NEC's (5.6);
+  -- every other change, an applicant's approval first of all, is their chapter board's (8.2).
+  if p_status in ('full', 'nomad') and target.status not in ('full', 'nomad', 'fng') and target.approval = 'approved' then
+    if not private.is_national() then raise exception 'Only the NEC can bring someone back to Full or Nomad (5.6).'; end if;
+    if target.approval <> 'approved' then raise exception 'Approve them first.'; end if;
+    if not private.has_carried_reinstate_vote(p_member) then
+      raise exception 'Coming back to Full or Nomad needs a carried NEC vote (5.6).';
+    end if;
+  else
+    if not private.is_board_of(target.chapter_id) then raise exception 'Only that chapter’s board can change this member’s status.'; end if;
+    if target.approval <> 'approved' then raise exception 'Approve them first.'; end if;
+    if p_status in ('full', 'nomad') and target.status = 'fng' and not private.has_carried_patch_vote(p_member) then
+      raise exception 'Full membership needs a carried patch vote of the chapter’s Full Members (4.9).';
+    end if;
+  end if;
+  if p_status = 'fng' and private.is_learner(p_member) then
+    raise exception 'A learner permit rider can’t become an FNG yet (3.2).';
+  end if;
+  if p_status not in ('full', 'nomad') and exists (
+    select 1 from private.held_positions where member_id = p_member and role <> 'founder'
+  ) then
+    raise exception 'End their positions first.';
+  end if;
+  if p_status = 'nomad' and exists (
+    select 1 from private.held_positions where member_id = p_member
+      and role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain',
+                   'nec_chair', 'nec_secretary', 'nec_auditor')
+  ) then
+    raise exception 'End their board and national seats first (9.1).';
+  end if;
+  -- Moving an FNG, Full Member or Nomad down to Supporter, Legacy or FNG follows a 5.5 notice the board
+  -- has decided in the last 90 days, unless the board records that the member asked for it (L2, widened
+  -- from Supporter alone by the 31 Oct 2026 deep audit, F2). Nomad is sideways, not down. The NEC's 5.6
+  -- branch above never moves anyone down, so this is the board's gate alone.
+  if p_status in ('supporter', 'legacy', 'fng') and target.status in ('fng', 'full', 'nomad') and p_status <> target.status
+     and not coalesce(p_by_request, false) then
+    select id into notice from public.status_notices
+    where member_id = p_member and outcome = 'decided' and closed_on >= today - 90
+    order by closed_on desc, given_on desc
+    limit 1;
+    if notice is null then
+      raise exception 'Moving them down to Supporter, Legacy or FNG follows a 5.5 notice the board has decided in the last 90 days, unless it’s at their request.';
+    end if;
+  end if;
+
+  update public.members set
+    status = p_status,
+    fng_started_on = case when p_status = 'fng' then coalesce(fng_started_on, today) else fng_started_on end,
+    patched_on = case when p_status in ('full', 'nomad') then coalesce(patched_on, today) else patched_on end,
+    on_hiatus = case when p_status = 'legacy' then false else on_hiatus end,
+    updated_at = now()
+  where id = p_member;
+  insert into public.status_changes (member_id, chapter_id, from_status, to_status, by_request, notice_id, changed_by)
+  values (p_member, target.chapter_id, target.status, p_status, coalesce(p_by_request, false), notice, auth.uid());
+end;
+$$;
