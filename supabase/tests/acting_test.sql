@@ -580,7 +580,8 @@ begin
     ('private.request_needs_vote(uuid)'),
     ('private.has_carried_acting_vote(uuid)'),
     ('private.auditor_stays_out(public.position_role)'),
-    ('private.acting_electors(uuid, public.position_role, uuid, uuid)')
+    ('private.acting_electors(uuid, public.position_role, uuid, uuid)'),
+    ('public.open_acting_vote(uuid, integer, timestamp with time zone, uuid)')
   ) as l(x) loop
     assert not has_function_privilege('anon', fn, 'execute'), fn || ': not for anon';
     if (select pronamespace = 'public'::regnamespace from pg_proc where oid = fn) then
@@ -612,7 +613,8 @@ begin
             'public.request_cover(uuid, uuid, date, text)',
             'public.request_acting(uuid, uuid, public.position_role, uuid, date, text)',
             'public.withdraw_acting_request(uuid)', 'public.confirm_acting(uuid)',
-            'public.set_acting_until(uuid, date)']::regprocedure[]::oid[])),
+            'public.set_acting_until(uuid, date)',
+            'public.open_acting_vote(uuid, integer, timestamp with time zone, uuid)']::regprocedure[]::oid[])),
     'the acting RPCs run as their owner with an empty search path';
 end $$;
 
@@ -1015,8 +1017,7 @@ begin
     ('has_carried_nec_vote', 'history: who held a seat when a vote carried'),
     ('acting_cap', 'a run''s start, from ended rows (Task 4)'),
     ('acting_needs_vote', 'when the President seat fell empty, from ended rows (Task 4)'),
-    ('approval_conflict', 'rows held on an approval''s day (Task 7)'),
-    ('open_vote', 'pending: re-pointed in Task 6')
+    ('approval_conflict', 'rows held on an approval''s day (Task 7)')
   )
   select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname) into off
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -2366,5 +2367,376 @@ begin
 end $$;
 select pg_temp.reset_acting();
 drop table smokey_asks;
+
+-- §6 Votes ------------------------------------------------------------------------------------------
+
+insert into acting_words (k, t) values
+  ('ACTING_VOTE_OPEN', 'A vote about acting stays open for at least 48 hours, so everyone affected can answer.'),
+  ('NO_VOTE_NEEDED', 'This request doesn’t need a vote. A third board member confirms it.'),
+  ('ACTING_END_SHAPE', 'Ending someone’s acting is a majority vote of the chapter board (9.3).');
+
+-- open_vote as SQL text: a vote of that chapter (null: the club) about member n in that role (either
+-- null for none), closing in that many hours.
+create function pg_temp.open_vote_sql(ch uuid, subject int, r text, electorate text, threshold text, quorum int,
+  hours int default 72) returns text language sql stable as $$
+  select format('public.open_vote(%L, null, %L, %L, null, %L, %L, false, %L, %L, %L)', ch, pg_temp.f(subject),
+    'About a seat', electorate, threshold, quorum, now() + hours * interval '1 hour', r)
+$$;
+create function pg_temp.open_acting_vote_sql(req uuid, quorum int, hours int default 72, meeting uuid default null)
+returns text language sql stable as $$
+  select format('public.open_acting_vote(%L, %L, %L, %L)', req, quorum, now() + hours * interval '1 hour', meeting)
+$$;
+create function pg_temp.close_vote_sql(v uuid) returns text language sql immutable as $$
+  select format('public.close_vote(%L, null)', v)
+$$;
+-- Everyone with a ballot on the vote casts yes, as themselves.
+create function pg_temp.all_vote_yes(v uuid) returns void language plpgsql as $$
+declare e uuid;
+begin
+  for e in select member_id from public.vote_electors where vote_id = v and voted_at is null order by member_id loop
+    assert pg_temp.try_as(e, format('select public.cast_ballot(%L, ''yes'')', v)) is null, 'every elector can cast';
+  end loop;
+end $$;
+-- Who has a ballot on a vote, by first name in uuid order, with the chapter it belongs to when it has one.
+create function pg_temp.electors(v uuid) returns text[] language sql stable as $$
+  select array_agg(concat_ws(':', split_part(m.full_name, ' ', 1), c.slug) order by e.member_id)
+  from public.vote_electors e join public.members m on m.id = e.member_id left join public.chapters c on c.id = e.for_chapter
+  where e.vote_id = v
+$$;
+-- The vote as member n reads it in club_business(), or null when it isn't listed for them.
+create function pg_temp.listed(n int, v uuid) returns jsonb language sql as $$
+  select x from jsonb_array_elements(pg_temp.value_as(pg_temp.f(n), 'public.club_business()')::jsonb -> 'votes') x
+  where x ->> 'id' = v::text
+$$;
+-- Moves a vote's opening back to that long ago, as the owner.
+create function pg_temp.opened_ago(v uuid, ago interval) returns void language sql as $$
+  update public.votes set opened_at = now() - ago where id = v
+$$;
+-- Crank asks the board to vote Jet in to cover Smokey, who can't be asked: the request.
+create function pg_temp.crank_asks_jet() returns uuid language sql as $$
+  select pg_temp.id_by(3, pg_temp.request_acting_sql(2, pg_temp.north(), 'president', pg_temp.f(101), pg_temp.today() + 28,
+    'Smokey is in hospital'))
+$$;
+
+\echo 'votes: a vote to end acting is a chapter_board majority'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+do $$
+declare
+  n uuid := pg_temp.north();
+  v uuid;
+begin
+  perform pg_temp.jet_covers_smokey();
+  assert pg_temp.by(3, pg_temp.open_vote_sql(n, 2, 'president', 'chapter_patched', 'two_thirds', 2))
+    = pg_temp.w('ACTING_END_SHAPE'), 'not two-thirds of the chapter''s Full Members, as for a board seat''s holder (9.3)';
+  assert pg_temp.by(3, pg_temp.open_vote_sql(n, 2, 'president', 'chapter_board', 'two_thirds', 3))
+    = pg_temp.w('ACTING_END_SHAPE'), 'nor two-thirds of the board';
+  v := pg_temp.id_by(3, pg_temp.open_vote_sql(n, 2, 'president', 'chapter_board', 'majority', 3));
+  assert (select electorate = 'chapter_board' and threshold = 'majority' and subject_member_id = pg_temp.f(2)
+            and subject_role = 'president' and acting_request is null from votes where id = v),
+    'a majority of the chapter board, naming Jet and the seat he acts in';
+  assert pg_temp.by(3, pg_temp.open_vote_sql(n, 2, 'vice_president', 'chapter_board', 'majority', 3))
+    = 'Removing a board member is a two-thirds vote of the chapter’s Full Members at a notified, quorate meeting (9.3).',
+    'Jet''s own VP seat still takes the 9.3 shape';
+end $$;
+rollback;
+
+\echo 'votes: acting and end-acting votes leave out the stand-in, the holder and the Auditor; three-member North gets SMALL_BOARD; a 24-hour close gets ACTING_VOTE_OPEN'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+do $$
+declare
+  n uuid := pg_temp.north();
+  req uuid := pg_temp.crank_asks_jet();
+  v uuid;
+begin
+  v := pg_temp.id_by(3, pg_temp.open_acting_vote_sql(req, 3));
+  assert pg_temp.electors(v) = array['Crank', 'Ned', 'Gus'], 'the vote on Crank''s request leaves out Jet and Smokey: ' || pg_temp.electors(v)::text;
+  assert pg_temp.by(2, pg_temp.withdraw_sql(req)) is null, 'Jet declines';
+  perform pg_temp.jet_covers_smokey();
+  v := pg_temp.id_by(3, pg_temp.open_vote_sql(n, 2, 'president', 'chapter_board', 'majority', 3));
+  assert pg_temp.electors(v) = array['Crank', 'Ned', 'Gus'], 'so does a vote to end the cover Smokey then asked for: ' || pg_temp.electors(v)::text;
+  assert pg_temp.by(3, pg_temp.open_vote_sql(n, 2, 'president', 'chapter_board', 'majority', 3, 24)) = pg_temp.w('ACTING_VOTE_OPEN'),
+    'one closing in 24 hours is refused';
+  assert pg_temp.by(3, pg_temp.open_vote_sql(n, 2, 'president', 'chapter_board', 'majority', 3, 47)) = pg_temp.w('ACTING_VOTE_OPEN'),
+    'so is one closing in 47';
+  assert pg_temp.by(3, pg_temp.open_vote_sql(n, 2, 'president', 'chapter_board', 'majority', 3, 48)) is null, '48 hours is enough';
+end $$;
+rollback;
+begin;
+select pg_temp.seat(12, pg_temp.west(), 'vice_president');
+select pg_temp.seat(10, pg_temp.west(), 'sergeant_at_arms');
+select pg_temp.seat(11, pg_temp.west(), 'road_captain');
+do $$
+declare
+  w uuid := pg_temp.west();
+  req uuid;
+  v uuid;
+begin
+  req := pg_temp.id_by(7, pg_temp.request_acting_sql(8, w, 'treasurer', pg_temp.f(109), pg_temp.today() + 28, 'Penny is in hospital'));
+  v := pg_temp.id_by(7, pg_temp.open_acting_vote_sql(req, 3));
+  assert pg_temp.electors(v) = array['Rusty', 'Spanner', 'Hal'],
+    'Rusty''s request for Torque to cover Penny leaves out Torque, Penny and Kim, the Auditor: ' || pg_temp.electors(v)::text;
+  assert pg_temp.by(9, pg_temp.withdraw_sql(req)) is null, 'Penny says no';
+  perform pg_temp.id_by(7, pg_temp.confirm_sql(pg_temp.id_by(9, pg_temp.request_cover_sql(pg_temp.f(109), 8, pg_temp.today() + 28))));
+  v := pg_temp.id_by(7, pg_temp.open_vote_sql(w, 8, 'treasurer', 'chapter_board', 'majority', 3));
+  assert pg_temp.electors(v) = array['Rusty', 'Spanner', 'Hal'], 'so does a vote to end the cover she then asked for: ' || pg_temp.electors(v)::text;
+end $$;
+rollback;
+begin;
+do $$ begin
+  perform pg_temp.jet_covers_smokey();
+  assert pg_temp.by(3, pg_temp.open_vote_sql(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 3)) = pg_temp.w('SMALL_BOARD'),
+    'North is Smokey, Jet and Crank: without Jet and Smokey, Crank is alone';
+end $$;
+rollback;
+
+\echo 'votes: close_vote on a day-old acting vote, all voted: ACTING_VOTE_OPEN; at 48 hours it closes'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+do $$
+declare
+  n uuid := pg_temp.north();
+  req uuid := pg_temp.crank_asks_jet();
+  v uuid;
+  pos uuid;
+begin
+  v := pg_temp.id_by(3, pg_temp.open_acting_vote_sql(req, 3));
+  perform pg_temp.all_vote_yes(v);
+  perform pg_temp.opened_ago(v, interval '1 day');
+  assert pg_temp.by(3, pg_temp.close_vote_sql(v)) = pg_temp.w('ACTING_VOTE_OPEN'), 'a day in, with every ballot cast';
+  perform pg_temp.opened_ago(v, interval '48 hours' - interval '1 second');
+  assert pg_temp.by(3, pg_temp.close_vote_sql(v)) = pg_temp.w('ACTING_VOTE_OPEN'), 'a second short of 48 hours';
+  perform pg_temp.opened_ago(v, interval '48 hours');
+  assert pg_temp.by(3, pg_temp.close_vote_sql(v)) is null, 'at 48 hours it closes';
+  assert (select result = 'carried' from votes where id = v), 'carried';
+  pos := pg_temp.id_by(5, pg_temp.confirm_sql(req));
+  assert (select acting_vote = v and covers = pg_temp.f(101) from positions where id = pos), 'and Ned confirms Jet''s cover on it';
+
+  v := pg_temp.id_by(3, pg_temp.open_vote_sql(n, 2, 'president', 'chapter_board', 'majority', 3));
+  perform pg_temp.all_vote_yes(v);
+  perform pg_temp.opened_ago(v, interval '1 day');
+  assert pg_temp.by(3, pg_temp.close_vote_sql(v)) = pg_temp.w('ACTING_VOTE_OPEN'), 'so does a vote to end his acting';
+  perform pg_temp.opened_ago(v, interval '48 hours');
+  assert pg_temp.by(3, pg_temp.close_vote_sql(v)) is null, 'until 48 hours';
+  assert pg_temp.by(3, pg_temp.end_sql(pos)) is null, 'Crank can then end it';
+  assert pg_temp.how_ended(pos) = pg_temp.ended('removed', 3), 'removed: ' || pg_temp.how_ended(pos);
+
+  v := pg_temp.id_by(3, pg_temp.open_vote_sql(n, null, null, 'chapter_board', 'majority', 3));
+  perform pg_temp.all_vote_yes(v);
+  assert pg_temp.by(3, pg_temp.close_vote_sql(v)) is null, 'a board vote about nothing acting closes once everyone has voted, as before';
+end $$;
+rollback;
+
+\echo 'votes: an acting vote lost closes its request as rejected when it closes'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+do $$
+declare
+  req uuid := pg_temp.crank_asks_jet();
+  v uuid;
+  e uuid;
+begin
+  v := pg_temp.id_by(3, pg_temp.open_acting_vote_sql(req, 3));
+  for e in select member_id from vote_electors where vote_id = v loop
+    assert pg_temp.try_as(e, format('select public.cast_ballot(%L, ''no'')', v)) is null, 'each votes no';
+  end loop;
+  perform pg_temp.opened_ago(v, interval '48 hours');
+  assert pg_temp.by(5, pg_temp.close_vote_sql(v)) is null, 'Ned closes it';
+  assert (select result = 'lost' from votes where id = v), 'lost';
+  assert (select outcome = 'rejected' and closed_at = (select closed_at from votes where id = v) from acting_requests where id = req),
+    'the request closes rejected then, so Crank''s 28 days count from the day it was lost';
+end $$;
+rollback;
+
+\echo 'votes: NEC electors carry for_chapter; North''s is Jet under the cover; a chapter with no President or VP adds none'
+begin;
+do $$
+declare v uuid;
+begin
+  v := pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 2));
+  assert pg_temp.electors(v) = array['Smokey:north', 'Rusty:west'], 'each chapter''s President, with the chapter: ' || pg_temp.electors(v)::text;
+  perform pg_temp.jet_covers_smokey();
+  v := pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 2));
+  assert pg_temp.electors(v) = array['Jet:north', 'Rusty:west'], 'Jet casts North''s under the cover Smokey agreed: ' || pg_temp.electors(v)::text;
+  perform pg_temp.end_row(pg_temp.f(107));
+  v := pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 1));
+  assert pg_temp.electors(v) = array['Jet:north'], 'West, with no President or VP, gets none: ' || pg_temp.electors(v)::text;
+end $$;
+rollback;
+
+\echo 'votes: a lapsed stint gets no ballot'
+begin;
+select pg_temp.clock_at('2026-12-13 23:59:59 Australia/Melbourne');
+select pg_temp.end_row(pg_temp.f(107));
+select pg_temp.seat(10, pg_temp.west(), 'sergeant_at_arms');
+create temp table hal_acts as
+  select pg_temp.seat(11, pg_temp.west(), 'president', '2026-12-13', 'No President since Rusty stepped down', null, '2026-12-01') as id;
+do $$
+declare v uuid;
+begin
+  v := pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 2));
+  assert pg_temp.electors(v) = array['Smokey:north', 'Hal:west'], 'until today, Hal casts West''s NEC vote: ' || pg_temp.electors(v)::text;
+  v := pg_temp.id_by(8, pg_temp.open_vote_sql(pg_temp.west(), null, null, 'chapter_board', 'majority', 3));
+  assert pg_temp.electors(v) = array['Torque', 'Penny', 'Spanner', 'Hal'], 'and has a West board ballot: ' || pg_temp.electors(v)::text;
+end $$;
+select pg_temp.clock_at('2026-12-14 00:00:00 Australia/Melbourne');
+do $$
+declare v uuid;
+begin
+  v := pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 1));
+  assert pg_temp.electors(v) = array['Smokey:north'], 'from Melbourne midnight West has no NEC ballot: ' || pg_temp.electors(v)::text;
+  v := pg_temp.id_by(8, pg_temp.open_vote_sql(pg_temp.west(), null, null, 'chapter_board', 'majority', 3));
+  assert pg_temp.electors(v) = array['Torque', 'Penny', 'Spanner'], 'and Hal has no board ballot: ' || pg_temp.electors(v)::text;
+  assert pg_temp.how_ended((select id from hal_acts)) = pg_temp.ended('lapsed', null), 'opening a vote closed the stint first';
+end $$;
+rollback;
+
+\echo 'votes: open_acting_vote builds the question and the shape'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+select pg_temp.meeting(pg_temp.north(), 'board', now() + interval '3 days');
+do $$
+declare
+  n uuid := pg_temp.north();
+  m uuid := (select id from meetings where chapter_id = pg_temp.north() and kind = 'board' and title = 'A meeting');
+  req uuid := pg_temp.crank_asks_jet();
+  v uuid;
+begin
+  v := pg_temp.id_by(3, pg_temp.open_acting_vote_sql(req, 3, 72, m));
+  assert (select question from votes where id = v)
+    = 'Jet acts as President (North) for Smokey until ' || to_char(pg_temp.today() + 28, 'DD/MM/YYYY') || ': Smokey is in hospital',
+    'the question, from the request: ' || (select question from votes where id = v);
+  assert (select chapter_id = n and meeting_id = m and subject_member_id = pg_temp.f(2) and subject_role = 'president'
+            and electorate = 'chapter_board' and threshold = 'majority' and not secret and quorum = 3 and acting_request = req
+            and created_by = pg_temp.f(3) and details is null and closed_at is null and closes_at = now() + interval '72 hours'
+          from votes where id = v), 'a board majority on the request, about Jet and the seat, at the meeting';
+end $$;
+rollback;
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+select pg_temp.end_row(pg_temp.f(101));
+do $$
+declare
+  u date := pg_temp.today() + 28;
+  req uuid := pg_temp.id_by(3, pg_temp.request_acting_sql(5, pg_temp.north(), 'president', null, pg_temp.today() + 28,
+    'No President since Smokey stepped down'));
+  v uuid;
+  pos uuid;
+begin
+  assert pg_temp.by(6, pg_temp.confirm_sql(req)) = pg_temp.w('NEEDS_ACTING_VOTE'), 'Ned isn''t the sitting VP, so it waits for a vote';
+  v := pg_temp.id_by(6, pg_temp.open_acting_vote_sql(req, 3));
+  assert (select question from votes where id = v)
+    = 'Ned acts as President (North) until ' || to_char(u, 'DD/MM/YYYY') || ': No President since Smokey stepped down',
+    'an empty seat names no holder: ' || (select question from votes where id = v);
+  assert pg_temp.electors(v) = array['Jet', 'Crank', 'Gus'], 'Jet, Crank and Gus decide it, not Ned: ' || pg_temp.electors(v)::text;
+  perform pg_temp.all_vote_yes(v);
+  perform pg_temp.opened_ago(v, interval '48 hours');
+  assert pg_temp.by(6, pg_temp.close_vote_sql(v)) is null, 'Gus closes it at 48 hours';
+  pos := pg_temp.id_by(6, pg_temp.confirm_sql(req));
+  assert (select acting_vote = v and acting_request = req and covers is null and appointed_by = pg_temp.f(6) and acting_until = u
+          from positions where id = pos), 'then confirms Ned as Acting President on the carried vote';
+end $$;
+rollback;
+
+\echo 'votes: open_acting_vote refuses, in order'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+select pg_temp.meeting(pg_temp.west(), 'board', now() + interval '3 days');
+do $$
+declare
+  req uuid;
+  west_meeting uuid := (select id from meetings where chapter_id = pg_temp.west() and title = 'A meeting');
+begin
+  assert pg_temp.try_as(null, 'select ' || pg_temp.open_acting_vote_sql(gen_random_uuid(), 3)) like 'permission denied for function open_acting_vote%',
+    'not for anon';
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(gen_random_uuid(), 3)) = pg_temp.w('NO_REQUEST'), 'no such request';
+  req := pg_temp.id_by(1, pg_temp.request_cover_sql(pg_temp.f(101), 2, pg_temp.today() + 28));
+  assert pg_temp.by(4, pg_temp.open_acting_vote_sql(req, 2, 24)) = pg_temp.w('NO_VOTE_NEEDED'),
+    'Smokey asked for his own cover, so a third board member confirms it with no vote';
+  assert pg_temp.by(1, pg_temp.withdraw_sql(req)) is null, 'Smokey withdraws it';
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(req, 3)) = pg_temp.w('NO_REQUEST'), 'a closed request';
+
+  req := pg_temp.crank_asks_jet();
+  assert pg_temp.by(4, pg_temp.open_acting_vote_sql(req, 2, 24)) = pg_temp.w('BOARD_RECORDS_ACTING'), 'Lou, an NEC officer, isn''t on North''s board';
+  assert pg_temp.by(10, pg_temp.open_acting_vote_sql(req, 2, 24)) = pg_temp.w('BOARD_RECORDS_ACTING'), 'nor is Spanner';
+  assert pg_temp.by(2, pg_temp.open_acting_vote_sql(req, 2, 24)) = pg_temp.w('NOT_YOURSELF'), 'Jet is the stand-in';
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(req, 2, 24)) = pg_temp.w('ACTING_VOTE_OPEN'), 'closing in 24 hours, before the quorum';
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(req, 2, 47)) = pg_temp.w('ACTING_VOTE_OPEN'), 'or in 47';
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(req, 2)) = 'Quorum must be between 3 and 3.', 'the quorum is worked out on the three who decide it';
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(req, 4)) = 'Quorum must be between 3 and 3.', 'not on the board of five';
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(req, 3, null)) = 'Pick a closing time in the future.', 'a closing time';
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(req, 3, 1441)) = 'Votes can stay open for 60 days at most.', 'within 60 days';
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(req, 3, 72, west_meeting)) = 'No such meeting.', 'a North meeting, not a West one';
+  perform pg_temp.end_row((select id from positions where member_id = pg_temp.f(6) and role = 'sergeant_at_arms' and ended_on is null));
+  assert pg_temp.by(3, pg_temp.open_acting_vote_sql(req, 2, 24)) = pg_temp.w('SMALL_BOARD'),
+    'with Gus off the board, Crank and Ned are too few, before the closing time';
+  assert not exists (select 1 from votes where acting_request is not null), 'nothing opened';
+end $$;
+rollback;
+begin;
+select pg_temp.seat(12, pg_temp.west(), 'vice_president');
+select pg_temp.seat(10, pg_temp.west(), 'sergeant_at_arms');
+select pg_temp.seat(11, pg_temp.west(), 'road_captain');
+do $$
+declare req uuid := pg_temp.id_by(7, pg_temp.request_acting_sql(8, pg_temp.west(), 'treasurer', pg_temp.f(109), pg_temp.today() + 28,
+  'Penny is in hospital'));
+begin
+  assert pg_temp.by(12, pg_temp.open_acting_vote_sql(req, 2, 24)) = pg_temp.w('AUDITOR_STAYS_OUT'),
+    'Kim, the National Auditor in West''s VP seat, doesn''t open a vote on a Treasurer seat';
+  assert pg_temp.by(9, pg_temp.open_acting_vote_sql(req, 3)) is null, 'Penny, the holder, can';
+end $$;
+rollback;
+
+\echo 'votes: club_business, read as Crank and as Smokey, carries acting_request and elector_chapters'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+do $$
+declare
+  req uuid := pg_temp.crank_asks_jet();
+  acting uuid;
+  nec uuid;
+  who int;
+  j jsonb;
+begin
+  acting := pg_temp.id_by(3, pg_temp.open_acting_vote_sql(req, 3));
+  nec := pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 2));
+  foreach who in array array[3, 1] loop
+    j := pg_temp.listed(who, acting);
+    assert j ->> 'acting_request' = req::text, format('member %s reads the acting vote''s request: %s', who, j);
+    assert j -> 'elector_chapters' = '{}'::jsonb, 'and no chapters: it isn''t an NEC vote';
+  end loop;
+  assert pg_temp.listed(3, nec) is null, 'Crank isn''t on the NEC';
+  j := pg_temp.listed(1, nec);
+  assert j -> 'elector_chapters' = jsonb_build_object(pg_temp.f(1), pg_temp.north(), pg_temp.f(7), pg_temp.west()),
+    'Smokey reads whose chapter each NEC ballot is: ' || coalesce((j -> 'elector_chapters')::text, 'nothing');
+  assert j -> 'acting_request' = 'null'::jsonb, 'it isn''t about acting';
+end $$;
+rollback;
+
+\echo 'votes: Jet (VP) sees an NEC vote once Smokey''s row ends mid-vote'
+begin;
+do $$
+declare v uuid := pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 2));
+begin
+  assert pg_temp.listed(2, v) is null, 'Smokey casts North''s ballot, so Jet doesn''t see the vote';
+  perform pg_temp.end_row(pg_temp.f(101));
+  assert pg_temp.listed(2, v) -> 'elector_chapters' ->> pg_temp.f(1)::text = pg_temp.north()::text,
+    'once Smokey steps down, Jet would take North''s uncast ballot, so he sees the vote';
+  update vote_electors set voted_at = now() where vote_id = v and member_id = pg_temp.f(1);
+  assert pg_temp.listed(2, v) is null, 'not once North''s ballot is cast';
+  update vote_electors set voted_at = null where vote_id = v;
+  update votes set closed_at = now(), result = 'no_quorum' where id = v;
+  assert pg_temp.listed(2, v) is null, 'nor once the vote has closed';
+end $$;
+rollback;
 
 \echo 'ACTING CHECKS PASSED'

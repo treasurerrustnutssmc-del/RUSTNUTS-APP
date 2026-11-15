@@ -1986,3 +1986,358 @@ begin
   values (p_member, target.chapter_id, target.status, p_status, coalesce(p_by_request, false), notice, auth.uid());
 end;
 $$;
+
+-- §6 Votes ------------------------------------------------------------------------------------------
+
+-- A vote about acting is one to seat it (open_acting_vote, on a request that needs one) or one to end
+-- it (open_vote, naming a role its subject holds as acting). Either is a majority of the chapter
+-- board, decided without the acting person, the covered holder or, for a President or Treasurer
+-- seat, the National Auditor (8.5, 9.3, 9.9, 11.8, 11.10), by at least three of the rest (8.6). It
+-- stays open at least 48 hours, so the holder can answer and nobody voids it by closing early:
+-- close_vote won't close it sooner, even when everyone has voted. An NEC ballot belongs to its
+-- chapter (11.2), so each NEC elector row names it (for_chapter).
+
+-- Opening a vote (as removal_and_gate.sql, same signature). Stints that lapsed last night close
+-- first, and the subject checks read held rows. A vote naming a role its subject holds as acting is
+-- one to end their acting: a chapter board majority (ACTING_END_SHAPE), its electors and quorum
+-- from acting_electors (SMALL_BOARD under three), closing 48 hours or more after it opens
+-- (ACTING_VOTE_OPEN). Each NEC ballot is a chapter's voter's, with the chapter on the row; a chapter
+-- with nobody to cast it gets none.
+create or replace function public.open_vote(
+  p_chapter uuid, p_meeting uuid, p_subject uuid, p_question text, p_details text,
+  p_electorate public.electorate, p_threshold public.vote_threshold, p_secret boolean, p_quorum int,
+  p_closes_at timestamptz, p_role public.position_role default null
+) returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := private.require_member();
+  electors int;
+  subject public.members%rowtype;
+  stint private.held_positions%rowtype;
+  opened uuid;
+begin
+  perform private.close_lapsed_acting();
+  perform private.require_scope(p_chapter);
+  if nullif(trim(p_question), '') is null then raise exception 'Ask a question.'; end if;
+  if (p_chapter is null) <> (p_electorate in ('club_patched', 'nec')) then
+    raise exception 'That electorate doesn’t fit here.';
+  end if;
+  -- The subject's acting row in that role: a vote about it ends their acting (9.3).
+  if p_chapter is not null and p_subject is not null and p_role is not null then
+    select * into stint from private.held_positions
+    where member_id = p_subject and chapter_id = p_chapter and role = p_role and acting_until is not null;
+  end if;
+  if stint.id is not null then
+    if p_electorate <> 'chapter_board' or p_threshold <> 'majority' then
+      raise exception 'Ending someone’s acting is a majority vote of the chapter board (9.3).';
+    end if;
+    select count(*) into electors from private.acting_electors(p_chapter, p_role, p_subject, stint.covers);
+    if electors < 3 then
+      raise exception 'Too few board members outside this can decide it in the app. Refer it to the NEC (8.6).';
+    end if;
+    if p_closes_at < now() + interval '48 hours' then
+      raise exception 'A vote about acting stays open for at least 48 hours, so everyone affected can answer.';
+    end if;
+  else
+    select count(*) into electors from private.electors_for(p_electorate, p_chapter);
+    if electors = 0 then raise exception 'Nobody can vote in that electorate yet.'; end if;
+    if p_electorate = 'chapter_board' and electors < 3 then
+      raise exception 'A board vote needs at least three board members (8.5).';
+    end if;
+  end if;
+  if p_quorum is null or p_quorum < private.min_quorum(p_electorate, electors) or p_quorum > electors then
+    raise exception 'Quorum must be between % and %.', private.min_quorum(p_electorate, electors), electors;
+  end if;
+  if p_closes_at is null or p_closes_at <= now() then raise exception 'Pick a closing time in the future.'; end if;
+  if p_closes_at > now() + interval '1440 hours' then raise exception 'Votes can stay open for 60 days at most.'; end if;
+  -- A vote that names a role: the NEC seats someone (11.6, 11.8), or a chapter removes someone (9.3).
+  if p_role is not null and p_chapter is null and p_role not in ('nec_auditor', 'nec_secretary') then
+    raise exception 'The NEC votes people into the National Auditor and Secretary seats only (11.6, 11.8).';
+  end if;
+  if p_role in ('nec_auditor', 'nec_secretary') and (p_subject is null or p_chapter is not null) then
+    raise exception 'A vote for a national seat is the NEC’s vote about a Full Member (11.6, 11.8).';
+  end if;
+  if p_role is not null and p_chapter is not null and (p_subject is null or p_role in ('founder', 'nec_chair')) then
+    raise exception 'A removal vote is the chapter’s vote about one of its own role holders (9.3).';
+  end if;
+  if p_subject is not null and p_chapter is null then
+    select * into subject from public.members where id = p_subject;
+    if found and subject.approval = 'approved' and subject.status = 'full' then
+      -- Seating a Full Member as National Auditor (11.8) or National Secretary (11.6): two-thirds of
+      -- the NEC, on someone who could hold the seat.
+      if p_role is null then
+        raise exception 'Say which seat the vote is for: National Auditor or National Secretary (11.6, 11.8).';
+      end if;
+      if p_role = 'nec_auditor' and (p_electorate <> 'nec' or p_threshold <> 'two_thirds' or exists (
+           select 1 from private.held_positions where member_id = p_subject
+             and role in ('president', 'treasurer', 'nec_chair', 'nec_secretary'))) then
+        raise exception 'A vote to appoint the National Auditor is an NEC two-thirds vote on a Full Member who isn’t a President, Treasurer or NEC officer (11.8).';
+      end if;
+      if p_role = 'nec_secretary' and (p_electorate <> 'nec' or p_threshold <> 'two_thirds' or exists (
+           select 1 from private.held_positions where member_id = p_subject
+             and role in ('nec_chair', 'nec_secretary', 'nec_auditor'))) then
+        raise exception 'A vote to appoint the National Secretary is an NEC two-thirds vote on a Full Member who isn’t already National Chairman, Secretary or Auditor (11.6).';
+      end if;
+    elsif p_role is not null then
+      raise exception 'Only a Full Member can be voted into a national seat (9.1).';
+    elsif not found or subject.approval <> 'approved' or subject.status not in ('supporter', 'legacy', 'family', 'introduced')
+       or p_electorate <> 'nec' or p_threshold <> 'majority' then
+      -- Bringing someone back to Full or Nomad is the NEC's decision (5.6).
+      raise exception 'A reinstatement vote is an NEC majority vote on a member who isn’t Full, Nomad or an FNG (5.6).';
+    end if;
+  elsif p_subject is not null and p_role is not null then
+    -- A removal vote (9.3): about a Full Member or Nomad who holds that role in this chapter. A board
+    -- seat goes by two-thirds of the chapter's Full Members; any other chapter role by a board majority.
+    -- Ending someone's acting took its shape above.
+    select * into subject from public.members where id = p_subject;
+    if not found or subject.approval <> 'approved' or subject.status not in ('full', 'nomad') or not exists (
+         select 1 from private.held_positions
+         where member_id = p_subject and chapter_id = p_chapter and role = p_role) then
+      raise exception 'A removal vote is about a Full Member or Nomad who holds that role in this chapter (9.3).';
+    end if;
+    if stint.id is not null then
+      null;
+    elsif p_role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain') then
+      if p_electorate <> 'chapter_patched' or p_threshold <> 'two_thirds' then
+        raise exception 'Removing a board member is a two-thirds vote of the chapter’s Full Members at a notified, quorate meeting (9.3).';
+      end if;
+    elsif p_electorate <> 'chapter_board' or p_threshold <> 'majority' then
+      raise exception 'Removing someone from a chapter role is a majority vote of the chapter board (9.3).';
+    end if;
+  elsif p_subject is not null then
+    select * into subject from public.members where id = p_subject;
+    if not found or subject.chapter_id <> p_chapter or subject.approval <> 'approved' or subject.status <> 'fng' then
+      raise exception 'A patch vote is for an approved FNG of that chapter.';
+    end if;
+    if p_electorate <> 'chapter_patched' or p_threshold <> 'unanimous' or not coalesce(p_secret, false) then
+      raise exception 'A patch vote is a secret, unanimous vote of the chapter’s Full Members.';
+    end if;
+    -- Full Membership can't be granted before nine months (4.7).
+    if subject.fng_started_on is not null and subject.fng_started_on + interval '9 months' > private.club_date() then
+      raise exception 'A patch vote can open only nine months into the FNG’s trial (4.7).';
+    end if;
+  end if;
+  if p_meeting is not null and not exists (
+    select 1 from public.meetings where id = p_meeting and chapter_id is not distinct from p_chapter) then
+    raise exception 'No such meeting.';
+  end if;
+
+  insert into public.votes (chapter_id, meeting_id, subject_member_id, subject_role, question, details, electorate,
+                            threshold, secret, quorum, closes_at, created_by)
+  values (p_chapter, p_meeting, p_subject, p_role, trim(p_question), nullif(trim(p_details), ''), p_electorate,
+          p_threshold, coalesce(p_secret, false), p_quorum, p_closes_at, me)
+  returning id into opened;
+  if stint.id is not null then
+    insert into public.vote_electors (vote_id, member_id)
+    select opened, e from private.acting_electors(p_chapter, p_role, p_subject, stint.covers) e;
+  elsif p_electorate = 'nec' then
+    insert into public.vote_electors (vote_id, member_id, for_chapter)
+    select opened, x.voter, x.id
+    from (select c.id, private.nec_voter_for(c.id) as voter from public.chapters c) x
+    where x.voter in (select private.electors_for('nec', null));
+  else
+    insert into public.vote_electors (vote_id, member_id)
+    select opened, e from private.electors_for(p_electorate, p_chapter) e;
+  end if;
+  return opened;
+end;
+$$;
+
+-- Route 3's vote (spec "How a stint starts"): a board member who isn't the stand-in opens the
+-- board's vote on a request that needs one. It's a majority of the chapter board, not secret, about
+-- the stand-in and the seat, decided by acting_electors, with the quorum worked out on them and a
+-- closing time 48 hours or more away; the question comes from the request. Once it has carried,
+-- confirm_acting seats the stint. Checks, in the app's order (Task 13 mirrors them): the request is
+-- open and needs a vote; a board member of its chapter who isn't the stand-in; the Auditor; too few
+-- to decide it; the 48 hours; then open_vote's quorum, closing and meeting words.
+create or replace function public.open_acting_vote(p_request uuid, p_quorum int, p_closes_at timestamptz, p_meeting uuid)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := private.require_member();
+  req public.acting_requests%rowtype;
+  stand_in public.members%rowtype;
+  holder public.members%rowtype;
+  electors int;
+  opened uuid;
+begin
+  select * into req from public.acting_requests where id = p_request;
+  if not found then raise exception 'That request isn’t open.'; end if;
+  perform private.lock_seat(req.chapter_id, req.role);
+  perform private.lock_people(array[req.member_id, (select h.member_id from private.held_positions h where h.id = req.covers)]);
+  perform private.close_lapsed_acting();
+  select * into req from public.acting_requests where id = p_request for update;
+  if req.closed_at is not null then raise exception 'That request isn’t open.'; end if;
+
+  if not private.request_needs_vote(p_request) then
+    raise exception 'This request doesn’t need a vote. A third board member confirms it.';
+  end if;
+  if not private.is_board_of(req.chapter_id) then raise exception 'Only that chapter’s board can record acting here.'; end if;
+  if me = req.member_id then raise exception 'You can’t record yourself as acting.'; end if;
+  if private.auditor_stays_out(req.role) then
+    raise exception 'The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).';
+  end if;
+  select count(*) into electors from private.acting_electors(req.chapter_id, req.role, req.member_id, req.covers);
+  if electors < 3 then
+    raise exception 'Too few board members outside this can decide it in the app. Refer it to the NEC (8.6).';
+  end if;
+  if p_closes_at < now() + interval '48 hours' then
+    raise exception 'A vote about acting stays open for at least 48 hours, so everyone affected can answer.';
+  end if;
+  if p_quorum is null or p_quorum < private.min_quorum('chapter_board', electors) or p_quorum > electors then
+    raise exception 'Quorum must be between % and %.', private.min_quorum('chapter_board', electors), electors;
+  end if;
+  if p_closes_at is null or p_closes_at <= now() then raise exception 'Pick a closing time in the future.'; end if;
+  if p_closes_at > now() + interval '1440 hours' then raise exception 'Votes can stay open for 60 days at most.'; end if;
+  if p_meeting is not null and not exists (select 1 from public.meetings where id = p_meeting and chapter_id = req.chapter_id) then
+    raise exception 'No such meeting.';
+  end if;
+
+  select * into stand_in from public.members where id = req.member_id;
+  select m.* into holder from private.held_positions h join public.members m on m.id = h.member_id where h.id = req.covers;
+  insert into public.votes (chapter_id, meeting_id, subject_member_id, subject_role, question, electorate, threshold,
+                            secret, quorum, closes_at, created_by, acting_request)
+  values (req.chapter_id, p_meeting, req.member_id, req.role,
+          private.short_name(stand_in) || ' acts as ' || private.role_label(req.role)
+            || ' (' || (select c.name from public.chapters c where c.id = req.chapter_id) || ')'
+            || case when holder.id is not null then ' for ' || private.short_name(holder) else '' end
+            || ' until ' || to_char(req.until, 'DD/MM/YYYY') || ': ' || req.why,
+          'chapter_board', 'majority', false, p_quorum, p_closes_at, me, p_request)
+  returning id into opened;
+  insert into public.vote_electors (vote_id, member_id)
+  select opened, e from private.acting_electors(req.chapter_id, req.role, req.member_id, req.covers) e;
+  return opened;
+end;
+$$;
+
+-- Closing a vote (as removal_and_gate.sql). A vote about acting (on a request, or naming a role its
+-- subject holds as acting) can't close within 48 hours of opening, even when everyone has voted.
+-- Afterwards the lazy close runs, so a lost vote on a request closes it as rejected now, and the 28
+-- days before its requester can ask again count from the day it was lost.
+create or replace function public.close_vote(p_vote uuid, p_casting text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := private.require_member();
+  v public.votes%rowtype;
+  n_yes int; n_no int; n_abstain int; n_electors int;
+  res public.vote_result;
+  tied boolean;
+  represented boolean;
+  about_member boolean;
+  chair uuid;
+begin
+  select * into v from public.votes where id = p_vote for update;
+  if not found then raise exception 'No such vote.'; end if;
+  perform private.require_scope(v.chapter_id);
+  if v.closed_at is not null then raise exception 'That vote has already closed.'; end if;
+  if now() < v.opened_at + interval '48 hours' and (v.acting_request is not null or exists (
+       select 1 from private.held_positions h
+       where h.member_id = v.subject_member_id and h.chapter_id = v.chapter_id and h.role = v.subject_role
+         and h.acting_until is not null)) then
+    raise exception 'A vote about acting stays open for at least 48 hours, so everyone affected can answer.';
+  end if;
+  if now() < v.closes_at and exists (select 1 from public.vote_electors where vote_id = p_vote and voted_at is null) then
+    raise exception 'Wait until it closes, or until everyone has voted.';
+  end if;
+  select count(*) filter (where choice = 'yes'), count(*) filter (where choice = 'no'), count(*) filter (where choice = 'abstain')
+  into n_yes, n_no, n_abstain from public.vote_ballots where vote_id = p_vote;
+  select count(*) into n_electors from public.vote_electors where vote_id = p_vote;
+  select d.result, d.tied into res, tied from private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, null, n_electors) d;
+  represented := v.electorate <> 'club_patched' or private.chapters_represented(p_vote);
+  if not represented then res := 'no_quorum'; tied := false; end if;
+  about_member := v.subject_member_id is not null;
+  chair := private.chair_of(v.chapter_id);
+  if tied and about_member and p_casting is not null then
+    raise exception 'No casting vote on a vote about a member (10.7): a tie is lost.';
+  end if;
+  -- The chair casts or declines, and a declined tie is lost (9.10).
+  if tied and not about_member and chair is not null and (p_casting is null or me <> chair) then
+    raise exception 'It’s a tie. The chair gives a casting vote or lets it fall.';
+  end if;
+  if not tied and p_casting is not null then raise exception 'There’s no tie, so no casting vote.'; end if;
+  if p_casting in ('yes', 'no') and chair is null then
+    raise exception 'Nobody’s in the chair, so a tie is lost. Close it without a casting vote.';
+  end if;
+  if p_casting is not null and p_casting not in ('yes', 'no', 'decline') then raise exception 'Pick an answer.'; end if;
+  if tied and not about_member then
+    select d.result into res from private.decide(v.threshold, v.quorum, n_yes, n_no, n_abstain, p_casting, n_electors) d;
+  end if;
+
+  -- A patch vote keeps only its result (4.9): no counts, and its ballots are blanked.
+  if v.subject_member_id is not null and v.subject_role is null and v.electorate = 'chapter_patched' then
+    update public.vote_ballots set choice = null where vote_id = p_vote;
+    n_yes := null; n_no := null; n_abstain := null;
+  end if;
+  update public.votes set closed_at = now(), result = res, casting_vote = nullif(p_casting, 'decline'),
+    yes_count = n_yes, no_count = n_no, abstain_count = n_abstain
+  where id = p_vote;
+  perform private.close_lapsed_acting();
+end;
+$$;
+
+-- The club's business (as audit_fixes.sql, same signature and settings). Each vote also carries the
+-- request an acting vote is on, and whose chapter each NEC ballot is (elector to chapter, {} when
+-- none). An open NEC vote is also listed to whoever would take a chapter's uncast ballot on it (its
+-- voter before the day it opened), so a VP who takes one sees it, as the app's canSeeVote.
+create or replace function public.club_business()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare me uuid := auth.uid();
+begin
+  if not private.is_approved_member() then
+    return jsonb_build_object('meetings', '[]'::jsonb, 'action_items', '[]'::jsonb, 'votes', '[]'::jsonb);
+  end if;
+  return jsonb_build_object(
+    'meetings', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', m.id, 'chapter_id', m.chapter_id, 'kind', m.kind, 'title', m.title, 'starts_at', m.starts_at,
+        'location', m.location, 'agenda', m.agenda,
+        -- A shared draft goes to everyone who sees the meeting (10.8).
+        'minutes', case when m.minutes_approved_at is not null or m.minutes_shared_at is not null
+                          or private.reviews_scope(m.chapter_id) then m.minutes end,
+        'minutes_shared_at', m.minutes_shared_at,
+        'minutes_approved_at', m.minutes_approved_at, 'minutes_approved_by', m.minutes_approved_by,
+        'cancelled_at', m.cancelled_at, 'created_by', m.created_by) order by m.starts_at, m.id)
+      from public.meetings m
+      where m.kind not in ('board', 'nec') or private.reviews_scope(m.chapter_id)), '[]'::jsonb),
+    'action_items', coalesce((
+      select jsonb_agg(to_jsonb(a) - 'created_at' - 'created_by' order by a.due_on nulls last, a.created_at)
+      from public.action_items a
+      where a.owner_id = me or private.reviews_scope(a.chapter_id)), '[]'::jsonb),
+    'votes', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', v.id, 'chapter_id', v.chapter_id, 'meeting_id', v.meeting_id, 'subject_member_id', v.subject_member_id,
+        'subject_role', v.subject_role,
+        'question', v.question, 'details', v.details, 'electorate', v.electorate, 'threshold', v.threshold,
+        'secret', v.secret, 'quorum', v.quorum, 'opened_at', v.opened_at, 'closes_at', v.closes_at,
+        'closed_at', v.closed_at, 'result', v.result, 'casting_vote', v.casting_vote, 'created_by', v.created_by,
+        'tally', case when v.closed_at is not null and v.yes_count is not null
+                      then jsonb_build_object('yes', v.yes_count, 'no', v.no_count, 'abstain', v.abstain_count) end,
+        'elector_ids', (select coalesce(jsonb_agg(e.member_id order by e.member_id), '[]'::jsonb)
+                        from public.vote_electors e where e.vote_id = v.id),
+        'voted_ids', (select coalesce(jsonb_agg(e.member_id order by e.member_id), '[]'::jsonb)
+                      from public.vote_electors e where e.vote_id = v.id and e.voted_at is not null),
+        'my_voted', exists (select 1 from public.vote_electors e where e.vote_id = v.id and e.member_id = me and e.voted_at is not null),
+        'ballots', case when v.closed_at is not null and not v.secret then (
+                     select coalesce(jsonb_agg(jsonb_build_object('member_id', b.member_id, 'choice', b.choice)
+                                               order by b.member_id), '[]'::jsonb)
+                     from public.vote_ballots b where b.vote_id = v.id)
+                   else '[]'::jsonb end,
+        'acting_request', v.acting_request,
+        'elector_chapters', (select coalesce(jsonb_object_agg(e.member_id, e.for_chapter), '{}'::jsonb)
+                             from public.vote_electors e where e.vote_id = v.id and e.for_chapter is not null)
+        ) order by v.opened_at desc, v.id)
+      from public.votes v
+      where private.reviews_scope(v.chapter_id)
+         or exists (select 1 from public.vote_electors e where e.vote_id = v.id and e.member_id = me)
+         or (v.electorate = 'nec' and v.closed_at is null and exists (
+               select 1 from public.vote_electors e
+               where e.vote_id = v.id and e.voted_at is null and e.for_chapter is not null
+                 and private.nec_voter_before(e.for_chapter, private.club_date(v.opened_at)) = me))), '[]'::jsonb)
+  );
+end;
+$function$;
+
+revoke all on function public.open_acting_vote(uuid, int, timestamptz, uuid) from public, anon;
+grant execute on function public.open_acting_vote(uuid, int, timestamptz, uuid) to authenticated;
