@@ -1,6 +1,6 @@
-// The notifications explainer's answer on this phone ("Turn on" or "Not now"), kept so the card
-// shows once. The ride reminders and the push sign-up read it before bringing up the phone's own
-// prompt (src/domain/notifyIntro.ts decides).
+// This phone's answer to the notifications prompt ("on" or "later" after a no), kept so the app asks
+// by itself only once. The ride reminders and the push sign-up read it before bringing up the phone's
+// own prompt (src/domain/notifyIntro.ts decides).
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';

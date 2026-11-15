@@ -1,18 +1,36 @@
-// This phone's Expo push token, saved with the club on sign-in so pushes can reach it (once they're
-// switched on), and removed on sign-out. Each member is asked for notifications once, and any failure
-// is ignored: Android can't get a token until the app has its
-// Firebase project, which comes with launch.
+// This phone's Expo push token, saved with the club on sign-in so pushes can reach it, and removed on
+// sign-out. Notifications are on by default: the first sign-in on a phone brings up the phone's own
+// prompt, once. Any failure is ignored and tried again at the next sign-in or app start.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { mayAskAutomatically } from '../domain/notifyIntro';
 import { ensureChannels } from './notificationChannels';
-import { introAnswer } from './notifyIntro';
+import { introAnswer, setIntroAnswer } from './notifyIntro';
 import { supabase } from './supabase';
 
 const KEY = 'push.token';
 const ASKED = 'push.asked';
+
+let asking: Promise<Notifications.NotificationPermissionsStatus | null> | null = null;
+
+/** Brings up the phone's notifications prompt and keeps the answer, so a no isn't asked again by
+ *  itself. The push sign-up and the ride reminders share one prompt: a second ask while it's up waits
+ *  for the same answer. Null when the prompt couldn't come up. */
+export function askForNotifications(): Promise<Notifications.NotificationPermissionsStatus | null> {
+  asking ??= Notifications.requestPermissionsAsync()
+    .catch(() => null)
+    .then(async (p) => {
+      // A yes syncs the ride reminders again (they were skipped while the answer was open).
+      if (p) await setIntroAnswer(p.granted ? 'on' : 'later');
+      return p;
+    })
+    .finally(() => {
+      asking = null;
+    });
+  return asking;
+}
 
 export async function registerThisDevice(): Promise<void> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
@@ -22,12 +40,12 @@ export async function registerThisDevice(): Promise<void> {
     await ensureChannels();
     let permission = await Notifications.getPermissionsAsync();
     // Ask once, so chat can reach every member, not just those going to a ride. After a no it's up to
-    // the phone's settings.
-    // Only if never answered: after a no from the ride reminders' ask, asking again could make it final.
-    // And only after "Turn on notifications" on the explainer card, which asks first.
-    if (permission.status === 'undetermined' && mayAskAutomatically(await introAnswer()) && !(await AsyncStorage.getItem(ASKED))) {
+    // Me, Notifications or the phone's settings (on Android a second no is final).
+    if (!permission.granted && permission.canAskAgain && mayAskAutomatically(await introAnswer()) && !(await AsyncStorage.getItem(ASKED))) {
       await AsyncStorage.setItem(ASKED, '1');
-      permission = await Notifications.requestPermissionsAsync();
+      const answer = await askForNotifications();
+      if (!answer) return;
+      permission = answer;
     }
     if (!permission.granted) return;
     const { data: token } = await Notifications.getExpoPushTokenAsync();
