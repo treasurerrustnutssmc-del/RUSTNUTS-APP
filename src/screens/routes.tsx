@@ -5,7 +5,7 @@
 import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import type { RouteInput } from '../data/clubContext';
+import { RouteNotOnRideError, type RouteInput } from '../data/clubContext';
 import { createPickGuard, type PickGuard } from '../data/pickGuard';
 import { pickGpxFile, releaseOnReturn } from '../data/routeFiles';
 import { formatAuDate, weekday } from '../domain/dates';
@@ -16,11 +16,13 @@ import {
   managesChapterRoutes,
   NOT_MANAGER,
   rideRouteChapters,
+  rideRouteChoices,
   rideRouteProblem,
   ridesUsingRoute,
   routeChapterName,
   routeOf,
   saveRouteProblem,
+  startingRouteChapter,
   startingRouteName,
 } from '../domain/routes';
 import { melbourneDate } from '../domain/rides';
@@ -44,7 +46,6 @@ import {
   SectionTitle,
   Small,
   Stack,
-  Toggle,
 } from '../ui/primitives';
 import { RouteRatings } from './ridePlanning'; // Ride planning extras
 import { ChapterChip, chapterColours, NavigateChooser, OpenInMapsButton, RouteFacts, RouteRow, StopList } from '../ui/RouteBits';
@@ -275,14 +276,19 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
   const { me, data, saveRoute } = useClub();
   const routeId = nav.params?.routeId;
   const existing = routeId ? (data.routes ?? []).find((r) => r.id === routeId) : undefined;
-  const ownChapter = me && managesChapterRoutes(me, me.chapterId, data) ? me.chapterId : null;
+  // Added from a ride's "Choose route": the new route goes straight onto that ride.
+  const forRide = !existing && nav.params?.rideId ? data.rides.find((r) => r.id === nav.params?.rideId) : undefined;
   const [name, setName] = useState(existing?.name ?? '');
-  const [chapterKey, setChapterKey] = useState<ChapterKey>(toKey(existing ? existing.chapterId : ownChapter));
+  const [chapterKey, setChapterKey] = useState<ChapterKey>(() =>
+    toKey(existing ? existing.chapterId : me ? startingRouteChapter(me, forRide, data) : null),
+  );
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [picked, setPicked] = useState<{ fileName: string; text: string; summary: GpxSummary } | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Saved to the library, but it couldn't go on the ride: the way out is back to the list.
+  const [savedOffRide, setSavedOffRide] = useState(false);
   // One pick at a time: a double tap would otherwise ask the phone for a second picker.
   const [picking, setPicking] = useState(false);
   const guard = useRef<PickGuard | null>(null);
@@ -305,8 +311,8 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
   }
 
   // Only the chapters this person can file a route under, plus where it is now.
-  // Whole club first, then North and West.
-  const options = [WHOLE_CLUB, ...chapterKeys(data).filter((k) => k !== WHOLE_CLUB)]
+  // North, then West, then Whole club, as on the Rides chips.
+  const options = chapterKeys(data)
     .filter((k) => managesChapterRoutes(me, toChapterId(k), data) || (existing && toKey(existing.chapterId) === k))
     .map((k) => ({ value: k, label: routeChapterName(toChapterId(k), data) }));
   // What's shown for checking: the new file's summary, or the route's own.
@@ -341,7 +347,7 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
   };
 
   const save = async () => {
-    if (saving || needsFile) return;
+    if (saving || needsFile || savedOffRide) return;
     setError(null);
     const input: RouteInput = {
       id: existing?.id ?? null,
@@ -357,11 +363,17 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
     }
     setSaving(true);
     try {
-      const id = await saveRoute(input);
+      const id = await saveRoute(input, forRide?.id);
       if (existing) navigation.goBack();
+      // Only Choose route (opened from the ride) adds with a ride, so two back is the ride,
+      // which now shows its route.
+      else if (forRide) navigation.pop(2);
       else navigation.replace('Route', { routeId: id });
     } catch (e) {
-      setError((e as Error).message);
+      if (e instanceof RouteNotOnRideError && forRide) {
+        setSavedOffRide(true);
+        setError(`Saved to the library, but not put on ${forRide.title}: ${e.message} Go back and choose it from the list.`);
+      } else setError((e as Error).message);
       setSaving(false);
     }
   };
@@ -406,23 +418,30 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
         <SectionTitle title="Details" />
         <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Daylesford breakfast loop" maxLength={80} autoCapitalize="sentences" />
         {options.length > 1 ? (
-          <Choices label="Chapter" options={options} value={chapterKey} onChange={setChapterKey} />
+          <Stack gap={space.xs}>
+            <Choices label="Who it’s for" options={options} value={chapterKey} onChange={setChapterKey} />
+            <Small>Listed first on that chapter’s rides and in its members’ library. Every member can open it.</Small>
+          </Stack>
         ) : (
-          <Small>{`Filed under ${options[0]?.label ?? 'Whole club'}.`}</Small>
+          <Small>{`For ${options[0]?.label ?? 'Whole club'}. Every member can open it.`}</Small>
         )}
         <Field label="Notes" value={notes} onChangeText={setNotes} placeholder="Fuel stops, road works, where to regroup" multiline />
       </Stack>
 
       <Stack gap={space.sm}>
-        <Button
-          label={existing ? 'Save changes' : 'Save route'}
-          icon="checkmark"
-          kind={needsFile ? 'secondary' : 'primary'}
-          disabled={needsFile}
-          busy={saving}
-          onPress={save}
-        />
-        {needsFile ? <Small>Pick the GPX file first.</Small> : null}
+        {savedOffRide ? (
+          <Button label="Back to the routes" icon="arrow-back" onPress={() => navigation.goBack()} />
+        ) : (
+          <Button
+            label={existing ? 'Save changes' : forRide ? 'Save and use on this ride' : 'Save route'}
+            icon="checkmark"
+            kind={needsFile ? 'secondary' : 'primary'}
+            disabled={needsFile}
+            busy={saving}
+            onPress={save}
+          />
+        )}
+        {needsFile && !savedOffRide ? <Small>Pick the GPX file first.</Small> : null}
         <View accessibilityLiveRegion="polite" role="alert">
           {error ? <Notice tone="danger">{error}</Notice> : null}
         </View>
@@ -437,7 +456,6 @@ export function EditRouteScreen({ route: nav, navigation }: RootScreen<'EditRout
 
 export function PickRouteScreen({ route: nav, navigation }: RootScreen<'PickRoute'>) {
   const { me, data, setRideRoute } = useClub();
-  const [all, setAll] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [failed, setFailed] = useState<{ routeId: string; message: string } | null>(null);
   const ride = data.rides.find((r) => r.id === nav.params.rideId);
@@ -452,7 +470,8 @@ export function PickRouteScreen({ route: nav, navigation }: RootScreen<'PickRout
 
   const locked = rideRouteProblem(me, ride, null, data, new Date().toISOString());
   const chapters = rideRouteChapters(ride, data);
-  const routes = libraryFor(data, all ? 'all' : chapters);
+  // Every route, the ride's own chapter's and whole-club ones first: nothing to switch on.
+  const routes = rideRouteChoices(ride, data);
   const current = routeOf(ride.id, data);
   const own = chapters
     .filter((c): c is string => c !== null)
@@ -482,17 +501,10 @@ export function PickRouteScreen({ route: nav, navigation }: RootScreen<'PickRout
         <Notice tone="warn">{locked}</Notice>
       ) : (
         <>
-          <Toggle
-            label="Show every chapter’s routes"
-            description={`Off: ${own} routes only.`}
-            value={all}
-            onChange={setAll}
-          />
+          {routes.length > 1 ? <Small>{`${own.charAt(0).toUpperCase()}${own.slice(1)} routes first, then the rest of the library.`}</Small> : null}
 
           {routes.length === 0 ? (
-            <Notice title="No routes to choose from.">
-              {all ? 'Add one to the library first.' : 'Turn on every chapter’s routes above, or add one to the library.'}
-            </Notice>
+            <Notice title="No routes to choose from.">Add one to the library first.</Notice>
           ) : (
             <Card style={{ padding: 0, gap: 0 }}>
               {routes.map((r, i) => (
@@ -512,7 +524,7 @@ export function PickRouteScreen({ route: nav, navigation }: RootScreen<'PickRout
           )}
 
           {managesChapterRoutes(me, null, data) ? (
-            <Button label="Add a new route" icon="add" kind="secondary" onPress={() => navigation.navigate('EditRoute', {})} />
+            <Button label="Add a new route" icon="add" kind="secondary" onPress={() => navigation.navigate('EditRoute', { rideId: ride.id })} />
           ) : null}
         </>
       )}

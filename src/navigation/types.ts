@@ -53,7 +53,7 @@ export type RootParams = {
   // ride routes
   Routes: undefined;
   Route: { routeId: string };
-  EditRoute: { routeId?: string } | undefined;
+  EditRoute: { routeId?: string; rideId?: string } | undefined;
   PickRoute: { rideId: string };
   // ride briefings
   Briefing: { rideId: string };

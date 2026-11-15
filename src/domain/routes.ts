@@ -112,6 +112,28 @@ export function rideRouteChapters(ride: Ride, data: ClubData): (string | null)[]
   return chapter ? [chapter.id, null] : [null];
 }
 
+/**
+ * Every route a ride can be given: the whole library, so a route filed under another chapter
+ * never needs a switch turned on to be found. The ride's own chapter's routes and whole-club ones
+ * come first, each part newest first.
+ */
+export function rideRouteChoices(ride: Ride, data: ClubData): Route[] {
+  const own = rideRouteChapters(ride, data);
+  const all = libraryFor(data, 'all');
+  return [...all.filter((r) => own.includes(r.chapterId)), ...all.filter((r) => !own.includes(r.chapterId))];
+}
+
+/**
+ * The chapter a new route starts filed under (null: whole club). Added from a ride, it is the
+ * ride's own chapter (whole club for a club ride), so the route is ready to use on that ride.
+ * Added from the library, it is your own chapter. Either way only where you may file a route,
+ * else whole club.
+ */
+export function startingRouteChapter(me: Member, ride: Ride | undefined, data: ClubData): string | null {
+  const wanted = ride ? rideRouteChapters(ride, data)[0] : me.chapterId;
+  return wanted && managesChapterRoutes(me, wanted, data) ? wanted : null;
+}
+
 /** "West", "North", or "Whole club" for a route with no chapter. */
 export function routeChapterName(chapterId: string | null, data: ClubData): string {
   return (chapterId && data.chapters.find((c) => c.id === chapterId)?.name) || 'Whole club';
