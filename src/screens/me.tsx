@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { activePositions } from '../domain/access';
+import { heldPositions } from '../domain/acting';
 import { compassFor } from '../domain/compass';
 import { dateHintWith, formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
 import { positionTitles } from '../domain/home';
@@ -87,7 +87,10 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const bikes = data.bikes.filter((b) => b.memberId === me.id);
   const contacts = data.emergencyContacts.filter((c) => c.memberId === me.id);
-  const positions = activePositions(me.id, data.positions);
+  // Titles read the held rows: a covered holder keeps theirs, and a stint shows as acting.
+  const positions = heldPositions(me.id, data.positions);
+  const titles = positionTitles(positions, data.chapters, me.chapterId, ROLE_LABEL);
+  const until = titles.find((t) => t.until)?.until;
   const owing = totalOwing(me.id, data);
   const rulesStatus = roadRulesStatus(me, data, today);
   const groups = meGroups({
@@ -111,14 +114,17 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
             <Small>
               {me.fullName} · {chapter?.name} chapter
             </Small>
-            <Row style={{ gap: 6 }}>
-              <StatusChip status={me.status} />
-              {positionTitles(positions, data.chapters, me.chapterId, ROLE_LABEL).map((t) => (
-                <Chip key={t.key} label={t.text} tone="bone" />
-              ))}
-            </Row>
           </View>
         </Row>
+        {/* The chips take the card's full width, so a stint's title (ACTING TREASURER (NORTH)) stays on one line,
+            and the long form's date sits under them: Acting Treasurer (North) … until 13/12/2026. */}
+        <Row style={{ gap: 6 }}>
+          <StatusChip status={me.status} />
+          {titles.map((t) => (
+            <Chip key={t.key} label={t.text} tone="bone" />
+          ))}
+        </Row>
+        {until ? <Small>{`Acting until ${until}`}</Small> : null}
         {hasEarnedDisc(me) ? (
           <Flannel style={{ padding: space.md }}>
             <Row style={{ gap: space.md, flexWrap: 'nowrap' }}>

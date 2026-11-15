@@ -8,15 +8,17 @@ import {
   endTermProblem,
   pendingFor,
   reviewsChapter,
+  seesEveryChapter,
   visibleMembers,
   withHolders,
 } from '../domain/access';
+import { heldRows, isActing } from '../domain/acting';
 import { canSeeAttendance } from '../domain/attendance';
 import { compassFor } from '../domain/compass';
 import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
-import { clubCounts, positionTitles, seatTitle, type StatusSplit } from '../domain/home';
-import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, ROLE_SHORT, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
+import { clubCounts, longSeatTitle, longTitle, necRows, positionTitles, seatTitle, type StatusSplit } from '../domain/home';
+import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
 import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -49,7 +51,7 @@ import { MORE_FROM_CLUB } from '../domain/membersLayout';
 import { FirstRunCard } from '../ui/FirstRunCard';
 import { useSavedFilters } from '../data/savedFilters';
 import { CLUB_NUMBERS, showProfileCard } from '../domain/homeLayout';
-import { MemberRow, sortedPositions } from '../ui/MemberBits';
+import { MemberRow, RoleChips, sortedPositions, StepDownButton } from '../ui/MemberBits';
 import { memberGroups } from '../domain/memberGroups';
 import {
   Avatar,
@@ -57,7 +59,6 @@ import {
   Button,
   Card,
   Chip,
-  ConfirmButton,
   Disclosure,
   Choices,
   Field,
@@ -180,15 +181,25 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
   const done = checklist.filter((c) => c.done).length;
   const myAlerts = expiryAlerts([me], data, today);
   const isBoard = level === 'board' || level === 'national';
+  // An Acting President is on the NEC (level 'national') but reads their own chapter's members only.
+  const everyChapter = seesEveryChapter(me, data.positions);
   const pending = isBoard ? pendingFor(me, data) : [];
   const boardScope = isBoard
     ? data.members.filter(
-        (m) => m.approval === 'approved' && (level === 'national' || m.chapterId === me.chapterId),
+        (m) => m.approval === 'approved' && (everyChapter || m.chapterId === me.chapterId),
       )
     : [];
   const boardAlerts = isBoard ? expiryAlerts(boardScope, data, today) : [];
   const counts = clubCounts(data.chapters, data.members, data.unclaimedRoster ?? []);
   const business = businessFor(me, data, nowInstant());
+  // The header names the home chapter first, so a seat there doesn't repeat it ("North chapter · Road Captain,
+  // Acting Treasurer"). A stint's title goes last and its until date on a line of its own, so the header
+  // never wraps to three lines at 390 wide.
+  const atHome = ` (${chapter?.name})`;
+  const titles = positionTitles(positions, data.chapters, me.chapterId, ROLE_LABEL)
+    .map((t) => (chapter && t.text.endsWith(atHome) ? { ...t, text: t.text.slice(0, -atHome.length) } : t))
+    .sort((a, b) => Number(!!a.until) - Number(!!b.until));
+  const until = titles.find((t) => t.until)?.until;
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
@@ -209,8 +220,9 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
             </Text>
             <Small style={{ color: colors.boneDim }}>
               {chapter?.name} chapter
-              {positions.length ? ` · ${positionTitles(positions, data.chapters, me.chapterId, ROLE_LABEL).map((t) => t.text).join(', ')}` : ''}
+              {titles.length ? ` · ${titles.map((t) => t.text).join(', ')}` : ''}
             </Small>
+            {until ? <Small style={{ color: colors.boneDim }}>{`until ${until}`}</Small> : null}
           </View>
           {hasEarnedDisc(me) ? <MemberDisc size={52} compass={compassFor(me, data)} /> : null}
         </Row>
@@ -236,7 +248,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
           <View style={{ padding: space.lg, paddingBottom: space.sm }}>
             <Row style={{ gap: space.sm }}>
               <H2>Board</H2>
-              <Chip label={level === 'national' ? 'All chapters' : `${chapter?.name} chapter`} tone="redOutline" />
+              <Chip label={everyChapter ? 'All chapters' : `${chapter?.name} chapter`} tone="redOutline" />
             </Row>
           </View>
           {pending.length > 0 ? (
@@ -422,13 +434,10 @@ function StepDownButtons({ positions }: { positions: Position[] }) {
     <View style={{ gap: space.sm }}>
       {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
       {mine.map((p) => (
-        <ConfirmButton
+        <StepDownButton
           key={p.id}
-          label={`Step down as ${seatTitle(p, data.chapters, ROLE_LABEL)}`}
-          confirmLabel="Yes, step down"
-          confirmAccessibilityLabel={`Yes, step down as ${seatTitle(p, data.chapters, ROLE_LABEL)}`}
-          kind="secondary"
-          size="small"
+          position={p}
+          data={data}
           onConfirm={() => endPosition(p.id).then(() => setError(null), (e: Error) => setError(e.message))}
         />
       ))}
@@ -468,26 +477,28 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
           <View style={{ flex: 1, gap: 6, minWidth: 0 }}>
             <H1>{displayName(member)}</H1>
             {member.roadName ? <Small>{member.fullName}</Small> : null}
-            <Row style={{ gap: 6 }}>
-              <StatusChip status={member.status} />
-              {member.onHiatus ? <Chip label="On hiatus" icon="pause" /> : null}
-              {positionTitles(positions, data.chapters, member.chapterId, ROLE_SHORT).map((t) => (
-                <Chip key={t.key} label={t.text} tone="bone" />
-              ))}
-            </Row>
           </View>
           {hasEarnedDisc(member) ? <MemberDisc size={60} compass={compassFor(member, data)} /> : null}
         </Row>
+        {/* The chips take the card's full width, so a stint's chip (ACTING TREASURER (NORTH)) stays on one line. */}
+        <Row style={{ gap: 6 }}>
+          <StatusChip status={member.status} />
+          {member.onHiatus ? <Chip label="On hiatus" icon="pause" /> : null}
+          <RoleChips positions={positions} data={data} homeChapterId={member.chapterId} />
+        </Row>
         <Stack gap={2}>
           <KeyValue label="Chapter" value={`${chapter?.name} · ${chapter?.area}`} />
-          {positions.map((p) => (
-            <KeyValue
-              key={p.id}
-              label={positionTitles([p], data.chapters, member.chapterId, ROLE_LABEL)[0].text}
-              value={`Since ${formatLongDate(p.startedOn)}${termEndsOn(p) ? ` · term ${termState(p, today) === 'ended' ? 'ended' : 'ends'} ${formatAuDate(termEndsOn(p))}` : ''}`}
-              tone={termState(p, today) === 'ended' ? 'warn' : undefined}
-            />
-          ))}
+          {/* Each seat in the long form ("Acting Treasurer (North) until 13/12/2026"), with its dates under it. */}
+          {positions.map((p) => {
+            const ended = !isActing(p) && termState(p, today) === 'ended';
+            const term = !isActing(p) && termEndsOn(p) ? ` · term ${ended ? 'ended' : 'ends'} ${formatAuDate(termEndsOn(p))}` : '';
+            return (
+              <View key={p.id} style={{ gap: 2, paddingVertical: 4 }}>
+                <Text style={type.name}>{longSeatTitle(p, data.chapters)}</Text>
+                <Small style={ended ? { color: colors.warn } : undefined}>{`Since ${formatLongDate(p.startedOn)}${term}`}</Small>
+              </View>
+            );
+          })}
           {member.joinedOn ? <KeyValue label="With the club since" value={formatLongDate(member.joinedOn)} /> : null}
           {member.patchedOn ? <KeyValue label="Patched" value={formatLongDate(member.patchedOn)} /> : null}
           {fngMonths !== null ? (
@@ -630,17 +641,28 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
 export function ChaptersScreen({ navigation }: RootScreen<'Chapters'>) {
   const { data } = useClub();
   const approved = data.members.filter((m) => m.approval === 'approved');
-  const necSeats = data.positions.filter(
-    (p) => p.endedOn === null && (NATIONAL_ROLES.includes(p.role) || p.role === 'president'), // acting: pending
-  );
+  const held = heldRows(data.positions);
+  const national = (role: (typeof NATIONAL_ROLES)[number]) => held.filter((p) => p.role === role);
+  const nameOf = (memberId: string) => {
+    const m = data.members.find((x) => x.id === memberId);
+    return m ? displayName(m) : '—';
+  };
+  // The National card reads as a roll, in the order its first line names them: the Chairman, the
+  // Secretary, one row per chapter for whoever casts its NEC vote (11.2), then the Auditor (11.8).
+  const roll = [
+    ...[...national('nec_chair'), ...national('nec_secretary')].map((p) => ({ key: p.id, text: `${nameOf(p.memberId)}, ${ROLE_LABEL[p.role]}` })),
+    ...necRows(data).map((r) => ({ key: r.chapterId, text: r.text })),
+    ...national('nec_auditor').map((p) => ({ key: p.id, text: `${nameOf(p.memberId)}, ${ROLE_LABEL[p.role]}` })),
+  ];
 
   return (
     <Screen>
       {data.chapters.map((c) => {
         const members = approved.filter((m) => m.chapterId === c.id);
-        const board = data.positions
-          .filter((p) => p.endedOn === null && p.chapterId === c.id && BOARD_ROLES.includes(p.role)) // acting: pending
-          .sort((a, b) => BOARD_ROLES.indexOf(a.role) - BOARD_ROLES.indexOf(b.role));
+        // A seat's holder, then anyone acting in it (a cover or an empty-seat stint).
+        const board = held
+          .filter((p) => p.chapterId === c.id && BOARD_ROLES.includes(p.role))
+          .sort((a, b) => BOARD_ROLES.indexOf(a.role) - BOARD_ROLES.indexOf(b.role) || Number(isActing(a)) - Number(isActing(b)));
         return (
           <Card key={c.id} style={{ padding: 0, gap: 0 }}>
             <ListRow
@@ -650,10 +672,10 @@ export function ChaptersScreen({ navigation }: RootScreen<'Chapters'>) {
               onPress={() => navigation.navigate('ChapterDetail', { chapterId: c.id })}
             />
             <View style={{ padding: space.lg, gap: 4 }}>
-              {board.map((p) => {
-                const m = data.members.find((x) => x.id === p.memberId);
-                return <KeyValue key={p.id} label={ROLE_LABEL[p.role]} value={m ? displayName(m) : '—'} />;
-              })}
+              {/* No chapters passed: the card is the chapter, so "Treasurer" or "Acting Treasurer". */}
+              {board.map((p) => (
+                <KeyValue key={p.id} label={seatTitle(p, [], ROLE_LABEL)} value={nameOf(p.memberId)} />
+              ))}
               {board.length === 0 ? <Small>No board positions recorded.</Small> : null}
             </View>
           </Card>
@@ -663,19 +685,14 @@ export function ChaptersScreen({ navigation }: RootScreen<'Chapters'>) {
       <SectionTitle title="National" />
       <Card>
         <Small>The National Executive Committee is the Chairman, the Secretary and the sitting chapter Presidents. The National Auditor reviews the records from outside it (11.8).</Small>
-        {necSeats
-          .sort((a, b) => [...NATIONAL_ROLES, 'president'].indexOf(a.role) - [...NATIONAL_ROLES, 'president'].indexOf(b.role))
-          .map((p) => {
-            const m = data.members.find((x) => x.id === p.memberId);
-            const ch = data.chapters.find((x) => x.id === p.chapterId);
-            return (
-              <KeyValue
-                key={p.id}
-                label={p.chapterId ? `${ch?.name} ${ROLE_LABEL[p.role]}` : ROLE_LABEL[p.role]}
-                value={m ? displayName(m) : '—'}
-              />
-            );
-          })}
+        {/* "Rusty, National Chairman", "Jet, Acting President (North), for Smokey until 13/12/2026" */}
+        <Stack gap={space.xs}>
+          {roll.map((r) => (
+            <Text key={r.key} style={type.name}>
+              {r.text}
+            </Text>
+          ))}
+        </Stack>
       </Card>
       {/* Stage 5D: new chapters and national contributions */}
       <ChaptersNationalRow />
@@ -690,18 +707,21 @@ export function ChapterDetailScreen({ route, navigation }: RootScreen<'ChapterDe
   const members = sortMembers(
     visibleMembers(me, data).filter((m) => m.chapterId === chapter.id && m.approval === 'approved'),
   );
-  const seats = data.positions.filter((p) => p.endedOn === null && p.chapterId === chapter.id); // acting: pending
-  const board = seats.filter((p) => BOARD_ROLES.includes(p.role)).sort((a, b) => BOARD_ROLES.indexOf(a.role) - BOARD_ROLES.indexOf(b.role));
-  const club = seats.filter((p) => CLUB_ROLES.includes(p.role)).sort((a, b) => CLUB_ROLES.indexOf(a.role) - CLUB_ROLES.indexOf(b.role));
+  const seats = heldRows(data.positions).filter((p) => p.chapterId === chapter.id);
+  // A seat's holder comes before anyone acting in it.
+  const inOrder = (roles: typeof BOARD_ROLES) => (a: Position, b: Position) => roles.indexOf(a.role) - roles.indexOf(b.role) || Number(isActing(a)) - Number(isActing(b));
+  const board = seats.filter((p) => BOARD_ROLES.includes(p.role)).sort(inOrder(BOARD_ROLES));
+  const club = seats.filter((p) => CLUB_ROLES.includes(p.role)).sort(inOrder(CLUB_ROLES));
   const counts = STATUS_ORDER.map((s) => [s, members.filter((m) => m.status === s).length] as const).filter(([, n]) => n > 0);
 
+  // No chapters passed: the chapter goes without saying here, so "Treasurer" or "Acting Treasurer until 13/12/2026".
   const seatRow = ({ position: p, member: m }: { position: Position; member: Member }, i: number, arr: unknown[]) => (
     <ListRow
       key={p.id}
       last={i === arr.length - 1}
       left={<Avatar text={initials(m)} size={40} />}
       title={displayName(m)}
-      subtitle={ROLE_LABEL[p.role]}
+      subtitle={longTitle(positionTitles([p], [], '', ROLE_LABEL)[0])}
       onPress={() => navigation.navigate('MemberDetail', { memberId: m.id })}
     />
   );

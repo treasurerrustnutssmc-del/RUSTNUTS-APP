@@ -226,8 +226,9 @@ Someone acting in a role, until a date, always shows as acting, in the stencil l
 - **Short form** (lists, buttons that act on one seat): "Acting Treasurer (North)". The covered holder keeps their own title, "President (North)", unchanged.
 - **Long form** (member detail, Me, the Treasurer's Report "Prepared by", the assistant): "Acting Treasurer (North) until 13/12/2026", the until date being the last acting day, DD/MM/YYYY.
 - **Chip form:** "ACTING TREASURER (NORTH)" (see Chips).
-- **NEC list:** one row per chapter, for whoever casts its vote: "Smokey, President (North)", "Jet, Acting President (North), for Smokey until 13/12/2026", or "Jet, Acting President (North) until 13/12/2026" for an empty seat.
-- **Home header:** the until date goes on a line of its own under the title ("until 13/12/2026"), so the title never wraps to three lines at 390 wide.
+- **NEC list:** one row per chapter, for whoever casts its vote: "Smokey, President (North)", "Jet, Acting President (North), for Smokey until 13/12/2026", or "Jet, Acting President (North) until 13/12/2026" for an empty seat. The Chapters screen's National card is a roll in that form: the Chairman, the Secretary, the chapter rows, then the Auditor.
+- **Home header:** the header names the home chapter first, so a seat there drops its "(North)" ("North chapter · Road Captain, Acting Treasurer"). A stint's title goes last and its until date on a line of its own under it ("until 13/12/2026"), so the title never wraps to three lines at 390 wide.
+- **Member detail and Me:** the chips sit on a full-width row under the name, so a stint's chip stays on one line at 360 wide. Member detail lists each seat in the long form with its dates under it; Me puts "Acting until 13/12/2026" under the chips.
 
 ### Cards / Containers
 - **Cards:** raised ink with a hairline border, 8 corners and 16 padding, and no shadow. A card is never nested inside another card.

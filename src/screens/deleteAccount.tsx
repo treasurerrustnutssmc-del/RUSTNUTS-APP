@@ -7,6 +7,7 @@ import { useClub } from '../data/ClubStore';
 import { deleteAccountProblem, stepDownSeats, type SeatToStepDown } from '../domain/account';
 import { seatTitle } from '../domain/home';
 import { ROLE_LABEL } from '../domain/labels';
+import { StepDownButton } from '../ui/MemberBits';
 import { Body, Card, ConfirmButton, H2, Notice, Screen, Small } from '../ui/primitives';
 import { colors, space } from '../theme';
 
@@ -42,8 +43,8 @@ function List({ items }: { items: string[] }) {
   );
 }
 
-/** Each seat in the way: a step-down for the ones they can end themselves (the same one as on their
- *  member page), and who records the change for the rest. */
+/** Each seat in the way, acting ones included: a step-down for the ones they can end themselves (the
+ *  same one as on their member page), and who records the change for the rest. */
 function StepDownSeats({ seats }: { seats: SeatToStepDown[] }) {
   const { data, endPosition } = useClub();
   const [error, setError] = useState<string | null>(null);
@@ -51,22 +52,18 @@ function StepDownSeats({ seats }: { seats: SeatToStepDown[] }) {
     <Card>
       <H2>Your seats</H2>
       {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
-      {seats.map(({ position: p, selfEnd, note }) => {
-        const role = seatTitle(p, data.chapters, ROLE_LABEL);
-        return selfEnd ? (
-          <ConfirmButton
+      {seats.map(({ position: p, selfEnd, note }) =>
+        selfEnd ? (
+          <StepDownButton
             key={p.id}
-            label={`Step down as ${role}`}
-            confirmLabel="Yes, step down"
-            confirmAccessibilityLabel={`Yes, step down as ${role}`}
-            kind="secondary"
-            size="small"
+            position={p}
+            data={data}
             onConfirm={() => endPosition(p.id).then(() => setError(null), (e: Error) => setError(e.message))}
           />
         ) : (
-          <Body key={p.id}>{`${role}: ${note}`}</Body>
-        );
-      })}
+          <Body key={p.id}>{`${seatTitle(p, data.chapters, ROLE_LABEL)}: ${note}`}</Body>
+        ),
+      )}
     </Card>
   );
 }
