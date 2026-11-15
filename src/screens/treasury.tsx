@@ -135,7 +135,7 @@ function EntryRow({ entry, last, onPress }: { entry: LedgerEntry; last: boolean;
   return (
     <ListRow
       last={last}
-      title={<Text style={[type.name, entry.state === 'void' && { color: colors.boneMute, textDecorationLine: 'line-through' }]} numberOfLines={1}>{entry.description}</Text>}
+      title={<Text style={[type.name, entry.state === 'void' && { color: colors.boneMute, textDecorationLine: 'line-through' }]} numberOfLines={2}>{entry.description}</Text>}
       subtitle={[CODE_LABEL[entry.code], entry.entryOn ? formatAuDate(entry.entryOn) : null, entry.state === 'paid' ? null : chip.label].filter(Boolean).join(' · ')}
       right={<Text style={[type.name, num, { color: isCredit(entry.code) ? colors.bone : colors.boneDim }]}>{signedCents(entry)}</Text>}
       onPress={onPress}

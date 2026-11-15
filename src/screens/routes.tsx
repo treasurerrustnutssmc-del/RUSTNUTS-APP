@@ -236,6 +236,7 @@ export function RouteScreen({ route: nav, navigation }: RootScreen<'Route'>) {
                   key={r.id}
                   last={i === rides.length - 1}
                   title={r.title}
+                  lines="all"
                   subtitle={<Text style={styles.rowDate}>{`${weekday(date)} ${formatAuDate(date)}`}</Text>}
                   onPress={() => navigation.navigate('RideDetail', { rideId: r.id })}
                 />

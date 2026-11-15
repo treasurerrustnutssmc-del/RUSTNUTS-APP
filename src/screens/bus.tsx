@@ -150,7 +150,7 @@ function BookingRow({
         {ride ? (
           <Row style={styles.rideLine}>
             <Ionicons name="calendar-outline" size={14} color={colors.boneMute} />
-            <Text numberOfLines={1} style={[styles.meta, { flexShrink: 1 }]}>
+            <Text numberOfLines={2} style={[styles.meta, { flexShrink: 1 }]}>
               {ride.title}
             </Text>
           </Row>
@@ -913,7 +913,7 @@ function RadioRow({ label, sub, on, last, onPress }: { label: string; sub?: stri
     >
       <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={22} color={on ? colors.bone : colors.boneMute} />
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <Text numberOfLines={2} style={[type.name, !on && { color: colors.boneDim }]}>
+        <Text style={[type.name, !on && { color: colors.boneDim }]}>
           {label}
         </Text>
         {sub ? <Text style={styles.metaDim}>{sub}</Text> : null}

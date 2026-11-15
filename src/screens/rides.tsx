@@ -393,10 +393,10 @@ export function RideRow({
         <Text style={styles.dateWeekday}>{weekday(date)}</Text>
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        <Text numberOfLines={2} style={[type.name, cancelled && styles.struck]}>
+        <Text style={[type.name, cancelled && styles.struck]}>
           {ride.title}
         </Text>
-        <Text numberOfLines={1} style={[styles.meta, cancelled && styles.faded]}>
+        <Text numberOfLines={2} style={[styles.meta, cancelled && styles.faded]}>
           <Text style={styles.metaTime}>{startLabel(ride)}</Text>
           {ride.location ? ` · ${ride.location}` : ''}
         </Text>

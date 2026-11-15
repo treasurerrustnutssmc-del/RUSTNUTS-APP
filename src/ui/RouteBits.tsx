@@ -114,7 +114,7 @@ export function RouteRow({
       >
         <RouteShape route={route} thumb />
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <Text numberOfLines={2} style={type.name}>
+          <Text style={type.name}>
             {route.name}
           </Text>
           <Text style={styles.distance}>{routeFacts(route)}</Text>

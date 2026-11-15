@@ -72,6 +72,9 @@ function ShoutoutRow({ s, last }: { s: Shoutout; last: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const name = s.isMe ? 'You' : displayName(s.member);
   const today = s.daysAway === 0;
+  // Someone else's shout-out today has a G'day button, which says it's today: the chip would only
+  // squeeze their name and reason on a small phone. Your own keeps the chip.
+  const gday = today && !s.isMe;
   const sayGday = () => {
     setError(null);
     chat
@@ -100,13 +103,13 @@ function ShoutoutRow({ s, last }: { s: Shoutout; last: boolean }) {
         >
           <Avatar text={initials(s.member)} size={40} />
           <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-            <Text numberOfLines={1} style={type.name}>{name}</Text>
+            <Text numberOfLines={2} style={type.name}>{name}</Text>
             <Row style={{ gap: space.sm, flexWrap: 'nowrap' }}>
               <Ionicons name={s.kind === 'birthday' ? 'gift-outline' : 'ribbon-outline'} size={14} color={colors.boneMute} />
-              <Small numberOfLines={1}>{shoutoutLine(s)}</Small>
+              <Small numberOfLines={2} style={{ flexShrink: 1 }}>{shoutoutLine(s)}</Small>
             </Row>
           </View>
-          {today ? (
+          {gday ? null : today ? (
             <View style={{ justifyContent: 'center' }}>
               <Chip label="Today" tone="red" />
             </View>
@@ -114,7 +117,7 @@ function ShoutoutRow({ s, last }: { s: Shoutout; last: boolean }) {
             <Text style={[type.name, { color: colors.boneDim, fontVariant: ['tabular-nums'] }]}>{shoutoutDayLabel(s.date, s.daysAway)}</Text>
           )}
         </Pressable>
-        {today && !s.isMe ? (
+        {gday ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Say g’day to ${name}`}

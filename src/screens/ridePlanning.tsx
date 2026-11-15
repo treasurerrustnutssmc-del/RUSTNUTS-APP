@@ -155,7 +155,7 @@ function StopRows({ stops }: { stops: PlanStop[] }) {
             <Ionicons name={STOP_ICON[s.kind]} size={18} color={s.kind === 'fuel' ? colors.warn : colors.boneDim} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={type.name} numberOfLines={2}>{s.name}</Text>
+            <Text style={type.name}>{s.name}</Text>
             <Text style={styles.stopMeta}>{[STOP_LABEL[s.kind], s.km !== null ? `km ${kmText(s.km)}` : null, s.time].filter(Boolean).join(' · ')}</Text>
           </View>
         </View>
@@ -638,6 +638,7 @@ export function HubScreen({ route: nav, navigation }: RootScreen<'Hub'>) {
                   last={i === regs.length - 1}
                   left={<Avatar text={m ? initials(m) : '?'} size={40} />}
                   title={m ? displayName(m) : memberName(r.memberId, data.members)}
+                  lines="all"
                   subtitle={[STAYING_LABEL[r.staying], r.pillion ? '+ pillion' : null, r.shareWith ? `with ${r.shareWith}` : null].filter(Boolean).join(' · ')}
                   onPress={m ? () => navigation.navigate('MemberDetail', { memberId: m.id }) : undefined}
                 />

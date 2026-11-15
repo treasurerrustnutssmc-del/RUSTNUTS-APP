@@ -117,7 +117,7 @@ function Forecast({ state }: { state: Extract<RideForecast, { kind: 'ready' }> }
               accessibilityLabel={`${r.label}: ${r.summary.sky}, ${temps(r.summary)}, ${r.summary.rain}% chance of rain, gusts to ${r.summary.gust} km/h`}
             >
               <Row style={{ gap: space.sm, flexWrap: 'nowrap' }}>
-                <Text style={[type.name, { flex: 1 }]} numberOfLines={2}>
+                <Text style={[type.name, { flex: 1 }]}>
                   {r.label}
                 </Text>
                 <Ionicons name={r.summary.icon as IconName} size={20} color={colors.boneDim} />

@@ -85,6 +85,7 @@ export function ShopAdminScreen({ navigation }: RootScreen<'ShopAdmin'>) {
                   last={i === designs.length - 1}
                   left={cover ? <DesignThumb picture={cover} name={d.name} /> : <IconBadge icon="shirt-outline" />}
                   title={d.name}
+                  lines="all"
                   subtitle={
                     <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
                       <Text style={styles.meta}>{`${ELIGIBILITY_LABEL[d.eligibility]} · ${garmentCount(d.id)} ${garmentCount(d.id) === 1 ? 'garment' : 'garments'}`}</Text>

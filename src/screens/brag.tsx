@@ -432,7 +432,7 @@ export function NominateScreen({ route, navigation }: RootScreen<'Nominate'>) {
                   >
                     <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={22} color={on ? colors.redText : colors.boneMute} />
                     <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={type.name} numberOfLines={1}>
+                      <Text style={type.name} numberOfLines={2}>
                         {r.title}
                       </Text>
                       <Text style={[type.name, { fontSize: 13, color: colors.boneMute }]}>{formatAuDate(melbourneDate(r.startsAt))}</Text>

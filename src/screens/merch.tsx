@@ -44,6 +44,7 @@ function ItemRow({ item, last, onPress }: { item: MerchItem; last: boolean; onPr
       last={last}
       left={<IconBadge icon="shirt-outline" />}
       title={item.name}
+      lines="all"
       subtitle={<Text style={styles.meta}>{`${scopeName(item.chapterId, data.chapters)} · ${sizesLine(item)}`}</Text>}
       right={<Text style={[type.name, num]}>{formatCents(item.priceCents)}</Text>}
       onPress={onPress}
@@ -60,6 +61,7 @@ function OrderRow({ order, last, onPress, showBuyer }: { order: MerchOrder; last
     <ListRow
       last={last}
       title={showBuyer ? (buyer ? displayName(buyer) : 'A former member') : (item?.name ?? 'Merch')}
+      lines="all"
       subtitle={
         <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
           <Text style={styles.meta}>{showBuyer ? `${item?.name ?? 'Merch'} · ${what}` : what}</Text>

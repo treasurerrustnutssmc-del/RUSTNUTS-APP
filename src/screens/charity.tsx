@@ -228,7 +228,8 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
       setShareError('Couldn’t open sharing on this device.');
     }
   };
-  const row = (s: CharitySignup, i: number, list: CharitySignup[], subtitle: string) => {
+  // The Riding list shows in full; the helper lists, with their notes, keep two lines.
+  const row = (s: CharitySignup, i: number, list: CharitySignup[], subtitle: string, lines?: 'all') => {
     const m = data.members.find((x) => x.id === s.memberId);
     return (
       <ListRow
@@ -237,6 +238,7 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
         left={<Avatar text={m ? initials(m) : '?'} size={40} />}
         title={m ? displayName(m) : memberName(s.memberId, data.members)}
         subtitle={subtitle}
+        lines={lines}
         onPress={m ? () => navigation.navigate('MemberDetail', { memberId: m.id }) : undefined}
       />
     );
@@ -313,7 +315,7 @@ function CharitySheet({ route: nav, navigation }: RootScreen<'Charity'>) {
         {riders.length === 0 ? (
           runs ? <Small>Nobody yet.</Small> : null
         ) : (
-          <Card style={{ padding: 0, gap: 0 }}>{riders.map((s, i, list) => row(s, i, list, subtitleOf(s)))}</Card>
+          <Card style={{ padding: 0, gap: 0 }}>{riders.map((s, i, list) => row(s, i, list, subtitleOf(s), 'all'))}</Card>
         )}
       </Stack>
 
