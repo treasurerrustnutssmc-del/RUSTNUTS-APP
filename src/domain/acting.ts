@@ -97,6 +97,23 @@ export function msUntilNextClubDay(nowIso: string): number {
   return Date.parse(clubDayStart(addDays(melbourneDate(nowIso), 1))) - Date.parse(nowIso);
 }
 
+/**
+ * Hands `onDay` the club's date at each Melbourne midnight until the returned stop is called (the
+ * clock under useClubToday). Each timer is set afresh from the clock, so summer time comes right, and
+ * a timer that fires a moment early just hands back the same date and waits the moment out.
+ */
+export function everyClubDay(onDay: (today: string) => void): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const arm = () => {
+    timer = setTimeout(() => {
+      onDay(melbourneDate(new Date().toISOString()));
+      arm();
+    }, msUntilNextClubDay(new Date().toISOString()));
+  };
+  arm();
+  return () => clearTimeout(timer);
+}
+
 // ---------------------------------------------------------------------------
 // Settling: the app's lazy close
 // ---------------------------------------------------------------------------

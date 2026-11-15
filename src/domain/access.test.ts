@@ -984,7 +984,7 @@ test('a confirmed request isn’t open', () => {
   const done = ask('smokey-asks-jet', { closedAt: `${AT}T02:00:00.000Z`, outcome: 'confirmed' });
   const w = world({ requests: [done], seats: [JET_COVERS] });
   assert.equal(confirmActingProblem(who(w, 'crank'), done, w, AT), NO_REQUEST, 'a second confirm');
-  assert.equal(withdrawRequestProblem(who(w, 'smokey'), done, w), NO_REQUEST);
+  assert.equal(withdrawRequestProblem(who(w, 'smokey'), done, w, AT), NO_REQUEST);
 });
 
 test('routes: a voted cover needs a carried board vote on the request in the last 90 days', () => {
@@ -1013,7 +1013,7 @@ test('routes: a voted cover needs a carried board vote on the request in the las
 test('withdraw by the requester, the stand-in and the holder; the requester only before a vote opens', () => {
   const crankAsks = ask('crank-asks-jet', { requestedBy: 'crank', why: 'Smokey can’t be reached' });
   const w = (votes: Vote[] = []) => world({ seats: FIVE, requests: [crankAsks], votes });
-  const withdraw = (me: string, data = w()) => withdrawRequestProblem(who(data, me), crankAsks, data);
+  const withdraw = (me: string, data = w()) => withdrawRequestProblem(who(data, me), crankAsks, data, AT);
   assert.equal(withdraw('crank'), null, 'the requester');
   assert.equal(withdraw('jet'), null, 'the stand-in declines');
   assert.equal(withdraw('smokey'), null, 'the holder');

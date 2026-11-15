@@ -3,7 +3,13 @@
 // checks the same rules first only so members get a clear message without a round trip.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { accessLevel, appointProblem, endTermProblem, renewAuditorProblem, restoreAccessProblem, suspendAccessProblem } from '../domain/access';
+import {
+  accessLevel, appointProblem, endTermProblem, renewAuditorProblem, restoreAccessProblem, suspendAccessProblem,
+  // Acting roles
+  appointActingProblem, confirmActingProblem, requestActingProblem, requestCoverProblem, setActingUntilProblem, withdrawRequestProblem,
+} from '../domain/access';
+import { lapsedOwnRows, settleActing } from '../domain/acting'; // Acting roles
+import { useClubToday } from './useClubToday';
 import { bioProblem } from '../domain/postingRules'; // Member content rules
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
 import { bookProblem, cancelProblem, changeProblem, decideProblem } from '../domain/bus';
@@ -39,7 +45,7 @@ import { crewProblem, leaveProblem } from '../domain/crew';
 import { melbourneDate, rsvpProblem } from '../domain/rides';
 import { NO_TRACK, readGpx, type GpxSummary } from '../domain/gpx';
 import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
-import { castProblem, closeProblem as closeVoteProblem, openVoteProblem } from '../domain/votes';
+import { castProblem, closeProblem as closeVoteProblem, openActingVoteProblem, openVoteProblem } from '../domain/votes';
 import type { ClubData, NotificationPrefs } from '../domain/types'; // NotificationPrefs: Lane E
 import {
   ClubContext,
@@ -124,7 +130,7 @@ const ok = <T extends { error: { message?: string; code?: string } | null }>(r: 
 };
 
 export function LiveClubProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<ClubData>(EMPTY_DATA);
+  const [raw, setData] = useState<ClubData>(EMPTY_DATA);
   const [userId, setUserId] = useState<string | null>(null);
   const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
@@ -133,7 +139,12 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [justApplied, setJustApplied] = useState(false);
   const latest = useRef(0);
-  const today = melbourneDate(new Date().toISOString()); // the club's day, wherever the phone is
+  const today = useClubToday(); // the club's day, wherever the phone is, moving on at Melbourne midnight
+  // Acting roles: the club as it stands today, a stint past its until date ended, as the database's
+  // views read it. The access level, every guard and every screen read these rows.
+  const data = useMemo(() => settleActing(raw, today), [raw, today]);
+  /** The club's date when the rows on screen were loaded, or the copy on the phone saved. */
+  const loadedOn = useRef('');
   // Lane E: offline. When the data on screen is the copy saved on the phone, when it was saved.
   const [savedAt, setSavedAt] = useState<string | null>(null);
   /** Whose data is on screen, the signed-in person, and whether it's the saved copy (read in callbacks). */
@@ -145,6 +156,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     // Lane E: notifications. A copy saved by an older app lacks newer settings (the Harley rev).
     const prefs = completePrefs(saved.data.notificationPrefs);
     knownPrefs.current = prefs;
+    loadedOn.current = melbourneDate(saved.savedAt);
     setData({ ...saved.data, notificationPrefs: prefs });
     setLoadedFor(uid);
     showing.current = uid;
@@ -163,9 +175,13 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     onSavedCopy.current = false;
   }, []);
 
-  /** Loads what this person may see. Only the newest request wins, so a slow old load can't overwrite a newer one. */
-  const reload = useCallback(async (uid: string | null) => {
+  /**
+   * Loads what this person may see. Only the newest request wins, so a slow old load can't overwrite a
+   * newer one. Resolves false when this load failed (a newer one taking over isn't a failure).
+   */
+  const reload = useCallback(async (uid: string | null): Promise<boolean> => {
     const ticket = ++latest.current;
+    const loadedDay = melbourneDate(new Date().toISOString());
     try {
       // Lane E: offline. Opened offline on a login that had run out: renew it before loading, so the
       // load is never made signed out (which would look like someone who hasn't joined).
@@ -178,13 +194,14 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       // defaults, which could turn reminders back on); undefined means not known.
       if (uid) fresh.notificationPrefs = await loadNotificationPrefs(supabase()).catch(() => knownPrefs.current);
       if (uid) knownPrefs.current = fresh.notificationPrefs;
-      if (ticket !== latest.current) return;
+      if (ticket !== latest.current) return true;
       // Lane E: offline. Signed out during the load: don't show a signed-out load as theirs.
-      if (uid && currentUser.current !== uid) return;
+      if (uid && currentUser.current !== uid) return true;
       // Stage 5C: a text loaded while this refresh was in flight must not be dropped by it.
       fresh.documentVersions = (fresh.documentVersions ?? []).map((v) =>
         v.body === null && loadedBodies[v.id] !== undefined ? { ...v, body: loadedBodies[v.id] } : v,
       );
+      loadedOn.current = loadedDay;
       setData(fresh);
       setLoadedFor(uid ?? '');
       setLoadError(null);
@@ -192,15 +209,17 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       onSavedCopy.current = false;
       setSavedAt(null);
       if (uid && currentUser.current === uid) clubCache.save(uid, fresh, new Date().toISOString());
+      return true;
     } catch (e) {
-      if (ticket !== latest.current) return;
+      if (ticket !== latest.current) return true;
       // No signal and nothing of theirs on screen yet: show the copy saved on the phone.
       if (uid && showing.current !== uid && isConnectionError(e as { message?: string })) {
         const saved = await clubCache.load(uid);
-        if (ticket !== latest.current) return;
+        if (ticket !== latest.current) return true;
         if (saved) showSaved(uid, saved);
       }
       setLoadError(friendlyError(e as { message?: string }).message);
+      return false;
     }
   }, [showSaved]);
 
@@ -249,6 +268,17 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     };
   }, [reload, showSaved, forget]);
 
+  // Acting roles: a stint of the viewer's that has ended since the rows on screen were loaded (at
+  // midnight with the app open, or before a copy saved on the phone was opened) changes what they may
+  // see, so load again. If that fails, drop the saved copy, which holds board-only details they may
+  // no longer see.
+  useEffect(() => {
+    if (!lapsedOwnRows(settleActing(raw, loadedOn.current), today, userId)) return;
+    reload(userId).then((loaded) => {
+      if (!loaded) clubCache.clear();
+    });
+  }, [raw, today, userId, reload]);
+
   const me = useMemo(() => data.members.find((m) => m.id === userId) ?? null, [data.members, userId]);
   const loadedForUser = loadedFor === '' ? null : loadedFor;
   const view = sessionView({ userId, loadedFor: loadedForUser, loadError, hasMe: !!me, justApplied });
@@ -259,13 +289,17 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   // Family view: the database already trims what Family get; this keeps the app to the same.
   const shown = useMemo(() => (level === 'family' && visibleMe ? forFamily(data, visibleMe) : data), [level, visibleMe, data]);
 
-  const refresh = useCallback(() => reload(userId), [reload, userId]);
+  const refresh = useCallback(async () => {
+    await reload(userId);
+  }, [reload, userId]);
 
   const requireUser = () => {
     if (!userId) throw new NotAllowedError('Sign in first.');
     return userId;
   };
-  const after = async () => reload(userId);
+  const after = async () => {
+    await reload(userId);
+  };
 
   /** Signing out, or after deleting the account: nothing of theirs stays on the phone. */
   const leave = async () => {
@@ -1109,9 +1143,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
 
     // Stage 5C: document library. The same rule first, then the database.
-    createDocument: async (raw) => {
-      deny(createDocumentProblem(visibleMe, raw, data));
-      const input = cleanDocumentInput(raw);
+    createDocument: async (given) => {
+      deny(createDocumentProblem(visibleMe, given, data));
+      const input = cleanDocumentInput(given);
       const r = ok(
         await supabase().rpc('create_document', {
           p_chapter: input.chapterId, p_kind: input.kind, p_title: input.title, p_asks_sign_off: input.asksSignOff,
@@ -1121,9 +1155,9 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       await after();
       return r.data as string;
     },
-    publishDocumentVersion: async (documentId, expected, raw) => {
-      deny(publishVersionProblem(visibleMe, documentId, expected, raw, data, today));
-      const input = cleanVersionInput(raw);
+    publishDocumentVersion: async (documentId, expected, given) => {
+      deny(publishVersionProblem(visibleMe, documentId, expected, given, data, today));
+      const input = cleanVersionInput(given);
       const r = ok(
         await supabase().rpc('publish_document_version', {
           p_document: documentId, p_expected: expected, p_label: input.label, p_body: input.body, p_what_changed: input.whatChanged,
@@ -1461,6 +1495,58 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       deny(renewAuditorProblem(visibleMe, data, today));
       ok(await supabase().rpc('renew_auditor'));
       await after();
+    },
+    // Acting roles: each checks the same rule first on the settled rows, then asks the database. A
+    // member, row or request this phone can't see is left to the database, so the words are its own.
+    appointActing: async (memberId, chapterId, role, until, why) => {
+      const target = data.members.find((m) => m.id === memberId);
+      if (target) deny(appointActingProblem(visibleMe, target, chapterId, role, until, why, data, today));
+      ok(await supabase().rpc('appoint_acting', { p_member: memberId, p_chapter: chapterId, p_role: role, p_until: until, p_why: why }));
+      await after();
+    },
+    requestCover: async (positionId, memberId, until, why) => {
+      const target = data.members.find((m) => m.id === memberId);
+      if (target) deny(requestCoverProblem(visibleMe, data.positions.find((p) => p.id === positionId), target, until, why, data, today));
+      ok(await supabase().rpc('request_cover', { p_position: positionId, p_member: memberId, p_until: until, p_why: why }));
+      await after();
+    },
+    requestActing: async (memberId, chapterId, role, coversId, until, why) => {
+      const target = data.members.find((m) => m.id === memberId);
+      const covers = coversId === null ? null : data.positions.find((p) => p.id === coversId);
+      if (target && covers !== undefined) deny(requestActingProblem(visibleMe, target, chapterId, role, covers, until, why, data, today));
+      ok(
+        await supabase().rpc('request_acting', {
+          p_member: memberId, p_chapter: chapterId, p_role: role, p_covers: coversId, p_until: until, p_why: why,
+        }),
+      );
+      await after();
+    },
+    withdrawActingRequest: async (requestId) => {
+      const request = (data.actingRequests ?? []).find((r) => r.id === requestId);
+      if (request) deny(withdrawRequestProblem(visibleMe, request, data, today));
+      ok(await supabase().rpc('withdraw_acting_request', { p_request: requestId }));
+      await after();
+    },
+    confirmActing: async (requestId) => {
+      const request = (data.actingRequests ?? []).find((r) => r.id === requestId);
+      if (request) deny(confirmActingProblem(visibleMe, request, data, today));
+      ok(await supabase().rpc('confirm_acting', { p_request: requestId }));
+      await after();
+    },
+    setActingUntil: async (positionId, until) => {
+      const position = data.positions.find((p) => p.id === positionId);
+      if (position) deny(setActingUntilProblem(visibleMe, position, until, data, today));
+      ok(await supabase().rpc('set_acting_until', { p_position: positionId, p_until: until }));
+      await after();
+    },
+    openActingVote: async (requestId, quorum, closesAt, meetingId) => {
+      const request = (data.actingRequests ?? []).find((r) => r.id === requestId);
+      deny(openActingVoteProblem(visibleMe, request, quorum, closesAt, meetingId, data, new Date().toISOString()));
+      const r = ok(
+        await supabase().rpc('open_acting_vote', { p_request: requestId, p_quorum: quorum, p_closes_at: closesAt, p_meeting: meetingId }),
+      );
+      await after();
+      return r.data as string;
     },
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => {

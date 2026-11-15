@@ -101,6 +101,7 @@ export interface ClubContextValue {
   data: ClubData;
   me: Member | null;
   level: AccessLevel;
+  /** The club's date (Melbourne), moving on at Melbourne midnight and when the app comes back to the front; `data` is settled on it. */
   today: string;
   /** Email of whoever is signed in (live mode). */
   authEmail: string | null;
@@ -396,6 +397,22 @@ export interface ClubContextValue {
   deleteAuditReport: (reportId: string) => Promise<void>;
   /** The Chairman renews the sitting Auditor for twelve months after a fresh two-thirds NEC vote. */
   renewAuditor: () => Promise<void>;
+
+  // Acting in a role, until a date (docs/superpowers/specs/2026-11-15-acting-roles-design.md)
+  /** Route 1: a board member records someone acting in an empty seat, from today to `until` (the last acting day). */
+  appointActing: (memberId: string, chapterId: string, role: PositionRole, until: string, why: string) => Promise<void>;
+  /** Route 2: the holder asks, from their own board seat, for a board member to cover it until a date. */
+  requestCover: (positionId: string, memberId: string, until: string, why: string) => Promise<void>;
+  /** Route 3: a board member proposes acting that needs a board vote; `coversId` null for an empty seat. */
+  requestActing: (memberId: string, chapterId: string, role: PositionRole, coversId: string | null, until: string, why: string) => Promise<void>;
+  /** The stand-in, the holder or (before a vote on it) the person who asked closes a request. */
+  withdrawActingRequest: (requestId: string) => Promise<void>;
+  /** A board member who is neither the stand-in nor the holder confirms a request; the stint starts today. */
+  confirmActing: (requestId: string) => Promise<void>;
+  /** Moves a stint's last day, keeping its start. */
+  setActingUntil: (positionId: string, until: string) => Promise<void>;
+  /** Opens the chapter board's vote on a request. Resolves to the vote's id. */
+  openActingVote: (requestId: string, quorum: number, closesAt: string, meetingId: string | null) => Promise<string>;
 }
 
 export const ClubContext = createContext<ClubContextValue | null>(null);

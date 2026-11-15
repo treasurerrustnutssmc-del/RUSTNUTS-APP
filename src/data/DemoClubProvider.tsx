@@ -3,7 +3,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { accessLevel } from '../domain/access';
-import { melbourneDate } from '../domain/rides';
+import { settleActing } from '../domain/acting'; // Acting roles
 import type { ClubData } from '../domain/types';
 import { ClubContext, type ClubContextValue } from './clubContext';
 import * as business from './businessActions';
@@ -24,11 +24,13 @@ import { REVIEWER_DEMO_MEMBER } from '../domain/reviewer'; // Store review demo
 import { appMode, demoSession } from './reviewMode';
 import * as audit from './auditActions'; // National Auditor
 import * as shop from './shopActions'; // The club shop
+import * as acting from './actingActions'; // Acting roles
+import { useClubToday } from './useClubToday';
 
 export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   // Lane E: live ride. The demo gains a ride that's on right now, so live mode can be tried.
   // The club is built for the demo session's instant, the same one every other demo seed reads.
-  const [data, setData] = useState<ClubData>(() => {
+  const [raw, setData] = useState<ClubData>(() => {
     // The session returns the same instant on every call, so both seeds see one moment.
     const club = buildDemoData(demoSession.now());
     return { ...club, rides: [...club.rides, demoTodayRide(demoSession.now())] };
@@ -38,7 +40,10 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   const [meId, setMeId] = useState<string | null>(reviewing ? REVIEWER_DEMO_MEMBER : null);
   // The routes' GPX files, by route id, apart from the club data as the database keeps them.
   const routeFiles = useRef(new Map(Object.entries(DEMO_ROUTE_GPX)));
-  const today = melbourneDate(new Date().toISOString()); // the club's day, wherever the phone is
+  const today = useClubToday(); // the club's day, wherever the phone is, moving on at Melbourne midnight
+  // Acting roles: the club as it stands today, a stint past its until date ended. Every action,
+  // guard and screen reads these rows, so writing them back is the demo's lazy close.
+  const data = useMemo(() => settleActing(raw, today), [raw, today]);
 
   const me = useMemo(() => data.members.find((m) => m.id === meId) ?? null, [data.members, meId]);
   const level = accessLevel(me, data.positions);
@@ -374,6 +379,19 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     markDocumentReviewed: async (documentId) => setData(docs.markDocumentReviewed(ctx, documentId)),
     signDocument: async (versionId) => setData(docs.signDocument(ctx, versionId)),
     loadDocumentBody: async (versionId) => (ctx.data.documentVersions ?? []).find((v) => v.id === versionId)?.body ?? '',
+    // Acting roles: each writer runs its check on the latest rows, as the RPC does.
+    appointActing: async (memberId, chapterId, role, until, why) => keep(acting.appointActing(fresh(), memberId, chapterId, role, until, why)),
+    requestCover: async (positionId, memberId, until, why) => keep(acting.requestCover(fresh(), positionId, memberId, until, why)),
+    requestActing: async (memberId, chapterId, role, coversId, until, why) =>
+      keep(acting.requestActing(fresh(), memberId, chapterId, role, coversId, until, why)),
+    withdrawActingRequest: async (requestId) => keep(acting.withdrawActingRequest(fresh(), requestId)),
+    confirmActing: async (requestId) => keep(acting.confirmActing(fresh(), requestId)),
+    setActingUntil: async (positionId, until) => keep(acting.setActingUntil(fresh(), positionId, until)),
+    openActingVote: async (requestId, quorum, closesAt, meetingId) => {
+      const r = acting.openActingVote(fresh(), requestId, quorum, closesAt, meetingId);
+      keep(r.data);
+      return r.id;
+    },
   };
 
   return <ClubContext.Provider value={value}>{children}</ClubContext.Provider>;

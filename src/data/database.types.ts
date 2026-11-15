@@ -678,6 +678,17 @@ export type Database = {
       };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
       end_position: { Args: { p_position: string }; Returns: undefined };
+      // Acting roles (supabase/migrations/20270870000000_acting_roles.sql §4, §6)
+      appoint_acting: { Args: { p_member: string; p_chapter: string; p_role: PositionRole; p_until: string; p_why: string }; Returns: string };
+      request_cover: { Args: { p_position: string; p_member: string; p_until: string; p_why: string }; Returns: string };
+      request_acting: {
+        Args: { p_member: string; p_chapter: string; p_role: PositionRole; p_covers: string | null; p_until: string; p_why: string };
+        Returns: string;
+      };
+      withdraw_acting_request: { Args: { p_request: string }; Returns: undefined };
+      confirm_acting: { Args: { p_request: string }; Returns: string };
+      set_acting_until: { Args: { p_position: string; p_until: string }; Returns: undefined };
+      open_acting_vote: { Args: { p_request: string; p_quorum: number; p_closes_at: string; p_meeting: string | null }; Returns: string };
       delete_my_account: { Args: never; Returns: undefined };
       // Ask the club (the club AI assistant)
       assistant_status: {

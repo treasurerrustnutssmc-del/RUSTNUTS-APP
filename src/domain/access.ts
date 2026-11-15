@@ -900,13 +900,13 @@ export function requestActingProblem(
 
 /**
  * Who closes an open request: the stand-in (declining) or the holder at any time, and the person
- * who asked only while no vote on it is open or has carried. Settled first when given today (a
- * lost vote has closed it). Mirrors public.withdraw_acting_request.
+ * who asked only while no vote on it is open or has carried. Settled first, as the RPC runs the
+ * lazy close (a lost vote has closed it). Mirrors public.withdraw_acting_request.
  */
-export function withdrawRequestProblem(me: Member | null, request: ActingRequest, raw: ClubData, today?: string): string | null {
+export function withdrawRequestProblem(me: Member | null, request: ActingRequest, raw: ClubData, today: string): string | null {
   const signedIn = signInProblem(me);
   if (signedIn || !me) return signedIn;
-  const data = today === undefined ? raw : settleActing(raw, today);
+  const data = settleActing(raw, today);
   const fresh = (data.actingRequests ?? []).find((r) => r.id === request.id) ?? request;
   if (fresh.closedAt !== null) return NO_REQUEST;
   if (me.id === fresh.memberId) return null;

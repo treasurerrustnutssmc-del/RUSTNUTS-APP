@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import { AUDITOR_STAYS_OUT, BOARD_RECORDS_ACTING, NO_REQUEST, NOT_YOURSELF, SMALL_BOARD } from './access';
 import type { ActingRequest, ClubData, Member, Position, PositionRole, Vote } from './types';
+import { settleActing } from './acting';
 import {
   ACTING_END_SHAPE,
   ACTING_VOTE_OPEN,
@@ -544,6 +545,16 @@ test('canSeeVote shows Jet the NEC vote while he covers Smokey, not after I’m 
   assert.equal(castProblem(who(stepped, 'jet'), v, AT_NOW, stepped), null);
   assert.equal(canSeeVote(who(stepped, 'jet'), { ...v, votedIds: ['smokey'] }, stepped.positions), false, 'not once it’s cast');
   assert.equal(canSeeVote(who(stepped, 'jet'), { ...v, closedAt: AT_NOW, result: 'lost' }, stepped.positions), false, 'nor once it has closed');
+});
+
+test('canSeeVote on settled rows: a stand-in whose cover lapsed at midnight no longer sees the NEC vote', () => {
+  // canSeeVote reads the rows it's given; the providers hand it settled ones (Task 16), as
+  // club_business reads the views.
+  const v = necVote('smokey');
+  const lapsed = world({ seats: [{ ...JET_COVERS, startedOn: '2026-10-20', actingUntil: '2026-11-14' }] });
+  const settled = settleActing(lapsed, AT);
+  assert.equal(canSeeVote(who(settled, 'jet'), v, settled.positions), false, 'Jet is VP only again');
+  assert.equal(canSeeVote(who(settled, 'smokey'), v, settled.positions), true, 'Smokey has his seat’s duties back');
 });
 
 test('closeProblem refuses a day-old acting vote, all voted', () => {
