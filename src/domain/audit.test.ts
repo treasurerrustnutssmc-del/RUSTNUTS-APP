@@ -4,8 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   answerRequestProblem, answersRequest, auditChecks, closeRequestProblem, deleteReportProblem, issueReportProblem,
-  raiseRequestProblem, saveReportProblem, seesReport, seesRequest, type RequestInput, type ReportInput,
+  raiseRequestProblem, saveReportProblem, seesReport, seesRequest, vpFallbackFor, type RequestInput, type ReportInput,
 } from './audit';
+import { DEMO_DATA } from '../data/demoStory.testkit';
 import { club, member, session, who } from './stage4.testkit';
 import { standingOf } from './standing';
 import type { AuditReport, AuditRequest, ClubData, LedgerEntry, Meeting, Position } from './types';
@@ -239,4 +240,106 @@ test('the checks count members behind on attendance, per chapter', () => {
   const c = auditChecks(d, NOW).find((x) => x.key === 'attendance-behind:west')!;
   assert.equal(c.detail, `${behind.length} in West`);
   assert.ok(!keys(d).includes('attendance-behind:north'));
+});
+
+// Acting ---------------------------------------------------------------------------------------------
+
+// North: Smokey is President, Jet the VP and Crank the Road Captain. TODAY is 29/10/2026.
+function actingClub(positions: Position[], over: Partial<ClubData> = {}): ClubData {
+  const base = auditClub();
+  return {
+    ...base,
+    members: [
+      ...base.members,
+      member('smokey', { chapterId: 'north', roadName: 'Smokey', patchedOn: '2020-01-01' }),
+      member('jet', { chapterId: 'north', roadName: 'Jet', patchedOn: '2020-01-01' }),
+      member('crank', { chapterId: 'north', roadName: 'Crank', patchedOn: '2020-01-01' }),
+      member('spanner', { roadName: 'Spanner', patchedOn: '2020-01-01' }),
+    ],
+    positions: [...base.positions.filter((p) => p.chapterId !== 'north'), ...positions],
+    ...over,
+  };
+}
+const nseat = (id: string, memberId: string, role: Position['role'], over: Partial<Position> = {}): Position => ({
+  id, memberId, chapterId: 'north', role, startedOn: '2025-08-16', endedOn: null, ...over,
+});
+const smokeyPres = nseat('smokey-pres', 'smokey', 'president');
+const jetVp = nseat('jet-vp', 'jet', 'vice_president');
+const crankRc = nseat('crank-rc', 'crank', 'road_captain');
+const crankTre = nseat('crank-tre', 'crank', 'treasurer', { startedOn: '2026-10-01', actingUntil: '2027-02-20', actingWhy: 'No Treasurer since the ACM', appointedBy: 'smokey' });
+const agm = (id: string, startsAt: string, over: Partial<Meeting> = {}): Meeting => ({
+  id, chapterId: 'north', kind: 'agm', title: 'ACM', startsAt, location: null, agenda: [], minutes: null,
+  minutesSharedAt: null, minutesApprovedAt: null, minutesApprovedBy: null, cancelledAt: null, createdBy: 'smokey', ...over,
+});
+const checkOf = (d: ClubData, key: string) => auditChecks(d, NOW).find((c) => c.key === key);
+
+test('a covered holder still sees issued reports: board membership reads held rows', () => {
+  const jetCovers = nseat('jet-covers', 'jet', 'president', { startedOn: '2026-10-20', actingUntil: '2026-11-20', covers: 'smokey-pres', actingWhy: 'Smokey overseas' });
+  const d = actingClub([smokeyPres, jetVp, jetCovers]);
+  assert.equal(seesReport(who(d, 'smokey'), report({ issuedAt: NOW }), d.positions), true);
+});
+
+test('the term-ended check leaves acting rows out, lapsed or not', () => {
+  const lapsed = nseat('crank-old', 'crank', 'treasurer', { startedOn: '2026-09-01', actingUntil: '2026-10-20', actingWhy: 'No Treasurer since the ACM' });
+  const d = actingClub([smokeyPres, jetVp, crankRc, lapsed]);
+  assert.ok(!keys(d).includes('term-ended:crank-old'), 'its until date has passed, but it was never a term');
+  assert.ok(keys(d).includes('term-ended:p-auditor'), 'a full term past its end still shows');
+});
+
+test('no election scheduled while someone acts in an empty board seat (9.8)', () => {
+  const d = actingClub([smokeyPres, jetVp, crankRc, crankTre]);
+  const c = checkOf(d, 'acting-no-election:crank-tre')!;
+  assert.equal(c.title, 'No election scheduled while Crank acts (9.8)');
+  assert.equal(c.area, 'membership');
+  assert.equal(c.chapterId, 'north');
+  assert.equal(c.detail, 'Crank · Acting Treasurer (North) until 20/02/2027');
+  const scheduled = actingClub([smokeyPres, jetVp, crankRc, crankTre], { meetings: [agm('acm', '2027-03-01T08:00:00.000Z')] });
+  assert.equal(checkOf(scheduled, 'acting-no-election:crank-tre'), undefined, 'an ACM is saved');
+  const cancelled = actingClub([smokeyPres, jetVp, crankRc, crankTre], { meetings: [agm('acm', '2027-03-01T08:00:00.000Z', { cancelledAt: NOW }), agm('gm', '2027-03-01T08:00:00.000Z', { kind: 'general' })] });
+  assert.ok(checkOf(cancelled, 'acting-no-election:crank-tre'), 'a cancelled ACM or another meeting doesn’t count');
+  const tg = nseat('crank-tg', 'crank', 'tail_gunner', { startedOn: '2026-10-01', actingUntil: '2026-12-20', actingWhy: 'Short of Tail Gunners' });
+  assert.equal(checkOf(actingClub([smokeyPres, jetVp, crankRc, tg]), 'acting-no-election:crank-tg'), undefined, 'a non-board role has no election to wait for');
+});
+
+test('acting that runs past the chapter’s ACM is flagged (9.8)', () => {
+  const d = actingClub([smokeyPres, jetVp, crankRc, crankTre], { meetings: [agm('acm', '2027-02-14T08:00:00.000Z')] });
+  assert.equal(checkOf(d, 'acting-past-acm:crank-tre')?.title, 'Crank’s acting runs past North’s ACM on 14/02 (9.8)');
+  const onTheDay = actingClub([smokeyPres, jetVp, crankRc, { ...crankTre, actingUntil: '2027-02-14' }], { meetings: [agm('acm', '2027-02-14T08:00:00.000Z')] });
+  assert.equal(checkOf(onTheDay, 'acting-past-acm:crank-tre'), undefined, 'up to the ACM is fine');
+  const before = actingClub([smokeyPres, jetVp, crankRc, crankTre], { meetings: [agm('old', '2026-08-14T08:00:00.000Z'), agm('acm', '2027-03-01T08:00:00.000Z')] });
+  assert.equal(checkOf(before, 'acting-past-acm:crank-tre'), undefined, 'an ACM before the stint began isn’t its ACM');
+});
+
+test('a seat covered for more than three months in a row is flagged for review (9.5)', () => {
+  const first = nseat('jet-c1', 'jet', 'president', { startedOn: '2026-06-01', actingUntil: '2026-08-31', endedOn: '2026-09-01', endedReason: 'lapsed', covers: 'smokey-pres', actingWhy: 'Smokey overseas' });
+  const second = nseat('jet-c2', 'jet', 'president', { startedOn: '2026-09-01', actingUntil: '2026-11-30', covers: 'smokey-pres', actingWhy: 'Still overseas' });
+  const d = actingClub([smokeyPres, jetVp, crankRc, first, second]);
+  const c = checkOf(d, 'cover-over-3-months:smokey-pres')!;
+  assert.equal(c.title, 'Smokey’s seat has been covered for more than three months in a row (9.5 review)');
+  assert.equal(c.detail, 'Smokey · President (North) · covered since 01/06/2026');
+  assert.equal(checkOf(actingClub([smokeyPres, jetVp, crankRc, second]), 'cover-over-3-months:smokey-pres'), undefined, 'one cover, under three months');
+  const gap = { ...second, startedOn: '2026-09-05' };
+  assert.equal(checkOf(actingClub([smokeyPres, jetVp, crankRc, first, gap]), 'cover-over-3-months:smokey-pres'), undefined, 'Smokey was back in between');
+});
+
+test('a VP casting the NEC vote for an empty President seat is flagged, with no fix in the audit (11.2)', () => {
+  const ended = { ...smokeyPres, endedOn: '2026-09-01', endedReason: 'stepped_down' as const };
+  const d = actingClub([ended, jetVp, crankRc]);
+  const c = checkOf(d, 'vp-fallback:north')!;
+  assert.equal(c.title, 'Jet casts North’s NEC vote without being formally Acting President (11.2)');
+  assert.equal(c.chapterId, 'north');
+  assert.ok(!('fix' in c), 'the Auditor can’t record a President; the button is on the Board tab');
+  assert.deepEqual(vpFallbackFor('north', d), { memberId: 'jet' });
+  const jetActing = nseat('jet-acting', 'jet', 'president', { startedOn: '2026-10-01', actingUntil: '2026-12-20', actingWhy: 'No President since the ACM' });
+  const formal = actingClub([ended, jetVp, crankRc, jetActing]);
+  assert.equal(checkOf(formal, 'vp-fallback:north'), undefined, 'formally Acting President');
+  assert.equal(vpFallbackFor('north', formal), null);
+  assert.equal(vpFallbackFor('north', actingClub([smokeyPres, jetVp, crankRc])), null, 'a sitting President');
+});
+
+test('the 11.2 finding doesn’t fire when the Chair is a President (the demo’s Rusty)', () => {
+  const spannerVp: Position = { id: 'spanner-vp', memberId: 'm-spanner', chapterId: 'ch-west', role: 'vice_president', startedOn: '2025-08-16', endedOn: null };
+  const demo = { ...DEMO_DATA, positions: [...DEMO_DATA.positions, spannerVp] };
+  assert.ok(!auditChecks(demo, NOW).some((c) => c.key.startsWith('vp-fallback:')));
+  assert.equal(vpFallbackFor('ch-west', demo), null);
 });

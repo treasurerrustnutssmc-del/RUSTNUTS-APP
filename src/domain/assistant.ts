@@ -6,12 +6,14 @@
 
 import type { ApiBlock, ApiMessage, AskReply, Proposal } from '../../supabase/functions/_shared/askClub';
 import { activePositions, managesChapterRides } from './access';
+import { heldPositions } from './acting';
 import { big4GoingProblem } from './big4';
 import { BUS_NO_RIDE, BUS_PURPOSES, bookProblem, bookedStraightAway, busPurposeLabel, busStatusLabel, cancelProblem, formatDays, type BusInput } from './bus';
 import { formatKm, handKeysProblem, keyHolder, latestReading, logKmProblem, type KmInput } from './busLog';
 import { crewFor, crewProblem, leaveProblem, spotOf } from './crew';
 import { addDays, formatAuDate, isRealIsoDate, weekday } from './dates';
 import { chargeBalance, chargesOf, formatCents, totalOwing } from './fees';
+import { longSeatTitle } from './home';
 import { ROLE_LABEL, STATUS_LABEL } from './labels';
 import { displayName } from './profile';
 import { activeCall, callProblem } from './rideCalls';
@@ -100,11 +102,9 @@ const hhmm = (iso: string) => {
   const t = new Intl.DateTimeFormat('en-GB', { timeZone: 'Australia/Melbourne', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
   return t;
 };
+/** The seats someone holds, a covered one included, in the long form: "Acting Treasurer (North) until 13/12/2026". */
 const positionsOf = (memberId: string, data: ClubData) =>
-  activePositions(memberId, data.positions).map((p) => {
-    const chapter = data.chapters.find((c) => c.id === p.chapterId)?.name;
-    return chapter ? `${ROLE_LABEL[p.role]} (${chapter})` : ROLE_LABEL[p.role];
-  });
+  heldPositions(memberId, data.positions).map((p) => longSeatTitle(p, data.chapters));
 
 // The snapshot ---------------------------------------------------------------------------------
 
@@ -380,7 +380,7 @@ function rideIdeaCard(id: string, proposal: Proposal, ctx: CardCtx): ActionCard 
       { kind: 'open_calendar', url: problem ? '' : calendarLink(draft) }, 'OPEN IN GOOGLE CALENDAR');
   }
   const to = ideaRecipient(ctx.me, ctx.data);
-  const isRc = !!to && ctx.data.positions.some((p) => p.memberId === to.id && p.role === 'road_captain' && p.chapterId === ctx.me.chapterId && !p.endedOn); // acting: pending
+  const isRc = !!to && activePositions(to.id, ctx.data.positions).some((p) => p.role === 'road_captain' && p.chapterId === ctx.me.chapterId);
   const noOne = to ? null : 'Your chapter has no Road Captain or President in the app to send it to.';
   return card(id, 'NEW RIDE', [...lines, to && !problem ? `Goes to ${displayName(to)} as a private message.` : ''], problem ?? noOne,
     { kind: 'send_idea', toId: to?.id ?? '', text: problem ? '' : rideIdeaText(draft) }, isRc ? 'SEND TO THE ROAD CAPTAIN' : 'SEND TO THE PRESIDENT');

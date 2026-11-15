@@ -39,6 +39,8 @@ export const GLOSSARY: GlossaryGroup[] = [
       { term: 'Monthly chapter meeting', meaning: 'Each chapter holds its own meeting every month.' },
       { term: 'Annual Chapter Meeting', meaning: 'Each chapter’s own AGM.' },
       { term: 'Association AGM', meaning: 'The one combined AGM for the whole club, held at an overnighter.' },
+      { term: 'Acting', meaning: 'Doing a role until a set date: in an empty seat, or covering a holder who is away.' },
+      { term: 'Cover', meaning: 'A board member doing an away holder’s duties until a date. The holder keeps the seat and board vote.' },
     ],
   },
 ];

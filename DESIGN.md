@@ -217,8 +217,17 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
   - Bone outline: Introduced, Legacy and roles.
   - Steel: Supporter and Family.
   - OK, Warn and Danger: states.
+- **Role chips** carry the short form ("TREAS", "SAA (WEST)"). An acting seat spells itself out instead, "ACTING TREASURER (NORTH)" (`chipLabel`), so a stint never reads as a full term; a long one wraps inside the chip rather than running off the card. A covered holder's chip is unchanged.
 - **Ride chips** use the ride key colours.
 - **Filter chips** on the Rides tab work as toggles at least 44 tall. When on, a chip fills with its colour and shows a tick. When off, it's outlined with a colour square.
+
+### Acting titles
+Someone acting in a role, until a date, always shows as acting, in the stencil like every title. Acting and full titles never merge, even for the same role.
+- **Short form** (lists, buttons that act on one seat): "Acting Treasurer (North)". The covered holder keeps their own title, "President (North)", unchanged.
+- **Long form** (member detail, Me, the Treasurer's Report "Prepared by", the assistant): "Acting Treasurer (North) until 13/12/2026", the until date being the last acting day, DD/MM/YYYY.
+- **Chip form:** "ACTING TREASURER (NORTH)" (see Chips).
+- **NEC list:** one row per chapter, for whoever casts its vote: "Smokey, President (North)", "Jet, Acting President (North), for Smokey until 13/12/2026", or "Jet, Acting President (North) until 13/12/2026" for an empty seat.
+- **Home header:** the until date goes on a line of its own under the title ("until 13/12/2026"), so the title never wraps to three lines at 390 wide.
 
 ### Cards / Containers
 - **Cards:** raised ink with a hairline border, 8 corners and 16 padding, and no shadow. A card is never nested inside another card.

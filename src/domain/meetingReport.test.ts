@@ -177,3 +177,17 @@ test('who prepared it', () => {
   assert.equal(preparedBy('m-sparks', both), 'Lisa Romano, Treasurer, West and North Chapters');
   assert.equal(preparedBy(null, data), 'the Treasurer');
 });
+
+test('who prepared it reads held seats: a covered Treasurer keeps the title, an Acting one gives the long form', () => {
+  const covered = {
+    ...data,
+    positions: [...data.positions, { id: 'p-cover', memberId: 'm-torque', chapterId: 'ch-west', role: 'treasurer' as const, startedOn: '2026-10-20', endedOn: null, actingUntil: '2026-12-13', covers: 'p-5', actingWhy: 'Sparks away' }],
+  };
+  assert.equal(preparedBy('m-sparks', covered), 'Lisa Romano, Treasurer, West Chapter');
+  const acting = {
+    ...data,
+    positions: [...data.positions, { id: 'p-19', memberId: 'm-crank', chapterId: 'ch-north', role: 'treasurer' as const, startedOn: '2026-10-01', endedOn: null, actingUntil: '2026-12-13', actingWhy: 'No Treasurer since the ACM' }],
+  };
+  assert.equal(preparedBy('m-crank', acting), 'Craig Morrison, Acting Treasurer (North) until 13/12/2026');
+  assert.equal(preparedBy('m-sparks', acting), 'Lisa Romano, Treasurer, West Chapter', 'another chapter’s acting row changes nothing');
+});

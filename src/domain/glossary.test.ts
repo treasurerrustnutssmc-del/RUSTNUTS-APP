@@ -39,3 +39,9 @@ test('the Rides legend explains the two ride colours people ask about, using the
   assert.match(legend, /Another club’s ride that we support/);
   assert.match(legend, /A ride organised by someone else/);
 });
+
+test('acting and cover are explained, in the club’s words', () => {
+  const meaning = (term: string) => entries.find((e) => e.term === term)?.meaning;
+  assert.equal(meaning('Acting'), 'Doing a role until a set date: in an empty seat, or covering a holder who is away.');
+  assert.equal(meaning('Cover'), 'A board member doing an away holder’s duties until a date. The holder keeps the seat and board vote.');
+});

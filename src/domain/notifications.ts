@@ -1,8 +1,13 @@
-// Which notifications a member gets. Ride reminders are set on the phone itself, so the club sends
-// nothing; the rest come as pushes once the app launches (part 3b).
+// Which notifications a member gets. Ride and acting reminders are set on the phone itself, so the
+// club sends nothing; the rest come as pushes once the app launches (part 3b).
 
+import { heldRows, isActing } from './acting';
+import { addDays, formatAuDate } from './dates';
+import { longSeatTitle, seatTitle } from './home';
+import { ROLE_LABEL } from './labels';
+import { displayName } from './profile';
 import { melbourneDate, melbourneTime } from './rides';
-import type { NotificationPrefs, Ride, RideCall, Rsvp } from './types';
+import type { ClubData, NotificationPrefs, Position, Ride, RideCall, Rsvp } from './types';
 
 export const DEFAULT_PREFS: NotificationPrefs = { rideReminders: true, rideChanges: true, newRides: false, approvals: true, revSound: true, chatMessages: true };
 
@@ -124,9 +129,10 @@ export function foregroundPlan(
 
 /** A reminder the phone should have scheduled. */
 export interface Reminder {
-  /** "ride-<ride id>": one per ride, so a moved ride replaces its reminder. */
+  /** "ride-<ride id>": one per ride, so a moved ride replaces its reminder. "acting-<position id>-7" and "-1" for a stint. */
   id: string;
-  rideId: string;
+  /** The ride it's about; acting reminders have none. */
+  rideId?: string;
   at: string;
   title: string;
   body: string;
@@ -139,15 +145,19 @@ export interface Reminder {
 const MAX_REMINDERS = 30;
 const HOUR = 3_600_000;
 
-/** 7:00 am Melbourne time on the day an instant falls on (Melbourne), daylight saving or not. */
-function sevenAm(startsAt: string): number {
-  const day = melbourneDate(startsAt);
+/** A whole hour, Melbourne time ('7:00 am'), on a Melbourne date, daylight saving or not; null if the day skips it. */
+function melbourneHour(day: string, clock: string): number | null {
   const base = Date.parse(`${day}T00:00:00Z`) - 14 * HOUR;
   for (let t = base; t < base + 28 * HOUR; t += HOUR) {
     const iso = new Date(t).toISOString();
-    if (melbourneDate(iso) === day && melbourneTime(iso) === '7:00 am') return t;
+    if (melbourneDate(iso) === day && melbourneTime(iso) === clock) return t;
   }
-  return Date.parse(startsAt) + 7 * HOUR;
+  return null;
+}
+
+/** 7:00 am Melbourne time on the day an instant falls on (Melbourne), daylight saving or not. */
+function sevenAm(startsAt: string): number {
+  return melbourneHour(melbourneDate(startsAt), '7:00 am') ?? Date.parse(startsAt) + 7 * HOUR;
 }
 
 /** Reminders for rides this member is going to: 2 hours before, or 7 am on an all-day ride's first day. */
@@ -183,6 +193,45 @@ export function reminderPlan(
     .filter((r) => Date.parse(r.at) > nowMs)
     .sort((a, b) => a.at.localeCompare(b.at))
     .slice(0, MAX_REMINDERS);
+}
+
+/** The two acting reminders: a week and a day before the until date, at 9 am Melbourne time. */
+const ACTING_REMINDERS: { days: number; title: string }[] = [
+  { days: 7, title: 'Acting ends in a week' },
+  { days: 1, title: 'Acting ends tomorrow' },
+];
+
+/**
+ * Reminders for a stint ending: the acting person's own ("You’re Acting Treasurer (North) until
+ * 13/12/2026.") and, for a cover, the away holder's ("Jet is acting as President (North) until
+ * 13/12/2026. You take the seat back on 14/12/2026."). Board members see the Board tab's line
+ * instead. Past times are left out. Expects settled data.
+ */
+export function actingReminderPlan(meId: string | null, data: ClubData, now: string, prefs: NotificationPrefs = DEFAULT_PREFS): Reminder[] {
+  if (!meId) return [];
+  const held = heldRows(data.positions);
+  const nowMs = Date.parse(now);
+  const { channelId, sound } = soundFor('club', prefs.revSound);
+  const bodyFor = (stint: Position): string | null => {
+    if (stint.memberId === meId) return `You’re ${longSeatTitle(stint, data.chapters)}.`;
+    const seat = stint.covers ? held.find((p) => p.id === stint.covers && p.memberId === meId) : undefined;
+    if (!seat) return null;
+    const standIn = data.members.find((m) => m.id === stint.memberId);
+    const back = formatAuDate(addDays(stint.actingUntil!, 1));
+    return `${standIn ? displayName(standIn) : 'Someone'} is acting as ${seatTitle(seat, data.chapters, ROLE_LABEL)} until ${formatAuDate(stint.actingUntil)}. You take the seat back on ${back}.`;
+  };
+  return held
+    .filter(isActing)
+    .flatMap((stint) => {
+      const body = bodyFor(stint);
+      if (!body) return [];
+      return ACTING_REMINDERS.flatMap(({ days, title }): Reminder[] => {
+        const at = melbourneHour(addDays(stint.actingUntil!, -days), '9:00 am');
+        return at === null ? [] : [{ id: `acting-${stint.id}-${days}`, at: new Date(at).toISOString(), title, body, channelId, sound }];
+      });
+    })
+    .filter((r) => Date.parse(r.at) > nowMs)
+    .sort((a, b) => a.at.localeCompare(b.at));
 }
 
 /** What the phone should schedule and cancel to match the plan. A reminder whose time, text or sound

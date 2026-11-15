@@ -32,3 +32,11 @@ test('a term is running, ending within 60 days, or ended', () => {
   assert.equal(termState({ ...p, endedOn: '2027-01-01' }, '2028-10-21'), null);
   assert.equal(termState(pos('founder', '2019-01-01'), '2030-01-01'), null);
 });
+
+test('an acting stint ends on its until date, not two years on', () => {
+  const stint = pos('treasurer', '2026-11-15', { chapterId: 'north', actingUntil: '2026-12-13', actingWhy: 'No Treasurer since the ACM' });
+  assert.equal(termEndsOn(stint), '2026-12-13');
+  assert.equal(termState(stint, '2026-11-15'), 'ending');
+  assert.equal(termState(stint, '2026-12-14'), 'ended', 'read before it settles');
+  assert.equal(termState({ ...stint, endedOn: '2026-12-14', endedReason: 'lapsed' }, '2026-12-14'), null, 'settled: ended');
+});

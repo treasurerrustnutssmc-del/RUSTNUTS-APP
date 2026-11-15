@@ -800,12 +800,17 @@ export function actingCap(chapterId: string, role: PositionRole, cover: boolean,
   return acm === null ? addMonths(start, 6) : earlier(acm, addMonths(start, 12));
 }
 
+/** The ACM that caps an empty board seat's run, for a stint starting on `startedOn`: its date, or null with none saved. */
+export function actingRunAcm(chapterId: string, role: PositionRole, startedOn: string, data: ClubData): string | null {
+  return isBoardRole(role) ? runAcm(chapterId, runStart(chapterId, role, startedOn, data.positions), data) : null;
+}
+
 /** The until date offered first: four weeks for a cover, the run's ACM or three months otherwise, within the cap. */
 export function actingDefaultUntil(chapterId: string, role: PositionRole, cover: boolean, startedOn: string, data: ClubData): string {
   const cap = actingCap(chapterId, role, cover, startedOn, data);
   const pick = cover
     ? addDays(startedOn, 28)
-    : (isBoardRole(role) ? runAcm(chapterId, runStart(chapterId, role, startedOn, data.positions), data) : null) ?? addMonths(startedOn, 3);
+    : actingRunAcm(chapterId, role, startedOn, data) ?? addMonths(startedOn, 3);
   return earlier(pick, cap);
 }
 

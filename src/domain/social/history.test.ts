@@ -199,3 +199,13 @@ test('edge cases: emoji count as one, leap days, year one, keeping a member who 
   assert.equal(honourProblem(boss, honourIn({ id: 'h1', memberId: 'gone' }), honours, [boss], positions, today), null);
   assert.equal(honourProblem(boss, honourIn({ id: 'h1', memberId: 'ghost' }), honours, [boss], positions, today), NO_SUCH_MEMBER);
 });
+
+test('the hall of fame leaves acting stints out, ended or not', () => {
+  const members = [boss, member({ id: 'ann', fullName: 'Ann' })];
+  const ps: Position[] = [
+    pos('n1', 'boss', 'president', 'ch-west', '2019-03-09', '2023-08-19'),
+    { ...pos('a1', 'ann', 'treasurer', 'ch-west', '2026-01-01', '2026-03-01'), actingUntil: '2026-02-28', endedReason: 'lapsed' },
+    { ...pos('a2', 'ann', 'vice_president', 'ch-west', '2026-04-01', '2026-05-01'), actingUntil: '2026-06-30', endedReason: 'stepped_down' },
+  ];
+  assert.deepEqual(pastOfficeHolders(members, ps).map((g) => g.role), ['president']);
+});

@@ -338,8 +338,9 @@ export function StatusChip({ status }: { status: MemberStatus }) {
   return <Chip label={STATUS_LABEL[status]} tone={statusTone[status]} />;
 }
 
-export function RoleChip({ role }: { role: PositionRole }) {
-  return <Chip label={ROLE_SHORT[role]} tone="bone" />;
+/** A role's chip: the short form ("TREAS"), or the words given, as chipLabel(position, chapters) gives an acting seat ("ACTING TREASURER (NORTH)"). */
+export function RoleChip({ role, label }: { role: PositionRole; label?: string }) {
+  return <Chip label={label ?? ROLE_SHORT[role]} tone="bone" />;
 }
 
 export function Avatar({ text, size = 44 }: { text: string; size?: number }) {
