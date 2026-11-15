@@ -255,6 +255,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
               subtitle={`${boardAlerts.filter((a) => a.state === 'expired').length} expired, ${boardAlerts.filter((a) => a.state === 'soon').length} due within 30 days`}
               onPress={() => navigation.navigate('Board')}
               last
+              lines="all"
             />
           ) : null}
         </Card>
@@ -269,6 +270,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
             subtitle={business.summary}
             onPress={() => navigation.navigate('Business')}
             last
+            lines="all"
           />
         </Card>
       ) : null}

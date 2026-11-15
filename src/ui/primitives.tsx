@@ -589,6 +589,7 @@ export function ListRow({
   right,
   onPress,
   last,
+  lines = 2,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -596,13 +597,16 @@ export function ListRow({
   right?: React.ReactNode;
   onPress?: () => void;
   last?: boolean;
+  /** Most lines a string title or subtitle may take before it is cut short; 'all' never cuts it. */
+  lines?: number | 'all';
 }) {
+  const clamp = lines === 'all' ? undefined : lines;
   const content = (
     <>
       {left}
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-        {typeof title === 'string' ? <Text numberOfLines={2} style={type.name}>{title}</Text> : title}
-        {typeof subtitle === 'string' ? <Small numberOfLines={2}>{subtitle}</Small> : subtitle}
+        {typeof title === 'string' ? <Text numberOfLines={clamp} style={type.name}>{title}</Text> : title}
+        {typeof subtitle === 'string' ? <Small numberOfLines={clamp}>{subtitle}</Small> : subtitle}
       </View>
       {right}
       {onPress ? <Ionicons name="chevron-forward" size={18} color={colors.boneMute} /> : null}
