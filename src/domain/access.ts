@@ -2,13 +2,13 @@
 // (row-level security in supabase/migrations), so the app can never show
 // more than the server would hand over.
 
-import { clubwidePositions, dutyPositions, heldPositions, isActing } from './acting';
+import { clubwidePositions, coverOf, dutyPositions, heldPositions, heldRows, isActing, isEnded, settleActing } from './acting';
 import { BOARD_ROLES, NATIONAL_ROLES, TITLE_ROLES } from './labels';
-import { addMonths } from './profile';
+import { addMonths, displayName } from './profile';
 import { melbourneDate } from './rides';
-import { addDays } from './dates';
+import { addDays, formatAuDate } from './dates';
 import { termState } from './terms';
-import type { ClubData, Member, MemberStatus, NecSeatRole, Position, PositionRole, StatusNotice } from './types';
+import type { ActingRequest, ClubData, Electorate, Member, MemberStatus, NecSeatRole, Position, PositionRole, StatusNotice, Threshold, Vote } from './types';
 
 export type AccessLevel = 'public' | 'pending' | 'family' | 'member' | 'board' | 'national';
 
@@ -189,17 +189,26 @@ export function isChairman(memberId: string, positions: Position[]): boolean {
 const CHAIR_BY_VOTE = 'The National Chairman changes after the vote, and the club’s admin records it.';
 const HONOUR_BY_ADMIN = 'Founder is an honour the club’s admin records.';
 
+const NOT_CHAPTER_MEMBER = 'They’re not a member of that chapter.';
+const ALREADY_HOLDS = 'They already hold that role.';
+const TERM_ENDED = 'That term has already ended.';
+const BOARD_ENDS_THIS = 'Only that chapter’s board can end this term.';
+
 /**
  * Why `me` can't appoint `target` to `role`, or null when they can. The database's
- * appoint_position action applies exactly the same rules.
+ * appoint_position action applies exactly the same rules, after its lazy close: so a stint past
+ * its date leaves the seat free. Over acting: electing the acting person ends their empty-seat
+ * acting there (`replaced`), and anyone else waits for it to end (9.8); a cover is no holder, but
+ * the seat it covers is; chair and books stay apart only against an acting row, so no sitting
+ * holder changes (17.6). `today` is the Melbourne date.
  */
 export function appointProblem(
   me: Member | null,
   target: Member,
   chapterId: string | null,
   role: PositionRole,
-  data: ClubData,
-  today: string = melbourneDate(new Date().toISOString()),
+  raw: ClubData,
+  today: string,
 ): string | null {
   if (!me) return 'Sign in first.';
   if (me.approval !== 'approved') return 'Only approved members can do that.';
@@ -207,24 +216,37 @@ export function appointProblem(
   if (me.id === target.id) return 'You can’t appoint yourself.';
   if (target.approval !== 'approved') return 'Approve them first.';
   if (target.status === 'legacy') return 'Legacy members don’t hold positions.';
+  const data = settleActing(raw, today);
   const national = NATIONAL_ROLES.includes(role);
   const seatChapter = national ? null : chapterId;
   if (national) {
     if (role === 'nec_chair') return CHAIR_BY_VOTE;
     if (!isChairman(me.id, data.positions)) return 'Only the National Chairman hands out national roles.';
   } else {
-    if (!seatChapter || seatChapter !== target.chapterId) return 'They’re not a member of that chapter.';
+    if (!seatChapter || seatChapter !== target.chapterId) return NOT_CHAPTER_MEMBER;
     if (role === 'president') {
       if (!isNecOfficer(me.id, data.positions)) return 'Only the National Chairman or Secretary can seat a President.';
     } else if (!isBoardOf(me, seatChapter, data.positions)) {
       return 'Only that chapter’s board can appoint here.';
     }
+    if (auditorStaysOut(me, role, data.positions)) return AUDITOR_STAYS_OUT;
   }
   const unfit = holdProblem(target, role, data.positions);
   if (unfit) return unfit;
-  const open = data.positions.filter((p) => p.endedOn === null && p.role === role && p.chapterId === seatChapter);
-  if (open.some((p) => p.memberId === target.id)) return 'They already hold that role.';
-  if ((BOARD_ROLES.includes(role) || national) && open.length > 0) return 'That seat is taken. End the current term first.';
+  const open = heldRows(data.positions).filter((p) => p.role === role && p.chapterId === seatChapter);
+  const emptySeatActing = (p: Position) => isActing(p) && p.covers == null;
+  if (open.some((p) => p.memberId === target.id && !emptySeatActing(p))) return ALREADY_HOLDS;
+  if ((BOARD_ROLES.includes(role) || national) && open.some((p) => !isActing(p))) return 'That seat is taken. End the current term first.';
+  if (seatChapter !== null) {
+    const actingHere = heldPositions(target.id, data.positions).filter((p) => p.chapterId === seatChapter && isActing(p));
+    if (role === 'treasurer' && actingHere.some((p) => p.role === 'president')) return CHAIR_NOT_BOOKS;
+    if (role === 'president' && actingHere.some((p) => p.role === 'treasurer')) return BOOKS_NOT_CHAIR;
+  }
+  if (BOARD_ROLES.includes(role) && seatChapter !== null) {
+    if (open.some((p) => emptySeatActing(p) && p.memberId !== target.id)) return REPLACE_NEEDS_END;
+    // On a board seat only acting has the board-majority shape, so this is a vote that ended their acting.
+    if (carriedVoteOn(target.id, seatChapter, role, [END_ACTING_SHAPE], data, today)) return ENDED_BY_VOTE;
+  }
   // The Auditor (11.8) and the Secretary (11.6) are seated after a carried two-thirds NEC vote about them.
   if (isNecSeat(role) && !hasCarriedSeatVote(target.id, role, data, today)) return seatNeedsVote(role);
   return null;
@@ -312,19 +334,23 @@ function holdProblem(target: Member, role: PositionRole, positions: Position[]):
 export function appointWarnings(target: Member, role: PositionRole, data: ClubData, today: string): string[] {
   if (!BOARD_ROLES.includes(role)) return [];
   const warnings: string[] = [];
-  if (target.patchedOn !== null && addMonths(target.patchedOn, 24) > today) {
-    warnings.push('Board nominees need two years as a Full Member, unless the NEC waived it or they’re a founding officer (9.1).');
-  }
-  if (role === 'president' || role === 'vice_president') {
-    const servedTerm = data.positions.some(
-      (p) => p.memberId === target.id && p.role !== role && BOARD_ROLES.includes(p.role) && !isActing(p)
-        && addMonths(p.startedOn, 24) <= (p.endedOn ?? today),
-    );
-    if (!servedTerm) {
-      warnings.push('A President or Vice President should have served a full term in another board seat, unless they’re a founding officer or the NEC gave an exemption (9.4).');
-    }
-  }
+  if (twoYearsShort(target, today)) warnings.push(BOARD_TWO_YEARS);
+  if ((role === 'president' || role === 'vice_president') && !servedTerm(target.id, role, data, today)) warnings.push(SERVED_TERM_FIRST);
   return warnings;
+}
+
+export const BOARD_TWO_YEARS = 'Board nominees need two years as a Full Member, unless the NEC waived it or they’re a founding officer (9.1).';
+export const SERVED_TERM_FIRST = 'A President or Vice President should have served a full term in another board seat, unless they’re a founding officer or the NEC gave an exemption (9.4).';
+
+/** Under two years as a Full Member (9.1). */
+const twoYearsShort = (target: Member, today: string): boolean => target.patchedOn !== null && addMonths(target.patchedOn, 24) > today;
+
+/** A full term (two years) in another board seat (9.4). A stint isn't a term. */
+function servedTerm(memberId: string, role: PositionRole, data: ClubData, today: string): boolean {
+  return data.positions.some(
+    (p) => p.memberId === memberId && p.role !== role && BOARD_ROLES.includes(p.role) && !isActing(p)
+      && addMonths(p.startedOn, 24) <= (p.endedOn ?? today),
+  );
 }
 
 /**
@@ -420,34 +446,64 @@ export const BOARD_SEAT_NEEDS_VOTE = 'Removing a board member needs a carried tw
 export const PRESIDENT_NEEDS_VOTE = 'Removing a President needs a carried two-thirds vote of the chapter’s Full Members in the last 90 days (9.3).';
 export const PRESIDENT_ENDED_BY = 'Only that chapter’s board or the National Chairman or Secretary can end a President’s term.';
 
+type VoteShape = { electorate: Electorate; threshold: Threshold };
+/** The shape 9.3 gives a removal from this role: two-thirds of the Full Members for a board seat, a board majority otherwise. */
+const removalShapeOf = (role: PositionRole): VoteShape =>
+  BOARD_ROLES.includes(role) ? { electorate: 'chapter_patched', threshold: 'two_thirds' } : { electorate: 'chapter_board', threshold: 'majority' };
+/** Ending someone's acting: a majority of the chapter board, the shape 9.3 gives a Non-Board removal. */
+const END_ACTING_SHAPE: VoteShape = { electorate: 'chapter_board', threshold: 'majority' };
+
+/**
+ * A carried chapter vote in the last 90 days naming this member and role there, in one of these
+ * shapes, that isn't an acting vote (one that seats acting never ends it).
+ */
+function carriedVoteOn(
+  memberId: string, chapterId: string, role: PositionRole, shapes: VoteShape[], data: ClubData, today: string, since = '',
+): Vote | undefined {
+  const from = addDays(today, -REMOVAL_VOTE_DAYS);
+  return (data.votes ?? []).find(
+    (v) => v.subjectMemberId === memberId && v.subjectRole === role && v.chapterId === chapterId && (v.actingRequestId ?? null) === null
+      && shapes.some((s) => s.electorate === v.electorate && s.threshold === v.threshold)
+      && v.closedAt !== null && v.result === 'carried' && melbourneDate(v.closedAt) >= from && melbourneDate(v.closedAt) >= since,
+  );
+}
+
 /**
  * The chapter voted, in the last 90 days and since this term began, to remove its holder (9.3): the
  * chapter's vote naming the holder and the role, in the shape the role takes (two-thirds of the
- * chapter's Full Members for a board seat, a board majority otherwise). Mirrors private.has_carried_removal_vote.
+ * chapter's Full Members for a board seat, a board majority otherwise), never an acting vote. An
+ * acting row also takes a board majority (ending someone's acting); a 9.3 vote counts against it
+ * too, so a holder facing one can't step down, be recorded acting and outlast it.
+ * Mirrors private.has_carried_removal_vote.
  */
 export function hasCarriedRemovalVote(position: Position, data: ClubData, today: string): boolean {
-  const since = addDays(today, -REMOVAL_VOTE_DAYS);
-  const boardSeat = BOARD_ROLES.includes(position.role);
-  return (data.votes ?? []).some(
-    (v) => v.subjectMemberId === position.memberId && v.subjectRole === position.role && v.chapterId === position.chapterId
-      && v.electorate === (boardSeat ? 'chapter_patched' : 'chapter_board') && v.threshold === (boardSeat ? 'two_thirds' : 'majority')
-      && v.closedAt !== null && v.result === 'carried'
-      && melbourneDate(v.closedAt) >= since && melbourneDate(v.closedAt) >= position.startedOn,
-  );
+  if (position.chapterId === null) return false;
+  const shapes = isActing(position) ? [removalShapeOf(position.role), END_ACTING_SHAPE] : [removalShapeOf(position.role)];
+  return carriedVoteOn(position.memberId, position.chapterId, position.role, shapes, data, today, position.startedOn) !== undefined;
 }
 
 /**
  * Why `me` can't end this term, or null when they can. Mirrors the database's end_position. Anyone
  * steps down from their own role. Ending someone else's chapter term follows a carried removal vote
  * (9.3), recorded by the chapter board (for a President, an NEC officer can too); national seats
- * stay the Chairman's to end. `today` is the Melbourne date.
+ * stay the Chairman's to end. A stint: the acting person steps down, the covered holder says "I'm
+ * back", and anyone else on the chapter's board needs a carried board-majority vote (NEC officers
+ * have no part). A stint past its date has already ended. `today` is the Melbourne date.
  */
 export function endTermProblem(me: Member | null, position: Position, data: ClubData, today: string): string | null {
   if (!me) return 'Sign in first.';
   // Your own seat needs no standing to step down from, so a suspended office holder isn't stuck
   // (ChatGPT audit F10); ending anyone else's does.
   if (position.memberId !== me.id && me.approval !== 'approved') return 'Only approved members can do that.';
-  if (position.endedOn !== null) return 'That term has already ended.';
+  if (isEnded(position) || (isActing(position) && position.actingUntil! < today)) return TERM_ENDED;
+  if (isActing(position) && position.chapterId !== null) {
+    if (position.memberId === me.id) return null;
+    const covered = position.covers ? data.positions.find((p) => p.id === position.covers) : undefined;
+    if (covered?.memberId === me.id) return null;
+    if (!isBoardOf(me, position.chapterId, data.positions)) return BOARD_ENDS_THIS;
+    if (auditorStaysOut(me, position.role, data.positions)) return AUDITOR_STAYS_OUT;
+    return hasCarriedRemovalVote(position, data, today) ? null : ACTING_END_NEEDS_VOTE;
+  }
   if (TITLE_ROLES.includes(position.role)) return HONOUR_BY_ADMIN;
   if (position.role === 'nec_chair') return CHAIR_BY_VOTE;
   if (position.memberId === me.id) return null;
@@ -458,7 +514,7 @@ export function endTermProblem(me: Member | null, position: Position, data: Club
     if (!isBoardOf(me, position.chapterId, data.positions) && !isNecOfficer(me.id, data.positions)) return PRESIDENT_ENDED_BY;
     return hasCarriedRemovalVote(position, data, today) ? null : PRESIDENT_NEEDS_VOTE;
   }
-  if (!isBoardOf(me, position.chapterId, data.positions)) return 'Only that chapter’s board can end this term.';
+  if (!isBoardOf(me, position.chapterId, data.positions)) return BOARD_ENDS_THIS;
   if (hasCarriedRemovalVote(position, data, today)) return null;
   return BOARD_ROLES.includes(position.role) ? BOARD_SEAT_NEEDS_VOTE : ROLE_NEEDS_VOTE;
 }
@@ -508,4 +564,456 @@ export function restoreAccessProblem(me: Member | null, target: Member | undefin
   if (!isBoardOf(me, target.chapterId, positions)) return NOT_MEMBER_BOARD;
   if (target.approval !== 'suspended') return NOT_SUSPENDED;
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Acting in a role, until a date (docs/superpowers/specs/2026-11-15-acting-roles-design.md).
+// Each check mirrors the database's acting RPCs (supabase/migrations/20270870000000_acting_roles.sql
+// §4) in the same order and words: 1 signed in and approved; 2 the caller's standing; 3 the
+// Auditor stays out; 4 a board big enough to decide, then whether it needs a vote at all; 5
+// actingProblem; 6 the vote rule; 7 the why; 8 the until date. Each route settles first, as each
+// RPC runs the lazy close first.
+// ---------------------------------------------------------------------------
+
+export const ACTING_CHAPTER_ONLY = 'Acting is for chapter roles, not national seats or honours.';
+export const SEAT_HAS_HOLDER = 'That seat has a holder. Arrange a cover instead.';
+export const SEAT_HAS_ACTING = 'Someone is already acting in that seat, or a request is waiting.';
+export const ONE_STINT = 'They’re already acting in a role. One stint at a time.';
+export const OWN_SEAT_COVERED = 'Their own seat is covered, so they can’t act for anyone.';
+export const CHAIR_NOT_BOOKS = 'An Acting President can’t also keep the chapter’s books (9.5).';
+export const BOOKS_NOT_CHAIR = 'An Acting Treasurer can’t also be the chapter’s President (9.5).';
+export const HIATUS_NO_LEAD = 'Members on hiatus can’t lead rides.';
+export const COVER_BOARD_SEATS = 'Only board seats can be covered.';
+export const COVER_FROM_BOARD = 'A cover goes to someone already on that chapter’s board.';
+export const PRESIDENT_NEEDS_BOARD_VOTE = 'Anyone but the sitting VP needs a carried board vote to act as President (8.2, 9.8).';
+export const ENDED_BY_VOTE = 'A carried vote ended their time in this seat in the last 90 days. Acting there again needs a new board vote.';
+export const WHY_NEEDED = 'Say why, in 120 characters or fewer.';
+export const untilRange = (cap: string): string => `Pick an until date from today to ${formatAuDate(cap)}.`;
+export const RUN_OVER = 'Acting in this seat has reached its limit (its ACM, or six or twelve months), so it can’t start or run longer. Seat someone in full (9.2, 9.8).';
+export const ASKED_RECENTLY = 'The board voted down your request for this seat in the last 28 days.';
+export const SMALL_BOARD = 'Too few board members outside this can decide it in the app. Refer it to the NEC (8.6).';
+export const LICENCE_ENDS = 'Their recorded licence ends before the until date (9.7).';
+export const RECORD_INSTEAD = 'This doesn’t need a vote. Record it as acting, or ask for cover from your own seat.';
+export const REPLACE_NEEDS_END = 'Someone is acting in that seat. They step down first, or a carried board vote ends their acting.';
+export const AUDITOR_STAYS_OUT = 'The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).';
+export const BOARD_RECORDS_ACTING = 'Only that chapter’s board can record acting here.';
+export const NOT_YOURSELF = 'You can’t record yourself as acting.';
+export const OWN_SEAT_ONLY = 'You can only ask for cover of your own board seat.';
+export const NO_REQUEST = 'That request isn’t open.';
+export const CONFIRM_NOT_STANDIN = 'The stand-in can’t confirm their own acting.';
+export const CONFIRM_NOT_HOLDER = 'A third board member confirms the cover you asked for (9.5).';
+export const NEEDS_ACTING_VOTE = 'This needs a carried board vote on the request in the last 90 days.';
+export const SEAT_ENDED = 'The seat they asked to cover has ended.';
+export const WITHDRAW_WHO = 'Only the stand-in or the holder can withdraw this, or the person who asked before a vote on it opens.';
+export const NOT_ACTING = 'That isn’t an acting seat.';
+export const UNTIL_NOT_PAST = 'Pick today or later. To end it now, step down.';
+export const EARLIER_WHO = 'Only the acting person or the holder can bring the date forward.';
+export const LATER_WHO_EMPTY = 'Only another board member can give this more time.';
+export const laterWhoCover = (holder: string): string => `Only ${holder} can keep this cover going longer.`;
+export const VOTED_NEEDS_NEW_VOTE = 'The board voted for this stint, so it needs a new vote to run longer.';
+export const ACTING_END_NEEDS_VOTE = 'Ending someone’s acting needs a carried majority vote of the chapter board in the last 90 days (9.3).';
+
+// Warnings: rules the app can't see the whole of, shown on the confirm rather than refused.
+export const ACTING_FAMILY = 'Immediate family can’t sit on the same board, including the person they cover, without a two-thirds written exemption (9.6).';
+export const ACTING_LICENCE_VACANCY = 'If their licence is suspended or cancelled, their seat is vacant (9.7). The app can’t record that yet: they step down, then the board fills the seat.';
+export const ACTING_COMBINED = 'A small chapter may combine duties for a while where it’s necessary, with the reason recorded (9.5).';
+const shortDate = (iso: string) => formatAuDate(iso).slice(0, 5);
+/** The stand-in leads a ride the stint ends during: `day` is the ride's, `pick` the first until that covers it. */
+export const actingRideWarning = (name: string, day: string, pick: string): string =>
+  `${name} leads the ${shortDate(day)} run. Acting ends that night. Pick ${shortDate(pick)} or later.`;
+/** A voted President cover leaves the chapter's uncast NEC ballots without a voter while it runs (11.2, 11.5). */
+export const necBallotsWait = (chapter: string, n: number): string =>
+  `${chapter} can’t cast its ballot on ${n} open NEC vote${n === 1 ? '' : 's'} while this runs, so they may close without quorum (11.2, 11.5).`;
+
+/** How long a carried acting vote stays good for confirming, as for the other votes about members. */
+export const ACTING_VOTE_DAYS = 90;
+/** How long a requester waits after the board voted their request for a seat down. */
+export const ASKED_AGAIN_DAYS = 28;
+/** Stints this close together share one run (and one cap). */
+export const RUN_GAP_DAYS = 28;
+export const WHY_MAX = 120;
+
+/** The roles a member on hiatus can't act in: every chapter role private.is_ride_leader counts. */
+const LEADING_ROLES: PositionRole[] = [...BOARD_ROLES, 'tail_gunner', 'assistant_tail_gunner'];
+const isBoardRole = (role: PositionRole) => BOARD_ROLES.includes(role);
+const later = (a: string, b: string) => (a > b ? a : b);
+const earlier = (a: string, b: string) => (a < b ? a : b);
+
+/** A chapter's board members: distinct approved people with a held board row there, covered or not (electors_for). */
+function boardMembers(chapterId: string, data: ClubData): string[] {
+  return data.members
+    .filter((m) => m.approval === 'approved' && m.status !== 'legacy' && holdsBoardSeat(m.id, chapterId, data.positions))
+    .map((m) => m.id)
+    .sort();
+}
+
+/** Someone with an open National Auditor seat who also sits on a board stays out of President and Treasurer seats (11.8). */
+export function auditorStaysOut(me: Member | null, role: PositionRole, positions: Position[]): boolean {
+  return !!me && (role === 'president' || role === 'treasurer') && heldPositions(me.id, positions).some((p) => p.role === 'nec_auditor');
+}
+
+/**
+ * The sitting VP of a chapter: a held VP row that isn't acting (8.2). For an empty President seat
+ * it has to have started before the seat's last full President row ended, so nobody is seated VP
+ * and then made Acting President without a vote.
+ */
+function isSittingVp(memberId: string, chapterId: string, positions: Position[]): boolean {
+  const vp = heldPositions(memberId, positions).filter((p) => p.chapterId === chapterId && p.role === 'vice_president' && !isActing(p));
+  if (vp.length === 0) return false;
+  const presidents = positions.filter((p) => p.chapterId === chapterId && p.role === 'president' && !isActing(p));
+  if (presidents.some((p) => !isEnded(p))) return true;
+  const fellEmpty = presidents.reduce((max, p) => later(max, p.endedOn ?? ''), '');
+  return fellEmpty !== '' && vp.some((p) => p.startedOn < fellEmpty);
+}
+
+/** A carried vote ended their time in this seat in the last 90 days: a 9.3 removal, or one that ended their acting. */
+function endedByVote(memberId: string, chapterId: string, role: PositionRole, data: ClubData, today: string): boolean {
+  return carriedVoteOn(memberId, chapterId, role, [removalShapeOf(role), END_ACTING_SHAPE], data, today) !== undefined;
+}
+
+/** Step 6: ENDED_BY_VOTE, then anyone but the sitting VP as President. */
+function voteRule(memberId: string, chapterId: string, role: PositionRole, data: ClubData, today: string): string | null {
+  if (endedByVote(memberId, chapterId, role, data, today)) return ENDED_BY_VOTE;
+  if (role === 'president' && !isSittingVp(memberId, chapterId, data.positions)) return PRESIDENT_NEEDS_BOARD_VOTE;
+  return null;
+}
+
+/**
+ * Whether acting here needs a carried board vote: anyone but the sitting VP as President (8.2,
+ * 9.8), or someone a carried vote took out of this seat in the last 90 days. Mirrors private.acting_needs_vote.
+ */
+export function actingNeedsVote(memberId: string, chapterId: string, role: PositionRole, data: ClubData, today: string): boolean {
+  return voteRule(memberId, chapterId, role, data, today) !== null;
+}
+
+type RequestShape = Pick<ActingRequest, 'chapterId' | 'role' | 'memberId' | 'covers' | 'requestedBy'>;
+
+/** A request needs a vote when someone other than the holder asked for a cover, or acting there needs one. Mirrors private.request_needs_vote. */
+export function requestNeedsVote(request: RequestShape, data: ClubData, today: string): boolean {
+  if (request.covers !== null) {
+    const holder = data.positions.find((p) => p.id === request.covers)?.memberId ?? null;
+    if (request.requestedBy !== holder) return true;
+  }
+  return actingNeedsVote(request.memberId, request.chapterId, request.role, data, today);
+}
+
+/** The carried board vote naming this request, closed in the last 90 days, or null. Mirrors private.has_carried_acting_vote. */
+export function carriedActingVote(request: Pick<ActingRequest, 'id'>, data: ClubData, today: string): Vote | null {
+  const since = addDays(today, -ACTING_VOTE_DAYS);
+  return (data.votes ?? []).find(
+    (v) => v.actingRequestId === request.id && v.result === 'carried' && v.closedAt !== null && melbourneDate(v.closedAt) >= since,
+  ) ?? null;
+}
+
+/**
+ * Who votes on acting in this seat: the chapter's board members, less the stand-in, the covered
+ * holder and, for a President or Treasurer seat, the National Auditor (8.5, 11.8, 11.10). Mirrors private.acting_electors.
+ */
+export function actingElectors(chapterId: string, role: PositionRole, memberId: string, coversId: string | null, data: ClubData): string[] {
+  const holder = coversId ? data.positions.find((p) => p.id === coversId)?.memberId ?? null : null;
+  const auditors = new Set(
+    role === 'president' || role === 'treasurer' ? heldRows(data.positions).filter((p) => p.role === 'nec_auditor').map((p) => p.memberId) : [],
+  );
+  return boardMembers(chapterId, data).filter((id) => id !== memberId && id !== holder && !auditors.has(id));
+}
+
+/**
+ * Why `target` can't act in this seat until `until`, or null. Mirrors private.acting_problem. A cover
+ * (`covers`, the holder's row) needs a board seat and someone already on that chapter's board. The
+ * seat checks are for the six board seats only: a non-board role takes acting beside its holders.
+ * Expects settled data.
+ */
+export function actingProblem(
+  target: Member, chapterId: string | null, role: PositionRole, covers: Position | null, until: string, data: ClubData,
+): string | null {
+  if (chapterId === null || NATIONAL_ROLES.includes(role) || TITLE_ROLES.includes(role)) return ACTING_CHAPTER_ONLY;
+  if (target.chapterId !== chapterId) return NOT_CHAPTER_MEMBER;
+  const unfit = holdProblem(target, role, data.positions);
+  if (unfit) return unfit;
+  const mine = heldPositions(target.id, data.positions);
+  if (mine.some((p) => p.chapterId === chapterId && p.role === role)) return ALREADY_HOLDS;
+  if (isBoardRole(role)) {
+    const seat = heldRows(data.positions).filter((p) => p.chapterId === chapterId && p.role === role);
+    if (covers === null && seat.some((p) => !isActing(p))) return SEAT_HAS_HOLDER;
+    const waiting = (data.actingRequests ?? []).some((r) => r.closedAt === null && r.chapterId === chapterId && r.role === role);
+    if (waiting || seat.some(isActing)) return SEAT_HAS_ACTING;
+  }
+  if (mine.some(isActing)) return ONE_STINT;
+  if (mine.some((p) => coverOf(p, data.positions) !== null)) return OWN_SEAT_COVERED;
+  const here = mine.filter((p) => p.chapterId === chapterId);
+  if (role === 'president' && here.some((p) => p.role === 'treasurer')) return CHAIR_NOT_BOOKS;
+  if (role === 'treasurer' && here.some((p) => p.role === 'president')) return BOOKS_NOT_CHAIR;
+  if (target.onHiatus && LEADING_ROLES.includes(role)) return HIATUS_NO_LEAD;
+  const licence = data.privates.find((p) => p.memberId === target.id);
+  if (licence && (licence.licenceClass === 'learner' || (licence.licenceExpiry !== null && licence.licenceExpiry < until))) return LICENCE_ENDS;
+  if (covers !== null) {
+    if (!isBoardRole(role)) return COVER_BOARD_SEATS;
+    if (!holdsBoardSeat(target.id, chapterId, data.positions)) return COVER_FROM_BOARD;
+  }
+  return null;
+}
+
+/**
+ * Where a run of back-to-back empty-seat stints began: back from `startedOn` through the seat's
+ * stints that were open, or ended within 28 days before the next one started, after the seat's last
+ * full term ended.
+ */
+function runStart(chapterId: string, role: PositionRole, startedOn: string, positions: Position[]): string {
+  const seat = positions.filter((p) => p.chapterId === chapterId && p.role === role);
+  const lastFull = seat.filter((p) => !isActing(p)).reduce((max, p) => later(max, p.endedOn ?? ''), '');
+  const stints = seat.filter((p) => isActing(p) && p.covers == null && p.startedOn >= lastFull);
+  let start = startedOn;
+  for (;;) {
+    const chained = stints.filter((p) => p.startedOn < start && (p.endedOn === null || addDays(p.endedOn, RUN_GAP_DAYS) >= start));
+    if (chained.length === 0) return start;
+    start = chained.reduce((min, p) => earlier(min, p.startedOn), start);
+  }
+}
+
+/** The Melbourne date of the chapter's first ACM saved on or after `from`, held or to come, not cancelled. */
+function runAcm(chapterId: string, from: string, data: ClubData): string | null {
+  const days = (data.meetings ?? [])
+    .filter((m) => m.chapterId === chapterId && m.kind === 'agm' && m.cancelledAt === null)
+    .map((m) => melbourneDate(m.startsAt))
+    .filter((day) => day >= from)
+    .sort();
+  return days[0] ?? null;
+}
+
+/**
+ * The last until date a stint starting on `startedOn` may have (inferred; measured from the start,
+ * never from today). A cover: three months. A non-board role: six months. An empty board seat: the
+ * first ACM in its run (9.8, 9.2), twelve months at most, or six with no ACM saved. Mirrors private.acting_cap.
+ */
+export function actingCap(chapterId: string, role: PositionRole, cover: boolean, startedOn: string, data: ClubData): string {
+  if (cover) return addMonths(startedOn, 3);
+  if (!isBoardRole(role)) return addMonths(startedOn, 6);
+  const start = runStart(chapterId, role, startedOn, data.positions);
+  const acm = runAcm(chapterId, start, data);
+  return acm === null ? addMonths(start, 6) : earlier(acm, addMonths(start, 12));
+}
+
+/** The until date offered first: four weeks for a cover, the run's ACM or three months otherwise, within the cap. */
+export function actingDefaultUntil(chapterId: string, role: PositionRole, cover: boolean, startedOn: string, data: ClubData): string {
+  const cap = actingCap(chapterId, role, cover, startedOn, data);
+  const pick = cover
+    ? addDays(startedOn, 28)
+    : (isBoardRole(role) ? runAcm(chapterId, runStart(chapterId, role, startedOn, data.positions), data) : null) ?? addMonths(startedOn, 3);
+  return earlier(pick, cap);
+}
+
+const signInProblem = (me: Member | null): string | null =>
+  !me ? 'Sign in first.' : me.approval !== 'approved' ? 'Only approved members can do that.' : null;
+/** Step 7: a reason, 1 to 120 characters (counted as the database counts them). */
+const whyProblem = (why: string): string | null => {
+  const length = [...why.trim()].length;
+  return length < 1 || length > WHY_MAX ? WHY_NEEDED : null;
+};
+/** Step 8: a cap already behind today ends the run; otherwise today to the cap. */
+const untilProblem = (cap: string, until: string, today: string): string | null =>
+  cap < today ? RUN_OVER : until < today || until > cap ? untilRange(cap) : null;
+
+/** The board voted down a request of theirs for this seat in the last 28 days. */
+function askedRecently(memberId: string, chapterId: string, role: PositionRole, data: ClubData, today: string): boolean {
+  const since = addDays(today, -ASKED_AGAIN_DAYS);
+  return (data.actingRequests ?? []).some(
+    (r) => r.requestedBy === memberId && r.chapterId === chapterId && r.role === role && r.outcome === 'rejected'
+      && r.closedAt !== null && melbourneDate(r.closedAt) >= since,
+  );
+}
+
+/**
+ * Route 1: one board member records someone acting in an empty seat, from today. For President,
+ * only the sitting VP; anyone else goes to a board vote (route 3). Mirrors public.appoint_acting.
+ */
+export function appointActingProblem(
+  me: Member | null, target: Member, chapterId: string, role: PositionRole, until: string, why: string, raw: ClubData, today: string,
+): string | null {
+  const signedIn = signInProblem(me);
+  if (signedIn || !me) return signedIn;
+  const data = settleActing(raw, today);
+  if (!isBoardOf(me, chapterId, data.positions)) return BOARD_RECORDS_ACTING;
+  if (me.id === target.id) return NOT_YOURSELF;
+  if (auditorStaysOut(me, role, data.positions)) return AUDITOR_STAYS_OUT;
+  const unfit = actingProblem(target, chapterId, role, null, until, data);
+  if (unfit) return unfit;
+  const vote = voteRule(target.id, chapterId, role, data, today);
+  if (vote) return vote;
+  return whyProblem(why) ?? untilProblem(actingCap(chapterId, role, false, today, data), until, today);
+}
+
+/**
+ * Route 2: the away holder asks for a cover of their own board seat (`seat`). Nothing moves until
+ * a third board member confirms it. For President, the sitting VP only. Mirrors public.request_cover.
+ */
+export function requestCoverProblem(
+  me: Member | null, seat: Position, target: Member, until: string, why: string, raw: ClubData, today: string,
+): string | null {
+  const signedIn = signInProblem(me);
+  if (signedIn || !me) return signedIn;
+  const data = settleActing(raw, today);
+  const own = data.positions.find((p) => p.id === seat.id) ?? seat;
+  if (own.memberId !== me.id || isEnded(own) || isActing(own) || own.chapterId === null) return OWN_SEAT_ONLY;
+  if (auditorStaysOut(me, own.role, data.positions)) return AUDITOR_STAYS_OUT;
+  if (boardMembers(own.chapterId, data).length < 3) return SMALL_BOARD;
+  const unfit = actingProblem(target, own.chapterId, own.role, own, until, data);
+  if (unfit) return unfit;
+  const vote = voteRule(target.id, own.chapterId, own.role, data, today);
+  if (vote) return vote;
+  return whyProblem(why) ?? untilProblem(actingCap(own.chapterId, own.role, true, today, data), until, today);
+}
+
+/**
+ * Route 3: a board member who isn't the stand-in proposes acting that needs a board vote: a cover
+ * someone other than the holder asks for, or an Acting President who isn't the sitting VP.
+ * `covers` is the holder's row, or null for an empty seat. Mirrors public.request_acting.
+ */
+export function requestActingProblem(
+  me: Member | null, target: Member, chapterId: string, role: PositionRole, covers: Position | null, until: string, why: string,
+  raw: ClubData, today: string,
+): string | null {
+  const signedIn = signInProblem(me);
+  if (signedIn || !me) return signedIn;
+  const data = settleActing(raw, today);
+  if (!isBoardOf(me, chapterId, data.positions)) return BOARD_RECORDS_ACTING;
+  if (me.id === target.id) return NOT_YOURSELF;
+  if (askedRecently(me.id, chapterId, role, data, today)) return ASKED_RECENTLY;
+  if (auditorStaysOut(me, role, data.positions)) return AUDITOR_STAYS_OUT;
+  const seat = covers ? data.positions.find((p) => p.id === covers.id) ?? covers : null;
+  if (actingElectors(chapterId, role, target.id, seat?.id ?? null, data).length < 3) return SMALL_BOARD;
+  const request = { chapterId, role, memberId: target.id, covers: seat?.id ?? null, requestedBy: me.id };
+  if (!requestNeedsVote(request, data, today)) return RECORD_INSTEAD;
+  if (seat && isEnded(seat)) return SEAT_ENDED;
+  const unfit = actingProblem(target, chapterId, role, seat, until, data);
+  if (unfit) return unfit;
+  return whyProblem(why) ?? untilProblem(actingCap(chapterId, role, seat !== null, today, data), until, today);
+}
+
+/**
+ * Who closes an open request: the stand-in (declining) or the holder at any time, and the person
+ * who asked only while no vote on it is open or has carried. Mirrors public.withdraw_acting_request.
+ */
+export function withdrawRequestProblem(me: Member | null, request: ActingRequest, data: ClubData): string | null {
+  const signedIn = signInProblem(me);
+  if (signedIn || !me) return signedIn;
+  const fresh = (data.actingRequests ?? []).find((r) => r.id === request.id) ?? request;
+  if (fresh.closedAt !== null) return NO_REQUEST;
+  if (me.id === fresh.memberId) return null;
+  const holder = fresh.covers ? data.positions.find((p) => p.id === fresh.covers)?.memberId ?? null : null;
+  if (me.id === holder) return null;
+  const voted = (data.votes ?? []).some((v) => v.actingRequestId === fresh.id && (v.closedAt === null || v.result === 'carried'));
+  return me.id === fresh.requestedBy && !voted ? null : WITHDRAW_WHO;
+}
+
+/**
+ * Confirming a request seats the stint, so it re-runs every check on the request as it stands now:
+ * a board member who is neither the stand-in nor the holder, the covered seat still held, the
+ * stand-in still fit, and a carried vote on it when it needs one. Mirrors public.confirm_acting.
+ */
+export function confirmActingProblem(me: Member | null, request: ActingRequest, raw: ClubData, today: string): string | null {
+  const signedIn = signInProblem(me);
+  if (signedIn || !me) return signedIn;
+  const known = (raw.actingRequests ?? []).some((r) => r.id === request.id);
+  const data = settleActing(known ? raw : { ...raw, actingRequests: [...(raw.actingRequests ?? []), request] }, today);
+  const fresh = data.actingRequests!.find((r) => r.id === request.id)!;
+  if (fresh.closedAt !== null) return NO_REQUEST;
+  if (!isBoardOf(me, fresh.chapterId, data.positions)) return BOARD_RECORDS_ACTING;
+  if (me.id === fresh.memberId) return CONFIRM_NOT_STANDIN;
+  const seat = fresh.covers ? data.positions.find((p) => p.id === fresh.covers) ?? null : null;
+  if (seat?.memberId === me.id) return CONFIRM_NOT_HOLDER;
+  if (auditorStaysOut(me, fresh.role, data.positions)) return AUDITOR_STAYS_OUT;
+  if (fresh.covers !== null && (!seat || isEnded(seat))) return SEAT_ENDED;
+  const target = data.members.find((m) => m.id === fresh.memberId);
+  if (!target) return NO_REQUEST;
+  // The request being confirmed doesn't count as one waiting for the seat.
+  const others = { ...data, actingRequests: data.actingRequests!.filter((r) => r.id !== fresh.id) };
+  const unfit = actingProblem(target, fresh.chapterId, fresh.role, seat, fresh.until, others);
+  if (unfit) return unfit;
+  if (requestNeedsVote(fresh, data, today) && !carriedActingVote(fresh, data, today)) return NEEDS_ACTING_VOTE;
+  return whyProblem(fresh.why) ?? untilProblem(actingCap(fresh.chapterId, fresh.role, seat !== null, today, data), fresh.until, today);
+}
+
+/**
+ * Changing a stint's until date, never to before today. Earlier: the acting person, and for a cover
+ * the holder too. Later: in an empty seat, another board member; on a cover, the holder only;
+ * either way within the cap. A stint the board voted for needs a new vote to run longer, and a
+ * President stint recorded for the sitting VP runs longer only while they still are. Mirrors
+ * public.set_acting_until.
+ */
+export function setActingUntilProblem(me: Member | null, position: Position, until: string, raw: ClubData, today: string): string | null {
+  const signedIn = signInProblem(me);
+  if (signedIn || !me) return signedIn;
+  const data = settleActing(raw, today);
+  const row = data.positions.find((p) => p.id === position.id) ?? position;
+  if (!isActing(row) || row.chapterId === null) return NOT_ACTING;
+  if (isEnded(row) || row.actingUntil! < today) return TERM_ENDED;
+  const longer = until > row.actingUntil!;
+  const holderRow = row.covers ? data.positions.find((p) => p.id === row.covers) ?? null : null;
+  if (!longer) {
+    if (me.id !== row.memberId && me.id !== holderRow?.memberId) return EARLIER_WHO;
+  } else if (row.covers != null) {
+    if (me.id !== holderRow?.memberId) {
+      const holder = holderRow ? data.members.find((m) => m.id === holderRow.memberId) : undefined;
+      return laterWhoCover(holder ? displayName(holder) : 'the holder');
+    }
+  } else if (me.id === row.memberId || !isBoardOf(me, row.chapterId, data.positions)) {
+    return LATER_WHO_EMPTY;
+  }
+  if (auditorStaysOut(me, row.role, data.positions)) return AUDITOR_STAYS_OUT;
+  if (longer) {
+    if (row.actingVote != null) return VOTED_NEEDS_NEW_VOTE;
+    if (row.role === 'president') {
+      const vote = voteRule(row.memberId, row.chapterId, row.role, data, today);
+      if (vote) return vote;
+    }
+  }
+  if (until < today) return UNTIL_NOT_PAST;
+  return longer ? untilProblem(actingCap(row.chapterId, row.role, row.covers != null, row.startedOn, data), until, today) : null;
+}
+
+/** The chapter's NEC ballots on open votes that haven't been cast. */
+function uncastNecBallots(chapterId: string, data: ClubData): number {
+  return (data.votes ?? []).filter(
+    (v) => v.electorate === 'nec' && v.closedAt === null
+      && Object.entries(v.electorChapters ?? {}).some(([member, chapter]) => chapter === chapterId && !v.votedIds.includes(member)),
+  ).length;
+}
+
+/**
+ * What a stint's confirm text warns about, in this order: 9.6 on every board seat; 9.1 for an
+ * empty-seat stand-in off the board; 9.4 for an empty-seat President or VP who isn't the sitting VP;
+ * 9.7 on a cover; 9.5 for a stand-in already on the board (combining duties; a VP acting for the
+ * President does what 8.2 gives them); a ride they lead that the stint ends during; and, for a voted
+ * President cover, the chapter's uncast NEC ballots that wait while it runs (11.2). `voted` says
+ * whether the stint goes through a board vote; left out, a cover is voted when acting there needs a vote.
+ */
+export function actingWarnings(
+  target: Member, chapterId: string, role: PositionRole, covers: Position | null, until: string, raw: ClubData, today: string, voted?: boolean,
+): string[] {
+  const data = settleActing(raw, today);
+  const out: string[] = [];
+  const board = isBoardRole(role);
+  const onBoard = holdsBoardSeat(target.id, chapterId, data.positions);
+  const vpForPresident = role === 'president' && isSittingVp(target.id, chapterId, data.positions);
+  if (board) out.push(ACTING_FAMILY);
+  if (board && covers === null && !onBoard && twoYearsShort(target, today)) out.push(BOARD_TWO_YEARS);
+  if (covers === null && (role === 'vice_president' || (role === 'president' && !vpForPresident)) && !servedTerm(target.id, role, data, today)) {
+    out.push(SERVED_TERM_FIRST);
+  }
+  if (covers !== null) out.push(ACTING_LICENCE_VACANCY);
+  if (board && onBoard && !vpForPresident) out.push(ACTING_COMBINED);
+  for (const spot of data.crew ?? []) {
+    if (spot.memberId !== target.id) continue;
+    const ride = data.rides.find((r) => r.id === spot.rideId);
+    if (!ride || ride.cancelledAt !== null) continue;
+    const starts = melbourneDate(ride.startsAt);
+    const ends = melbourneDate(ride.endsAt ?? ride.startsAt);
+    if (starts <= until && (starts === until || ends > until)) out.push(actingRideWarning(displayName(target), starts, later(addDays(starts, 1), ends)));
+  }
+  if (covers !== null && role === 'president' && (voted ?? actingNeedsVote(target.id, chapterId, role, data, today))) {
+    const waiting = uncastNecBallots(chapterId, data);
+    const chapter = data.chapters.find((c) => c.id === chapterId)?.name ?? chapterId;
+    if (waiting > 0) out.push(necBallotsWait(chapter, waiting));
+  }
+  return out;
 }
