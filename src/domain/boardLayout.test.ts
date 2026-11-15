@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { boardGroups, needsYou } from './boardLayout';
+import { boardGroups, needsYou, needsYouTarget } from './boardLayout';
 
 const none = { pending: 0, alerts: 0, noContact: 0, fngs: 0 };
 
@@ -10,9 +10,9 @@ test('nothing is listed under Needs you when nothing is waiting', () => {
 
 test('Needs you lists only what has a count, most urgent first, in plain words', () => {
   assert.deepEqual(needsYou({ pending: 2, alerts: 3, noContact: 0, fngs: 1 }), [
-    { group: 'approvals', text: '2 people waiting for approval' },
-    { group: 'people', text: '3 regos, licences or first aid certificates due' },
-    { group: 'people', text: '1 FNG review' },
+    { kind: 'pending', group: 'approvals', text: '2 people waiting for approval' },
+    { kind: 'alerts', group: 'people', text: '3 regos, licences or first aid certificates due' },
+    { kind: 'fngs', group: 'people', text: '1 FNG review' },
   ]);
 });
 
@@ -42,4 +42,27 @@ test('each group says in one line what is inside, with counts where there are an
   assert.equal(g.money, 'Chapter fees');
   assert.equal(g.website, 'Enquiries, news, visits and app feedback');
   assert.equal(boardGroups(none).find((x) => x.id === 'people')!.summary, 'Nothing due');
+});
+
+// Jeff, 15 Nov: every red Needs-you row opens the place where it gets dealt with.
+test('one member to see opens that member, at the part that needs fixing', () => {
+  assert.deepEqual(needsYouTarget('alerts', ['m1']), { to: 'member', memberId: 'm1', focus: 'ride-ready' });
+  // Two alerts for the same member (licence and rego) are still one member to see.
+  assert.deepEqual(needsYouTarget('alerts', ['m1', 'm1']), { to: 'member', memberId: 'm1', focus: 'ride-ready' });
+  assert.deepEqual(needsYouTarget('noContact', ['m2']), { to: 'member', memberId: 'm2', focus: 'contacts' });
+});
+
+test('one FNG review opens that FNG review', () => {
+  assert.deepEqual(needsYouTarget('fngs', ['m3']), { to: 'fng', memberId: 'm3' });
+});
+
+test('several members open the list on the Board that names each of them', () => {
+  assert.deepEqual(needsYouTarget('alerts', ['m1', 'm2']), { to: 'list', kind: 'alerts' });
+  assert.deepEqual(needsYouTarget('noContact', ['m1', 'm2']), { to: 'list', kind: 'noContact' });
+  assert.deepEqual(needsYouTarget('fngs', ['m1', 'm2']), { to: 'list', kind: 'fngs' });
+});
+
+test('approvals are decided on the Board itself, so they always open that list', () => {
+  assert.deepEqual(needsYouTarget('pending', ['m1']), { to: 'list', kind: 'pending' });
+  assert.deepEqual(needsYouTarget('pending', ['m1', 'm2']), { to: 'list', kind: 'pending' });
 });
