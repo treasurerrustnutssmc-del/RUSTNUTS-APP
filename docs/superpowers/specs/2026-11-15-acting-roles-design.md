@@ -4,9 +4,9 @@ Date: 15/11/2026 (second draft, after two independent reads; Jeff picked both ki
 `positions`, two small tables, the seat index swapped for a pair, about 45 database helpers sorted
 into four readings, and the app split the same way). Spec, then a plan in `docs/superpowers/plans/`.
 
-Approval: **needs Jeff's yes on the money and member-data parts** (the Club fund, approvals, who
-sees every chapter's private details), as AGENTS.md says. Claude approves the rest under Jeff's
-24 Oct rule, and Jeff can veto any call below. Jeff asked on 15/11/2026: "can we add an 'acting'
+Approval: Jeff said yes to the money and member-data parts (the Club fund, approvals, who sees
+every chapter's private details) and to voted covers on his card of 15/11/2026, "Go as designed".
+Claude approves the rest under Jeff's 24 Oct rule, and Jeff can veto any call below. Jeff asked on 15/11/2026: "can we add an 'acting'
 for a role if someone is only doing a role short term?" On his card the same day he picked **both
 kinds**: "Someone can act for a holder who's away (the holder keeps the seat), or fill an empty
 seat for now." So this spec builds both. The empty-seats-only cut is kept below as the fallback.
@@ -613,10 +613,8 @@ Where this draft takes a different route from a suggested fix:
 ## Questions for Jeff
 
 1. **His card**: answered 15/11/2026, both kinds.
-2. **Money and member data (needs his yes)**: an acting Treasurer keeps only their own chapter's
-   books. No acting row keeps or approves the Club fund, or runs the shop. An Acting President
-   doesn't see other chapters' private details, and a covered President drops to board-level reach
-   while covered. The independence rule applies to approvals. Claude recommends all of it.
-3. **A cover without the holder's say**: when the holder can't be asked (in hospital, say), may a
-   board-majority vote put a cover on their seat? They could end it with "I'm back" once they're
-   able. Claude recommends yes.
+2. **Money and member data**: answered 15/11/2026, "Go as designed". Acting people do their own
+   chapter's job only: no Club fund, shop or other chapters' private details, and the independence
+   rule applies to approvals.
+3. **A cover without the holder's say**: answered 15/11/2026, yes. A board-majority vote can cover
+   a holder who can't be asked, and they end it with "I'm back".
