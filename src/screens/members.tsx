@@ -51,7 +51,6 @@ import { useSavedFilters } from '../data/savedFilters';
 import { CLUB_NUMBERS, showProfileCard } from '../domain/homeLayout';
 import { MemberRow, sortedPositions } from '../ui/MemberBits';
 import { memberGroups } from '../domain/memberGroups';
-import { NotificationIntroCard } from '../ui/NotificationIntro';
 import {
   Avatar,
   Body,
@@ -219,8 +218,6 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
 
       {/* New here? Where things are, once */}
       <FirstRunCard />
-      {/* What notifications are for, once, before the phone asks */}
-      <NotificationIntroCard />
       {/* The next ride, so it is one tap from opening the app */}
       <HomeNextRideCard onOpen={(rideId) => navigation.navigate('RideDetail', { rideId })} />
       {/* Stage 4: today's check-in and what you owe */}

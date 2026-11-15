@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ANDROID_CHANNELS, RETIRED_ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, phoneNotificationState, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, type Reminder,
+  ANDROID_CHANNELS, RETIRED_ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, phoneNotificationState, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, foregroundPlan, type Reminder,
 } from './notifications';
 import type { Ride, Rsvp } from './types';
 
@@ -165,4 +165,54 @@ test('the first, harsh rev channels are retired and never reused', () => {
   // old ones are deleted so phones don't list them in settings.
   assert.deepEqual(RETIRED_ANDROID_CHANNELS, ['ride-reminders-rev', 'club-rev', 'chat-rev']);
   for (const id of RETIRED_ANDROID_CHANNELS) assert.ok(!ANDROID_CHANNELS.some((c) => c.id === id), id);
+});
+
+// A push that arrives while the app is open: the app shows its own banner at the top and plays the
+// bike itself (Android's chat channels don't pop up over an open app), so the phone just files it.
+const ready = { inAppBanner: true, revSound: true };
+
+test('open app: a chat message shows the club banner and plays the bike, the phone only files it', () => {
+  assert.deepEqual(foregroundPlan({ kind: 'chat', chatId: 'c2' }, 'c1', ready), {
+    phone: { banner: false, list: true, sound: false },
+    inApp: true,
+    playRev: true,
+  });
+});
+
+test('open app with the plain sound: the phone plays its own sound under the club banner', () => {
+  assert.deepEqual(foregroundPlan({ kind: 'chat', chatId: 'c2' }, null, { inAppBanner: true, revSound: false }), {
+    phone: { banner: false, list: true, sound: true },
+    inApp: true,
+    playRev: false,
+  });
+});
+
+test('open app on that same chat: nothing at all, the message is already on screen', () => {
+  assert.deepEqual(foregroundPlan({ kind: 'chat', chatId: 'c1' }, 'c1', ready), {
+    phone: { banner: false, list: false, sound: false },
+    inApp: false,
+    playRev: false,
+  });
+});
+
+test('ride news and replies get the club banner too', () => {
+  for (const kind of ['ride', 'ride-reminder', 'feedback', 'site_photo', 'feedback-sent', 'ride-change', undefined]) {
+    assert.equal(foregroundPlan({ kind, rideId: 'r1' }, 'c1', ready).inApp, true, String(kind));
+  }
+});
+
+test('a live ride alert keeps the phone’s own urgent alert, never the club banner', () => {
+  assert.deepEqual(foregroundPlan({ kind: 'live-alert', rideId: 'r1' }, 'c1', ready), {
+    phone: { banner: true, list: true, sound: true },
+    inApp: false,
+    playRev: false,
+  });
+});
+
+test('no club banner on screen (signed out, or still starting): the phone shows it as before', () => {
+  assert.deepEqual(foregroundPlan({ kind: 'chat', chatId: 'c2' }, null, { inAppBanner: false, revSound: true }), {
+    phone: { banner: true, list: true, sound: true },
+    inApp: false,
+    playRev: false,
+  });
 });

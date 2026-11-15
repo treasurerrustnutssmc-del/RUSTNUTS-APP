@@ -18,14 +18,12 @@ import * as TaskManager from 'expo-task-manager';
 import { AppState, Platform } from 'react-native';
 import { FIX_POST_GAP_MS, NO_POSTS, afterPost, beforePost, shouldPostFix, type FixThrottle } from '../domain/liveFixThrottle';
 import { LIVE_MSG } from '../domain/liveRide';
-import { showWhileOpen } from '../domain/notifications';
 import { melbourneTime } from '../domain/rides';
 import type { LiveState } from '../domain/types';
 import type { Fix } from './liveRideBackend';
 import { liveBackend } from './liveRideSource';
 import { appMode } from './reviewMode';
 import { ensureChannels } from './notificationChannels';
-import { viewingChat } from './viewingChat';
 import { QUEUE_KEY, alertNotice, createAlertQueue, unseenAlerts, type QueuedAlert, type Refused } from './liveQueue';
 
 export const LIVE_TASK = 'rustnuts-live-ride';
@@ -223,13 +221,6 @@ if (NATIVE) {
   TaskManager.defineTask<{ locations: Location.LocationObject[] }>(LIVE_TASK, async ({ data, error }) => {
     if (error || !data?.locations?.length) return;
     await handleFix(toFix(data.locations[data.locations.length - 1]));
-  });
-  Notifications.setNotificationHandler({
-    // A message for the chat that's on screen is already showing there.
-    handleNotification: async (n) => {
-      const show = showWhileOpen(n.request.content.data, viewingChat());
-      return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: false };
-    },
   });
 }
 

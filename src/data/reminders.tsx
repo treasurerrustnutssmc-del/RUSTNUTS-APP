@@ -10,7 +10,7 @@ import { DEFAULT_PREFS, reminderDiff, reminderPlan, type Reminder } from '../dom
 import { mayAskAutomatically } from '../domain/notifyIntro';
 import { useClub } from './ClubStore';
 import { ensureChannels } from './notificationChannels';
-import { introAnswer, useIntroAnswer } from './notifyIntro';
+import { introAnswer, setIntroAnswer, useIntroAnswer } from './notifyIntro';
 import { registerThisDevice } from './pushDevice';
 
 const KIND = 'ride-reminder';
@@ -35,11 +35,12 @@ export function syncReminders(plan: Reminder[]): Promise<void> {
     if (add.length === 0) return;
     // Android 13 only shows the permission prompt once a channel exists.
     await ensureChannels();
-    // Ask once; after a no, leave it to the phone's settings rather than asking at every launch.
-    // Only after "Turn on notifications" on the explainer card: before that, the card asks.
+    // Ask once (notifications are on by default); after a no, leave it to Me, Notifications or the
+    // phone's settings rather than asking at every launch.
     let permission = await Notifications.getPermissionsAsync().catch(() => null);
     if (!permission?.granted && permission?.canAskAgain && mayAskAutomatically(await introAnswer())) {
       permission = await Notifications.requestPermissionsAsync().catch(() => null);
+      if (permission) await setIntroAnswer(permission.granted ? 'on' : 'later');
     }
     if (!permission?.granted) return;
     for (const r of add) {
@@ -59,7 +60,7 @@ export function syncReminders(plan: Reminder[]): Promise<void> {
 export function ReminderSync() {
   const { data, me, loading, loadError, isDemo } = useClub();
   const registeredFor = useRef<string | null>(null);
-  // Answering the explainer card (or turning notifications on under Me) syncs and signs this phone
+  // Answering the phone's prompt (or turning notifications on under Me) syncs and signs this phone
   // up again, now that notifications may be on.
   const intro = useIntroAnswer();
   // Undefined: the settings couldn't be read, so leave the phone's reminders as they are.

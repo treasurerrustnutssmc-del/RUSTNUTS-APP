@@ -100,6 +100,28 @@ export function showWhileOpen(data: Record<string, unknown> | null | undefined, 
   return !(data?.kind === 'chat' && viewingChatId !== null && data.chatId === viewingChatId);
 }
 
+/** What happens to a notification that arrives while the app is open: what the phone itself does with
+ *  it, whether the club's own banner shows at the top of the app, and whether the app plays the bike. */
+export interface ForegroundPlan {
+  phone: { banner: boolean; list: boolean; sound: boolean };
+  inApp: boolean;
+  playRev: boolean;
+}
+
+/** Android's chat and club channels don't pop up over an open app, so while the club's banner is on
+ *  screen the app shows it there and plays the bike itself, and the phone only files it. Nothing for
+ *  the chat that's on screen. A live ride alert keeps the phone's own urgent alert. With no banner on
+ *  screen (signed out, or still starting) the phone shows it as before. */
+export function foregroundPlan(
+  data: Record<string, unknown> | null | undefined,
+  viewingChatId: string | null,
+  opts: { inAppBanner: boolean; revSound: boolean },
+): ForegroundPlan {
+  if (!showWhileOpen(data, viewingChatId)) return { phone: { banner: false, list: false, sound: false }, inApp: false, playRev: false };
+  if (data?.kind === 'live-alert' || !opts.inAppBanner) return { phone: { banner: true, list: true, sound: true }, inApp: false, playRev: false };
+  return { phone: { banner: false, list: true, sound: !opts.revSound }, inApp: true, playRev: opts.revSound };
+}
+
 /** A reminder the phone should have scheduled. */
 export interface Reminder {
   /** "ride-<ride id>": one per ride, so a moved ride replaces its reminder. */

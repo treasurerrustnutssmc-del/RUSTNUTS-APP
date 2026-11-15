@@ -9,7 +9,6 @@ import { join } from 'node:path';
 import { JOIN_STEPS } from './joinSteps';
 import { RSVP_LABEL } from './labels';
 import { meGroups } from './meLayout';
-import { NOTIFY_INTRO } from './notifyIntro';
 import { POSTING_RULES_TITLE } from './postingRules';
 import { RIDE_TOOLS } from './ridesLayout';
 
@@ -95,8 +94,10 @@ test('signing in covers the rules screen and the notifications card', () => {
   const signIn = section('sign-in');
   assert.ok(signIn.includes(`the app shows the ${POSTING_RULES_TITLE}`), 'names the rules screen');
   assert.match(signIn, /tap I agree/);
-  assert.ok(signIn.includes(`a card called ${NOTIFY_INTRO.title}, tap ${NOTIFY_INTRO.turnOn}`), 'names the notifications card');
-  assert.doesNotMatch(signIn, /When the app asks to send you notifications/);
+  // Notifications are on by default: the phone asks by itself, there is no card to find first.
+  assert.match(signIn, /Your phone then asks whether Rustnuts can send you notifications\. Tap Allow\./);
+  assert.ok(signIn.includes(`Turn them on under Me › ${group('settings')}`), 'says where to turn them on after a no');
+  assert.doesNotMatch(signIn, /Stay in the loop|Turn on notifications/, 'the old card is gone');
   assert.ok(signIn.includes(`at the end of a ${COUNT[JOIN_STEPS.length]}-step form`), 'counts the Ask to join steps');
   assert.match(signIn, /Sign out under the form, just above Delete my account/);
 });
