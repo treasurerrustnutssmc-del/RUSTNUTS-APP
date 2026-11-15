@@ -287,7 +287,7 @@ create trigger positions_on_end after update of ended_on on public.positions
 create or replace function private.push_acting_holder()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare
-  holder uuid := (select h.member_id from public.positions h where h.id = new.covers);
+  holder uuid := (select h.member_id from private.held_positions h where h.id = new.covers);
   stand_in text := (select private.short_name(m) from public.members m where m.id = new.member_id);
   seat text := private.role_label(new.role) || ' (' || (select c.name from public.chapters c where c.id = new.chapter_id) || ')';
   k text;
@@ -540,3 +540,403 @@ begin
   return null;
 end;
 $$;
+
+-- §3 Readers: duties and club-wide ------------------------------------------------------------------
+
+-- Duties: held rows, minus any row a held cover points at. They chair, cast the chapter's NEC vote,
+-- keep its books and run each one-role check, for their own chapter only; a covered holder pauses
+-- them until the cover ends. Club-wide: duty rows that aren't acting. No acting row keeps the Club
+-- fund's books, approves its spending, runs the shop or the feedback inbox, or opens every
+-- chapter's private details; an Acting President still takes part in NEC business (11.2). Each
+-- body below is the latest one, re-pointed at a view, every other line kept.
+
+-- Sees every chapter's private details: the National Chairman or Secretary, or a sitting President,
+-- none of them acting. The national branch of sees_board_of, and other chapters' chapter chats.
+create or replace function private.sees_every_chapter()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.clubwide_positions
+    where member_id = auth.uid() and role in ('nec_chair', 'nec_secretary', 'president')
+  );
+$$;
+
+create or replace function private.is_auditor()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.duty_positions where member_id = auth.uid() and role = 'nec_auditor'
+  );
+$$;
+
+-- The Chairman, the Secretary and the Presidents with the seat's duties (an Acting President takes
+-- part in NEC business; a covered one is off the NEC until the cover ends). The Auditor holds a
+-- national seat but isn't on the NEC (11.2, 11.8).
+create or replace function private.is_national()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.duty_positions
+    where member_id = auth.uid()
+      and role in ('nec_chair', 'nec_secretary', 'president')
+  );
+$$;
+
+-- National Chairman or Secretary. The Auditor doesn't seat the people they review (11.8).
+create or replace function private.is_nec_officer()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.duty_positions
+    where member_id = auth.uid()
+      and role in ('nec_chair', 'nec_secretary')
+  );
+$$;
+
+-- The sitting National Chairman: the only one who hands out or ends the other national roles.
+create or replace function private.is_chairman()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.duty_positions
+    where member_id = auth.uid() and role = 'nec_chair'
+  );
+$$;
+
+-- Whoever has the casting vote: the chapter's President, or the National Chairman (inferred).
+create or replace function private.chair_of(p_chapter uuid)
+returns uuid language sql stable security definer set search_path = '' as $$
+  -- The chapter President with the seat's duties (an Acting President, or the President's
+  -- stand-in), then the VP with that seat's duties, so an Acting VP or a VP's stand-in chairs
+  -- (constitution 10.9); the National Chairperson for the whole club (11.2).
+  select member_id from private.duty_positions
+  where chapter_id is not distinct from p_chapter
+    and role in (case when p_chapter is null then 'nec_chair' else 'president' end::public.position_role,
+                 case when p_chapter is null then 'nec_chair' else 'vice_president' end::public.position_role)
+  order by role = 'vice_president', started_on desc limit 1;
+$$;
+
+-- Who casts a chapter's NEC vote on a vote opened on p_day, counting only rows that started before
+-- that day, so a seating on or after it neither takes the ballot nor takes it away: the President
+-- with the seat's duties, unless they chair the NEC (an Acting President counts); then the Vice
+-- President, from a VP row that isn't acting and that no cover points at, since a VP takes part
+-- only while formally acting as President (11.2). A cover with no vote behind it counts from the
+-- start of the row it covers, because the holder chose the stand-in; while a President row from
+-- before the day is under a cover that doesn't count, it's nobody: the covered President is off the
+-- NEC, and the board didn't pick who casts. The newest holder of a seat acts during a handover (9.8).
+create or replace function private.nec_voter_before(p_chapter uuid, p_day date)
+returns uuid language sql stable security definer set search_path = '' as $$
+  with seat as (
+    select h.id, h.member_id, h.role, h.covers,
+      coalesce(case when h.acting_vote is null then c.started_on end, h.started_on) as counts_from
+    from private.held_positions h
+    left join private.held_positions c on c.id = h.covers
+    where h.chapter_id = p_chapter and h.role in ('president', 'vice_president')
+  )
+  select case
+    when exists (
+      select 1 from seat p join seat s on s.covers = p.id
+      where p.role = 'president' and p.counts_from < p_day and s.counts_from >= p_day
+    ) then null
+    else (
+      select x.member_id from seat x
+      where x.counts_from < p_day and (
+        (x.role = 'president' and not exists (select 1 from seat s where s.covers = x.id)
+          and x.member_id not in (select n.member_id from private.duty_positions n where n.role = 'nec_chair'))
+        or (x.role = 'vice_president' and x.id in (select w.id from private.clubwide_positions w)))
+      order by x.role = 'vice_president', x.counts_from desc
+      limit 1)
+  end;
+$$;
+
+-- Who casts a chapter's NEC vote now (constitution 11.2).
+create or replace function private.nec_voter_for(p_chapter uuid)
+returns uuid language sql stable security definer set search_path = '' as $$
+  select private.nec_voter_before(p_chapter, 'infinity');
+$$;
+
+-- The chapter's Treasurer with the seat's duties (an Acting Treasurer, or the Treasurer's
+-- stand-in), or the National Chairman or Secretary.
+create or replace function private.can_manage_fees(target_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.duty_positions where member_id = auth.uid()
+      and ((role = 'treasurer' and chapter_id = target_chapter) or role in ('nec_chair', 'nec_secretary'))
+  );
+$$;
+
+-- Holds a seat on that committee: Road Captains and the Ride Committee, or the Charity Committee.
+create or replace function private.is_on_committee(p_committee public.chat_committee)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.duty_positions
+    where member_id = auth.uid()
+      and case p_committee when 'ride' then role in ('ride_committee', 'road_captain')
+                           else role = 'charity_committee' end
+  );
+$$;
+
+-- The Social Media Officer (either chapter) or the NEC. Mirrors managesSitePhotoCrew.
+create or replace function private.manages_site_photo_crew()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    private.is_national() or exists (
+      select 1 from private.duty_positions
+      where member_id = auth.uid() and role = 'social_media_officer'
+    )
+  );
+$$;
+
+-- Whether you run this ride's sign-ups: its crew managers, or anyone on the Charity Committee.
+-- The app's runsCharity.
+create or replace function private.runs_charity(p_ride uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.manages_ride(p_ride) or (private.is_approved_member() and exists (
+    select 1 from private.duty_positions where member_id = auth.uid() and role = 'charity_committee'
+  ));
+$$;
+
+-- The NEC (11.2: the Chair and the Chapter Presidents), and the National Secretary who keeps Club records.
+create or replace function private.can_designate_big4()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_national();
+$$;
+
+-- Records (or corrects) the date of a year's AGM.
+create or replace function public.record_agm(p_held_on date)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not private.is_nec_officer() then
+    raise exception 'Only the National Chairman or Secretary records the AGM.';
+  end if;
+  if p_held_on is null then raise exception 'Pick the AGM date.'; end if;
+  if extract(month from p_held_on) < 7 then raise exception 'The AGM is held between July and December.'; end if;
+  insert into public.agms (year, held_on, recorded_by) values (extract(year from p_held_on)::int, p_held_on, auth.uid())
+  on conflict (year) do update set held_on = excluded.held_on, recorded_by = excluded.recorded_by, recorded_at = now();
+end;
+$$;
+
+-- Keeps a fund's books: its chapter's Treasurer with the seat's duties, or the National Chairman or
+-- Secretary; the Club fund's, any chapter Treasurer too (inferred), though never an acting one.
+-- Mirrors keepsBooks.
+create or replace function private.keeps_books(p_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    exists (select 1 from private.duty_positions where member_id = auth.uid() and role in ('nec_chair', 'nec_secretary'))
+    or (p_chapter is not null and exists (
+      select 1 from private.duty_positions where member_id = auth.uid() and role = 'treasurer' and chapter_id = p_chapter))
+    or (p_chapter is null and exists (
+      select 1 from private.clubwide_positions where member_id = auth.uid() and role = 'treasurer')));
+$$;
+
+-- Approves a fund's spending (13.3): a chapter's board members (a covered holder and an acting one
+-- included), or for the Club fund the sitting Presidents, none of them acting or covered; the
+-- National Chairman and Secretary for both. Never the National Auditor (11.8).
+create or replace function private.approves_for(p_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    exists (select 1 from private.duty_positions where member_id = auth.uid() and role in ('nec_chair', 'nec_secretary'))
+    or (p_chapter is null and exists (
+      select 1 from private.clubwide_positions where member_id = auth.uid() and role = 'president'))
+    or (p_chapter is not null and exists (
+      select 1 from private.held_positions where member_id = auth.uid() and chapter_id = p_chapter
+        and role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain'))));
+$$;
+
+create or replace function private.sees_ledger(p_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.keeps_books(p_chapter) or private.approves_for(p_chapter) or private.is_auditor();
+$$;
+
+-- Holds a seat that runs the shop: NEC Chair or Secretary, a President or a Treasurer, none of them
+-- acting or covered. Mirrors holdsShopSeat.
+create or replace function private.shop_seat()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.clubwide_positions where member_id = auth.uid()
+      and role in ('nec_chair', 'nec_secretary', 'president', 'treasurer'));
+$$;
+
+-- A sitting Treasurer (either chapter) or NEC Chairman / Secretary, none of them acting or covered.
+-- The same as isFeedbackKeeper.
+create or replace function private.is_feedback_keeper()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and exists (
+    select 1 from private.clubwide_positions
+    where member_id = auth.uid()
+      and role in ('treasurer', 'nec_chair', 'nec_secretary')
+  );
+$$;
+
+-- A new report: every keeper hears, like a join request (their "approvals" setting), once per report.
+create or replace function private.push_feedback_sent()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  who text := (select private.short_name(m) from public.members m where m.id = new.member_id);
+begin
+  insert into private.push_outbox (member_id, dedupe_key, title, body, data)
+  select distinct pos.member_id, 'feedback:' || new.id, 'App feedback',
+    who || ': ' || left(new.body, 80), jsonb_build_object('kind', 'feedback-sent', 'feedbackId', new.id)
+  from private.clubwide_positions pos
+  join public.members k on k.id = pos.member_id
+  left join public.notification_prefs p on p.member_id = pos.member_id
+  where pos.role in ('treasurer', 'nec_chair', 'nec_secretary')
+    and k.approval = 'approved' and k.status <> 'family' and pos.member_id <> new.member_id
+    and coalesce(p.approvals, true)
+  on conflict (member_id, dedupe_key) do nothing;
+  return new;
+end;
+$$;
+
+-- Sees a chapter's board records: a board member of that chapter (a covered holder included), or
+-- whoever sees every chapter.
+create or replace function private.sees_board_of(target_chapter uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_approved_member() and (
+    private.sees_every_chapter() or exists (
+      select 1 from private.held_positions
+      where member_id = auth.uid() and chapter_id = target_chapter
+        and role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+    )
+  );
+$$;
+
+-- Why the caller can't read this chat, or null when they can. Same words as readProblem. Otherwise as
+-- in 20270810000100_family_chat.sql: another chapter's chapter chat is member data, so it takes
+-- sees_every_chapter; the NEC and committee chats are NEC business and keep is_national.
+create or replace function private.chat_problem(p_chat uuid)
+returns text language plpgsql stable security definer set search_path = '' as $$
+declare
+  c public.conversations%rowtype;
+begin
+  if auth.uid() is null then return 'Sign in first.'; end if;
+  -- Family get the Family chat and nothing else.
+  if private.is_family() then
+    select * into c from public.conversations where id = p_chat;
+    if not found then return 'No such chat.'; end if;
+    if c.kind = 'family' then return null; end if;
+    return 'Family can only use the Family chat.';
+  end if;
+  if not private.is_approved_member() then return 'Only approved members can do that.'; end if;
+  select * into c from public.conversations where id = p_chat;
+  if not found then return 'No such chat.'; end if;
+  -- Someone who might join gets the whole-club and ride chats only, until they're an FNG.
+  if c.kind not in ('club', 'ride')
+     and (select status from public.members where id = auth.uid()) = 'introduced' then
+    if c.kind = 'direct' then return 'Private chats open up once you’re an FNG.'; end if;
+    if c.kind = 'chapter' then return 'Chapter chats open up once you’re an FNG.'; end if;
+    return 'That chat opens up once you’re an FNG.';
+  end if;
+  if c.kind = 'chapter' then
+    if private.chapter_of(auth.uid()) = c.chapter_id or private.sees_every_chapter() then return null; end if;
+    return format('That chat is for %s chapter members.', (select name from public.chapters where id = c.chapter_id));
+  elsif c.kind = 'board' then
+    if private.sees_board_of(c.chapter_id) then return null; end if;
+    return format('That chat is for the %s board.', (select name from public.chapters where id = c.chapter_id));
+  elsif c.kind = 'nec' then
+    if private.is_national() then return null; end if;
+    return 'That chat is for the NEC.';
+  elsif c.kind = 'committee' then
+    if private.is_on_committee(c.committee) or private.is_national() then return null; end if;
+    return format('That chat is for the %s committee.', c.committee);
+  elsif c.kind = 'direct' then
+    if exists (select 1 from public.conversation_members where conversation_id = p_chat and member_id = auth.uid()) then
+      return null;
+    end if;
+    return 'That’s a private chat.';
+  end if;
+  return null;
+end;
+$$;
+
+-- Before each draft, as the member: refuses with the words the app shows, counts the draft, and
+-- hands back the meeting, the people who could have been there and the scope's seated positions.
+-- Otherwise as in 20270660000000_otter_minutes.sql.
+create or replace function public.minutes_draft_start(p_meeting uuid)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  this_month constant date := date_trunc('month', private.club_date())::date;
+  budget constant bigint := private.assistant_setting('assistant_month_budget_microusd', 20000000);
+  max_drafts constant int := 5;
+  daily_limit constant bigint := private.assistant_setting('assistant_daily_limit', 15);
+  asked int;
+  m public.meetings%rowtype;
+  done int;
+  spent bigint;
+  meeting jsonb;
+  people jsonb;
+  board jsonb;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in first.';
+  end if;
+  select * into m from public.meetings where id = p_meeting;
+  if not found then
+    raise exception 'No such meeting.';
+  end if;
+  perform private.require_scope(m.chapter_id);
+  if m.cancelled_at is not null then
+    raise exception 'That meeting was cancelled.';
+  end if;
+  if m.minutes_approved_at is not null then
+    raise exception 'Those minutes are approved and locked.';
+  end if;
+  if m.starts_at > now() then
+    raise exception 'The meeting hasn’t happened yet.';
+  end if;
+  if not private.assistant_on() then
+    raise exception 'Ask the club isn’t switched on yet.';
+  end if;
+
+  -- Counted first and checked after, so drafts asked for at the same moment queue on the row
+  -- rather than all slipping through; a refusal rolls its own count back.
+  insert into private.minutes_drafts as d (meeting_id, drafts) values (p_meeting, 1)
+  on conflict (meeting_id) do update set drafts = d.drafts + 1
+  returning drafts into done;
+  if done > max_drafts then
+    raise exception 'This meeting has been drafted % times. Finish it by hand.', max_drafts;
+  end if;
+  -- Each draft is also one of the member's Ask the club questions for the day.
+  delete from private.assistant_days where day < private.club_date() - 1;
+  insert into private.assistant_days as a (member_id, day, questions) values (auth.uid(), private.club_date(), 1)
+  on conflict (member_id, day) do update set questions = a.questions + 1
+  returning questions into asked;
+  if asked > daily_limit then
+    raise exception 'You’ve asked % today. More tomorrow.', daily_limit;
+  end if;
+  insert into private.assistant_months as mo (month, questions) values (this_month, 1)
+  on conflict (month) do update set questions = mo.questions + 1
+  returning spent_microusd into spent;
+  if spent >= budget then
+    raise exception 'Ask the club is resting until %: this month’s budget is used.',
+      to_char(private.assistant_next_month(private.club_date()), 'DD/MM/YYYY');
+  end if;
+
+  select jsonb_build_object(
+    'id', m.id, 'title', m.title, 'kind', m.kind, 'startsAt', m.starts_at, 'location', m.location,
+    'chapter', (select c.name from public.chapters c where c.id = m.chapter_id),
+    'agenda', coalesce(m.agenda, '[]'::jsonb))
+  into meeting;
+
+  -- Approved members other than Family (visitors from the other chapter count), and for a chapter
+  -- meeting its applicants in their introduction phase. Mirrors minutesPeople in src/domain/otterMinutes.ts.
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', x.id, 'name', x.full_name, 'roadName', x.road_name, 'chapter', c.name, 'status', x.status)
+    order by x.full_name), '[]'::jsonb)
+  into people
+  from public.members x left join public.chapters c on c.id = x.chapter_id
+  where (x.approval = 'approved' and x.status <> 'family')
+     or (m.chapter_id is not null and x.approval = 'pending' and x.status = 'introduced' and x.chapter_id = m.chapter_id);
+
+  -- Held seats, an acting one flagged, so the draft names an Acting President as such; a covered
+  -- holder keeps their seat. The NEC is the national roles plus the chapter Presidents with the
+  -- seat's duties: an Acting President, not the President they cover (11.2).
+  select coalesce(jsonb_agg(jsonb_build_object('role', p.role, 'name', x.full_name, 'acting', p.acting_until is not null)
+    order by p.role), '[]'::jsonb)
+  into board
+  from (select * from private.held_positions where chapter_id is not distinct from m.chapter_id
+        union all
+        select * from private.duty_positions where m.chapter_id is null and role = 'president') p
+  join public.members x on x.id = p.member_id
+  where p.started_on <= private.club_date();
+
+  return jsonb_build_object('meeting', meeting, 'people', people, 'board', board);
+end;
+$$;
+
+revoke all on function private.sees_every_chapter(), private.nec_voter_before(uuid, date) from public, anon, authenticated;

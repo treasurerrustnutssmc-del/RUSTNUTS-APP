@@ -101,7 +101,7 @@ begin
   select array_agg(p ->> 'name' order by p ->> 'name') into names from jsonb_array_elements(got -> 'people') p;
   assert names = array['Cheryl Chair', 'Ned Newbie', 'Norm Secretary', 'Rob Rider', 'Sally Secretary'], names::text;
   assert exists (select 1 from jsonb_array_elements(got -> 'people') p where p ->> 'roadName' = 'Torque' and p ->> 'chapter' = 'West'), got::text;
-  assert got -> 'board' = '[{"name": "Sally Secretary", "role": "secretary"}]'::jsonb, (got -> 'board')::text;
+  assert got -> 'board' = '[{"name": "Sally Secretary", "role": "secretary", "acting": false}]'::jsonb, (got -> 'board')::text;
 end $$;
 reset role;
 do $$
@@ -118,7 +118,7 @@ declare got jsonb := public.minutes_draft_start('00000000-0000-0000-0000-0000000
 begin
   assert got #>> '{meeting,chapter}' is null, got::text;
   assert not exists (select 1 from jsonb_array_elements(got -> 'people') p where p ->> 'name' in ('Ned Newbie', 'Nora North', 'Fay Family')), got::text;
-  assert got -> 'board' = '[{"name": "Cheryl Chair", "role": "nec_chair"}]'::jsonb, (got -> 'board')::text;
+  assert got -> 'board' = '[{"name": "Cheryl Chair", "role": "nec_chair", "acting": false}]'::jsonb, (got -> 'board')::text;
 end $$;
 reset role;
 

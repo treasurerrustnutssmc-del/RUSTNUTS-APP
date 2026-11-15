@@ -564,7 +564,9 @@ begin
     ('private.close_lapsed_acting()'),
     ('private.check_covers()'),
     ('private.on_position_end()'),
-    ('private.push_acting_holder()')
+    ('private.push_acting_holder()'),
+    ('private.sees_every_chapter()'),
+    ('private.nec_voter_before(uuid, date)')
   ) as l(x) loop
     assert not has_function_privilege('anon', fn, 'execute'), fn || ': not for anon';
     if (select pronamespace = 'public'::regnamespace from pg_proc where oid = fn) then
@@ -582,6 +584,9 @@ begin
             'private.close_lapsed_acting()', 'private.check_covers()', 'private.on_position_end()',
             'private.push_acting_holder()']::regprocedure[]::oid[])),
     'the locks, the lazy close and the triggers run as their owner with an empty search path';
+  assert (select bool_and(prosecdef and provolatile = 's' and proconfig @> array['search_path=""']) from pg_proc
+          where oid = any (array['private.sees_every_chapter()', 'private.nec_voter_before(uuid, date)']::regprocedure[]::oid[])),
+    'the new readers are stable, and run as their owner with an empty search path';
 end $$;
 
 \echo 'acting: unchanged rows'
@@ -746,5 +751,257 @@ do $$ begin
     'Kim is still the Auditor';
 end $$;
 rollback;
+
+-- §3 Readers: duties, club-wide, and the positions catalogue ---------------------------------------
+
+\echo 'duties: Jet chairs North and casts its NEC vote; Smokey is off the NEC'
+begin;
+select pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey overseas', pg_temp.f(101));
+do $$ begin
+  assert private.chair_of(pg_temp.north()) = pg_temp.f(2), 'Jet chairs North and has its casting vote (9.10, 10.9)';
+  assert private.nec_voter_for(pg_temp.north()) = pg_temp.f(2), 'and casts North''s NEC vote (11.2)';
+  assert pg_temp.f(2) in (select private.electors_for('nec', null)), 'so he gets North''s NEC ballot';
+  assert pg_temp.helper_as(pg_temp.f(2), 'private.is_national()') = 'true', 'Jet sits on the NEC';
+  assert pg_temp.helper_as(pg_temp.f(1), 'private.is_national()') = 'false', 'Smokey is off the NEC';
+  assert pg_temp.f(1) not in (select private.electors_for('nec', null)), 'and has no NEC ballot';
+  assert pg_temp.helper_as(pg_temp.f(1), 'private.can_designate_big4()') = 'false', 'nor designates Big 4 rides (5.11)';
+  assert pg_temp.helper_as(pg_temp.f(2), 'private.can_designate_big4()') = 'true', 'Jet does';
+  assert pg_temp.helper_as(pg_temp.f(7), 'private.is_national()') = 'true', 'Rusty, uncovered, is still on the NEC';
+end $$;
+rollback;
+
+\echo 'duties: an Acting VP (West, no President), or a VP''s stand-in, chairs West but doesn''t cast its NEC vote'
+begin;
+do $$ begin
+  perform pg_temp.end_row(pg_temp.f(107));
+  perform pg_temp.seat(11, pg_temp.west(), 'vice_president', pg_temp.today() + 20, 'No VP since the ACM');
+  assert private.chair_of(pg_temp.west()) = pg_temp.f(11), 'Hal, Acting VP, chairs West with no President (10.9)';
+  assert private.nec_voter_for(pg_temp.west()) is null, 'but a VP votes on the NEC only while formally acting as President (11.2)';
+end $$;
+rollback;
+begin;
+do $$
+declare spanner uuid;
+begin
+  perform pg_temp.end_row(pg_temp.f(107));
+  spanner := pg_temp.seat(10, pg_temp.west(), 'vice_president');
+  assert private.nec_voter_for(pg_temp.west()) = pg_temp.f(10), 'Spanner, West''s VP, casts its NEC vote with no President';
+  perform pg_temp.seat(8, pg_temp.west(), 'vice_president', pg_temp.today() + 20, 'Spanner away', spanner);
+  assert private.chair_of(pg_temp.west()) = pg_temp.f(8), 'Torque, covering Spanner, chairs West';
+  assert private.nec_voter_for(pg_temp.west()) is null, 'but neither he nor Spanner casts West''s NEC vote';
+end $$;
+rollback;
+
+\echo 'duties: an Acting Treasurer keeps only their chapter''s books'
+begin;
+select pg_temp.seat(6, pg_temp.north(), 'treasurer', pg_temp.today() + 20, 'No Treasurer since the ACM');
+select pg_temp.seat(8, pg_temp.west(), 'treasurer', pg_temp.today() + 20, 'Penny overseas', pg_temp.f(109));
+do $$ begin
+  assert pg_temp.helper_as(pg_temp.f(6), format('private.keeps_books(%L)', pg_temp.north())) = 'true', 'Gus keeps North''s books';
+  assert pg_temp.helper_as(pg_temp.f(6), format('private.can_manage_fees(%L)', pg_temp.north())) = 'true', 'and handles its fees';
+  assert pg_temp.helper_as(pg_temp.f(6), 'private.keeps_books(null)') = 'false', 'but not the Club fund''s books';
+  assert pg_temp.helper_as(pg_temp.f(6), format('private.keeps_books(%L)', pg_temp.west())) = 'false', 'nor West''s';
+  assert pg_temp.helper_as(pg_temp.f(8), format('private.keeps_books(%L)', pg_temp.west())) = 'true', 'Torque, covering Penny, keeps West''s';
+  assert pg_temp.helper_as(pg_temp.f(8), 'private.keeps_books(null)') = 'false', 'but not the Club fund''s';
+  assert pg_temp.helper_as(pg_temp.f(9), format('private.keeps_books(%L)', pg_temp.west())) = 'false', 'Penny, covered, has handed West''s books over';
+  assert pg_temp.helper_as(pg_temp.f(9), format('private.can_manage_fees(%L)', pg_temp.west())) = 'false', 'and its fees';
+  assert pg_temp.helper_as(pg_temp.f(9), 'private.keeps_books(null)') = 'false', 'and the Club fund''s books';
+  assert pg_temp.helper_as(pg_temp.f(9), format('private.sees_ledger(%L)', pg_temp.west())) = 'true', 'though, still on West''s board, she sees its ledger';
+  assert pg_temp.helper_as(pg_temp.f(4), 'private.keeps_books(null)') = 'true', 'Lou, National Secretary, keeps the Club fund''s books';
+  assert pg_temp.helper_as(pg_temp.f(12), format('private.sees_ledger(%L)', pg_temp.north())) = 'true', 'and Kim, the Auditor, sees every ledger';
+end $$;
+rollback;
+
+\echo 'club-wide: no acting row reaches the Club fund, the shop, feedback or every chapter'
+begin;
+select pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey overseas', pg_temp.f(101));
+select pg_temp.seat(6, pg_temp.north(), 'treasurer', pg_temp.today() + 20, 'No Treasurer since the ACM');
+do $$
+declare
+  who int;
+  h text;
+  report uuid;
+begin
+  -- Jet, Acting President (North), and Gus, Acting Treasurer (North).
+  foreach who in array array[2, 6] loop
+    foreach h in array array['private.approves_for(null)', 'private.keeps_books(null)', 'private.shop_seat()',
+                             'private.is_feedback_keeper()', 'private.sees_every_chapter()',
+                             format('private.sees_board_of(%L)', pg_temp.west())] loop
+      assert pg_temp.helper_as(pg_temp.f(who), h) = 'false', 'f' || who || ', acting: ' || h;
+    end loop;
+  end loop;
+  assert pg_temp.helper_as(pg_temp.f(7), 'private.approves_for(null)') = 'true', 'Rusty, a sitting President, approves Club fund spending';
+  assert pg_temp.helper_as(pg_temp.f(7), 'private.shop_seat()') = 'true', 'and runs the shop';
+  assert pg_temp.helper_as(pg_temp.f(7), 'private.sees_every_chapter()') = 'true', 'and sees every chapter';
+  assert pg_temp.helper_as(pg_temp.f(7), format('private.sees_board_of(%L)', pg_temp.north())) = 'true', 'North''s board records too';
+  assert pg_temp.helper_as(pg_temp.f(9), 'private.keeps_books(null)') = 'true', 'Penny, a sitting Treasurer, keeps the Club fund''s books';
+  assert pg_temp.helper_as(pg_temp.f(9), 'private.shop_seat()') = 'true', 'runs the shop';
+  assert pg_temp.helper_as(pg_temp.f(9), 'private.is_feedback_keeper()') = 'true', 'and keeps the feedback inbox';
+  assert pg_temp.helper_as(pg_temp.f(4), 'private.sees_every_chapter()') = 'true', 'Lou, National Secretary, sees every chapter';
+  assert pg_temp.helper_as(pg_temp.f(12), 'private.sees_every_chapter()') = 'false', 'Kim, the Auditor, isn''t on the NEC (11.8)';
+  insert into public.app_feedback (member_id, kind, body) values (pg_temp.f(10), 'idea', 'A tyre pressure chart') returning id into report;
+  assert (select array_agg(member_id order by member_id) from private.push_outbox where dedupe_key = 'feedback:' || report)
+    = array[pg_temp.f(4), pg_temp.f(9)], 'a new report reaches Lou and Penny, not Gus';
+end $$;
+rollback;
+
+\echo 'club-wide: a covered President keeps sees_board_of(north) and loses sees_board_of(west) and approves_for(null)'
+begin;
+select pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey overseas', pg_temp.f(101));
+do $$ begin
+  assert pg_temp.helper_as(pg_temp.f(1), format('private.sees_board_of(%L)', pg_temp.north())) = 'true', 'Smokey still reads North''s board records';
+  assert pg_temp.helper_as(pg_temp.f(1), format('private.approves_for(%L)', pg_temp.north())) = 'true', 'and approves North''s spending (13.3)';
+  assert pg_temp.helper_as(pg_temp.f(1), format('private.sees_board_of(%L)', pg_temp.west())) = 'false', 'but not West''s, while covered';
+  assert pg_temp.helper_as(pg_temp.f(1), 'private.approves_for(null)') = 'false', 'nor the Club fund''s spending';
+  assert pg_temp.helper_as(pg_temp.f(1), 'private.sees_every_chapter()') = 'false', 'nor every chapter';
+end $$;
+rollback;
+
+\echo 'club-wide: an Acting President can''t read West''s chapter chat; a sitting President can'
+begin;
+select pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey overseas', pg_temp.f(101));
+do $$
+declare
+  west_chat uuid := (select id from public.conversations where kind = 'chapter' and chapter_id = pg_temp.west());
+  north_chat uuid := (select id from public.conversations where kind = 'chapter' and chapter_id = pg_temp.north());
+  nec_chat uuid := (select id from public.conversations where kind = 'nec');
+begin
+  assert pg_temp.helper_as(pg_temp.f(2), format('private.chat_problem(%L)', west_chat)) = 'That chat is for West chapter members.',
+    'Jet, Acting President (North), doesn''t read West''s chapter chat';
+  assert pg_temp.helper_as(pg_temp.f(2), format('private.chat_problem(%L)', nec_chat)) is null, 'but he''s in the NEC chat';
+  assert pg_temp.helper_as(pg_temp.f(7), format('private.chat_problem(%L)', north_chat)) is null, 'Rusty, a sitting President, reads North''s';
+  assert pg_temp.helper_as(pg_temp.f(1), format('private.chat_problem(%L)', west_chat)) = 'That chat is for West chapter members.',
+    'Smokey, covered, doesn''t read West''s for now';
+  assert pg_temp.helper_as(pg_temp.f(1), format('private.chat_problem(%L)', nec_chat)) = 'That chat is for the NEC.',
+    'and is out of the NEC chat while covered';
+end $$;
+rollback;
+
+\echo 'lapsed: a lapsed but open row loses approves_for, keeps_books, nec_voter_for, chair_of and sees_board_of'
+-- Which of the powers Hal (Acting President, West) and Gus (Acting Treasurer, North) still have.
+create function pg_temp.lapse_powers() returns text[] language plpgsql as $$
+declare yes text[] := '{}';
+begin
+  if pg_temp.helper_as(pg_temp.f(11), format('private.approves_for(%L)', pg_temp.west()))::boolean then yes := yes || 'approves_for'::text; end if;
+  if pg_temp.helper_as(pg_temp.f(11), format('private.sees_board_of(%L)', pg_temp.west()))::boolean then yes := yes || 'sees_board_of'::text; end if;
+  if private.nec_voter_for(pg_temp.west()) is not distinct from pg_temp.f(11) then yes := yes || 'nec_voter_for'::text; end if;
+  if private.chair_of(pg_temp.west()) is not distinct from pg_temp.f(11) then yes := yes || 'chair_of'::text; end if;
+  if pg_temp.helper_as(pg_temp.f(6), format('private.keeps_books(%L)', pg_temp.north()))::boolean then yes := yes || 'keeps_books'::text; end if;
+  if pg_temp.helper_as(pg_temp.f(6), format('private.can_manage_fees(%L)', pg_temp.north()))::boolean then yes := yes || 'can_manage_fees'::text; end if;
+  return yes;
+end $$;
+begin;
+select pg_temp.clock_at('2026-12-13 23:59:59 Australia/Melbourne');
+select pg_temp.end_row(pg_temp.f(107));
+select pg_temp.seat(11, pg_temp.west(), 'president', '2026-12-13', 'No President since Rusty stepped down', null, '2026-12-01');
+select pg_temp.seat(6, pg_temp.north(), 'treasurer', '2026-12-13', 'No Treasurer since the ACM', null, '2026-12-01');
+do $$
+declare got text[] := pg_temp.lapse_powers();
+begin
+  assert got = array['approves_for', 'sees_board_of', 'nec_voter_for', 'chair_of', 'keeps_books', 'can_manage_fees'],
+    'until today, Hal and Gus have their seats'' powers: ' || got::text;
+end $$;
+select pg_temp.clock_at('2026-12-14 00:00:00 Australia/Melbourne');
+do $$
+declare got text[] := pg_temp.lapse_powers();
+begin
+  assert not exists (select 1 from positions where member_id in (pg_temp.f(6), pg_temp.f(11)) and ended_on is not null), 'nothing closed their stints';
+  assert got = '{}', 'from Melbourne midnight they have none: ' || got::text;
+  assert private.nec_voter_for(pg_temp.west()) is null and private.chair_of(pg_temp.west()) is null, 'West has no voter or chair';
+end $$;
+rollback;
+
+\echo 'nec_voter_before: a President seated on the day doesn''t count, the VP does; an agreed cover counts from Smokey''s start, a voted one gives null'
+begin;
+do $$ begin
+  perform pg_temp.end_row(pg_temp.f(101));
+  perform pg_temp.seat(5, pg_temp.north(), 'president');
+  assert private.nec_voter_before(pg_temp.north(), pg_temp.today()) = pg_temp.f(2),
+    'Ned was seated today, so on a vote opened today Jet, the VP, casts North''s ballot';
+  assert private.nec_voter_before(pg_temp.north(), pg_temp.today() + 1) = pg_temp.f(5), 'on one opened tomorrow, Ned does';
+  assert private.nec_voter_for(pg_temp.north()) = pg_temp.f(5), 'and he''s North''s voter now';
+end $$;
+rollback;
+begin;
+do $$
+declare
+  cover uuid;
+  vote uuid;
+begin
+  cover := pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey overseas', pg_temp.f(101));
+  assert private.nec_voter_before(pg_temp.north(), pg_temp.today()) = pg_temp.f(2),
+    'Smokey agreed the cover, so it counts from his start: Jet casts on a vote opened before it began';
+  assert private.nec_voter_before(pg_temp.north(), '2026-08-02') = pg_temp.f(2), 'even one opened in August';
+  insert into votes (chapter_id, subject_member_id, subject_role, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result)
+  values (pg_temp.north(), pg_temp.f(2), 'president', 'Jet acts as President (North)?', 'chapter_board', 'majority', 2,
+    now() - interval '4 days', now() - interval '1 day', now() - interval '1 day', 'carried')
+  returning id into vote;
+  update positions set acting_vote = vote where id = cover;
+  assert private.nec_voter_before(pg_temp.north(), pg_temp.today()) is null,
+    'a voted cover counts from its own start, so on a vote opened today nobody casts North''s ballot';
+  assert private.nec_voter_before(pg_temp.north(), pg_temp.today() + 1) = pg_temp.f(2), 'on one opened tomorrow, Jet does';
+  assert private.nec_voter_for(pg_temp.north()) = pg_temp.f(2), 'and he''s North''s voter now';
+end $$;
+rollback;
+
+\echo 'minutes: the draft flags Jet''s acting row and its NEC list names Jet, not Smokey'
+begin;
+insert into private.app_settings (key, value) values ('assistant_on', 'true');
+insert into meetings (id, chapter_id, kind, title, starts_at) values
+  (pg_temp.f(201), pg_temp.north(), 'general', 'November meeting', now() - interval '1 day'),
+  (pg_temp.f(202), null, 'nec', 'NEC meeting', now() - interval '1 day');
+select pg_temp.seat(2, pg_temp.north(), 'president', pg_temp.today() + 20, 'Smokey overseas', pg_temp.f(101));
+do $$
+declare got jsonb;
+begin
+  got := pg_temp.value_as(pg_temp.f(2), format('public.minutes_draft_start(%L)', pg_temp.f(201)))::jsonb -> 'board';
+  assert got @> '[{"role": "president", "name": "Jet Black", "acting": true}]', 'North''s draft flags Jet''s acting row: ' || got::text;
+  assert got @> '[{"role": "president", "name": "Smokey Stone", "acting": false}, {"role": "vice_president", "name": "Jet Black", "acting": false}]',
+    'Smokey keeps his seat, and Jet his: ' || got::text;
+  got := pg_temp.value_as(pg_temp.f(2), format('public.minutes_draft_start(%L)', pg_temp.f(202)))::jsonb -> 'board';
+  assert (select array_agg(b ->> 'name' order by b ->> 'name') from jsonb_array_elements(got) b where b ->> 'role' = 'president')
+    = array['Jet Black', 'Rusty Nail'], 'the NEC''s Presidents are Jet, acting for Smokey, and Rusty: ' || got::text;
+  assert got @> '[{"role": "president", "name": "Jet Black", "acting": true}, {"role": "nec_secretary", "name": "Lou Reed", "acting": false}]',
+    'with Jet flagged, beside the national seats: ' || got::text;
+end $$;
+rollback;
+
+\echo 'catalogue: no live function or policy names public.positions off the allow-list'
+do $$
+declare off text;
+begin
+  -- Each of these reads or writes the table itself, for the reason given; every other reader goes
+  -- through private.held_positions, private.duty_positions or private.clubwide_positions.
+  with allowed(name, why) as (values
+    ('appoint_position', 'a writer'),
+    ('end_position', 'a writer'),
+    ('renew_auditor', 'a writer'),
+    ('forget_member', 'a writer'),
+    ('add_roster_position', 'a writer'),
+    ('settle_chapter_proposal', 'a writer'),
+    ('appoint_acting', 'a writer (Task 4)'),
+    ('confirm_acting', 'a writer (Task 4)'),
+    ('set_acting_until', 'a writer (Task 4)'),
+    ('close_lapsed_acting', 'the lazy close, a writer'),
+    ('check_covers', 'the covers trigger reads the covered row as stored'),
+    ('on_position_end', 'the ending trigger, a writer'),
+    ('has_carried_nec_vote', 'history: who held a seat when a vote carried'),
+    ('acting_cap', 'a run''s start, from ended rows (Task 4)'),
+    ('acting_needs_vote', 'when the President seat fell empty, from ended rows (Task 4)'),
+    ('approval_conflict', 'rows held on an approval''s day (Task 7)'),
+    ('has_carried_removal_vote', 'pending: re-pointed in Task 5'),
+    ('set_member_status', 'pending: re-pointed in Task 5'),
+    ('delete_my_account', 'pending: re-pointed in Task 5'),
+    ('open_vote', 'pending: re-pointed in Task 6')
+  )
+  select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname) into off
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname in ('public', 'private') and p.prosrc ~ '(public\.|(from|join)\s+)positions\y'
+    and p.proname not in (select name from allowed);
+  assert off is null, 'these name public.positions: read one of the three views, or add them to the allow-list with a reason: ' || off;
+  select string_agg(schemaname || '.' || tablename || ' ' || policyname, ', ') into off
+  from pg_policies where coalesce(qual, '') ~ '\ypositions\y' or coalesce(with_check, '') ~ '\ypositions\y';
+  assert off is null, 'these policies name positions: ' || off;
+end $$;
 
 \echo 'ACTING CHECKS PASSED'

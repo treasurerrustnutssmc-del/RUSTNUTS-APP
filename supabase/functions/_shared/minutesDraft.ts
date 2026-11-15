@@ -33,8 +33,9 @@ export interface MinutesContext {
     agenda: { title: string; notes: string | null }[];
   };
   people: MinutesPerson[];
-  /** The scope's seated positions, so the draft knows who chairs and who's secretary. */
-  board: { role: string; name: string }[];
+  /** The scope's seated positions, so the draft knows who chairs and who's secretary. `acting` marks
+   *  an acting stint, so an Acting President is named as such. */
+  board: { role: string; name: string; acting?: boolean }[];
 }
 
 export interface HeardPerson {
