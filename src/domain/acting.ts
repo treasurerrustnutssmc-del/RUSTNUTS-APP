@@ -60,6 +60,20 @@ export function coverOf(position: Position, positions: Position[]): Position | n
   return positions.find((c) => c.covers === position.id && !isEnded(c)) ?? null;
 }
 
+// How a row stood on a past day, read from the rows as they are (settled or not), for the 13.3
+// approver check (private.approval_conflict). A row ends at the start of its endedOn day; a stint
+// runs to the end of its until day.
+
+/** Held at any time on `day`: started by then, not ended before it, and a stint's until on or after it. */
+export function heldSometimeOn(p: Position, day: string): boolean {
+  return p.startedOn <= day && (!isEnded(p) || p.endedOn! >= day) && (!isActing(p) || p.actingUntil! >= day);
+}
+
+/** Held all of `day`: started before it, not ended on or before it, and a stint's until on or after it. */
+export function heldAllOf(p: Position, day: string): boolean {
+  return p.startedOn < day && (!isEnded(p) || p.endedOn! > day) && (!isActing(p) || p.actingUntil! >= day);
+}
+
 // ---------------------------------------------------------------------------
 // Melbourne midnight
 // ---------------------------------------------------------------------------

@@ -4200,6 +4200,164 @@
       ]
     },
     {
+      "name": "Penny’s appointee gives the second approval",
+      "as": "spanner",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false,
+      "refusal": "You’re acting because Penny put you there, so you can’t be the second approver on their entry (13.3).",
+      "with": [
+        { "key": "spanner-acting-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "actingUntilDays": 20, "why": "No VP since the ACM", "appointedBy": "penny" }
+      ]
+    },
+    {
+      "name": "Rusty’s appointee gives the second approval",
+      "as": "spanner",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": true,
+      "with": [
+        { "key": "spanner-acting-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "actingUntilDays": 20, "why": "No VP since the ACM", "appointedBy": "rusty" }
+      ]
+    },
+    {
+      "name": "The payee’s stand-in approves the refund",
+      "as": "rusty",
+      "action": "approveDebit",
+      "entry": "west-refund",
+      "allowed": false,
+      "refusal": "You’re covering Tania’s seat, so their payment goes to the other approvers (13.3).",
+      "with": [
+        { "key": "rusty-covers-torque", "member": "rusty", "chapter": "west", "role": "secretary", "actingUntilDays": 20, "covers": "torque-secretary", "why": "Torque overseas", "appointedBy": "penny" }
+      ]
+    },
+    {
+      "name": "A President covering the payee’s seat approves a Club fund refund to them",
+      "as": "rusty",
+      "action": "approveDebit",
+      "entry": "club-refund",
+      "allowed": false,
+      "refusal": "You’re covering Tania’s seat, so their payment goes to the other approvers (13.3).",
+      "with": [
+        { "key": "rusty-covers-torque", "member": "rusty", "chapter": "west", "role": "secretary", "actingUntilDays": 20, "covers": "torque-secretary", "why": "Torque overseas", "appointedBy": "penny" }
+      ]
+    },
+    {
+      "name": "An Acting Treasurer records a Club fund line",
+      "as": "crank",
+      "action": "recordDebit",
+      "chapter": null,
+      "code": "DB-004",
+      "description": "Fee",
+      "amountCents": 40,
+      "paidOnDays": -1,
+      "allowed": false,
+      "refusal": "Only that fund’s treasurer, or the National Chairman or Secretary, keeps its books.",
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -10, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "An Acting Treasurer records a North line",
+      "as": "crank",
+      "action": "recordDebit",
+      "chapter": "north",
+      "code": "DB-004",
+      "description": "Fee",
+      "amountCents": 40,
+      "paidOnDays": -1,
+      "allowed": true,
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -10, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A lapsed Acting Treasurer records a North line",
+      "as": "crank",
+      "action": "recordDebit",
+      "chapter": "north",
+      "code": "DB-004",
+      "description": "Fee",
+      "amountCents": 40,
+      "paidOnDays": -1,
+      "allowed": false,
+      "refusal": "Only that fund’s treasurer, or the National Chairman or Secretary, keeps its books.",
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -30, "actingUntilDays": -1, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "An Acting President the first approver asked for gives the second approval",
+      "as": "hal",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false,
+      "refusal": "You’re acting because Penny put you there, so you can’t be the second approver on their entry (13.3).",
+      "without": ["rusty-president"],
+      "with": [
+        { "key": "hal-acting-president", "member": "hal", "chapter": "west", "role": "president", "actingUntilDays": 20, "why": "No President since the ACM", "appointedBy": "torque", "requestedBy": "penny" }
+      ]
+    },
+    {
+      "name": "A payee-requested Acting President gives the second approval",
+      "as": "hal",
+      "action": "approveDebit",
+      "entry": "west-refund",
+      "allowed": false,
+      "refusal": "You’re acting because Tania put you there, so you can’t be the second approver on their entry (13.3).",
+      "without": ["rusty-president"],
+      "with": [
+        { "key": "hal-acting-president", "member": "hal", "chapter": "west", "role": "president", "actingUntilDays": 20, "why": "No President since the ACM", "appointedBy": "penny", "requestedBy": "torque" }
+      ]
+    },
+    {
+      "name": "The member who asked for an Acting President approves after them",
+      "as": "penny",
+      "action": "approveDebit",
+      "entry": "west-hal-first",
+      "allowed": false,
+      "refusal": "Hal is acting because you put them there, so you can’t be the second approver after them (13.3).",
+      "without": ["rusty-president"],
+      "with": [
+        { "key": "hal-acting-president", "member": "hal", "chapter": "west", "role": "president", "startedDays": -3650, "actingUntilDays": 20, "why": "No President since the ACM", "appointedBy": "torque", "requestedBy": "penny" }
+      ]
+    },
+    {
+      "name": "A President’s stand-in approves Club fund spending",
+      "as": "torque",
+      "action": "approveDebit",
+      "entry": "club-awaiting",
+      "allowed": false,
+      "refusal": "You can’t approve spending from this fund.",
+      "with": [
+        { "key": "torque-covers-rusty", "member": "torque", "chapter": "west", "role": "president", "actingUntilDays": 20, "covers": "rusty-president", "why": "Rusty overseas", "appointedBy": "penny" }
+      ]
+    },
+    {
+      "name": "Rusty approves after the Acting Treasurer he put there",
+      "as": "rusty",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false,
+      "refusal": "Penny is acting because you put them there, so you can’t be the second approver after them (13.3).",
+      "without": ["penny-treasurer"],
+      "with": [
+        { "key": "penny-acting-treasurer", "member": "penny", "chapter": "west", "role": "treasurer", "startedDays": -3650, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "rusty" }
+      ]
+    },
+    {
+      "name": "Rusty approves after the Acting Treasurer he put there, once her stint has lapsed",
+      "as": "rusty",
+      "action": "approveDebit",
+      "entry": "west-awaiting",
+      "allowed": false,
+      "refusal": "Penny is acting because you put them there, so you can’t be the second approver after them (13.3).",
+      "without": ["penny-treasurer"],
+      "with": [
+        { "key": "penny-acting-treasurer", "member": "penny", "chapter": "west", "role": "treasurer", "startedDays": -3650, "actingUntilDays": -1, "why": "No Treasurer since the ACM", "appointedBy": "rusty" }
+      ]
+    },
+    {
       "name": "A President records Jet as Acting VP in North’s empty VP seat",
       "as": "smokey",
       "action": "appointActing",
@@ -16487,6 +16645,26 @@
       "approvals": [
         "chair",
         "lou"
+      ]
+    },
+    {
+      "key": "club-refund",
+      "chapter": null,
+      "code": "DB-006",
+      "amountCents": 2500,
+      "state": "awaiting",
+      "entryOn": null,
+      "payee": "torque"
+    },
+    {
+      "key": "west-hal-first",
+      "chapter": "west",
+      "code": "DB-003",
+      "amountCents": 1500,
+      "state": "awaiting",
+      "entryOn": null,
+      "approvals": [
+        "hal"
       ]
     }
   ],

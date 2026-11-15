@@ -1,12 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
+import { recordDebit } from '../data/ledgerActions';
+import { settleActing } from './acting';
 import {
-  addFeeProblem, approveBudgetProblem, approveProblem, approvesFor, bankedLate, BUDGET_VOTE, budgetLines, budgetProblem,
+  addFeeProblem, approvalConflict, approveBudgetProblem, approveProblem, approvesFor, APPROVERS_ONLY, bankedLate, BUDGET_VOTE, budgetLines, budgetProblem,
   creditProblem, debitProblem, feesToAdd, fundBalance, keepsBooks, KEEPS_ONLY, monthReport, NEEDS_TWO, PAYEE_CANT_APPROVE,
   BUDGET_BOARD, BUDGET_STALE_VOTE, PAID_BEFORE_APPROVED, payProblem, presentProblem, reopenBudgetProblem, seesLedger, seesReports, updatedSince, voidProblem, workingDaysBetween,
 } from './ledger';
-import type { ClubData, LedgerEntry, Vote } from './types';
+import type { ActingRequest, ClubData, LedgerCode, LedgerEntry, Position, PositionRole, Vote } from './types';
 
 const base: ClubData = {
   ...DEMO_DATA,
@@ -226,4 +228,202 @@ test('review fixes: budget approvers, fresh votes and paying after approval', ()
   const paying = { ...base, ledger: [e] };
   assert.equal(payProblem(me('m-sparks'), e.id, '2026-10-11', paying, TODAY), PAID_BEFORE_APPROVED);
   assert.equal(payProblem(me('m-sparks'), e.id, '2026-10-12', paying, TODAY), null);
+});
+
+// ---------------------------------------------------------------------------
+// Acting roles: the books and two independent approvers (13.3). The people are
+// supabase/tests/acting_test.sql's: North has Smokey (President), Jet (VP), Crank (Road Captain),
+// Lou (National Secretary), Ned and Gus (no seat); West has Rusty (President), Torque (Secretary),
+// Penny (Treasurer), Spanner and Hal (no seat) and Kim (National Auditor).
+// ---------------------------------------------------------------------------
+
+const AT = '2026-11-15';
+const UNTIL = '2026-12-13';
+const AT_TIME = `${AT}T01:00:00.000Z`; // noon in Melbourne
+const PEOPLE: [string, string][] = [
+  ['smokey', 'north'], ['jet', 'north'], ['crank', 'north'], ['lou', 'north'], ['ned', 'north'], ['gus', 'north'],
+  ['rusty', 'west'], ['torque', 'west'], ['penny', 'west'], ['spanner', 'west'], ['hal', 'west'], ['kim', 'west'],
+];
+const seat = (id: string, memberId: string, chapterId: string | null, role: PositionRole, over: Partial<Position> = {}): Position => ({
+  id, memberId, chapterId, role, startedOn: '2026-08-01', endedOn: null, ...over,
+});
+/** A stint from today to UNTIL: in an empty seat, unless `covers`. */
+const stint = (id: string, memberId: string, chapterId: string, role: PositionRole, over: Partial<Position> = {}): Position =>
+  seat(id, memberId, chapterId, role, { startedOn: AT, actingUntil: UNTIL, actingWhy: 'No one since the ACM', ...over });
+const SEATS: Position[] = [
+  seat('smokey-president', 'smokey', 'north', 'president'),
+  seat('jet-vp', 'jet', 'north', 'vice_president'),
+  seat('crank-rc', 'crank', 'north', 'road_captain'),
+  seat('lou-nec-secretary', 'lou', null, 'nec_secretary'),
+  seat('rusty-president', 'rusty', 'west', 'president'),
+  seat('torque-secretary', 'torque', 'west', 'secretary'),
+  seat('penny-treasurer', 'penny', 'west', 'treasurer'),
+  seat('kim-auditor', 'kim', null, 'nec_auditor'),
+];
+const club = (extra: Position[] = [], over: Partial<ClubData> & { without?: string[] } = {}): ClubData => {
+  const { without = [], ...rest } = over;
+  return {
+    ...base,
+    chapters: [
+      { id: 'north', slug: 'north', name: 'North', area: 'Northern Melbourne', state: 'VIC' },
+      { id: 'west', slug: 'west', name: 'West', area: 'Western Melbourne', state: 'VIC' },
+    ],
+    members: PEOPLE.map(([id, chapterId]) => ({
+      ...base.members[0], id, chapterId, fullName: `${id[0].toUpperCase()}${id.slice(1)} Rider`, roadName: null, status: 'full',
+      approval: 'approved', onHiatus: false,
+    })),
+    positions: [...SEATS, ...extra].filter((p) => !without.includes(p.id)),
+    votes: [], actingRequests: [], actingChanges: [], ledger: [],
+    ...rest,
+  };
+};
+const person = (data: ClubData, id: string) => data.members.find((x) => x.id === id)!;
+/** A West payment waiting for approval. */
+const spend = (id: string, over: Partial<LedgerEntry> = {}): LedgerEntry =>
+  entry({ id, chapterId: 'west', code: 'DB-001', description: 'Fuel for the bus', amountCents: 5000, state: 'awaiting', entryOn: null,
+    recordedBy: 'penny', payeeName: 'Servo', recordedAt: AT_TIME, updatedAt: AT_TIME, ...over });
+const approval = (memberId: string, approvedAt = AT_TIME) => ({ memberId, approvedAt });
+// The independence refusals (Appendix A), word for word.
+const seated = (name: string) => `You’re acting because ${name} put you there, so you can’t be the second approver on their entry (13.3).`;
+const planted = (name: string) => `${name} is acting because you put them there, so you can’t be the second approver after them (13.3).`;
+const standIn = (name: string) => `You’re covering ${name}’s seat, so their payment goes to the other approvers (13.3).`;
+/** approveProblem and approvalConflict agree, and give `want`. */
+function refuses(data: ClubData, memberId: string, entryId: string, want: string | null, why: string) {
+  const e = data.ledger!.find((x) => x.id === entryId)!;
+  assert.equal(approvalConflict(memberId, e, data), want, `${why} (approvalConflict)`);
+  assert.equal(approveProblem(person(data, memberId), entryId, data), want, why);
+}
+
+test('the Acting Treasurer keeps only the chapter’s books', () => {
+  // North's Treasurer seat is empty: Smokey records Ned as Acting Treasurer.
+  const data = club([stint('ned-acting-treasurer', 'ned', 'north', 'treasurer', { appointedBy: 'smokey' })]);
+  const ned = person(data, 'ned');
+  assert.ok(keepsBooks(ned, 'north', data.positions), 'an Acting Treasurer keeps their chapter’s books');
+  assert.ok(!keepsBooks(ned, 'west', data.positions), 'not another chapter’s');
+  assert.ok(!keepsBooks(ned, null, data.positions), 'and never the Club fund’s');
+  assert.equal(presentProblem(ned, '2026-09-01', data, AT), KEEPS_ONLY, 'so they don’t present the month’s report');
+  // Torque covers Penny's Treasurer seat: the stand-in keeps West's books, and Penny pauses them.
+  const covered = club([stint('torque-covers-penny', 'torque', 'west', 'treasurer', { covers: 'penny-treasurer', appointedBy: 'rusty' })]);
+  assert.ok(keepsBooks(person(covered, 'torque'), 'west', covered.positions), 'the stand-in keeps the chapter’s books');
+  assert.ok(!keepsBooks(person(covered, 'torque'), null, covered.positions), 'but not the Club fund’s');
+  assert.ok(!keepsBooks(person(covered, 'penny'), 'west', covered.positions), 'the covered Treasurer pauses them');
+  assert.ok(!keepsBooks(person(covered, 'penny'), null, covered.positions), 'and the Club fund’s');
+  assert.ok(keepsBooks(person(club(), 'penny'), null, club().positions), 'a sitting Treasurer keeps the Club fund’s (inferred)');
+  // Once the stint lapses, it keeps nothing.
+  const lapsed = settleActing(data, '2026-12-14');
+  assert.ok(!keepsBooks(person(lapsed, 'ned'), 'north', lapsed.positions), 'a lapsed stint keeps no books');
+});
+
+test('no acting row on the Club fund', () => {
+  const spending = entry({ id: 'club-spend', chapterId: null, code: 'DB-002', state: 'awaiting', entryOn: null, recordedBy: 'lou', payeeName: 'Charity' });
+  // Jet, North's VP, covers Smokey's President seat.
+  const covered = club([stint('jet-covers-smokey', 'jet', 'north', 'president', { covers: 'smokey-president', appointedBy: 'crank' })], { ledger: [spending] });
+  const jet = person(covered, 'jet');
+  assert.ok(!approvesFor(jet, null, covered.positions), 'an Acting President doesn’t approve Club fund spending');
+  assert.ok(!seesLedger(jet, null, covered.positions), 'or read its lines');
+  assert.equal(approveProblem(jet, 'club-spend', covered), APPROVERS_ONLY);
+  assert.ok(!approvesFor(person(covered, 'smokey'), null, covered.positions), 'the covered President pauses it');
+  assert.ok(approvesFor(person(covered, 'smokey'), 'north', covered.positions), 'but still approves North’s spending (13.3)');
+  assert.ok(approvesFor(person(covered, 'rusty'), null, covered.positions), 'a sitting President approves it');
+  // Hal acts in West's empty President seat.
+  const empty = club([stint('hal-acting-president', 'hal', 'west', 'president', { appointedBy: 'torque' })], { without: ['rusty-president'] });
+  const hal = person(empty, 'hal');
+  assert.ok(approvesFor(hal, 'west', empty.positions), 'acting in an empty board seat approves the chapter’s spending');
+  assert.ok(!approvesFor(hal, null, empty.positions), 'but not the Club fund’s');
+});
+
+test('Penny’s appointee can’t be the second approver', () => {
+  // Penny records Hal as Acting VP in West's empty VP seat.
+  const hal = stint('hal-acting-vp', 'hal', 'west', 'vice_president', { appointedBy: 'penny' });
+  const data = club([hal], {
+    ledger: [
+      spend('pennys', { approvals: [approval('penny')] }),
+      spend('pennys-unapproved'),
+      spend('lous', { recordedBy: 'lou', payeeName: null, payeeMemberId: 'lou', code: 'DB-006', approvals: [approval('penny')] }),
+    ],
+  });
+  refuses(data, 'hal', 'pennys', seated('Penny'), 'Penny recorded it and approved it first');
+  refuses(data, 'hal', 'pennys-unapproved', seated('Penny'), 'Penny only recorded it');
+  refuses(data, 'hal', 'lous', seated('Penny'), 'Penny approved Lou’s reimbursement first');
+  refuses(data, 'torque', 'lous', null, 'Torque can');
+  // Rusty's appointee can be the second approver on Penny's entry.
+  const rustys = club([{ ...hal, appointedBy: 'rusty' }], { ledger: [spend('pennys', { approvals: [approval('penny')] })] });
+  refuses(rustys, 'hal', 'pennys', null, 'Hal, acting because Rusty put him there, can');
+});
+
+test('Rusty can’t approve after his own appointee', () => {
+  // Rusty records Spanner as Acting VP; Spanner approves Penny's reimbursement first.
+  const spanner = stint('spanner-acting-vp', 'spanner', 'west', 'vice_president', { appointedBy: 'rusty' });
+  const reimbursement = spend('pennys', { payeeName: null, payeeMemberId: 'penny', approvals: [approval('spanner')] });
+  const data = club([spanner], { ledger: [reimbursement] });
+  refuses(data, 'rusty', 'pennys', planted('Spanner'), 'Rusty put Spanner there');
+  refuses(data, 'torque', 'pennys', null, 'Torque can');
+  // Nor once Spanner then stepped down: he stood only through acting the day he approved.
+  const steppedDown = { ...data, positions: data.positions.map((p) => (p.id === spanner.id ? { ...p, endedOn: AT, endedReason: 'stepped_down' as const } : p)) };
+  refuses(steppedDown, 'rusty', 'pennys', planted('Spanner'), 'after Spanner stepped down');
+  // Nor once a stint that ran to yesterday lapsed, for an approval given yesterday.
+  const yesterday = club([{ ...spanner, startedOn: '2026-11-05', actingUntil: '2026-11-14' }], {
+    ledger: [{ ...reimbursement, approvals: [approval('spanner', '2026-11-14T01:00:00.000Z')] }],
+  });
+  refuses(settleActing(yesterday, AT), 'rusty', 'pennys', planted('Spanner'), 'after the stint lapsed');
+  // A full board seat held all that day makes him independent.
+  const captain = seat('spanner-rc', 'spanner', 'west', 'road_captain');
+  refuses(club([spanner, captain], { ledger: [reimbursement] }), 'rusty', 'pennys', null, 'Spanner is Road Captain in full too');
+  refuses(club([spanner, { ...captain, endedOn: AT, endedReason: 'stepped_down' }], { ledger: [reimbursement] }), 'rusty', 'pennys',
+    planted('Spanner'), 'not when that seat ended on the day he approved');
+  refuses(club([spanner, { ...captain, startedOn: AT }], { ledger: [reimbursement] }), 'rusty', 'pennys',
+    planted('Spanner'), 'nor when it started that day');
+});
+
+test('a payee-requested Acting President can’t approve', () => {
+  // West's President seat is empty. Penny asked for Hal; the board voted and Torque confirmed it.
+  const request: ActingRequest = {
+    id: 'ar-hal', chapterId: 'west', role: 'president', memberId: 'hal', covers: null, until: UNTIL, why: 'Rusty stood down',
+    requestedBy: 'penny', createdAt: '2026-11-10T01:00:00.000Z', closedAt: AT_TIME, outcome: 'confirmed',
+  };
+  const hal = stint('hal-acting-president', 'hal', 'west', 'president', { appointedBy: 'torque', actingRequestId: 'ar-hal', actingVote: 'v-hal' });
+  const data = club([hal, seat('spanner-rc', 'spanner', 'west', 'road_captain')], {
+    without: ['rusty-president'], actingRequests: [request],
+    ledger: [
+      spend('pennys', { payeeName: null, payeeMemberId: 'penny' }),
+      spend('lous', { recordedBy: 'lou', payeeName: null, payeeMemberId: 'lou', code: 'DB-006', approvals: [approval('hal')] }),
+    ],
+  });
+  refuses(data, 'hal', 'pennys', seated('Penny'), 'Hal is acting because Penny asked for him, so he can’t approve her reimbursement');
+  refuses(data, 'spanner', 'pennys', null, 'Spanner can');
+  refuses(data, 'torque', 'pennys', null, 'and Torque');
+  // The other order: Hal approved Lou's reimbursement first.
+  refuses(data, 'penny', 'lous', planted('Hal'), 'Penny asked for Hal, so she can’t be second after him');
+  refuses(data, 'torque', 'lous', planted('Hal'), 'Torque confirmed Hal, so neither can he');
+  refuses(data, 'spanner', 'lous', null, 'Spanner can');
+});
+
+test('the payee’s stand-in can’t approve the refund', () => {
+  // Rusty covers Torque's Secretary seat.
+  const data = club([stint('rusty-covers-torque', 'rusty', 'west', 'secretary', { covers: 'torque-secretary', appointedBy: 'penny' })], {
+    ledger: [
+      spend('torques-refund', { code: 'DB-006', payeeName: null, payeeMemberId: 'torque', approvals: [approval('penny')] }),
+      spend('other', { approvals: [approval('penny')] }),
+      entry({ id: 'club-refund', chapterId: null, code: 'DB-006', state: 'awaiting', entryOn: null, recordedBy: 'lou', payeeMemberId: 'torque' }),
+    ],
+  });
+  refuses(data, 'rusty', 'torques-refund', standIn('Torque'), 'Rusty, covering Torque’s Secretary seat, can’t approve it');
+  refuses(data, 'rusty', 'other', null, 'but approves other West spending');
+  refuses(data, 'rusty', 'club-refund', standIn('Torque'), 'and the Club fund’s refund to Torque goes to the other approvers too');
+  refuses(data, 'smokey', 'club-refund', null, 'Smokey can');
+});
+
+test('recordDebit skips self-approval on a conflict', () => {
+  // North's Treasurer seat is empty: Smokey records Ned as Acting Treasurer, who keeps North's books.
+  const data = club([stint('ned-acting-treasurer', 'ned', 'north', 'treasurer', { appointedBy: 'smokey' })]);
+  const ctx = (memberId: string, d: ClubData = data) => ({ data: d, me: person(d, memberId), today: AT, now: AT_TIME });
+  const pay = (chapterId: string, payeeMemberId: string, code: LedgerCode = 'DB-001') =>
+    ({ chapterId, code, description: 'Fuel for the bus', amountCents: 5000, payeeMemberId, payeeName: null, paidOn: null });
+  const approvalsOf = (r: { data: ClubData; id: string }) => r.data.ledger!.find((e) => e.id === r.id)!.approvals.map((a) => a.memberId);
+  assert.deepEqual(approvalsOf(recordDebit(ctx('ned'), pay('north', 'smokey'))), [], 'Ned records Smokey’s reimbursement, with no approval of his own and no error');
+  assert.deepEqual(approvalsOf(recordDebit(ctx('ned'), pay('north', 'gus'))), ['ned'], 'a payment to Gus counts Ned’s approval as usual');
+  // Penny covers Torque's Secretary seat, then records his refund.
+  const cover = club([stint('penny-covers-torque', 'penny', 'west', 'secretary', { covers: 'torque-secretary', appointedBy: 'rusty' })]);
+  assert.deepEqual(approvalsOf(recordDebit(ctx('penny', cover), pay('west', 'torque', 'DB-006'))), [], 'Penny, Torque’s stand-in, records his refund without approving it');
+  assert.deepEqual(approvalsOf(recordDebit(ctx('penny', cover), pay('west', 'rusty'))), ['penny'], 'and approves Rusty’s as usual');
 });

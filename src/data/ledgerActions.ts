@@ -2,7 +2,7 @@
 // (src/domain/ledger.ts; checked by src/data/parity.test.ts).
 
 import {
-  addFeeProblem, approveBudgetProblem, approveProblem, approvesFor, BANK_FEES, budgetProblem, creditProblem, debitProblem,
+  addFeeProblem, approvalConflict, approveBudgetProblem, approveProblem, approvesFor, BANK_FEES, budgetProblem, creditProblem, debitProblem,
   FEES_CODE, floatProblem, openingProblem, payProblem, presentProblem, reopenBudgetProblem, voidProblem,
   type CreditInput, type DebitInput,
 } from '../domain/ledger';
@@ -43,19 +43,24 @@ export function recordCredit(ctx: DemoCtx, input: CreditInput): { data: ClubData
 
 /**
  * A debit waits for two approvals. Whoever records it counts as the first when they can approve
- * for that fund and aren't the payee (inferred). The bank takes its fees, so those are paid.
+ * for that fund, aren't the payee (inferred) and approving wouldn't break the independence rule
+ * (13.3, approvalConflict); otherwise it simply waits, with no error. The bank takes its fees, so
+ * those are paid.
  */
 export function recordDebit(ctx: DemoCtx, input: DebitInput): { data: ClubData; id: string } {
   refuse(debitProblem(ctx.me, input, ctx.data, ctx.today));
   const bank = input.code === BANK_FEES;
-  const selfApproves = !bank && approvesFor(ctx.me, input.chapterId, ctx.data.positions) && input.payeeMemberId !== ctx.me!.id;
-  return added(ctx, {
+  const made = added(ctx, {
     chapterId: input.chapterId, code: input.code, description: input.description.trim(), amountCents: input.amountCents,
     receivedOn: null, entryOn: bank ? input.paidOn : null,
     payeeMemberId: bank ? null : input.payeeMemberId, payeeName: bank ? blankToNull(input.payeeName) ?? 'Bank' : blankToNull(input.payeeName),
-    paymentId: null, state: bank ? 'paid' : 'awaiting',
-    approvals: selfApproves ? [{ memberId: ctx.me!.id, approvedAt: nowOf(ctx) }] : [],
+    paymentId: null, state: bank ? 'paid' : 'awaiting', approvals: [],
   });
+  const entry = ledgerOf(made.data).find((e) => e.id === made.id)!;
+  const selfApproves = !bank && approvesFor(ctx.me, input.chapterId, made.data.positions) && input.payeeMemberId !== ctx.me!.id &&
+    approvalConflict(ctx.me!.id, entry, made.data) === null;
+  if (!selfApproves) return made;
+  return { data: withEntry(made.data, made.id, (e) => ({ ...e, approvals: [{ memberId: ctx.me!.id, approvedAt: e.recordedAt }] })), id: made.id };
 }
 
 /** The second distinct approval makes it approved (13.3). */
