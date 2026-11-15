@@ -21,6 +21,11 @@ export function melbourneDate(iso: string): string {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
+/** The Melbourne date of an instant, shown DD/MM/YYYY (a stamp's UTC date is the day before on a Melbourne morning). */
+export function melbourneDateShown(iso: string): string {
+  return formatAuDate(melbourneDate(iso));
+}
+
 /** "7:30 am", in Melbourne time. */
 export function melbourneTime(iso: string): string {
   const p = parts(iso, { hour: 'numeric', minute: '2-digit', hour12: true });

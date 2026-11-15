@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calendarFreshness, defaultCategories, lastDay, melbourneDate, melbourneTime, nextRide, rsvpCounts, rsvpProblem, rsvpToast, upcomingByMonth } from './rides';
+import { calendarFreshness, defaultCategories, lastDay, melbourneDate, melbourneDateShown, melbourneTime, nextRide, rsvpCounts, rsvpProblem, rsvpToast, upcomingByMonth } from './rides';
 import type { Chapter, Member, Ride, Rsvp } from './types';
 
 const chapters: Chapter[] = [
@@ -24,6 +24,13 @@ test('Melbourne date and time from an instant', () => {
   assert.equal(melbourneDate('2026-07-01T13:59:00Z'), '2026-07-01', 'AEST is UTC+10');
   assert.equal(melbourneTime('2026-11-07T20:30:00Z'), '7:30 am');
   assert.equal(melbourneTime('2026-11-08T03:05:00Z'), '2:05 pm');
+});
+
+test('a stamp made on a Melbourne morning is shown on that Melbourne day, not the UTC day before', () => {
+  assert.equal(melbourneDate('2026-11-30T21:30:00.000Z'), '2026-12-01');
+  assert.equal(melbourneDateShown('2026-11-30T21:30:00.000Z'), '01/12/2026');
+  assert.equal(melbourneDateShown('2026-07-14T23:15:00.000Z'), '15/07/2026', 'AEST morning');
+  assert.equal(melbourneDateShown('2026-12-01T02:00:00.000Z'), '01/12/2026', 'afternoon, same day either way');
 });
 
 test('default filter: your chapter, the whole club and supported rides', () => {

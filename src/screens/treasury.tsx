@@ -42,6 +42,7 @@ import {
 } from '../domain/ledger';
 import { bankCents, figuresFor, monthName } from '../domain/meetingReport';
 import { displayName } from '../domain/profile';
+import { melbourneDateShown } from '../domain/rides';
 import type { EntryState, LedgerCode, LedgerEntry } from '../domain/types';
 import type { RootParams, RootScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
@@ -465,7 +466,7 @@ export function LedgerEntryScreen({ route }: RootScreen<'LedgerEntry'>) {
         {credit && entry.receivedOn ? <KeyValue label="Came in" value={formatAuDate(entry.receivedOn)} /> : null}
         <KeyValue label={credit ? 'Banked' : 'Paid'} value={entry.entryOn ? formatAuDate(entry.entryOn) : 'Not yet'} />
         {!credit ? <KeyValue label="Paid to" value={entry.payeeName ?? memberName(entry.payeeMemberId)} /> : null}
-        <KeyValue label="Recorded by" value={`${memberName(entry.recordedBy)}, ${formatAuDate(entry.recordedAt.slice(0, 10))}`} />
+        <KeyValue label="Recorded by" value={`${memberName(entry.recordedBy)}, ${melbourneDateShown(entry.recordedAt)}`} />
       </Card>
 
       {!credit && entry.code !== BANK_FEES ? (
@@ -476,7 +477,7 @@ export function LedgerEntryScreen({ route }: RootScreen<'LedgerEntry'>) {
             {entry.approvals.map((a) => (
               <Row key={a.memberId} style={{ justifyContent: 'space-between' }}>
                 <Text style={type.name}>{memberName(a.memberId)}</Text>
-                <Text style={[type.name, { color: colors.boneDim }]}>{formatAuDate(a.approvedAt.slice(0, 10))}</Text>
+                <Text style={[type.name, { color: colors.boneDim }]}>{melbourneDateShown(a.approvedAt)}</Text>
               </Row>
             ))}
             <Small>Two people approve spending before it’s paid, and the person being paid can’t be one of them (13.3).</Small>
@@ -701,7 +702,7 @@ export function MonthReportScreen({ route, navigation }: RootScreen<'MonthReport
       <Stack gap={space.xs}>
         <H1>{monthLabel(month)}</H1>
         <Small>{fyLabel(fyOf(month))}</Small>
-        {presented ? <Chip label={`Presented ${formatAuDate(presented.presentedAt.slice(0, 10))}`} tone="ok" icon="checkmark" /> : null}
+        {presented ? <Chip label={`Presented ${melbourneDateShown(presented.presentedAt)}`} tone="ok" icon="checkmark" /> : null}
       </Stack>
       {books ? (
         <MonthStepper
@@ -820,7 +821,7 @@ export function BudgetScreen({ route, navigation }: RootScreen<'Budget'>) {
           onChange={(v) => setFy(Number(v))}
         />
         {budget?.approvedAt ? (
-          <Chip label={`Approved ${formatAuDate(budget.approvedAt.slice(0, 10))}`} tone="ok" icon="checkmark" />
+          <Chip label={`Approved ${melbourneDateShown(budget.approvedAt)}`} tone="ok" icon="checkmark" />
         ) : budget ? (
           <Chip label="Draft" tone="warn" />
         ) : null}
@@ -995,7 +996,7 @@ export function ClubFinancesScreen({ navigation }: RootScreen<'ClubFinances'>) {
               last={i === reports.length - 1}
               left={<IconBadge icon="document-text-outline" />}
               title={monthLabel(r.month)}
-              subtitle={`Presented ${formatAuDate(r.presentedAt.slice(0, 10))}`}
+              subtitle={`Presented ${melbourneDateShown(r.presentedAt)}`}
               right={<Text style={[type.name, num, { color: colors.boneDim }]}>{formatCents(reportFor(r.month, data).bankCents)}</Text>}
               onPress={() => navigation.navigate('MonthReport', { month: r.month })}
             />
