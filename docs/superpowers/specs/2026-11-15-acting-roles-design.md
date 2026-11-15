@@ -932,7 +932,7 @@ Exported constants in `access.ts`, `votes.ts` and `ledger.ts`, with the same tex
 | `necBallotsWait(ch, n)` (warning) | North can’t cast its ballot on 2 open NEC votes while this runs, so they may close without quorum (11.2, 11.5). |
 | `independentSeated(name)` | You’re acting because Penny put you there, so you can’t be the second approver on their entry (13.3). |
 | `independentPlanted(name)` | Spanner is acting because you put them there, so you can’t be the second approver after them (13.3). |
-| `coverPush(...)` | Crank asked for Jet to act as President (North) for you until 13/12/2026. If you’re available, tap I’m back. (On every confirm, the holder's own request included: Jet is acting as …) |
+| `coverPush(...)` | Crank asked for Jet to act as President (North) for you until 13/12/2026. If you’re available, tap I’m back. (On every confirm, the holder's own request included: Jet is acting as …) Titles: Cover asked for your seat (a request); Your seat is covered (a confirm). |
 | `independentStandIn(name)` | You’re covering Torque’s seat, so their payment goes to the other approvers (13.3). |
 | `COVERS_POINT` (trigger) | A cover must point at the open holder of the same seat. |
 

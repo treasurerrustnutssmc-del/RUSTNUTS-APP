@@ -323,12 +323,17 @@ select pg_temp.clock_at('2026-12-13 23:59:59 Australia/Melbourne');
 create temp table ids as select
   pg_temp.seat(11, pg_temp.west(), 'vice_president', '2026-12-13', 'No VP since the ACM', null, '2026-12-01') as hal,
   pg_temp.seat(10, pg_temp.west(), 'sergeant_at_arms', '2026-12-12', 'No Sergeant since the ACM', null, '2026-12-01') as spanner,
-  pg_temp.seat(2, pg_temp.north(), 'president', '2026-12-31', 'Smokey overseas', pg_temp.f(101), '2026-12-01') as jet;
+  pg_temp.seat(2, pg_temp.north(), 'president', '2026-12-31', 'Smokey overseas', pg_temp.f(101), '2026-12-01') as jet,
+  pg_temp.seat(8, pg_temp.west(), 'president', '2026-12-12', 'Rusty overseas', pg_temp.f(107), '2026-12-01') as torque;
 do $$
 declare r ids%rowtype;
 begin
   select * into r from ids;
   assert pg_temp.today() = date '2026-12-13', 'the clock reads 13/12/2026';
+  assert not exists (select 1 from private.held_positions where id = r.torque), 'Torque''s cover ran until yesterday: not held';
+  assert (select ended_on is null from positions where id = r.torque), 'though nothing closed it';
+  assert not exists (select 1 from private.duty_positions where id = r.torque), 'so it has no duties';
+  assert exists (select 1 from private.duty_positions where id = pg_temp.f(107)), 'and Rusty has his duties back';
   assert exists (select 1 from private.held_positions where id = r.hal), 'until today: held';
   assert not exists (select 1 from private.held_positions where id = r.spanner), 'until yesterday: not held, though still open';
   assert (select ended_on is null from positions where id = r.spanner), 'nothing closed it';
@@ -379,7 +384,16 @@ create temp table ids as select
   pg_temp.request(pg_temp.north(), 'treasurer', 5, null, pg_temp.today() + 10, 'No Treasurer since the ACM', 1, pg_temp.days_ago(28)) as old,
   pg_temp.request(pg_temp.north(), 'secretary', 6, null, pg_temp.today() + 10, 'No Secretary since the ACM', 1, pg_temp.days_ago(27)) as young,
   pg_temp.request(pg_temp.west(), 'sergeant_at_arms', 10, null, pg_temp.today() + 10, 'No Sergeant since the ACM', 7) as voted_down,
-  pg_temp.request(pg_temp.west(), 'road_captain', 11, null, pg_temp.today() + 10, 'No Road Captain since the ACM', 7) as no_quorum;
+  pg_temp.request(pg_temp.west(), 'road_captain', 11, null, pg_temp.today() + 10, 'No Road Captain since the ACM', 7) as no_quorum,
+  pg_temp.seat(5, pg_temp.north(), 'treasurer', pg_temp.today() - 1, 'No Treasurer since the ACM', null, pg_temp.today() - 10) as stepped_down,
+  pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms', pg_temp.today(), 'No Sergeant since the ACM', null, pg_temp.today() - 10) as gus_today,
+  pg_temp.request(pg_temp.west(), 'treasurer', 10, null, pg_temp.today(), 'No Treasurer since the ACM', 7) as until_today,
+  pg_temp.request(pg_temp.north(), 'sergeant_at_arms', 6, null, pg_temp.today() - 1, 'No Sergeant since the ACM', 1, pg_temp.days_ago(5)) as withdrawn;
+-- Ned stepped down five days ago, before his until date (yesterday) came; the Sergeant request
+-- was withdrawn two days ago, before its until date passed.
+update positions set ended_on = pg_temp.today() - 5, ended_by = pg_temp.f(5), ended_reason = 'stepped_down'
+where id = (select stepped_down from ids);
+update acting_requests set closed_at = now() - interval '2 days', outcome = 'withdrawn' where id = (select withdrawn from ids);
 -- A lost vote and an open one on voted_down; a vote without quorum on no_quorum.
 insert into votes (chapter_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result, acting_request)
 select pg_temp.west(), 'Spanner acts as Sergeant at Arms (West)?', 'chapter_board'::electorate, 'majority'::vote_threshold, 3, now() - interval '3 days', now() - interval '1 day', now() - interval '1 day', 'lost'::vote_result, voted_down from ids
@@ -402,6 +416,12 @@ begin
   assert (select outcome is null and closed_at is null from acting_requests where id = r.young), '27 days old: still open';
   assert (select outcome = 'rejected' and closed_at is not null from acting_requests where id = r.voted_down), 'a lost vote rejects it, even beside an open one';
   assert (select outcome is null from acting_requests where id = r.no_quorum), 'a vote without quorum leaves it open';
+  assert (select ended_on = pg_temp.today() - 5 and ended_reason = 'stepped_down' and ended_by = pg_temp.f(5)
+          from positions where id = r.stepped_down), 'a stint ended early keeps its own end, though its until has passed';
+  assert (select ended_on is null from positions where id = r.gus_today), 'a stint until today stays open';
+  assert (select outcome is null and closed_at is null from acting_requests where id = r.until_today), 'a request until today stays open';
+  assert (select outcome = 'withdrawn' and closed_at = now() - interval '2 days' from acting_requests where id = r.withdrawn),
+    'a withdrawn request stays withdrawn, though its until has passed';
 end $$;
 create temp table before_rerun as select
   (select md5(string_agg(p::text, ',' order by p.id)) from positions p) as positions,
@@ -463,7 +483,8 @@ begin
   perform pg_temp.withdraw_all();
   perform pg_temp.request(pg_temp.north(), 'president', 2, pg_temp.f(101), until, 'Smokey can''t be reached', 3);
   assert pg_temp.asks() = 1, 'Crank asked, so Smokey hears';
-  assert (select body = 'Crank asked for Jet to act as President (North) for you until ' || to_char(until, 'DD/MM/YYYY')
+  assert (select title = 'Cover asked for your seat'
+            and body = 'Crank asked for Jet to act as President (North) for you until ' || to_char(until, 'DD/MM/YYYY')
                         || '. If you’re available, tap I’m back.'
           from private.push_outbox where member_id = pg_temp.f(1) and dedupe_key like 'acting-ask:%'), 'the words';
   assert (select dedupe_key = 'acting-ask:' || pg_temp.f(101) || ':' || to_char(pg_temp.today(), 'YYYY-MM-DD')
@@ -475,7 +496,8 @@ begin
   assert pg_temp.asks() = 1, 're-filed the same day: no second push';
   assert not exists (select 1 from private.push_outbox where member_id <> pg_temp.f(1) and dedupe_key like 'acting-%'), 'only the holder hears';
   cover := pg_temp.seat(2, pg_temp.north(), 'president', until, 'Smokey overseas', pg_temp.f(101));
-  assert (select body = 'Jet is acting as President (North) for you until ' || to_char(until, 'DD/MM/YYYY')
+  assert (select title = 'Your seat is covered'
+            and body = 'Jet is acting as President (North) for you until ' || to_char(until, 'DD/MM/YYYY')
                         || '. If you’re available, tap I’m back.'
           from private.push_outbox where member_id = pg_temp.f(1) and dedupe_key = 'acting-on:' || cover), 'the confirm always tells him';
 end $$;
