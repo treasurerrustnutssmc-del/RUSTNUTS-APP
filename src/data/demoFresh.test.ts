@@ -264,7 +264,8 @@ test('p-19 is Crank, Acting Treasurer (North), 28 days each side of today', () =
     assert.equal(data.positions.at(-1)!.id, 'p-19', `appended last, at ${now}`);
     // No ballot count moves: North's board is still the same three people.
     assert.deepEqual(electorsFor('chapter_board', 'ch-north', data), ['m-crank', 'm-jet', 'm-smokey'], now);
-    // He keeps North's books, and his Treasurer seat isn't club-wide, so the Club fund's books aren't his.
+    // He keeps North's books, and his acting Treasurer seat isn't club-wide (his only club-wide seat
+    // is p-11). keepsBooks(null) doesn't read club-wide seats yet: the Club fund pin comes with Task 14.
     assert.equal(keepsBooks(memberOf(data, 'm-crank'), 'ch-north', data.positions), true, now);
     assert.deepEqual(clubwidePositions('m-crank', data.positions).map((p) => p.id), ['p-11'], now);
   }
