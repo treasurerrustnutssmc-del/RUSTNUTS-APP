@@ -80,7 +80,7 @@ export function IncomingBanner({ navigation }: { navigation: NavigationContainer
         >
           <Ionicons name={icon} size={20} color={colors.redText} style={{ marginTop: 1 }} />
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[type.name, { color: colors.bone }]} numberOfLines={1}>
+            <Text style={[type.name, { color: colors.bone }]} numberOfLines={2}>
               {notice.title}
             </Text>
             {notice.body ? (

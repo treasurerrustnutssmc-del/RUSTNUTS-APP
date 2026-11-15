@@ -316,6 +316,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
                           last={i === fngs.length - 1}
                           left={<Avatar text={initials(m)} size={40} />}
                           title={displayName(m)}
+                          lines="all"
                           subtitle={`${monthsBetween(m.fngStartedOn!, today)} months in · ${due?.atMonths ?? review.atMonths}-month review ${formatLongDate(due?.date ?? review.date)}`}
                           right={due?.overdue ? <Chip label="Overdue" tone="warn" /> : review.overdue12 ? <Chip label="Past 12 months" tone="warn" /> : undefined}
                           onPress={() => navigation.navigate('FngReview', { memberId: m.id })}

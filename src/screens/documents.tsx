@@ -224,6 +224,7 @@ function DocumentRow({ doc, last, onPress }: { doc: ClubDocument; last: boolean;
       last={last}
       left={<IconBadge icon="document-text-outline" tone={mustSign ? 'red' : 'steel'} />}
       title={doc.title}
+      lines="all"
       subtitle={
         <Text style={styles.rowMeta}>
           {shown && state ? `${shown.label} · ${stateLabel(state, shown)}` : 'No version yet'}

@@ -167,7 +167,7 @@ function MeetingRow({ meeting, last, onPress }: { meeting: Meeting; last: boolea
         <Text numberOfLines={2} style={[type.name, meeting.cancelledAt && styles.struck]}>
           {meeting.title}
         </Text>
-        <Text numberOfLines={1} style={type.small}>
+        <Text numberOfLines={2} style={type.small}>
           <Text style={styles.metaTime}>{melbourneTime(meeting.startsAt)}</Text>
           {` · ${meeting.chapterId === null ? 'Whole club' : data.chapters.find((c) => c.id === meeting.chapterId)?.name ?? ''}`}
           {meeting.location ? ` · ${meeting.location}` : ''}

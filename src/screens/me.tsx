@@ -205,6 +205,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
                         key={b.id}
                         left={<IconBadge icon="speedometer" tone={b.isProject ? 'steel' : 'red'} />}
                         title={b.nickname ?? `${b.make} ${b.model}`}
+                        lines="all"
                         subtitle={
                           b.isProject
                             ? `${b.year ?? ''} ${b.make} ${b.model} · project`.trim()

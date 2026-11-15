@@ -186,6 +186,7 @@ export function AskClubScreen({ navigation }: RootScreen<'AskClub'>) {
                   key={s}
                   left={<IconBadge icon="chatbubble-ellipses-outline" />}
                   title={s}
+                  lines="all"
                   onPress={blocked || thinking ? undefined : () => ask(s)}
                   last={i === STARTERS.length - 1}
                 />

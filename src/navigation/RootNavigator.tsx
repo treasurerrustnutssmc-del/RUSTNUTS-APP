@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { HeaderBackButton } from '@react-navigation/elements';
+import { HeaderBackButton, HeaderTitle } from '@react-navigation/elements';
 import { createNavigationContainerRef, DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import React from 'react';
@@ -126,6 +126,17 @@ const stackHeaderOptions: NativeStackNavigationOptions = {
       }
     : {}),
 };
+
+/**
+ * Ride and chat names run long: these headers take a second line before they cut, in the header's own
+ * stencil, with a line height that fits two lines in the bar. The title string is still set, for
+ * screen readers and the web tab. iOS lays a custom title out as wide as the screen, where it can run
+ * under the back arrow, so it keeps its native title.
+ */
+const twoLineHeader: NativeStackNavigationOptions =
+  Platform.OS === 'ios'
+    ? {}
+    : { headerTitle: (props) => <HeaderTitle {...props} numberOfLines={2} style={[headerOptions.headerTitleStyle, { lineHeight: 24 }]} /> };
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const TAB_ICONS: Record<keyof TabParams, [IconName, IconName]> = {
@@ -338,7 +349,7 @@ export function RootNavigator() {
             <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback and issues' }} />
             <Stack.Screen name="ClubWords" component={ClubWordsScreen} options={{ title: 'Club words' }} />
             {/* Family chat: the one chat, its photos and the club rules Family agree to before posting */}
-            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} getId={({ params }) => params.chatId} />
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', ...twoLineHeader }} getId={({ params }) => params.chatId} />
             <Stack.Screen name="MediaViewer" component={MediaViewerScreen} options={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
             <Stack.Screen name="PostingRules" component={PostingRulesScreen} options={{ title: 'Chat and posting rules' }} />
           </>
@@ -430,11 +441,11 @@ export function RootNavigator() {
             {/* Stage 3 (lane B): chats and photos */}
             {/* One screen per chat (and per ride below), so opening another one from a notification never
                 reuses the one on screen with its half-typed message. */}
-            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} getId={({ params }) => params.chatId} />
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', ...twoLineHeader }} getId={({ params }) => params.chatId} />
             <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'New private chat' }} />
             <Stack.Screen name="ChatReports" component={ChatReportsScreen} options={{ title: 'Reports' }} />
             <Stack.Screen name="Photos" component={PhotosScreen} options={{ title: 'Photos' }} />
-            <Stack.Screen name="RideWall" component={RideWallScreen} options={{ title: 'Ride wall' }} />
+            <Stack.Screen name="RideWall" component={RideWallScreen} options={{ title: 'Ride wall', ...twoLineHeader }} />
             <Stack.Screen name="WebsitePhotos" component={WebsitePhotosScreen} options={{ title: 'Website photos' }} />
             <Stack.Screen name="PickWebsitePhoto" component={PickWebsitePhotoScreen} options={{ title: 'Pick a photo' }} />
             {/* Lane E: share in */}

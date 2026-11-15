@@ -172,7 +172,7 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
                 left={other ? <Avatar text={initials(other)} /> : <IconBadge icon={KIND_ICON[s.conversation.kind] ?? 'chatbubbles'} />}
                 title={
                   <Row style={{ gap: space.sm, flexWrap: 'nowrap' }}>
-                    <Text numberOfLines={1} style={[type.name, { flex: 1 }]}>{s.title}</Text>
+                    <Text numberOfLines={2} style={[type.name, { flex: 1 }]}>{s.title}</Text>
                     {s.last ? <Text style={styles.listTime}>{when(s.last.createdAt, today)}</Text> : null}
                   </Row>
                 }

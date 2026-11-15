@@ -70,6 +70,7 @@ export function NationalScreen({ navigation }: RootScreen<'National'>) {
                 last={i === toDecide.length - 1}
                 left={<IconBadge icon="hand-left-outline" tone="red" />}
                 title={k.title}
+                lines="all"
                 subtitle={<Text style={styles.meta}>{`${chapterName(chapterId)} share ${formatCents(k.shares.find((s) => s.chapterId === chapterId)!.cents)}`}</Text>}
                 onPress={() => navigation.navigate('Contribution', { contributionId: k.id })}
               />
@@ -90,7 +91,7 @@ export function NationalScreen({ navigation }: RootScreen<'National'>) {
               key={k.id}
               last={i === contributions.length - 1}
               left={<IconBadge icon="flag-outline" />}
-              title={<Text style={type.name} numberOfLines={2}>{k.title}</Text>}
+              title={<Text style={type.name}>{k.title}</Text>}
               subtitle={
                 <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
                   <Text style={styles.meta}>{`${k.decisions.filter((d) => d.yes).length} of ${k.shares.length} chapters said yes`}</Text>

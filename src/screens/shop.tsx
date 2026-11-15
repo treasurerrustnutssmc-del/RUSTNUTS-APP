@@ -124,7 +124,8 @@ export function ClubShopSection() {
                 last={i === designs.length - 1 && count === 0}
                 left={cover ? <DesignThumb picture={cover} name={d.name} /> : <IconBadge icon="shirt-outline" />}
                 title={d.name}
-                subtitle={<Text style={[styles.meta, num]} numberOfLines={2}>{`${garmentsLine(garments.map((g) => g.name))} · from ${formatCents(from)}`}</Text>}
+                lines="all"
+                subtitle={<Text style={[styles.meta, num]}>{`${garmentsLine(garments.map((g) => g.name))} · from ${formatCents(from)}`}</Text>}
                 onPress={() => navigation.navigate('ShopDesign', { designId: d.id })}
               />
             );

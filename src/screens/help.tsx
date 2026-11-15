@@ -149,6 +149,7 @@ export function WhoCanHelpScreen({ navigation }: RootScreen<'WhoCanHelp'>) {
             key={m.id}
             left={<IconBadge icon="build-outline" />}
             title={m.name}
+            lines="all"
             subtitle={[m.suburb, m.speciality, usedByLabel(vouchCount(m.id, vouches))].filter(Boolean).join(' · ')}
             onPress={() => navigation.navigate('Mechanic', { mechanicId: m.id })}
           />

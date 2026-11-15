@@ -73,6 +73,7 @@ export function RoadRulesGuideScreen({ navigation }: RootScreen<'RoadRulesGuide'
                 last={i === GUIDE_RULES.length - 1}
                 left={<Text style={styles.ruleNumber}>{r.number}</Text>}
                 title={r.title}
+                lines="all"
                 subtitle={pictures ? <Text style={styles.rowMeta}>{countLine(pictures)}</Text> : undefined}
                 onPress={() => navigation.navigate('RoadRulesRule', { number: r.number })}
               />

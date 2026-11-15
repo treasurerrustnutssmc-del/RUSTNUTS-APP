@@ -195,6 +195,7 @@ export function BoardAttendance({ chapterId }: { chapterId: string | null }) {
               key={p.id}
               left={<IconBadge icon="hourglass-outline" />}
               title={`${m ? displayName(m) : 'Someone'} · ${seatTitle(p, data.chapters, ROLE_LABEL)}`}
+              lines="all"
               subtitle={`Term ${ended ? 'ended' : 'ends'} ${formatAuDate(termEndsOn(p))}. Re-elected? End it and appoint again.`}
               right={<Chip label={ended ? 'Ended' : 'Ending'} tone="warn" />}
               onPress={m ? () => navigation.navigate(canManageMember(me, m, data.positions) ? 'ManageMember' : 'MemberDetail', { memberId: m.id }) : undefined}

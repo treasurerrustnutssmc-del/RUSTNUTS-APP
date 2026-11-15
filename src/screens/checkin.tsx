@@ -377,6 +377,7 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
                   last={i === excused.length - 1}
                   left={<Avatar text={initials(m)} size={40} />}
                   title={displayName(m)}
+                  lines="all"
                   subtitle={e.reason}
                   right={canExcuse(m) ? <Button label="Clear" kind="quiet" busy={busyId === m.id} onPress={() => excuse(m.id, null)} /> : undefined}
                 />
@@ -663,6 +664,7 @@ export function HomeCheckinCard() {
           key={r.key}
           left={<IconBadge icon={r.icon} tone="red" />}
           title={r.title}
+          lines="all"
           subtitle={r.subtitle}
           onPress={r.onPress}
           last={i === rows.length - 1}
