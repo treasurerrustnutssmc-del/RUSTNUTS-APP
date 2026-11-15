@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useClub } from '../data/ClubStore';
 import {
-  actingCap, actingDefaultUntil, actingWarnings, appointActingProblem, appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, holdsBoardSeat, isBoardOf, isChairman, isStepDown, pendingFor, renewAuditorProblem, requestActingProblem, restoreAccessProblem, setActingUntilProblem, statusChangeProblem, suspendAccessProblem, WHY_MAX, WHY_NEEDED,
+  actingCap, actingDefaultUntil, actingWarnings, appointActingProblem, appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, isBoardOf, isChairman, isStepDown, pendingFor, renewAuditorProblem, requestActingProblem, restoreAccessProblem, setActingUntilProblem, statusChangeProblem, suspendAccessProblem, WHY_MAX, WHY_NEEDED,
 } from '../domain/access';
 import { heldPositions, heldRows, isActing } from '../domain/acting';
 import {
@@ -24,7 +24,10 @@ import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 // Stage 4
 import { fngDue } from '../domain/joining';
-import { boardGroups, boardScope, needsYou, type BoardGroupId } from '../domain/boardLayout';
+import {
+  boardGroups, boardRequests, boardScope, needsYou, requestActions, requestConfirmNote, requestLine, requestNext, scopeText, vpFallbackLine,
+  type BoardGroupId,
+} from '../domain/boardLayout';
 import { settleOpen } from '../domain/groupOpen';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
@@ -187,18 +190,17 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
   // Road Rules: who's signed, for anyone who can open that list (the NEC and the chapter boards).
   const signoffs = signoffSummary(me, data, today);
   const books = seesAnyLedger(me, data);
-  // National roles see every chapter's board; they act only where they hold a seat (8.2, 12.3).
-  const seatNames = data.chapters.filter((c) => holdsBoardSeat(me.id, c.id, data.positions)).map((c) => c.name).join(' and ');
+  // Open acting requests with a step for me, and the 11.2 line wherever my chapter's VP casts the NEC vote through the fallback.
+  const requests = boardRequests(me, data, new Date().toISOString());
+  const fallbacks = data.chapters.filter((c) => vpFallbackLine(c.id, me, data, today) !== null).map((c) => c.id);
+  const nothingNeedsYou = attention.length === 0 && requests.length === 0 && fallbacks.length === 0;
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
       <Stack gap={space.sm}>
         <Chip label={national ? 'All chapters' : `${chapter?.name} chapter`} tone="redOutline" />
-        <Small>
-          {national
-            ? `You sit on the NEC, so you see every chapter’s board records. ${seatNames ? `You act for ${seatNames}.` : 'Acting is each chapter board’s.'}`
-            : `You can act for the ${chapter?.name} chapter.`}
-        </Small>
+        {/* National roles see every chapter's board; they decide only where they hold a seat (8.2, 12.3). */}
+        <Small>{scopeText(me, data)}</Small>
       </Stack>
 
       {done ? (
@@ -208,13 +210,16 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
       ) : null}
 
       <SectionTitle title="Needs you" />
-      <Card style={{ padding: 0, gap: 0 }}>
-        {attention.length === 0 ? (
+      {nothingNeedsYou ? (
+        <Card style={{ padding: 0, gap: 0 }}>
           <View style={{ padding: space.lg }}>
             <Small>Nothing needs you right now.</Small>
           </View>
-        ) : (
-          attention.map((n, i) => (
+        </Card>
+      ) : null}
+      {attention.length > 0 ? (
+        <Card style={{ padding: 0, gap: 0 }}>
+          {attention.map((n, i) => (
             <ListRow
               key={n.text}
               last={i === attention.length - 1}
@@ -223,9 +228,15 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
               // Groups with something waiting are already open below; a tap only helps when one has been closed.
               onPress={settled[n.group] ? undefined : () => setChosen((c) => ({ ...c, [n.group]: true }))}
             />
-          ))
-        )}
-      </Card>
+          ))}
+        </Card>
+      ) : null}
+      {fallbacks.map((c) => (
+        <VpFallback key={c} chapterId={c} onDone={setDone} />
+      ))}
+      {requests.map((r) => (
+        <BoardRequest key={r.id} request={r} onDone={setDone} />
+      ))}
 
       {/* Stage 5: meetings and votes */}
       <Card style={{ padding: 0, gap: 0 }}>
@@ -357,6 +368,152 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
         );
       })}
     </Screen>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The Board tab's acting lines: open requests, and the 11.2 VP fallback
+// ---------------------------------------------------------------------------
+
+/**
+ * An open request on the Board tab: what was asked, then `me`'s one next step (Confirm cover or
+ * Confirm acting where the rules allow it, or the board vote to start or follow), then Withdraw
+ * request or Decline for those who may close it.
+ */
+function BoardRequest({ request, onDone }: { request: ActingRequest; onDone: (text: string) => void }) {
+  const { me, data, today, confirmActing, withdrawActingRequest, openActingVote } = useClub();
+  const navigation = useNavigation<RootScreen<'ManageMember'>['navigation']>();
+  const [error, setError] = useState<string | null>(null);
+  if (!me) return null;
+  const next = requestNext(request, me, data, new Date().toISOString());
+  const actions = requestActions(request, me, data, today);
+  const standIn = data.members.find((m) => m.id === request.memberId);
+  // Several requests can sit here at once, so each button says which one it acts on.
+  const about = `${standIn ? displayName(standIn) : 'Someone'} as ${ROLE_LABEL[request.role]}`;
+  const settle = (work: Promise<unknown>, text: string) => work.then(() => { setError(null); onDone(text); }, (e: Error) => setError(e.message));
+  return (
+    <Card style={{ gap: space.sm }}>
+      <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+        <IconBadge icon="swap-horizontal" tone="red" />
+        <Body style={{ flex: 1 }}>{requestLine(request, data)}</Body>
+      </Row>
+      {next?.kind === 'start' && next.last ? <Small>{next.last}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
+      {next?.kind === 'confirm' ? (
+        <ConfirmButton
+          label={next.label}
+          accessibilityLabel={`${next.label}: ${about}`}
+          confirmLabel="Yes, confirm"
+          confirmAccessibilityLabel={`Yes, ${next.label.toLowerCase()}: ${about}`}
+          kind="secondary"
+          confirmNote={requestConfirmNote(request, data, today)}
+          onConfirm={() => settle(confirmActing(request.id), standIn ? doneMessage(standIn, request.role, request.until) : 'Confirmed.')}
+        />
+      ) : next?.kind === 'start' ? (
+        <ConfirmButton
+          label={next.label}
+          accessibilityLabel={`${next.label}: ${about}`}
+          confirmLabel="Yes, start the vote"
+          kind="secondary"
+          confirmNote={next.note}
+          onConfirm={() =>
+            openActingVote(request.id, next.quorum, next.closesAt, null).then(
+              (voteId) => navigation.navigate('Vote', { voteId }),
+              (e: Error) => setError(e.message),
+            )
+          }
+        />
+      ) : next?.kind === 'see' ? (
+        <Button
+          label={next.label}
+          accessibilityLabel={`${next.label}: ${about}`}
+          kind="secondary"
+          onPress={() => navigation.navigate('Vote', { voteId: next.voteId })}
+        />
+      ) : null}
+      {actions.map((a) => (
+        <ConfirmButton
+          key={a}
+          label={a}
+          accessibilityLabel={`${a}: ${about}`}
+          confirmLabel={a === 'Decline' ? 'Yes, decline' : 'Yes, withdraw'}
+          confirmNote="This closes the request. Nothing about the seat changes."
+          kind="quiet"
+          onConfirm={() => settle(withdrawActingRequest(request.id), a === 'Decline' ? 'Declined. The request is closed.' : 'Request withdrawn.')}
+        />
+      ))}
+    </Card>
+  );
+}
+
+/**
+ * The 11.2 line for a chapter's board while its VP casts the NEC vote with the President seat
+ * empty, and "Make Jet Acting President" where `me` could record it: Until and Why open in place,
+ * checked as typed, and the confirm repeats the warnings, as Appoint does on Manage member.
+ */
+function VpFallback({ chapterId, onDone }: { chapterId: string; onDone: (text: string) => void }) {
+  const { me, data, today, appointActing } = useClub();
+  const [open, setOpen] = useState(false);
+  const until = useDate(null);
+  const [why, setWhy] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  // While the confirm is armed its note repeats the warnings and it has its own Cancel.
+  const [armed, setArmed] = useState(false);
+  if (!me) return null;
+  const line = vpFallbackLine(chapterId, me, data, today);
+  const target = line ? data.members.find((m) => m.id === line.memberId) : undefined;
+  if (!line || !target) return null;
+  const block = appointActingProblem(me, target, chapterId, 'president', until.iso, why, data, today);
+  // The Why is required: say nothing about it until something is typed, and the button stays off.
+  const blockShown = block === WHY_NEEDED && !why.trim() ? null : block;
+  const warnings = until.iso ? actingWarnings(target, chapterId, 'president', null, until.iso, data, today) : [];
+  const close = () => { setOpen(false); setWhy(''); setError(null); };
+  return (
+    <Card style={{ gap: space.sm }}>
+      <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+        <IconBadge icon="alert-circle-outline" tone="red" />
+        <Body style={{ flex: 1 }}>{line.text}</Body>
+      </Row>
+      {line.button && !open ? (
+        <Button
+          label={line.button}
+          kind="secondary"
+          onPress={() => {
+            setOpen(true);
+            until.setText(formatAuDate(actingDefaultUntil(chapterId, 'president', false, today, data)));
+          }}
+        />
+      ) : null}
+      {line.button && open ? (
+        <View style={styles.coverForm}>
+          <DateField label="Until" date={until} hint={untilHint(actingCap(chapterId, 'president', false, today, data))} />
+          <Field label={whyLabel(target, chapterId, 'president', data)} value={why} onChangeText={setWhy} maxLength={WHY_MAX} hint={WHY_HINT} />
+          {armed ? null : warnings.map((w) => (
+            <Small key={w} style={{ color: colors.warn }}>{w}</Small>
+          ))}
+          {/* The reason the button is off reads apart from the advisory warnings above it. */}
+          {blockShown ? <Small style={{ color: colors.danger }}>{blockShown}</Small> : null}
+          {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
+          <ConfirmButton
+            label="Appoint"
+            confirmLabel="Yes, appoint acting"
+            confirmAccessibilityLabel={`Yes, make ${displayName(target)} Acting President`}
+            kind="secondary"
+            disabled={block !== null}
+            onArmedChange={setArmed}
+            confirmNote={confirmText({ route: 'record', target, chapterId, role: 'president', until: until.iso }, data, today)}
+            onConfirm={() => {
+              const last = until.iso;
+              appointActing(target.id, chapterId, 'president', last, why.trim()).then(
+                () => { onDone(doneMessage(target, 'president', last)); close(); },
+                (e: Error) => setError(e.message),
+              );
+            }}
+          />
+          {armed ? null : <Button label="Cancel" kind="quiet" size="small" onPress={close} />}
+        </View>
+      ) : null}
+    </Card>
   );
 }
 
