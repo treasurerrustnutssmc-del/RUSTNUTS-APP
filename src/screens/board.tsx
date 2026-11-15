@@ -276,7 +276,12 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
                           last={i === alerts.length - 1}
                           left={<IconBadge icon={a.kind === 'rego' ? 'speedometer' : a.kind === 'licence' ? 'card' : 'medkit'} />}
                           title={memberName(a.memberId)}
-                          subtitle={`${a.label} · ${a.description}`}
+                          subtitle={
+                            <View>
+                              <Small numberOfLines={2}>{a.label}</Small>
+                              <Small>{a.description}</Small>
+                            </View>
+                          }
                           right={<Chip label={a.state === 'expired' ? 'Expired' : 'Due soon'} tone={a.state === 'expired' ? 'danger' : 'warn'} />}
                           onPress={() => navigation.navigate('MemberDetail', { memberId: a.memberId })}
                         />
