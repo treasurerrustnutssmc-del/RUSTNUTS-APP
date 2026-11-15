@@ -2341,3 +2341,144 @@ $function$;
 
 revoke all on function public.open_acting_vote(uuid, int, timestamptz, uuid) from public, anon;
 grant execute on function public.open_acting_vote(uuid, int, timestamptz, uuid) to authenticated;
+
+-- §7 Money (13.3) -----------------------------------------------------------------------------------
+
+-- Two independent approvers (13.3, 9.5): an approval never pairs someone with the person who put
+-- them in an acting seat, in either order, and never comes from the payee's own stand-in. "Put
+-- there by" is the acting row's appointed_by, or the requested_by of the request it was confirmed
+-- from. "Stands only through acting" is an acting board row in the fund's chapter with no
+-- non-acting board row there and no nec_chair or nec_secretary row, so nobody does on the Club fund.
+-- The member approving is judged by their held rows now. Each approver already counted is judged
+-- by their rows on the day they approved, read from the table: an acting row held at any time that
+-- day, a non-acting one only if held all day, so a later or same-day step-down, lapse or seating
+-- changes nothing. Null, or the refusal's words. Mirrors approvalConflict.
+create or replace function private.approval_conflict(p_entry uuid, p_member uuid)
+returns text language plpgsql stable security definer set search_path = '' as $$
+declare
+  board constant public.position_role[] := array['president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain'];
+  e public.ledger_entries;
+  who text;
+begin
+  select * into e from public.ledger_entries where id = p_entry;
+  if not found then return null; end if;
+  -- Seated: the member stands only through acting rows that the recorder, the payee or an approver
+  -- already counted put there.
+  select private.short_name(m) into who
+  from (select e.recorded_by as id, 0 as n, null::timestamptz as at
+        union all select e.payee_member_id, 1, null
+        union all select a.member_id, 2, a.approved_at from public.ledger_approvals a
+                  where a.entry_id = p_entry and a.member_id <> p_member) x
+  join public.members m on m.id = x.id
+  where x.id <> p_member
+    and not exists (
+      select 1 from private.held_positions o
+      where o.member_id = p_member and o.acting_until is null
+        and ((o.chapter_id = e.chapter_id and o.role = any (board)) or o.role in ('nec_chair', 'nec_secretary')))
+    and exists (
+      select 1 from private.held_positions h left join public.acting_requests r on r.id = h.acting_request
+      where h.member_id = p_member and h.chapter_id = e.chapter_id and h.role = any (board)
+        and h.acting_until is not null and x.id in (h.appointed_by, r.requested_by))
+  order by x.n, x.at, x.id
+  limit 1;
+  if who is not null then
+    return 'You’re acting because ' || who || ' put you there, so you can’t be the second approver on their entry (13.3).';
+  end if;
+  -- Planted: an approver already counted stood only through acting the day they approved, in a row
+  -- the member put there.
+  select private.short_name(m) into who
+  from public.ledger_approvals a
+  cross join lateral (select private.club_date(a.approved_at) as d) day
+  join public.members m on m.id = a.member_id
+  where a.entry_id = p_entry and a.member_id <> p_member
+    and not exists (
+      select 1 from public.positions o
+      where o.member_id = a.member_id and o.acting_until is null
+        and ((o.chapter_id = e.chapter_id and o.role = any (board)) or o.role in ('nec_chair', 'nec_secretary'))
+        and o.started_on < day.d and (o.ended_on is null or o.ended_on > day.d))
+    and exists (
+      select 1 from public.positions h left join public.acting_requests r on r.id = h.acting_request
+      where h.member_id = a.member_id and h.chapter_id = e.chapter_id and h.role = any (board)
+        and h.acting_until >= day.d and h.started_on <= day.d and (h.ended_on is null or h.ended_on >= day.d)
+        and p_member in (h.appointed_by, r.requested_by))
+  order by a.approved_at, a.member_id
+  limit 1;
+  if who is not null then
+    return who || ' is acting because you put them there, so you can’t be the second approver after them (13.3).';
+  end if;
+  -- The payee's stand-in: their payment goes to the other approvers.
+  select private.short_name(m) into who
+  from private.held_positions c
+  join public.positions p on p.id = c.covers
+  join public.members m on m.id = p.member_id
+  where c.member_id = p_member and p.member_id = e.payee_member_id
+  limit 1;
+  if who is not null then
+    return 'You’re covering ' || who || '’s seat, so their payment goes to the other approvers (13.3).';
+  end if;
+  return null;
+end;
+$$;
+
+revoke all on function private.approval_conflict(uuid, uuid) from public, anon, authenticated;
+
+-- A debit waits for two approvals (as treasurer.sql, same signature). Whoever records it counts as
+-- the first when they can approve for that fund, aren't the payee (inferred) and approving wouldn't
+-- break the independence rule above; otherwise it simply waits, with no error. The bank takes its
+-- fees, so those are paid.
+create or replace function public.record_debit(
+  p_chapter uuid, p_code text, p_description text, p_amount_cents int, p_payee_member uuid, p_payee_name text, p_paid_on date)
+returns uuid language plpgsql security definer set search_path = '' as $$
+declare me uuid := private.require_books(p_chapter); new_id uuid; bank boolean := p_code = 'DB-004';
+begin
+  if not exists (select 1 from public.ledger_codes where code = p_code and direction = 'debit') then
+    raise exception 'Pick a money-out code.';
+  end if;
+  if coalesce(private.trim_like_app(p_description), '') = '' then raise exception 'Say what it’s for.'; end if;
+  if p_amount_cents is null or p_amount_cents <= 0 then raise exception 'Enter an amount over $0.'; end if;
+  if bank then
+    if p_paid_on is null then raise exception 'Pick the date the bank took it.'; end if;
+    if p_paid_on > private.club_date() then raise exception 'That date hasn’t happened yet.'; end if;
+  elsif p_payee_member is not null then
+    if not private.is_approved(p_payee_member) then raise exception 'No such member.'; end if;
+  elsif coalesce(private.trim_like_app(p_payee_name), '') = '' then
+    raise exception 'Say who’s being paid.';
+  end if;
+  insert into public.ledger_entries (chapter_id, code, description, amount_cents, entry_on, payee_member_id, payee_name, state, recorded_by)
+  values (p_chapter, p_code, private.trim_like_app(p_description), p_amount_cents, case when bank then p_paid_on end,
+          case when bank then null else p_payee_member end,
+          case when bank then coalesce(nullif(private.trim_like_app(p_payee_name), ''), 'Bank')
+               else nullif(private.trim_like_app(p_payee_name), '') end,
+          case when bank then 'paid' else 'awaiting' end, me)
+  returning id into new_id;
+  if not bank and private.approves_for(p_chapter) and p_payee_member is distinct from me
+     and private.approval_conflict(new_id, me) is null then
+    insert into public.ledger_approvals (entry_id, member_id) values (new_id, me);
+  end if;
+  return new_id;
+end;
+$$;
+
+-- The second distinct, independent approval makes it approved (13.3; as treasurer.sql, same
+-- signature).
+create or replace function public.approve_debit(p_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare me uuid := private.require_member(); e public.ledger_entries; conflict text;
+begin
+  select * into e from public.ledger_entries where id = p_id for update;
+  if not found then raise exception 'No such entry.'; end if;
+  if not private.approves_for(e.chapter_id) then raise exception 'You can’t approve spending from this fund.'; end if;
+  if e.state <> 'awaiting' then raise exception 'That isn’t waiting for approval.'; end if;
+  if e.payee_member_id = me then raise exception 'The payee can’t approve their own payment (13.3).'; end if;
+  if exists (select 1 from public.ledger_approvals where entry_id = p_id and member_id = me) then
+    raise exception 'You’ve already approved this.';
+  end if;
+  conflict := private.approval_conflict(p_id, me);
+  if conflict is not null then raise exception '%', conflict; end if;
+  insert into public.ledger_approvals (entry_id, member_id) values (p_id, me);
+  update public.ledger_entries
+  set state = case when (select count(*) from public.ledger_approvals where entry_id = p_id) >= 2 then 'approved' else 'awaiting' end,
+      updated_at = now()
+  where id = p_id;
+end;
+$$;

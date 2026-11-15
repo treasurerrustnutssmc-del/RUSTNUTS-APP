@@ -581,7 +581,8 @@ begin
     ('private.has_carried_acting_vote(uuid)'),
     ('private.auditor_stays_out(public.position_role)'),
     ('private.acting_electors(uuid, public.position_role, uuid, uuid)'),
-    ('public.open_acting_vote(uuid, integer, timestamp with time zone, uuid)')
+    ('public.open_acting_vote(uuid, integer, timestamp with time zone, uuid)'),
+    ('private.approval_conflict(uuid, uuid)')
   ) as l(x) loop
     assert not has_function_privilege('anon', fn, 'execute'), fn || ': not for anon';
     if (select pronamespace = 'public'::regnamespace from pg_proc where oid = fn) then
@@ -606,7 +607,8 @@ begin
             'private.ended_by_vote(uuid, uuid, public.position_role)',
             'private.acting_needs_vote(uuid, uuid, public.position_role)', 'private.request_needs_vote(uuid)',
             'private.has_carried_acting_vote(uuid)', 'private.auditor_stays_out(public.position_role)',
-            'private.acting_electors(uuid, public.position_role, uuid, uuid)']::regprocedure[]::oid[])),
+            'private.acting_electors(uuid, public.position_role, uuid, uuid)',
+            'private.approval_conflict(uuid, uuid)']::regprocedure[]::oid[])),
     'the new readers are stable, and run as their owner with an empty search path';
   assert (select bool_and(prosecdef and provolatile = 'v' and proconfig @> array['search_path=""']) from pg_proc
           where oid = any (array['public.appoint_acting(uuid, uuid, public.position_role, date, text)',
@@ -2736,6 +2738,235 @@ begin
   update vote_electors set voted_at = null where vote_id = v;
   update votes set closed_at = now(), result = 'no_quorum' where id = v;
   assert pg_temp.listed(2, v) is null, 'nor once the vote has closed';
+end $$;
+rollback;
+
+-- §7 Money (13.3) -----------------------------------------------------------------------------------
+
+-- The independence refusals (Appendix A), each with a name in it.
+create function pg_temp.seated(name text) returns text language sql immutable as $$
+  select 'You’re acting because ' || name || ' put you there, so you can’t be the second approver on their entry (13.3).'
+$$;
+create function pg_temp.planted(name text) returns text language sql immutable as $$
+  select name || ' is acting because you put them there, so you can’t be the second approver after them (13.3).'
+$$;
+create function pg_temp.stand_in(name text) returns text language sql immutable as $$
+  select 'You’re covering ' || name || '’s seat, so their payment goes to the other approvers (13.3).'
+$$;
+-- record_debit as SQL text: a payment from that chapter's fund to member n (null: an outside payee).
+create function pg_temp.record_debit_sql(ch uuid, payee int, code text default 'DB-001') returns text language sql stable as $$
+  select format('public.record_debit(%L, %L, %L, %L, %L, %L, null)', ch, code, 'Fuel for the bus', 5000, pg_temp.f(payee),
+    case when payee is null then 'Servo' end)
+$$;
+create function pg_temp.approve_sql(e uuid) returns text language sql immutable as $$
+  select format('public.approve_debit(%L)', e)
+$$;
+-- Where an entry stands: its state and how many approvals it has, as 'awaiting 1'.
+create function pg_temp.approvals(e uuid) returns text language sql stable as $$
+  select state || ' ' || (select count(*) from public.ledger_approvals where entry_id = e) from public.ledger_entries where id = e
+$$;
+
+\echo 'money: Penny''s appointee can''t be the second approver on Penny''s entry'
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  e uuid;
+  said text;
+begin
+  perform pg_temp.id_by(9, pg_temp.appoint_acting_sql(11, w, 'vice_president', pg_temp.today() + 28));
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, null));
+  assert pg_temp.approvals(e) = 'awaiting 1', 'Penny records the payment, and her approval counts first';
+  said := pg_temp.by(11, pg_temp.approve_sql(e));
+  assert said = pg_temp.seated('Penny'),
+    'Hal, acting in West''s empty VP seat because Penny put him there, can''t be the second approver: '
+      || coalesce(said, 'it went through');
+  assert pg_temp.approvals(e) = 'awaiting 1', 'so it still waits';
+  -- Lou records a reimbursement to Lou, so nobody's approval counts yet, and Penny approves it first.
+  e := pg_temp.id_by(4, pg_temp.record_debit_sql(w, 4));
+  assert pg_temp.by(9, pg_temp.approve_sql(e)) is null, 'Penny approves Lou''s reimbursement';
+  assert pg_temp.by(11, pg_temp.approve_sql(e)) = pg_temp.seated('Penny'), 'Hal can''t be the second approver after Penny';
+  assert pg_temp.by(8, pg_temp.approve_sql(e)) is null, 'Torque can';
+  assert pg_temp.approvals(e) = 'approved 2', 'which makes two independent approvals';
+end $$;
+rollback;
+
+\echo 'money: Rusty''s appointee can'
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  e uuid;
+begin
+  perform pg_temp.id_by(7, pg_temp.appoint_acting_sql(10, w, 'vice_president', pg_temp.today() + 28));
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, null));
+  assert pg_temp.by(10, pg_temp.approve_sql(e)) is null, 'Spanner, acting because Rusty put him there, approves Penny''s entry';
+  assert pg_temp.approvals(e) = 'approved 2', 'which makes two independent approvals';
+end $$;
+rollback;
+
+\echo 'money: Rusty can''t approve after his own appointee approved first'
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  e uuid;
+begin
+  perform pg_temp.id_by(7, pg_temp.appoint_acting_sql(10, w, 'vice_president', pg_temp.today() + 28));
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 9));
+  assert pg_temp.approvals(e) = 'awaiting 0', 'Penny''s reimbursement waits for two others';
+  assert pg_temp.by(10, pg_temp.approve_sql(e)) is null, 'Spanner approves it first';
+  assert pg_temp.by(7, pg_temp.approve_sql(e)) = pg_temp.planted('Spanner'), 'Rusty, who put Spanner there, can''t be second';
+  assert pg_temp.by(8, pg_temp.approve_sql(e)) is null, 'Torque can';
+  assert pg_temp.approvals(e) = 'approved 2', 'which makes two independent approvals';
+end $$;
+rollback;
+
+\echo 'money: nor after they then stepped down, or lapsed, or when their own full seat ended that day'
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  stint uuid := pg_temp.id_by(7, pg_temp.appoint_acting_sql(10, pg_temp.west(), 'vice_president', pg_temp.today() + 28));
+  e uuid;
+begin
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 9));
+  assert pg_temp.by(10, pg_temp.approve_sql(e)) is null, 'Spanner approves while acting';
+  assert pg_temp.by(10, pg_temp.end_sql(stint)) is null, 'then steps down';
+  assert pg_temp.how_ended(stint) = pg_temp.ended('stepped_down', 10), 'stepped down: ' || pg_temp.how_ended(stint);
+  assert pg_temp.by(7, pg_temp.approve_sql(e)) = pg_temp.planted('Spanner'),
+    'Rusty still can''t be second: Spanner stood only through acting the day he approved';
+end $$;
+rollback;
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  stint uuid := pg_temp.seat(10, pg_temp.west(), 'vice_president', pg_temp.today() - 1, 'Short-handed', null, pg_temp.today() - 10);
+  e uuid;
+begin
+  update positions set appointed_by = pg_temp.f(7) where id = stint;
+  insert into ledger_entries (chapter_id, code, description, amount_cents, payee_member_id, state, recorded_by, recorded_at)
+  values (w, 'DB-001', 'Fuel for the bus', 5000, pg_temp.f(9), 'awaiting', pg_temp.f(9), pg_temp.days_ago(2))
+  returning id into e;
+  insert into ledger_approvals (entry_id, member_id, approved_at) values (e, pg_temp.f(10), pg_temp.days_ago(1));
+  perform private.close_lapsed_acting();
+  assert pg_temp.how_ended(stint) = pg_temp.ended('lapsed', null), 'Spanner''s stint, Rusty''s doing, ran to yesterday and lapsed';
+  assert pg_temp.by(7, pg_temp.approve_sql(e)) = pg_temp.planted('Spanner'),
+    'Rusty still can''t be second to the approval Spanner gave yesterday, while acting';
+end $$;
+rollback;
+begin;
+select pg_temp.seat(10, pg_temp.west(), 'road_captain', started => '2026-08-01');
+do $$
+declare
+  w uuid := pg_temp.west();
+  captain uuid := (select id from positions where member_id = pg_temp.f(10) and role = 'road_captain');
+  e1 uuid;
+  e2 uuid;
+begin
+  perform pg_temp.id_by(7, pg_temp.appoint_acting_sql(10, w, 'vice_president', pg_temp.today() + 28));
+  e1 := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 9));
+  e2 := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 9));
+  assert pg_temp.by(10, pg_temp.approve_sql(e1)) is null and pg_temp.by(10, pg_temp.approve_sql(e2)) is null,
+    'Spanner, Road Captain in full and Acting VP on Rusty''s say, approves both';
+  assert pg_temp.by(7, pg_temp.approve_sql(e1)) is null, 'his full seat makes him independent, so Rusty can be second';
+  perform pg_temp.end_row(captain);
+  assert pg_temp.by(7, pg_temp.approve_sql(e2)) = pg_temp.planted('Spanner'),
+    'once that seat ended on the day he approved, he stood that day only through acting';
+end $$;
+rollback;
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  e uuid;
+begin
+  perform pg_temp.id_by(7, pg_temp.appoint_acting_sql(10, w, 'vice_president', pg_temp.today() + 28));
+  perform pg_temp.seat(10, w, 'road_captain');
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 9));
+  assert pg_temp.by(10, pg_temp.approve_sql(e)) is null, 'Spanner, seated Road Captain in full today, approves';
+  assert pg_temp.by(7, pg_temp.approve_sql(e)) = pg_temp.planted('Spanner'),
+    'a seat that started on the day he approved doesn''t make him independent that day';
+end $$;
+rollback;
+
+\echo 'money: with West''s President seat empty, Hal, voted in on Penny''s request and confirmed by Torque, can''t approve Penny''s reimbursement'
+begin;
+select pg_temp.end_row(pg_temp.f(107));
+select pg_temp.seat(10, pg_temp.west(), 'road_captain');
+do $$
+declare
+  w uuid := pg_temp.west();
+  req uuid := pg_temp.id_by(9, pg_temp.request_acting_sql(11, pg_temp.west(), 'president', null, pg_temp.today() + 28,
+    'Rusty stood down'));
+  stint uuid;
+  e uuid;
+begin
+  perform pg_temp.vote(w, 11, 'president', 'chapter_board', 'majority', 'carried', 1, req);
+  stint := pg_temp.id_by(8, pg_temp.confirm_sql(req));
+  assert (select appointed_by = pg_temp.f(8) and acting_request = req from positions where id = stint),
+    'Torque confirmed Hal''s stint, from Penny''s request';
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 9));
+  assert pg_temp.by(11, pg_temp.approve_sql(e)) = pg_temp.seated('Penny'),
+    'Hal is acting because Penny asked for him, so he can''t approve her reimbursement';
+  assert pg_temp.by(10, pg_temp.approve_sql(e)) is null, 'Spanner can';
+  assert pg_temp.by(8, pg_temp.approve_sql(e)) is null, 'and Torque';
+  assert pg_temp.approvals(e) = 'approved 2', 'which makes two independent approvals';
+end $$;
+rollback;
+
+\echo 'money: the payee''s stand-in can''t approve the refund'
+begin;
+do $$
+declare
+  w uuid := pg_temp.west();
+  e uuid;
+begin
+  perform pg_temp.id_by(9, pg_temp.confirm_sql(pg_temp.id_by(8, pg_temp.request_cover_sql(pg_temp.f(108), 7, pg_temp.today() + 28))));
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 8, 'DB-006'));
+  assert pg_temp.approvals(e) = 'awaiting 1', 'Penny records Torque''s refund, and her approval counts';
+  assert pg_temp.by(7, pg_temp.approve_sql(e)) = pg_temp.stand_in('Torque'),
+    'Rusty, covering Torque''s Secretary seat, can''t approve it';
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, null));
+  assert pg_temp.by(7, pg_temp.approve_sql(e)) is null, 'but approves other West spending';
+  assert pg_temp.approvals(e) = 'approved 2', 'which makes two approvals';
+end $$;
+rollback;
+
+\echo 'money: record_debit records without self-approval on a conflict'
+begin;
+do $$
+declare
+  n uuid := pg_temp.north();
+  w uuid := pg_temp.west();
+  e uuid;
+begin
+  -- North's Treasurer seat is empty: Smokey records Ned as Acting Treasurer, who keeps North's books.
+  perform pg_temp.id_by(1, pg_temp.appoint_acting_sql(5, n, 'treasurer', pg_temp.today() + 28));
+  e := pg_temp.id_by(5, pg_temp.record_debit_sql(n, 1));
+  assert pg_temp.approvals(e) = 'awaiting 0', 'Ned records Smokey''s reimbursement, with no approval of his own and no error';
+  e := pg_temp.id_by(5, pg_temp.record_debit_sql(n, 6));
+  assert pg_temp.approvals(e) = 'awaiting 1', 'a payment to Gus counts Ned''s approval as usual';
+  -- Penny covers Torque's Secretary seat, then records his refund.
+  perform pg_temp.id_by(7, pg_temp.confirm_sql(pg_temp.id_by(8, pg_temp.request_cover_sql(pg_temp.f(108), 9, pg_temp.today() + 28))));
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 8, 'DB-006'));
+  assert pg_temp.approvals(e) = 'awaiting 0', 'Penny, Torque''s stand-in, records his refund without approving it';
+end $$;
+rollback;
+
+\echo 'money: a covered President still approves West spending'
+begin;
+select pg_temp.seat(11, pg_temp.west(), 'vice_president', started => '2026-08-01');
+do $$
+declare
+  w uuid := pg_temp.west();
+  e uuid;
+begin
+  perform pg_temp.id_by(8, pg_temp.confirm_sql(pg_temp.id_by(7, pg_temp.request_cover_sql(pg_temp.f(107), 11, pg_temp.today() + 28))));
+  e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 10));
+  assert pg_temp.by(7, pg_temp.approve_sql(e)) is null, 'Rusty, covered by Hal, still approves West spending as a board member (13.3)';
+  assert pg_temp.approvals(e) = 'approved 2', 'which makes two approvals';
 end $$;
 rollback;
 
