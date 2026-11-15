@@ -12,7 +12,7 @@ import { crewNeeded, eligibilityProblem, managesRide, showsCrewNeeded } from '..
 import { addDays, daysBetween } from '../domain/dates';
 import { chargeBalance, dueState, fyOf } from '../domain/fees';
 import { fngDue } from '../domain/joining';
-import { bankedLate, keepsBooks, monthEnd, monthOf, reportFor } from '../domain/ledger';
+import { bankedLate, keepsBooks, monthEnd, monthOf, reportFor, seesLedger } from '../domain/ledger';
 import { noticeRecordFrom } from '../domain/notices';
 import { addMonths, expiryAlerts } from '../domain/profile';
 import { currentRoadRules, roadRulesStatus, signoffBase } from '../domain/roadRules';
@@ -264,9 +264,11 @@ test('p-19 is Crank, Acting Treasurer (North), 28 days each side of today', () =
     assert.equal(data.positions.at(-1)!.id, 'p-19', `appended last, at ${now}`);
     // No ballot count moves: North's board is still the same three people.
     assert.deepEqual(electorsFor('chapter_board', 'ch-north', data), ['m-crank', 'm-jet', 'm-smokey'], now);
-    // He keeps North's books, and his acting Treasurer seat isn't club-wide (his only club-wide seat
-    // is p-11). keepsBooks(null) doesn't read club-wide seats yet: the Club fund pin comes with Task 14.
+    // He keeps North's books but not the Club fund's: his acting Treasurer seat isn't club-wide (his
+    // only club-wide seat is p-11), and the Club fund reads club-wide seats.
     assert.equal(keepsBooks(memberOf(data, 'm-crank'), 'ch-north', data.positions), true, now);
+    assert.equal(keepsBooks(memberOf(data, 'm-crank'), null, data.positions), false, now);
+    assert.equal(seesLedger(memberOf(data, 'm-crank'), null, data.positions), false, now);
     assert.deepEqual(clubwidePositions('m-crank', data.positions).map((p) => p.id), ['p-11'], now);
   }
 });
