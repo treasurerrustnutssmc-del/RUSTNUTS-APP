@@ -218,6 +218,7 @@ Small, firm corners: 4 on buttons, inputs, choices and chips, and 8 on cards and
   - Steel: Supporter and Family.
   - OK, Warn and Danger: states.
 - **Role chips** carry the short form ("TREAS", "SAA (WEST)"). An acting seat spells itself out instead, "ACTING TREASURER (NORTH)" (`chipLabel`), so a stint never reads as a full term; a long one wraps inside the chip rather than running off the card. A covered holder's chip is unchanged.
+- **Acting chip:** where a list already names the role (the Auditor's Membership records), a stint carries a bone "ACTING" chip in place of the term's Ending or Past term chip, and its line reads "Jet for Smokey · since 05/11/2026 · until 13/12/2026", the until date being the last acting day.
 - **Ride chips** use the ride key colours.
 - **Filter chips** on the Rides tab work as toggles at least 44 tall. When on, a chip fills with its colour and shows a tick. When off, it's outlined with a colour square.
 

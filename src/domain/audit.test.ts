@@ -322,13 +322,13 @@ test('a seat covered for more than three months in a row is flagged for review (
   assert.equal(checkOf(actingClub([smokeyPres, jetVp, crankRc, first, gap]), 'cover-over-3-months:smokey-pres'), undefined, 'Smokey was back in between');
 });
 
-test('a VP casting the NEC vote for an empty President seat is flagged, with no fix in the audit (11.2)', () => {
+// The Auditor's screen gives this finding no button (src/screens/actingScreens.test.ts).
+test('a VP casting the NEC vote for an empty President seat is flagged (11.2)', () => {
   const ended = { ...smokeyPres, endedOn: '2026-09-01', endedReason: 'stepped_down' as const };
   const d = actingClub([ended, jetVp, crankRc]);
   const c = checkOf(d, 'vp-fallback:north')!;
   assert.equal(c.title, 'Jet casts North’s NEC vote without being formally Acting President (11.2)');
   assert.equal(c.chapterId, 'north');
-  assert.ok(!('fix' in c), 'the Auditor can’t record a President; the button is on the Board tab');
   assert.deepEqual(vpFallbackFor('north', d), { memberId: 'jet' });
   const jetActing = nseat('jet-acting', 'jet', 'president', { startedOn: '2026-10-01', actingUntil: '2026-12-20', actingWhy: 'No President since the ACM' });
   const formal = actingClub([ended, jetVp, crankRc, jetActing]);

@@ -7,12 +7,13 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { isAuditor, reviewsChapter } from '../domain/access';
+import { heldRows, isActing } from '../domain/acting';
 import {
   AREA_LABEL, AUDIT_AREAS, auditChecks, answersRequest, KIND_LABEL, requestState, scopeName, visibleReports, visibleRequests,
   type AuditCheck, type RequestState,
 } from '../domain/audit';
 import { formatAuDate } from '../domain/dates';
-import { ROLE_LABEL } from '../domain/labels';
+import { ROLE_LABEL, ROLE_ORDER } from '../domain/labels';
 import { displayName } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
 import { standingOf } from '../domain/standing';
@@ -212,7 +213,10 @@ export function AuditRecordsScreen({ navigation }: RootScreen<'AuditRecords'>) {
   const theirs = data.members.filter((m) => m.chapterId === chapterId).sort((a, b) => displayName(a).localeCompare(displayName(b)));
   const applicants = theirs.filter((m) => m.approval === 'pending');
   const members = theirs.filter((m) => m.approval === 'approved' && m.status !== 'legacy');
-  const seats = data.positions.filter((p) => p.endedOn === null && (p.chapterId === chapterId || (p.chapterId === null && theirs.some((m) => m.id === p.memberId)))); // acting: pending
+  // In role order, a stint right after the seat's full term, so a cover sits under the holder it covers.
+  const seats = heldRows(data.positions)
+    .filter((p) => p.chapterId === chapterId || (p.chapterId === null && theirs.some((m) => m.id === p.memberId)))
+    .sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || Number(isActing(a)) - Number(isActing(b)) || a.startedOn.localeCompare(b.startedOn));
 
   const standingLine = (m: Member): { text: string; tone: Tone } | null => {
     const s = standingOf(m, data, today);
@@ -245,17 +249,24 @@ export function AuditRecordsScreen({ navigation }: RootScreen<'AuditRecords'>) {
           seats.map((p, i) => {
             const state = termState(p, today);
             const ends = termEndsOn(p);
+            // A stint isn't a term: it shows who it covers, if anyone, and its until date, its last acting day.
+            const covered = p.covers ? data.positions.find((x) => x.id === p.covers) : undefined;
+            const who = covered ? `${nameOf(p.memberId, data.members)} for ${nameOf(covered.memberId, data.members)}` : nameOf(p.memberId, data.members);
+            const dates = isActing(p)
+              ? `since ${formatAuDate(p.startedOn)} · until ${formatAuDate(p.actingUntil!)}`
+              : `since ${formatAuDate(p.startedOn)}${ends ? ` · ${state === 'ended' ? 'ended' : 'ends'} ${formatAuDate(ends)}` : ''}`;
             return (
               <ListRow
                 key={p.id}
                 last={i === seats.length - 1}
                 title={ROLE_LABEL[p.role]}
-                subtitle={
-                  <Text style={styles.meta}>
-                    {`${nameOf(p.memberId, data.members)} · since ${formatAuDate(p.startedOn)}${ends ? ` · ${state === 'ended' ? 'ended' : 'ends'} ${formatAuDate(ends)}` : ''}`}
-                  </Text>
+                subtitle={<Text style={styles.meta}>{`${who} · ${dates}`}</Text>}
+                right={
+                  isActing(p) ? <Chip label="Acting" tone="bone" />
+                  : state === 'ended' ? <Chip label="Past term" tone="danger" />
+                  : state === 'ending' ? <Chip label="Ending" tone="warn" />
+                  : undefined
                 }
-                right={state === 'ended' ? <Chip label="Past term" tone="danger" /> : state === 'ending' ? <Chip label="Ending" tone="warn" /> : undefined}
               />
             );
           })
