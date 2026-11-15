@@ -998,33 +998,34 @@ end $$;
 rollback;
 
 \echo 'catalogue: no live function or policy names public.positions off the allow-list'
+-- Each of these reads or writes the table itself, for the reason given; every other reader goes
+-- through private.held_positions, private.duty_positions or private.clubwide_positions. §8 checks
+-- that the list holds nothing stale or pending.
+create temp table positions_readers (name text primary key, why text not null);
+insert into positions_readers (name, why) values
+  ('appoint_position', 'a writer'),
+  ('end_position', 'a writer'),
+  ('renew_auditor', 'a writer'),
+  ('forget_member', 'a writer'),
+  ('add_roster_position', 'a writer'),
+  ('settle_chapter_proposal', 'a writer'),
+  ('appoint_acting', 'a writer (Task 4)'),
+  ('confirm_acting', 'a writer (Task 4)'),
+  ('set_acting_until', 'a writer (Task 4)'),
+  ('close_lapsed_acting', 'the lazy close, a writer'),
+  ('check_covers', 'the covers trigger reads the covered row as stored'),
+  ('on_position_end', 'the ending trigger, a writer'),
+  ('has_carried_nec_vote', 'history: who held a seat when a vote carried'),
+  ('acting_cap', 'a run''s start, from ended rows (Task 4)'),
+  ('acting_needs_vote', 'when the President seat fell empty, from ended rows (Task 4)'),
+  ('approval_conflict', 'rows held on an approval''s day (Task 7)');
 do $$
 declare off text;
 begin
-  -- Each of these reads or writes the table itself, for the reason given; every other reader goes
-  -- through private.held_positions, private.duty_positions or private.clubwide_positions.
-  with allowed(name, why) as (values
-    ('appoint_position', 'a writer'),
-    ('end_position', 'a writer'),
-    ('renew_auditor', 'a writer'),
-    ('forget_member', 'a writer'),
-    ('add_roster_position', 'a writer'),
-    ('settle_chapter_proposal', 'a writer'),
-    ('appoint_acting', 'a writer (Task 4)'),
-    ('confirm_acting', 'a writer (Task 4)'),
-    ('set_acting_until', 'a writer (Task 4)'),
-    ('close_lapsed_acting', 'the lazy close, a writer'),
-    ('check_covers', 'the covers trigger reads the covered row as stored'),
-    ('on_position_end', 'the ending trigger, a writer'),
-    ('has_carried_nec_vote', 'history: who held a seat when a vote carried'),
-    ('acting_cap', 'a run''s start, from ended rows (Task 4)'),
-    ('acting_needs_vote', 'when the President seat fell empty, from ended rows (Task 4)'),
-    ('approval_conflict', 'rows held on an approval''s day (Task 7)')
-  )
   select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname) into off
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and p.prosrc ~ '(public\.|(from|join)\s+)positions\y'
-    and p.proname not in (select name from allowed);
+    and p.proname not in (select name from positions_readers);
   assert off is null, 'these name public.positions: read one of the three views, or add them to the allow-list with a reason: ' || off;
   select string_agg(schemaname || '.' || tablename || ' ' || policyname, ', ') into off
   from pg_policies where coalesce(qual, '') ~ '\ypositions\y' or coalesce(with_check, '') ~ '\ypositions\y';
@@ -2969,5 +2970,234 @@ begin
   assert pg_temp.approvals(e) = 'approved 2', 'which makes two approvals';
 end $$;
 rollback;
+
+-- §8 Tightenings for everyone, and the strict catalogue -----------------------------------------
+
+insert into acting_words (k, t) values
+  ('CAST_BOARD_ENDED', 'Your board seat has ended, so this ballot isn’t yours now.');
+-- The NEC ballot refusals (Appendix A), each naming a chapter.
+create function pg_temp.not_yours(ch text) returns text language sql immutable as $$
+  select 'You don’t cast ' || ch || '’s NEC vote now, so this ballot isn’t yours.'
+$$;
+create function pg_temp.nec_cast(ch text) returns text language sql immutable as $$
+  select ch || '’s NEC ballot has already been cast.'
+$$;
+create function pg_temp.cast_sql(v uuid, choice text default 'yes') returns text language sql immutable as $$
+  select format('public.cast_ballot(%L, %L)', v, choice)
+$$;
+-- Lou opens an NEC majority vote now (North and West each cast one): its id.
+create function pg_temp.open_nec() returns uuid language sql as $$
+  select pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 2))
+$$;
+-- Whose a vote's ballot for that chapter is, by first name, and whether it's cast: 'Jet' or 'Jet cast'.
+create function pg_temp.nec_ballot(v uuid, ch uuid) returns text language sql stable as $$
+  select split_part(m.full_name, ' ', 1) || case when e.voted_at is not null then ' cast' else '' end
+  from public.vote_electors e join public.members m on m.id = e.member_id
+  where e.vote_id = v and e.for_chapter = ch
+$$;
+
+\echo 'tightening 1: a removed board member can''t cast on an open board vote; the quorum stays fixed'
+begin;
+do $$
+declare
+  v uuid := pg_temp.id_by(7, pg_temp.open_vote_sql(pg_temp.west(), null, null, 'chapter_board', 'majority', 3));
+  got text;
+begin
+  assert pg_temp.electors(v) = array['Rusty', 'Torque', 'Penny'], 'West''s board gets the ballots: ' || pg_temp.electors(v)::text;
+  perform pg_temp.end_row(pg_temp.f(108), 'removed');
+  got := pg_temp.by(8, pg_temp.cast_sql(v));
+  assert got = pg_temp.w('CAST_BOARD_ENDED'), 'Torque, removed as Secretary after it opened, no longer casts: ' || coalesce(got, 'he cast');
+  assert pg_temp.by(7, pg_temp.cast_sql(v)) is null and pg_temp.by(9, pg_temp.cast_sql(v)) is null, 'Rusty and Penny still cast';
+  assert (select quorum from votes where id = v) = 3 and pg_temp.electors(v) = array['Rusty', 'Torque', 'Penny'],
+    'the quorum and the electors stay as they were at opening';
+  update votes set opened_at = now() - interval '3 days', closes_at = now() - interval '1 second' where id = v;
+  assert pg_temp.by(7, pg_temp.close_vote_sql(v)) is null, 'Rusty closes it once it''s due';
+  assert (select result = 'no_quorum' and yes_count = 2 from votes where id = v), 'two ballots miss the quorum of three';
+end $$;
+rollback;
+
+\echo 'tightening 2: Smokey casts the North NEC ballot Jet didn''t (member_id moves); lapsed Jet gets castNecNotYours(''North''); a cast ballot stands (castNecCast(''North''))'
+begin;
+select pg_temp.jet_covers_smokey();
+create temp table nec as select pg_temp.open_nec() as uncast, pg_temp.open_nec() as cast_one;
+do $$ begin
+  assert pg_temp.nec_ballot((select uncast from nec), pg_temp.north()) = 'Jet', 'Jet casts North''s NEC vote while he covers Smokey';
+  assert pg_temp.by(2, pg_temp.cast_sql((select cast_one from nec))) is null, 'and casts one of the two';
+end $$;
+-- Jet's cover runs until today + 28: four weeks and a day on it has lapsed, and nothing has closed it.
+select pg_temp.clock_at(pg_temp.days_ago(-29));
+do $$
+declare
+  v uuid := (select uncast from nec);
+  c uuid := (select cast_one from nec);
+  got text;
+begin
+  assert (select ended_on is null from positions where covers = pg_temp.f(101)), 'the lapsed cover is still open';
+  got := pg_temp.by(2, pg_temp.cast_sql(v));
+  assert got = pg_temp.not_yours('North'), 'Jet, named at opening, isn''t North''s voter now: ' || coalesce(got, 'he cast');
+  assert pg_temp.by(1, pg_temp.cast_sql(v)) is null, 'Smokey, back on the NEC, casts the ballot Jet didn''t';
+  assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Smokey cast', 'North''s ballot moved to him: ' || pg_temp.nec_ballot(v, pg_temp.north());
+  assert (select member_id from vote_ballots where vote_id = v) = pg_temp.f(1), 'and the open ballot is his';
+  assert pg_temp.by(2, pg_temp.cast_sql(v)) = 'You’re not on this vote.', 'Jet has no ballot on it now';
+  assert pg_temp.by(1, pg_temp.cast_sql(c)) = pg_temp.nec_cast('North'), 'the ballot Jet cast stands';
+  assert pg_temp.nec_ballot(c, pg_temp.north()) = 'Jet cast', 'and stays his';
+  assert pg_temp.by(7, pg_temp.cast_sql(v)) is null, 'Rusty casts West''s as before';
+end $$;
+rollback;
+
+\echo 'tightening 2: a President seated after it opened, even that day, doesn''t take it, and the VP named at opening keeps it'
+begin;
+select pg_temp.end_row(pg_temp.f(101));
+create temp table nec as select pg_temp.open_nec() as today_vote, pg_temp.open_nec() as older;
+select pg_temp.opened_ago((select older from nec), interval '2 days');
+do $$
+declare v uuid;
+begin
+  assert pg_temp.by(4, pg_temp.appoint_sql(5, pg_temp.north(), 'president')) is null, 'Lou seats Ned as North''s President today';
+  assert pg_temp.helper_as(pg_temp.f(1), format('private.nec_voter_for(%L)', pg_temp.north())) = pg_temp.f(5)::text,
+    'Ned casts North''s NEC vote from now on';
+  foreach v in array array[(select today_vote from nec), (select older from nec)] loop
+    assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Jet', 'Jet, the VP, was named at opening';
+    assert pg_temp.by(5, pg_temp.cast_sql(v)) = 'You’re not on this vote.',
+      'Ned''s seat started on or after the day it opened, so it doesn''t take the ballot';
+    assert pg_temp.by(2, pg_temp.cast_sql(v)) is null, 'nor take it away: Jet casts it';
+    assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Jet cast', 'as himself';
+  end loop;
+end $$;
+rollback;
+
+\echo 'tightening 2: an agreed cover takes it; under a voted cover started after it, Smokey gets castNecNotYours(''North'') and Jet and Ned aren''t on it, until Smokey''s back'
+begin;
+select pg_temp.seat(5, pg_temp.north(), 'secretary');
+select pg_temp.seat(6, pg_temp.north(), 'sergeant_at_arms');
+create temp table nec as select pg_temp.open_nec() as agreed, pg_temp.open_nec() as voted;
+do $$
+declare
+  v uuid := (select agreed from nec);
+  cover uuid;
+  got text;
+begin
+  assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Smokey', 'Smokey was named at opening';
+  cover := pg_temp.jet_covers_smokey();
+  got := pg_temp.by(1, pg_temp.cast_sql(v));
+  assert got = pg_temp.not_yours('North'), 'Smokey is off the NEC while Jet covers him: ' || coalesce(got, 'he cast');
+  assert pg_temp.by(2, pg_temp.cast_sql(v)) is null, 'Jet takes the uncast ballot: a cover Smokey agreed counts from Smokey''s start';
+  assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Jet cast', 'it''s Jet''s now: ' || pg_temp.nec_ballot(v, pg_temp.north());
+  assert pg_temp.by(1, pg_temp.end_sql(cover)) is null, 'Smokey is back';
+end $$;
+do $$
+declare
+  v uuid := (select voted from nec);
+  req uuid := pg_temp.crank_asks_jet();
+  cover uuid;
+begin
+  perform pg_temp.vote(pg_temp.north(), 2, 'president', 'chapter_board', 'majority', 'carried', 1, req);
+  cover := pg_temp.id_by(6, pg_temp.confirm_sql(req));
+  assert (select acting_vote is not null from positions where id = cover), 'the board voted Jet in to cover Smokey, after it opened';
+  assert pg_temp.by(1, pg_temp.cast_sql(v)) = pg_temp.not_yours('North'), 'Smokey, covered, is off the NEC';
+  assert pg_temp.by(2, pg_temp.cast_sql(v)) = 'You’re not on this vote.', 'Jet, voted in after it opened, doesn''t take it';
+  assert pg_temp.by(5, pg_temp.cast_sql(v)) = 'You’re not on this vote.', 'nor does Ned';
+  assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Smokey', 'North''s ballot waits';
+  assert pg_temp.by(1, pg_temp.end_sql(cover)) is null, 'until Smokey''s back';
+  assert pg_temp.by(1, pg_temp.cast_sql(v)) is null, 'and casts it';
+end $$;
+rollback;
+
+\echo 'tightening 2: the named elector keeps it once recorded Acting President or re-seated; a roster claimant takes it (17.6)'
+begin;
+do $$
+declare v uuid := pg_temp.open_nec();
+begin
+  assert pg_temp.by(1, pg_temp.end_sql(pg_temp.f(101))) is null, 'Smokey, named at opening, steps down';
+  assert pg_temp.by(4, pg_temp.appoint_sql(1, pg_temp.north(), 'president')) is null, 'and Lou re-seats him today';
+  assert pg_temp.by(1, pg_temp.cast_sql(v)) is null, 'Smokey keeps his ballot: he casts North''s NEC vote now';
+  assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Smokey cast', 'as himself';
+end $$;
+rollback;
+begin;
+select pg_temp.end_row(pg_temp.f(101));
+do $$
+declare v uuid := pg_temp.open_nec();
+begin
+  assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Jet', 'with North''s President seat empty, Jet, the VP, is named';
+  perform pg_temp.id_by(3, pg_temp.appoint_acting_sql(2, pg_temp.north(), 'president', pg_temp.today() + 28, 'No President since Smokey stepped down'));
+  assert pg_temp.by(2, pg_temp.cast_sql(v)) is null, 'Jet, recorded Acting President today, keeps his ballot';
+end $$;
+rollback;
+begin;
+select pg_temp.end_row(pg_temp.f(101));
+insert into auth.users (id, email, email_confirmed_at) values (pg_temp.f(13), 'f13@example.com', now());
+insert into private.roster (email, chapter_id, full_name, status, roles) values
+  ('f13@example.com', pg_temp.north(), 'Bolt Upright', 'full', '{president}');
+do $$
+declare v uuid := pg_temp.open_nec();
+begin
+  assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Jet', 'Jet, the VP, is named';
+  assert pg_temp.value_as(pg_temp.f(13), 'public.claim_roster()') = 'true', 'Bolt claims North''s President seat from the sheet';
+  assert pg_temp.by(2, pg_temp.cast_sql(v)) = pg_temp.not_yours('North'),
+    'the sheet''s seat runs from 1/8/2026 (17.6), so Bolt casts North''s vote, not Jet';
+  assert pg_temp.by(13, pg_temp.cast_sql(v)) is null, 'Bolt takes the uncast ballot';
+  assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Bolt cast', 'it''s his: ' || pg_temp.nec_ballot(v, pg_temp.north());
+end $$;
+rollback;
+
+\echo 'tightening 3: Kim (Auditor, West VP) can''t appoint a Treasurer in full, can appoint a Secretary'
+begin;
+select pg_temp.end_row(pg_temp.f(108));
+select pg_temp.end_row(pg_temp.f(109));
+do $$
+declare got text;
+begin
+  assert pg_temp.by(12, pg_temp.appoint_sql(10, pg_temp.west(), 'treasurer')) = 'Only that chapter’s board can appoint here.',
+    'off West''s board, Kim gets the board''s words first';
+  perform pg_temp.seat(12, pg_temp.west(), 'vice_president');
+  got := pg_temp.by(12, pg_temp.appoint_sql(10, pg_temp.west(), 'treasurer'));
+  assert got = pg_temp.w('AUDITOR_STAYS_OUT'), 'Kim, the Auditor in West''s VP seat, doesn''t seat a Treasurer (11.8): ' || coalesce(got, 'she did');
+  assert not exists (select 1 from positions where member_id = pg_temp.f(10) and role = 'treasurer'), 'Spanner isn''t seated';
+  assert pg_temp.by(12, pg_temp.appoint_sql(10, pg_temp.west(), 'secretary')) is null, 'she seats Spanner as Secretary';
+  assert pg_temp.by(7, pg_temp.appoint_sql(11, pg_temp.west(), 'treasurer')) is null, 'and Rusty seats Hal as Treasurer';
+end $$;
+rollback;
+
+\echo 'catalogue: no pending entries remain'
+do $$
+declare off text;
+begin
+  select string_agg(name, ', ' order by name) into off from positions_readers where why ~* 'pending';
+  assert off is null, 'these are still pending: ' || off;
+  -- Strict both ways: every entry is a live function that still names the table.
+  select string_agg(r.name, ', ' order by r.name) into off from positions_readers r
+  where not exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'private') and p.proname = r.name and p.prosrc ~ '(public\.|(from|join)\s+)positions\y');
+  assert off is null, 'these allow-list entries no longer name public.positions, so drop them: ' || off;
+end $$;
+
+\echo 'two sessions: Smokey casts North''s uncast NEC ballot twice at once: one lands, the other castNecCast(''North'')'
+-- Jet was named at opening, under a cover that has since ended: Smokey casts North's vote now.
+create temp table race_vote as select gen_random_uuid() as id;
+insert into public.votes (id, question, electorate, threshold, quorum, closes_at)
+select id, 'A national matter', 'nec', 'majority', 2, now() + interval '3 days' from race_vote;
+insert into public.vote_electors (vote_id, member_id, for_chapter)
+select id, pg_temp.f(2), pg_temp.north() from race_vote
+union all select id, pg_temp.f(7), pg_temp.west() from race_vote;
+do $$
+declare
+  v uuid := (select id from race_vote);
+  r record;
+begin
+  perform pg_temp.open_as('a', 1);
+  perform pg_temp.open_as('b', 1);
+  select * into r from pg_temp.race(pg_temp.cast_sql(v), pg_temp.cast_sql(v, 'no'));
+  perform pg_temp.close_sessions(r.err is null);
+  assert r.waited, 'the second cast waited for the first';
+  assert r.err = pg_temp.nec_cast('North'), format('then found it cast, not %s', coalesce(r.err, 'nothing'));
+  assert pg_temp.nec_ballot(v, pg_temp.north()) = 'Smokey cast', 'North''s ballot is Smokey''s, cast once';
+  assert (select array_agg(choice::text) from vote_ballots where vote_id = v) = array['yes'], 'one ballot landed';
+end $$;
+delete from public.vote_ballots where vote_id = (select id from race_vote);
+delete from public.vote_electors where vote_id = (select id from race_vote);
+delete from public.votes where id = (select id from race_vote);
+drop table race_vote;
 
 \echo 'ACTING CHECKS PASSED'

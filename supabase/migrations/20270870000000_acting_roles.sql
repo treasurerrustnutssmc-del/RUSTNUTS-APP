@@ -1519,7 +1519,7 @@ $$;
 -- election (spec "How it ends"). The seat check counts only full holders, so a cover never takes a
 -- seat. Chair and books stay apart only against an acting row, so no sitting holder or 17.6
 -- arrangement changes. A carried board vote that ended someone's acting in a board seat holds for
--- 90 days here too.
+-- 90 days here too. Someone in the National Auditor seat seats no President or Treasurer (§8).
 create or replace function public.appoint_position(p_member uuid, p_chapter uuid, p_role public.position_role)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare
@@ -1557,6 +1557,10 @@ begin
       end if;
     elsif not private.is_board_of(seat) then
       raise exception 'Only that chapter’s board can appoint here.';
+    end if;
+    -- The Auditor doesn't seat the people they review, in full or acting (11.8; §8).
+    if private.auditor_stays_out(p_role) then
+      raise exception 'The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).';
     end if;
   end if;
 
@@ -2480,5 +2484,75 @@ begin
   set state = case when (select count(*) from public.ledger_approvals where entry_id = p_id) >= 2 then 'approved' else 'awaiting' end,
       updated_at = now()
   where id = p_id;
+end;
+$$;
+
+-- §8 Tightenings for everyone -----------------------------------------------------------------------
+
+-- Three small fixes the acting work exposed. Each only takes power from someone who no longer has a
+-- right to it (spec "Rules tightened for everyone"): a board ballot needs a board seat when it's
+-- cast (8.5), an NEC ballot belongs to its chapter (11.2, 11.6), and the Auditor doesn't seat a
+-- President or Treasurer (11.8, in appoint_position in §5).
+
+-- Casting a ballot (as meetings_votes.sql, same signature and settings), in the app's order (Task 13
+-- mirrors it). An NEC ballot belongs to a chapter (for_chapter). The person named at opening casts it
+-- while they cast that chapter's NEC vote now, or did before the day the vote opened. Anyone else
+-- casts it only as the chapter's voter before that day, and only while it's uncast: the elector row
+-- moves to them. So a seat that starts on or after the opening day neither takes a ballot nor takes
+-- it away (a cover the holder agreed counts from the holder's own start; a roster seat runs from
+-- 1/8/2026, 17.6), and a lapsed Acting President can't cast. A ballot with no chapter keeps the
+-- old rule. A board ballot needs a seat on that chapter's board when it's cast; the quorum stays as
+-- it was at opening.
+create or replace function public.cast_ballot(p_vote uuid, p_choice public.ballot_choice)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  me uuid := private.require_member();
+  v public.votes%rowtype;
+  elector public.vote_electors%rowtype;
+  named boolean;
+  d date;
+  ch uuid;
+begin
+  -- Shares the lock close_vote takes, so a ballot can't land after the count.
+  select * into v from public.votes where id = p_vote for share;
+  if not found then raise exception 'No such vote.'; end if;
+  select * into elector from public.vote_electors where vote_id = p_vote and member_id = me for update;
+  named := found;
+  if exists (select 1 from public.vote_electors where vote_id = p_vote and for_chapter is not null) then
+    d := private.club_date(v.opened_at);
+    if named and elector.for_chapter is not null then
+      if me is distinct from private.nec_voter_for(elector.for_chapter)
+         and me is distinct from private.nec_voter_before(elector.for_chapter, d) then
+        raise exception 'You don’t cast %’s NEC vote now, so this ballot isn’t yours.',
+          (select c.name from public.chapters c where c.id = elector.for_chapter);
+      end if;
+    elsif not named then
+      -- The chapter whose voter before the opening day is me: its ballot, locked, cast or not.
+      select e.for_chapter into ch from public.vote_electors e
+      where e.vote_id = p_vote and e.for_chapter is not null and private.nec_voter_before(e.for_chapter, d) = me
+      order by e.voted_at is not null, e.for_chapter
+      limit 1;
+      if ch is not null then
+        select * into elector from public.vote_electors where vote_id = p_vote and for_chapter = ch for update;
+        named := found;
+        if named and elector.voted_at is not null then
+          raise exception '%’s NEC ballot has already been cast.', (select c.name from public.chapters c where c.id = ch);
+        end if;
+      end if;
+    end if;
+  end if;
+  if not named then raise exception 'You’re not on this vote.'; end if;
+  if elector.voted_at is not null then raise exception 'You’ve already voted.'; end if;
+  if v.closed_at is not null or v.closes_at <= now() then raise exception 'That vote has closed.'; end if;
+  if v.electorate = 'chapter_board' and not private.is_board_of(v.chapter_id) then
+    raise exception 'Your board seat has ended, so this ballot isn’t yours now.';
+  end if;
+  if p_choice is null then raise exception 'Pick an answer.'; end if;
+
+  -- An uncast ballot taken over moves to me as it's cast.
+  update public.vote_electors set member_id = me, voted_at = now()
+  where vote_id = p_vote and member_id = elector.member_id;
+  insert into public.vote_ballots (vote_id, member_id, choice)
+  values (p_vote, case when v.secret then null else me end, p_choice);
 end;
 $$;
