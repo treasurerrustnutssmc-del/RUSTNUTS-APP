@@ -19,6 +19,7 @@ function rowWith(marker: string): string {
   const start = home.lastIndexOf('<ListRow', at);
   assert.notEqual(start, -1, `found the ListRow around ${marker}`);
   const ends = [home.indexOf('<ListRow', at), home.indexOf('</Card>', at)].filter((i) => i !== -1);
+  assert.ok(ends.length > 0, `found where the row around ${marker} ends`);
   return home.slice(start, Math.min(...ends));
 }
 
@@ -42,4 +43,5 @@ test('the Home Club business row shows its whole summary on a small phone', () =
 
 test('only those two Home rows lift the limit', () => {
   assert.equal(home.match(/\blines="all"/g)?.length, 2);
+  assert.equal(home.match(/\blines=/g)?.length, 2, 'no other Home row changes its line limit');
 });
