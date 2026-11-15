@@ -16,6 +16,7 @@ import {
 import type {
   AppealOutcome, ChapterProposal, ClubData, ConductRecord, Contribution, LedgerEntry, MerchItem, MerchOrder,
 } from '../domain/types';
+import { settleActing } from '../domain/acting';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
 
@@ -233,10 +234,13 @@ export function proposeChapter(ctx: DemoCtx, input: ChapterInput): { data: ClubD
  * it (12.4) and the President and SAA take their seats today. Resolves to the new chapter's id.
  */
 export function settleChapter(ctx: DemoCtx, id: string, voteId: string): { data: ClubData; chapterId: string | null } {
-  refuse(settleChapterProblem(ctx.me, id, voteId, ctx.data));
-  const vote = (ctx.data.votes ?? []).find((v) => v.id === voteId)!;
+  // Settled first, as public.settle_chapter_proposal runs the lazy close: a founder's stint that
+  // lapsed last night isn't a position they still have to end.
+  const settled = settleActing(ctx.data, ctx.today);
+  refuse(settleChapterProblem(ctx.me, id, voteId, settled));
+  const vote = (settled.votes ?? []).find((v) => v.id === voteId)!;
   const now = nowOf(ctx);
-  const p = (ctx.data.chapterProposals ?? []).find((x) => x.id === id)!;
+  const p = (settled.chapterProposals ?? []).find((x) => x.id === id)!;
   if (vote.result !== 'carried') {
     return { data: withProposal(ctx.data, id, (x) => ({ ...x, status: 'not_approved', voteId, decidedBy: ctx.me!.id, decidedAt: now })), chapterId: null };
   }
@@ -245,10 +249,10 @@ export function settleChapter(ctx: DemoCtx, id: string, voteId: string): { data:
     id: newId('p'), memberId, chapterId, role, startedOn: ctx.today, endedOn: null,
   });
   const data: ClubData = {
-    ...ctx.data,
-    chapters: [...ctx.data.chapters, { id: chapterId, slug: slugOf(p.name), name: p.name, area: p.area, state: p.state }],
-    members: ctx.data.members.map((m) => (p.founderIds.includes(m.id) ? { ...m, chapterId } : m)),
-    positions: [...ctx.data.positions, seat(p.presidentId, 'president'), seat(p.saaId, 'sergeant_at_arms')],
+    ...settled,
+    chapters: [...settled.chapters, { id: chapterId, slug: slugOf(p.name), name: p.name, area: p.area, state: p.state }],
+    members: settled.members.map((m) => (p.founderIds.includes(m.id) ? { ...m, chapterId } : m)),
+    positions: [...settled.positions, seat(p.presidentId, 'president'), seat(p.saaId, 'sergeant_at_arms')],
   };
   return {
     data: withProposal(data, id, (x) => ({ ...x, status: 'approved', voteId, decidedBy: ctx.me!.id, decidedAt: now, chapterId })),

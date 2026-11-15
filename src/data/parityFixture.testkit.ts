@@ -40,6 +40,7 @@ import { sharesFor } from '../domain/national'; // Stage 5D
 import { AUDIT_ACTIONS, runAuditAction, type AuditAction } from './auditActions'; // National Auditor
 import { BUS_EXTRAS_ACTIONS, runBusExtrasAction, type BusExtrasAction } from './busExtrasActions'; // Rusty Bus extras
 import { SHOP_ACTIONS, runShopAction, type ShopAction } from './shopActions'; // The club shop
+import { ACTING_ACTIONS, runActingAction, type ActingAction } from './actingActions'; // Acting roles
 
 export interface ParityCase extends Record<string, unknown> {
   name: string;
@@ -415,7 +416,7 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  const built = withShop(withBusExtras(withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today)), today), today), today);
+  const built = withShop(withBusExtras(withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today, without), today), today), today)), today), today), today);
   return withActing(built, today, extras);
 }
 
@@ -673,7 +674,7 @@ function withLedger(data: ClubData, today: string): ClubData {
   };
 }
 
-function withStage4(data: ClubData, today: string): ClubData {
+function withStage4(data: ClubData, today: string, without: string[] = []): ClubData {
   const s4 = fixture.stage4;
   if (!s4) return data;
   const fy = clubYearOf(today); // fees run AGM to AGM (no AGM in the fixture: 1 August)
@@ -689,7 +690,9 @@ function withStage4(data: ClubData, today: string): ClubData {
     ],
     positions: [
       ...data.positions,
-      ...s4.positions.map((p) => ({ id: p.key, memberId: p.member, chapterId: p.chapter, role: p.role, startedOn: '2025-01-01', endedOn: null })),
+      ...s4.positions
+        .filter((p) => !without.includes(p.key)) // as parity-sql.mts deletes a case's `without` rows, wherever they came from
+        .map((p) => ({ id: p.key, memberId: p.member, chapterId: p.chapter, role: p.role, startedOn: '2025-01-01', endedOn: null })),
     ],
     rides: [
       ...data.rides,
@@ -781,6 +784,10 @@ function demoAnswerOf(c: ParityCase): string | null {
     }
     if (LEDGER_ACTIONS.has(String(c.action))) {
       runLedgerAction({ data, me, today }, resolveCase(c, today) as unknown as LedgerAction);
+      return null;
+    }
+    if (ACTING_ACTIONS.has(String(c.action))) {
+      runActingAction({ data, me, today }, resolveCase(c, today) as unknown as ActingAction);
       return null;
     }
     // Stage 7: social extras

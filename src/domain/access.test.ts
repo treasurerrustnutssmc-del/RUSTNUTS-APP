@@ -1034,9 +1034,6 @@ test('after a lost vote, asking again for that seat waits 28 days (ASKED_RECENTL
     requestActingProblem(who(data, me), who(data, 'jet'), 'north', 'president', row(data, 'smokey-president'), UNTIL, 'Smokey can’t be reached', data, AT);
   assert.equal(again(lost), ASKED_RECENTLY, 'the lost vote rejected it');
   assert.equal(again(lost, 'ned'), null, 'someone else may ask');
-  const rejected = (closedAt: string) => world({ seats: FIVE, requests: [{ ...crankAsks, closedAt, outcome: 'rejected' }] });
-  assert.equal(again(rejected('2026-10-18T01:00:00.000Z')), ASKED_RECENTLY, '28 days ago');
-  assert.equal(again(rejected('2026-10-17T01:00:00.000Z')), null, '29 days ago');
 });
 
 test('actingElectors leaves out the stand-in, the holder and, for a President or Treasurer seat, the Auditor', () => {
@@ -1195,4 +1192,113 @@ test('appointProblem: a full appointment over acting', () => {
   // A lapsed stint, still open, leaves its seat free.
   const lapsedVp = world({ ended: { 'jet-vp': '2026-10-01' }, seats: [stint('ned-acting-vp', 'ned', 'north', 'vice_president', { startedOn: '2026-10-15', actingUntil: '2026-11-14' })] });
   assert.equal(appoint('smokey', 'gus', 'north', 'vice_president', lapsedVp), null);
+});
+
+// ---------------------------------------------------------------------------
+// Where the app's acting checks first met the database (Task 12's shared route cases): each of
+// these is the answer the database's RPC gives (supabase/migrations/20270870000000_acting_roles.sql §4, §5).
+// ---------------------------------------------------------------------------
+
+test('acting needs an approved member, as the database checks after the chapter', () => {
+  const benched = world({ members: { ned: { approval: 'suspended' } } });
+  const p = (role: PositionRole) => actingProblem(who(benched, 'ned'), 'north', role, null, UNTIL, benched);
+  assert.equal(p('officer'), 'Approve them first.');
+  assert.equal(p('treasurer'), 'Approve them first.', 'before hold_problem and the seat');
+  assert.equal(actingProblem(who(benched, 'ned'), 'west', 'officer', null, UNTIL, benched), 'They’re not a member of that chapter.', 'the chapter comes first');
+  assert.equal(appointActingProblem(who(benched, 'smokey'), who(benched, 'ned'), 'north', 'officer', UNTIL, 'Help out', benched, AT), 'Approve them first.');
+});
+
+test('a cover has to point at the held, full holder of that very seat (SEAT_ENDED), as acting_problem checks it', () => {
+  // Five on North's board, so a voted proposal has three electors left.
+  const five = world({ seats: FIVE });
+  const propose = (target: string, role: PositionRole, covers: Position, data = five) =>
+    requestActingProblem(who(data, 'crank'), who(data, target), 'north', role, covers, UNTIL, 'Smokey can’t be reached', data, AT);
+  assert.equal(propose('jet', 'sergeant_at_arms', row(five, 'smokey-president')), SEAT_ENDED, 'another seat’s row');
+  assert.equal(propose('ned', 'treasurer', row(five, 'gus-treasurer')), null, 'the right seat');
+  const covered = world({ seats: [...FIVE, JET_COVERS] });
+  assert.equal(
+    actingProblem(who(covered, 'crank'), 'north', 'vice_president', row(covered, 'jet-covers-smokey'), UNTIL, covered),
+    SEAT_ENDED, 'a cover can’t cover a cover',
+  );
+  // The seat is checked where acting_problem checks it: after the member, before a waiting request.
+  const ended = world({ seats: FIVE, ended: { 'smokey-president': AT } });
+  assert.equal(
+    actingProblem(who(ended, 'spanner'), 'north', 'president', row(ended, 'smokey-president'), UNTIL, ended),
+    'They’re not a member of that chapter.',
+  );
+  assert.equal(actingProblem(who(ended, 'jet'), 'north', 'president', row(ended, 'smokey-president'), UNTIL, ended), SEAT_ENDED);
+});
+
+test('a cover of a seat that has ended needs a vote whoever asks, and its old holder is an elector again', () => {
+  // Smokey stepped down as President today but still sits as Secretary; Ned and Gus are seated too.
+  const data = world({
+    ended: { 'smokey-president': AT },
+    seats: [seat('smokey-secretary', 'smokey', 'north', 'secretary'), seat('gus-treasurer', 'gus', 'north', 'treasurer')],
+  });
+  const asks = { chapterId: 'north', role: 'president' as const, memberId: 'jet', covers: 'smokey-president', requestedBy: 'smokey' };
+  assert.equal(requestNeedsVote(asks, data, AT), true, 'the seat has no holder now, so Smokey isn’t asking from it');
+  assert.deepEqual(actingElectors('north', 'president', 'jet', 'smokey-president', data), ['crank', 'gus', 'smokey']);
+  assert.equal(
+    requestActingProblem(who(data, 'smokey'), who(data, 'jet'), 'north', 'president', row(data, 'smokey-president'), UNTIL, 'Away', data, AT),
+    SEAT_ENDED,
+  );
+});
+
+test('asking for a cover: not for yourself, a board seat only, and not within 28 days of the board voting it down', () => {
+  const tg = world({ seats: [seat('spanner-tg', 'spanner', 'west', 'tail_gunner'), seat('hal-sec', 'hal', 'west', 'sergeant_at_arms')] });
+  const askFor = (me: string, seatId: string, target: string, data: ClubData) =>
+    requestCoverProblem(who(data, me), row(data, seatId), who(data, target), UNTIL, 'Away', data, AT);
+  assert.equal(askFor('smokey', 'smokey-president', 'smokey', world()), NOT_YOURSELF);
+  assert.equal(askFor('spanner', 'spanner-tg', 'hal', tg), OWN_SEAT_ONLY, 'a Tail Gunner seat isn’t a board seat');
+  // Smokey proposed Crank as his cover (route 3) and the board voted it down yesterday.
+  const crankAsk = ask('smokey-asks-crank', { memberId: 'crank' });
+  const lost = world({ requests: [crankAsk], votes: [boardVote('v-acting', { subjectMemberId: 'crank', actingRequestId: 'smokey-asks-crank', result: 'lost' })] });
+  assert.equal(askFor('smokey', 'smokey-president', 'jet', lost), ASKED_RECENTLY);
+  assert.equal(askFor('smokey', 'smokey-president', 'smokey', lost), NOT_YOURSELF, 'who comes first');
+});
+
+test('ASKED_RECENTLY counts 28 days from the day it was voted down, as the database does', () => {
+  const crankAsks = ask('crank-asks-jet', { requestedBy: 'crank', why: 'Smokey can’t be reached' });
+  const rejected = (closedAt: string) => world({ seats: FIVE, requests: [{ ...crankAsks, closedAt, outcome: 'rejected' }] });
+  const again = (data: ClubData) =>
+    requestActingProblem(who(data, 'crank'), who(data, 'jet'), 'north', 'president', row(data, 'smokey-president'), UNTIL, 'Smokey can’t be reached', data, AT);
+  assert.equal(again(rejected('2026-10-19T01:00:00.000Z')), ASKED_RECENTLY, '27 days ago');
+  assert.equal(again(rejected('2026-10-18T01:00:00.000Z')), null, '28 days ago: the wait is over');
+});
+
+test('withdrawing settles first, and the holder is whoever holds the covered seat now', () => {
+  const crankAsks = ask('crank-asks-jet', { requestedBy: 'crank', why: 'Smokey can’t be reached' });
+  const lost = world({ seats: FIVE, requests: [crankAsks], votes: [boardVote('v-acting', { actingRequestId: 'crank-asks-jet', result: 'lost' })] });
+  assert.equal(withdrawRequestProblem(who(lost, 'jet'), crankAsks, lost, AT), NO_REQUEST, 'the lost vote closed it');
+  // Smokey stepped down after Crank asked: he's no longer the holder, so can't withdraw it.
+  const stepped = world({ seats: FIVE, requests: [crankAsks], ended: { 'smokey-president': AT } });
+  assert.equal(withdrawRequestProblem(who(stepped, 'smokey'), crankAsks, stepped, AT), WITHDRAW_WHO);
+  assert.equal(withdrawRequestProblem(who(stepped, 'jet'), crankAsks, stepped, AT), null, 'the stand-in still can');
+});
+
+test('ending a term settles first: a stint that lapsed last night gives no board standing', () => {
+  // Ned's Acting Secretary stint ended yesterday; a carried vote removes Gus as Tail Gunner.
+  const data = world({
+    seats: [
+      stint('ned-acting-secretary', 'ned', 'north', 'secretary', { startedOn: '2026-10-01', actingUntil: '2026-11-14' }),
+      seat('gus-tg', 'gus', 'north', 'tail_gunner'),
+    ],
+    votes: [boardVote('v-gus', { subjectMemberId: 'gus', subjectRole: 'tail_gunner' })],
+  });
+  assert.equal(endTermProblem(who(data, 'ned'), row(data, 'gus-tg'), data, AT), 'Only that chapter’s board can end this term.');
+  assert.equal(endTermProblem(who(data, 'crank'), row(data, 'gus-tg'), data, AT), null);
+});
+
+test('a stint the board voted for needs a new vote to run longer, whoever asks', () => {
+  const voted = world({ seats: [{ ...JET_COVERS, actingVote: 'v-acting' }] });
+  assert.equal(setActingUntilProblem(who(voted, 'jet'), row(voted, 'jet-covers-smokey'), '2027-01-10', voted, AT), VOTED_NEEDS_NEW_VOTE);
+  assert.equal(setActingUntilProblem(who(voted, 'crank'), row(voted, 'jet-covers-smokey'), '2027-01-10', voted, AT), VOTED_NEEDS_NEW_VOTE);
+});
+
+test('the acting routes take approved members who aren’t Family, as is_approved_member does', () => {
+  const family = world({ members: { smokey: { status: 'family' } } });
+  assert.equal(
+    appointActingProblem(who(family, 'smokey'), who(family, 'crank'), 'north', 'treasurer', UNTIL, 'No Treasurer', family, AT),
+    'Only approved members can do that.',
+  );
 });

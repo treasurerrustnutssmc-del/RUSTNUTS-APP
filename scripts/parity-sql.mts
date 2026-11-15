@@ -651,6 +651,25 @@ const call = (c: ParityCase & Record<string, any>): string => {
   switch (c.action) {
     case 'appoint':
       return `public.appoint_position(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)})`;
+    // Acting roles: dates count from the database's own today, as actingExtras does.
+    case 'appointActing':
+      return (
+        `public.appoint_acting(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)}, ` +
+        `private.club_date() + ${Number(c.untilDays)}, ${q(c.why)})`
+      );
+    case 'requestCover':
+      return `public.request_cover(${id('p', c.seat)}, ${id('m', c.member)}, private.club_date() + ${Number(c.untilDays)}, ${q(c.why)})`;
+    case 'requestActing':
+      return (
+        `public.request_acting(${id('m', c.member)}, ${chapter(c.chapter)}, ${q(c.role)}, ${c.covers ? id('p', c.covers) : 'null'}, ` +
+        `private.club_date() + ${Number(c.untilDays)}, ${q(c.why)})`
+      );
+    case 'withdrawActingRequest':
+      return `public.withdraw_acting_request(${id('ar', c.request)})`;
+    case 'confirmActing':
+      return `public.confirm_acting(${id('ar', c.request)})`;
+    case 'setActingUntil':
+      return `public.set_acting_until(${id('p', c.position)}, private.club_date() + ${Number(c.untilDays)})`;
     case 'endTerm':
       return `public.end_position(${id('p', c.position)})`;
     case 'approve':
@@ -1310,7 +1329,7 @@ function actingExtras(c: ParityCase) {
       const forChapter = v.electorate === 'nec' ? `(select chapter_id from public.members where id = ${id('m', e)})` : 'null';
       sql(
         `insert into public.vote_electors (vote_id, member_id, voted_at, for_chapter) values (` +
-          `${id('v', v.key)}, ${id('m', e)}, ${voted ? 'now()' : 'null'}, ${forChapter});`,
+          `${id('v', v.key)}, ${id('m', e)}, ${voted ? (d.closed === null ? 'now()' : at(d.closed)) : 'null'}, ${forChapter});`,
       );
     }
     for (const e of v.voted ?? []) {

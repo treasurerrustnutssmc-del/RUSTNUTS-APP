@@ -490,8 +490,11 @@ export function hasCarriedRemovalVote(position: Position, data: ClubData, today:
  * back", and anyone else on the chapter's board needs a carried board-majority vote (NEC officers
  * have no part). A stint past its date has already ended. `today` is the Melbourne date.
  */
-export function endTermProblem(me: Member | null, position: Position, data: ClubData, today: string): string | null {
+export function endTermProblem(me: Member | null, raw: Position, rawData: ClubData, today: string): string | null {
   if (!me) return 'Sign in first.';
+  // Settled first, as end_position runs the lazy close: a stint that lapsed last night gives no standing.
+  const data = settleActing(rawData, today);
+  const position = data.positions.find((p) => p.id === raw.id) ?? raw;
   // Your own seat needs no standing to step down from, so a suspended office holder isn't stuck
   // (ChatGPT audit F10); ending anyone else's does.
   if (position.memberId !== me.id && me.approval !== 'approved') return 'Only approved members can do that.';
@@ -688,12 +691,14 @@ export function actingNeedsVote(memberId: string, chapterId: string, role: Posit
 
 type RequestShape = Pick<ActingRequest, 'chapterId' | 'role' | 'memberId' | 'covers' | 'requestedBy'>;
 
+/** Who holds the covered row now (a held row), or null once it has ended. Expects settled data. */
+function holderOf(coversId: string | null, data: ClubData): string | null {
+  return coversId === null ? null : heldRows(data.positions).find((p) => p.id === coversId)?.memberId ?? null;
+}
+
 /** A request needs a vote when someone other than the holder asked for a cover, or acting there needs one. Mirrors private.request_needs_vote. */
 export function requestNeedsVote(request: RequestShape, data: ClubData, today: string): boolean {
-  if (request.covers !== null) {
-    const holder = data.positions.find((p) => p.id === request.covers)?.memberId ?? null;
-    if (request.requestedBy !== holder) return true;
-  }
+  if (request.covers !== null && request.requestedBy !== holderOf(request.covers, data)) return true;
   return actingNeedsVote(request.memberId, request.chapterId, request.role, data, today);
 }
 
@@ -710,7 +715,7 @@ export function carriedActingVote(request: Pick<ActingRequest, 'id'>, data: Club
  * holder and, for a President or Treasurer seat, the National Auditor (8.5, 11.8, 11.10). Mirrors private.acting_electors.
  */
 export function actingElectors(chapterId: string, role: PositionRole, memberId: string, coversId: string | null, data: ClubData): string[] {
-  const holder = coversId ? data.positions.find((p) => p.id === coversId)?.memberId ?? null : null;
+  const holder = holderOf(coversId, data);
   const auditors = new Set(
     role === 'president' || role === 'treasurer' ? heldRows(data.positions).filter((p) => p.role === 'nec_auditor').map((p) => p.memberId) : [],
   );
@@ -719,15 +724,16 @@ export function actingElectors(chapterId: string, role: PositionRole, memberId: 
 
 /**
  * Why `target` can't act in this seat until `until`, or null. Mirrors private.acting_problem. A cover
- * (`covers`, the holder's row) needs a board seat and someone already on that chapter's board. The
- * seat checks are for the six board seats only: a non-board role takes acting beside its holders.
- * Expects settled data.
+ * (`covers`, the holder's row) needs a board seat and someone already on that chapter's board, and
+ * the row has to be a held, full row of this very seat. The seat checks are for the six board seats
+ * only: a non-board role takes acting beside its holders. Expects settled data.
  */
 export function actingProblem(
-  target: Member, chapterId: string | null, role: PositionRole, covers: Position | null, until: string, data: ClubData,
+  target: Member, chapterId: string | null, role: PositionRole, covers: Pick<Position, 'id'> | null, until: string, data: ClubData,
 ): string | null {
   if (chapterId === null || NATIONAL_ROLES.includes(role) || TITLE_ROLES.includes(role)) return ACTING_CHAPTER_ONLY;
   if (target.chapterId !== chapterId) return NOT_CHAPTER_MEMBER;
+  if (target.approval !== 'approved') return 'Approve them first.';
   const unfit = holdProblem(target, role, data.positions);
   if (unfit) return unfit;
   const mine = heldPositions(target.id, data.positions);
@@ -735,6 +741,7 @@ export function actingProblem(
   if (isBoardRole(role)) {
     const seat = heldRows(data.positions).filter((p) => p.chapterId === chapterId && p.role === role);
     if (covers === null && seat.some((p) => !isActing(p))) return SEAT_HAS_HOLDER;
+    if (covers !== null && !seat.some((p) => p.id === covers.id && !isActing(p))) return SEAT_ENDED;
     const waiting = (data.actingRequests ?? []).some((r) => r.closedAt === null && r.chapterId === chapterId && r.role === role);
     if (waiting || seat.some(isActing)) return SEAT_HAS_ACTING;
   }
@@ -802,8 +809,9 @@ export function actingDefaultUntil(chapterId: string, role: PositionRole, cover:
   return earlier(pick, cap);
 }
 
+/** Signed in, approved and not Family, as private.is_approved_member. */
 const signInProblem = (me: Member | null): string | null =>
-  !me ? 'Sign in first.' : me.approval !== 'approved' ? 'Only approved members can do that.' : null;
+  !me ? 'Sign in first.' : !isApprovedMember(me) ? 'Only approved members can do that.' : null;
 /** Step 7: a reason, 1 to 120 characters (counted as the database counts them). */
 const whyProblem = (why: string): string | null => {
   const length = [...why.trim()].length;
@@ -813,12 +821,12 @@ const whyProblem = (why: string): string | null => {
 const untilProblem = (cap: string, until: string, today: string): string | null =>
   cap < today ? RUN_OVER : until < today || until > cap ? untilRange(cap) : null;
 
-/** The board voted down a request of theirs for this seat in the last 28 days. */
+/** The board voted down a request of theirs for this seat in the last 28 days: on day 28 they may ask again. */
 function askedRecently(memberId: string, chapterId: string, role: PositionRole, data: ClubData, today: string): boolean {
   const since = addDays(today, -ASKED_AGAIN_DAYS);
   return (data.actingRequests ?? []).some(
     (r) => r.requestedBy === memberId && r.chapterId === chapterId && r.role === role && r.outcome === 'rejected'
-      && r.closedAt !== null && melbourneDate(r.closedAt) >= since,
+      && r.closedAt !== null && melbourneDate(r.closedAt) > since,
   );
 }
 
@@ -847,13 +855,17 @@ export function appointActingProblem(
  * a third board member confirms it. For President, the sitting VP only. Mirrors public.request_cover.
  */
 export function requestCoverProblem(
-  me: Member | null, seat: Position, target: Member, until: string, why: string, raw: ClubData, today: string,
+  me: Member | null, seat: Position | undefined, target: Member, until: string, why: string, raw: ClubData, today: string,
 ): string | null {
   const signedIn = signInProblem(me);
   if (signedIn || !me) return signedIn;
+  if (me.id === target.id) return NOT_YOURSELF;
   const data = settleActing(raw, today);
-  const own = data.positions.find((p) => p.id === seat.id) ?? seat;
-  if (own.memberId !== me.id || isEnded(own) || isActing(own) || own.chapterId === null) return OWN_SEAT_ONLY;
+  const own = seat ? data.positions.find((p) => p.id === seat.id) ?? seat : undefined;
+  if (!own || own.memberId !== me.id || isEnded(own) || isActing(own) || own.chapterId === null || !isBoardRole(own.role)) {
+    return OWN_SEAT_ONLY;
+  }
+  if (askedRecently(me.id, own.chapterId, own.role, data, today)) return ASKED_RECENTLY;
   if (auditorStaysOut(me, own.role, data.positions)) return AUDITOR_STAYS_OUT;
   if (boardMembers(own.chapterId, data).length < 3) return SMALL_BOARD;
   const unfit = actingProblem(target, own.chapterId, own.role, own, until, data);
@@ -883,7 +895,6 @@ export function requestActingProblem(
   if (actingElectors(chapterId, role, target.id, seat?.id ?? null, data).length < 3) return SMALL_BOARD;
   const request = { chapterId, role, memberId: target.id, covers: seat?.id ?? null, requestedBy: me.id };
   if (!requestNeedsVote(request, data, today)) return RECORD_INSTEAD;
-  if (seat && isEnded(seat)) return SEAT_ENDED;
   const unfit = actingProblem(target, chapterId, role, seat, until, data);
   if (unfit) return unfit;
   return whyProblem(why) ?? untilProblem(actingCap(chapterId, role, seat !== null, today, data), until, today);
@@ -891,16 +902,17 @@ export function requestActingProblem(
 
 /**
  * Who closes an open request: the stand-in (declining) or the holder at any time, and the person
- * who asked only while no vote on it is open or has carried. Mirrors public.withdraw_acting_request.
+ * who asked only while no vote on it is open or has carried. Settled first when given today (a
+ * lost vote has closed it). Mirrors public.withdraw_acting_request.
  */
-export function withdrawRequestProblem(me: Member | null, request: ActingRequest, data: ClubData): string | null {
+export function withdrawRequestProblem(me: Member | null, request: ActingRequest, raw: ClubData, today?: string): string | null {
   const signedIn = signInProblem(me);
   if (signedIn || !me) return signedIn;
+  const data = today === undefined ? raw : settleActing(raw, today);
   const fresh = (data.actingRequests ?? []).find((r) => r.id === request.id) ?? request;
   if (fresh.closedAt !== null) return NO_REQUEST;
   if (me.id === fresh.memberId) return null;
-  const holder = fresh.covers ? data.positions.find((p) => p.id === fresh.covers)?.memberId ?? null : null;
-  if (me.id === holder) return null;
+  if (me.id === holderOf(fresh.covers, data)) return null;
   const voted = (data.votes ?? []).some((v) => v.actingRequestId === fresh.id && (v.closedAt === null || v.result === 'carried'));
   return me.id === fresh.requestedBy && !voted ? null : WITHDRAW_WHO;
 }
@@ -922,15 +934,15 @@ export function confirmActingProblem(me: Member | null, request: ActingRequest, 
   const seat = fresh.covers ? data.positions.find((p) => p.id === fresh.covers) ?? null : null;
   if (seat?.memberId === me.id) return CONFIRM_NOT_HOLDER;
   if (auditorStaysOut(me, fresh.role, data.positions)) return AUDITOR_STAYS_OUT;
-  if (fresh.covers !== null && (!seat || isEnded(seat))) return SEAT_ENDED;
   const target = data.members.find((m) => m.id === fresh.memberId);
   if (!target) return NO_REQUEST;
   // The request being confirmed doesn't count as one waiting for the seat.
   const others = { ...data, actingRequests: data.actingRequests!.filter((r) => r.id !== fresh.id) };
-  const unfit = actingProblem(target, fresh.chapterId, fresh.role, seat, fresh.until, others);
+  const covers = fresh.covers === null ? null : { id: fresh.covers };
+  const unfit = actingProblem(target, fresh.chapterId, fresh.role, covers, fresh.until, others);
   if (unfit) return unfit;
   if (requestNeedsVote(fresh, data, today) && !carriedActingVote(fresh, data, today)) return NEEDS_ACTING_VOTE;
-  return whyProblem(fresh.why) ?? untilProblem(actingCap(fresh.chapterId, fresh.role, seat !== null, today, data), fresh.until, today);
+  return whyProblem(fresh.why) ?? untilProblem(actingCap(fresh.chapterId, fresh.role, covers !== null, today, data), fresh.until, today);
 }
 
 /**
@@ -947,11 +959,14 @@ export function setActingUntilProblem(me: Member | null, position: Position, unt
   const row = data.positions.find((p) => p.id === position.id) ?? position;
   if (!isActing(row) || row.chapterId === null) return NOT_ACTING;
   if (isEnded(row) || row.actingUntil! < today) return TERM_ENDED;
-  const longer = until > row.actingUntil!;
   const holderRow = row.covers ? data.positions.find((p) => p.id === row.covers) ?? null : null;
-  if (!longer) {
+  if (until <= row.actingUntil!) {
     if (me.id !== row.memberId && me.id !== holderRow?.memberId) return EARLIER_WHO;
-  } else if (row.covers != null) {
+    if (auditorStaysOut(me, row.role, data.positions)) return AUDITOR_STAYS_OUT;
+    return until < today ? UNTIL_NOT_PAST : null;
+  }
+  if (row.actingVote != null) return VOTED_NEEDS_NEW_VOTE;
+  if (row.covers != null) {
     if (me.id !== holderRow?.memberId) {
       const holder = holderRow ? data.members.find((m) => m.id === holderRow.memberId) : undefined;
       return laterWhoCover(holder ? displayName(holder) : 'the holder');
@@ -960,15 +975,11 @@ export function setActingUntilProblem(me: Member | null, position: Position, unt
     return LATER_WHO_EMPTY;
   }
   if (auditorStaysOut(me, row.role, data.positions)) return AUDITOR_STAYS_OUT;
-  if (longer) {
-    if (row.actingVote != null) return VOTED_NEEDS_NEW_VOTE;
-    if (row.role === 'president') {
-      const vote = voteRule(row.memberId, row.chapterId, row.role, data, today);
-      if (vote) return vote;
-    }
+  if (row.role === 'president') {
+    const vote = voteRule(row.memberId, row.chapterId, row.role, data, today);
+    if (vote) return vote;
   }
-  if (until < today) return UNTIL_NOT_PAST;
-  return longer ? untilProblem(actingCap(row.chapterId, row.role, row.covers != null, row.startedOn, data), until, today) : null;
+  return untilProblem(actingCap(row.chapterId, row.role, row.covers != null, row.startedOn, data), until, today);
 }
 
 /** The chapter's NEC ballots on open votes that haven't been cast. */

@@ -6,6 +6,7 @@ import {
   answerRequestProblem, closeRequestProblem, deleteReportProblem, issueReportProblem, raiseRequestProblem, saveReportProblem,
   type ReportInput, type RequestInput,
 } from '../domain/audit';
+import { settleActing } from '../domain/acting';
 import type { AuditArea, AuditRequestKind, ClubData } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
@@ -74,15 +75,23 @@ export function deleteAuditReport(ctx: DemoCtx, id: string): ClubData {
   return { ...ctx.data, auditReports: (ctx.data.auditReports ?? []).filter((r) => r.id !== id) };
 }
 
-/** Ends the sitting Auditor's term today and starts a new twelve-month one (11.8). */
+/**
+ * Ends the sitting Auditor's term today (`renewed`) and the Chairman seats a new twelve-month one
+ * (11.8), settled first as public.renew_auditor is.
+ */
 export function renewAuditor(ctx: DemoCtx): ClubData {
-  refuse(renewAuditorProblem(ctx.me, ctx.data, ctx.today));
-  const seat = auditorSeat(ctx.data)!;
+  const data = settleActing(ctx.data, ctx.today);
+  refuse(renewAuditorProblem(ctx.me, data, ctx.today));
+  const seat = auditorSeat(data)!;
   return {
-    ...ctx.data,
+    ...data,
     positions: [
-      ...ctx.data.positions.map((p) => (p.id === seat.id ? { ...p, endedOn: ctx.today < p.startedOn ? p.startedOn : ctx.today } : p)),
-      { id: newId('p'), memberId: seat.memberId, chapterId: null, role: 'nec_auditor', startedOn: ctx.today, endedOn: null },
+      ...data.positions.map((p) =>
+        (p.id === seat.id ? { ...p, endedOn: ctx.today < p.startedOn ? p.startedOn : ctx.today, endedReason: 'renewed' as const } : p)),
+      {
+        id: newId('p'), memberId: seat.memberId, chapterId: null, role: 'nec_auditor', startedOn: ctx.today, endedOn: null,
+        appointedBy: ctx.me!.id,
+      },
     ],
   };
 }
