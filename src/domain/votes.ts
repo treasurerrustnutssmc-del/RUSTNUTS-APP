@@ -132,7 +132,7 @@ export function electorsFor(
  * The quorum a vote starts with: a third of the voters, rounded up, for chapter and national
  * votes (10.6); 51% for the NEC (11.5); more than half a board, and at least three (8.5).
  */
-const BOARD_QUORUM_FLOOR = 3;
+export const BOARD_QUORUM_FLOOR = 3;
 
 export function defaultQuorum(electorate: Electorate, electors: number): number {
   switch (electorate) {

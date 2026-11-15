@@ -7,8 +7,8 @@ import {
 } from '../domain/access';
 import { heldPositions, heldRows, isActing } from '../domain/acting';
 import {
-  actingSeatOptions, appointChoices, arrangeCover, boardVoteStep, changeDateLatest, confirmText, coverLine, doneMessage, pageRequests, PROPOSED_MESSAGE,
-  replaceNote, stintNote, TERM_ACTION, termActionsFor, termLine, untilHint, WHY_HINT, whyLabel, type AppointKind,
+  actingSeatOptions, appointChoices, arrangeCover, backNote, boardVoteStep, changeDateLatest, confirmText, coverLine, doneMessage, endVoteBlock, pageRequests,
+  PROPOSED_MESSAGE, replaceNote, stintNote, TERM_ACTION, termActionsFor, termLine, untilHint, WHY_HINT, whyLabel, type AppointKind,
 } from '../domain/actingCopy';
 import { formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { runsScope } from '../domain/meetings';
@@ -373,6 +373,8 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const [role, setRole] = useState<PositionRole | null>(null);
   const until = useDate(null);
   const [why, setWhy] = useState('');
+  // While the acting confirm is armed its note repeats the warnings, so the warn lines step aside.
+  const [actingArmed, setActingArmed] = useState(false);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'danger'; text: string } | null>(null);
   if (!member || !me) return null;
   const chapter = data.chapters.find((c) => c.id === member.chapterId);
@@ -674,17 +676,19 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
                 />
               </>
             ) : null}
-            {warnings.map((w) => (
+            {actingArmed ? null : warnings.map((w) => (
               <Small key={w} style={{ color: colors.warn }}>{w}</Small>
             ))}
             {actingSeat ? (
               <>
-                {actingBlockShown ? <Small style={{ color: colors.warn }}>{actingBlockShown}</Small> : null}
+                {/* The reason the button is off reads apart from the advisory warnings above it. */}
+                {actingBlockShown ? <Small style={{ color: colors.danger }}>{actingBlockShown}</Small> : null}
                 <ConfirmButton
                   label={actingSeat.needsVote ? 'Ask the board to vote' : 'Appoint'}
                   confirmLabel={actingSeat.needsVote ? 'Yes, ask the board' : 'Yes, appoint acting'}
                   kind="secondary"
                   disabled={actingBlock !== null}
+                  onArmedChange={setActingArmed}
                   confirmNote={confirmText(
                     actingSeat.needsVote
                       ? { route: 'propose', target: member, chapterId: member.chapterId, role: actingSeat.role, covers: null, until: until.iso }
@@ -849,7 +853,7 @@ function ActingActions({ position: p }: { position: Position }) {
   // Nothing to say until a new date is typed: the field starts on the current one.
   const dateBlock = until.iso && until.iso !== p.actingUntil ? setActingUntilProblem(me, p, until.iso, data, today) : null;
   const vote = removalVoteFor(p, data.votes ?? []);
-  const standIn = data.members.find((m) => m.id === p.memberId);
+  const endBlock = endVoteBlock(p, data, today);
   const settle = (work: Promise<void>, after?: () => void) => work.then(() => { setError(null); after?.(); }, (e: Error) => setError(e.message));
   const voteLine = (
     <Small key="vote-line">
@@ -901,7 +905,7 @@ function ActingActions({ position: p }: { position: Position }) {
                 key={a}
                 label={a}
                 confirmLabel="Yes, I’m back"
-                confirmNote={`${standIn ? displayName(standIn) : 'Their'}’s acting ends today, and the seat’s duties come back to you.`}
+                confirmNote={backNote(p, data)}
                 kind="secondary"
                 size="small"
                 onConfirm={() => settle(endPosition(p.id))}
@@ -928,6 +932,7 @@ function ActingActions({ position: p }: { position: Position }) {
               </React.Fragment>
             ) : null;
           case TERM_ACTION.startEndVote:
+            // On a board too small to decide it, the button stays, off, with the reason under it.
             return (
               <React.Fragment key={a}>
                 {voteLine}
@@ -935,8 +940,10 @@ function ActingActions({ position: p }: { position: Position }) {
                   label={a}
                   kind="secondary"
                   size="small"
+                  disabled={endBlock !== null}
                   onPress={() => navigation.navigate('NewVote', { chapterId: p.chapterId, subjectMemberId: p.memberId, subjectRole: p.role, acting: true })}
                 />
+                {endBlock ? <Small>{endBlock}</Small> : null}
               </React.Fragment>
             );
         }
@@ -957,23 +964,30 @@ function ArrangeCover({ seat, onDone }: { seat: Position; onDone: (text: string)
   const until = useDate(null);
   const [why, setWhy] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // While the confirm is armed its note repeats the warnings and it has its own Cancel.
+  const [armed, setArmed] = useState(false);
   if (!me || seat.chapterId === null) return null;
   const state = arrangeCover(me, seat, data, today);
   if (!state) return null;
   const chapterId = seat.chapterId;
   const title = seatTitle(seat, data.chapters, ROLE_LABEL);
-  if (!open) {
+  if (!open || state.blocked !== null) {
+    // When nobody can cover (a board too small to vote, say), the button stays, off, with the reason under it.
     return (
-      <Button
-        label="Arrange cover (board vote)"
-        kind="secondary"
-        size="small"
-        accessibilityLabel={`Arrange cover of ${title} (board vote)`}
-        onPress={() => {
-          setOpen(true);
-          until.setText(formatAuDate(actingDefaultUntil(chapterId, seat.role, true, today, data)));
-        }}
-      />
+      <>
+        <Button
+          label="Arrange cover (board vote)"
+          kind="secondary"
+          size="small"
+          disabled={state.blocked !== null}
+          accessibilityLabel={`Arrange cover of ${title} (board vote)`}
+          onPress={() => {
+            setOpen(true);
+            until.setText(formatAuDate(actingDefaultUntil(chapterId, seat.role, true, today, data)));
+          }}
+        />
+        {state.blocked ? <Small>{state.blocked}</Small> : null}
+      </>
     );
   }
   const target = standIn ? data.members.find((m) => m.id === standIn) : undefined;
@@ -984,41 +998,37 @@ function ArrangeCover({ seat, onDone }: { seat: Position; onDone: (text: string)
   return (
     <View style={styles.coverForm}>
       <Label>{`Cover ${title}`}</Label>
-      {state.blocked ? (
-        <Notice tone="info">{state.blocked}</Notice>
-      ) : (
-        <>
-          <Choices<string> label="Who covers" options={state.standIns} value={standIn} onChange={setStandIn} />
-          <DateField label="Until" date={until} hint={untilHint(actingCap(chapterId, seat.role, true, today, data))} />
-          <Field
-            label={target ? whyLabel(target, chapterId, seat.role, data) : 'Why'}
-            value={why}
-            onChangeText={setWhy}
-            maxLength={WHY_MAX}
-            hint={WHY_HINT}
-          />
-          {warnings.map((w) => (
-            <Small key={w} style={{ color: colors.warn }}>{w}</Small>
-          ))}
-          {blockShown ? <Small style={{ color: colors.warn }}>{blockShown}</Small> : null}
-          {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
-          <ConfirmButton
-            label="Ask the board to vote"
-            confirmLabel="Yes, ask the board"
-            kind="secondary"
-            disabled={!target || block !== null}
-            confirmNote={target ? confirmText({ route: 'propose', target, chapterId, role: seat.role, covers: seat, until: until.iso }, data, today) : undefined}
-            onConfirm={() => {
-              if (!target) return;
-              requestActing(target.id, chapterId, seat.role, seat.id, until.iso, why.trim()).then(
-                () => { close(); onDone(PROPOSED_MESSAGE); },
-                (e: Error) => setError(e.message),
-              );
-            }}
-          />
-        </>
-      )}
-      <Button label="Cancel" kind="quiet" size="small" onPress={close} />
+      <Choices<string> label="Who covers" options={state.standIns} value={standIn} onChange={setStandIn} />
+      <DateField label="Until" date={until} hint={untilHint(actingCap(chapterId, seat.role, true, today, data))} />
+      <Field
+        label={target ? whyLabel(target, chapterId, seat.role, data) : 'Why'}
+        value={why}
+        onChangeText={setWhy}
+        maxLength={WHY_MAX}
+        hint={WHY_HINT}
+      />
+      {armed ? null : warnings.map((w) => (
+        <Small key={w} style={{ color: colors.warn }}>{w}</Small>
+      ))}
+      {/* The reason the button is off reads apart from the advisory warnings above it. */}
+      {blockShown ? <Small style={{ color: colors.danger }}>{blockShown}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
+      <ConfirmButton
+        label="Ask the board to vote"
+        confirmLabel="Yes, ask the board"
+        kind="secondary"
+        disabled={!target || block !== null}
+        onArmedChange={setArmed}
+        confirmNote={target ? confirmText({ route: 'propose', target, chapterId, role: seat.role, covers: seat, until: until.iso }, data, today) : undefined}
+        onConfirm={() => {
+          if (!target) return;
+          requestActing(target.id, chapterId, seat.role, seat.id, until.iso, why.trim()).then(
+            () => { close(); onDone(PROPOSED_MESSAGE); },
+            (e: Error) => setError(e.message),
+          );
+        }}
+      />
+      {armed ? null : <Button label="Cancel" kind="quiet" size="small" onPress={close} />}
     </View>
   );
 }
@@ -1039,6 +1049,7 @@ function RequestStep({ request }: { request: ActingRequest }) {
       <Label>Asked for</Label>
       <Body>{actingVoteQuestion(request, data)}</Body>
       {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+      {step?.kind === 'start' && step.last ? <Small>{step.last}</Small> : null}
       {step?.kind === 'start' ? (
         <ConfirmButton
           label="Start the board vote"

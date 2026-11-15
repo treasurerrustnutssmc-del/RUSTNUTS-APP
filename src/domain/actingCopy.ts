@@ -6,17 +6,17 @@
 
 import { heldPositions, heldRows, isActing, isEnded, coverOf, settleActing } from './acting';
 import {
-  actingCap, actingElectors, actingWarnings, appointActingProblem, auditorStaysOut, endTermProblem, holdsBoardSeat, isBoardOf,
-  requestActingProblem, setActingUntilProblem,
+  actingCap, actingElectors, actingWarnings, appointActingProblem, auditorStaysOut, carriedActingVote, endTermProblem, holdsBoardSeat,
+  isBoardOf, requestActingProblem, setActingUntilProblem, SMALL_BOARD,
 } from './access';
 import { melbourneInstant } from './business';
 import { addDays, formatAuDate } from './dates';
-import { BOARD_ROLES, CLUB_ROLES, ROLE_LABEL, ROLE_SHORT } from './labels';
+import { BOARD_ROLES, CLUB_ROLES, RESULT_LABEL, ROLE_LABEL, ROLE_SHORT } from './labels';
 import { displayName } from './profile';
 import { melbourneDate } from './rides';
 import { termEndsOn, termState } from './terms';
 import type { ActingRequest, ClubData, Member, Position, PositionRole } from './types';
-import { defaultQuorum, openActingVoteProblem, removalVoteFor } from './votes';
+import { BOARD_QUORUM_FLOOR, defaultQuorum, openActingVoteProblem, removalVoteFor } from './votes';
 
 const isBoardRole = (role: PositionRole) => BOARD_ROLES.includes(role);
 const nameOf = (id: string | null | undefined, data: Pick<ClubData, 'members'>) => {
@@ -208,6 +208,23 @@ export function termActionsFor(p: Position, me: Member, raw: ClubData, today: st
   return [...out, vote && vote.closedAt === null ? TERM_ACTION.seeEndVote : TERM_ACTION.startEndVote];
 }
 
+/**
+ * Why the vote to end this stint can't start in the app, or null: it's decided without the acting
+ * person, the holder they cover and, for a President or Treasurer seat, the Auditor, and fewer than
+ * three left gives the 8.6 words, as NewVote would. The button stays, off, with this beside it.
+ */
+export function endVoteBlock(p: Position, raw: ClubData, today: string): string | null {
+  if (!isActing(p) || p.chapterId === null) return null;
+  const data = settleActing(raw, today);
+  return actingElectors(p.chapterId, p.role, p.memberId, p.covers ?? null, data).length < BOARD_QUORUM_FLOOR ? SMALL_BOARD : null;
+}
+
+/** Above I’m back's confirm: "Jet’s acting ends today, and the seat’s duties come back to you." */
+export function backNote(p: Position, data: Pick<ClubData, 'members'>): string {
+  const standIn = data.members.find((m) => m.id === p.memberId);
+  return `${standIn ? `${displayName(standIn)}’s` : 'The'} acting ends today, and the seat’s duties come back to you.`;
+}
+
 // ---------------------------------------------------------------------------
 // The away holder's page: Arrange cover (board vote), then the board vote (route 3)
 // ---------------------------------------------------------------------------
@@ -263,23 +280,27 @@ const VOTE_DAYS = 7;
 const VOTE_CLOSES = '19:00';
 
 /**
- * The next step on a request that needs a board vote: follow the vote once there is one; otherwise
- * start it, when `me` may, closing a week away at 7:00 pm with the least quorum (a majority of the
- * board left after the stand-in, the holder and the Auditor, and at least three, 8.5). Null when
- * there's nothing for `me` to do.
+ * The next step on a request that needs a board vote: follow an open vote, or a carried one from the
+ * last 90 days (its confirm is next); otherwise start one, when `me` may, closing a week away at
+ * 7:00 pm with the least quorum (a majority of the board left after the stand-in, the holder and the
+ * Auditor, and at least three, 8.5). A vote without quorum leaves the request open for another, so a
+ * vote set up to fail can't sink it; `last` then says how the latest one closed. A lost vote closes
+ * the request. Null when there's nothing for `me` to do.
  */
 export function boardVoteStep(
   me: Member, request: ActingRequest, data: ClubData, now: string,
-): { kind: 'start'; quorum: number; closesAt: string; note: string } | { kind: 'see'; voteId: string } | null {
-  const votes = (data.votes ?? []).filter((v) => v.actingRequestId === request.id);
-  const current = votes.find((v) => v.closedAt === null) ?? votes.sort((a, b) => b.openedAt.localeCompare(a.openedAt))[0];
-  if (current) return { kind: 'see', voteId: current.id };
+): { kind: 'start'; quorum: number; closesAt: string; note: string; last: string | null } | { kind: 'see'; voteId: string } | null {
   const today = melbourneDate(now);
+  const votes = (data.votes ?? []).filter((v) => v.actingRequestId === request.id);
+  const current = votes.find((v) => v.closedAt === null) ?? carriedActingVote(request, data, today);
+  if (current) return { kind: 'see', voteId: current.id };
+  const latest = [...votes].sort((a, b) => b.closedAt!.localeCompare(a.closedAt!))[0];
+  const last = latest?.result ? `Board vote closed ${formatAuDate(melbourneDate(latest.closedAt!))}: ${RESULT_LABEL[latest.result]}.` : null;
   const closesOn = addDays(today, VOTE_DAYS);
   const closesAt = melbourneInstant(closesOn, VOTE_CLOSES);
   if (!closesAt) return null;
   const electors = actingElectors(request.chapterId, request.role, request.memberId, request.covers, settleActing(data, today)).length;
   const quorum = defaultQuorum('chapter_board', electors);
   if (openActingVoteProblem(me, request, quorum, closesAt, null, data, now) !== null) return null;
-  return { kind: 'start', quorum, closesAt, note: `It closes on ${formatAuDate(closesOn)} at 7:00 pm, and needs ${quorum} of its ${electors} voters.` };
+  return { kind: 'start', quorum, closesAt, note: `It closes on ${formatAuDate(closesOn)} at 7:00 pm, and needs ${quorum} of its ${electors} voters.`, last };
 }

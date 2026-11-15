@@ -14,10 +14,12 @@ import {
   APPOINT_KIND_LABEL,
   appointChoices,
   arrangeCover,
+  backNote,
   boardVoteStep,
   confirmText,
   coverLine,
   doneMessage,
+  endVoteBlock,
   pageRequests,
   replaceNote,
   stintNote,
@@ -144,14 +146,13 @@ test('stintNote and coverLine say why, and who covers whom', () => {
   assert.equal(coverLine(row(d, 'p-9'), d), null);
 });
 
-test('termActionsFor: the acting person, another board member, and never a removal vote', () => {
+// That an acting seat never offers "Start removal vote" is the Positions card's branch to
+// ActingActions, pinned in src/screens/actingPositions.test.ts.
+test('termActionsFor: the acting person and another board member', () => {
   const { changeDate, stepDown, startEndVote } = TERM_ACTION;
   assert.deepEqual(termActionsFor(crankActing, crank, d, today), [changeDate, stepDown]);
   assert.deepEqual(termActionsFor(crankActing, jet, d, today), [changeDate, startEndVote]);
   assert.deepEqual(termActionsFor(crankActing, smokey, d, today), [changeDate, startEndVote]);
-  for (const viewer of [crank, jet, smokey]) {
-    assert.ok(!(termActionsFor(crankActing, viewer, d, today) as string[]).includes('Start removal vote'));
-  }
   assert.deepEqual(termActionsFor(crankActing, spanner, d, today), [], 'off North’s board');
   assert.deepEqual(termActionsFor(crankActing, rusty, d, today), [], 'NEC officers have no part');
   assert.deepEqual(termActionsFor(crankActing, ace, d, today), [], 'North’s Officer and the Auditor: not on the board');
@@ -176,6 +177,21 @@ test('termActionsFor follows the vote to end acting: see it while open, end it o
   assert.deepEqual(termActionsFor(crankActing, jet, open, today), [changeDate, seeEndVote]);
   const carried = { ...d, votes: [...(d.votes ?? []), end({ closedAt: `${addDays(today, -1)}T08:00:00.000Z`, result: 'carried', votedIds: ['m-smokey', 'm-jet'] })] };
   assert.deepEqual(termActionsFor(crankActing, jet, carried, today), [changeDate, endActing]);
+});
+
+test('endVoteBlock: a board too small to vote on ending acting says so instead of offering the vote (8.6)', () => {
+  // North is three: without Crank, Smokey and Jet are two.
+  assert.equal(endVoteBlock(crankActing, d, today), SMALL_BOARD);
+  // West is five: Chook acting as VP leaves all five to vote.
+  const chookActs: Position = { ...crankActing, id: 'p-chook-vp', memberId: 'm-chook', chapterId: 'ch-west', role: 'vice_president', appointedBy: 'm-rusty' };
+  const west = { ...d, positions: [...d.positions, chookActs] };
+  assert.equal(endVoteBlock(chookActs, west, today), null);
+});
+
+test('backNote: what I’m back ends, naming the stand-in', () => {
+  assert.equal(backNote(jetCovers, covered), 'Jet’s acting ends today, and the seat’s duties come back to you.');
+  const gone = { ...covered, members: covered.members.filter((m) => m.id !== 'm-jet') };
+  assert.equal(backNote(jetCovers, gone), 'The acting ends today, and the seat’s duties come back to you.');
 });
 
 test('termActionsFor: on the last day the acting person can only step down', () => {
@@ -236,11 +252,32 @@ test('the away holder’s page lists open requests about them, then the board vo
   const now = `${today}T01:00:00.000Z`;
   const closesAt = melbourneInstant(addDays(today, 7), '19:00')!;
   assert.deepEqual(boardVoteStep(diesel, asked, data, now), {
-    kind: 'start', quorum: 3, closesAt, note: 'It closes on 01/11/2026 at 7:00 pm, and needs 3 of its 3 voters.',
+    kind: 'start', quorum: 3, closesAt, note: 'It closes on 01/11/2026 at 7:00 pm, and needs 3 of its 3 voters.', last: null,
   });
   assert.equal(boardVoteStep(torque, asked, data, now), null, 'the stand-in doesn’t open it');
   const opened = { ...data, votes: [...(d.votes ?? []), vote('v-acting', { chapterId: 'ch-west', actingRequestId: 'ar-torque' })] };
   assert.deepEqual(boardVoteStep(torque, asked, opened, now), { kind: 'see', voteId: 'v-acting' }, 'anyone on the page can follow it');
   const closed = { ...data, actingRequests: [{ ...asked, closedAt: now, outcome: 'withdrawn' as const }] };
   assert.deepEqual(pageRequests(rusty, closed), []);
+});
+
+test('boardVoteStep: a vote without quorum leaves the request open for another vote', () => {
+  const asked = request('ar-torque', {});
+  const now = `${today}T01:00:00.000Z`;
+  const closesAt = melbourneInstant(addDays(today, 7), '19:00')!;
+  const closed = (over: Partial<Vote>) => vote('v-closed', {
+    chapterId: 'ch-west', actingRequestId: 'ar-torque', closedAt: `${addDays(today, -1)}T08:00:00.000Z`, ...over,
+  });
+  // A vote set up to fail can't sink the request (spec, "Requests"): Diesel can start the next one.
+  const noQuorum = { ...d, actingRequests: [asked], votes: [...(d.votes ?? []), closed({ result: 'no_quorum' })] };
+  assert.deepEqual(boardVoteStep(diesel, asked, noQuorum, now), {
+    kind: 'start', quorum: 3, closesAt, note: 'It closes on 01/11/2026 at 7:00 pm, and needs 3 of its 3 voters.',
+    last: 'Board vote closed 24/10/2026: No quorum.',
+  });
+  // An open one after it is the one to follow.
+  const reopened = { ...noQuorum, votes: [...noQuorum.votes, vote('v-again', { chapterId: 'ch-west', actingRequestId: 'ar-torque' })] };
+  assert.deepEqual(boardVoteStep(diesel, asked, reopened, now), { kind: 'see', voteId: 'v-again' });
+  // A carried one, in the last 90 days, is followed to its confirm.
+  const carried = { ...d, actingRequests: [asked], votes: [...(d.votes ?? []), closed({ result: 'carried', votedIds: ['m-diesel', 'm-gravel', 'm-sparks'] })] };
+  assert.deepEqual(boardVoteStep(diesel, asked, carried, now), { kind: 'see', voteId: 'v-closed' });
 });
