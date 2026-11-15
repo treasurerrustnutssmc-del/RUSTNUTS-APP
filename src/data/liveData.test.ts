@@ -756,3 +756,25 @@ test('signed in: before the live database has the acting tables, the club still 
   const noChanges = await loadClub(tableFails('acting_changes', 'Could not find the table', 'PGRST205'), true);
   assert.deepEqual(noChanges.actingChanges, []);
 });
+
+test('signed in: the acting tables are asked for with the first reads, not after them (no extra round trip)', async () => {
+  const calls: string[] = [];
+  const client = {
+    from: (name: string) => {
+      calls.push(`from:${name}`);
+      const chain = chainOf({ data: name === 'chapters' ? [west] : [], error: null });
+      return { select: () => chain };
+    },
+    rpc: (name: string) => {
+      calls.push(`rpc:${name}`);
+      return Promise.resolve({ data: null, error: null });
+    },
+  } as never;
+  await loadClub(client, true);
+  const firstWait = calls.indexOf('rpc:club_business'); // asked only once the first reads are back
+  assert.ok(firstWait > 0);
+  for (const table of ['acting_requests', 'acting_changes']) {
+    const at = calls.indexOf(`from:${table}`);
+    assert.ok(at >= 0 && at < firstWait, `${table} is asked for before the club business waits on the first reads`);
+  }
+});

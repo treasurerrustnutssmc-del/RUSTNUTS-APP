@@ -1317,12 +1317,56 @@ function actingExtras(c: ParityCase) {
       sql(`insert into public.vote_ballots (vote_id, member_id, choice) values (${id('v', v.key)}, ${id('m', e)}, 'yes');`);
     }
   }
-  for (const r of rows.filter((x) => x.actingVote || x.requestedBy)) {
+  const linked = rows.filter((x) => x.actingVote || x.requestedBy);
+  for (const r of linked) {
     sql(
       `update public.positions set acting_vote = ${orNull(r.actingVote, (k) => id('v', k))}, ` +
         `acting_request = ${r.requestedBy ? id('ar', r.key) : 'null'} where id = ${id('p', r.key)};`,
     );
   }
+  // Every extra went in, so no case passes because one was dropped.
+  const votes = c.withVotes ?? [];
+  if (rows.length === 0 && (c.withRequests ?? []).length === 0 && votes.length === 0) return;
+  const ids = (kind: string, keys: string[]) => (keys.length === 0 ? 'null' : keys.map((k) => id(kind, k)).join(', '));
+  const voteIds = ids('v', votes.map((v) => v.key));
+  const landed: [string, string, number][] = [
+    ['row', `select count(*) from public.positions where id in (${ids('p', rows.map((r) => r.key))})`, rows.length],
+    [
+      'row link',
+      `select count(*) from public.positions where false` +
+        linked
+          .map(
+            (r) =>
+              ` or (id = ${id('p', r.key)} and acting_vote is not distinct from ${orNull(r.actingVote, (k) => id('v', k))}` +
+              ` and acting_request is not distinct from ${r.requestedBy ? id('ar', r.key) : 'null'})`,
+          )
+          .join(''),
+      linked.length,
+    ],
+    [
+      'open request',
+      `select count(*) from public.acting_requests where closed_at is null and id in (${ids('ar', (c.withRequests ?? []).map((x) => x.key))})`,
+      (c.withRequests ?? []).length,
+    ],
+    [
+      'confirmed request',
+      `select count(*) from public.acting_requests where outcome = 'confirmed' and id in (${ids('ar', rows.filter((r) => r.requestedBy).map((r) => r.key))})`,
+      rows.filter((r) => r.requestedBy).length,
+    ],
+    ['vote', `select count(*) from public.votes where id in (${voteIds})`, votes.length],
+    ['elector', `select count(*) from public.vote_electors where vote_id in (${voteIds})`, votes.reduce((n, v) => n + v.electors.length, 0)],
+    [
+      'NEC elector’s chapter',
+      `select count(*) from public.vote_electors where for_chapter is not null and vote_id in (${voteIds})`,
+      votes.reduce((n, v) => n + (v.electorate === 'nec' ? v.electors.length : 0), 0),
+    ],
+    ['ballot', `select count(*) from public.vote_ballots where vote_id in (${voteIds})`, votes.reduce((n, v) => n + (v.voted ?? []).length, 0)],
+  ];
+  sql('do $extras$ begin');
+  for (const [what, query, n] of landed) {
+    sql(`  if (${query}) <> ${n} then raise exception 'PARITY: "%": not every % went in', ${q(c.name)}, ${q(what)}; end if;`);
+  }
+  sql('end $extras$;');
 }
 
 sql('\\echo Parity: the demo and the database agree on who can do what');

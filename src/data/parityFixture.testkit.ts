@@ -742,8 +742,14 @@ export function caseAction(c: ParityCase): DemoAction {
   return c as unknown as DemoAction;
 }
 
+/** The chat actions whose cases name the message they act on as `message`. */
+const MESSAGE_ACTIONS = new Set(['chatRemove', 'chatReact', 'chatPin', 'chatReport']);
+
 /** What the demo says to this case: null when it allows it, otherwise its refusal message. */
 export function demoAnswer(c: ParityCase): string | null {
+  if (c.message !== undefined && !MESSAGE_ACTIONS.has(String(c.action))) {
+    throw new Error(`"${c.name}": a refusal the case names goes in \`refusal\`; \`message\` is the chat message a chat case acts on.`);
+  }
   const answer = demoAnswerOf(c);
   if (c.refusal !== undefined && answer !== c.refusal) {
     throw new Error(`"${c.name}": the demo should refuse with "${c.refusal}", but ${answer === null ? 'allowed it' : `said "${answer}"`}.`);

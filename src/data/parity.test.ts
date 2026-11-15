@@ -124,6 +124,106 @@ test('a case that names its refusal gets exactly it from the demo, or the case l
   assert.throws(() => demoAnswer({ ...lapsed, quorum: 3, refusal: said }), /allowed it/);
 });
 
+test('a refusal a case names goes in `refusal`: on a case that isn’t about a chat message, `message` is a mistake', () => {
+  const lapsed = fixture.cases.find((c) => c.name === 'A lapsed acting VP gets no board ballot')!;
+  assert.throws(() => demoAnswer({ ...lapsed, message: demoAnswer(lapsed) }), /`refusal`/);
+  // The chat cases keep `message` for the message they act on.
+  for (const action of ['chatRemove', 'chatReact', 'chatPin', 'chatReport']) {
+    const chat = fixture.cases.find((c) => c.action === action && c.message !== undefined);
+    assert.ok(chat, `a ${action} case names its message`);
+    assert.doesNotThrow(() => demoAnswer(chat));
+  }
+});
+
+test('the lapsed acting VP case has an in-date twin that gets the ballot, so the lapse is what refuses it', () => {
+  const named = (name: string) => {
+    const c = fixture.cases.find((x) => x.name === name);
+    assert.ok(c, `"${name}" is there`);
+    return c;
+  };
+  const lapsed = named('A lapsed acting VP gets no board ballot');
+  const inDate = named('An acting VP in date gets a board ballot');
+  const { name: _l, allowed: _la, with: lapsedRows, ...lapsedRest } = lapsed;
+  const { name: _i, allowed: _ia, with: inDateRows, ...inDateRest } = inDate;
+  assert.deepEqual(inDateRest, lapsedRest, 'the same case otherwise');
+  assert.deepEqual(inDateRows, lapsedRows?.map((r) => ({ ...r, actingUntilDays: 0 })), 'the same row, acting until today');
+  assert.equal(lapsed.allowed, false);
+  assert.equal(inDate.allowed, true);
+  // The row is what lets it through: without it, the quorum is refused.
+  assert.notEqual(demoAnswer({ ...inDate, with: undefined }), null);
+});
+
+test('the cases run every acting extra the database inserts: a linked row, a cover request, a carried acting vote and an NEC vote', () => {
+  const cases = fixture.cases;
+  assert.ok(cases.some((c) => c.with?.some((r) => r.requestedBy && r.actingVote)), 'a row confirmed from a request, with its vote');
+  assert.ok(cases.some((c) => c.withRequests?.some((x) => x.covers)), 'an open cover request');
+  assert.ok(
+    cases.some((c) => c.withVotes?.some((v) => v.actingRequest && v.result && v.voted?.length)),
+    'a closed acting vote with ballots',
+  );
+  assert.ok(cases.some((c) => c.withVotes?.some((v) => v.electorate === 'nec' && !v.result)), 'an open NEC vote');
+});
+
+test('fixtureData adds a case’s extra rows, requests and votes as the database gets them', () => {
+  const today = '2026-11-15';
+  const data = fixtureData([], today, {
+    with: [{
+      key: 'x-vp', member: 'spanner', chapter: 'west', role: 'vice_president', startedDays: -2, actingUntilDays: 20,
+      why: 'No VP since the ACM', appointedBy: 'torque', requestedBy: 'rusty', actingVote: 'x-vote',
+    }, { key: 'x-old', member: 'hal', chapter: 'west', role: 'sergeant_at_arms', startedDays: -40, actingUntilDays: -10, endedDays: -9, why: 'Away' }],
+    withRequests: [{
+      key: 'x-ask', chapter: 'west', role: 'secretary', member: 'hal', covers: 'torque-secretary', untilDays: 20, why: 'Torque overseas',
+      requestedBy: 'rusty',
+    }],
+    withVotes: [{
+      key: 'x-vote', chapter: 'west', electorate: 'chapter_board', threshold: 'majority', subject: 'spanner', role: 'vice_president',
+      actingRequest: 'x-vp', electors: ['torque', 'rusty', 'penny'], voted: ['torque', 'rusty'], result: 'carried', closedDays: -3,
+    }, { key: 'x-nec', chapter: null, electorate: 'nec', threshold: 'majority', electors: ['smokey', 'rusty'], voted: ['rusty'] }],
+  });
+  assert.deepEqual(data.positions.find((p) => p.id === 'x-vp'), {
+    id: 'x-vp', memberId: 'spanner', chapterId: 'west', role: 'vice_president', startedOn: '2026-11-13', endedOn: null,
+    actingUntil: '2026-12-05', covers: null, actingWhy: 'No VP since the ACM', actingVote: 'x-vote', actingRequestId: 'x-vp',
+    appointedBy: 'torque', endedReason: null,
+  });
+  const old = data.positions.find((p) => p.id === 'x-old');
+  assert.equal(old?.endedOn, '2026-11-06');
+  assert.equal(old?.endedReason, 'lapsed');
+  const requests = data.actingRequests ?? [];
+  assert.deepEqual(
+    requests.map(({ createdAt: _c, closedAt, ...r }) => ({ ...r, closed: closedAt !== null })),
+    [
+      {
+        id: 'x-ask', chapterId: 'west', role: 'secretary', memberId: 'hal', covers: 'torque-secretary', until: '2026-12-05',
+        why: 'Torque overseas', requestedBy: 'rusty', outcome: null, closed: false,
+      },
+      {
+        id: 'x-vp', chapterId: 'west', role: 'vice_president', memberId: 'spanner', covers: null, until: '2026-12-05',
+        why: 'No VP since the ACM', requestedBy: 'rusty', outcome: 'confirmed', closed: true,
+      },
+    ],
+  );
+  const vote = data.votes.find((v) => v.id === 'x-vote')!;
+  assert.equal(vote.actingRequestId, 'x-vp');
+  assert.equal(vote.subjectMemberId, 'spanner');
+  assert.equal(vote.subjectRole, 'vice_president');
+  assert.equal(vote.quorum, 3);
+  assert.equal(vote.result, 'carried');
+  assert.deepEqual(vote.electorIds, ['penny', 'rusty', 'torque']);
+  assert.deepEqual(vote.votedIds, ['rusty', 'torque']);
+  assert.deepEqual(vote.ballots, [{ memberId: 'rusty', choice: 'yes' }, { memberId: 'torque', choice: 'yes' }]);
+  assert.equal(Date.parse(vote.closesAt) - Date.parse(vote.openedAt), 7 * 86_400_000);
+  assert.equal(vote.closedAt, vote.closesAt);
+  assert.ok(Date.parse(vote.closesAt) < Date.now());
+  assert.deepEqual(vote.electorChapters, {});
+  const nec = data.votes.find((v) => v.id === 'x-nec')!;
+  assert.equal(nec.closedAt, null);
+  assert.equal(nec.result, null);
+  assert.ok(Date.parse(nec.closesAt) > Date.now());
+  assert.deepEqual(nec.electorChapters, { smokey: 'north', rusty: 'west' });
+  // A case with no extras gets the shared data as it is.
+  assert.equal(fixtureData([], today).positions.some((p) => p.id === 'x-vp'), false);
+});
+
 for (const c of fixture.cases) {
   test(`demo: ${c.name} → ${c.allowed ? 'allowed' : 'refused'}`, () => {
     const refusal = demoAnswer(c);

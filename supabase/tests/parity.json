@@ -4082,6 +4082,43 @@
       ]
     },
     {
+      "name": "An acting VP in date gets a board ballot",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 4,
+      "days": 7,
+      "allowed": true,
+      "with": [
+        { "key": "spanner-acting-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "startedDays": -30, "actingUntilDays": 0, "why": "No VP since the ACM" }
+      ]
+    },
+    {
+      "name": "An acting VP confirmed after a board vote gets a board ballot, beside an open cover request and an NEC vote",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 4,
+      "days": 7,
+      "allowed": true,
+      "with": [
+        { "key": "spanner-voted-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "startedDays": -2, "actingUntilDays": 20, "why": "No VP since the ACM", "appointedBy": "torque", "requestedBy": "rusty", "actingVote": "spanner-vp-vote" }
+      ],
+      "withRequests": [
+        { "key": "hal-covers-torque", "chapter": "west", "role": "secretary", "member": "hal", "covers": "torque-secretary", "untilDays": 20, "why": "Torque overseas", "requestedBy": "rusty" }
+      ],
+      "withVotes": [
+        { "key": "spanner-vp-vote", "chapter": "west", "electorate": "chapter_board", "threshold": "majority", "subject": "spanner", "role": "vice_president", "actingRequest": "spanner-voted-vp", "electors": ["rusty", "torque", "penny"], "voted": ["rusty", "torque", "penny"], "result": "carried", "closedDays": -3 },
+        { "key": "nec-open", "chapter": null, "electorate": "nec", "threshold": "majority", "electors": ["rusty", "smokey"], "voted": ["rusty"] }
+      ]
+    },
+    {
       "name": "A Full member asks for the Rusty Bus (it waits for a yes)",
       "as": "gravel",
       "action": "bookBus",

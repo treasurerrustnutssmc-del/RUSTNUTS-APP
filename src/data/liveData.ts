@@ -115,6 +115,11 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     },
     () => [],
   );
+  // Acting roles: the requests and date changes, alongside the rest. Empty rather than blocking the
+  // app (also before the live database has the tables).
+  const actingLoad = Promise.all([db.from('acting_requests').select('*'), db.from('acting_changes').select('*')]).catch(
+    () => [null, null] as const,
+  );
   const [
     members, privates, phones, bikes, regos, contacts, positions, routes, calendar, money, rulesVersions, rulesSignoffs, bus,
   ] = await Promise.all([
@@ -228,11 +233,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     return r?.error ? [] : (r?.data ?? []);
   };
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
-  // Acting roles: the requests and date changes, the same way (also before the live database has the tables).
-  const [actingRequests, actingChanges] = await Promise.all([
-    db.from('acting_requests').select('*'),
-    db.from('acting_changes').select('*'),
-  ]).catch(() => [null, null] as const);
+  const [actingRequests, actingChanges] = await actingLoad;
   const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
   const charity = await charityLoad;
