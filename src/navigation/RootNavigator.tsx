@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HeaderBackButton } from '@react-navigation/elements';
-import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
+import { createNavigationContainerRef, DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import React from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
@@ -40,6 +40,7 @@ import { LocalAlertSync } from '../data/localAlerts'; // Ride planning extras
 // Lane E: share in
 import { IncomingShare } from '../data/shareIn';
 import { NotificationTaps } from '../data/notificationTaps';
+import { IncomingBanner } from '../ui/IncomingBanner'; // notifications that arrive while the app is open
 import { AppLinks } from '../data/appLinks'; // website links that open the app
 import { ShareInScreen } from '../screens/shareIn';
 import {
@@ -265,12 +266,16 @@ function FamilyTabs() {
   );
 }
 
+// For the banner over every screen, which sits outside the navigators.
+const navigationRef = createNavigationContainerRef<RootParams>();
+
 export function RootNavigator() {
   const { level, me, needsApplication, loadError } = useClub();
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
   const toastScreenChange = useToastScreenChange();
   return (
     <NavigationContainer
+      ref={navigationRef}
       theme={navTheme}
       onStateChange={(state) => {
         // Toasts clear when you move on, and sit lower on a stack screen (no tab bar).
@@ -551,6 +556,8 @@ export function RootNavigator() {
           </>
         )}
       </Stack.Navigator>
+      {/* Over every screen: a notification that arrives while the app is open */}
+      <IncomingBanner navigation={navigationRef} />
     </NavigationContainer>
   );
 }

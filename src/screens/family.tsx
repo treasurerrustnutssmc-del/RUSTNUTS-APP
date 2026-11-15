@@ -30,7 +30,6 @@ import {
   Small,
   StatusChip,
 } from '../ui/primitives';
-import { NotificationIntroCard } from '../ui/NotificationIntro';
 import { ClubLinksSection } from './clubLinks';
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { FeedbackRow } from './feedback'; // Feedback and issues
@@ -61,7 +60,6 @@ export function FamilyHomeScreen({ navigation }: TabScreen<'Home'>) {
         </Body>
       </Card>
 
-      <NotificationIntroCard />
 
       <SectionTitle
         title="Coming up"
