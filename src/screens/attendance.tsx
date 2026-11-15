@@ -21,6 +21,7 @@ import { ChapterNotices } from './notices'; // the 5.5 notice
 import { ROLE_LABEL } from '../domain/labels';
 import { termEndsOn, termState } from '../domain/terms';
 import { seatTitle } from '../domain/home';
+import { termsDue } from '../domain/boardLayout';
 import { colors, space, type } from '../theme';
 import {
   Avatar,
@@ -173,9 +174,8 @@ export function BoardAttendance({ chapterId }: { chapterId: string | null }) {
     (m) => m.approval === 'approved' && inScope(m.chapterId) && seesBoardOf(me, m.chapterId, data.positions) &&
       (standingOf(m, data, today)?.lines.some((l) => l.state === 'behind') ?? false),
   ).length;
-  const terms = data.positions
-    .filter((p) => inScope(p.chapterId) && termState(p, today) !== null && termState(p, today) !== 'running')
-    .sort((a, b) => (termEndsOn(a) ?? '').localeCompare(termEndsOn(b) ?? ''));
+  // Stints aren't terms: they end on their until date, and nobody is re-elected to one.
+  const terms = termsDue(data.positions, chapterId, today);
   return (
     <>
       <SectionTitle title="Attendance and terms" />
