@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { colourNote, readFilters, saveFilters, sameColours, type FilterStorage } from './savedFilters';
+import { COLOUR_NOTE_TEXT, colourNote, readFilters, saveFilters, sameColours, type FilterStorage } from './savedFilters';
 
 const memory = (): FilterStorage & { data: Map<string, string> } => {
   const data = new Map<string, string>();
@@ -57,4 +57,11 @@ test('the Rides note says hidden when any usual colour is off, extra when only o
   assert.equal(colourNote(['west', 'club', 'supported', 'north'], [...usual]), 'extra', 'one other colour added');
   assert.equal(colourNote(['west', 'club', 'north'], [...usual]), 'hidden', 'one off and one added');
   assert.equal(colourNote([], [...usual]), 'hidden', 'every colour off');
+});
+
+test('each Rides note has its own sentence: hidden says usual colours are off, extra says more are shown', () => {
+  assert.deepEqual(COLOUR_NOTE_TEXT, {
+    hidden: 'Some of your usual ride colours are hidden.',
+    extra: 'Showing more than your usual ride colours.',
+  });
 });

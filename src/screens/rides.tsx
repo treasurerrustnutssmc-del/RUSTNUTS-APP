@@ -34,7 +34,7 @@ import { quickAnswerReason } from '../domain/quickAnswer';
 import { useToast } from '../ui/Toast';
 import { useSavedFilters } from '../data/savedFilters';
 import { isConnectionProblem } from '../data/friendlyError';
-import { colourNote } from '../domain/savedFilters';
+import { COLOUR_NOTE_TEXT, colourNote } from '../domain/savedFilters';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
@@ -202,7 +202,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
       <Small>{rideColourLegend()}</Small>
       {note ? (
         <Row style={{ gap: space.sm, alignItems: 'center' }}>
-          <Small style={{ flex: 1 }}>{note === 'hidden' ? 'Some of your usual ride colours are hidden.' : 'Showing more than your usual ride colours.'}</Small>
+          <Small style={{ flex: 1 }}>{COLOUR_NOTE_TEXT[note]}</Small>
           <Button
             label="Show my usual"
             kind="quiet"
