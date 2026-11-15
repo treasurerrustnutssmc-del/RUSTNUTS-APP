@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { clubwidePositions } from '../domain/acting';
 import { busOverRide, busToday, canBookBus, clashesWith, managesBus, myRecentOff, notAnswered, rideCalledOff, waitingForYes } from '../domain/bus';
 import { businessFor, melbourneHhmm, melbourneInstant } from '../domain/business';
 import { clubYearOf } from '../domain/clubYear';
@@ -11,14 +12,14 @@ import { crewNeeded, eligibilityProblem, managesRide, showsCrewNeeded } from '..
 import { addDays, daysBetween } from '../domain/dates';
 import { chargeBalance, dueState, fyOf } from '../domain/fees';
 import { fngDue } from '../domain/joining';
-import { bankedLate, monthEnd, monthOf, reportFor } from '../domain/ledger';
+import { bankedLate, keepsBooks, monthEnd, monthOf, reportFor } from '../domain/ledger';
 import { noticeRecordFrom } from '../domain/notices';
 import { addMonths, expiryAlerts } from '../domain/profile';
 import { currentRoadRules, roadRulesStatus, signoffBase } from '../domain/roadRules';
 import { lastDay, melbourneDate } from '../domain/rides';
 import { standingOf } from '../domain/standing';
 import type { ClubData } from '../domain/types';
-import { patchVoteTooEarly } from '../domain/votes';
+import { electorsFor, patchVoteTooEarly } from '../domain/votes';
 import type { DemoCtx } from './demoActions';
 import { buildDemoData, demoTodayRide } from './demoData';
 import { checkIn } from './demoStage4';
@@ -248,6 +249,28 @@ test('people', () => {
   }
 });
 
+test('p-19 is Crank, Acting Treasurer (North), 28 days each side of today', () => {
+  for (const { now, today, data } of eachInstant()) {
+    assert.deepEqual(data.positions.find((p) => p.id === 'p-19'), {
+      id: 'p-19', memberId: 'm-crank', chapterId: 'ch-north', role: 'treasurer',
+      startedOn: addDays(today, -28), endedOn: null, actingUntil: addDays(today, 28),
+      actingWhy: 'No Treasurer since the ACM', covers: null, endedReason: null, appointedBy: 'm-smokey',
+    }, now);
+    // The demo's one acting row, in an empty seat: North has no other Treasurer, and Crank keeps
+    // his Road Captain seat beside it (9.5 combined duties).
+    assert.deepEqual(data.positions.filter((p) => p.actingUntil != null).map((p) => p.id), ['p-19'], now);
+    assert.deepEqual(data.positions.filter((p) => p.chapterId === 'ch-north' && p.role === 'treasurer').map((p) => p.id), ['p-19'], now);
+    assert.deepEqual(data.positions.filter((p) => p.memberId === 'm-crank' && p.endedOn === null).map((p) => p.id), ['p-11', 'p-19'], now);
+    assert.equal(data.positions.at(-1)!.id, 'p-19', `appended last, at ${now}`);
+    // No ballot count moves: North's board is still the same three people.
+    assert.deepEqual(electorsFor('chapter_board', 'ch-north', data), ['m-crank', 'm-jet', 'm-smokey'], now);
+    // He keeps North's books, and his acting Treasurer seat isn't club-wide (his only club-wide seat
+    // is p-11). keepsBooks(null) doesn't read club-wide seats yet: the Club fund pin comes with Task 14.
+    assert.equal(keepsBooks(memberOf(data, 'm-crank'), 'ch-north', data.positions), true, now);
+    assert.deepEqual(clubwidePositions('m-crank', data.positions).map((p) => p.id), ['p-11'], now);
+  }
+});
+
 test('the lunch ride’s sleepover', () => {
   for (const { now, today, data } of eachInstant()) {
     const hub = data.rideHubs!.find((h) => h.rideId === 'r-4')!;
@@ -292,8 +315,8 @@ test('words agree with dates', () => {
 /** Date paths in the data (array indexes dropped) that may be ahead of now: things still to come. */
 const PLANNED = [
   'actionItems.dueOn', 'auditRequests.dueOn', 'busBookings.firstDay', 'busBookings.lastDay', 'charges.dueOn', 'feeRates.dueOn',
-  'meetings.startsAt', 'privates.licenceExpiry', 'privates.firstAidExpiry', 'registrations.regoExpiry', 'rideHubs.closesOn',
-  'rides.startsAt', 'rides.endsAt', 'statusNotices.respondBy', 'votes.closesAt',
+  'meetings.startsAt', 'positions.actingUntil', 'privates.licenceExpiry', 'privates.firstAidExpiry', 'registrations.regoExpiry',
+  'rideHubs.closesOn', 'rides.startsAt', 'rides.endsAt', 'statusNotices.respondBy', 'votes.closesAt',
 ];
 /** Every other date path in the data: things that have happened, never after now. Listed by hand. */
 const HAPPENED = [
@@ -340,10 +363,10 @@ const eachDate = (data: ClubData, visit: (key: string, value: string) => void) =
   walk(data, []);
 };
 
-test('the two lists of date paths are the 99 in the data, each once', () => {
-  assert.equal(PLANNED.length, 15);
+test('the two lists of date paths are the 100 in the data, each once', () => {
+  assert.equal(PLANNED.length, 16);
   assert.equal(new Set([...PLANNED, ...HAPPENED]).size, PLANNED.length + HAPPENED.length);
-  assert.equal(PLANNED.length + HAPPENED.length, 99);
+  assert.equal(PLANNED.length + HAPPENED.length, 100);
   // The lists are the date paths the data really has: none missing, none left over.
   const found = new Set<string>();
   for (const instant of INSTANTS) eachDate(builtFor(instant), (key) => found.add(key));

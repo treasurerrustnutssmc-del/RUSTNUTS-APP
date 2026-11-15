@@ -975,6 +975,13 @@ export function buildDemoData(now: Date): ClubData {
     positions: [
       ...data.positions,
       { id: 'p-18', memberId: 'm-ace', chapterId: null, role: 'nec_auditor', startedOn: ago(330), endedOn: null },
+      // Acting in an empty seat: North has no Treasurer, so Smokey recorded Crank,
+      // already North's Road Captain (9.5 combined duties), as Acting Treasurer, four weeks each side
+      // of today. He keeps North's books, not the Club fund's, and no ballot count moves.
+      {
+        id: 'p-19', memberId: 'm-crank', chapterId: 'ch-north', role: 'treasurer', startedOn: ago(28), endedOn: null,
+        actingUntil: ago(-28), actingWhy: 'No Treasurer since the ACM', covers: null, endedReason: null, appointedBy: 'm-smokey',
+      },
     ],
     auditRequests: [
       {
