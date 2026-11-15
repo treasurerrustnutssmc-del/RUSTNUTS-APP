@@ -46,10 +46,10 @@ test('the database’s words come back when the member can’t join', async () =
   const res = await handleVoiceToken(env, { rideId: RIDE }, {
     ...deps,
     room: async () => {
-      throw new Error('Live ride opens 2 hours before the start.');
+      throw new Error('Live ride opens the day before the ride.');
     },
   });
-  assert.deepEqual(res, { status: 403, body: { error: 'Live ride opens 2 hours before the start.' } });
+  assert.deepEqual(res, { status: 403, body: { error: 'Live ride opens the day before the ride.' } });
 });
 
 test('signed out, or no ride named, is refused', async () => {

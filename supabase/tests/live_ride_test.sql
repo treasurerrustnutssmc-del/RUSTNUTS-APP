@@ -32,8 +32,8 @@ select '00000000-0000-0000-0000-0000000000d2', id, 'tail_gunner', current_date f
 
 insert into rides (id, source, starts_at, ends_at, title, category, cancelled_at) values
   ('00000000-0000-0000-0000-0000000000e1', 'app', now() + interval '1 hour', now() + interval '4 hours', 'Live now', 'west', null),
-  ('00000000-0000-0000-0000-0000000000e2', 'app', now() + interval '3 hours', null, 'Not open yet', 'west', null),
-  ('00000000-0000-0000-0000-0000000000e3', 'app', now() - interval '10 hours', now() - interval '3 hours', 'All over', 'west', null),
+  ('00000000-0000-0000-0000-0000000000e2', 'app', now() + interval '3 days', null, 'Not open yet', 'west', null),
+  ('00000000-0000-0000-0000-0000000000e3', 'app', now() - interval '3 days', now() - interval '3 days' + interval '7 hours', 'All over', 'west', null),
   ('00000000-0000-0000-0000-0000000000e4', 'app', now() + interval '1 hour', null, 'Called off', 'west', now()),
   ('00000000-0000-0000-0000-0000000000e5', 'app', now() - interval '1 hour', now() + interval '20 hours', 'Long one', 'west', null);
 
@@ -97,7 +97,7 @@ begin
     'the public cannot start';
 end $$;
 
-\echo 'Live mode opens 2 hours before the start and closes when the ride is over'
+\echo 'Live mode opens the day before the ride and closes when ride day is over'
 do $$
 declare
   rita constant uuid := '00000000-0000-0000-0000-0000000000d1';
@@ -106,7 +106,7 @@ begin
   assert pg_temp.try_as(pete, $s$select public.start_live_ride('00000000-0000-0000-0000-0000000000e1')$s$)
     = 'Only approved members can do that.', 'an applicant cannot share';
   assert pg_temp.try_as(rita, $s$select public.start_live_ride('00000000-0000-0000-0000-0000000000e2')$s$)
-    = 'Live ride opens 2 hours before the start.', 'too early';
+    = 'Live ride opens the day before the ride.', 'too early';
   assert pg_temp.try_as(rita, $s$select public.start_live_ride('00000000-0000-0000-0000-0000000000e3')$s$)
     = 'This ride’s finished.', 'too late';
   assert pg_temp.try_as(rita, $s$select public.start_live_ride('00000000-0000-0000-0000-0000000000e4')$s$)
@@ -122,8 +122,9 @@ declare
   stops timestamptz;
 begin
   stops := (pg_temp.get_as(rita, $s$public.start_live_ride('00000000-0000-0000-0000-0000000000e1')$s$) #>> '{}')::timestamptz;
-  assert stops = (select ends_at + interval '2 hours' from rides where id = '00000000-0000-0000-0000-0000000000e1'),
-    'closes 2 hours after the end';
+  assert stops = least(now() + interval '12 hours',
+    (select w.closes from rides r, private.live_window(r) w where r.id = '00000000-0000-0000-0000-0000000000e1')),
+    'stops at the window close or 12 hours on, whichever is first';
   stops := (pg_temp.get_as(rita, $s$public.start_live_ride('00000000-0000-0000-0000-0000000000e5')$s$) #>> '{}')::timestamptz;
   assert stops <= now() + interval '12 hours' and stops > now() + interval '11 hours', 'capped at 12 hours';
 end $$;
@@ -292,27 +293,40 @@ begin
   assert pg_temp.try_as(tom, $s$select public.live_ride_state('00000000-0000-0000-0000-0000000000e1')$s$)
     = 'Share your location first.', 'a cancelled ride shows nothing';
   update public.rides set cancelled_at = null where id = '00000000-0000-0000-0000-0000000000e1';
-  -- The ride finished hours ago.
-  update public.rides set starts_at = now() - interval '9 hours', ends_at = now() - interval '6 hours'
+  -- The ride finished days ago.
+  update public.rides set starts_at = now() - interval '3 days', ends_at = now() - interval '3 days' + interval '3 hours'
   where id = '00000000-0000-0000-0000-0000000000e1';
   perform private.live_ride_cleanup();
   assert (select count(*) from public.live_riders) = 0, 'no riders kept';
   assert (select count(*) from public.ride_alerts) = 0, 'no alerts kept';
 end $$;
 
-\echo 'All-day rides: midnight to midnight, Melbourne time'
+\echo 'The window: 12:00 am the day before the ride to midnight as ride day ends, Melbourne time'
 do $$
 declare w record;
 begin
+  -- Timed: 9:30 am to 1 pm Sat 07/11/2026 (AEDT). Opens as Fri 06/11 starts, closes as Sat 07/11 ends.
   select * into w from private.live_window(row(
     -- The row's columns in table order; the last four are the app-made ride columns (website, created_by, updated_by, updated_at).
+    gen_random_uuid(), 'app', null, null, timestamptz '2026-11-06 22:30:00+00', timestamptz '2026-11-07 02:00:00+00', false,
+    'Coffee run', null, null, 'club', null, now(), true, null, null, null)::public.rides);
+  assert w.opens = timestamptz '2026-11-05 13:00:00+00' and w.closes = timestamptz '2026-11-07 13:00:00+00', 'timed';
+  -- Overnight: 8 pm Sat to 1:30 am Sun closes as Sun 08/11 ends.
+  select * into w from private.live_window(row(
+    gen_random_uuid(), 'app', null, null, timestamptz '2026-11-07 09:00:00+00', timestamptz '2026-11-07 14:30:00+00', false,
+    'Night ride', null, null, 'club', null, now(), true, null, null, null)::public.rides);
+  assert w.opens = timestamptz '2026-11-05 13:00:00+00' and w.closes = timestamptz '2026-11-08 13:00:00+00', 'overnight';
+  -- All-day Fri 29/01 to Sun 31/01/2027: opens as Thu 28/01 starts.
+  select * into w from private.live_window(row(
     gen_random_uuid(), 'app', null, null, timestamptz '2027-01-28 13:00:00+00', timestamptz '2027-01-31 13:00:00+00', true,
     'Big 4', null, null, 'club', null, now(), true, null, null, null)::public.rides);
-  assert w.opens = timestamptz '2027-01-28 13:00:00+00' and w.closes = timestamptz '2027-01-31 13:00:00+00', 'three days';
+  assert w.opens = timestamptz '2027-01-27 13:00:00+00' and w.closes = timestamptz '2027-01-31 13:00:00+00', 'three days';
+  -- No end, on the day daylight saving starts: the day before is still AEST.
   select * into w from private.live_window(row(
     gen_random_uuid(), 'app', null, null, timestamptz '2025-10-04 23:00:00+00', null, false,
     'DST day', null, null, 'club', null, now(), true, null, null, null)::public.rides);
-  assert w.closes = timestamptz '2025-10-05 13:00:00+00', 'no end: midnight AEDT on the changeover day';
+  assert w.opens = timestamptz '2025-10-03 14:00:00+00' and w.closes = timestamptz '2025-10-05 13:00:00+00',
+    'no end: midnight AEDT on the changeover day';
 end $$;
 
 \echo 'LIVE RIDE CHECKS PASSED'

@@ -24,8 +24,8 @@ test('the call ends itself when the live window closes or the ride is called off
     id: 'r1', title: 'Run', startsAt: '2026-11-07T21:30:00.000Z', endsAt: '2026-11-08T01:00:00.000Z',
     allDay: false, location: null, notes: null, category: 'west', cancelledAt: null,
   };
-  assert.equal(shouldHangUp(ride, '2026-11-08T02:59:00.000Z'), false);
-  assert.equal(shouldHangUp(ride, '2026-11-08T03:00:00.000Z'), true);
+  assert.equal(shouldHangUp(ride, '2026-11-08T12:59:00.000Z'), false);
+  assert.equal(shouldHangUp(ride, '2026-11-08T13:00:00.000Z'), true);
   assert.equal(shouldHangUp({ ...ride, cancelledAt: '2026-11-07T20:00:00.000Z' }, '2026-11-07T22:00:00.000Z'), true);
   assert.equal(shouldHangUp(undefined, '2026-11-07T22:00:00.000Z'), true);
 });

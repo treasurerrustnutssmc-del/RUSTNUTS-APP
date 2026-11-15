@@ -20,7 +20,7 @@ join chapters c on c.slug = 'west';
 
 insert into rides (id, source, starts_at, ends_at, title, category, cancelled_at) values
   ('00000000-0000-0000-0000-0000000000b1', 'app', now() - interval '1 hour', now() + interval '2 hours', 'On now', 'west', null),
-  ('00000000-0000-0000-0000-0000000000b2', 'app', now() - interval '8 hours', now() - interval '5 hours', 'Finished', 'west', null),
+  ('00000000-0000-0000-0000-0000000000b2', 'app', now() - interval '3 days', now() - interval '3 days' + interval '3 hours', 'Finished', 'west', null),
   ('00000000-0000-0000-0000-0000000000b3', 'app', now() - interval '1 hour', null, 'Called off', 'west', now()),
   ('00000000-0000-0000-0000-0000000000b4', 'app', now() + interval '3 days', null, 'Later', 'west', null);
 
@@ -96,12 +96,16 @@ do $$
 begin
   assert private.voice_sweep_due(), 'a ride is on';
   update rides set cancelled_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
-  assert private.voice_sweep_due(), 'a room may still be open for a ride that finished 3 hours ago';
-  update rides set starts_at = now() - interval '2 days', ends_at = now() - interval '2 days' + interval '3 hours'
-   where id = '00000000-0000-0000-0000-0000000000b2';
   assert private.voice_sweep_due(), 'still due: rides were called off in the last 6 hours';
   update rides set cancelled_at = now() - interval '7 hours' where cancelled_at is not null;
   assert not private.voice_sweep_due(), 'nothing on or just finished';
+  -- A ride at 11 pm tomorrow (Melbourne) is open from today's start, nearly two days ahead.
+  insert into rides (id, source, starts_at, ends_at, title, category, cancelled_at) values
+    ('00000000-0000-0000-0000-0000000000b5', 'app',
+     ((((now() at time zone 'Australia/Melbourne')::date) + 1) + time '23:00') at time zone 'Australia/Melbourne', null,
+     'Tomorrow night', 'west', null);
+  assert private.voice_sweep_due(), 'due from the day before the ride';
+  delete from rides where id = '00000000-0000-0000-0000-0000000000b5';
   assert private.voice_sweep_url() is null, 'not set until an admin sets it';
 end $$;
 
@@ -113,7 +117,7 @@ begin
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a2', true);
   assert private.live_problem('00000000-0000-0000-0000-0000000000b4') = 'Only approved members can do that.', 'suspended';
   perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
-  assert private.live_problem('00000000-0000-0000-0000-0000000000b4') = 'Live ride opens 2 hours before the start.', 'not yet';
+  assert private.live_problem('00000000-0000-0000-0000-0000000000b4') = 'Live ride opens the day before the ride.', 'not yet';
   assert private.live_problem('00000000-0000-0000-0000-0000000000ee') = 'No such ride.', 'unknown';
   assert private.live_problem('00000000-0000-0000-0000-0000000000b3') = 'That ride was cancelled.', 'cancelled';
   assert private.live_problem('00000000-0000-0000-0000-0000000000b2') = 'This ride’s finished.', 'finished';
