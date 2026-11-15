@@ -279,7 +279,7 @@ export function BoardScreen({ navigation }: TabScreen<'Board'>) {
                           subtitle={
                             <View>
                               <Small numberOfLines={2}>{a.label}</Small>
-                              <Small>{a.description}</Small>
+                              <Text style={styles.rowMeta}>{a.description}</Text>
                             </View>
                           }
                           right={<Chip label={a.state === 'expired' ? 'Expired' : 'Due soon'} tone={a.state === 'expired' ? 'danger' : 'warn'} />}

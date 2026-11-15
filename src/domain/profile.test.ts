@@ -37,7 +37,7 @@ test('expiry alerts for the West chapter', () => {
       ['m-diesel', 'rego', 'soon'],
     ],
   );
-  assert.equal(alerts[0].label, 'Rego · Tank (6BH 1FT)');
+  assert.equal(alerts[0].label, 'Rego · Tank (6BH\u00a01FT)', 'the plate is joined by a no-break space, so it never splits across two lines');
 });
 
 test('names and initials', () => {

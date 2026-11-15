@@ -63,7 +63,9 @@ export function expiryAlerts(members: Member[], data: ClubData, today: string): 
     for (const bike of data.bikes.filter((b) => b.memberId === m.id && !b.isProject)) {
       const reg = data.registrations.find((r) => r.bikeId === bike.id);
       const name = bike.nickname ?? `${bike.make} ${bike.model}`;
-      push(m.id, 'rego', `Rego · ${name}${reg?.rego ? ` (${reg.rego})` : ''}`, reg?.regoExpiry ?? null);
+      // A no-break space keeps a plate such as "6BH 1FT" on one line when the label wraps.
+      const plate = reg?.rego ? ` (${reg.rego.replace(/ /g, '\u00a0')})` : '';
+      push(m.id, 'rego', `Rego · ${name}${plate}`, reg?.regoExpiry ?? null);
     }
   }
   return alerts.sort((a, b) => a.expiry.localeCompare(b.expiry));

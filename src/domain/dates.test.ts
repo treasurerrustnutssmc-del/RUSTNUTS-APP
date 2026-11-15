@@ -44,7 +44,7 @@ test('flags expiries', () => {
   assert.equal(expiryState('2026-11-23', today), 'soon'); // day 30
   assert.equal(expiryState('2026-11-24', today), 'ok');
   assert.equal(expiryState(null, today), 'missing');
-  assert.equal(describeExpiry('2026-11-08', today), 'Expires in 15 days');
+  assert.equal(describeExpiry('2026-11-08', today), 'Expires in 15\u00a0days', 'the count keeps its unit when the line wraps');
   assert.equal(describeExpiry('2026-10-12', today), 'Expired 12/10/2026');
   assert.equal(describeExpiry('2026-10-25', today), 'Expires tomorrow');
   assert.equal(describeExpiry('2027-03-02', today), 'Expires 02/03/2027');
