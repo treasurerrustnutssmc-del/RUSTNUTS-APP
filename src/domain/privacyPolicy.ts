@@ -15,7 +15,7 @@ export const PRIVACY_URL = 'https://www.rustnutssmc.com.au/app/privacy.html';
 export const PRIVACY_EMAIL = 'apps@rustnutssmc.com.au';
 
 /** ISO date the policy last changed. */
-export const PRIVACY_UPDATED_ON = '2026-11-14';
+export const PRIVACY_UPDATED_ON = '2026-11-15';
 
 /** A paragraph, or a list of points. */
 export type PrivacyBlock = string | { points: string[] };
@@ -106,8 +106,8 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: 'location',
     heading: 'Location',
     blocks: [
-      'The app uses your location only when you start sharing on a live ride. While it’s on, the other riders sharing on that ride can see where you are, how fast and which way you’re heading on a map, and the app can keep sharing while your screen is off. It switches itself off when you stop, when the ride ends, or at the switch-off time.',
-      'We don’t keep a history of where you’ve been. Only your latest position is stored, and it’s deleted when you stop sharing. Any alert you raise during the ride (like “I’ve stopped” or an emergency) keeps the place you raised it until the ride’s live window closes, two hours after the ride’s planned finish (or midnight if it has none), and is then deleted with everything else from the ride.',
+      'The app uses your location only when you start sharing on a live ride. While it’s on, the other riders sharing on that ride can see where you are, how fast and which way you’re heading on a map, and the app can keep sharing while your screen is off. It switches itself off when you stop, at midnight as ride day ends, or 12 hours after you switched it on, whichever comes first.',
+      'We don’t keep a history of where you’ve been. Only your latest position is stored, and it’s deleted when you stop sharing. Any alert you raise during the ride (like “I’ve stopped” or an emergency) keeps the place you raised it until the ride’s live window closes at midnight at the end of ride day (the day it finishes, for an overnight ride), and is then deleted with everything else from the ride.',
       'Ride weather and maps use the ride’s route and meeting places, not your own location.',
     ],
   },

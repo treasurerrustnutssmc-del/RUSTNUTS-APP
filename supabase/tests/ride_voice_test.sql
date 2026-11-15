@@ -45,11 +45,11 @@ declare rita constant uuid := '00000000-0000-0000-0000-0000000000a1';
 begin
   assert pg_temp.ask(rita, 'authenticated', $s$select public.ride_voice_room('00000000-0000-0000-0000-0000000000b1')::text$s$)::jsonb - 'closes'
     = '{"room": "ride-00000000-0000-0000-0000-0000000000b1", "name": "Rusty"}'::jsonb, 'room and road name';
-  -- The token can't outlive the window: it closes 2 hours after the ride's end.
+  -- The token can't outlive the window: it closes as ride day ends.
   assert (pg_temp.ask(rita, 'authenticated', $s$select public.ride_voice_room('00000000-0000-0000-0000-0000000000b1')::text$s$)::jsonb ->> 'closes')::timestamptz
-    = (select ends_at + interval '2 hours' from rides where id = '00000000-0000-0000-0000-0000000000b1'), 'closes with the live window';
+    = (select w.closes from rides r, private.live_window(r) w where r.id = '00000000-0000-0000-0000-0000000000b1'), 'closes with the live window';
   assert pg_temp.ask(rita, 'authenticated', $s$select public.ride_voice_room('00000000-0000-0000-0000-0000000000b2')::text$s$)
-    = 'Live ride opens 2 hours before the start.', 'not yet';
+    = 'Live ride opens the day before the ride.', 'not yet';
   assert pg_temp.ask(rita, 'authenticated', $s$select public.ride_voice_room('00000000-0000-0000-0000-0000000000b3')::text$s$)
     = 'That ride was cancelled.', 'cancelled';
 end $$;

@@ -51,15 +51,16 @@ Each phase is its own plan and its own pull request from this lane's branch.
 
 ### The live window (`src/domain/liveRide.ts`)
 
-- Opens **2 hours before** a ride starts.
-- Closes **2 hours after** it ends. With no end time, it closes at Melbourne midnight at the end of the
-  ride's last day. An all-day ride's window is its days, midnight to midnight.
+- Opens at **12:00 am Melbourne on the day before** the ride's first day.
+- Closes at **midnight as the ride's last day ends** (an overnight ride's last day is the day it
+  finishes; with no end time, it's the start day). Widened from 2 hours either side on 15/11/2026
+  (Jeff's call, so ride comms are there for the run-up and the ride home).
 - A cancelled ride has no window.
 - Your own sharing stops after **12 hours** or when the window closes, whichever comes first. On a
   weekend away, that means switching it back on each morning, so it's always ride day only.
 
 `liveProblem(me, ride, now)` says why you can't switch on, or null: sign in first, approved members only,
-cancelled, "Live ride opens 2 hours before the start", "This ride's finished". The database's
+cancelled, "Live ride opens the day before the ride", "This ride's finished". The database's
 `start_live_ride` gives the same answers with the same words.
 
 ### Data (migration `20270201000000_live_ride.sql`)

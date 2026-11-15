@@ -26,7 +26,7 @@ test('the demo ride is always on today, so live mode can be shown', () => {
 
 test('demo live ride: same refusals as the database', async () => {
   const { b } = backend();
-  await assert.rejects(b.start('r-1'), /Live ride opens 2 hours before the start\./);
+  await assert.rejects(b.start('r-3'), /Live ride opens the day before the ride\./);
   await assert.rejects(b.state('r-today'), /Share your location first\./);
 });
 
