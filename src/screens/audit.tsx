@@ -212,7 +212,7 @@ export function AuditRecordsScreen({ navigation }: RootScreen<'AuditRecords'>) {
   const theirs = data.members.filter((m) => m.chapterId === chapterId).sort((a, b) => displayName(a).localeCompare(displayName(b)));
   const applicants = theirs.filter((m) => m.approval === 'pending');
   const members = theirs.filter((m) => m.approval === 'approved' && m.status !== 'legacy');
-  const seats = data.positions.filter((p) => p.endedOn === null && (p.chapterId === chapterId || (p.chapterId === null && theirs.some((m) => m.id === p.memberId))));
+  const seats = data.positions.filter((p) => p.endedOn === null && (p.chapterId === chapterId || (p.chapterId === null && theirs.some((m) => m.id === p.memberId)))); // acting: pending
 
   const standingLine = (m: Member): { text: string; tone: Tone } | null => {
     const s = standingOf(m, data, today);

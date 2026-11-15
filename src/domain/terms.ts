@@ -24,7 +24,7 @@ export function termEndsOn(position: Position): string | null {
 /** For a position still held: running, ending within 60 days, or ended (and not yet renewed). */
 export function termState(position: Position, today: string): 'running' | 'ending' | 'ended' | null {
   const ends = termEndsOn(position);
-  if (!ends || position.endedOn !== null) return null;
+  if (!ends || position.endedOn !== null) return null; // acting: pending
   const days = daysBetween(today, ends);
   if (days < 0) return 'ended';
   return days <= TERM_SOON_DAYS ? 'ending' : 'running';

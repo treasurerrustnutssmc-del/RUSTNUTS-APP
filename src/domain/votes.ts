@@ -5,6 +5,7 @@
 // ones it doesn't settle.
 
 import { activePositions, isNecSeat, NEC_OFFICER_ROLES } from './access';
+import { necVoterFor } from './acting';
 import { BOARD_ROLES, electoratesFor, TITLE_ROLES } from './labels';
 import { reviewsScope, runsScope, scopeRefusal, signedInProblem } from './meetings';
 import { melbourneDate } from './rides';
@@ -108,7 +109,7 @@ export function defaultQuorum(electorate: Electorate, electors: number): number 
 /** The current holder of a seat: the newest, during a handover (9.8). */
 function holderOf(role: string, chapterId: string | null, positions: Position[]): string | null {
   const seats = positions
-    .filter((p) => p.endedOn === null && p.role === role && p.chapterId === chapterId)
+    .filter((p) => p.endedOn === null && p.role === role && p.chapterId === chapterId) // acting: pending
     .sort((a, b) => b.startedOn.localeCompare(a.startedOn));
   return seats[0]?.memberId ?? null;
 }
@@ -117,13 +118,6 @@ function holderOf(role: string, chapterId: string | null, positions: Position[])
 export function chairOf(chapterId: string | null, positions: Position[]): string | null {
   if (chapterId === null) return holderOf('nec_chair', null, positions);
   return holderOf('president', chapterId, positions) ?? holderOf('vice_president', chapterId, positions);
-}
-
-/** Who casts a chapter's NEC vote: its President, unless they chair the NEC; then its Vice President (11.2). */
-function necVoterFor(chapterId: string, positions: Position[]): string | null {
-  const president = holderOf('president', chapterId, positions);
-  if (president !== null && president !== holderOf('nec_chair', null, positions)) return president;
-  return holderOf('vice_president', chapterId, positions);
 }
 
 /** What the chair does with a tie: a casting vote, or let it fall (9.10). */

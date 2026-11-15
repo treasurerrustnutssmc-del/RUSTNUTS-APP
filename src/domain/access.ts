@@ -2,6 +2,7 @@
 // (row-level security in supabase/migrations), so the app can never show
 // more than the server would hand over.
 
+import { dutyPositions } from './acting';
 import { BOARD_ROLES, NATIONAL_ROLES, TITLE_ROLES } from './labels';
 import { addMonths } from './profile';
 import { melbourneDate } from './rides';
@@ -25,9 +26,8 @@ export function isFamily(viewer: Member | null): boolean {
   return !!viewer && viewer.approval === 'approved' && viewer.status === 'family';
 }
 
-export function activePositions(memberId: string, positions: Position[]): Position[] {
-  return positions.filter((p) => p.memberId === memberId && p.endedOn === null);
-}
+/** The rows whose duties this member does now (the duties reading, src/domain/acting.ts). The name is kept. */
+export const activePositions = dutyPositions;
 
 /** Holds an executive board seat in this chapter. */
 export function holdsBoardSeat(memberId: string, chapterId: string, positions: Position[]): boolean {

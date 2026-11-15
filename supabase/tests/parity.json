@@ -4067,6 +4067,21 @@
       "allowed": false
     },
     {
+      "name": "A lapsed acting VP gets no board ballot",
+      "as": "rusty",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": null,
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 4,
+      "days": 7,
+      "allowed": false,
+      "with": [
+        { "key": "spanner-acting-vp", "member": "spanner", "chapter": "west", "role": "vice_president", "startedDays": -30, "actingUntilDays": -1, "why": "No VP since the ACM" }
+      ]
+    },
+    {
       "name": "A Full member asks for the Rusty Bus (it waits for a yes)",
       "as": "gravel",
       "action": "bookBus",

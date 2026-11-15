@@ -263,7 +263,7 @@ export function auditChecks(data: ClubData, now: string): AuditCheck[] {
   }
 
   for (const p of data.positions) {
-    if (p.endedOn !== null || termState(p, today) !== 'ended') continue;
+    if (p.endedOn !== null || termState(p, today) !== 'ended') continue; // acting: pending
     const holder = data.members.find((m) => m.id === p.memberId);
     push({ key: `term-ended:${p.id}`, area: 'membership', chapterId: p.chapterId, ledgerEntryId: null,
       title: 'A term has run past its end',

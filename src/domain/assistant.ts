@@ -380,7 +380,7 @@ function rideIdeaCard(id: string, proposal: Proposal, ctx: CardCtx): ActionCard 
       { kind: 'open_calendar', url: problem ? '' : calendarLink(draft) }, 'OPEN IN GOOGLE CALENDAR');
   }
   const to = ideaRecipient(ctx.me, ctx.data);
-  const isRc = !!to && ctx.data.positions.some((p) => p.memberId === to.id && p.role === 'road_captain' && p.chapterId === ctx.me.chapterId && !p.endedOn);
+  const isRc = !!to && ctx.data.positions.some((p) => p.memberId === to.id && p.role === 'road_captain' && p.chapterId === ctx.me.chapterId && !p.endedOn); // acting: pending
   const noOne = to ? null : 'Your chapter has no Road Captain or President in the app to send it to.';
   return card(id, 'NEW RIDE', [...lines, to && !problem ? `Goes to ${displayName(to)} as a private message.` : ''], problem ?? noOne,
     { kind: 'send_idea', toId: to?.id ?? '', text: problem ? '' : rideIdeaText(draft) }, isRc ? 'SEND TO THE ROAD CAPTAIN' : 'SEND TO THE PRESIDENT');

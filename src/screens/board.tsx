@@ -401,7 +401,7 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const auditorVote = member.status === 'full' ? auditorVoteFor(member.id, data.votes ?? []) : null;
   const auditorVoteOpen = auditorVote !== null && auditorVote.closedAt === null;
   const auditorYes = hasCarriedAuditorVote(member.id, data, today);
-  const apart = positions.some((p) => p.endedOn === null && (p.role === 'president' || p.role === 'treasurer'));
+  const apart = positions.some((p) => p.endedOn === null && (p.role === 'president' || p.role === 'treasurer')); // acting: pending
   const seatFree = !seat || (sitting && termState(seat, today) !== 'running');
   const canStartAuditorVote =
     member.status === 'full' && member.approval === 'approved' && !apart && seatFree && !auditorVoteOpen && !auditorYes &&
@@ -409,11 +409,11 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
   const canRenew = sitting && renewAuditorProblem(me, data, today) === null;
   // The National Secretary: a two-thirds NEC vote first, then the Chairman appoints (11.6). The vote
   // can open while a Secretary sits (their successor's); only the appointment needs the seat free.
-  const secretarySeat = data.positions.find((p) => p.role === 'nec_secretary' && p.endedOn === null) ?? null;
+  const secretarySeat = data.positions.find((p) => p.role === 'nec_secretary' && p.endedOn === null) ?? null; // acting: pending
   const secretaryVote = member.status === 'full' ? seatVoteFor(member.id, data.votes ?? [], 'nec_secretary') : null;
   const secretaryVoteOpen = secretaryVote !== null && secretaryVote.closedAt === null;
   const secretaryYes = hasCarriedSeatVote(member.id, 'nec_secretary', data, today);
-  const onNec = positions.some((p) => p.endedOn === null && (p.role === 'nec_chair' || p.role === 'nec_secretary' || p.role === 'nec_auditor'));
+  const onNec = positions.some((p) => p.endedOn === null && (p.role === 'nec_chair' || p.role === 'nec_secretary' || p.role === 'nec_auditor')); // acting: pending
   const canStartSecretaryVote =
     member.status === 'full' && member.approval === 'approved' && !onNec && !secretaryVoteOpen && !secretaryYes &&
     runsScope(me, null, data.positions);

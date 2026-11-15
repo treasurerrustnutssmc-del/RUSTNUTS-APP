@@ -14,8 +14,10 @@ import type {
   Big4Ground, NoticeAbout, NoticeOutcome, // Big 4 RSVP rules and the 5.5 notice
   BusCostKind, // Rusty Bus extras
   ShippingMethod, ShopDelivery, ShopEligibility, ShopOrderStatus, // The club shop
+  EndedReason, // Acting roles
 } from '../domain/types';
 import { runDemoAction, type DemoAction } from './demoActions';
+import { settleActing } from '../domain/acting'; // Acting roles
 // Stage 4
 import { addDays } from '../domain/dates';
 import type { BragKind } from '../domain/social/brag';
@@ -50,6 +52,61 @@ export interface ParityCase extends Record<string, unknown> {
   noRoadRules?: boolean;
   /** The member acting hasn't agreed to the club rules for chats and posts (for this case only). */
   rulesNotAgreed?: boolean;
+  // Acting roles. Each side works out the …Days itself: addDays(today, n) here, club_date() + n in the database.
+  /** Extra position rows for this case only, inserted in order (a covered row before its cover). */
+  with?: ParityRow[];
+  /** Open acting requests for this case only. */
+  withRequests?: ParityRequest[];
+  /** Votes for this case only. */
+  withVotes?: ParityVote[];
+  /**
+   * The demo's exact refusal, which the database must give too (demoAnswer checks the demo gives it).
+   * Not `message`: the chat cases already use that for the message they act on.
+   */
+  refusal?: string;
+}
+
+/**
+ * An extra position row. Started today unless startedDays; acting with an until date and a why; a
+ * cover with `covers` (a position key); `requestedBy` adds the confirmed request it came from, and
+ * `actingVote` names a withVotes key.
+ */
+export interface ParityRow {
+  key: string; member: string; chapter: string | null; role: PositionRole;
+  startedDays?: number; endedDays?: number; actingUntilDays?: number;
+  covers?: string; why?: string; appointedBy?: string; requestedBy?: string; actingVote?: string;
+}
+
+/** An open acting request, made now. `covers` is a position key, or none for an empty seat. */
+export interface ParityRequest {
+  key: string; chapter: string; role: PositionRole; member: string; covers?: string; untilDays: number; why: string; requestedBy: string;
+}
+
+/**
+ * A vote, at now plus the days given: opened 7 days before it closes unless openedDays, closing in
+ * 7 days unless closesDays or closedDays. Quorum is every elector unless given. Each of `voted`
+ * cast a yes. An NEC elector's ballot belongs to their own chapter.
+ */
+export interface ParityVote {
+  key: string; chapter: string | null; electorate: Electorate; threshold: Threshold; quorum?: number;
+  subject?: string; role?: PositionRole; actingRequest?: string; electors: string[]; voted?: string[]; result?: VoteResult;
+  openedDays?: number; closedDays?: number; closesDays?: number;
+}
+
+/** A case's extra rows. */
+export type ParityExtras = Pick<ParityCase, 'with' | 'withRequests' | 'withVotes'>;
+
+/** When an extra vote opens, closes and closed, in days from now. */
+export function voteDays(v: ParityVote): { opened: number; closes: number; closed: number | null } {
+  const closes = v.closesDays ?? v.closedDays ?? 7;
+  const closed = v.closedDays ?? (v.result ? closes : null);
+  return { opened: v.openedDays ?? closes - 7, closes, closed };
+}
+
+/** How an extra row that ended, ended: a stint ending the day after its until date lapsed. */
+export function rowEndedReason(r: ParityRow): EndedReason | null {
+  if (r.endedDays === undefined) return null;
+  return r.actingUntilDays !== undefined && r.endedDays === r.actingUntilDays + 1 ? 'lapsed' : 'stepped_down';
 }
 
 export interface ParityFixture {
@@ -274,7 +331,7 @@ export const fixture: ParityFixture = JSON.parse(
   readFileSync(join(__dirname, '../../supabase/tests/parity.json'), 'utf8'),
 );
 
-export function fixtureData(without: string[] = [], today: string = parityToday()): ClubData {
+export function fixtureData(without: string[] = [], today: string = parityToday(), extras: ParityExtras = {}): ClubData {
   const base: ClubData = {
     chapters: [
       { id: 'west', slug: 'west', name: 'West', area: 'Western Melbourne', state: 'VIC' },
@@ -358,7 +415,65 @@ export function fixtureData(without: string[] = [], today: string = parityToday(
       cancelledBy: null, cancelledAt: b.status === 'cancelled' ? BUS_AT : null,
     })),
   };
-  return withShop(withBusExtras(withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today)), today), today), today);
+  const built = withShop(withBusExtras(withBig4Rsvp(withPlanning(withAdmin(withDocuments(withLedger(withStage4(base, today), today), today), today)), today), today), today);
+  return withActing(built, today, extras);
+}
+
+/** Acting roles: a case's extra rows, requests and votes, as scripts/parity-sql.mts inserts them. */
+function withActing(data: ClubData, today: string, extras: ParityExtras): ClubData {
+  const rows = extras.with ?? [];
+  const requests = extras.withRequests ?? [];
+  const votes = extras.withVotes ?? [];
+  if (rows.length === 0 && requests.length === 0 && votes.length === 0) return data;
+  const nowMs = Date.now();
+  const at = (days: number) => new Date(nowMs + days * 86_400_000).toISOString();
+  const now = at(0);
+  for (const r of rows) {
+    if ((r.actingUntilDays === undefined) !== (r.why === undefined)) throw new Error(`${r.key}: an acting row has an until date and a why`);
+  }
+  const chapterOf = (member: string) => data.members.find((m) => m.id === member)?.chapterId ?? null;
+  return {
+    ...data,
+    positions: [
+      ...data.positions,
+      ...rows.map((r) => ({
+        id: r.key, memberId: r.member, chapterId: r.chapter, role: r.role, startedOn: addDays(today, r.startedDays ?? 0),
+        endedOn: r.endedDays === undefined ? null : addDays(today, r.endedDays),
+        actingUntil: r.actingUntilDays === undefined ? null : addDays(today, r.actingUntilDays), covers: r.covers ?? null,
+        actingWhy: r.why ?? null, actingVote: r.actingVote ?? null, actingRequestId: r.requestedBy ? r.key : null,
+        appointedBy: r.appointedBy ?? null, endedReason: rowEndedReason(r),
+      })),
+    ],
+    actingRequests: [
+      ...(data.actingRequests ?? []),
+      ...requests.map((q) => ({
+        id: q.key, chapterId: q.chapter, role: q.role, memberId: q.member, covers: q.covers ?? null, until: addDays(today, q.untilDays),
+        why: q.why, requestedBy: q.requestedBy, createdAt: now, closedAt: null, outcome: null,
+      })),
+      ...rows.filter((r) => r.requestedBy).map((r) => ({
+        id: r.key, chapterId: r.chapter!, role: r.role, memberId: r.member, covers: r.covers ?? null,
+        until: addDays(today, r.actingUntilDays!), why: r.why!, requestedBy: r.requestedBy!, createdAt: now, closedAt: now,
+        outcome: 'confirmed' as const,
+      })),
+    ],
+    votes: [
+      ...(data.votes ?? []),
+      ...votes.map((v) => {
+        const days = voteDays(v);
+        const voted = [...(v.voted ?? [])].sort();
+        return {
+          id: v.key, chapterId: v.chapter, meetingId: null, subjectMemberId: v.subject ?? null, subjectRole: v.role ?? null,
+          question: v.key, details: null, electorate: v.electorate, threshold: v.threshold, secret: false,
+          quorum: v.quorum ?? v.electors.length, openedAt: at(days.opened), closesAt: at(days.closes),
+          closedAt: days.closed === null ? null : at(days.closed), result: v.result ?? null, castingVote: null, tally: null,
+          electorIds: [...v.electors].sort(), votedIds: voted, ballots: voted.map((m) => ({ memberId: m, choice: 'yes' as const })),
+          createdBy: null, actingRequestId: v.actingRequest ?? null,
+          electorChapters:
+            v.electorate === 'nec' ? Object.fromEntries(v.electors.flatMap((e) => (chapterOf(e) ? [[e, chapterOf(e)!]] : []))) : {},
+        };
+      }),
+    ],
+  };
 }
 
 /** When the fixture's Big 4s, 5.4 excuses and 5.5 notices were made. */
@@ -629,8 +744,17 @@ export function caseAction(c: ParityCase): DemoAction {
 
 /** What the demo says to this case: null when it allows it, otherwise its refusal message. */
 export function demoAnswer(c: ParityCase): string | null {
+  const answer = demoAnswerOf(c);
+  if (c.refusal !== undefined && answer !== c.refusal) {
+    throw new Error(`"${c.name}": the demo should refuse with "${c.refusal}", but ${answer === null ? 'allowed it' : `said "${answer}"`}.`);
+  }
+  return answer;
+}
+
+function demoAnswerOf(c: ParityCase): string | null {
   const today = parityToday();
-  const fixed0 = fixtureData(c.without ?? [], today);
+  // Settled first, as the providers do: a stint past its until date has ended.
+  const fixed0 = settleActing(fixtureData(c.without ?? [], today, c), today);
   const fixed = c.rulesNotAgreed
     ? { ...fixed0, members: fixed0.members.map((m) => (m.id === c.as ? { ...m, postingRulesAcceptedOn: null } : m)) }
     : fixed0;

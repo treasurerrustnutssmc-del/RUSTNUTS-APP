@@ -210,3 +210,29 @@ test('the live business read becomes app records', () => {
   assert.equal(b.votes[0].subjectRole, 'nec_auditor');
   assert.deepEqual(toBusiness(null), { meetings: [], actionItems: [], votes: [] }, 'nothing back is nothing to show');
 });
+
+// Acting roles
+test('club_business’s acting_request and elector_chapters map to actingRequestId and electorChapters', () => {
+  const vote = {
+    id: 'v1', chapter_id: null, meeting_id: null, subject_member_id: null, subject_role: null, question: 'Q?', details: null,
+    electorate: 'nec' as const, threshold: 'majority' as const, secret: false, quorum: 2, opened_at: '2026-11-14T02:00:00+00:00',
+    closes_at: '2026-11-21T02:00:00+00:00', closed_at: null, result: null, casting_vote: null, created_by: 'm1', tally: null,
+    elector_ids: ['m1', 'm2'], voted_ids: [], my_voted: false, ballots: [],
+  };
+  const b = toBusiness({
+    meetings: [],
+    action_items: [],
+    votes: [
+      { ...vote, acting_request: null, elector_chapters: { m1: 'c-north', m2: 'c-west' } },
+      { ...vote, id: 'v2', electorate: 'chapter_board', acting_request: 'ar1', elector_chapters: {} },
+      // A database from before acting: neither key.
+      { ...vote, id: 'v3' },
+    ],
+  });
+  assert.equal(b.votes[0].actingRequestId, null);
+  assert.deepEqual(b.votes[0].electorChapters, { m1: 'c-north', m2: 'c-west' });
+  assert.equal(b.votes[1].actingRequestId, 'ar1');
+  assert.deepEqual(b.votes[1].electorChapters, {});
+  assert.equal(b.votes[2].actingRequestId, null);
+  assert.deepEqual(b.votes[2].electorChapters, {});
+});

@@ -3,6 +3,7 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, isStepDown, LEARNER_FNG, restoreAccessProblem, statusChangeProblem, suspendAccessProblem } from '../domain/access';
+import { openRows } from '../domain/acting'; // Acting roles
 import { bioProblem } from '../domain/postingRules'; // Member content rules
 import { deleteAccountProblem, FORMER_MEMBER } from '../domain/account'; // Delete my account
 import { big4GoingProblem } from '../domain/big4';
@@ -327,6 +328,7 @@ export function deleteMyAccount(ctx: DemoCtx): ClubData {
   const d = ctx.data;
   const notMine = <T extends { memberId: string }>(rows: T[] | undefined): T[] | undefined => rows?.filter((r) => r.memberId !== id);
   const bikes = d.bikes.filter((b) => b.memberId !== id);
+  const open = new Set(openRows(d.positions).map((p) => p.id));
   return patchMember(
     {
       ...d,
@@ -344,7 +346,7 @@ export function deleteMyAccount(ctx: DemoCtx): ClubData {
       charitySignups: notMine(d.charitySignups),
       documentSignoffs: notMine(d.documentSignoffs),
       notificationPrefs: null,
-      positions: d.positions.map((p) => (p.memberId === id && p.endedOn === null ? { ...p, endedOn: ctx.today } : p)),
+      positions: d.positions.map((p) => (p.memberId === id && open.has(p.id) ? { ...p, endedOn: ctx.today } : p)),
     },
     id,
     { fullName: FORMER_MEMBER, roadName: null, bio: null, sharePhone: false, onHiatus: false, approval: 'declined' },

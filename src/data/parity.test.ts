@@ -113,6 +113,17 @@ test('the Going gate cases: unsigned and expired refused, due soon, Maybe, Legac
   has('crew', (c) => !c.noRoadRules && target(c) === 'due_soon' && c.allowed, 'crewing a due-soon member, allowed');
 });
 
+// Acting roles
+test('a case that names its refusal gets exactly it from the demo, or the case list is wrong', () => {
+  const lapsed = fixture.cases.find((c) => c.name === 'A lapsed acting VP gets no board ballot');
+  assert.ok(lapsed, 'the smoke case is there');
+  const said = demoAnswer(lapsed);
+  assert.ok(said !== null && /^Quorum must be between/.test(said), `the quorum refusal: ${said}`);
+  assert.equal(demoAnswer({ ...lapsed, refusal: said }), said);
+  assert.throws(() => demoAnswer({ ...lapsed, refusal: 'Some other reason.' }), /should refuse with "Some other reason\."/);
+  assert.throws(() => demoAnswer({ ...lapsed, quorum: 3, refusal: said }), /allowed it/);
+});
+
 for (const c of fixture.cases) {
   test(`demo: ${c.name} → ${c.allowed ? 'allowed' : 'refused'}`, () => {
     const refusal = demoAnswer(c);

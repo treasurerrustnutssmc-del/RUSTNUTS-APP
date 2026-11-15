@@ -21,6 +21,8 @@ export interface BusinessJson {
     opened_at: string; closes_at: string; closed_at: string | null; result: VoteResult | null;
     casting_vote: 'yes' | 'no' | null; created_by: string | null; tally: Tally | null; elector_ids: string[];
     voted_ids: string[]; my_voted: boolean; ballots: { member_id: string | null; choice: BallotChoice }[];
+    // Acting roles. A database from before acting sends neither.
+    acting_request?: string | null; elector_chapters?: Record<string, string>;
   }[];
 }
 
@@ -75,6 +77,8 @@ export function toBusiness(json: BusinessJson | null | undefined): { meetings: M
       votedIds: v.voted_ids ?? [],
       ballots: (v.ballots ?? []).map((b) => ({ memberId: b.member_id, choice: b.choice })),
       createdBy: v.created_by,
+      actingRequestId: v.acting_request ?? null,
+      electorChapters: v.elector_chapters ?? {},
     })),
   };
 }

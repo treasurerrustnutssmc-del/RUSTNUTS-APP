@@ -283,7 +283,7 @@ export function pastOfficeHolders(members: Member[], positions: Position[]): Pas
   for (const role of ROLE_ORDER) {
     if (role === 'founder') continue;
     const holders = positions
-      .filter((p): p is Position & { endedOn: string } => p.role === role && p.endedOn !== null)
+      .filter((p): p is Position & { endedOn: string } => p.role === role && p.endedOn !== null) // acting: pending
       .sort((a, b) => b.endedOn.localeCompare(a.endedOn) || b.startedOn.localeCompare(a.startedOn))
       .map((p) => ({ member: byId.get(p.memberId) ?? null, chapterId: p.chapterId, startedOn: p.startedOn, endedOn: p.endedOn }));
     if (holders.length) groups.push({ role, holders });

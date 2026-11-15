@@ -104,7 +104,7 @@ export function signedInProblem(me: Member | null): string | null {
 const length = (s: string) => [...s].length;
 const approved = (me: Member | null): me is Member => isApprovedMember(me);
 const patched = (m: Member) => m.status === 'full' || m.status === 'nomad';
-const active = (memberId: string, positions: Position[]) => positions.filter((p) => p.memberId === memberId && p.endedOn === null);
+const active = (memberId: string, positions: Position[]) => positions.filter((p) => p.memberId === memberId && p.endedOn === null); // acting: pending
 const SHOP_SEATS = new Set<Position['role']>(['nec_chair', 'nec_secretary', 'president', 'treasurer']);
 
 export interface CartLine {

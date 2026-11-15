@@ -2,6 +2,7 @@
 
 // Stage 5: meetings and votes
 import type {
+  ActingOutcome, EndedReason, // Acting roles
   AgendaItem, BallotChoice, Big4Ground, NoticeAbout, NoticeOutcome, BusCostKind, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
 } from '../domain/types'; // HubStaying, PlanStop, RideCallState, SwapState: ride planning extras
 import type { BusinessJson } from './businessLive';
@@ -201,8 +202,34 @@ export type Database = {
           member_id: string;
           role: PositionRole;
           started_on: string;
+          // Acting roles
+          acting_until: string | null;
+          covers: string | null;
+          acting_why: string | null;
+          acting_vote: string | null;
+          acting_request: string | null;
+          ended_reason: EndedReason | null;
         };
         Insert: { [_ in never]: never }; // positions change only through appoint_position / end_position
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      // Acting roles
+      acting_requests: {
+        Row: {
+          id: string; chapter_id: string; role: PositionRole; member_id: string; covers: string | null; until: string; why: string;
+          requested_by: string; created_at: string; closed_at: string | null; outcome: ActingOutcome | null;
+        };
+        Insert: { [_ in never]: never }; // only through the acting RPCs
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      acting_changes: {
+        Row: {
+          id: number; position_id: string; chapter_id: string; old_until: string | null; new_until: string | null;
+          changed_by: string | null; changed_at: string; note: string | null;
+        };
+        Insert: { [_ in never]: never }; // only through the acting RPCs and the position triggers
         Update: { [_ in never]: never };
         Relationships: [];
       };

@@ -1,0 +1,253 @@
+// Acting in a role, until a date: the four readings of a seat, settling lapsed stints at Melbourne
+// midnight, and what ending a row takes with it. Each mirrors the database
+// (supabase/migrations/20270870000000_acting_roles.sql §1): private.held_positions,
+// private.duty_positions and private.clubwide_positions, private.close_lapsed_acting and the
+// private.on_position_end trigger. See docs/superpowers/specs/2026-11-15-acting-roles-design.md.
+//
+// The readings expect settled rows (settleActing first): a stint past its until date is then ended.
+//   Held: open rows. Titles, eligibility, "end their positions first", board membership.
+//   Duties: held rows, minus any row a held cover points at. Chairing, the NEC, the books, one-role checks.
+//   Club-wide: duty rows that aren't acting. Every chapter's private details, the Club fund, the shop.
+
+import { addDays } from './dates';
+import { BOARD_ROLES } from './labels';
+import { melbourneDate } from './rides';
+import type { ActingChange, ActingRequest, ClubData, EndedReason, Position, Vote } from './types';
+
+/** A stint: a row with an until date. */
+export const isActing = (p: Position): boolean => p.actingUntil != null;
+
+export const isEnded = (p: Position): boolean => p.endedOn != null;
+
+/** Open rows, settled or not: what a writer checks before it changes a seat. */
+export function openRows(positions: Position[]): Position[] {
+  return positions.filter((p) => !isEnded(p));
+}
+
+export function heldRows(positions: Position[]): Position[] {
+  return openRows(positions);
+}
+
+/** The rows a held cover stands in for. */
+function coveredIds(positions: Position[]): Set<string> {
+  const out = new Set<string>();
+  for (const c of positions) if (c.covers != null && !isEnded(c)) out.add(c.covers);
+  return out;
+}
+
+export function dutyRows(positions: Position[]): Position[] {
+  const covered = coveredIds(positions);
+  return heldRows(positions).filter((p) => !covered.has(p.id));
+}
+
+export function heldPositions(memberId: string, positions: Position[]): Position[] {
+  return positions.filter((p) => p.memberId === memberId && !isEnded(p));
+}
+
+export function dutyPositions(memberId: string, positions: Position[]): Position[] {
+  const mine = heldPositions(memberId, positions);
+  if (mine.length === 0) return mine;
+  const covered = coveredIds(positions);
+  return covered.size === 0 ? mine : mine.filter((p) => !covered.has(p.id));
+}
+
+export function clubwidePositions(memberId: string, positions: Position[]): Position[] {
+  return dutyPositions(memberId, positions).filter((p) => !isActing(p));
+}
+
+/** The held cover standing in for this row, if any. */
+export function coverOf(position: Position, positions: Position[]): Position | null {
+  return positions.find((c) => c.covers === position.id && !isEnded(c)) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Melbourne midnight
+// ---------------------------------------------------------------------------
+
+/** The instant a Melbourne date begins (its midnight, in summer time or not). */
+function clubDayStart(day: string): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const wall = Date.UTC(y, m - 1, d);
+  // Melbourne is ten or eleven hours ahead of UTC; midnight itself is never skipped or repeated.
+  for (const hours of [11, 10]) {
+    const at = wall - hours * 3_600_000;
+    if (melbourneDate(new Date(at).toISOString()) === day && melbourneDate(new Date(at - 1).toISOString()) !== day) {
+      return new Date(at).toISOString();
+    }
+  }
+  throw new Error(`No Melbourne midnight for ${day}`);
+}
+
+/** How long until the next Melbourne midnight, when the club's date (and so every stint) moves on. */
+export function msUntilNextClubDay(nowIso: string): number {
+  return Date.parse(clubDayStart(addDays(melbourneDate(nowIso), 1))) - Date.parse(nowIso);
+}
+
+// ---------------------------------------------------------------------------
+// Settling: the app's lazy close
+// ---------------------------------------------------------------------------
+
+const lapses = (p: Position, today: string): boolean => !isEnded(p) && p.actingUntil != null && p.actingUntil < today;
+
+/** A stint past its until date ends the day after it, by nobody. */
+const lapsed = (p: Position): Position => ({ ...p, endedOn: addDays(p.actingUntil!, 1), endedReason: 'lapsed' });
+
+/**
+ * How an open request closes today, if it does: rejected once any acting vote on it is lost (a vote
+ * without quorum leaves it open), else lapsed after its until date or 28 days after it was made.
+ */
+function requestCloses(r: ActingRequest, votes: Vote[], today: string): Pick<ActingRequest, 'closedAt' | 'outcome'> | null {
+  if (r.closedAt !== null) return null;
+  const lost = votes.find((v) => v.actingRequestId === r.id && v.result === 'lost');
+  if (lost) return { outcome: 'rejected', closedAt: lost.closedAt ?? clubDayStart(today) };
+  const pastUntil = addDays(r.until, 1);
+  const tooOld = addDays(melbourneDate(r.createdAt), 28);
+  const on = pastUntil < tooOld ? pastUntil : tooOld;
+  return on <= today ? { outcome: 'lapsed', closedAt: clubDayStart(on) } : null;
+}
+
+/**
+ * The club data as it stands on `today`: stints past their until date ended (`lapsed`), and
+ * requests closed as the database's lazy close would. Nothing lapsing gives back the same object,
+ * and untouched rows keep theirs, so memos keyed on them don't rerun.
+ */
+export function settleActing(data: ClubData, today: string): ClubData {
+  const positions = data.positions.some((p) => lapses(p, today))
+    ? data.positions.map((p) => (lapses(p, today) ? lapsed(p) : p))
+    : data.positions;
+  const votes = data.votes ?? [];
+  const requests = data.actingRequests;
+  const closing = requests?.some((r) => requestCloses(r, votes, today) !== null) ?? false;
+  if (positions === data.positions && !closing) return data;
+  return {
+    ...data,
+    positions,
+    ...(closing && requests
+      ? {
+          actingRequests: requests.map((r) => {
+            const closes = requestCloses(r, votes, today);
+            return closes ? { ...r, ...closes } : r;
+          }),
+        }
+      : {}),
+  };
+}
+
+/** Whether settling on `today` ends one of this member's own rows (so their powers have changed). */
+export function lapsedOwnRows(raw: ClubData, today: string, memberId: string | null): boolean {
+  return memberId !== null && raw.positions.some((p) => p.memberId === memberId && lapses(p, today));
+}
+
+// ---------------------------------------------------------------------------
+// Ending a row, and what it takes with it
+// ---------------------------------------------------------------------------
+
+export const HOLDER_SEAT_ENDED = 'Holder’s seat ended';
+export const STAND_IN_LEFT = 'Stand-in left the board';
+
+let changeCounter = 0;
+const newChangeId = () => `ac-${Date.now().toString(36)}-${(changeCounter++).toString(36)}`;
+
+const later = (a: string, b: string) => (a > b ? a : b);
+
+/** The open stints a row's ending takes with it, each with the note it's logged under. */
+function restingOn(ended: Position, rows: Position[]): [Position, string][] {
+  const open = openRows(rows);
+  const out: [Position, string][] = [];
+  const take = (p: Position, note: string) => {
+    if (!out.some(([q]) => q.id === p.id)) out.push([p, note]);
+  };
+  // A cover rests on the seat it covers.
+  for (const c of open) if (c.covers === ended.id) take(c, HOLDER_SEAT_ENDED);
+  const boardSeat = (p: Position) => p.chapterId === ended.chapterId && !isActing(p) && BOARD_ROLES.includes(p.role);
+  if (!isActing(ended) && ended.chapterId !== null && BOARD_ROLES.includes(ended.role)) {
+    // A stand-in's cover rests on their own last board seat in the chapter.
+    if (!open.some((o) => o.memberId === ended.memberId && boardSeat(o))) {
+      for (const c of open) {
+        if (c.memberId === ended.memberId && c.chapterId === ended.chapterId && c.covers != null) take(c, STAND_IN_LEFT);
+      }
+    }
+    // A President stint with no vote behind it rests on the person's VP row (8.2).
+    if (ended.role === 'vice_president') {
+      for (const c of open) {
+        if (c.memberId === ended.memberId && c.chapterId === ended.chapterId && c.role === 'president' && isActing(c) && c.actingVote == null) {
+          take(c, STAND_IN_LEFT);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Ends a row as the database's writers do (from `today`, never before it started), and every stint
+ * resting on it (`left_board`, logged; one already past its date as `lapsed`, unlogged). A row that
+ * has already ended is left as it is.
+ */
+export function endPositionRows(
+  positions: Position[],
+  id: string,
+  how: { reason: EndedReason; by: string | null; today: string; now?: string },
+): { positions: Position[]; changes: ActingChange[] } {
+  const target = positions.find((p) => p.id === id);
+  if (!target || isEnded(target)) return { positions, changes: [] };
+  const now = how.now ?? new Date().toISOString();
+  const ended = new Map<string, Position>();
+  const current = () => positions.map((p) => ended.get(p.id) ?? p);
+  const changes: ActingChange[] = [];
+  const first: Position = { ...target, endedOn: later(how.today, target.startedOn), endedReason: how.reason };
+  ended.set(id, first);
+  const queue = [first];
+  while (queue.length > 0) {
+    const row = queue.shift()!;
+    for (const [stint, note] of restingOn(row, current())) {
+      const pastDate = stint.actingUntil! < how.today;
+      const closed: Position = pastDate
+        ? lapsed(stint)
+        : { ...stint, endedOn: later(how.today, stint.startedOn), endedReason: 'left_board' };
+      ended.set(stint.id, closed);
+      queue.push(closed);
+      if (!pastDate) {
+        changes.push({
+          id: newChangeId(), positionId: stint.id, chapterId: stint.chapterId!, oldUntil: stint.actingUntil ?? null, newUntil: null,
+          changedBy: how.by, changedAt: now, note,
+        });
+      }
+    }
+  }
+  return { positions: current(), changes };
+}
+
+// ---------------------------------------------------------------------------
+// Who casts a chapter's NEC vote (11.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * The row that casts a chapter's NEC vote now: the President with the seat's duties, unless they
+ * chair the NEC (an Acting President counts); then a Vice President row that isn't acting and that
+ * no cover points at, since a VP takes part only while formally acting as President. The newest
+ * holder acts during a handover (9.8); a cover with no vote behind it dates from the row it covers.
+ * Mirrors private.nec_voter_for.
+ */
+export function necVoterRow(chapterId: string, positions: Position[]): Position | null {
+  const held = heldRows(positions);
+  const covered = coveredIds(positions);
+  const chairs = new Set(dutyRows(positions).filter((p) => p.role === 'nec_chair').map((p) => p.memberId));
+  const countsFrom = (x: Position) =>
+    (x.covers != null && x.actingVote == null ? held.find((c) => c.id === x.covers)?.startedOn : undefined) ?? x.startedOn;
+  const candidates = held.filter(
+    (x) =>
+      x.chapterId === chapterId &&
+      !covered.has(x.id) &&
+      ((x.role === 'president' && !chairs.has(x.memberId)) || (x.role === 'vice_president' && !isActing(x))),
+  );
+  candidates.sort(
+    (a, b) => Number(a.role === 'vice_president') - Number(b.role === 'vice_president') || countsFrom(b).localeCompare(countsFrom(a)),
+  );
+  return candidates[0] ?? null;
+}
+
+/** Who casts a chapter's NEC vote now (11.2). */
+export function necVoterFor(chapterId: string, positions: Position[]): string | null {
+  return necVoterRow(chapterId, positions)?.memberId ?? null;
+}
