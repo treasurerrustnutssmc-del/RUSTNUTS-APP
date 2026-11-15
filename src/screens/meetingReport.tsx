@@ -14,6 +14,7 @@ import {
   MR_NOTES, MR_NOTES_MAX, preparedBy, readOut, readsEveryFund,
 } from '../domain/meetingReport';
 import { meetingReportHtml } from '../domain/meetingReportHtml';
+import { melbourneDate, melbourneDateShown } from '../domain/rides';
 import type { LedgerCode, LedgerEntry, MeetingFigures } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
@@ -238,7 +239,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
         data,
         notes,
         preparedBy: preparedBy(report?.presentedBy ?? report?.savedBy ?? me.id, data),
-        preparedOn: report?.presentedAt ? report.presentedAt.slice(0, 10) : today,
+        preparedOn: report?.presentedAt ? melbourneDate(report.presentedAt) : today,
         lines,
         ...assets,
       });
@@ -259,7 +260,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
         <H1>{title}</H1>
         {figures ? <Small>{`Reporting period ${formatAuDate(figures.from)} to ${formatAuDate(figures.to)}`}</Small> : null}
         {report?.presentedAt ? (
-          <Chip label={`Presented ${formatAuDate(report.presentedAt.slice(0, 10))}`} tone="ok" icon="checkmark" />
+          <Chip label={`Presented ${melbourneDateShown(report.presentedAt)}`} tone="ok" icon="checkmark" />
         ) : report ? (
           <Chip label="Draft" tone="warn" />
         ) : null}

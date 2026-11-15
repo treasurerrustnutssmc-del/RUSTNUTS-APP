@@ -34,7 +34,7 @@ import { quickAnswerReason } from '../domain/quickAnswer';
 import { useToast } from '../ui/Toast';
 import { useSavedFilters } from '../data/savedFilters';
 import { isConnectionProblem } from '../data/friendlyError';
-import { sameColours } from '../domain/savedFilters';
+import { COLOUR_NOTE_TEXT, colourNote } from '../domain/savedFilters';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
@@ -117,6 +117,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
   const saved = useSavedFilters();
   if (!me) return null;
   const categories = shown ?? saved.filters.rideColours ?? defaultCategories(me, data.chapters);
+  const note = colourNote(categories, defaultCategories(me, data.chapters));
   const months = upcomingByMonth(data.rides, categories, today);
   const anyComing = upcomingByMonth(data.rides, RIDE_CATEGORIES, today).length > 0;
   const freshness = isDemo ? null : calendarFreshness(data.ridesSyncedAt ?? null, data.rides.length > 0, new Date().toISOString());
@@ -199,9 +200,9 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
       </View>
 
       <Small>{rideColourLegend()}</Small>
-      {!sameColours(categories, defaultCategories(me, data.chapters)) ? (
+      {note ? (
         <Row style={{ gap: space.sm, alignItems: 'center' }}>
-          <Small style={{ flex: 1 }}>Some ride colours are hidden.</Small>
+          <Small style={{ flex: 1 }}>{COLOUR_NOTE_TEXT[note]}</Small>
           <Button
             label="Show my usual"
             kind="quiet"

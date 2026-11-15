@@ -45,3 +45,21 @@ export async function saveFilters(storage: FilterStorage, memberId: string, patc
 export function sameColours(a: RideCategory[], b: RideCategory[]): boolean {
   return a.length === b.length && a.every((c) => b.includes(c));
 }
+
+export type ColourNote = 'hidden' | 'extra';
+
+/**
+ * Which way the ride colours shown differ from the member's usual set: 'hidden' when any usual
+ * colour is off (whether or not others were added), 'extra' when every usual colour is on and others
+ * were added, and null when they are the same.
+ */
+export function colourNote(shown: RideCategory[], usual: RideCategory[]): ColourNote | null {
+  if (usual.some((c) => !shown.includes(c))) return 'hidden';
+  return shown.some((c) => !usual.includes(c)) ? 'extra' : null;
+}
+
+/** The line the Rides tab shows under the colour filters for each note, beside Show my usual. */
+export const COLOUR_NOTE_TEXT: Record<ColourNote, string> = {
+  hidden: 'Some of your usual ride colours are hidden.',
+  extra: 'Showing more than your usual ride colours.',
+};

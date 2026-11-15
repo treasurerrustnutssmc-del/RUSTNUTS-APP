@@ -73,7 +73,8 @@ export function describeExpiry(expiryIso: string | null, today: string): string 
   if (d < 0) return `Expired ${formatLongDate(expiryIso)}`;
   if (d === 0) return 'Expires today';
   if (d === 1) return 'Expires tomorrow';
-  if (d <= 30) return `Expires in ${d} days`;
+  // A no-break space keeps the count with its unit, so a narrow line wraps as "Expires in" / "14 days".
+  if (d <= 30) return `Expires in ${d}\u00a0days`;
   return `Expires ${formatLongDate(expiryIso)}`;
 }
 
