@@ -33,7 +33,7 @@ test('both providers settle on the ticking today', () => {
     // Every other read goes through the settled rows: raw shows only where it's kept, settled, or
     // checked for the viewer's own rows ending.
     for (const line of src.split('\n').filter((l) => /\braw\b/.test(l))) {
-      assert.match(line, /useState<ClubData>|settleActing\(raw, |\[raw, today/, `${file} reads raw rows: ${line.trim()}`);
+      assert.match(line, /useState<ClubData>|settleActing\(raw, |needsReloadAfterSettle\(raw, |\[raw, today/, `${file} reads raw rows: ${line.trim()}`);
     }
   }
   // The demo's actions, its live ride and the steps of a several-step press read the settled rows,
@@ -98,10 +98,11 @@ test('a failed reload after a settle drops the saved copy', () => {
   // since then calls for a reload, and a fresh load of a row the database hasn't closed yet doesn't loop.
   assert.match(live, /loadedOn\.current = melbourneDate\(saved\.savedAt\);/);
   assert.match(live, /loadedOn\.current = loadedDay;/);
-  const at = live.indexOf('lapsedOwnRows(');
+  // The decision itself is needsReloadAfterSettle's, tested in src/domain/acting.test.ts.
+  const at = live.indexOf('needsReloadAfterSettle(');
   assert.ok(at >= 0, 'live checks whether a settle ends one of the viewer’s own rows');
   const effect = live.slice(at, at + 400);
-  assert.match(effect, /^lapsedOwnRows\(settleActing\(raw, loadedOn\.current\), today, userId\)/);
+  assert.match(effect, /^needsReloadAfterSettle\(raw, loadedOn\.current, today, userId\)/);
   assert.match(effect, /reload\(userId\)\.then\(\(loaded\) => \{\s*if \(!loaded\) clubCache\.clear\(\);/);
   assert.match(effect, /\}, \[raw, today, userId, reload\]\);/);
 });
@@ -117,7 +118,7 @@ test('the club offers every acting action; live checks the settled rows first, t
     ['withdrawActingRequest', 'withdraw_acting_request', /withdrawRequestProblem\(visibleMe, request, data, today\)/],
     ['confirmActing', 'confirm_acting', /confirmActingProblem\(visibleMe, request, data, today\)/],
     ['setActingUntil', 'set_acting_until', /setActingUntilProblem\(visibleMe, position, until, data, today\)/],
-    ['openActingVote', 'open_acting_vote', /openActingVoteProblem\(visibleMe, .+, quorum, closesAt, meetingId, data, new Date\(\)\.toISOString\(\)\)/],
+    ['openActingVote', 'open_acting_vote', /if \(request\) deny\(openActingVoteProblem\(visibleMe, request, quorum, closesAt, meetingId, data, new Date\(\)\.toISOString\(\)\)\)/],
   ];
   for (const [name, rpc, check] of actions) {
     assert.match(context, new RegExp(`\\n  ${name}: \\(`), `ClubContextValue has ${name}`);

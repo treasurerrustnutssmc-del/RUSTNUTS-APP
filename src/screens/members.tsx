@@ -23,7 +23,7 @@ import { displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phon
 import type { Member, Position } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { MemberChatButtons } from './chat';
-import { CoverPanels } from './me';
+import { CoverPanels } from './coverBits';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
 import { reportedByMe } from '../domain/reports';
 import { ReportBox } from '../ui/ReportBox';

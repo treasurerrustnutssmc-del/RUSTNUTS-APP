@@ -73,8 +73,8 @@ export function ReminderSync() {
       const now = new Date().toISOString();
       return [...reminderPlan(data.rides, data.rsvps, me?.id ?? null, prefs, now, data.rideCalls), ...actingReminderPlan(me?.id ?? null, data, now, prefs)];
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the acting plan reads only these parts of data
-    [data.rides, data.rsvps, me?.id, prefs, data.rideCalls, data.positions, data.members, data.chapters],
+    // All of data: the provider memoises it (settled to today), and the acting plan reads many parts.
+    [data, me?.id, prefs],
   );
   const key = JSON.stringify(plan.map((r) => [r.id, r.at, r.body, r.sound]));
   useEffect(() => {

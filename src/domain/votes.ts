@@ -6,7 +6,7 @@
 
 import {
   actingElectors, AUDITOR_STAYS_OUT, auditorStaysOut, BOARD_RECORDS_ACTING, isBoardOf, isNecSeat, NEC_OFFICER_ROLES, NO_REQUEST, NOT_YOURSELF,
-  requestNeedsVote, SMALL_BOARD,
+  requestNeedsVote, SEAT_ENDED, SMALL_BOARD,
 } from './access';
 import { dutyRows, heldPositions, heldRows, isActing, necVoterBefore, necVoterFor, necVoterRow, removalShape, settleActing } from './acting';
 import { formatAuDate } from './dates';
@@ -64,11 +64,56 @@ export function stintAbout(chapterId: string | null, memberId: string | null, ro
 }
 
 /**
- * A vote about acting: one on a request (seating it), or one naming a role its subject holds as
- * acting there (ending it). Judged when it closes, as close_vote does.
+ * A vote about acting: one on a request (seating it), or one to end someone's acting. On a board
+ * seat that is told by its shape, from the day it opens: removing a board member is a vote of the
+ * chapter's Full Members (9.3), so only ending acting takes the board's majority shape there, and
+ * the vote stays about acting after the stint has ended. Any other chapter role's removal takes that
+ * shape too, so there it goes by a held stint, as when the vote opened. Mirrors close_vote.
  */
-export function aboutActing(vote: Pick<Vote, 'chapterId' | 'subjectMemberId' | 'subjectRole' | 'actingRequestId'>, positions: Position[]): boolean {
-  return (vote.actingRequestId ?? null) !== null || stintAbout(vote.chapterId, vote.subjectMemberId, vote.subjectRole, positions) !== null;
+export function aboutActing(
+  vote: Pick<Vote, 'chapterId' | 'subjectMemberId' | 'subjectRole' | 'actingRequestId' | 'electorate' | 'threshold'>, positions: Position[],
+): boolean {
+  if ((vote.actingRequestId ?? null) !== null) return true;
+  if (vote.chapterId === null || vote.subjectMemberId === null || vote.subjectRole === null) return false;
+  if (BOARD_ROLES.includes(vote.subjectRole)) return vote.electorate === 'chapter_board' && vote.threshold === 'majority';
+  return stintAbout(vote.chapterId, vote.subjectMemberId, vote.subjectRole, positions) !== null;
+}
+
+/**
+ * The line under a vote about acting that says who isn't on it: the stand-in, the holder they cover
+ * and, for a President or Treasurer seat, the National Auditor (8.5, 11.8, 11.10). Null on any other
+ * vote. A stint that has ended still says whether it was a cover.
+ */
+export function actingVoteNote(vote: Vote, data: ClubData): string | null {
+  if (!aboutActing(vote, data.positions)) return null;
+  const request = vote.actingRequestId ? (data.actingRequests ?? []).find((r) => r.id === vote.actingRequestId) : undefined;
+  const stint = data.positions
+    .filter((p) => p.chapterId === vote.chapterId && p.memberId === vote.subjectMemberId && p.role === vote.subjectRole && isActing(p))
+    .sort((a, b) => b.startedOn.localeCompare(a.startedOn))[0];
+  const covered = request ? request.covers !== null : stint ? stint.covers != null : false;
+  const auditor = vote.subjectRole === 'president' || vote.subjectRole === 'treasurer';
+  const name = vote.subjectMemberId ? nameOf(vote.subjectMemberId, data) : 'The stand-in';
+  if (covered) {
+    return auditor
+      ? 'The stand-in, the holder and the National Auditor aren’t on this vote (8.5, 11.8, 11.10).'
+      : 'The stand-in and the holder aren’t on this vote (8.5, 11.10).';
+  }
+  return auditor ? `${name} and the National Auditor aren’t on this vote (8.5, 11.8, 11.10).` : `${name} isn’t on this vote (8.5, 11.10).`;
+}
+
+/**
+ * Which chapter each NEC elector's ballot is for (11.2): the chapter they cast the NEC vote for now.
+ * Someone who casts two chapters' votes gets one ballot, for the chapter whose name comes first (then
+ * its id). Mirrors open_vote's vote_electors rows.
+ */
+export function necElectorChapters(electorIds: string[], data: ClubData): Record<string, string> {
+  const out: Record<string, string> = {};
+  const byName = [...data.chapters].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  for (const c of byName) {
+    const voter = necVoterFor(c.id, data.positions);
+    if (voter !== null && electorIds.includes(voter) && out[voter] === undefined) out[voter] = c.id;
+  }
+  return out;
 }
 
 /** Seats the National Auditor can't hold at the same time (11.2, 11.8). */
@@ -212,7 +257,8 @@ export function patchVoteTooEarly(fngStartedOn: string | null, today: string): b
  * that lapsed last night gives no ballot. A vote naming a role its subject holds as acting is one to
  * end their acting: a chapter board majority, decided without them, the holder they cover and, for a
  * President or Treasurer seat, the Auditor, by at least three of the rest (8.6), and open at least
- * 48 hours. The subject checks read held rows, so a covered holder still faces a 9.3 vote.
+ * 48 hours; the Auditor doesn't open one on a President or Treasurer seat (11.8). The subject checks
+ * read held rows, so a covered holder still faces a 9.3 vote.
  */
 export function openVoteProblem(me: Member | null, input: VoteInput, raw: ClubData, now: string): string | null {
   const signedIn = signedInProblem(me);
@@ -224,6 +270,7 @@ export function openVoteProblem(me: Member | null, input: VoteInput, raw: ClubDa
   const stint = stintAbout(input.chapterId, input.subjectMemberId, input.subjectRole, data.positions);
   let electors: number;
   if (stint) {
+    if (auditorStaysOut(me, stint.role, data.positions)) return AUDITOR_STAYS_OUT;
     const shape = removalShape(stint.role, true);
     if (input.electorate !== shape.electorate || input.threshold !== shape.threshold) return ACTING_END_SHAPE;
     electors = electorsFor(input.electorate, input.chapterId, data, { memberId: stint.memberId, role: stint.role }).length;
@@ -318,10 +365,12 @@ function ballotRow(meId: string, vote: Vote, data: ClubData): { elector: string 
     const notMine = mine !== undefined && meId !== necVoterFor(mine, P) && meId !== necVoterBefore(mine, day, P);
     return { elector: meId, refusal: notMine ? castNecNotYours(chapterName(mine)) : null };
   }
-  // The chapter whose voter before the opening day is me: its ballot, an uncast one first.
+  // The chapter whose voter before the opening day is me: its ballot, an uncast one first, then by
+  // the chapter's name and id, as cast_ballot orders them.
   const takes = Object.entries(chapters)
     .filter(([, chapter]) => necVoterBefore(chapter, day, P) === meId)
-    .sort(([a, x], [b, y]) => Number(vote.votedIds.includes(a)) - Number(vote.votedIds.includes(b)) || x.localeCompare(y));
+    .sort(([a, x], [b, y]) => Number(vote.votedIds.includes(a)) - Number(vote.votedIds.includes(b))
+      || chapterName(x).localeCompare(chapterName(y)) || x.localeCompare(y));
   if (takes.length === 0) return { elector: null, refusal: null };
   const [elector, chapter] = takes[0];
   return { elector, refusal: vote.votedIds.includes(elector) ? castNecCast(chapterName(chapter)) : null };
@@ -522,8 +571,9 @@ export function endActingQuestion(position: Position, data: ClubData): string {
 /**
  * Why `me` can't open the board's vote on a request, or null: a chapter board majority, decided
  * without the stand-in, the holder they'd cover and, for a President or Treasurer seat, the Auditor,
- * by at least three of the rest (8.6), open at least 48 hours. Settles first, so a request past its
- * until date has lapsed. The database's order and words: public.open_acting_vote.
+ * by at least three of the rest (8.6), open at least 48 hours, on a request whose covered seat is
+ * still held. Settles first, so a request past its until date has lapsed. The database's order and
+ * words: public.open_acting_vote.
  */
 export function openActingVoteProblem(
   me: Member | null, request: ActingRequest | undefined, quorum: number, closesAt: string, meetingId: string | null, raw: ClubData, now: string,
@@ -536,6 +586,8 @@ export function openActingVoteProblem(
   const data = settleActing(known ? raw : { ...raw, actingRequests: [...(raw.actingRequests ?? []), request] }, today);
   const req = data.actingRequests!.find((r) => r.id === request.id)!;
   if (req.closedAt !== null) return NO_REQUEST;
+  // A cover whose seat has ended can't go ahead, so there's nothing to vote on.
+  if (req.covers !== null && !heldRows(data.positions).some((p) => p.id === req.covers)) return SEAT_ENDED;
   if (!requestNeedsVote(req, data, today)) return NO_VOTE_NEEDED;
   if (!isBoardOf(me, req.chapterId, data.positions)) return BOARD_RECORDS_ACTING;
   if (me.id === req.memberId) return NOT_YOURSELF;
@@ -584,7 +636,7 @@ export function stintVoteWarnings(input: VoteInput, raw: ClubData, today: string
     return electorsFor('chapter_board', input.chapterId, data, about).flatMap((id) => {
       const seats = heldPositions(id, data.positions).filter((p) => p.chapterId === input.chapterId && BOARD_ROLES.includes(p.role));
       if (seats.length === 0 || seats.some((p) => !isActing(p))) return [];
-      const last = seats.map((p) => p.actingUntil!).sort().at(-1)!;
+      const last = seats.filter(isActing).map((p) => p.actingUntil!).sort().at(-1)!;
       if (!ends(last)) return [];
       return [`${nameOf(id, data)}’s acting ends ${dayMonth(last)}. Close before then, or ${nameOf(id, data)} can’t vote.`];
     });

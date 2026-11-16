@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  answerRequestProblem, answersRequest, auditChecks, closeRequestProblem, deleteReportProblem, issueReportProblem,
+  answerRequestProblem, answersRequest, auditChecks, auditSeatRows, closeRequestProblem, deleteReportProblem, issueReportProblem,
   raiseRequestProblem, saveReportProblem, seesReport, seesRequest, vpFallbackFor, type RequestInput, type ReportInput,
 } from './audit';
 import { DEMO_DATA } from '../data/demoStory.testkit';
@@ -320,6 +320,29 @@ test('a seat covered for more than three months in a row is flagged for review (
   assert.equal(checkOf(actingClub([smokeyPres, jetVp, crankRc, second]), 'cover-over-3-months:smokey-pres'), undefined, 'one cover, under three months');
   const gap = { ...second, startedOn: '2026-09-05' };
   assert.equal(checkOf(actingClub([smokeyPres, jetVp, crankRc, first, gap]), 'cover-over-3-months:smokey-pres'), undefined, 'Smokey was back in between');
+});
+
+// Membership records › Positions (src/screens/audit.tsx draws these rows).
+test('Membership records list the seats in role order, a cover under the seat it covers', () => {
+  const jetCovers = nseat('jet-covers', 'jet', 'president', { startedOn: '2026-11-05', actingUntil: '2026-12-13', covers: 'smokey-pres', actingWhy: 'Smokey overseas' });
+  const oldTerm = nseat('crank-old-rc', 'crank', 'road_captain', { startedOn: '2024-07-01' });
+  const lapsed = nseat('crank-lapsed', 'crank', 'tail_gunner', { startedOn: '2026-09-01', actingUntil: '2026-10-20', actingWhy: 'Short of Tail Gunners' });
+  const d = actingClub([crankTre, jetCovers, oldTerm, jetVp, smokeyPres, lapsed]);
+  const north = auditSeatRows('north', d, '2026-11-15').filter((r) => d.positions.find((p) => p.id === r.id)?.chapterId === 'north');
+  assert.deepEqual(north, [
+    { id: 'smokey-pres', title: 'President', line: 'Smokey · since 16/08/2025 · ends 01/08/2028', chip: null },
+    // A stint shows who it covers and its until date, its last acting day, never a term end.
+    { id: 'jet-covers', title: 'President', line: 'Jet for Smokey · since 05/11/2026 · until 13/12/2026', chip: { label: 'Acting', tone: 'bone' } },
+    { id: 'jet-vp', title: 'Vice President', line: 'Jet · since 16/08/2025 · ends 01/08/2028', chip: null },
+    { id: 'crank-tre', title: 'Treasurer', line: 'Crank · since 01/10/2026 · until 20/02/2027', chip: { label: 'Acting', tone: 'bone' } },
+    { id: 'crank-old-rc', title: 'Road Captain', line: 'Crank · since 01/07/2024 · ends 01/08/2028', chip: null },
+  ], 'a lapsed stint isn’t held, so it isn’t listed');
+  // A term near or past its end says so.
+  const ending = actingClub([nseat('smokey-pres', 'smokey', 'president', { startedOn: '2026-08-01' })]);
+  assert.deepEqual(auditSeatRows('north', ending, '2028-07-01').find((r) => r.id === 'smokey-pres')?.chip, { label: 'Ending', tone: 'warn' });
+  const past = auditSeatRows('north', ending, '2028-08-02').find((r) => r.id === 'smokey-pres')!;
+  assert.equal(past.line, 'Smokey · since 01/08/2026 · ended 01/08/2028');
+  assert.deepEqual(past.chip, { label: 'Past term', tone: 'danger' });
 });
 
 // The Auditor's screen gives this finding no button (src/screens/actingScreens.test.ts).

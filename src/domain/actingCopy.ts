@@ -87,8 +87,11 @@ export function whyLabel(target: Member, chapterId: string, role: PositionRole, 
   return vp && vp.id !== target.id ? `Why not ${displayName(vp)} (VP)?` : 'Why';
 }
 
-/** Under the Why: every approved member can read a position row, reason included. */
-export const WHY_HINT = 'Every member can read this. Keep health details out.';
+/**
+ * Under the Why: it's needed (the button stays off without one, and the red line waits for typing),
+ * and every approved member can read a position row, reason included.
+ */
+export const WHY_HINT = 'Required. Every member can read this. Keep health details out.';
 
 /** Under the Until: "Last acting day. Up to 13/12/2026." */
 export function untilHint(latest: string): string {

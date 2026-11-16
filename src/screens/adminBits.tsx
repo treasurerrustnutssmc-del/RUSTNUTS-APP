@@ -23,7 +23,8 @@ export function useDate(initial: string | null) {
   };
 }
 
-export function DateField({ label, date, hint }: { label: string; date: ReturnType<typeof useDate>; hint?: string }) {
+/** A DD/MM/YYYY field. `error` is a rule's refusal of the date (shown in place of the format check). */
+export function DateField({ label, date, hint, error }: { label: string; date: ReturnType<typeof useDate>; hint?: string; error?: string | null }) {
   return (
     <Field
       label={label}
@@ -33,7 +34,7 @@ export function DateField({ label, date, hint }: { label: string; date: ReturnTy
       keyboardType="number-pad"
       maxLength={10}
       hint={hint}
-      error={date.error}
+      error={date.error ?? error ?? null}
     />
   );
 }

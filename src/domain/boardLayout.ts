@@ -157,6 +157,17 @@ export function requestNext(request: ActingRequest, me: Member, raw: ClubData, n
 export type RequestAction = 'Withdraw request' | 'Decline';
 
 /**
+ * The confirm note for closing a request (Decline, Withdraw request), on the Board tab and on Me.
+ * A board vote already open on it carries on, but can't seat anyone once the request is closed.
+ */
+export function closeRequestNote(request: ActingRequest, data: ClubData): string {
+  const voting = (data.votes ?? []).some((v) => v.actingRequestId === request.id && v.closedAt === null);
+  return voting
+    ? 'This closes the request, so the board’s open vote on it can’t seat anyone. Nothing about the seat changes.'
+    : 'This closes the request. Nothing about the seat changes.';
+}
+
+/**
  * Closing a request: Decline for the stand-in, Withdraw request for the holder, and for the person
  * who asked while no vote on it is open or has carried (withdrawRequestProblem). Nothing for anyone else.
  */

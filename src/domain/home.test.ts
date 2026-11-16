@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import {
-  chipLabel, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, seatTitle,
+  chipLabel, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, seatTitle, stepDownNote,
 } from './home';
 import { ROLE_LABEL, ROLE_SHORT } from './labels';
 import type { Chapter, ClubData, Member, Position } from './types';
@@ -200,4 +200,24 @@ test('the covered holder’s notice and step-down words', () => {
     coveredStepDownNote(jetCovers, clubOf([smokeyPres, jetVp, jetCovers])),
     'This ends Jet’s acting too. If you’re re-elected and still away, arrange a new cover.',
   );
+});
+
+test('the step-down note says what else ends with the row', () => {
+  const data = clubOf([smokeyPres, jetVp, jetCovers]);
+  // The covered holder: the cover rests on his seat.
+  assert.equal(stepDownNote(smokeyPres, data), coveredStepDownNote(jetCovers, data));
+  // The stand-in: his cover rests on his last board seat in North (left_board).
+  assert.equal(stepDownNote(jetVp, data), 'This ends your acting as President (North) for Smokey too.');
+  // A cover of another seat rests on his last board seat only: with a Secretary seat as well, it stays.
+  const tre = seat('smokey-tre', 'smokey', 'treasurer');
+  const treCover = cover('treasurer', 'smokey-tre');
+  const jetSec = seat('jet-sec', 'jet', 'secretary');
+  assert.equal(stepDownNote(jetVp, clubOf([tre, jetVp, treCover])), 'This ends your acting as Treasurer (North) for Smokey too.');
+  assert.equal(stepDownNote(jetVp, clubOf([tre, jetVp, jetSec, treCover])), undefined, 'he keeps a board seat, so the cover stays');
+  // A President stint with no vote behind it, a cover or an empty seat, rests on his VP row (8.2).
+  assert.equal(stepDownNote(jetVp, clubOf([smokeyPres, jetVp, jetSec, jetCovers])), 'This ends your acting as President (North) for Smokey too.');
+  const jetActing = seat('jet-acting', 'jet', 'president', 'ch-north', { startedOn: '2026-11-15', actingUntil: '2026-12-13', actingWhy: 'No President since the ACM' });
+  assert.equal(stepDownNote(jetVp, clubOf([jetVp, jetSec, jetActing])), 'This ends your acting as President (North) too.');
+  assert.equal(stepDownNote(jetActing, clubOf([jetVp, jetActing])), undefined, 'a stint ends alone');
+  assert.equal(stepDownNote(seat('smokey-tg', 'smokey', 'tail_gunner'), data), undefined);
 });

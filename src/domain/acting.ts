@@ -61,8 +61,9 @@ export function coverOf(position: Position, positions: Position[]): Position | n
 }
 
 // How a row stood on a past day, read from the rows as they are (settled or not), for the 13.3
-// approver check (private.approval_conflict). A row ends at the start of its endedOn day; a stint
-// runs to the end of its until day.
+// approver check (private.approval_conflict). An early end records the day it happened, so a row
+// counts as held sometime on its endedOn day but not all of it; a stint runs to the end of its
+// until day.
 
 /** Held at any time on `day`: started by then, not ended before it, and a stint's until on or after it. */
 export function heldSometimeOn(p: Position, day: string): boolean {
@@ -169,6 +170,16 @@ export function lapsedOwnRows(raw: ClubData, today: string, memberId: string | n
   return memberId !== null && raw.positions.some((p) => p.memberId === memberId && lapses(p, today));
 }
 
+/**
+ * Whether the live app should load again: settling on `today` ends one of this member's own rows
+ * that was still open on the day the rows on screen were loaded (`loadedOn`). A row that had already
+ * lapsed by then, which the database hasn't closed yet, doesn't count, so a fresh load that brings
+ * it back never loads again and again.
+ */
+export function needsReloadAfterSettle(raw: ClubData, loadedOn: string, today: string, memberId: string | null): boolean {
+  return lapsedOwnRows(settleActing(raw, loadedOn), today, memberId);
+}
+
 // ---------------------------------------------------------------------------
 // Ending a row, and what it takes with it
 // ---------------------------------------------------------------------------
@@ -208,6 +219,12 @@ function restingOn(ended: Position, rows: Position[]): [Position, string][] {
     }
   }
   return out;
+}
+
+/** The open stints that would end if `row` ended now: a cover of it, and the stand-in's own stints resting on it. */
+export function stintsEndingWith(row: Position, rows: Position[]): Position[] {
+  const ended = { ...row, endedOn: row.endedOn ?? row.startedOn };
+  return restingOn(ended, rows.map((p) => (p.id === row.id ? ended : p))).map(([p]) => p);
 }
 
 /**

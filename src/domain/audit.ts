@@ -6,7 +6,7 @@
 import { actingRunAcm, isAuditor, isNational } from './access';
 import { coverOf, heldPositions, heldRows, isActing, isEnded, necVoterRow, settleActing } from './acting';
 import { longSeatTitle, seatTitle } from './home';
-import { BOARD_ROLES, ROLE_LABEL } from './labels';
+import { BOARD_ROLES, ROLE_LABEL, ROLE_ORDER } from './labels';
 import { BANK_FEES, bankedLate, budgetOf, fundName, monthOf, isDebit } from './ledger';
 import { fyOf } from './fees';
 import { minutesState, runsScope, signedInProblem } from './meetings';
@@ -217,6 +217,43 @@ const personOf = (id: string, data: ClubData) => {
   return m ? displayName(m) : 'A member';
 };
 const chapterName = (id: string | null, data: ClubData) => data.chapters.find((c) => c.id === id)?.name ?? 'the chapter';
+
+/** One seat on Membership records › Positions: the role, who and since when, and a chip for a stint or a term near its end. */
+export type AuditSeatRow = { id: string; title: string; line: string; chip: { label: string; tone: 'bone' | 'warn' | 'danger' } | null };
+
+/**
+ * Membership records › Positions for a chapter: its held rows, and national seats of its members,
+ * on data settled to `today` (a lapsed stint isn't held). In role order, a stint right after the
+ * seat's full term, so a cover sits under the holder it covers. A stint isn't a term: it shows who it
+ * covers, if anyone, and its until date, its last acting day: "Jet for Smokey · since 05/11/2026 ·
+ * until 13/12/2026".
+ */
+export function auditSeatRows(chapterId: string, raw: ClubData, today: string): AuditSeatRow[] {
+  const data = settleActing(raw, today);
+  const theirs = new Set(data.members.filter((m) => m.chapterId === chapterId).map((m) => m.id));
+  const name = (id: string) => {
+    const m = data.members.find((x) => x.id === id);
+    return m ? displayName(m) : 'A former member';
+  };
+  return heldRows(data.positions)
+    .filter((p) => p.chapterId === chapterId || (p.chapterId === null && theirs.has(p.memberId)))
+    .sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || Number(isActing(a)) - Number(isActing(b)) || a.startedOn.localeCompare(b.startedOn))
+    .map((p) => {
+      const since = `since ${dmy(p.startedOn)}`;
+      if (isActing(p)) {
+        const covered = p.covers ? data.positions.find((x) => x.id === p.covers) : undefined;
+        const who = covered ? `${name(p.memberId)} for ${name(covered.memberId)}` : name(p.memberId);
+        return { id: p.id, title: ROLE_LABEL[p.role], line: `${who} · ${since} · until ${dmy(p.actingUntil!)}`, chip: { label: 'Acting', tone: 'bone' } };
+      }
+      const state = termState(p, today);
+      const ends = termEndsOn(p);
+      return {
+        id: p.id, title: ROLE_LABEL[p.role],
+        line: `${name(p.memberId)} · ${since}${ends ? ` · ${state === 'ended' ? 'ended' : 'ends'} ${dmy(ends)}` : ''}`,
+        chip: state === 'ended' ? { label: 'Past term', tone: 'danger' } : state === 'ending' ? { label: 'Ending', tone: 'warn' } : null,
+      };
+    });
+}
 
 /**
  * The chapter's VP when they cast its NEC vote through the fallback (11.2): nobody holds the

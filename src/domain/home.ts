@@ -1,7 +1,7 @@
 // The Home screen's header titles and club counts, and the title forms for acting (Acting Treasurer
 // (North) until 13/12/2026) and covers. See docs/superpowers/specs/2026-11-15-acting-roles-design.md.
 
-import { dutyRows, heldRows, isActing, necVoterRow } from './acting';
+import { dutyRows, heldRows, isActing, necVoterRow, stintsEndingWith } from './acting';
 import { formatAuDate } from './dates';
 import { ROLE_LABEL, ROLE_SHORT } from './labels';
 import { displayName } from './profile';
@@ -141,6 +141,23 @@ export function coveredNotice(seat: Position, cover: Position, data: ClubData): 
 /** Added to the covered holder's step-down confirm: their row ending ends the cover too. */
 export function coveredStepDownNote(cover: Position, data: ClubData): string {
   return `This ends ${nameOf(cover.memberId, data)}’s acting too. If you’re re-elected and still away, arrange a new cover.`;
+}
+
+/**
+ * The step-down confirm's note: what else ends with this row, as endPositionRows ends it. The covered
+ * holder hears that the cover ends (coveredStepDownNote). A stand-in hears that their own stint ends
+ * with their last board seat in the chapter, or with the VP row an unvoted President stint rests on
+ * (8.2): "This ends your acting as President (North) for Smokey too." Nothing else ends with it: undefined.
+ */
+export function stepDownNote(position: Position, data: ClubData): string | undefined {
+  const ending = stintsEndingWith(position, data.positions);
+  const cover = ending.find((p) => p.covers === position.id);
+  if (cover) return coveredStepDownNote(cover, data);
+  const own = ending.find((p) => p.memberId === position.memberId);
+  if (!own) return undefined;
+  const holder = own.covers ? data.positions.find((p) => p.id === own.covers)?.memberId : undefined;
+  const chapter = chapterOf(own.chapterId, data);
+  return `This ends your acting as ${ROLE_LABEL[own.role]}${chapter ? ` (${chapter})` : ''}${holder ? ` for ${nameOf(holder, data)}` : ''} too.`;
 }
 
 /** Members of the club for the counts: Legacy have left and Family have no Club rights. */

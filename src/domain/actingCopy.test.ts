@@ -115,7 +115,8 @@ test('whyLabel asks why not the VP when someone else would act as President', ()
 
 test('the Until and Why hints', () => {
   assert.equal(untilHint('2026-12-13'), 'Last acting day. Up to 13/12/2026.');
-  assert.equal(WHY_HINT, 'Every member can read this. Keep health details out.');
+  // The button stays off until a Why is typed, and the red line waits for typing, so the hint says it's needed.
+  assert.equal(WHY_HINT, 'Required. Every member can read this. Keep health details out.');
 });
 
 test('replaceNote: seating the acting person in full ends their acting', () => {

@@ -6,10 +6,12 @@
 // Acting roles (Task 20): what Me and Home show a board holder about covering their seat while
 // they're away (spec: Screens, "Me, for a board holder" and "The covered holder, on Me and Home").
 import {
-  actingCap, actingDefaultUntil, actingWarnings, ASKED_RECENTLY, AUDITOR_STAYS_OUT, CONFIRM_NOT_HOLDER, holdsBoardSeat,
-  PRESIDENT_NEEDS_BOARD_VOTE, requestCoverProblem, SMALL_BOARD,
+  accessLevel, actingCap, actingDefaultUntil, actingWarnings, ASKED_RECENTLY, AUDITOR_STAYS_OUT, CONFIRM_NOT_HOLDER, HOLDER_ACTING,
+  holdsBoardSeat, LICENCE_ENDS, PRESIDENT_NEEDS_BOARD_VOTE, requestCoverProblem, RUN_OVER, SMALL_BOARD, untilRange, withdrawRequestProblem,
 } from './access';
-import { coverOf, heldPositions, isActing, settleActing } from './acting';
+import { coverOf, heldPositions, heldRows, isActing, settleActing } from './acting';
+import { WHY_HINT } from './actingCopy';
+import { closeRequestNote } from './boardLayout';
 import { formatAuDate } from './dates';
 import { formatCents } from './fees';
 import { coveredNotice, coverNote, seatTitle } from './home';
@@ -54,8 +56,10 @@ export function meGroups(m: MeInput): MeGroup[] {
 // ---------------------------------------------------------------------------
 
 export const ARRANGE_COVER = 'Arrange cover while I’m away';
-export const WHY_HINT = 'Every member can read this. Keep health details out.';
 export const coverUntilHint = (cap: string): string => `Last acting day. Up to ${formatAuDate(cap)}.`;
+/** The refusals a different until date answers, shown on the Until field rather than under the form. */
+export const coverUntilError = (problem: string | null, cap: string): string | null =>
+  problem !== null && [untilRange(cap), RUN_OVER, LICENCE_ENDS].includes(problem) ? problem : null;
 
 /** The labels for a ConfirmButton: the first press, the second, and the line shown with the second. */
 export type CoverButton = { label: string; confirmLabel: string; confirmNote?: string };
@@ -76,8 +80,12 @@ export type CoverPanel =
 
 /** A why that passes, for asking the rule which stand-ins a seat allows before one is typed. */
 const PROBE_WHY = 'Away';
-/** Refusals about the seat or the holder, not the stand-in: they come first, so every stand-in gets the same one. */
-const SEAT_REFUSALS = [ASKED_RECENTLY, AUDITOR_STAYS_OUT, SMALL_BOARD];
+/**
+ * Refusals about the seat or the holder, not the stand-in: they come before the stand-in's own
+ * checks, so every stand-in gets the same one, except that a board too small to confirm a cover
+ * once the stand-in is left out can depend on who stands in.
+ */
+const SEAT_REFUSALS = [HOLDER_ACTING, ASKED_RECENTLY, AUDITOR_STAYS_OUT, SMALL_BOARD];
 
 const nameOf = (memberId: string, data: ClubData) => {
   const m = data.members.find((x) => x.id === memberId);
@@ -95,16 +103,17 @@ const rank = (role: Position['role']) => (role === 'vice_president' ? -1 : BOARD
 /**
  * Who may stand in for `seat` while its holder is away: the chapter's other board members the
  * rule allows for a cover from today (for a President, only the sitting VP), labelled with their
- * seat, "Jet (VP)", the VP first. Empty when the seat itself can't be covered (a small board, say).
+ * seat, "Jet (VP)", the VP first. Each is asked about a cover for today only, so a licence that ends
+ * before the default four weeks still offers them, and the form's own check asks for an earlier
+ * date. Empty when the seat itself can't be covered (a small board, say).
  */
 export function standInChoices(me: Member, seat: Position, raw: ClubData, today: string): StandInChoice[] {
   const data = settleActing(raw, today);
   if (seat.chapterId === null) return [];
   const chapterId = seat.chapterId;
-  const until = actingDefaultUntil(chapterId, seat.role, true, today, data);
   return data.members
     .filter((m) => m.id !== me.id && holdsBoardSeat(m.id, chapterId, data.positions))
-    .filter((m) => requestCoverProblem(me, seat, m, until, PROBE_WHY, data, today) === null)
+    .filter((m) => requestCoverProblem(me, seat, m, today, PROBE_WHY, data, today) === null)
     .map((m) => ({ m, role: boardRole(m.id, chapterId, data) }))
     .sort((a, b) => rank(a.role) - rank(b.role) || displayName(a.m).localeCompare(displayName(b.m)))
     .map(({ m, role }) => ({ value: m.id, label: `${displayName(m)} (${ROLE_SHORT[role]})` }));
@@ -137,7 +146,7 @@ function panelFor(me: Member, seat: Position, data: ClubData, today: string): Co
   if (request) {
     return {
       kind: 'asked', seat, title: 'Cover asked for your seat', request, line: askedLine(me, seat, request, data),
-      button: { label: 'Withdraw request', confirmLabel: 'Yes, withdraw it' },
+      button: { label: 'Withdraw request', confirmLabel: 'Yes, withdraw it', confirmNote: closeRequestNote(request, data) },
     };
   }
   const chapterId = seat.chapterId!;
@@ -152,11 +161,11 @@ function panelFor(me: Member, seat: Position, data: ClubData, today: string): Co
     };
   }
   // Nobody to pick: the seat's own refusal when it has one (a board too small to decide it, say),
-  // else nobody on the board can stand in now.
+  // else nobody on the board can stand in now. Every other board member is asked, since a small
+  // board can depend on who would stand in.
   const others = data.members.filter((m) => m.id !== me.id && holdsBoardSeat(m.id, chapterId, data.positions));
-  const refusal = others.length === 0
-    ? SMALL_BOARD
-    : SEAT_REFUSALS.find((r) => r === requestCoverProblem(me, seat, others[0], actingDefaultUntil(chapterId, seat.role, true, today, data), PROBE_WHY, data, today));
+  const refusals = others.map((m) => requestCoverProblem(me, seat, m, today, PROBE_WHY, data, today));
+  const refusal = others.length === 0 ? SMALL_BOARD : SEAT_REFUSALS.find((r) => refusals.includes(r));
   if (refusal) {
     return { kind: 'blocked', seat, title: ARRANGE_COVER, summary: `${title} · ${refusal === SMALL_BOARD ? 'Refer it to the NEC (8.6)' : 'Not now'}`, line: refusal };
   }
@@ -179,6 +188,32 @@ export function coverPanels(me: Member, raw: ClubData, today: string): CoverPane
     .filter((p) => p.chapterId !== null && BOARD_ROLES.includes(p.role) && !isActing(p))
     .sort((a, b) => BOARD_ROLES.indexOf(a.role) - BOARD_ROLES.indexOf(b.role))
     .map((seat) => panelFor(me, seat, data, today));
+}
+
+/** A request for the viewer to act, on Me for someone with no Board tab to decline it on. */
+export type StandInPanel = { request: ActingRequest; title: string; line: string; button: CoverButton };
+
+/**
+ * Me: the open requests naming the viewer as the stand-in, each with Decline, for someone who isn't
+ * on a board (a board or national member declines it on the Board tab). An empty-seat request that
+ * needs a vote can name someone with no seat at all. On data settled to `today`.
+ */
+export function standInPanels(me: Member, raw: ClubData, today: string): StandInPanel[] {
+  const data = settleActing(raw, today);
+  if (accessLevel(me, data.positions) !== 'member') return [];
+  return (data.actingRequests ?? [])
+    .filter((r) => r.closedAt === null && r.memberId === me.id && withdrawRequestProblem(me, r, data, today) === null)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((r) => {
+      const chapter = data.chapters.find((c) => c.id === r.chapterId)?.name;
+      const holder = r.covers ? heldRows(data.positions).find((p) => p.id === r.covers)?.memberId : undefined;
+      const title = `${ROLE_LABEL[r.role]}${chapter ? ` (${chapter})` : ''}${holder ? ` for ${nameOf(holder, data)}` : ''}`;
+      return {
+        request: r, title: 'You’re asked to act',
+        line: `${nameOf(r.requestedBy, data)} asked for you to act as ${title} until ${formatAuDate(r.until)}: ${r.why}. If you can’t, decline it.`,
+        button: { label: 'Decline', confirmLabel: 'Yes, decline', confirmNote: closeRequestNote(r, data) },
+      };
+    });
 }
 
 /** Home: only the covered holder's notice, with I'm back. */

@@ -953,7 +953,9 @@ revoke all on function private.sees_every_chapter(), private.nec_voter_before(uu
 -- 6 the vote rule, 7 the why, 8 the date. The words are the spec's Appendix A.
 
 -- Why p_member can't act in this seat until p_until (p_covers: the holder's row for a cover, null
--- for an empty seat), or null. Reads held rows: a lapsed stint holds nothing.
+-- for an empty seat), or null. Reads held rows: a lapsed stint holds nothing. One stint at a time
+-- holds from both sides: the stand-in can't be acting or covered, and a covered holder can't be
+-- acting.
 create or replace function private.acting_problem(p_member uuid, p_chapter uuid, p_role public.position_role,
   p_covers uuid, p_until date)
 returns text language plpgsql stable security definer set search_path = '' as $$
@@ -1020,6 +1022,11 @@ begin
       select 1 from private.held_positions
       where member_id = p_member and chapter_id = p_chapter and role = any (board) and acting_until is null) then
       return 'A cover goes to someone already on that chapter’s board.';
+    end if;
+    if exists (
+      select 1 from private.held_positions h join private.held_positions a on a.member_id = h.member_id
+      where h.id = p_covers and a.acting_until is not null) then
+      return 'While someone is acting in a role, their own seat can’t be covered. One stint at a time.';
     end if;
   end if;
   return null;
@@ -1183,7 +1190,9 @@ end;
 $$;
 
 -- Route 2: a holder asks, from their own board seat, for a board member to cover it until a date
--- (9.5). Nothing moves until a third board member confirms it.
+-- (9.5). Nothing moves until a third board member confirms it: one who is neither the stand-in nor
+-- the holder and, for a President or Treasurer seat, not the Auditor, so a board with nobody like
+-- that left is too small to decide it (8.6). A holder acting somewhere can't have their seat covered.
 create or replace function public.request_cover(p_position uuid, p_member uuid, p_until date, p_why text)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare
@@ -1208,6 +1217,9 @@ begin
   today := private.club_date();
   select * into seat from private.held_positions where id = p_position for update;
   if not found then raise exception 'You can only ask for cover of your own board seat.'; end if;
+  if exists (select 1 from private.held_positions where member_id = me and acting_until is not null) then
+    raise exception 'While someone is acting in a role, their own seat can’t be covered. One stint at a time.';
+  end if;
 
   if exists (
     select 1 from public.acting_requests
@@ -1218,7 +1230,8 @@ begin
   if private.auditor_stays_out(seat.role) then
     raise exception 'The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).';
   end if;
-  if (select count(*) from private.electors_for('chapter_board', seat.chapter_id)) < 3 then
+  if (select count(*) from private.electors_for('chapter_board', seat.chapter_id)) < 3
+     or not exists (select 1 from private.acting_electors(seat.chapter_id, seat.role, p_member, p_position)) then
     raise exception 'Too few board members outside this can decide it in the app. Refer it to the NEC (8.6).';
   end if;
   problem := private.acting_problem(p_member, seat.chapter_id, seat.role, p_position, p_until);
@@ -1706,7 +1719,10 @@ $$;
 -- 1 August 2026 (17.6), so it runs from then. The sheet records the claimant's 2026 election, so the
 -- seat was never a 9.8 vacancy: someone acting in it in the meantime stops (replaced, by nobody,
 -- logged), and a stint that lapsed last night has closed first. A seat with a holder is skipped, as
--- before.
+-- before. claim_roster calls this once per role in one transaction, so a claim of two board seats
+-- takes the second seat lock while it holds the first seat's person locks: against a concurrent
+-- write that locks the second seat and then one of those people, PostgreSQL finds the deadlock and
+-- aborts one of the two, which can be tried again. It is rare (an acting member in each seat).
 create or replace function private.add_roster_position(p_member uuid, p_seat uuid, p_role public.position_role)
 returns boolean language plpgsql set search_path = '' as $$
 declare
@@ -2031,6 +2047,9 @@ begin
     where member_id = p_subject and chapter_id = p_chapter and role = p_role and acting_until is not null;
   end if;
   if stint.id is not null then
+    if private.auditor_stays_out(p_role) then
+      raise exception 'The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).';
+    end if;
     if p_electorate <> 'chapter_board' or p_threshold <> 'majority' then
       raise exception 'Ending someone’s acting is a majority vote of the chapter board (9.3).';
     end if;
@@ -2134,10 +2153,13 @@ begin
     insert into public.vote_electors (vote_id, member_id)
     select opened, e from private.acting_electors(p_chapter, p_role, p_subject, stint.covers) e;
   elsif p_electorate = 'nec' then
+    -- One ballot each: someone who casts two chapters' votes gets it for the chapter whose name
+    -- comes first (then its id), as the app's necElectorChapters.
     insert into public.vote_electors (vote_id, member_id, for_chapter)
-    select opened, x.voter, x.id
-    from (select c.id, private.nec_voter_for(c.id) as voter from public.chapters c) x
-    where x.voter in (select private.electors_for('nec', null));
+    select distinct on (x.voter) opened, x.voter, x.id
+    from (select c.id, c.name, private.nec_voter_for(c.id) as voter from public.chapters c) x
+    where x.voter in (select private.electors_for('nec', null))
+    order by x.voter, x.name, x.id;
   else
     insert into public.vote_electors (vote_id, member_id)
     select opened, e from private.electors_for(p_electorate, p_chapter) e;
@@ -2151,7 +2173,7 @@ $$;
 -- the stand-in and the seat, decided by acting_electors, with the quorum worked out on them and a
 -- closing time 48 hours or more away; the question comes from the request. Once it has carried,
 -- confirm_acting seats the stint. Checks, in the app's order (Task 13 mirrors them): the request is
--- open and needs a vote; a board member of its chapter who isn't the stand-in; the Auditor; too few
+-- open, its covered seat still held, and it needs a vote; a board member of its chapter who isn't the stand-in; the Auditor; too few
 -- to decide it; the 48 hours; then open_vote's quorum, closing and meeting words.
 create or replace function public.open_acting_vote(p_request uuid, p_quorum int, p_closes_at timestamptz, p_meeting uuid)
 returns uuid language plpgsql security definer set search_path = '' as $$
@@ -2170,6 +2192,10 @@ begin
   perform private.close_lapsed_acting();
   select * into req from public.acting_requests where id = p_request for update;
   if req.closed_at is not null then raise exception 'That request isn’t open.'; end if;
+  -- A cover whose seat has ended can't go ahead, so there's nothing to vote on.
+  if req.covers is not null and not exists (select 1 from private.held_positions h where h.id = req.covers) then
+    raise exception 'The seat they asked to cover has ended.';
+  end if;
 
   if not private.request_needs_vote(p_request) then
     raise exception 'This request doesn’t need a vote. A third board member confirms it.';
@@ -2212,8 +2238,12 @@ begin
 end;
 $$;
 
--- Closing a vote (as removal_and_gate.sql). A vote about acting (on a request, or naming a role its
--- subject holds as acting) can't close within 48 hours of opening, even when everyone has voted.
+-- Closing a vote (as removal_and_gate.sql). A vote about acting can't close within 48 hours of
+-- opening, even when everyone has voted: one on a request, or one to end someone's acting. On a
+-- board seat that is told by its shape, so it holds from the day the vote opens, after the stint has
+-- ended too: a 9.3 removal there is the Full Members' two-thirds vote, and only ending acting takes
+-- the board's majority shape. Any other role's removal takes that shape too, so there it goes by a
+-- held stint (the app's aboutActing).
 -- Afterwards the lazy close runs, so a lost vote on a request closes it as rejected now, and the 28
 -- days before its requester can ask again count from the day it was lost.
 create or replace function public.close_vote(p_vote uuid, p_casting text)
@@ -2232,10 +2262,14 @@ begin
   if not found then raise exception 'No such vote.'; end if;
   perform private.require_scope(v.chapter_id);
   if v.closed_at is not null then raise exception 'That vote has already closed.'; end if;
-  if now() < v.opened_at + interval '48 hours' and (v.acting_request is not null or exists (
-       select 1 from private.held_positions h
-       where h.member_id = v.subject_member_id and h.chapter_id = v.chapter_id and h.role = v.subject_role
-         and h.acting_until is not null)) then
+  if now() < v.opened_at + interval '48 hours' and (v.acting_request is not null
+       or (v.chapter_id is not null and v.subject_member_id is not null
+           and v.subject_role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain')
+           and v.electorate = 'chapter_board' and v.threshold = 'majority')
+       or (v.subject_role not in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain') and exists (
+         select 1 from private.held_positions h
+         where h.member_id = v.subject_member_id and h.chapter_id = v.chapter_id and h.role = v.subject_role
+           and h.acting_until is not null))) then
     raise exception 'A vote about acting stays open for at least 48 hours, so everyone affected can answer.';
   end if;
   if now() < v.closes_at and exists (select 1 from public.vote_electors where vote_id = p_vote and voted_at is null) then
@@ -2527,10 +2561,11 @@ begin
           (select c.name from public.chapters c where c.id = elector.for_chapter);
       end if;
     elsif not named then
-      -- The chapter whose voter before the opening day is me: its ballot, locked, cast or not.
-      select e.for_chapter into ch from public.vote_electors e
+      -- The chapter whose voter before the opening day is me: its ballot, locked, cast or not, an
+      -- uncast one first, then by the chapter's name and id (the app's ballotRow).
+      select e.for_chapter into ch from public.vote_electors e join public.chapters c on c.id = e.for_chapter
       where e.vote_id = p_vote and e.for_chapter is not null and private.nec_voter_before(e.for_chapter, d) = me
-      order by e.voted_at is not null, e.for_chapter
+      order by e.voted_at is not null, c.name, e.for_chapter
       limit 1;
       if ch is not null then
         select * into elector from public.vote_electors where vote_id = p_vote and for_chapter = ch for update;

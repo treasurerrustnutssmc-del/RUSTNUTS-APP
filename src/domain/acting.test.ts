@@ -8,6 +8,7 @@ import {
   heldPositions,
   lapsedOwnRows,
   msUntilNextClubDay,
+  needsReloadAfterSettle,
   necVoterFor,
   settleActing,
 } from './acting';
@@ -244,6 +245,20 @@ test('lapsedOwnRows is true only when a settle ends the viewer’s own row', () 
   assert.equal(lapsedOwnRows(raw, '2026-11-15', null), false, 'nobody signed in');
   const settled = settleActing(raw, '2026-11-15');
   assert.equal(lapsedOwnRows(settled, '2026-11-15', 'crank'), false, 'already settled');
+});
+
+test('the live app loads again only for a row of the viewer’s that was open on the day the rows were loaded', () => {
+  // Crank's stint ran to 14/11. The database closes it lazily, so a load can still hold it open.
+  const crankActingTreasurer = row({
+    id: 'crank-acting-treasurer', memberId: 'crank', role: 'treasurer', startedOn: '2026-11-01',
+    actingUntil: '2026-11-14', actingWhy: 'No Treasurer since the ACM',
+  });
+  const raw = club([...north, crankActingTreasurer]);
+  assert.equal(needsReloadAfterSettle(raw, '2026-11-14', '2026-11-15', 'crank'), true, 'loaded on his last day, and midnight has passed');
+  assert.equal(needsReloadAfterSettle(raw, '2026-11-15', '2026-11-15', 'crank'), false, 'loaded today: a reload would bring the same row back');
+  assert.equal(needsReloadAfterSettle(raw, '2026-11-14', '2026-11-14', 'crank'), false, 'not before it lapses');
+  assert.equal(needsReloadAfterSettle(raw, '2026-11-14', '2026-11-15', 'smokey'), false, 'someone else’s stint');
+  assert.equal(needsReloadAfterSettle(raw, '2026-11-14', '2026-11-15', null), false, 'nobody signed in');
 });
 
 test('necVoterFor: an Acting President counts; an Acting VP and a VP’s stand-in don’t; the VP fallback stays', () => {

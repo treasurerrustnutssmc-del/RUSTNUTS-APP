@@ -385,7 +385,8 @@ test('a payee-requested Acting President can’t approve', () => {
   const data = club([hal, seat('spanner-rc', 'spanner', 'west', 'road_captain')], {
     without: ['rusty-president'], actingRequests: [request],
     ledger: [
-      spend('pennys', { payeeName: null, payeeMemberId: 'penny' }),
+      // Lou recorded it, so only the payee route ties it to Penny.
+      spend('pennys', { recordedBy: 'lou', payeeName: null, payeeMemberId: 'penny' }),
       spend('lous', { recordedBy: 'lou', payeeName: null, payeeMemberId: 'lou', code: 'DB-006', approvals: [approval('hal')] }),
     ],
   });

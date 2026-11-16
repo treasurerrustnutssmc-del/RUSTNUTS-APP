@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { coverOf, heldPositions, isActing } from '../domain/acting';
-import { chipLabel, coveredStepDownNote, positionTitles, seatTitle } from '../domain/home';
+import { heldPositions, isActing } from '../domain/acting';
+import { chipLabel, positionTitles, seatTitle, stepDownNote } from '../domain/home';
 import { ROLE_LABEL, ROLE_ORDER, ROLE_SHORT } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { ClubData, Member, Position } from '../domain/types';
@@ -32,19 +32,19 @@ export function RoleChips({ positions, data, homeChapterId }: { positions: Posit
 
 /**
  * Stepping down from one seat, the holder's own call (9.3), as on their member page and Delete
- * account. A stint reads "Step down from acting". The holder of a covered seat is told the cover
- * ends with it (the cover rests on the seat it covers).
+ * account. A stint reads "Step down from acting". The confirm says what else ends with the row
+ * (stepDownNote): the holder of a covered seat hears the cover ends too, and a stand-in leaving
+ * the last board seat their cover rests on hears their acting ends.
  */
 export function StepDownButton({ position, data, onConfirm }: { position: Position; data: ClubData; onConfirm: () => void }) {
   const title = seatTitle(position, data.chapters, ROLE_LABEL);
-  const acting = isActing(position);
-  const cover = coverOf(position, data.positions);
+  // A stint's title already says Acting (Acting Treasurer (North)), so the confirm says it once.
   return (
     <ConfirmButton
-      label={acting ? 'Step down from acting' : `Step down as ${title}`}
+      label={isActing(position) ? 'Step down from acting' : `Step down as ${title}`}
       confirmLabel="Yes, step down"
-      confirmAccessibilityLabel={acting ? `Yes, step down from acting as ${title}` : `Yes, step down as ${title}`}
-      confirmNote={cover ? coveredStepDownNote(cover, data) : undefined}
+      confirmAccessibilityLabel={`Yes, step down as ${title}`}
+      confirmNote={stepDownNote(position, data)}
       kind="secondary"
       size="small"
       onConfirm={onConfirm}

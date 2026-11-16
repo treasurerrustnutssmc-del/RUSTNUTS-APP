@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { DEMO_DATA, STORY_TODAY } from '../data/demoStory.testkit';
 import { accessLevel, actingWarnings } from './access';
 import {
-  boardGroups, boardRequests, boardScope, needsYou, requestActions, requestConfirmNote, requestLine, requestNext, scopeText, stintLine, stintsDue,
+  boardGroups, boardRequests, closeRequestNote, boardScope, needsYou, requestActions, requestConfirmNote, requestLine, requestNext, scopeText, stintLine, stintsDue,
   stintTone, termsDue, vpFallbackLine,
 } from './boardLayout';
 import { addDays } from './dates';
@@ -138,6 +138,12 @@ test('requestNext: a voted request starts its board vote, follows it, then Confi
   assert.equal(requestNext(dieselAsks, torque, carried, NOW)?.kind, 'see', 'the stand-in can’t confirm their own acting');
 });
 
+test('closeRequestNote: closing a request changes nothing about the seat, and stops an open vote on it seating anyone', () => {
+  assert.equal(closeRequestNote(dieselAsks, withRequests(dieselAsks)), 'This closes the request. Nothing about the seat changes.');
+  const voting = { ...withRequests(dieselAsks), votes: [...(DEMO_DATA.votes ?? []), actingVote('v-open', {})] };
+  assert.equal(closeRequestNote(dieselAsks, voting), 'This closes the request, so the board’s open vote on it can’t seat anyone. Nothing about the seat changes.');
+});
+
 test('requestActions: Withdraw request for the holder and the requester (until a vote opens), Decline for the stand-in', () => {
   const agreed = withRequests(smokeyAsks);
   assert.deepEqual(requestActions(smokeyAsks, smokey, agreed, STORY_TODAY), ['Withdraw request']);
@@ -159,7 +165,13 @@ test('boardRequests: the open requests someone has a step on, and none once clos
   assert.deepEqual(boardRequests(smokey, data, NOW).map((r) => r.id), ['ar-smokey']);
   assert.deepEqual(boardRequests(diesel, data, NOW).map((r) => r.id), ['ar-diesel']);
   assert.deepEqual(boardRequests(spanner, data, NOW), []);
-  assert.deepEqual(boardRequests(ace, data, NOW), [], 'the Auditor confirms no President cover (11.8), and isn’t on North’s board');
+  assert.deepEqual(boardRequests(ace, data, NOW), [], 'Ace isn’t on North’s board');
+  // Seated on North's board, the Auditor still confirms no President cover (11.8); anyone else in that seat would.
+  const secretary = (memberId: string): ClubData => ({
+    ...data, positions: [...data.positions, { id: 'p-x-sec', memberId, chapterId: 'ch-north', role: 'secretary', startedOn: '2026-01-01', endedOn: null }],
+  });
+  assert.deepEqual(boardRequests(ace, secretary('m-ace'), NOW), [], 'the Auditor stays out');
+  assert.ok(boardRequests(sparks, secretary('m-sparks'), NOW).some((r) => r.id === 'ar-smokey'), 'Sparks, in the same seat, confirms it');
   const closed = withRequests({ ...smokeyAsks, closedAt: NOW, outcome: 'withdrawn' });
   assert.deepEqual(boardRequests(crank, closed, NOW), []);
   const lapsed = withRequests({ ...smokeyAsks, until: addDays(STORY_TODAY, -1) });
@@ -226,6 +238,8 @@ test('stintTone: warning colour in the last 7 days', () => {
   assert.equal(stintTone(until(7), STORY_TODAY), 'warning', 'from the day the phone says it ends in a week');
   assert.equal(stintTone(until(1), STORY_TODAY), 'warning');
   assert.equal(stintTone(until(0), STORY_TODAY), 'warning', 'the last acting day');
+  const term = DEMO_DATA.positions.find((p) => p.actingUntil == null && p.endedOn === null)!;
+  assert.equal(stintTone(term, STORY_TODAY), null, 'a full term isn’t a stint');
 });
 
 test('Attendance and terms lists stints apart: open ones in scope, soonest until first', () => {

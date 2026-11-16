@@ -1042,6 +1042,7 @@ insert into acting_words (k, t) values
   ('SEAT_HAS_ACTING', 'Someone is already acting in that seat, or a request is waiting.'),
   ('ONE_STINT', 'They’re already acting in a role. One stint at a time.'),
   ('OWN_SEAT_COVERED', 'Their own seat is covered, so they can’t act for anyone.'),
+  ('HOLDER_ACTING', 'While someone is acting in a role, their own seat can’t be covered. One stint at a time.'),
   ('CHAIR_NOT_BOOKS', 'An Acting President can’t also keep the chapter’s books (9.5).'),
   ('BOOKS_NOT_CHAIR', 'An Acting Treasurer can’t also be the chapter’s President (9.5).'),
   ('HIATUS_NO_LEAD', 'Members on hiatus can’t lead rides.'),
@@ -2572,6 +2573,21 @@ begin
 end $$;
 rollback;
 
+\echo 'votes: someone who casts two chapters'' NEC votes gets one ballot, for the chapter whose name comes first'
+begin;
+select pg_temp.end_row(pg_temp.f(101));
+select pg_temp.seat(7, pg_temp.north(), 'president', null, null, null, '2026-08-01');
+do $$
+declare v uuid;
+begin
+  v := pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 1));
+  assert pg_temp.electors(v) = array['Rusty:north'], 'Rusty, President of North and West, gets North''s: ' || pg_temp.electors(v)::text;
+  update public.chapters set name = 'Zeehan' where id = pg_temp.north();
+  v := pg_temp.id_by(4, pg_temp.open_vote_sql(null, null, null, 'nec', 'majority', 1));
+  assert pg_temp.electors(v) = array['Rusty:west'], 'by name, not by id: ' || pg_temp.electors(v)::text;
+end $$;
+rollback;
+
 \echo 'votes: a lapsed stint gets no ballot'
 begin;
 select pg_temp.clock_at('2026-12-13 23:59:59 Australia/Melbourne');
@@ -2914,6 +2930,59 @@ begin
   assert pg_temp.by(10, pg_temp.approve_sql(e)) is null, 'Spanner can';
   assert pg_temp.by(8, pg_temp.approve_sql(e)) is null, 'and Torque';
   assert pg_temp.approvals(e) = 'approved 2', 'which makes two independent approvals';
+  -- The other order, through requested_by too: Hal approves Lou's reimbursement first, so Penny,
+  -- who asked for him, can't be the second approver after him.
+  e := pg_temp.id_by(4, pg_temp.record_debit_sql(w, 4, 'DB-002'));
+  assert pg_temp.by(11, pg_temp.approve_sql(e)) is null, 'Hal approves Lou''s reimbursement first';
+  assert pg_temp.by(9, pg_temp.approve_sql(e)) = pg_temp.planted('Hal'), 'Penny asked for Hal, so she can''t be second after him';
+  assert pg_temp.by(10, pg_temp.approve_sql(e)) is null, 'Spanner can';
+  assert pg_temp.approvals(e) = 'approved 2', 'Hal and Spanner make two';
+end $$;
+rollback;
+
+\echo 'new chapters: a founder still acting in their old chapter can''t move; one whose stint lapsed last night can, and it closes as lapsed'
+begin;
+select pg_temp.end_row(pg_temp.f(107));
+select pg_temp.seat(11, pg_temp.west(), 'president', pg_temp.today() + 28, 'Rusty stood down');
+create temp table proposal as
+  with p as (
+    insert into public.chapter_proposals (name, area, state, plan, founder_ids, president_id, saa_id)
+    values ('Surf Coast', 'Geelong', 'VIC', '{}'::jsonb, array[pg_temp.f(5), pg_temp.f(6), pg_temp.f(10), pg_temp.f(11), pg_temp.f(4)],
+            pg_temp.f(5), pg_temp.f(6))
+    returning id)
+  select p.id, gen_random_uuid() as vote from p;
+insert into public.votes (id, chapter_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result)
+select vote, null, 'Surf Coast?', 'nec', 'majority', 1, now() + interval '1 second', now() + interval '2 seconds', now() + interval '2 seconds', 'carried'
+from proposal;
+do $$
+declare
+  call text := (select format('public.settle_chapter_proposal(%L, %L)', id, vote) from proposal);
+begin
+  assert pg_temp.by(1, call) = 'Founders have to end their positions in their old chapter first.',
+    'Hal is Acting President of West, so the founders can''t move yet: ' || coalesce(pg_temp.by(1, call), 'it settled');
+end $$;
+rollback;
+begin;
+select pg_temp.end_row(pg_temp.f(107));
+create temp table hal_stint as
+  select pg_temp.seat(11, pg_temp.west(), 'president', pg_temp.today() - 1, 'Rusty stood down', null, pg_temp.today() - 10) as id;
+create temp table proposal as
+  with p as (
+    insert into public.chapter_proposals (name, area, state, plan, founder_ids, president_id, saa_id)
+    values ('Surf Coast', 'Geelong', 'VIC', '{}'::jsonb, array[pg_temp.f(5), pg_temp.f(6), pg_temp.f(10), pg_temp.f(11), pg_temp.f(4)],
+            pg_temp.f(5), pg_temp.f(6))
+    returning id)
+  select p.id, gen_random_uuid() as vote from p;
+insert into public.votes (id, chapter_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result)
+select vote, null, 'Surf Coast?', 'nec', 'majority', 1, now() + interval '1 second', now() + interval '2 seconds', now() + interval '2 seconds', 'carried'
+from proposal;
+do $$
+declare
+  ch uuid := pg_temp.id_by(1, (select format('public.settle_chapter_proposal(%L, %L)', id, vote) from proposal));
+begin
+  assert (select chapter_id = ch from members where id = pg_temp.f(11)), 'Hal''s stint lapsed last night, so he moves with the founders';
+  assert (select ended_on = pg_temp.today() and ended_reason = 'lapsed' and ended_by is null from positions where id = (select id from hal_stint)),
+    'and the lazy close ended it as lapsed, the day after its until date';
 end $$;
 rollback;
 
@@ -3013,6 +3082,27 @@ begin
   update votes set opened_at = now() - interval '3 days', closes_at = now() - interval '1 second' where id = v;
   assert pg_temp.by(7, pg_temp.close_vote_sql(v)) is null, 'Rusty closes it once it''s due';
   assert (select result = 'no_quorum' and yes_count = 2 from votes where id = v), 'two ballots miss the quorum of three';
+end $$;
+rollback;
+
+\echo 'tightening 1: a stint that lapses after a board vote opened casts no ballot on it'
+begin;
+select pg_temp.clock_at('2026-12-13 23:59:59 Australia/Melbourne');
+select pg_temp.end_row(pg_temp.f(107));
+select pg_temp.seat(10, pg_temp.west(), 'sergeant_at_arms');
+select pg_temp.seat(11, pg_temp.west(), 'president', '2026-12-13', 'No President since Rusty stepped down', null, '2026-12-01');
+create temp table board_vote as
+  select pg_temp.id_by(8, pg_temp.open_vote_sql(pg_temp.west(), null, null, 'chapter_board', 'majority', 3)) as id;
+select pg_temp.clock_at('2026-12-14 00:00:00 Australia/Melbourne');
+do $$
+declare
+  v uuid := (select id from board_vote);
+  got text;
+begin
+  assert pg_temp.electors(v) = array['Torque', 'Penny', 'Spanner', 'Hal'], 'Hal had a ballot when it opened: ' || pg_temp.electors(v)::text;
+  got := pg_temp.by(11, pg_temp.cast_sql(v));
+  assert got = pg_temp.w('CAST_BOARD_ENDED'), 'from Melbourne midnight his stint has lapsed, so he no longer casts: ' || coalesce(got, 'he cast');
+  assert pg_temp.by(8, pg_temp.cast_sql(v)) is null, 'Torque still casts';
 end $$;
 rollback;
 

@@ -8,7 +8,7 @@ import {
   // Acting roles
   appointActingProblem, confirmActingProblem, requestActingProblem, requestCoverProblem, setActingUntilProblem, withdrawRequestProblem,
 } from '../domain/access';
-import { lapsedOwnRows, settleActing } from '../domain/acting'; // Acting roles
+import { needsReloadAfterSettle, settleActing } from '../domain/acting'; // Acting roles
 import { useClubToday } from './useClubToday';
 import { bioProblem } from '../domain/postingRules'; // Member content rules
 import { readBriefingProblem, saveBriefingProblem } from '../domain/briefings';
@@ -273,7 +273,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   // see, so load again. If that fails, drop the saved copy, which holds board-only details they may
   // no longer see.
   useEffect(() => {
-    if (!lapsedOwnRows(settleActing(raw, loadedOn.current), today, userId)) return;
+    if (!needsReloadAfterSettle(raw, loadedOn.current, today, userId)) return;
     reload(userId).then((loaded) => {
       if (!loaded) clubCache.clear();
     });
@@ -1541,7 +1541,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     },
     openActingVote: async (requestId, quorum, closesAt, meetingId) => {
       const request = (data.actingRequests ?? []).find((r) => r.id === requestId);
-      deny(openActingVoteProblem(visibleMe, request, quorum, closesAt, meetingId, data, new Date().toISOString()));
+      if (request) deny(openActingVoteProblem(visibleMe, request, quorum, closesAt, meetingId, data, new Date().toISOString()));
       const r = ok(
         await supabase().rpc('open_acting_vote', { p_request: requestId, p_quorum: quorum, p_closes_at: closesAt, p_meeting: meetingId }),
       );

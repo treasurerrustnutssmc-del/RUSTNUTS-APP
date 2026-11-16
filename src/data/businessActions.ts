@@ -15,8 +15,8 @@ import {
 } from '../domain/meetings';
 import { melbourneDate } from '../domain/rides';
 import type { BallotChoice, ClubData, Meeting, Tally, Vote } from '../domain/types';
-import { necVoterFor, settleActing } from '../domain/acting';
-import { ballotRowFor, castProblem, closeProblem, electorsFor, openVoteProblem, outcome, type Casting, type VoteInput } from '../domain/votes';
+import { settleActing } from '../domain/acting';
+import { ballotRowFor, castProblem, closeProblem, electorsFor, necElectorChapters, openVoteProblem, outcome, type Casting, type VoteInput } from '../domain/votes';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
 
@@ -108,20 +108,16 @@ export function setActionDone(ctx: DemoCtx, id: string, done: boolean): ClubData
 
 /**
  * Opens a vote on the club as it stands now (settled, as public.open_vote runs the lazy close). An
- * NEC ballot is written with the chapter it belongs to, so it can pass to that chapter's voter.
+ * NEC ballot is written with the chapter it belongs to, so it can pass to that chapter's voter;
+ * someone who casts two chapters' votes gets one ballot (necElectorChapters).
  */
 export function openVote(ctx: DemoCtx, input: VoteInput): { data: ClubData; id: string } {
   const now = nowOf(ctx);
   const data = settleActing(ctx.data, melbourneDate(now));
   refuse(openVoteProblem(ctx.me, input, data, now));
   const electorIds = electorsFor(input.electorate, input.chapterId, data, { memberId: input.subjectMemberId, role: input.subjectRole });
-  const electorChapters: Record<string, string> = {};
-  if (input.electorate === 'nec') {
-    for (const c of data.chapters) {
-      const voter = necVoterFor(c.id, data.positions);
-      if (voter !== null && electorIds.includes(voter)) electorChapters[voter] = c.id;
-    }
-  }
+  // One ballot each, for the chapter it belongs to (one per person, as vote_electors holds them).
+  const electorChapters = input.electorate === 'nec' ? necElectorChapters(electorIds, data) : {};
   const vote: Vote = {
     id: newId('v'),
     chapterId: input.chapterId,

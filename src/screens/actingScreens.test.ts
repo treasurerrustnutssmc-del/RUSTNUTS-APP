@@ -20,7 +20,7 @@ function fnBody(src: string, name: string): string {
   return next < 0 ? rest : rest.slice(0, next + 1);
 }
 
-test('reminders.tsx adds actingReminderPlan and its memo depends on data.positions', () => {
+test('reminders.tsx adds actingReminderPlan and its memo depends on data', () => {
   const src = read('data/reminders.tsx');
   assert.match(src, /import \{[^}]*\bactingReminderPlan\b[^}]*\} from '\.\.\/domain\/notifications'/, 'imports the acting plan');
   const memo = src.match(/const plan = useMemo\(\s*\(\) => ([\s\S]*?),\s*\[([^\]]*)\],?\s*\);/);
@@ -28,26 +28,38 @@ test('reminders.tsx adds actingReminderPlan and its memo depends on data.positio
   const [, body, deps] = memo;
   assert.match(body, /reminderPlan\(/, 'the ride reminders stay');
   assert.match(body, /actingReminderPlan\(me\?\.id \?\? null, data, /, 'the acting person and the covered holder get theirs');
+  // The provider memoises data (settled to today), so the memo follows all of it, not a list of parts
+  // that goes stale when the plan reads another one.
   const depList = deps.split(',').map((d) => d.trim());
-  // A stint's row, its until date, the stand-in's name and the seat's chapter all go into the text.
-  for (const dep of ['data.positions', 'data.members', 'data.chapters', 'me?.id', 'prefs']) {
-    assert.ok(depList.includes(dep), `the memo depends on ${dep}`);
-  }
+  for (const dep of ['data', 'me?.id', 'prefs']) assert.ok(depList.includes(dep), `the memo depends on ${dep}`);
+  assert.ok(!depList.some((d) => d.startsWith('data.')), 'no parts of data');
+  const raw = readFileSync(join(__dirname, '..', 'data/reminders.tsx'), 'utf8');
+  const memoRaw = raw.slice(raw.indexOf('const plan = useMemo('), raw.indexOf('const key = '));
+  assert.doesNotMatch(memoRaw, /exhaustive-deps/, 'nothing to switch the deps check off for');
 });
 
-test('NewVote shows stintVoteWarnings; VoteScreen shows the stand-in and holder note on acting votes', () => {
+test('NewVote shows stintVoteWarnings; VoteScreen judges an acting vote by the vote and says who isn’t on it', () => {
   const src = read('screens/business.tsx');
   const newVote = fnBody(src, 'NewVoteScreen');
   assert.match(newVote, /const warnings = closesAt\s*\?\s*stintVoteWarnings\(/, 'NewVote works out the stint warnings');
   assert.match(newVote, /\{warnings\.join\(' '\)\}/, 'and shows them');
 
   const vote = fnBody(src, 'VoteScreen');
-  assert.ok(vote.includes('The stand-in and the holder aren’t on this vote (8.5, 11.10).'), 'the note, word for word');
-  // Only on a vote about acting: one seating a request, or one ending a stint.
-  assert.match(vote, /const aboutActingVote = seatsActing \|\| endsActing;/);
-  assert.match(vote, /\{aboutActingVote \? \(/, 'the note shows only on acting votes');
-  // An empty seat has no holder: the note names the one person left out.
-  assert.match(vote, /`\$\{subject \? displayName\(subject\) : 'The stand-in'\} isn’t on this vote \(8\.5, 11\.10\)\.`/);
+  // By the vote's own shape (aboutActing), so a carried vote that ended a stint still reads as one.
+  assert.match(vote, /const aboutActingVote = aboutActing\(vote, data\.positions\);/);
+  assert.doesNotMatch(vote, /stintAbout\(/, 'not from the rows as they are now');
+  // The words (stand-in, holder, Auditor) are actingVoteNote's, tested in votes.test.ts.
+  assert.match(vote, /const actingNote = actingVoteNote\(vote, data\);/);
+  assert.match(vote, /\{actingNote \? <Small>\{actingNote\}<\/Small> : null\}/);
+  assert.doesNotMatch(vote, /aren’t on this vote|isn’t on this vote/, 'no copy of the note’s words');
+});
+
+test('the removal labels read isRemovalVote; the closed card ends acting for an acting vote', () => {
+  const src = read('screens/business.tsx');
+  assert.match(fnBody(src, 'voteKindLabel'), /if \(isRemovalVote\(vote\)\) return 'Removal vote';/);
+  const vote = fnBody(src, 'VoteScreen');
+  assert.match(vote, /isRemovalVote\(vote\)\s*\?\s*endsActing\s*\?\s*`End \$\{displayName\(subject\)\}’s acting as/);
+  assert.match(vote, /const endsActing = aboutActingVote && !seatsActing;/);
 });
 
 test('the Vote screen’s 48-hour note is the shared ACTING_VOTE_OPEN words', () => {
@@ -78,15 +90,14 @@ test('the Auditor’s vp-fallback line has no button', () => {
   assert.match(checks, /onPress=\{\(\) => navigation\.navigate\('NewAuditRequest', \{ checkKey: c\.key \}\)\}/);
 });
 
-test('Membership records’ Positions read held rows and chip acting ones', () => {
-  const src = read('screens/audit.tsx');
-  const records = fnBody(src, 'AuditRecordsScreen');
-  assert.match(records, /const seats = heldRows\(data\.positions\)\s*\.filter\(/, 'held rows, settled, not open-row checks');
-  assert.match(records, /isActing\(p\) \? <Chip label="Acting"/, 'an Acting chip on a stint');
-  // In role order, a stint right after the seat's full term, so a cover sits under the holder it covers.
-  assert.match(records, /\.sort\(\(a, b\) => ROLE_ORDER\.indexOf\(a\.role\) - ROLE_ORDER\.indexOf\(b\.role\) \|\| Number\(isActing\(a\)\) - Number\(isActing\(b\)\)/);
-  // A stint's end is its until date, its last acting day, not a term end.
-  assert.match(records, /until \$\{formatAuDate\(p\.actingUntil!?\)\}/);
+test('Membership records’ Positions draw auditSeatRows', () => {
+  const records = fnBody(read('screens/audit.tsx'), 'AuditRecordsScreen');
+  // The rows, their order and their words are auditSeatRows' (audit.test.ts): held rows, settled.
+  assert.match(records, /const seats = auditSeatRows\(chapterId, data, today\);/);
+  assert.match(records, /title=\{s\.title\}/);
+  assert.match(records, /\{s\.line\}/);
+  assert.match(records, /s\.chip \? <Chip label=\{s\.chip\.label\} tone=\{s\.chip\.tone\} \/> : undefined/);
+  assert.doesNotMatch(records, /heldRows|termState|ROLE_ORDER/, 'nothing worked out on the screen');
 });
 
 test('the hall of fame leaves acting rows out', () => {

@@ -147,6 +147,9 @@ Refused for everyone, with the same words in `actingProblem` (app) and `private.
   President or Treasurer, 11.8).
 - Already holding that role, or, in a board seat, a holder, a stint or a request already there.
 - **One stint at a time**: someone already acting anywhere, and anyone whose own seat is covered.
+  It holds from the holder's side too: someone acting anywhere can't have their own seat covered
+  (`HOLDER_ACTING`), refused when they ask (`request_cover`), when a request names their seat, and
+  again at confirm.
 - **Chair and books stay apart**: no Acting President who holds any Treasurer row in the chapter,
   acting or elected, and no Acting Treasurer who holds a President row (9.5 "compatible duties",
   inferred). A full `appoint_position` refuses only where the other row is acting (seating an
@@ -157,7 +160,8 @@ Refused for everyone, with the same words in `actingProblem` (app) and `private.
   Gunner and Assistant TG (`national_auditor.sql:62-71`). The words are "Members on hiatus can't
   lead rides", like `crew.ts:35`'s crew refusal.
 - A recorded licence that is a learner's, or ends before the until date (9.7): "Their recorded
-  licence ends before the until date (9.7)." When no licence is recorded, the app only warns.
+  licence ends before the until date (9.7)." When no licence end date is recorded, the app only
+  warns (`ACTING_NO_LICENCE`, below).
 - A cover's stand-in must hold a board seat in that chapter.
 - **Anyone but the sitting VP needs a carried board vote to act as President**, in an empty seat
   or as a cover. The sitting VP is a held, non-acting VP row (8.2: the VP "acts where the
@@ -177,7 +181,8 @@ Refused for everyone, with the same words in `actingProblem` (app) and `private.
 - A required "Why" of up to 120 characters ("Smokey overseas", "No Treasurer since the ACM"),
   stored on the row and shown on the Board tab and in the audit. This is 9.5's "reasons recorded",
   and the until date is its review. Every approved member can read it, as with every position row,
-  so its hint says "Every member can read this. Keep health details out."
+  so its hint says "Required. Every member can read this. Keep health details out." (The button
+  stays off until a Why is typed, and the red line waits for typing, so the hint says it's needed.)
 
 Shown as warnings, like `appointWarnings` (`access.ts:288-308`), and repeated in the confirm text:
 
@@ -192,6 +197,8 @@ Shown as warnings, like `appointWarnings` (`access.ts:288-308`), and repeated in
   reason is on the later list.)
 - 9.5 when the stand-in already holds a board seat, which combines duties: "A small chapter may
   combine duties for a while where it's necessary, with the reason recorded (9.5)."
+- 9.7 when no licence end date is recorded for the stand-in: "No licence end date is recorded for
+  them. Check their licence runs to the until date (9.7)."
 - A ride the stand-in is crewed to lead that starts on the until day, or runs past its midnight:
   "Crank leads the 13/12 run. Acting ends that night. Pick 14/12 or later."
 
@@ -216,7 +223,10 @@ below).
    **neither the holder nor the stand-in** then confirms it with `confirm_acting(p_request)`, which
    inserts the acting row. This records the holder's own arrangement (9.5, reasons and review
    recorded). It isn't a Board decision under 8.5 either. An agreed cover of a President needs the
-   sitting VP as stand-in, or route 3.
+   sitting VP as stand-in, or route 3. `request_cover` refuses up front with the 8.6 words when the
+   board has fewer than three members, or when nobody outside the holder, the stand-in and (for a
+   President or Treasurer seat) the Auditor could confirm it; and with `HOLDER_ACTING` when the
+   holder is acting anywhere.
 3. **Voted.** This route covers a cover that someone other than the holder asks for (because the
    holder can't be asked, in hospital say) and any Acting President who isn't the sitting VP. A
    board member who isn't the stand-in proposes it with `request_acting(...)`, which only takes
@@ -229,7 +239,8 @@ below).
    least 48 hours, and `close_vote` won't close it sooner even when everyone has voted, so the
    holder can answer and nobody can void it by closing early. Once it has carried, in the last 90
    days, a board member who isn't the stand-in confirms it, and the row records the vote
-   (`acting_vote`).
+   (`acting_vote`). `open_acting_vote` refuses with `SEAT_ENDED` when the row the request covers
+   has ended, since the vote could seat nobody.
 
 **Requests.** The stand-in (declining) or the holder can close an open request with
 `withdraw_acting_request(p_request)`, and the requester can only while no vote on it is open or
@@ -299,7 +310,9 @@ an elector on acting or end-acting votes for those seats. The same check goes in
   closed in the last 90 days. Like an acting vote, it can't close within 48 hours of opening. Its
   electors leave out the acting person, the covered holder and, for President or Treasurer, the
   Auditor, with the 8.6 words when fewer than three remain. `open_vote` gives that shape whenever
-  the subject's open row of that role is an acting row (`removed`). It is the majority shape 9.3
+  the subject's open row of that role is an acting row (`removed`), and the Auditor doesn't open
+  it for a President or Treasurer seat (`AUDITOR_STAYS_OUT`). On a board seat the 48 hours go by
+  the vote's shape, so they hold after the stint has ended. It is the majority shape 9.3
   gives a Non-Board removal. `has_carried_removal_vote` also takes a carried 9.3 removal in the
   role's own shape that closed since the stint started, so a holder facing a 9.3 vote can't step
   down, be recorded as acting and outlast it. The app doesn't record 9.3's written notice and
@@ -323,7 +336,8 @@ an elector on acting or end-acting votes for those seats. The same check goes in
 - **If the stand-in's own last non-acting board seat in the chapter ends**, the same trigger ends
   their cover there (`left_board`), or the cover alone would be a board ballot ("Extra voters").
   When the VP row of someone in a President stint with no vote behind it ends, that stint ends the
-  same way.
+  same way. Their step-down confirm on that seat says so: "This ends your acting as President
+  (North) for Smokey too."
 
 `ended_on` is always the first day without the seat: today for an early end (as `end_position`
 does now), and `acting_until + 1` for a lapse. History shows "Acting until DD/MM/YYYY" from
@@ -356,7 +370,10 @@ null.
   so a claimant takes their chapter's uncast ballot. While a voted cover of a President that
   started after a vote opened runs, the chapter's ballot on it waits, and the request and confirm
   warn: "North can’t cast its ballot on 2 open NEC votes while this runs, so they may close
-  without quorum (11.2, 11.5)." The app's `Vote` gains `electorChapters` for NEC votes.
+  without quorum (11.2, 11.5)." The app's `Vote` gains `electorChapters` for NEC votes. Each
+  person gets one NEC ballot (`vote_electors` is keyed by vote and member): someone who casts two
+  chapters' votes at opening holds the ballot of the chapter whose name comes first, then its id,
+  and a taker who could take two takes the uncast one first, in the same order.
 - **The live app reads votes only through `club_business()`** (the tables are revoked,
   `meetings_votes.sql:88`). Its JSON gains `acting_request` and `elector_chapters` (elector to
   chapter, NEC votes only), and it lists an NEC vote to whoever would take a chapter's uncast
@@ -527,11 +544,24 @@ acting title forms.
   stays: "Jet chairs North and casts its NEC vote until 13/12/2026. You keep your seat, board vote,
   approvals and board records. You're off the NEC until then." It also lists the warnings (9.6,
   9.7, and 9.5 for a combined-duties stand-in). The holder's own open request shows with
-  "Withdraw request".
+  "Withdraw request", whose confirm says what closing it does (`closeRequestNote`, as on the Board
+  tab). A date the rule refuses (out of range, past the stand-in's licence) shows on the Until
+  field. A seat nobody can cover now shows why, closed: "Refer it to the NEC (8.6)" with
+  `SMALL_BOARD`, "Not now" with the seat's own refusal (`HOLDER_ACTING`, `ASKED_RECENTLY`,
+  `AUDITOR_STAYS_OUT`), or "Nobody can stand in now". A stand-in whose licence ends inside the
+  default four weeks is still offered; the form then asks for an earlier date.
+- **Me, for a stand-in with no Board tab.** A request that names someone off every board (an
+  empty-seat request that needs a vote can) shows on their Me as "You're asked to act": "Crank
+  asked for you to act as President (North) until 13/12/2026: No President since the ACM. If you
+  can't, decline it." with "Decline" (a `ConfirmButton`, `withdraw_acting_request`). Board and
+  national members decline on the Board tab.
 - **Board tab.** Open requests show to board members who can confirm: "Smokey asked for Jet to
   cover as President until 13/12/2026: Smokey overseas", with a "Confirm cover" `ConfirmButton`.
   The holder, the stand-in ("Decline") and, until a vote on it opens, the requester see
-  "Withdraw request". When the VP casts the chapter's NEC vote through the
+  "Withdraw request". Their confirm says "This closes the request. Nothing about the seat
+  changes.", or, with the board's vote on it open, "This closes the request, so the board's open
+  vote on it can't seat anyone. Nothing about the seat changes." Done: "Request withdrawn." or
+  "Declined. The request is closed." A line saying why a button is off reads in the danger colour. When the VP casts the chapter's NEC vote through the
   fallback, the chapter's board sees "Jet casts North's NEC vote without being formally Acting
   President (11.2)" with "Make Jet Acting President". That button shows only where
   `appointActingProblem` allows it.
@@ -547,7 +577,9 @@ acting title forms.
   Their step-down confirm adds the step-down words under "How it ends".
 - **Titles everywhere.** `positionTitles` (`home.ts:14-34`) groups by role and acting, so titles
   never merge. The long form is "Acting Treasurer (North) until 13/12/2026" (member detail, Me,
-  treasurer report `preparedBy`, assistant). On the Home header the date goes on a second line, so
+  treasurer report `preparedBy`, assistant). Me splits it: the chip "ACTING TREASURER (NORTH)" with
+  "Acting until 13/12/2026" on a line under the chips (DESIGN.md), its titles in role order as on
+  member detail. On the Home header the date goes on a second line, so
   it never wraps to three at 390 px. The chip form is "ACTING TREASURER (NORTH)": `RoleChip` takes
   the position, and `MemberRow`, `AuthorLine` and the Chapters list follow. A covered holder's title
   is unchanged. **The NEC list** shows one row per chapter: "Jet, Acting President (North), for
@@ -566,6 +598,17 @@ acting title forms.
     President seat is empty and the VP fallback applies. The Auditor sees it with no button,
     because the Auditor can't record a President. The button is on the chapter's Board tab. It
     doesn't fire for the Chair-and-President case, which is the follow-on.
+- **Vote screen.** A vote about acting (`aboutActing`: one on a request, or, on a board seat, the
+  board-majority shape, so it stays one after the stint ends) says who isn't on it: "The stand-in
+  and the holder aren't on this vote (8.5, 11.10).", or "Crank isn't on this vote (8.5, 11.10)."
+  for an empty seat; on a President or Treasurer seat the National Auditor is named too ("… and the
+  National Auditor aren't on this vote (8.5, 11.8, 11.10)."). Its closed card reads "End Crank's
+  acting as Treasurer".
+- **Manage member reach.** An Acting President is on the NEC but reads member data of their own
+  chapter only, so Manage member doesn't open for another chapter's member, and the NEC acts on it
+  (5.6 reinstatement, the NEC seats) stay with members who see every chapter, though the database
+  would take them from the duties reading. They still vote on those as NEC members. (Sweep call,
+  16/11/2026.)
 - **Elsewhere.** The hall of fame leaves acting out, and a stint isn't a 9.4 served term. Delete
   account lists acting seats. The glossary gets "Acting" and "Cover".
 
@@ -860,6 +903,18 @@ reading of the approval day instead of a snapshot. Fixed above:
 - counted approvers are read strictly on their approval day; the 13.3 alternates claim is gone;
 - the open-request index covers board seats only.
 
+A sweep of the build reviews' minor notes (16/11/2026) checked each against the code. Fixed on
+both sides, with parity cases: a holder acting anywhere can't have their own seat covered
+(`HOLDER_ACTING`); someone who casts two chapters' NEC votes gets one ballot, by chapter name,
+instead of a key error; `open_vote`'s end-acting branch keeps the Auditor out; `open_acting_vote`
+refuses a request whose covered row has ended (`SEAT_ENDED`); `close_vote`'s 48 hours go by the
+vote's shape on a board seat; `request_cover` counts the people who could confirm. In the app:
+`ACTING_NO_LICENCE` for a stand-in with no licence end date recorded; a stand-in off every board
+declines on Me; the Vote screen names the Auditor; the step-down confirm tells a stand-in their
+acting ends; the Why hint says it's required. Left on purpose: Manage member's reach for an Acting
+President (Screens), and two layout choices at 360 wide (New vote's one-line Question field,
+the Ending chip beside a stint's line).
+
 ## Questions for Jeff
 
 1. **His card**: answered 15/11/2026, both kinds.
@@ -891,6 +946,7 @@ Exported constants in `access.ts`, `votes.ts` and `ledger.ts`, with the same tex
 | `SEAT_HAS_ACTING` | Someone is already acting in that seat, or a request is waiting. |
 | `ONE_STINT` | They’re already acting in a role. One stint at a time. |
 | `OWN_SEAT_COVERED` | Their own seat is covered, so they can’t act for anyone. |
+| `HOLDER_ACTING` | While someone is acting in a role, their own seat can’t be covered. One stint at a time. |
 | `CHAIR_NOT_BOOKS` | An Acting President can’t also keep the chapter’s books (9.5). |
 | `BOOKS_NOT_CHAIR` | An Acting Treasurer can’t also be the chapter’s President (9.5). |
 | `HIATUS_NO_LEAD` | Members on hiatus can’t lead rides. |
@@ -929,6 +985,7 @@ Exported constants in `access.ts`, `votes.ts` and `ledger.ts`, with the same tex
 | `CAST_BOARD_ENDED` | Your board seat has ended, so this ballot isn’t yours now. |
 | `castNecNotYours(ch)` | You don’t cast North’s NEC vote now, so this ballot isn’t yours. |
 | `castNecCast(ch)` | North’s NEC ballot has already been cast. |
+| `ACTING_NO_LICENCE` (warning) | No licence end date is recorded for them. Check their licence runs to the until date (9.7). |
 | `necBallotsWait(ch, n)` (warning) | North can’t cast its ballot on 2 open NEC votes while this runs, so they may close without quorum (11.2, 11.5). |
 | `independentSeated(name)` | You’re acting because Penny put you there, so you can’t be the second approver on their entry (13.3). |
 | `independentPlanted(name)` | Spanner is acting because you put them there, so you can’t be the second approver after them (13.3). |

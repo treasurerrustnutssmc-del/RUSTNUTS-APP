@@ -5,7 +5,7 @@
 // settled club.
 
 import {
-  actingElectors, appointActingProblem, carriedActingVote, confirmActingProblem, NO_REQUEST, requestActingProblem, requestCoverProblem,
+  actingElectors, appointActingProblem, carriedActingVote, confirmActingProblem, requestActingProblem, requestCoverProblem,
   requestNeedsVote, setActingUntilProblem, withdrawRequestProblem,
 } from '../domain/access';
 import { settleActing } from '../domain/acting';
@@ -22,24 +22,12 @@ function refuse(problem: string | null): void {
   if (problem) throw new NotAllowedError(problem);
 }
 
-function findMember(data: ClubData, id: string): Member {
-  const m = data.members.find((x) => x.id === id);
-  if (!m) throw new Error('That member no longer exists.');
-  return m;
-}
-
-function findPosition(data: ClubData, id: string): Position {
-  const p = data.positions.find((x) => x.id === id);
-  if (!p) throw new Error('That position no longer exists.');
-  return p;
-}
-
-/** A request, settled as it stands now; a missing one isn't open. */
-function findRequest(data: ClubData, id: string): ActingRequest {
-  const r = (data.actingRequests ?? []).find((x) => x.id === id);
-  if (!r) throw new NotAllowedError(NO_REQUEST);
-  return r;
-}
+// A missing member, row or request goes to the check as undefined, so it refuses in the RPC's
+// order and words: signing in first, then "They’re not a member of that chapter.", "That position no
+// longer exists." or "That request isn’t open.".
+const memberOf = (data: ClubData, id: string): Member | undefined => data.members.find((x) => x.id === id);
+const positionOf = (data: ClubData, id: string): Position | undefined => data.positions.find((x) => x.id === id);
+const requestOf = (data: ClubData, id: string): ActingRequest | undefined => (data.actingRequests ?? []).find((x) => x.id === id);
 
 /** The new request, left open for a third board member's confirm, or a board vote. */
 function openRequest(
@@ -56,7 +44,7 @@ export function appointActing(
   ctx: DemoCtx, memberId: string, chapterId: string, role: PositionRole, until: string, why: string,
 ): ClubData {
   const data = settleActing(ctx.data, ctx.today);
-  refuse(appointActingProblem(ctx.me, findMember(data, memberId), chapterId, role, until, why, data, ctx.today));
+  refuse(appointActingProblem(ctx.me, memberOf(data, memberId), chapterId, role, until, why, data, ctx.today));
   const stint: Position = {
     id: newId('p'), memberId, chapterId, role, startedOn: ctx.today, endedOn: null, actingUntil: until, covers: null,
     actingWhy: why.trim(), actingVote: null, actingRequestId: null, appointedBy: ctx.me!.id, endedReason: null,
@@ -68,7 +56,7 @@ export function appointActing(
 export function requestCover(ctx: DemoCtx, positionId: string, memberId: string, until: string, why: string): ClubData {
   const data = settleActing(ctx.data, ctx.today);
   const seat = data.positions.find((p) => p.id === positionId);
-  refuse(requestCoverProblem(ctx.me, seat, findMember(data, memberId), until, why, data, ctx.today));
+  refuse(requestCoverProblem(ctx.me, seat, memberOf(data, memberId), until, why, data, ctx.today));
   return openRequest(ctx, data, { chapterId: seat!.chapterId!, role: seat!.role, memberId, covers: positionId, until, why });
 }
 
@@ -77,15 +65,16 @@ export function requestActing(
   ctx: DemoCtx, memberId: string, chapterId: string, role: PositionRole, coversId: string | null, until: string, why: string,
 ): ClubData {
   const data = settleActing(ctx.data, ctx.today);
-  const covers = coversId === null ? null : findPosition(data, coversId);
-  refuse(requestActingProblem(ctx.me, findMember(data, memberId), chapterId, role, covers, until, why, data, ctx.today));
+  // A covered row nobody can find has ended (SEAT_ENDED), as request_acting finds no held row for it.
+  const covers = coversId === null ? null : positionOf(data, coversId) ?? { id: coversId };
+  refuse(requestActingProblem(ctx.me, memberOf(data, memberId), chapterId, role, covers, until, why, data, ctx.today));
   return openRequest(ctx, data, { chapterId, role, memberId, covers: coversId, until, why });
 }
 
 /** The stand-in, the holder or (before a vote on it) the person who asked closes a request (public.withdraw_acting_request). */
 export function withdrawActingRequest(ctx: DemoCtx, requestId: string): ClubData {
   const data = settleActing(ctx.data, ctx.today);
-  refuse(withdrawRequestProblem(ctx.me, findRequest(data, requestId), data, ctx.today));
+  refuse(withdrawRequestProblem(ctx.me, requestOf(data, requestId), data, ctx.today));
   return {
     ...data,
     actingRequests: data.actingRequests!.map((r) => (r.id === requestId ? { ...r, closedAt: nowOf(ctx), outcome: 'withdrawn' } : r)),
@@ -98,8 +87,9 @@ export function withdrawActingRequest(ctx: DemoCtx, requestId: string): ClubData
  */
 export function confirmActing(ctx: DemoCtx, requestId: string): ClubData {
   const data = settleActing(ctx.data, ctx.today);
-  const request = findRequest(data, requestId);
-  refuse(confirmActingProblem(ctx.me, request, data, ctx.today));
+  const found = requestOf(data, requestId);
+  refuse(confirmActingProblem(ctx.me, found, data, ctx.today));
+  const request = found!;
   const vote = requestNeedsVote(request, data, ctx.today) ? carriedActingVote(request, data, ctx.today)?.id ?? null : null;
   const stint: Position = {
     id: newId('p'), memberId: request.memberId, chapterId: request.chapterId, role: request.role, startedOn: ctx.today, endedOn: null,
@@ -116,8 +106,9 @@ export function confirmActing(ctx: DemoCtx, requestId: string): ClubData {
 /** Moves a stint's last day, keeping its start, and logs the change; the same date changes nothing (public.set_acting_until). */
 export function setActingUntil(ctx: DemoCtx, positionId: string, until: string): ClubData {
   const data = settleActing(ctx.data, ctx.today);
-  const stint = findPosition(data, positionId);
-  refuse(setActingUntilProblem(ctx.me, stint, until, data, ctx.today));
+  const found = positionOf(data, positionId);
+  refuse(setActingUntilProblem(ctx.me, found, until, data, ctx.today));
+  const stint = found!;
   if (until === stint.actingUntil) return data;
   return {
     ...data,
@@ -142,7 +133,7 @@ export function openActingVote(
 ): { data: ClubData; id: string } {
   const data = settleActing(ctx.data, ctx.today);
   const now = nowOf(ctx);
-  const request = (data.actingRequests ?? []).find((r) => r.id === requestId);
+  const request = requestOf(data, requestId);
   refuse(openActingVoteProblem(ctx.me, request, quorum, closesAt, meetingId, data, now));
   const r = request!;
   const vote: Vote = {

@@ -25,7 +25,7 @@ import { colors, fonts, space, type } from '../theme';
 // Stage 4
 import { fngDue } from '../domain/joining';
 import {
-  boardGroups, boardRequests, boardScope, needsYou, requestActions, requestConfirmNote, requestLine, requestNext, scopeText, vpFallbackLine,
+  boardGroups, boardRequests, boardScope, closeRequestNote, needsYou, requestActions, requestConfirmNote, requestLine, requestNext, scopeText, vpFallbackLine,
   type BoardGroupId,
 } from '../domain/boardLayout';
 import { settleOpen } from '../domain/groupOpen';
@@ -414,6 +414,7 @@ function BoardRequest({ request, onDone }: { request: ActingRequest; onDone: (te
           label={next.label}
           accessibilityLabel={`${next.label}: ${about}`}
           confirmLabel="Yes, start the vote"
+          confirmAccessibilityLabel={`Yes, start the vote: ${about}`}
           kind="secondary"
           confirmNote={next.note}
           onConfirm={() =>
@@ -437,7 +438,7 @@ function BoardRequest({ request, onDone }: { request: ActingRequest; onDone: (te
           label={a}
           accessibilityLabel={`${a}: ${about}`}
           confirmLabel={a === 'Decline' ? 'Yes, decline' : 'Yes, withdraw'}
-          confirmNote="This closes the request. Nothing about the seat changes."
+          confirmNote={closeRequestNote(request, data)}
           kind="quiet"
           onConfirm={() => settle(withdrawActingRequest(request.id), a === 'Decline' ? 'Declined. The request is closed.' : 'Request withdrawn.')}
         />
@@ -1025,7 +1026,7 @@ function ActingActions({ position: p }: { position: Position }) {
       {changing && latest ? (
         <>
           <DateField label="Until" date={until} hint={untilHint(latest)} />
-          {dateBlock ? <Small style={{ color: colors.warn }}>{dateBlock}</Small> : null}
+          {dateBlock ? <Small style={{ color: colors.danger }}>{dateBlock}</Small> : null}
           <Row style={{ gap: space.sm }}>
             <Button
               label="Save date"
@@ -1050,7 +1051,7 @@ function ActingActions({ position: p }: { position: Position }) {
                 key={a}
                 label={a}
                 confirmLabel="Yes, step down"
-                confirmAccessibilityLabel={`Yes, step down from acting as ${title}`}
+                confirmAccessibilityLabel={`Yes, step down as ${title}`}
                 kind="secondary"
                 size="small"
                 onConfirm={() => settle(endPosition(p.id))}
@@ -1098,9 +1099,9 @@ function ActingActions({ position: p }: { position: Position }) {
                   kind="secondary"
                   size="small"
                   disabled={endBlock !== null}
-                  onPress={() => navigation.navigate('NewVote', { chapterId: p.chapterId, subjectMemberId: p.memberId, subjectRole: p.role, acting: true })}
+                  onPress={() => navigation.navigate('NewVote', { chapterId: p.chapterId, subjectMemberId: p.memberId, subjectRole: p.role })}
                 />
-                {endBlock ? <Small>{endBlock}</Small> : null}
+                {endBlock ? <Small style={{ color: colors.danger }}>{endBlock}</Small> : null}
               </React.Fragment>
             );
         }
@@ -1143,7 +1144,7 @@ function ArrangeCover({ seat, onDone }: { seat: Position; onDone: (text: string)
             until.setText(formatAuDate(actingDefaultUntil(chapterId, seat.role, true, today, data)));
           }}
         />
-        {state.blocked ? <Small>{state.blocked}</Small> : null}
+        {state.blocked ? <Small style={{ color: colors.danger }}>{state.blocked}</Small> : null}
       </>
     );
   }
@@ -1201,6 +1202,8 @@ function RequestStep({ request }: { request: ActingRequest }) {
   const [error, setError] = useState<string | null>(null);
   if (!me) return null;
   const step = boardVoteStep(me, request, data, new Date().toISOString());
+  const standIn = data.members.find((m) => m.id === request.memberId);
+  const about = `${standIn ? displayName(standIn) : 'Someone'} as ${ROLE_LABEL[request.role]}`;
   return (
     <View style={{ gap: space.sm }}>
       <Label>Asked for</Label>
@@ -1211,6 +1214,7 @@ function RequestStep({ request }: { request: ActingRequest }) {
         <ConfirmButton
           label="Start the board vote"
           confirmLabel="Yes, start the vote"
+          confirmAccessibilityLabel={`Yes, start the vote: ${about}`}
           kind="secondary"
           size="small"
           confirmNote={step.note}

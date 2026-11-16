@@ -4130,7 +4130,7 @@
       "days": 7,
       "allowed": true,
       "with": [
-        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },
         { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
       ]
     },
@@ -4147,7 +4147,7 @@
       "allowed": false,
       "refusal": "Only the NEC can do that.",
       "with": [
-        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },
         { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
       ]
     },
@@ -4163,7 +4163,7 @@
       "days": 7,
       "allowed": true,
       "with": [
-        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president" },
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },
         { "key": "jet-covers-smokey", "member": "jet", "chapter": "north", "role": "president", "startedDays": -10, "actingUntilDays": 20, "covers": "smokey-president", "why": "Smokey overseas", "appointedBy": "crank" }
       ]
     },
@@ -5386,6 +5386,212 @@
       ],
       "withVotes": [
         { "key": "crank-asks-jet-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "jet", "role": "president", "actingRequest": "crank-asks-jet", "electors": ["crank"], "voted": ["crank"], "openedDays": -1, "closesDays": 6 }
+      ]
+    },
+    {
+      "name": "A holder acting elsewhere can’t ask for a cover of their own seat",
+      "as": "crank",
+      "action": "requestCover",
+      "seat": "crank-road-captain",
+      "member": "jet",
+      "untilDays": 28,
+      "why": "Crank away",
+      "allowed": false,
+      "refusal": "While someone is acting in a role, their own seat can’t be covered. One stint at a time.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -5, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A holder whose stint lapsed last night can ask for a cover again",
+      "as": "crank",
+      "action": "requestCover",
+      "seat": "crank-road-captain",
+      "member": "jet",
+      "untilDays": 28,
+      "why": "Crank away",
+      "allowed": true,
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -30, "actingUntilDays": -1, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A voted cover of a holder acting elsewhere is refused",
+      "as": "smokey",
+      "action": "requestActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "road_captain",
+      "covers": "crank-road-captain",
+      "untilDays": 28,
+      "why": "Crank can’t be reached",
+      "allowed": false,
+      "refusal": "While someone is acting in a role, their own seat can’t be covered. One stint at a time.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },
+        { "key": "lou-north-secretary", "member": "lou", "chapter": "north", "role": "secretary" },
+        { "key": "chair-north-saa", "member": "chair", "chapter": "north", "role": "sergeant_at_arms" },
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -5, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "Confirming a cover re-checks that the holder isn’t acting now",
+      "as": "crank",
+      "action": "confirmActing",
+      "request": "smokey-asks-jet",
+      "allowed": false,
+      "refusal": "While someone is acting in a role, their own seat can’t be covered. One stint at a time.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },
+        { "key": "smokey-acting-tail-gunner", "member": "smokey", "chapter": "north", "role": "tail_gunner", "startedDays": -1, "actingUntilDays": 20, "why": "No Tail Gunner since the ACM", "appointedBy": "crank" }
+      ],
+      "withRequests": [
+        { "key": "smokey-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-president", "untilDays": 28, "why": "Smokey overseas", "requestedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "A President cover only the Auditor could confirm can’t be asked for in the app",
+      "as": "rusty",
+      "action": "requestCover",
+      "seat": "rusty-president",
+      "member": "torque",
+      "untilDays": 28,
+      "why": "Rusty overseas",
+      "allowed": false,
+      "refusal": "Too few board members outside this can decide it in the app. Refer it to the NEC (8.6).",
+      "without": ["penny-treasurer"],
+      "with": [
+        { "key": "kim-west-vp", "member": "kim", "chapter": "west", "role": "vice_president", "startedDays": -30 }
+      ]
+    },
+    {
+      "name": "The board can’t vote on a cover whose seat has ended",
+      "as": "crank",
+      "action": "openActingVote",
+      "request": "crank-asks-jet",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false,
+      "refusal": "The seat they asked to cover has ended.",
+      "without": ["smokey-president"],
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },
+        { "key": "smokey-ended", "member": "smokey", "chapter": "north", "role": "president", "startedDays": -400, "endedDays": -1 },
+        { "key": "smokey-secretary", "member": "smokey", "chapter": "north", "role": "secretary" },
+        { "key": "chair-north-saa", "member": "chair", "chapter": "north", "role": "sergeant_at_arms" }
+      ],
+      "withRequests": [
+        { "key": "crank-asks-jet", "chapter": "north", "role": "president", "member": "jet", "covers": "smokey-ended", "untilDays": 28, "why": "Smokey can’t be reached", "requestedBy": "crank" }
+      ]
+    },
+    {
+      "name": "The Auditor on West’s board can’t open a vote to end its Acting Treasurer",
+      "as": "kim",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "hal",
+      "role": "treasurer",
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 3,
+      "days": 7,
+      "allowed": false,
+      "refusal": "The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).",
+      "without": ["penny-treasurer"],
+      "with": [
+        { "key": "kim-west-vp", "member": "kim", "chapter": "west", "role": "vice_president", "startedDays": -30 },
+        { "key": "spanner-west-saa", "member": "spanner", "chapter": "west", "role": "sergeant_at_arms", "startedDays": -30 },
+        { "key": "hal-acting-treasurer", "member": "hal", "chapter": "west", "role": "treasurer", "startedDays": -5, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "rusty" }
+      ]
+    },
+    {
+      "name": "Another West board member opens the vote to end its Acting Treasurer",
+      "as": "torque",
+      "action": "openVote",
+      "chapter": "west",
+      "subject": "hal",
+      "role": "treasurer",
+      "electorate": "chapter_board",
+      "threshold": "majority",
+      "quorum": 3,
+      "days": 7,
+      "allowed": true,
+      "without": ["penny-treasurer"],
+      "with": [
+        { "key": "kim-west-vp", "member": "kim", "chapter": "west", "role": "vice_president", "startedDays": -30 },
+        { "key": "spanner-west-saa", "member": "spanner", "chapter": "west", "role": "sergeant_at_arms", "startedDays": -30 },
+        { "key": "hal-acting-treasurer", "member": "hal", "chapter": "west", "role": "treasurer", "startedDays": -5, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "rusty" }
+      ]
+    },
+    {
+      "name": "A vote to end acting keeps its 48 hours after the stint has ended",
+      "as": "crank",
+      "action": "closeVote",
+      "vote": "end-jet-vote",
+      "casting": null,
+      "allowed": false,
+      "refusal": "A vote about acting stays open for at least 48 hours, so everyone affected can answer.",
+      "with": [
+        { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },
+        { "key": "lou-north-secretary", "member": "lou", "chapter": "north", "role": "secretary" },
+        { "key": "chair-north-saa", "member": "chair", "chapter": "north", "role": "sergeant_at_arms" }
+      ],
+      "withVotes": [
+        { "key": "end-jet-vote", "chapter": "north", "electorate": "chapter_board", "threshold": "majority", "subject": "jet", "role": "treasurer", "electors": ["crank", "lou", "chair"], "voted": ["crank", "lou", "chair"], "openedDays": -1, "closesDays": 6 }
+      ]
+    },
+    {
+      "name": "A Full Members’ removal vote closes once everyone has voted, though its subject now acts in that role",
+      "as": "smokey",
+      "action": "closeVote",
+      "vote": "remove-crank-treasurer",
+      "casting": null,
+      "allowed": true,
+      "with": [
+        { "key": "crank-acting-treasurer", "member": "crank", "chapter": "north", "role": "treasurer", "startedDays": -1, "actingUntilDays": 20, "why": "No Treasurer since Crank stood down", "appointedBy": "smokey" }
+      ],
+      "withVotes": [
+        { "key": "remove-crank-treasurer", "chapter": "north", "electorate": "chapter_patched", "threshold": "two_thirds", "subject": "crank", "role": "treasurer", "electors": ["chair", "crank", "jet", "lou", "smokey"], "voted": ["chair", "crank", "jet", "lou", "smokey"], "openedDays": -1, "closesDays": 6 }
+      ]
+    },
+    {
+      "name": "One person who casts two chapters’ NEC votes gets one ballot",
+      "as": "lou",
+      "action": "openVote",
+      "chapter": null,
+      "subject": null,
+      "electorate": "nec",
+      "threshold": "majority",
+      "quorum": 2,
+      "days": 7,
+      "allowed": true,
+      "with": [
+        { "key": "rusty-east-president", "member": "rusty", "chapter": "east", "role": "president", "startedDays": -30 }
+      ]
+    },
+    {
+      "name": "5D: a founder acting in their old chapter",
+      "as": "chair",
+      "action": "settleChapter",
+      "proposal": "cp-open",
+      "vote": "nec-carried",
+      "allowed": false,
+      "refusal": "Founders have to end their positions in their old chapter first.",
+      "with": [
+        { "key": "jet-acting-tail-gunner", "member": "jet", "chapter": "north", "role": "tail_gunner", "startedDays": -5, "actingUntilDays": 20, "why": "No Tail Gunner since the ACM", "appointedBy": "smokey" }
+      ]
+    },
+    {
+      "name": "5D: a founder whose stint lapsed last night",
+      "as": "chair",
+      "action": "settleChapter",
+      "proposal": "cp-open",
+      "vote": "nec-carried",
+      "allowed": true,
+      "with": [
+        { "key": "jet-acting-tail-gunner", "member": "jet", "chapter": "north", "role": "tail_gunner", "startedDays": -30, "actingUntilDays": -1, "why": "No Tail Gunner since the ACM", "appointedBy": "smokey" }
       ]
     },
     {

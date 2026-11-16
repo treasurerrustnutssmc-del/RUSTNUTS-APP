@@ -34,7 +34,7 @@ import { melbourneDate, melbourneTime } from '../domain/rides';
 import type { ActionItem, AgendaItem, BallotChoice, ClubData, Electorate, Meeting, MeetingKind, Member, NecSeatRole, PositionRole, Threshold, Vote } from '../domain/types';
 import { auditorSeat, isNecSeat, SMALL_BOARD } from '../domain/access';
 import {
-  ACTING_VOTE_HOURS, ACTING_VOTE_OPEN, castProblem, chairOf, defaultQuorum, electorsFor, endActingQuestion, isRemovalVote, lacksChapters, REINSTATABLE, removalShape, ruleLine,
+  aboutActing, ACTING_VOTE_HOURS, ACTING_VOTE_OPEN, actingVoteNote, castProblem, chairOf, defaultQuorum, electorsFor, endActingQuestion, isRemovalVote, lacksChapters, REINSTATABLE, removalShape, ruleLine,
   stintAbout, stintVoteWarnings, TIE,
 } from '../domain/votes';
 import type { RootScreen } from '../navigation/types';
@@ -768,15 +768,14 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
   const share = vote.electorIds.length ? vote.votedIds.length / vote.electorIds.length : 0;
   // A vote on an acting request seats nobody by itself: a board member who isn't the stand-in confirms it.
   const seatsActing = (vote.actingRequestId ?? null) !== null;
-  const stint = stintAbout(vote.chapterId, vote.subjectMemberId, vote.subjectRole, data.positions);
-  const endsActing = stint !== null;
+  // About acting by the vote's own shape, so a carried vote that ended a stint still reads as one.
+  const aboutActingVote = aboutActing(vote, data.positions);
+  const endsActing = aboutActingVote && !seatsActing;
   // A vote about acting can't close in its first 48 hours, even once everyone has voted.
   const earliestClose = new Date(Date.parse(vote.openedAt) + ACTING_VOTE_HOURS * 3_600_000).toISOString();
-  const aboutActingVote = seatsActing || endsActing;
   const tooSoon = aboutActingVote && Date.parse(now) < Date.parse(earliestClose);
-  // Its electors leave out the stand-in and, on a cover, the holder they stand in for (8.5, 11.10).
-  const request = seatsActing ? (data.actingRequests ?? []).find((r) => r.id === vote.actingRequestId) : undefined;
-  const covered = request ? request.covers !== null : stint ? stint.covers != null : true;
+  // Its electors leave out the stand-in, on a cover the holder, and on a President or Treasurer seat the Auditor.
+  const actingNote = actingVoteNote(vote, data);
 
   return (
     <Screen>
@@ -795,9 +794,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
           <Fact icon="podium-outline" text={ruleLine(vote)} />
           <Fact icon="time-outline" text={closed ? `Closed ${when(vote.closedAt!)}` : `Closes ${when(vote.closesAt)}`} />
         </Stack>
-        {aboutActingVote ? (
-          <Small>{covered ? 'The stand-in and the holder aren’t on this vote (8.5, 11.10).' : `${subject ? displayName(subject) : 'The stand-in'} isn’t on this vote (8.5, 11.10).`}</Small>
-        ) : null}
+        {actingNote ? <Small>{actingNote}</Small> : null}
       </Card>
 
       {closed ? (
@@ -1032,7 +1029,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   // A removal vote naming a role its subject holds as acting there ends their acting (9.3): a board
   // majority, without them, the holder they cover and, for a President or Treasurer seat, the Auditor.
   const stint = removal ? stintAbout(params.chapterId ?? subject!.chapterId, subject!.id, removal, data.positions) : null;
-  // Only a stint it found: params.acting on a stint that has since lapsed gets the removal form, whose words the rules use.
+  // Only a stint it found: a stint that has since lapsed gets the removal form, whose words the rules use.
   const acting = stint !== null;
   const coveredId = stint?.covers ? data.positions.find((p) => p.id === stint.covers)?.memberId : undefined;
   const holder = coveredId ? data.members.find((m) => m.id === coveredId) : undefined;

@@ -14,6 +14,7 @@ import type { Position } from '../domain/types';
 const read = (rel: string) => fs.readFileSync(path.resolve(import.meta.dirname, rel), 'utf8');
 const members = read('members.tsx');
 const me = read('me.tsx');
+const coverBits = read('coverBits.tsx');
 const deleteAccount = read('deleteAccount.tsx');
 const memberBits = read('../ui/MemberBits.tsx');
 const chatBits = read('../ui/ChatBits.tsx');
@@ -100,14 +101,19 @@ test('member detail shows each seat in the long form, and no term words on a sti
 test('stepping down from a stint, and from a covered seat', () => {
   const button = fn(memberBits, 'StepDownButton');
   assert.match(button, /'Step down from acting'/);
-  assert.match(button, /coveredStepDownNote\(cover, data\)/, 'the covered holder hears that the cover ends too');
+  // The covered holder hears that the cover ends too, and a stand-in that their own stint does
+  // (stepDownNote, tested in home.test.ts).
+  assert.match(button, /confirmNote=\{stepDownNote\(position, data\)\}/);
+  // The title already says Acting, so the label says it once.
+  assert.match(button, /confirmAccessibilityLabel=\{`Yes, step down as \$\{title\}`\}/);
+  assert.doesNotMatch(memberBits + read('board.tsx'), /step down from acting as/);
   assert.match(fn(members, 'StepDownButtons'), /<StepDownButton\b/);
   assert.match(fn(deleteAccount, 'StepDownSeats'), /<StepDownButton\b/, 'Delete account lists acting seats with the same step-down');
 });
 
-test('Me’s titles read held rows, with a stint’s until date', () => {
+test('Me’s titles read held rows in role order, as member detail does, with a stint’s until date', () => {
   const screen = fn(me, 'MeScreen');
-  assert.match(screen, /const positions = heldPositions\(me\.id, data\.positions\);/);
+  assert.match(screen, /const positions = sortedPositions\(me\.id, data\);/);
   assert.doesNotMatch(me, /activePositions/);
   assert.match(screen, /`Acting until \$\{\w+\}`/);
 });
@@ -117,21 +123,34 @@ test('Me’s titles read held rows, with a stint’s until date', () => {
 test('Me and Home show the covered holder’s notice with an I’m back ConfirmButton', () => {
   assert.match(fn(me, 'MeScreen'), /<CoverPanels panels=\{coverPanels\(me, data, today\)\} \/>/, 'Me: every board seat’s panel');
   assert.match(fn(members, 'HomeScreen'), /<CoverPanels panels=\{homeCoverPanels\(me, data, today\)\} \/>/, 'Home: the covered notice only');
-  assert.match(members, /import \{ CoverPanels \} from '\.\/me';/, 'Home draws the same panel as Me');
-  const covered = fn(me, 'CoveredSeat');
+  // Both draw it from one module, so Home doesn't pull in the Me screen.
+  assert.match(members, /import \{ CoverPanels \} from '\.\/coverBits';/, 'Home draws the same panel as Me');
+  assert.match(me, /import \{ CoverPanels, StandInPanels \} from '\.\/coverBits';/);
+  assert.doesNotMatch(me, /function CoveredSeat|function ArrangeCover/);
+  const covered = fn(coverBits, 'CoveredSeat');
   assert.match(covered, /<ConfirmButton\b[^>]*label=\{panel\.button\.label\}/s, 'I’m back is a ConfirmButton');
   assert.match(covered, /endPosition\(panel\.cover\.id\)/, 'I’m back ends the cover (holder_back)');
   assert.match(covered, /\{panel\.notice\}/);
 });
 
 test('Me asks for cover with the stand-ins, Until and Why, and the note on the ConfirmButton', () => {
-  const arrange = fn(me, 'ArrangeCover');
+  const arrange = fn(coverBits, 'ArrangeCover');
   assert.match(arrange, /<Choices\b(<\w+>)?[^>]*options=\{panel\.choices\}/s);
   assert.match(arrange, /<DateField\b/);
   assert.match(arrange, /requestCoverProblem\(me, panel\.seat, \w+, [\w.]+, \w+, data, today\)/, 'the button waits on the rule');
   assert.match(arrange, /confirmNote=\{[^}]*coverConfirmNote\(panel\.seat, \w+, [\w.]+, data, today\)/s);
   assert.match(arrange, /requestCover\(panel\.seat\.id, /);
-  const asked = fn(me, 'AskedCover');
+  // A date the rule refuses (out of range, past the stand-in's licence) shows on Until, not under Why.
+  assert.match(arrange, /<DateField\b[^>]*error=\{untilShown\}/s);
+  assert.match(arrange, /hint=\{panel\.whyHint\}/, 'the Why hint says it’s required (meLayout.test.ts)');
+  const asked = fn(coverBits, 'AskedCover');
   assert.match(asked, /<ConfirmButton\b[^>]*label=\{panel\.button\.label\}/s, 'Withdraw request is a ConfirmButton');
+  assert.match(asked, /withdrawActingRequest\(panel\.request\.id\)/);
+});
+
+test('Me shows a stand-in with no Board tab the request, with Decline', () => {
+  assert.match(fn(me, 'MeScreen'), /<StandInPanels panels=\{standInPanels\(me, data, today\)\} \/>/);
+  const asked = fn(coverBits, 'StandInRequest');
+  assert.match(asked, /<ConfirmButton\b[^>]*label=\{panel\.button\.label\}[^>]*confirmNote=\{panel\.button\.confirmNote\}/s, 'Decline is a ConfirmButton');
   assert.match(asked, /withdrawActingRequest\(panel\.request\.id\)/);
 });

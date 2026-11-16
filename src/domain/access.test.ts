@@ -31,6 +31,8 @@ import {
   EARLIER_WHO,
   ENDED_BY_VOTE,
   HIATUS_NO_LEAD,
+  HOLDER_ACTING,
+  ACTING_NO_LICENCE,
   LATER_WHO_EMPTY,
   laterWhoCover,
   LICENCE_ENDS,
@@ -646,6 +648,7 @@ test('the acting words are the spec’s Appendix A', () => {
   assert.equal(SEAT_HAS_ACTING, 'Someone is already acting in that seat, or a request is waiting.');
   assert.equal(ONE_STINT, 'They’re already acting in a role. One stint at a time.');
   assert.equal(OWN_SEAT_COVERED, 'Their own seat is covered, so they can’t act for anyone.');
+  assert.equal(HOLDER_ACTING, 'While someone is acting in a role, their own seat can’t be covered. One stint at a time.');
   assert.equal(CHAIR_NOT_BOOKS, 'An Acting President can’t also keep the chapter’s books (9.5).');
   assert.equal(BOOKS_NOT_CHAIR, 'An Acting Treasurer can’t also be the chapter’s President (9.5).');
   assert.equal(HIATUS_NO_LEAD, 'Members on hiatus can’t lead rides.');
@@ -684,6 +687,7 @@ test('the acting words are the spec’s Appendix A', () => {
   assert.equal(ACTING_FAMILY, 'Immediate family can’t sit on the same board, including the person they cover, without a two-thirds written exemption (9.6).');
   assert.equal(ACTING_LICENCE_VACANCY, 'If their licence is suspended or cancelled, their seat is vacant (9.7). The app can’t record that yet: they step down, then the board fills the seat.');
   assert.equal(ACTING_COMBINED, 'A small chapter may combine duties for a while where it’s necessary, with the reason recorded (9.5).');
+  assert.equal(ACTING_NO_LICENCE, 'No licence end date is recorded for them. Check their licence runs to the until date (9.7).');
   assert.equal(BOARD_TWO_YEARS, 'Board nominees need two years as a Full Member, unless the NEC waived it or they’re a founding officer (9.1).');
   assert.equal(SERVED_TERM_FIRST, 'A President or Vice President should have served a full term in another board seat, unless they’re a founding officer or the NEC gave an exemption (9.4).');
   assert.equal(actingRideWarning('Crank', '2026-12-13', '2026-12-14'), 'Crank leads the 13/12 run. Acting ends that night. Pick 14/12 or later.');
@@ -882,20 +886,25 @@ test('caps: once the run’s ACM is held, no stint can start or run longer (RUN_
 });
 
 test('warnings: 9.6 on every board-seat stint; 9.1 and 9.4 where they fit; 9.7 on covers; 9.5 for a stand-in already on the board', () => {
-  const w = world();
+  // Everyone's licence is recorded, to 2030, so the no-licence warning stays out of these lists.
+  const licensed = (over: World = {}) => world({ privates: RIDERS.map(([id]) => licence(id, 'full_open', '2030-01-01')), ...over });
+  const w = licensed();
   const warn = (target: string, role: PositionRole, covers: string | null, data = w, chapter = 'north') =>
     actingWarnings(who(data, target), chapter, role, covers ? row(data, covers) : null, UNTIL, data, AT);
   assert.deepEqual(warn('ned', 'treasurer', null), [ACTING_FAMILY, BOARD_TWO_YEARS], 'off the board, not two years Full');
-  assert.deepEqual(warn('ned', 'treasurer', null, world({ members: { ned: { patchedOn: '2024-01-01' } } })), [ACTING_FAMILY]);
+  assert.deepEqual(warn('ned', 'treasurer', null, licensed({ members: { ned: { patchedOn: '2024-01-01' } } })), [ACTING_FAMILY]);
   assert.deepEqual(warn('crank', 'treasurer', null), [ACTING_FAMILY, ACTING_COMBINED], 'the Road Captain combines duties');
   assert.deepEqual(warn('jet', 'president', 'smokey-president'), [ACTING_FAMILY, ACTING_LICENCE_VACANCY], 'the VP acting for the President is 8.2');
   assert.deepEqual(warn('torque', 'treasurer', 'penny-treasurer', w, 'west'), [ACTING_FAMILY, ACTING_LICENCE_VACANCY, ACTING_COMBINED]);
-  const vacant = world({ ended: { 'smokey-president': '2026-11-01' } });
+  const vacant = licensed({ ended: { 'smokey-president': '2026-11-01' } });
   assert.deepEqual(warn('ned', 'president', null, vacant), [ACTING_FAMILY, BOARD_TWO_YEARS, SERVED_TERM_FIRST]);
   assert.deepEqual(warn('crank', 'president', null, vacant), [ACTING_FAMILY, SERVED_TERM_FIRST, ACTING_COMBINED]);
   assert.deepEqual(warn('jet', 'president', null, vacant), [ACTING_FAMILY], 'the sitting VP');
-  assert.deepEqual(warn('ned', 'vice_president', null, world({ ended: { 'jet-vp': '2026-11-01' } })), [ACTING_FAMILY, BOARD_TWO_YEARS, SERVED_TERM_FIRST]);
+  assert.deepEqual(warn('ned', 'vice_president', null, licensed({ ended: { 'jet-vp': '2026-11-01' } })), [ACTING_FAMILY, BOARD_TWO_YEARS, SERVED_TERM_FIRST]);
   assert.deepEqual(warn('ned', 'officer', null), [], 'not a board seat');
+  // With no licence end date recorded, 9.7 warns after 9.4 and before a cover's vacancy line.
+  assert.deepEqual(warn('ned', 'president', null, world({ ended: { 'smokey-president': '2026-11-01' } })), [ACTING_FAMILY, BOARD_TWO_YEARS, SERVED_TERM_FIRST, ACTING_NO_LICENCE]);
+  assert.deepEqual(warn('jet', 'president', 'smokey-president', world()), [ACTING_FAMILY, ACTING_NO_LICENCE, ACTING_LICENCE_VACANCY]);
 });
 
 test('warnings: the stand-in leads a ride on the until day, or one running past its midnight', () => {
@@ -1220,13 +1229,16 @@ test('a cover has to point at the held, full holder of that very seat (SEAT_ENDE
     actingProblem(who(covered, 'crank'), 'north', 'vice_president', row(covered, 'jet-covers-smokey'), UNTIL, covered),
     SEAT_ENDED, 'a cover can’t cover a cover',
   );
-  // The seat is checked where acting_problem checks it: after the member, before a waiting request.
-  const ended = world({ seats: FIVE, ended: { 'smokey-president': AT } });
-  assert.equal(
-    actingProblem(who(ended, 'spanner'), 'north', 'president', row(ended, 'smokey-president'), UNTIL, ended),
-    'They’re not a member of that chapter.',
-  );
-  assert.equal(actingProblem(who(ended, 'jet'), 'north', 'president', row(ended, 'smokey-president'), UNTIL, ended), SEAT_ENDED);
+  // The seat is checked where acting_problem checks it: after the member's own standing (in the
+  // chapter, approved), before a stint or a request already waiting there.
+  const ended = world({
+    seats: FIVE, ended: { 'smokey-president': AT }, members: { ned: { approval: 'suspended' } },
+    requests: [ask('crank-asks-gus', { memberId: 'gus', covers: null, requestedBy: 'crank' })],
+  });
+  const onEnded = (target: string) => actingProblem(who(ended, target), 'north', 'president', row(ended, 'smokey-president'), UNTIL, ended);
+  assert.equal(onEnded('spanner'), 'They’re not a member of that chapter.');
+  assert.equal(onEnded('ned'), 'Approve them first.', 'a suspended member, before the seat');
+  assert.equal(onEnded('jet'), SEAT_ENDED, 'the seat, before the request waiting for it');
 });
 
 test('a cover of a seat that has ended needs a vote whoever asks, and its old holder is an elector again', () => {
@@ -1300,5 +1312,71 @@ test('the acting routes take approved members who aren’t Family, as is_approve
   assert.equal(
     appointActingProblem(who(family, 'smokey'), who(family, 'crank'), 'north', 'treasurer', UNTIL, 'No Treasurer', family, AT),
     'Only approved members can do that.',
+  );
+});
+
+test('a holder acting in a role can’t have their own seat covered (HOLDER_ACTING), on any route, and confirm checks it again', () => {
+  // Crank, North's Road Captain, is also Acting Treasurer (North) in the empty seat.
+  const acting = world({ seats: [stint('crank-acting-treasurer', 'crank', 'north', 'treasurer')] });
+  const askFor = (data: ClubData) =>
+    requestCoverProblem(who(data, 'crank'), row(data, 'crank-rc'), who(data, 'jet'), UNTIL, 'Crank away', data, AT);
+  assert.equal(askFor(acting), HOLDER_ACTING);
+  // Settled first: a stint that lapsed last night is no stint.
+  const lapsed = world({ seats: [stint('crank-acting-treasurer', 'crank', 'north', 'treasurer', { startedOn: '2026-10-01', actingUntil: '2026-11-14' })] });
+  assert.equal(askFor(lapsed), null);
+  // A voted cover of his seat, proposed by Smokey, is refused the same way.
+  const five = world({ seats: [...FIVE, stint('crank-acting-treasurer', 'crank', 'north', 'treasurer')] });
+  assert.equal(
+    requestActingProblem(who(five, 'smokey'), who(five, 'jet'), 'north', 'road_captain', row(five, 'crank-rc'), UNTIL, 'Crank can’t be reached', five, AT),
+    HOLDER_ACTING,
+  );
+  // Smokey asked for Jet, then was recorded Acting Tail Gunner: confirming the cover checks it again.
+  const asks = ask('smokey-asks-jet');
+  const later = world({ requests: [asks], seats: [stint('smokey-acting-tg', 'smokey', 'north', 'tail_gunner', { appointedBy: 'crank' })] });
+  assert.equal(confirmActingProblem(who(later, 'crank'), asks, later, AT), HOLDER_ACTING);
+});
+
+test('a cover only the Auditor could confirm can’t be decided in the app (SMALL_BOARD, 8.6, 11.8)', () => {
+  // West without its Treasurer: Rusty (President), Torque (Secretary) and Kim, the Auditor, as VP.
+  const w = world({ without: ['penny-treasurer'], seats: [seat('kim-west-vp', 'kim', 'west', 'vice_president')] });
+  const askFor = (me: string, seatId: string, target: string, data = w) =>
+    requestCoverProblem(who(data, me), row(data, seatId), who(data, target), UNTIL, 'Away', data, AT);
+  assert.equal(askFor('rusty', 'rusty-president', 'torque'), SMALL_BOARD, 'only Kim is left to confirm, and she stays out of a President seat');
+  assert.equal(askFor('torque', 'torque-secretary', 'rusty'), null, 'Kim can confirm a Secretary cover');
+  // With Penny on the board again, she can confirm it; it then fails on the President rule instead.
+  const four = world({ seats: [seat('kim-west-vp', 'kim', 'west', 'vice_president')] });
+  assert.equal(askFor('rusty', 'rusty-president', 'torque', four), PRESIDENT_NEEDS_BOARD_VOTE);
+});
+
+test('with no licence recorded, acting only warns (9.7)', () => {
+  const none = world();
+  assert.ok(actingWarnings(who(none, 'ned'), 'north', 'treasurer', null, UNTIL, none, AT).includes(ACTING_NO_LICENCE));
+  const recorded = world({ privates: [licence('ned', 'full_open', '2030-01-01')] });
+  assert.ok(!actingWarnings(who(recorded, 'ned'), 'north', 'treasurer', null, UNTIL, recorded, AT).includes(ACTING_NO_LICENCE));
+  const noExpiry = world({ privates: [licence('ned', 'full_open', null)] });
+  assert.ok(actingWarnings(who(noExpiry, 'ned'), 'north', 'treasurer', null, UNTIL, noExpiry, AT).includes(ACTING_NO_LICENCE), 'no expiry recorded');
+});
+
+test('the routes check signing in before anything they look up, as the RPCs do', () => {
+  const w = world();
+  assert.equal(confirmActingProblem(null, undefined, w, AT), 'Sign in first.');
+  assert.equal(confirmActingProblem(who(w, 'crank'), undefined, w, AT), NO_REQUEST);
+  assert.equal(withdrawRequestProblem(null, undefined, w, AT), 'Sign in first.');
+  assert.equal(withdrawRequestProblem(who(w, 'crank'), undefined, w, AT), NO_REQUEST);
+  assert.equal(setActingUntilProblem(null, undefined, UNTIL, w, AT), 'Sign in first.');
+  assert.equal(setActingUntilProblem(who(w, 'crank'), undefined, UNTIL, w, AT), 'That position no longer exists.');
+  // An unknown member isn't a member of that chapter (acting_problem's words), after the caller's standing.
+  assert.equal(appointActingProblem(null, undefined, 'north', 'treasurer', UNTIL, 'No Treasurer', w, AT), 'Sign in first.');
+  assert.equal(appointActingProblem(who(w, 'smokey'), undefined, 'north', 'treasurer', UNTIL, 'No Treasurer', w, AT), 'They’re not a member of that chapter.');
+  assert.equal(appointActingProblem(who(w, 'spanner'), undefined, 'north', 'treasurer', UNTIL, 'No Treasurer', w, AT), BOARD_RECORDS_ACTING);
+  assert.equal(
+    requestCoverProblem(who(w, 'smokey'), row(w, 'smokey-president'), undefined, UNTIL, 'Away', w, AT),
+    'They’re not a member of that chapter.',
+  );
+  // A covered row nobody can find has ended (SEAT_ENDED), as request_acting finds no held row for it.
+  const five = world({ seats: FIVE });
+  assert.equal(
+    requestActingProblem(who(five, 'crank'), who(five, 'jet'), 'north', 'president', { id: 'gone' }, UNTIL, 'Can’t be reached', five, AT),
+    SEAT_ENDED,
   );
 });

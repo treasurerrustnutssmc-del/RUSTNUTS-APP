@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONFIRM_NOT_HOLDER, laterWhoCover, NO_REQUEST, NOT_YOURSELF, REPLACE_NEEDS_END,
+  CONFIRM_NOT_HOLDER, laterWhoCover, NO_REQUEST, NOT_YOURSELF, REPLACE_NEEDS_END, SEAT_ENDED,
 } from '../domain/access';
 import { endPositionRows, HOLDER_SEAT_ENDED } from '../domain/acting';
 import type { ActingRequest, ChapterProposal, ClubData, Member, Position, PositionRole, Vote } from '../domain/types';
@@ -302,4 +302,34 @@ test('openVote writes whose chapter each NEC ballot is, and castBallot passes an
   // Had Smokey stayed, a cast ballot would stand.
   const stayed = { ...cast, positions: before.positions };
   refuses(() => castBallot(ctx(stayed, 'smokey'), id, 'no'), castNecCast('North'));
+});
+
+test('a writer handed an id nobody can find refuses in the database’s order and words', () => {
+  const w = world({ requests: [ask('smokey-asks-jet')] });
+  const out = ctx(w, 'nobody');
+  // Signed out first, whatever the id.
+  refuses(() => confirmActing(out, 'gone'), 'Sign in first.');
+  refuses(() => withdrawActingRequest(out, 'gone'), 'Sign in first.');
+  refuses(() => setActingUntil(out, 'gone', UNTIL), 'Sign in first.');
+  refuses(() => requestActing(out, 'jet', 'north', 'president', 'gone', UNTIL, 'Away'), 'Sign in first.');
+  // Then the RPC's words for what's missing.
+  refuses(() => confirmActing(ctx(w, 'crank'), 'gone'), NO_REQUEST);
+  refuses(() => withdrawActingRequest(ctx(w, 'crank'), 'gone'), NO_REQUEST);
+  refuses(() => setActingUntil(ctx(w, 'crank'), 'gone', UNTIL), 'That position no longer exists.');
+  refuses(() => appointActing(ctx(w, 'smokey'), 'ghost', 'north', 'treasurer', UNTIL, 'No Treasurer'), 'They’re not a member of that chapter.');
+  refuses(() => requestCover(ctx(w, 'crank'), 'crank-rc', 'ghost', UNTIL, 'Away'), 'They’re not a member of that chapter.');
+  const five = world({ seats: FIVE });
+  refuses(() => requestActing(ctx(five, 'crank'), 'jet', 'north', 'president', 'gone', UNTIL, 'Can’t be reached'), SEAT_ENDED);
+});
+
+test('openVote gives someone who casts two chapters’ NEC votes one ballot, for the chapter whose name comes first', () => {
+  // Rusty is North's President here as well as West's.
+  const before = world({ without: ['smokey-president'], seats: [seat('rusty-north-president', 'rusty', 'north', 'president')] });
+  const { data, id } = openVote(ctx(before, 'lou'), {
+    chapterId: null, meetingId: null, subjectMemberId: null, subjectRole: null, question: 'Tuesdays?', details: null,
+    electorate: 'nec', threshold: 'majority', secret: false, quorum: 1, closesAt: '2026-11-22T08:00:00.000Z',
+  });
+  const opened = data.votes!.find((v) => v.id === id)!;
+  assert.deepEqual(opened.electorIds, ['rusty']);
+  assert.deepEqual(opened.electorChapters, { rusty: 'north' });
 });
