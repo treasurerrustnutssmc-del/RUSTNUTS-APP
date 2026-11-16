@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Linking, Platform, Text, View } from 'react-native';
+import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import {
   canManageMember,
@@ -196,7 +196,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
   const business = businessFor(me, data, nowInstant());
   // The header names the home chapter first, so a seat there doesn't repeat it ("North chapter · Road Captain,
   // Acting Treasurer"). A stint's title goes last and its until date on a line of its own, so the header
-  // never wraps to three lines at 390 wide.
+  // never wraps to three lines at 390 wide. Each title wraps as one piece, so on a narrower phone a line
+  // breaks between titles, never inside one.
   const atHome = ` (${chapter?.name})`;
   const titles = positionTitles(positions, data.chapters, me.chapterId, ROLE_LABEL)
     .map((t) => (chapter && t.text.endsWith(atHome) ? { ...t, text: t.text.slice(0, -atHome.length) } : t))
@@ -220,10 +221,12 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
             >
               G’day, {displayName(me)}
             </Text>
-            <Small style={{ color: colors.boneDim }}>
-              {chapter?.name} chapter
-              {titles.length ? ` · ${titles.map((t) => t.text).join(', ')}` : ''}
-            </Small>
+            <View style={styles.titleLine}>
+              <Small style={styles.titlePiece}>{`${chapter?.name} chapter${titles.length ? ' ·' : ''}`}</Small>
+              {titles.map((t, i) => (
+                <Small key={t.key} style={styles.titlePiece}>{`${t.text}${i < titles.length - 1 ? ',' : ''}`}</Small>
+              ))}
+            </View>
             {until ? <Small style={{ color: colors.boneDim }}>{`until ${until}`}</Small> : null}
           </View>
           {hasEarnedDisc(me) ? <MemberDisc size={52} compass={compassFor(me, data)} /> : null}
@@ -436,7 +439,7 @@ function StepDownButtons({ positions }: { positions: Position[] }) {
   if (mine.length === 0) return null;
   return (
     <View style={{ gap: space.sm }}>
-      {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
       {mine.map((p) => (
         <StepDownButton
           key={p.id}
@@ -755,3 +758,8 @@ export function ChapterDetailScreen({ route, navigation }: RootScreen<'ChapterDe
   );
 }
 
+const styles = StyleSheet.create({
+  // The Home header's chapter and titles: one piece each, a space's width apart.
+  titleLine: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 4 },
+  titlePiece: { color: colors.boneDim, flexShrink: 1 },
+});

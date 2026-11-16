@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA, STORY_TODAY } from '../data/demoStory.testkit';
-import { actingWarnings, necBallotsWait, SMALL_BOARD } from './access';
+import { actingWarnings, HOLDER_ACTING, necBallotsWait, SMALL_BOARD } from './access';
 import { melbourneInstant } from './business';
 import { addDays } from './dates';
 import type { ActingRequest, ClubData, Member, Position, Vote } from './types';
@@ -242,6 +242,14 @@ test('arrangeCover lists the board members who could cover, labelled by their se
   assert.equal(arrangeCover(crank, row(covered, 'p-9'), covered, today), null, 'Smokey’s seat is covered already');
   // North’s board is three: without the stand-in and the holder there aren’t three left to vote (8.6).
   assert.deepEqual(arrangeCover(crank, row(d, 'p-9'), d, today), { standIns: [], blocked: SMALL_BOARD });
+});
+
+test('arrangeCover with nobody to propose says why as Me does, the holder acting first', () => {
+  // Smokey stepped down, so North's board is Jet and Crank: with Crank asking and Jet away, nobody is left.
+  const two = { ...d, positions: d.positions.map((p) => (p.id === 'p-9' ? { ...p, endedOn: addDays(today, -1), endedReason: 'stepped_down' as const } : p)) };
+  assert.deepEqual(arrangeCover(crank, row(two, 'p-10'), two, today), { standIns: [], blocked: SMALL_BOARD });
+  // Jet covers Smokey, so his own VP seat can't be covered (one stint at a time), whatever the board's size.
+  assert.deepEqual(arrangeCover(smokey, row(covered, 'p-10'), covered, today), { standIns: [], blocked: HOLDER_ACTING });
 });
 
 test('the away holder’s page lists open requests about them, then the board vote’s next step', () => {

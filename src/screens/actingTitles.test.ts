@@ -77,6 +77,11 @@ test('RoleChip gets a chipLabel in MemberRow and AuthorLine', () => {
 
 test('the Home header puts a stint’s until date on a line of its own', () => {
   const home = fn(members, 'HomeScreen');
+  // Each title wraps as one piece, so at 360 wide a line breaks between titles, never inside one
+  // ("Vice President," then "Acting President").
+  assert.match(home, /<View style=\{styles\.titleLine\}>/);
+  assert.match(home, /\{titles\.map\(\(t, i\) => \(\s*<Small key=\{t\.key\} style=\{styles\.titlePiece\}>/);
+  assert.match(members, /titleLine: \{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 4 \}/);
   assert.match(home, /<Small[^>]*>\{`until \$\{\w+\}`\}<\/Small>/, 'until 13/12/2026, under the titles');
   assert.doesNotMatch(home, /longTitle|longSeatTitle/, 'the date never runs on after the titles');
 });
@@ -100,7 +105,10 @@ test('member detail shows each seat in the long form, and no term words on a sti
 
 test('stepping down from a stint, and from a covered seat', () => {
   const button = fn(memberBits, 'StepDownButton');
-  assert.match(button, /'Step down from acting'/);
+  // Delete account and the member page list one button per seat, so each names its seat, a stint
+  // too ("Step down as Acting Treasurer (North)"). Manage member keeps "Step down from acting".
+  assert.match(button, /label=\{`Step down as \$\{title\}`\}/);
+  assert.doesNotMatch(button, /Step down from acting/);
   // The covered holder hears that the cover ends too, and a stand-in that their own stint does
   // (stepDownNote, tested in home.test.ts).
   assert.match(button, /confirmNote=\{stepDownNote\(position, data\)\}/);

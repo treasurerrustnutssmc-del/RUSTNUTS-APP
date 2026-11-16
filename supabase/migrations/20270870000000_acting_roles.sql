@@ -13,6 +13,13 @@
 
 -- §1 Schema, views, locks and the lazy close ---------------------------------------------------------
 
+-- A second paste stops here, with nothing changed.
+do $$ begin
+  if to_regclass('public.acting_requests') is not null then
+    raise exception 'The acting roles migration is already in. Nothing was changed.';
+  end if;
+end $$;
+
 -- Requests for acting that wait for a third board member's confirm, or a board vote. member_id is
 -- the stand-in; covers is the holder's row for a cover, null for an empty seat. Only the RPCs write
 -- them.
@@ -114,7 +121,8 @@ create policy acting_changes_read on public.acting_changes for select to authent
   using (private.is_board_of(chapter_id) or private.is_auditor());
 
 -- Open NEC votes: each ballot belongs to the chapter of its elector's open President seat, else
--- their VP seat, else their own chapter.
+-- their VP seat, else their own chapter. Only empty values are filled, so a second paste moves no
+-- ballot open_vote or cast_ballot has given a chapter.
 update public.vote_electors e
 set for_chapter = coalesce(
   (select p.chapter_id from public.positions p
@@ -123,7 +131,7 @@ set for_chapter = coalesce(
    limit 1),
   (select m.chapter_id from public.members m where m.id = e.member_id))
 from public.votes v
-where v.id = e.vote_id and v.electorate = 'nec' and v.closed_at is null;
+where v.id = e.vote_id and v.electorate = 'nec' and v.closed_at is null and e.for_chapter is null;
 
 -- The readings of a seat. Held: open rows whose stint hasn't lapsed (a stint lapses at Melbourne
 -- midnight after its until date, closed or not). Duties: held rows, minus any row a held cover
@@ -183,7 +191,8 @@ $$;
 -- The lazy close. Every writer that touches a seat runs it first, so the partial indexes are free
 -- once a stint has lapsed (they can't read the club clock). A lapsed stint ends the day after its
 -- until date, by nobody. A request closes as rejected once any acting vote on it is lost (a vote
--- without quorum leaves it open), and as lapsed after its until date or 28 days after it was made.
+-- without quorum leaves it open), and as lapsed once the row it would cover has ended, or after its
+-- until date or 28 days after it was made.
 create or replace function private.close_lapsed_acting()
 returns void language plpgsql security definer set search_path = '' as $$
 begin
@@ -195,6 +204,12 @@ begin
   set closed_at = now(), outcome = 'rejected'
   where r.closed_at is null
     and exists (select 1 from public.votes v where v.acting_request = r.id and v.result = 'lost');
+
+  -- A cover whose holder's row has ended can seat nobody, and mustn't hold the empty seat.
+  update public.acting_requests r
+  set closed_at = now(), outcome = 'lapsed'
+  where r.closed_at is null and r.covers is not null
+    and not exists (select 1 from public.positions h where h.id = r.covers and h.ended_on is null);
 
   update public.acting_requests
   set closed_at = now(), outcome = 'lapsed'
@@ -1035,8 +1050,9 @@ $$;
 
 -- The last day a stint starting on p_start can run to (spec "Caps", measured from the start). A
 -- cover: three months. A non-board role: six months. An empty board seat: its run, chained back
--- from this stint through the seat's acting rows, each open or ended within 28 days before the next
--- one started, after the seat's last non-acting row ended, starts at the earliest; the cap is the
+-- from this stint through the seat's empty-seat stints (a cover is an absence, not a vacancy), each
+-- open or ended within 28 days before the next one started, after the seat's last non-acting row
+-- ended, starts at the earliest; the cap is the
 -- Melbourne date of the chapter's first uncancelled ACM on or after the run's start, held or not,
 -- at most twelve months on, else six months on. Months end at the month's end.
 create or replace function private.acting_cap(p_chapter uuid, p_role public.position_role, p_cover boolean, p_start date)
@@ -1055,7 +1071,7 @@ begin
   where chapter_id = p_chapter and role = p_role and acting_until is null and ended_on is not null;
   loop
     select min(p.started_on) into earlier from public.positions p
-    where p.chapter_id = p_chapter and p.role = p_role and p.acting_until is not null
+    where p.chapter_id = p_chapter and p.role = p_role and p.acting_until is not null and p.covers is null
       and p.started_on < run_start
       and (fell_empty is null or p.started_on >= fell_empty)
       and (p.ended_on is null or p.ended_on >= run_start - 28);
@@ -1408,9 +1424,9 @@ $$;
 -- Moves a stint's last day, never before today, logged in acting_changes; the row keeps its start.
 -- Earlier: the acting person, or for a cover the covered holder. Later: for an empty seat, a board
 -- member who isn't the acting person; for an agreed cover, only the holder ("still away"); within
--- the cap from the stint's start. A stint with a carried vote behind it needs a new vote to run
--- longer, and a President stint recorded because they were the sitting VP runs longer only while
--- they still are.
+-- the cap from the stint's start, and only for a stand-in not on hiatus whose recorded licence
+-- lasts the new date. A stint with a carried vote behind it needs a new vote to run longer, and a
+-- President stint recorded because they were the sitting VP runs longer only while they still are.
 create or replace function public.set_acting_until(p_position uuid, p_until date)
 returns void language plpgsql security definer set search_path = '' as $$
 declare
@@ -1455,6 +1471,17 @@ begin
     end if;
     if private.auditor_stays_out(pos.role) then
       raise exception 'The National Auditor doesn’t seat or unseat a President or Treasurer (11.8).';
+    end if;
+    -- The stand-in, as when the stint began (acting_problem): nobody on hiatus leads, and a
+    -- recorded licence lasts the new date.
+    if (select on_hiatus from public.members where id = pos.member_id)
+       and pos.role in ('president', 'vice_president', 'secretary', 'treasurer', 'sergeant_at_arms', 'road_captain',
+                        'tail_gunner', 'assistant_tail_gunner') then
+      raise exception 'Members on hiatus can’t lead rides.';
+    end if;
+    if private.is_learner(pos.member_id) or exists (
+      select 1 from public.member_private where member_id = pos.member_id and licence_expiry < p_until) then
+      raise exception 'Their recorded licence ends before the until date (9.7).';
     end if;
     if pos.role = 'president' then
       if private.ended_by_vote(pos.member_id, pos.chapter_id, pos.role) then
@@ -2173,8 +2200,9 @@ $$;
 -- the stand-in and the seat, decided by acting_electors, with the quorum worked out on them and a
 -- closing time 48 hours or more away; the question comes from the request. Once it has carried,
 -- confirm_acting seats the stint. Checks, in the app's order (Task 13 mirrors them): the request is
--- open, its covered seat still held, and it needs a vote; a board member of its chapter who isn't the stand-in; the Auditor; too few
--- to decide it; the 48 hours; then open_vote's quorum, closing and meeting words.
+-- open (the lazy close shuts one whose covered seat has ended) and needs a vote; a board member of
+-- its chapter who isn't the stand-in; the Auditor; too few to decide it; the 48 hours; then
+-- open_vote's quorum, closing and meeting words.
 create or replace function public.open_acting_vote(p_request uuid, p_quorum int, p_closes_at timestamptz, p_meeting uuid)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare
@@ -2191,11 +2219,8 @@ begin
   perform private.lock_people(array[req.member_id, (select h.member_id from private.held_positions h where h.id = req.covers)]);
   perform private.close_lapsed_acting();
   select * into req from public.acting_requests where id = p_request for update;
+  -- The lazy close has closed it once its until date passed, or the row it would cover ended.
   if req.closed_at is not null then raise exception 'That request isn’t open.'; end if;
-  -- A cover whose seat has ended can't go ahead, so there's nothing to vote on.
-  if req.covers is not null and not exists (select 1 from private.held_positions h where h.id = req.covers) then
-    raise exception 'The seat they asked to cover has ended.';
-  end if;
 
   if not private.request_needs_vote(p_request) then
     raise exception 'This request doesn’t need a vote. A third board member confirms it.';

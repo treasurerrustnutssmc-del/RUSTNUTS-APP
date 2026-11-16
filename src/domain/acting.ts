@@ -126,12 +126,19 @@ const lapsed = (p: Position): Position => ({ ...p, endedOn: addDays(p.actingUnti
 
 /**
  * How an open request closes today, if it does: rejected once any acting vote on it is lost (a vote
- * without quorum leaves it open), else lapsed after its until date or 28 days after it was made.
+ * without quorum leaves it open), else lapsed once the row it would cover has ended (on that row's
+ * end day; a row nobody can find, today), or after its until date or 28 days after it was made.
  */
-function requestCloses(r: ActingRequest, votes: Vote[], today: string): Pick<ActingRequest, 'closedAt' | 'outcome'> | null {
+function requestCloses(
+  r: ActingRequest, votes: Vote[], positions: Position[], today: string,
+): Pick<ActingRequest, 'closedAt' | 'outcome'> | null {
   if (r.closedAt !== null) return null;
   const lost = votes.find((v) => v.actingRequestId === r.id && v.result === 'lost');
   if (lost) return { outcome: 'rejected', closedAt: lost.closedAt ?? clubDayStart(today) };
+  if (r.covers != null) {
+    const covered = positions.find((p) => p.id === r.covers);
+    if (!covered || covered.endedOn !== null) return { outcome: 'lapsed', closedAt: clubDayStart(covered?.endedOn ?? today) };
+  }
   const pastUntil = addDays(r.until, 1);
   const tooOld = addDays(melbourneDate(r.createdAt), 28);
   const on = pastUntil < tooOld ? pastUntil : tooOld;
@@ -149,7 +156,7 @@ export function settleActing(data: ClubData, today: string): ClubData {
     : data.positions;
   const votes = data.votes ?? [];
   const requests = data.actingRequests;
-  const closing = requests?.some((r) => requestCloses(r, votes, today) !== null) ?? false;
+  const closing = requests?.some((r) => requestCloses(r, votes, positions, today) !== null) ?? false;
   if (positions === data.positions && !closing) return data;
   return {
     ...data,
@@ -157,7 +164,7 @@ export function settleActing(data: ClubData, today: string): ClubData {
     ...(closing && requests
       ? {
           actingRequests: requests.map((r) => {
-            const closes = requestCloses(r, votes, today);
+            const closes = requestCloses(r, votes, positions, today);
             return closes ? { ...r, ...closes } : r;
           }),
         }

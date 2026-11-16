@@ -32,7 +32,9 @@ export function RoleChips({ positions, data, homeChapterId }: { positions: Posit
 
 /**
  * Stepping down from one seat, the holder's own call (9.3), as on their member page and Delete
- * account. A stint reads "Step down from acting". The confirm says what else ends with the row
+ * account, where each seat has its own button, so each names its seat: "Step down as Acting
+ * Treasurer (North)" for a stint (Manage member's lone stint button keeps "Step down from acting").
+ * The confirm says what else ends with the row
  * (stepDownNote): the holder of a covered seat hears the cover ends too, and a stand-in leaving
  * the last board seat their cover rests on hears their acting ends.
  */
@@ -41,7 +43,7 @@ export function StepDownButton({ position, data, onConfirm }: { position: Positi
   // A stint's title already says Acting (Acting Treasurer (North)), so the confirm says it once.
   return (
     <ConfirmButton
-      label={isActing(position) ? 'Step down from acting' : `Step down as ${title}`}
+      label={`Step down as ${title}`}
       confirmLabel="Yes, step down"
       confirmAccessibilityLabel={`Yes, step down as ${title}`}
       confirmNote={stepDownNote(position, data)}

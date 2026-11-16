@@ -56,7 +56,11 @@ test('NewVote shows stintVoteWarnings; VoteScreen judges an acting vote by the v
 
 test('the removal labels read isRemovalVote; the closed card ends acting for an acting vote', () => {
   const src = read('screens/business.tsx');
-  assert.match(fnBody(src, 'voteKindLabel'), /if \(isRemovalVote\(vote\)\) return 'Removal vote';/);
+  const label = fnBody(src, 'voteKindLabel');
+  assert.match(label, /if \(isRemovalVote\(vote\)\) return 'Removal vote';/);
+  // Ending acting is never discipline, so its chip doesn't say removal.
+  assert.match(label, /if \(endsActing\) return 'End acting vote';\s*if \(isRemovalVote\(vote\)\)/);
+  assert.match(fnBody(src, 'VoteScreen'), /<Chip label=\{voteKindLabel\(vote, endsActing\)\} tone="redOutline" \/>/);
   const vote = fnBody(src, 'VoteScreen');
   assert.match(vote, /isRemovalVote\(vote\)\s*\?\s*endsActing\s*\?\s*`End \$\{displayName\(subject\)\}’s acting as/);
   assert.match(vote, /const endsActing = aboutActingVote && !seatsActing;/);

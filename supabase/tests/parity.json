@@ -5129,6 +5129,64 @@
       "refusal": "That isn’t an acting seat."
     },
     {
+      "name": "A stand-in now on hiatus can’t be given more time",
+      "as": "torque",
+      "action": "setActingUntil",
+      "position": "hal-acting-treasurer",
+      "untilDays": 25,
+      "allowed": false,
+      "refusal": "Members on hiatus can’t lead rides.",
+      "without": ["penny-treasurer"],
+      "with": [
+        { "key": "hal-acting-treasurer", "member": "hal", "chapter": "west", "role": "treasurer", "startedDays": -5, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "rusty" }
+      ]
+    },
+    {
+      "name": "A stand-in on hiatus can still bring their own date forward",
+      "as": "hal",
+      "action": "setActingUntil",
+      "position": "hal-acting-treasurer",
+      "untilDays": 10,
+      "allowed": true,
+      "without": ["penny-treasurer"],
+      "with": [
+        { "key": "hal-acting-treasurer", "member": "hal", "chapter": "west", "role": "treasurer", "startedDays": -5, "actingUntilDays": 20, "why": "No Treasurer since the ACM", "appointedBy": "rusty" }
+      ]
+    },
+    {
+      "name": "A cover that began the day its holder stepped down isn’t part of the empty seat’s run",
+      "as": "rusty",
+      "action": "appointActing",
+      "member": "spanner",
+      "chapter": "west",
+      "role": "treasurer",
+      "untilDays": 178,
+      "why": "No Treasurer since Penny stepped down",
+      "allowed": true,
+      "without": ["penny-treasurer"],
+      "with": [
+        { "key": "penny-treasurer-ended", "member": "penny", "chapter": "west", "role": "treasurer", "startedDays": -400, "endedDays": -9 },
+        { "key": "torque-covered-penny", "member": "torque", "chapter": "west", "role": "treasurer", "startedDays": -9, "endedDays": -9, "actingUntilDays": 19, "covers": "penny-treasurer-ended", "why": "Penny away", "appointedBy": "rusty" }
+      ]
+    },
+    {
+      "name": "A request to cover a seat that has since ended lapses with it, so the empty seat can take acting",
+      "as": "smokey",
+      "action": "appointActing",
+      "member": "jet",
+      "chapter": "north",
+      "role": "secretary",
+      "untilDays": 28,
+      "why": "No Secretary since Crank stepped down",
+      "allowed": true,
+      "with": [
+        { "key": "crank-secretary-ended", "member": "crank", "chapter": "north", "role": "secretary", "startedDays": -400, "endedDays": -1 }
+      ],
+      "withRequests": [
+        { "key": "smokey-asks-chair", "chapter": "north", "role": "secretary", "member": "chair", "covers": "crank-secretary-ended", "untilDays": 28, "why": "Crank away", "requestedBy": "smokey" }
+      ]
+    },
+    {
       "name": "The stand-in declines a cover request",
       "as": "jet",
       "action": "withdrawActingRequest",
@@ -5207,12 +5265,12 @@
       ]
     },
     {
-      "name": "A holder who has since stepped down can’t withdraw a cover request for that seat",
+      "name": "A cover request lapses once its holder steps down, so there’s nothing left for them to withdraw",
       "as": "smokey",
       "action": "withdrawActingRequest",
       "request": "crank-asks-jet",
       "allowed": false,
-      "refusal": "Only the stand-in or the holder can withdraw this, or the person who asked before a vote on it opens.",
+      "refusal": "That request isn’t open.",
       "without": ["smokey-president"],
       "with": [
         { "key": "smokey-ended", "member": "smokey", "chapter": "north", "role": "president", "startedDays": -400, "endedDays": -5 },
@@ -5467,14 +5525,14 @@
       ]
     },
     {
-      "name": "The board can’t vote on a cover whose seat has ended",
+      "name": "The board can’t vote on a cover whose seat has ended: the request lapsed with it",
       "as": "crank",
       "action": "openActingVote",
       "request": "crank-asks-jet",
       "quorum": 3,
       "days": 7,
       "allowed": false,
-      "refusal": "The seat they asked to cover has ended.",
+      "refusal": "That request isn’t open.",
       "without": ["smokey-president"],
       "with": [
         { "key": "jet-north-vp", "member": "jet", "chapter": "north", "role": "vice_president", "startedDays": -30 },

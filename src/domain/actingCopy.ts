@@ -7,7 +7,7 @@
 import { heldPositions, heldRows, isActing, isEnded, coverOf, settleActing } from './acting';
 import {
   actingCap, actingElectors, actingWarnings, appointActingProblem, auditorStaysOut, carriedActingVote, endTermProblem, holdsBoardSeat,
-  isBoardOf, requestActingProblem, setActingUntilProblem, SMALL_BOARD,
+  ASKED_RECENTLY, AUDITOR_STAYS_OUT, HOLDER_ACTING, isBoardOf, requestActingProblem, setActingUntilProblem, SMALL_BOARD,
 } from './access';
 import { melbourneInstant } from './business';
 import { addDays, formatAuDate } from './dates';
@@ -241,11 +241,23 @@ function standInLabel(member: Member, chapterId: string, data: ClubData): string
 }
 
 /**
+ * Refusals about the seat or the holder, not the stand-in, in the order Me and Manage member say
+ * them: they come before the stand-in's own checks, so every stand-in gets the same one, except
+ * that a board too small to confirm a cover once the stand-in is left out can depend on who stands in.
+ */
+export const SEAT_REFUSALS = [HOLDER_ACTING, ASKED_RECENTLY, AUDITOR_STAYS_OUT, SMALL_BOARD];
+
+/** When no board member can stand in, for a reason about each of them rather than the seat. */
+export const nobodyStandsIn = (chapter: string) => `Nobody on ${chapter}’s board can stand in now.`;
+
+/**
  * Who `me` could propose to cover `seat` (someone else's full board seat) through a board vote, in
- * seat order, VP first; or, when nobody can, the reason (too few left to vote, say). Null when the
- * page shouldn't offer it at all: not a full board seat, already covered or asked for, me not on that
- * board, or me the holder (who asks from Me). Asked for a cover from today, so the date picked later
- * can still refuse; it's checked again under the fields.
+ * seat order, VP first; or, when nobody can, the reason, as Me gives it: too few left to vote when
+ * nobody else is on the board, else the first of SEAT_REFUSALS that holds (the holder acting
+ * anywhere first), else that nobody can stand in now. Null when the page shouldn't offer it at
+ * all: not a full board seat, already covered or asked for, me not on that board, or me the holder
+ * (who asks from Me). Asked for a cover from today, so the date picked later can still refuse; it's
+ * checked again under the fields.
  */
 export function arrangeCover(
   me: Member, seat: Position, raw: ClubData, today: string,
@@ -268,7 +280,12 @@ export function arrangeCover(
     .filter((x) => x.problem === null)
     .sort((a, b) => seatOrder(a.m) - seatOrder(b.m))
     .map(({ m }) => ({ value: m.id, label: standInLabel(m, chapterId, data) }));
-  return { standIns, blocked: standIns.length > 0 ? null : problems[0]?.problem ?? `Nobody else is on ${chapterName(chapterId, data)}’s board.` };
+  if (standIns.length > 0) return { standIns, blocked: null };
+  const reasons = problems.map((x) => x.problem);
+  // The board-size check comes before the holder's own, so ask about the holder directly.
+  if (heldPositions(own.memberId, data.positions).some(isActing)) reasons.push(HOLDER_ACTING);
+  const why = board.length === 0 ? SMALL_BOARD : SEAT_REFUSALS.find((r) => reasons.includes(r));
+  return { standIns, blocked: why ?? nobodyStandsIn(chapterName(chapterId, data)) };
 }
 
 /** Open requests about this member: they're the stand-in, or it's their seat to be covered. Expects settled data. */

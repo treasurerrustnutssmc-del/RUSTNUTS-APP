@@ -101,12 +101,10 @@ const ANY_WHY = 'x';
 /**
  * The line under the Board tab's chip. Someone who sees every chapter keeps the first sentence and
  * is told whose board they sit on ("You sit on West’s board."), or that each chapter's board runs its
- * own business; everyone else sees their own chapter's.
+ * own business; everyone else is told they sit on their own chapter's ("Act" means Acting now).
  */
 export function scopeText(me: Member, data: Pick<ClubData, 'positions' | 'chapters'>): string {
-  if (!seesEveryChapter(me, data.positions)) {
-    return `You can act for the ${data.chapters.find((c) => c.id === me.chapterId)?.name} chapter.`;
-  }
+  if (!seesEveryChapter(me, data.positions)) return `You sit on ${chapterName(me.chapterId, data)}’s board.`;
   const seats = data.chapters.filter((c) => holdsBoardSeat(me.id, c.id, data.positions)).map((c) => `${c.name}’s`);
   const second = seats.length === 0
     ? 'Each chapter’s board runs its own business.'
@@ -120,14 +118,15 @@ function agreedCover(request: ActingRequest, data: Pick<ClubData, 'positions'>):
 }
 
 /**
- * An open request, as the Board tab shows it: "Smokey asked for Jet to cover as President until
- * 13/12/2026: Smokey overseas" when the holder asked, else "Crank asked for Jet to act as President
- * until 13/12/2026: Smokey can’t be reached".
+ * An open request, as the Board tab shows it, naming the seat's chapter as every seat title does:
+ * "Smokey asked for Jet to cover as President (North) until 13/12/2026: Smokey overseas" when the
+ * holder asked, else "Crank asked for Jet to act as President (North) until 13/12/2026: Smokey can’t
+ * be reached".
  */
-export function requestLine(request: ActingRequest, data: Pick<ClubData, 'members' | 'positions'>): string {
+export function requestLine(request: ActingRequest, data: Pick<ClubData, 'members' | 'positions' | 'chapters'>): string {
   const how = agreedCover(request, data) ? 'cover' : 'act';
   return `${nameOf(request.requestedBy, data)} asked for ${nameOf(request.memberId, data)} to ${how} as ${ROLE_LABEL[request.role]}`
-    + ` until ${formatAuDate(request.until)}: ${request.why}`;
+    + ` (${chapterName(request.chapterId, data)}) until ${formatAuDate(request.until)}: ${request.why}`;
 }
 
 export type RequestNext =

@@ -117,6 +117,30 @@ test('settle closes a request whose acting vote was lost as rejected; no quorum 
   assert.equal(settled.get('open-vote-one')?.outcome, null);
 });
 
+test('settle closes a request whose covered row has ended as lapsed, so the empty seat is free', () => {
+  const request = (id: string, covers: string | null, over: Partial<ActingRequest> = {}): ActingRequest => ({
+    id, chapterId: 'north', role: 'president', memberId: 'jet', covers, until: '2026-12-13',
+    why: 'Smokey overseas', requestedBy: 'crank', createdAt: '2026-11-10T22:00:00.000Z', closedAt: null, outcome: null, ...over,
+  });
+  const left = { ...smokeyPresident, endedOn: '2026-11-14', endedReason: 'stepped_down' as const };
+  const data = club([left, jetVp, crankRc], {
+    actingRequests: [
+      request('ended-seat', 'smokey-president'),
+      request('missing-seat', 'gone'),
+      request('empty-seat', null, { role: 'treasurer', memberId: 'crank' }),
+      request('held-seat', 'jet-vp', { role: 'vice_president', memberId: 'crank' }),
+    ],
+  });
+  const settled = new Map((settleActing(data, '2026-11-15').actingRequests ?? []).map((r) => [r.id, r]));
+  assert.equal(settled.get('ended-seat')?.outcome, 'lapsed', 'Smokey stepped down yesterday');
+  // Closed when the seat ended: the start of its end day (summer time, UTC+11).
+  assert.equal(settled.get('ended-seat')?.closedAt, '2026-11-13T13:00:00.000Z');
+  assert.equal(settled.get('missing-seat')?.outcome, 'lapsed', 'a covered row nobody can find has ended');
+  assert.equal(settled.get('missing-seat')?.closedAt, '2026-11-14T13:00:00.000Z', 'closed today');
+  assert.equal(settled.get('empty-seat')?.outcome, null, 'an empty-seat request covers nobody');
+  assert.equal(settled.get('held-seat')?.outcome, null, 'a held seat keeps its request');
+});
+
 test('Melbourne midnight in both daylight states', () => {
   // Summer time starts 4/10/2026: that day is 23 hours long.
   assert.equal(msUntilNextClubDay('2026-10-03T14:00:00.000Z'), 82_800_000);

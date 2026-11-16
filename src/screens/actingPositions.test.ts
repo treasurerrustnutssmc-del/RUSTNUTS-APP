@@ -48,8 +48,8 @@ test('a stint’s step-down on Manage member says Acting once', () => {
 test('each request’s start-vote and close buttons say which request they act on', () => {
   // Two requests on the Board tab: a screen reader hears which one each confirm starts.
   const request = between('\nfunction BoardRequest', '\nfunction VpFallback');
-  assert.match(request, /confirmLabel="Yes, start the vote"\s+confirmAccessibilityLabel=\{`Yes, start the vote: \$\{about\}`\}/);
-  assert.match(requestStep, /confirmLabel="Yes, start the vote"\s+confirmAccessibilityLabel=\{`Yes, start the vote: \$\{\w+\}`\}/);
+  assert.match(request, /confirmLabel="Yes, start it"\s+confirmAccessibilityLabel=\{`Yes, start the vote: \$\{about\}`\}/);
+  assert.match(requestStep, /confirmLabel="Yes, start it"\s+confirmAccessibilityLabel=\{`Yes, start the vote: \$\{\w+\}`\}/);
   // Withdraw and Decline say what happens to an open vote on it (closeRequestNote, boardLayout.test.ts).
   assert.match(request, /confirmNote=\{closeRequestNote\(request, data\)\}/);
   assert.doesNotMatch(request, /confirmNote="This closes the request/);
@@ -67,4 +67,36 @@ test('an armed confirm shows its warnings once, with one Cancel', () => {
 test('I’m back names the stand-in through backNote, and the request shows why a vote can start again', () => {
   assert.match(actingActions, /confirmNote=\{backNote\(p, data\)\}/);
   assert.match(requestStep, /step\.last/);
+});
+
+test('a refused action’s message reads in the danger colour, like the line saying why a button is off', () => {
+  // DESIGN.md, Buttons: warn is for the advisory 9.x lines; a refusal is an error.
+  for (const [name, src] of [['board.tsx', board], ['members.tsx', read('members.tsx')], ['deleteAccount.tsx', read('deleteAccount.tsx')]]) {
+    assert.doesNotMatch(src, /\{error \? <Small style=\{\{ color: colors\.warn \}\}>\{error\}<\/Small> : null\}/, name);
+  }
+  assert.match(actingActions, /\{error \? <Small style=\{\{ color: colors\.danger \}\}>\{error\}<\/Small> : null\}/);
+  assert.match(requestStep, /\{error \? <Small style=\{\{ color: colors\.danger \}\}>\{error\}<\/Small> : null\}/);
+});
+
+test('the two-step confirms fit on one line beside Cancel, and say the whole thing to a screen reader', () => {
+  // The confirm takes half the row at 390 wide, so its label stays short.
+  for (const long of ['Yes, appoint acting', 'Yes, ask the board', 'Yes, appoint in full', 'Yes, start the vote']) {
+    assert.ok(!board.includes(`confirmLabel="${long}"`) && !board.includes(`'${long}'`), long);
+  }
+  assert.match(manage, /confirmLabel=\{actingSeat\.needsVote \? 'Yes, ask' : 'Yes, appoint'\}/);
+  assert.match(manage, /confirmLabel="Yes, appoint"\s+confirmAccessibilityLabel=\{`Yes, appoint \$\{displayName\(member\)\} as \$\{ROLE_LABEL\[picked\]\}`\}/);
+  assert.match(arrangeCover, /confirmLabel="Yes, ask"\s+confirmAccessibilityLabel=\{/);
+  const fallback = between('\nfunction VpFallback', '\nfunction ');
+  assert.match(fallback, /confirmLabel="Yes, appoint"\s+confirmAccessibilityLabel=\{`Yes, make \$\{displayName\(target\)\} Acting President`\}/);
+});
+
+test('Appoint shows a plain line, not a lone choice, when only one kind is offered', () => {
+  assert.match(manage, /kinds\.options\.length > 1 \? \(\s*<Choices<AppointKind>/);
+  assert.match(manage, /<Label>Appoint<\/Label>\s*<Body>\{kinds\.options\[0\]\.label\}<\/Body>/);
+});
+
+test('the stand-in picker has one name, on Manage member as on Me', () => {
+  assert.match(arrangeCover, /<Choices<string> label="Who stands in"/);
+  assert.ok(!board.includes('Who covers'));
+  assert.match(read('coverBits.tsx'), /<Choices<string> label="Who stands in"/);
 });

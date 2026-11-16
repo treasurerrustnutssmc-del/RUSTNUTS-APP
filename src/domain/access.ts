@@ -718,6 +718,20 @@ export function actingElectors(chapterId: string, role: PositionRole, memberId: 
 }
 
 /**
+ * The stand-in's own fitness for a stint in `role` to `until`: a member on hiatus leads no rides,
+ * and a recorded licence that is a learner's or ends before `until` doesn't last it (9.7). None
+ * recorded only warns. Checked when a stint starts and again when it's given more time, as
+ * private.acting_problem and public.set_acting_until check it.
+ */
+function standInProblem(member: Member | undefined, role: PositionRole, until: string, data: ClubData): string | null {
+  if (!member) return null;
+  if (member.onHiatus && LEADING_ROLES.includes(role)) return HIATUS_NO_LEAD;
+  const licence = data.privates.find((p) => p.memberId === member.id);
+  if (licence && (licence.licenceClass === 'learner' || (licence.licenceExpiry !== null && licence.licenceExpiry < until))) return LICENCE_ENDS;
+  return null;
+}
+
+/**
  * Why `target` can't act in this seat until `until`, or null. Mirrors private.acting_problem. A cover
  * (`covers`, the holder's row) needs a board seat and someone already on that chapter's board, the
  * row has to be a held, full row of this very seat, and its holder can't be acting anywhere (one
@@ -748,9 +762,8 @@ export function actingProblem(
   const here = mine.filter((p) => p.chapterId === chapterId);
   if (role === 'president' && here.some((p) => p.role === 'treasurer')) return CHAIR_NOT_BOOKS;
   if (role === 'treasurer' && here.some((p) => p.role === 'president')) return BOOKS_NOT_CHAIR;
-  if (target.onHiatus && LEADING_ROLES.includes(role)) return HIATUS_NO_LEAD;
-  const licence = data.privates.find((p) => p.memberId === target.id);
-  if (licence && (licence.licenceClass === 'learner' || (licence.licenceExpiry !== null && licence.licenceExpiry < until))) return LICENCE_ENDS;
+  const unfitNow = standInProblem(target, role, until, data);
+  if (unfitNow) return unfitNow;
   if (covers !== null) {
     if (!isBoardRole(role)) return COVER_BOARD_SEATS;
     if (!holdsBoardSeat(target.id, chapterId, data.positions)) return COVER_FROM_BOARD;
@@ -961,9 +974,9 @@ export function confirmActingProblem(me: Member | null, request: ActingRequest |
 /**
  * Changing a stint's until date, never to before today. Earlier: the acting person, and for a cover
  * the holder too. Later: in an empty seat, another board member; on a cover, the holder only;
- * either way within the cap. A stint the board voted for needs a new vote to run longer, and a
- * President stint recorded for the sitting VP runs longer only while they still are. Mirrors
- * public.set_acting_until.
+ * either way within the cap, and only for a stand-in not on hiatus whose recorded licence lasts the
+ * new date. A stint the board voted for needs a new vote to run longer, and a President stint
+ * recorded for the sitting VP runs longer only while they still are. Mirrors public.set_acting_until.
  */
 export function setActingUntilProblem(
   me: Member | null, position: Position | undefined, until: string, raw: ClubData, today: string,
@@ -991,6 +1004,9 @@ export function setActingUntilProblem(
     return LATER_WHO_EMPTY;
   }
   if (auditorStaysOut(me, row.role, data.positions)) return AUDITOR_STAYS_OUT;
+  // The stand-in, as when the stint began: nobody on hiatus leads, and a recorded licence lasts it.
+  const unfit = standInProblem(data.members.find((m) => m.id === row.memberId), row.role, until, data);
+  if (unfit) return unfit;
   if (row.role === 'president') {
     const vote = voteRule(row.memberId, row.chapterId, row.role, data, today);
     if (vote) return vote;

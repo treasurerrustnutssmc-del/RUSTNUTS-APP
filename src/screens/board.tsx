@@ -413,7 +413,7 @@ function BoardRequest({ request, onDone }: { request: ActingRequest; onDone: (te
         <ConfirmButton
           label={next.label}
           accessibilityLabel={`${next.label}: ${about}`}
-          confirmLabel="Yes, start the vote"
+          confirmLabel="Yes, start it"
           confirmAccessibilityLabel={`Yes, start the vote: ${about}`}
           kind="secondary"
           confirmNote={next.note}
@@ -497,7 +497,7 @@ function VpFallback({ chapterId, onDone }: { chapterId: string; onDone: (text: s
           {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
           <ConfirmButton
             label="Appoint"
-            confirmLabel="Yes, appoint acting"
+            confirmLabel="Yes, appoint"
             confirmAccessibilityLabel={`Yes, make ${displayName(target)} Acting President`}
             kind="secondary"
             disabled={block !== null}
@@ -810,12 +810,20 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
         ) : null}
         {kinds.options.length > 0 && seatChoices.length > 0 ? (
           <>
-            <Choices<AppointKind>
-              label="Appoint"
-              options={kinds.options}
-              value={appointKind}
-              onChange={(k) => { setKind(k); setRole(null); }}
-            />
+            {/* Two kinds to choose between, or a plain line naming the only one. */}
+            {kinds.options.length > 1 ? (
+              <Choices<AppointKind>
+                label="Appoint"
+                options={kinds.options}
+                value={appointKind}
+                onChange={(k) => { setKind(k); setRole(null); }}
+              />
+            ) : (
+              <View style={{ gap: space.xs }}>
+                <Label>Appoint</Label>
+                <Body>{kinds.options[0].label}</Body>
+              </View>
+            )}
             <Choices<PositionRole>
               label={appointKind === 'acting' ? 'Act as' : 'Appoint to'}
               options={seatChoices}
@@ -843,7 +851,10 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
                 {actingBlockShown ? <Small style={{ color: colors.danger }}>{actingBlockShown}</Small> : null}
                 <ConfirmButton
                   label={actingSeat.needsVote ? 'Ask the board to vote' : 'Appoint'}
-                  confirmLabel={actingSeat.needsVote ? 'Yes, ask the board' : 'Yes, appoint acting'}
+                  confirmLabel={actingSeat.needsVote ? 'Yes, ask' : 'Yes, appoint'}
+                  confirmAccessibilityLabel={actingSeat.needsVote
+                    ? `Yes, ask the board to vote on ${displayName(member)} acting as ${ROLE_LABEL[actingSeat.role]}`
+                    : `Yes, appoint ${displayName(member)} as Acting ${ROLE_LABEL[actingSeat.role]}`}
                   kind="secondary"
                   disabled={actingBlock !== null}
                   onArmedChange={setActingArmed}
@@ -869,7 +880,8 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
             ) : replacing && picked ? (
               <ConfirmButton
                 label="Appoint"
-                confirmLabel="Yes, appoint in full"
+                confirmLabel="Yes, appoint"
+                confirmAccessibilityLabel={`Yes, appoint ${displayName(member)} as ${ROLE_LABEL[picked]}`}
                 kind="secondary"
                 confirmNote={replacing}
                 onConfirm={() => run(async () => {
@@ -952,7 +964,7 @@ function TermActions({ position: p, member }: { position: Position; member: Memb
   if (problem === null) {
     return (
       <>
-        {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+        {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
         <ConfirmButton
           label={own ? `Step down as ${role}` : `End ${role} term`}
           confirmLabel={own ? 'Yes, step down' : 'Yes, end term'}
@@ -1022,7 +1034,7 @@ function ActingActions({ position: p }: { position: Position }) {
   );
   return (
     <>
-      {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
       {changing && latest ? (
         <>
           <DateField label="Until" date={until} hint={untilHint(latest)} />
@@ -1156,7 +1168,7 @@ function ArrangeCover({ seat, onDone }: { seat: Position; onDone: (text: string)
   return (
     <View style={styles.coverForm}>
       <Label>{`Cover ${title}`}</Label>
-      <Choices<string> label="Who covers" options={state.standIns} value={standIn} onChange={setStandIn} />
+      <Choices<string> label="Who stands in" options={state.standIns} value={standIn} onChange={setStandIn} />
       <DateField label="Until" date={until} hint={untilHint(actingCap(chapterId, seat.role, true, today, data))} />
       <Field
         label={target ? whyLabel(target, chapterId, seat.role, data) : 'Why'}
@@ -1173,7 +1185,8 @@ function ArrangeCover({ seat, onDone }: { seat: Position; onDone: (text: string)
       {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
       <ConfirmButton
         label="Ask the board to vote"
-        confirmLabel="Yes, ask the board"
+        confirmLabel="Yes, ask"
+        confirmAccessibilityLabel={target ? `Yes, ask the board to vote on ${displayName(target)} covering as ${title}` : undefined}
         kind="secondary"
         disabled={!target || block !== null}
         onArmedChange={setArmed}
@@ -1208,12 +1221,12 @@ function RequestStep({ request }: { request: ActingRequest }) {
     <View style={{ gap: space.sm }}>
       <Label>Asked for</Label>
       <Body>{actingVoteQuestion(request, data)}</Body>
-      {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
       {step?.kind === 'start' && step.last ? <Small>{step.last}</Small> : null}
       {step?.kind === 'start' ? (
         <ConfirmButton
           label="Start the board vote"
-          confirmLabel="Yes, start the vote"
+          confirmLabel="Yes, start it"
           confirmAccessibilityLabel={`Yes, start the vote: ${about}`}
           kind="secondary"
           size="small"

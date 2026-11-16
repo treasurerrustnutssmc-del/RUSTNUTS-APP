@@ -1296,13 +1296,20 @@ function actingExtras(c: ParityCase) {
   const at = (n: number) => `now() + ${n} * interval '1 day'`;
   const orNull = <T,>(v: T | undefined | null, f: (x: T) => string) => (v === undefined || v === null ? 'null' : f(v));
   const rows = c.with ?? [];
+  // An ended row that another extra row covers goes in open, so the cover can point at it (as
+  // check_covers asks), and ends once every row is in, as a writer would end it.
+  const endsAfter = rows.filter((r) => r.endedDays !== undefined && rows.some((x) => x.covers === r.key));
   for (const r of rows) {
+    const open = endsAfter.includes(r);
     sql(
       `insert into public.positions (id, member_id, chapter_id, role, started_on, ended_on, acting_until, covers, acting_why, ` +
         `appointed_by, ended_reason) values (${id('p', r.key)}, ${id('m', r.member)}, ${chapter(r.chapter)}, ${q(r.role)}, ` +
-        `${day(r.startedDays ?? 0)}, ${orNull(r.endedDays, day)}, ${orNull(r.actingUntilDays, day)}, ${orNull(r.covers, (k) => id('p', k))}, ` +
-        `${orNull(r.why, q)}, ${orNull(r.appointedBy, (k) => id('m', k))}, ${orNull(rowEndedReason(r), q)});`,
+        `${day(r.startedDays ?? 0)}, ${open ? 'null' : orNull(r.endedDays, day)}, ${orNull(r.actingUntilDays, day)}, ${orNull(r.covers, (k) => id('p', k))}, ` +
+        `${orNull(r.why, q)}, ${orNull(r.appointedBy, (k) => id('m', k))}, ${open ? 'null' : orNull(rowEndedReason(r), q)});`,
     );
+  }
+  for (const r of endsAfter) {
+    sql(`update public.positions set ended_on = ${day(r.endedDays!)}, ended_reason = ${q(rowEndedReason(r))} where id = ${id('p', r.key)};`);
   }
   for (const x of c.withRequests ?? []) {
     sql(

@@ -6,7 +6,7 @@
 
 import {
   actingElectors, AUDITOR_STAYS_OUT, auditorStaysOut, BOARD_RECORDS_ACTING, isBoardOf, isNecSeat, NEC_OFFICER_ROLES, NO_REQUEST, NOT_YOURSELF,
-  requestNeedsVote, SEAT_ENDED, SMALL_BOARD,
+  requestNeedsVote, SMALL_BOARD,
 } from './access';
 import { dutyRows, heldPositions, heldRows, isActing, necVoterBefore, necVoterFor, necVoterRow, removalShape, settleActing } from './acting';
 import { formatAuDate } from './dates';
@@ -571,9 +571,9 @@ export function endActingQuestion(position: Position, data: ClubData): string {
 /**
  * Why `me` can't open the board's vote on a request, or null: a chapter board majority, decided
  * without the stand-in, the holder they'd cover and, for a President or Treasurer seat, the Auditor,
- * by at least three of the rest (8.6), open at least 48 hours, on a request whose covered seat is
- * still held. Settles first, so a request past its until date has lapsed. The database's order and
- * words: public.open_acting_vote.
+ * by at least three of the rest (8.6), open at least 48 hours, on an open request. Settles first,
+ * so a request past its until date, or whose covered seat has ended, has lapsed. The database's
+ * order and words: public.open_acting_vote.
  */
 export function openActingVoteProblem(
   me: Member | null, request: ActingRequest | undefined, quorum: number, closesAt: string, meetingId: string | null, raw: ClubData, now: string,
@@ -585,9 +585,8 @@ export function openActingVoteProblem(
   const known = (raw.actingRequests ?? []).some((r) => r.id === request.id);
   const data = settleActing(known ? raw : { ...raw, actingRequests: [...(raw.actingRequests ?? []), request] }, today);
   const req = data.actingRequests!.find((r) => r.id === request.id)!;
+  // Settling closed it once its until date passed, or the row it would cover ended.
   if (req.closedAt !== null) return NO_REQUEST;
-  // A cover whose seat has ended can't go ahead, so there's nothing to vote on.
-  if (req.covers !== null && !heldRows(data.positions).some((p) => p.id === req.covers)) return SEAT_ENDED;
   if (!requestNeedsVote(req, data, today)) return NO_VOTE_NEEDED;
   if (!isBoardOf(me, req.chapterId, data.positions)) return BOARD_RECORDS_ACTING;
   if (me.id === req.memberId) return NOT_YOURSELF;

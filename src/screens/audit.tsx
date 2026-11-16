@@ -84,7 +84,7 @@ export function AuditScreen({ navigation }: RootScreen<'Audit'>) {
                   key={c.key}
                   last={i === checks.length - 1}
                   left={<IconBadge icon="alert-circle-outline" tone={c.area === 'controls' || c.area === 'bank' ? 'red' : 'steel'} />}
-                  title={<Text style={type.name} numberOfLines={3}>{c.title}</Text>}
+                  title={<Text style={type.name}>{c.title}</Text>}
                   subtitle={
                     <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
                       <Text style={styles.meta}>{c.detail}</Text>

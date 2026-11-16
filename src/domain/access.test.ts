@@ -970,7 +970,7 @@ test('confirm re-runs every check', () => {
   assert.equal(confirm('smokey'), CONFIRM_NOT_HOLDER);
   assert.equal(confirm('jet'), CONFIRM_NOT_STANDIN);
   assert.equal(confirm('spanner'), BOARD_RECORDS_ACTING);
-  assert.equal(confirm('crank', world({ requests: [asks], ended: { 'smokey-president': AT } })), SEAT_ENDED);
+  assert.equal(confirm('crank', world({ requests: [asks], ended: { 'smokey-president': AT } })), NO_REQUEST, 'its covered seat ended, so it lapsed');
   assert.equal(confirm('crank', world({ requests: [asks], ended: { 'jet-vp': AT } })), COVER_FROM_BOARD);
   assert.equal(confirm('crank', world({ requests: [asks], seats: [stint('jet-acting-treasurer', 'jet', 'north', 'treasurer')] })), ONE_STINT);
   assert.equal(
@@ -1095,6 +1095,45 @@ test('dates: set_acting_until, earlier by the acting person or holder, later by 
   assert.equal(set('smokey', 'crank-acting-treasurer', '2026-12-01', lapsed), 'That term has already ended.');
   const ended = world({ seats: [{ ...crankActing, endedOn: '2026-11-10', endedReason: 'stepped_down' }] });
   assert.equal(set('smokey', 'crank-acting-treasurer', '2026-12-01', ended), 'That term has already ended.');
+});
+
+test('dates: more time checks the stand-in again: a recorded licence must last it, and nobody on hiatus leads', () => {
+  const crankActing = stint('crank-acting-treasurer', 'crank', 'north', 'treasurer', { startedOn: '2026-11-01' });
+  const set = (data: ClubData, me: string, until: string, id = 'crank-acting-treasurer') => setActingUntilProblem(who(data, me), row(data, id), until, data, AT);
+  const expiring = world({ seats: [crankActing], privates: [licence('crank', 'full_open', '2026-12-20')] });
+  assert.equal(set(expiring, 'smokey', '2026-12-20'), null, 'up to the licence’s last day');
+  assert.equal(set(expiring, 'smokey', '2026-12-21'), LICENCE_ENDS, 'not a day past it');
+  assert.equal(set(expiring, 'crank', '2026-12-01'), null, 'bringing it forward checks nothing more');
+  const learner = world({ seats: [crankActing], privates: [licence('crank', 'learner', null)] });
+  assert.equal(set(learner, 'smokey', '2026-12-20'), LICENCE_ENDS, 'a learner’s licence');
+  const unrecorded = world({ seats: [crankActing], privates: [licence('crank', 'full_open', null)] });
+  assert.equal(set(unrecorded, 'smokey', '2026-12-20'), null, 'no end date recorded: only the warning');
+  const away = world({ seats: [crankActing], members: { crank: { onHiatus: true } } });
+  assert.equal(set(away, 'smokey', '2026-12-20'), HIATUS_NO_LEAD);
+  assert.equal(set(away, 'crank', '2026-12-01'), null, 'they can still bring it forward');
+  const smo = world({ seats: [stint('crank-acting-smo', 'crank', 'north', 'social_media_officer')], members: { crank: { onHiatus: true } } });
+  assert.equal(set(smo, 'smokey', '2026-12-20', 'crank-acting-smo'), null, 'a role that leads no rides');
+  // The covered holder keeping a cover going is checked the same way.
+  const coverAway = world({ seats: [JET_COVERS], members: { jet: { onHiatus: true } } });
+  assert.equal(set(coverAway, 'smokey', '2026-12-20', 'jet-covers-smokey'), HIATUS_NO_LEAD);
+  const coverExpiring = world({ seats: [JET_COVERS], privates: [licence('jet', 'full_open', '2026-12-15')] });
+  assert.equal(set(coverExpiring, 'smokey', '2026-12-16', 'jet-covers-smokey'), LICENCE_ENDS);
+});
+
+test('caps: a cover that began the day its holder left isn’t part of the empty seat’s run', () => {
+  // Gus stepped down on 10/11, the day Crank's cover of him began, which ended with his seat. The
+  // ACM on 12/11 came before the empty seat's first stint, so it doesn't cap it.
+  const left = world({
+    seats: [
+      seat('gus-treasurer', 'gus', 'north', 'treasurer', { endedOn: '2026-11-10', endedReason: 'stepped_down' }),
+      stint('crank-covers-gus', 'crank', 'north', 'treasurer', {
+        startedOn: '2026-11-10', endedOn: '2026-11-10', endedReason: 'left_board', covers: 'gus-treasurer', actingWhy: 'Gus away',
+      }),
+    ],
+    meetings: [meet('north-acm', 'north', 'agm', '2026-11-12')],
+  });
+  assert.equal(actingCap('north', 'treasurer', false, AT, left), '2027-05-15', 'six months from this stint, as no ACM is saved since');
+  assert.equal(appointActingProblem(who(left, 'smokey'), who(left, 'ned'), 'north', 'treasurer', '2027-05-15', 'No Treasurer', left, AT), null);
 });
 
 test('end branches: the acting person steps down, the holder says I’m back, anyone else on the board needs a carried board-majority vote', () => {
@@ -1278,14 +1317,16 @@ test('ASKED_RECENTLY counts 28 days from the day it was voted down, as the datab
   assert.equal(again(rejected('2026-10-18T01:00:00.000Z')), null, '28 days ago: the wait is over');
 });
 
-test('withdrawing settles first, and the holder is whoever holds the covered seat now', () => {
+test('withdrawing settles first: a lost vote, or the covered seat ending, has closed the request', () => {
   const crankAsks = ask('crank-asks-jet', { requestedBy: 'crank', why: 'Smokey can’t be reached' });
   const lost = world({ seats: FIVE, requests: [crankAsks], votes: [boardVote('v-acting', { actingRequestId: 'crank-asks-jet', result: 'lost' })] });
   assert.equal(withdrawRequestProblem(who(lost, 'jet'), crankAsks, lost, AT), NO_REQUEST, 'the lost vote closed it');
-  // Smokey stepped down after Crank asked: he's no longer the holder, so can't withdraw it.
+  // Smokey stepped down after Crank asked, so the request lapsed with his seat and holds the empty seat no longer.
   const stepped = world({ seats: FIVE, requests: [crankAsks], ended: { 'smokey-president': AT } });
-  assert.equal(withdrawRequestProblem(who(stepped, 'smokey'), crankAsks, stepped, AT), WITHDRAW_WHO);
-  assert.equal(withdrawRequestProblem(who(stepped, 'jet'), crankAsks, stepped, AT), null, 'the stand-in still can');
+  assert.equal(withdrawRequestProblem(who(stepped, 'smokey'), crankAsks, stepped, AT), NO_REQUEST);
+  assert.equal(withdrawRequestProblem(who(stepped, 'jet'), crankAsks, stepped, AT), NO_REQUEST, 'nor the stand-in: nothing is left to withdraw');
+  assert.equal(appointActingProblem(who(stepped, 'crank'), who(stepped, 'jet'), 'north', 'president', UNTIL, 'No President', stepped, AT), null,
+    'the empty seat takes acting: Crank records Jet, the sitting VP');
 });
 
 test('ending a term settles first: a stint that lapsed last night gives no board standing', () => {

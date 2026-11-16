@@ -783,7 +783,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
         <Row style={{ gap: 6 }}>
           <Chip label={scopeLabel(vote.chapterId, data)} tone="steel" />
           {subject ? (
-            <Chip label={voteKindLabel(vote)} tone="redOutline" />
+            <Chip label={voteKindLabel(vote, endsActing)} tone="redOutline" />
           ) : null}
           {vote.secret ? <Chip label="Secret ballot" tone="bone" icon="lock-closed" /> : null}
         </Row>
@@ -1001,11 +1001,13 @@ const orList = (parts: string[]) => (parts.length < 2 ? parts.join('') : `${part
 const SEAT_VOTE_LABEL: Record<NecSeatRole, string> = { nec_auditor: 'Auditor vote', nec_secretary: 'Secretary vote' };
 
 /**
- * What the chip on a vote about a member says: acting (on a request to seat someone acting), patch
- * (4.9), removal (9.3, ending acting included), national seat (11.6, 11.8) or NEC reinstatement (5.6).
+ * What the chip on a vote about a member says: acting (on a request to seat someone acting), ending
+ * acting (`endsActing`, by the vote's shape: acting is never discipline, so it doesn't say removal),
+ * patch (4.9), removal (9.3), national seat (11.6, 11.8) or NEC reinstatement (5.6).
  */
-function voteKindLabel(vote: Pick<Vote, 'chapterId' | 'electorate' | 'subjectRole' | 'actingRequestId'>): string {
+function voteKindLabel(vote: Pick<Vote, 'chapterId' | 'electorate' | 'subjectRole' | 'actingRequestId'>, endsActing: boolean): string {
   if ((vote.actingRequestId ?? null) !== null) return 'Acting vote';
+  if (endsActing) return 'End acting vote';
   if (isRemovalVote(vote)) return 'Removal vote';
   if (vote.electorate !== 'nec') return 'Patch vote';
   return vote.subjectRole && isNecSeat(vote.subjectRole) ? SEAT_VOTE_LABEL[vote.subjectRole] : 'NEC vote';

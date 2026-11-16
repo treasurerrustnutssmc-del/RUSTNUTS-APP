@@ -6,11 +6,11 @@
 // Acting roles (Task 20): what Me and Home show a board holder about covering their seat while
 // they're away (spec: Screens, "Me, for a board holder" and "The covered holder, on Me and Home").
 import {
-  accessLevel, actingCap, actingDefaultUntil, actingWarnings, ASKED_RECENTLY, AUDITOR_STAYS_OUT, CONFIRM_NOT_HOLDER, HOLDER_ACTING,
+  accessLevel, actingCap, actingDefaultUntil, actingWarnings, CONFIRM_NOT_HOLDER,
   holdsBoardSeat, LICENCE_ENDS, PRESIDENT_NEEDS_BOARD_VOTE, requestCoverProblem, RUN_OVER, SMALL_BOARD, untilRange, withdrawRequestProblem,
 } from './access';
 import { coverOf, heldPositions, heldRows, isActing, settleActing } from './acting';
-import { WHY_HINT } from './actingCopy';
+import { backNote, nobodyStandsIn, SEAT_REFUSALS, WHY_HINT } from './actingCopy';
 import { closeRequestNote } from './boardLayout';
 import { formatAuDate } from './dates';
 import { formatCents } from './fees';
@@ -80,13 +80,6 @@ export type CoverPanel =
 
 /** A why that passes, for asking the rule which stand-ins a seat allows before one is typed. */
 const PROBE_WHY = 'Away';
-/**
- * Refusals about the seat or the holder, not the stand-in: they come before the stand-in's own
- * checks, so every stand-in gets the same one, except that a board too small to confirm a cover
- * once the stand-in is left out can depend on who stands in.
- */
-const SEAT_REFUSALS = [HOLDER_ACTING, ASKED_RECENTLY, AUDITOR_STAYS_OUT, SMALL_BOARD];
-
 const nameOf = (memberId: string, data: ClubData) => {
   const m = data.members.find((x) => x.id === memberId);
   return m ? displayName(m) : 'Someone';
@@ -139,7 +132,7 @@ function panelFor(me: Member, seat: Position, data: ClubData, today: string): Co
   if (cover) {
     return {
       kind: 'covered', seat, title: 'Your seat is covered', cover, notice: coveredNotice(seat, cover, data),
-      button: { label: 'I’m back', confirmLabel: 'Yes, I’m back', confirmNote: `This ends ${nameOf(cover.memberId, data)}’s acting today.` },
+      button: { label: 'I’m back', confirmLabel: 'Yes, I’m back', confirmNote: backNote(cover, data) },
     };
   }
   const request = (data.actingRequests ?? []).find((r) => r.closedAt === null && r.covers === seat.id);
@@ -170,7 +163,7 @@ function panelFor(me: Member, seat: Position, data: ClubData, today: string): Co
     return { kind: 'blocked', seat, title: ARRANGE_COVER, summary: `${title} · ${refusal === SMALL_BOARD ? 'Refer it to the NEC (8.6)' : 'Not now'}`, line: refusal };
   }
   const chapter = data.chapters.find((c) => c.id === chapterId)?.name ?? 'the chapter';
-  const nobody = `Nobody on ${chapter}’s board can stand in now.`;
+  const nobody = nobodyStandsIn(chapter);
   return {
     kind: 'blocked', seat, title: ARRANGE_COVER, summary: `${title} · Nobody can stand in now`,
     line: seat.role === 'president' ? `${nobody} ${PRESIDENT_NEEDS_BOARD_VOTE} Your board can arrange it by a vote.` : nobody,

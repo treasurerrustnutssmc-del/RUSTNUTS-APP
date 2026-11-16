@@ -239,13 +239,14 @@ below).
    least 48 hours, and `close_vote` won't close it sooner even when everyone has voted, so the
    holder can answer and nobody can void it by closing early. Once it has carried, in the last 90
    days, a board member who isn't the stand-in confirms it, and the row records the vote
-   (`acting_vote`). `open_acting_vote` refuses with `SEAT_ENDED` when the row the request covers
-   has ended, since the vote could seat nobody.
+   (`acting_vote`). Once the row the request covers has ended, the request has lapsed (below), so
+   `open_acting_vote` and `confirm_acting` refuse with `NO_REQUEST`, since the vote could seat nobody.
 
 **Requests.** The stand-in (declining) or the holder can close an open request with
 `withdraw_acting_request(p_request)`, and the requester can only while no vote on it is open or
 has carried, so no one board member can undo a vote that is running or has carried (8.2). A
-request lapses at its until date or 28 days after it was made, whichever comes first. Any vote on
+request lapses at its until date or 28 days after it was made, whichever comes first, and a cover
+request lapses as soon as the row it would cover ends, so it never holds the empty seat. Any vote on
 it that closes `lost` closes it as `rejected`, even while another vote on it is open, so a declined
 one never blocks the seat, and its requester can't ask for that seat again for 28 days
 (`ASKED_RECENTLY`). A `no_quorum` vote leaves it open for another vote, so a vote set up to fail
@@ -271,9 +272,10 @@ an elector on acting or end-acting votes for those seats. The same check goes in
   run's ACM has passed, the cap is behind today, so no stint in the seat can start or run longer
   (`RUN_OVER`), and the stint ends by its date at the latest, so the elected holder is seated then.
   A back-dated ACM can only make the cap earlier, so it gives nobody time. Back-to-back stints
-  share one run: chained back from the new stint, it takes in each of the seat's acting rows that
-  is open or ended within 28 days before the next one started, after the seat's last non-acting
-  row ended. So stepping down and being recorded again within four weeks doesn't restart the cap,
+  share one run: chained back from the new stint, it takes in each of the seat's empty-seat stints
+  that is open or ended within 28 days before the next one started, after the seat's last
+  non-acting row ended. A cover is never part of a run (an absence, not a vacancy), even one that
+  began the day its holder's row ended. So stepping down and being recorded again within four weeks doesn't restart the cap,
   and a seat with nobody acting for four weeks starts afresh. The default is that ACM's date, or
   three months, within the cap. If the ACM is cancelled or moved, the date already set stands, and
   the audit's "No election scheduled" line flags it.
@@ -292,7 +294,9 @@ an elector on acting or end-acting votes for those seats. The same check goes in
   within the cap. For an agreed cover, only the covered holder ("still away"), within the cap. Any
   row with a carried vote behind it (`acting_vote` set) needs a new vote. That covers voted covers
   and voted empty-seat Presidents. A President stint
-  recorded because the person was the sitting VP is extended only while they still are.
+  recorded because the person was the sitting VP is extended only while they still are. More time
+  checks the stand-in again, as at the start: nobody on hiatus gets more time in a ride-leader role
+  (`HIATUS_NO_LEAD`), and a recorded licence must last the new date (`LICENCE_ENDS`).
 - Every change is logged in `public.acting_changes` with the old date, the new date, who and when.
   The row keeps its start date, so the audit sees the whole stint.
 
@@ -506,7 +510,8 @@ check (acting_until is null or (ended_on is null) = (ended_reason is null))
 2. **Lazy close (database).** `private.close_lapsed_acting()` sets `ended_on = acting_until + 1,
    ended_reason = 'lapsed', ended_by = null` on lapsed rows, so the partial indexes are free
    again (they can't use `club_date()`). It closes requests that are past their until date or 28
-   days old (`lapsed`), and those with a vote closed `lost` (`rejected`). Every
+   days old, or whose covered row has ended (`lapsed`), and those with a vote closed `lost`
+   (`rejected`). Every
    writer above calls it first, and so do
    `set_member_status`, `delete_my_account`, `forget_member`, `open_vote` and `open_acting_vote`.
    No pg_cron job is added. (The repo has one, `purge-conduct-records` at
@@ -701,7 +706,9 @@ the 2026 blanket grant at `review_fixes.sql:125-126` covered only the functions 
 and on select on the three views. New readers are `stable security definer set search_path = ''`.
 Every existing row gets `acting_until` null, so nothing changes except the three tightenings.
 
-There is one paste-queue item, `build/acting_roles.sql`, byte for byte the same. Before Run, the
+There is one paste-queue item, `build/acting_roles.sql`, byte for byte the same. Its first
+statement stops a second paste with "The acting roles migration is already in. Nothing was
+changed.", and the NEC ballot backfill fills only empty values. Before Run, the
 "Apply pending SQL in Supabase" thread checks read-only that every function the migration replaces
 has a live body whose md5 matches the repo's latest definition, and that `one_holder_per_board_seat`
 is still the `foundations.sql:110-113` index. That way a live hotfix never merged into the repo
@@ -914,6 +921,24 @@ declines on Me; the Vote screen names the Auditor; the step-down confirm tells a
 acting ends; the Why hint says it's required. Left on purpose: Manage member's reach for an Acting
 President (Screens), and two layout choices at 360 wide (New vote's one-line Question field,
 the Ending chip beside a stint's line).
+
+A whole-branch review (16/11/2026, four lenses: rules, live database, app, design) was checked
+against the code. Fixed on both sides, with parity cases: more time on a stint asks the same
+hiatus and licence questions as the first appointment (`HIATUS_NO_LEAD`, `LICENCE_ENDS`); the cap
+counts empty-seat stints only, so a cover never joins a run (the database had counted covers);
+a request whose covered row ends lapses in the lazy close and in `settleActing`, so the empty
+seat isn't held and `open_acting_vote` answers `NO_REQUEST` (this replaces the sweep's
+`SEAT_ENDED` check, which could no longer be reached). In the migration: a first-statement guard
+stops a second paste with nothing changed, and the NEC backfill fills only empty chapter values.
+In the app: the Vote kind chip says End acting vote; the scope line names the board ("You sit on
+North's board."); the arrange-cover reason says the most specific refusal first; every can't-go
+line uses the danger colour; Home's title line wraps between titles, never inside one; the
+step-down button always names the title; a request line names its chapter; the Appoint field is a
+plain line when there's one kind; confirm labels stay short ("Yes, appoint", "Yes, ask") with the
+full action in their accessibility labels; "Who covers" became "Who stands in"; I'm back says
+what ends on Home as on Me; the audit finding's title is never cut. Left: a stand-in an empty-seat
+request names but who never answers holds nothing for long, since the request lapses at 28 days
+and they can decline.
 
 ## Questions for Jeff
 

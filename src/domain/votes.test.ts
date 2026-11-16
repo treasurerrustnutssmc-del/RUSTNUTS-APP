@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
-import { AUDITOR_STAYS_OUT, BOARD_RECORDS_ACTING, NO_REQUEST, NOT_YOURSELF, SEAT_ENDED, SMALL_BOARD } from './access';
+import { AUDITOR_STAYS_OUT, BOARD_RECORDS_ACTING, NO_REQUEST, NOT_YOURSELF, SMALL_BOARD } from './access';
 import type { ActingRequest, ClubData, Member, Position, PositionRole, Vote } from './types';
 import { settleActing } from './acting';
 import {
@@ -737,11 +737,11 @@ test('the stint warning on opening', () => {
   assert.deepEqual(stintVoteWarnings(board, covered, AT), [], 'a cover takes no ballot away');
 });
 
-test('the board can’t vote on a request whose covered seat has ended (SEAT_ENDED)', () => {
-  // Smokey's President row ended yesterday; Crank's request for Jet to cover it is still open.
+test('the board can’t vote on a request whose covered seat has ended: it lapsed with the seat', () => {
+  // Smokey's President row ended yesterday, so Crank's request for Jet to cover it has lapsed.
   const gone = world({ seats: FIVE, ended: { 'smokey-president': '2026-11-14' }, requests: [ask('crank-asks-jet')] });
   const request = gone.actingRequests![0];
-  assert.equal(openActingVoteProblem(who(gone, 'crank'), request, 3, hoursFrom(AT_NOW, 7 * 24), null, gone, AT_NOW), SEAT_ENDED);
+  assert.equal(openActingVoteProblem(who(gone, 'crank'), request, 3, hoursFrom(AT_NOW, 7 * 24), null, gone, AT_NOW), NO_REQUEST);
   assert.equal(openActingVoteProblem(null, request, 3, hoursFrom(AT_NOW, 7 * 24), null, gone, AT_NOW), 'Sign in first.');
 });
 

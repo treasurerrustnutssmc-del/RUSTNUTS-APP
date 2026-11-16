@@ -138,7 +138,7 @@ test('the covered holder gets coveredNotice and an ‘I’m back’ ConfirmButto
   assert.equal(panel.title, 'Your seat is covered');
   assert.equal(panel.cover.id, 'jet-covers-smokey');
   assert.equal(panel.notice, coveredNotice(SMOKEY_PRES, JET_COVERS, data));
-  assert.deepEqual(panel.button, { label: 'I’m back', confirmLabel: 'Yes, I’m back', confirmNote: 'This ends Jet’s acting today.' });
+  assert.deepEqual(panel.button, { label: 'I’m back', confirmLabel: 'Yes, I’m back', confirmNote: 'Jet’s acting ends today, and the seat’s duties come back to you.' });
   // The ending is the holder's own: endTermProblem lets them end the cover (holder_back).
   assert.equal(endTermProblem(who(data, 'smokey'), JET_COVERS, data, AT), null);
   // Home shows only this panel; once the cover lapses the seat is Smokey's to cover again.

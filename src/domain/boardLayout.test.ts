@@ -102,14 +102,15 @@ const actingVote = (id: string, over: Partial<Vote>): Vote => ({
 });
 
 test('requestLine: an agreed cover and a voted request, as the Board tab shows them', () => {
-  assert.equal(requestLine(smokeyAsks, DEMO_DATA), 'Smokey asked for Jet to cover as President until 13/12/2026: Smokey overseas');
+  // A chapter seat always names its chapter, so an All chapters Board tab says whose seat it is.
+  assert.equal(requestLine(smokeyAsks, DEMO_DATA), 'Smokey asked for Jet to cover as President (North) until 13/12/2026: Smokey overseas');
   assert.equal(
     requestLine(ask('ar-crank', { requestedBy: 'm-crank', why: 'Smokey can’t be reached' }), DEMO_DATA),
-    'Crank asked for Jet to act as President until 13/12/2026: Smokey can’t be reached',
+    'Crank asked for Jet to act as President (North) until 13/12/2026: Smokey can’t be reached',
   );
   assert.equal(
     requestLine(ask('ar-empty', { chapterId: 'ch-west', memberId: 'm-torque', covers: null, why: 'No President since the ACM', requestedBy: 'm-diesel' }), DEMO_DATA),
-    'Diesel asked for Torque to act as President until 13/12/2026: No President since the ACM',
+    'Diesel asked for Torque to act as President (West) until 13/12/2026: No President since the ACM',
   );
 });
 
@@ -256,8 +257,9 @@ test('scopeText: the club-wide first sentence stays; the second says whose board
   assert.equal(scopeText(rusty, DEMO_DATA), 'You sit on the NEC, so you see every chapter’s board records. You sit on West’s board.');
   const noSeat: ClubData = { ...DEMO_DATA, positions: DEMO_DATA.positions.map((p) => (p.id === 'p-1' ? { ...p, endedOn: addDays(STORY_TODAY, -1) } : p)) };
   assert.equal(scopeText(rusty, noSeat), 'You sit on the NEC, so you see every chapter’s board records. Each chapter’s board runs its own business.');
-  assert.equal(scopeText(crank, DEMO_DATA), 'You can act for the North chapter.');
+  // "Act" is a defined term now (Acting), so a board member's line says where they sit.
+  assert.equal(scopeText(crank, DEMO_DATA), 'You sit on North’s board.');
   // Covering Smokey, Jet is on the NEC but sees North's board alone, so his line is one chapter's.
   const covered = { ...DEMO_DATA, positions: [...DEMO_DATA.positions, jetCovers] };
-  assert.equal(scopeText(jet, covered), 'You can act for the North chapter.');
+  assert.equal(scopeText(jet, covered), 'You sit on North’s board.');
 });

@@ -655,5 +655,16 @@ begin
 end $$;
 SQL
 echo 'The acting migration gives each open NEC ballot its chapter: President seat, then VP seat, then their own'
+# Pasted again, as one transaction, it stops at once and says it is already in. Pasted again in a
+# client that keeps going after errors, the backfill only fills empty values, so an open NEC ballot
+# keeps the chapter open_vote or cast_ballot gave it.
+"${PSQL[@]}" -d rustnuts_acting_backfill -c "update public.vote_electors set for_chapter = (select id from public.chapters where slug = 'west') where vote_id = '00000000-0000-0000-0000-000000000101' and member_id = '00000000-0000-0000-0000-000000000001'" >/dev/null
+again="$("${PSQL[@]}" -d rustnuts_acting_backfill --single-transaction -f "$ROOT/supabase/migrations/20270870000000_acting_roles.sql" 2>&1 || true)"
+grep -q 'The acting roles migration is already in' <<<"$again" \
+  || { echo "A second paste of the acting migration didn't say it is already in: $again"; exit 1; }
+psql -h "$WORK" -p "$PORT" -U postgres -q -X -d rustnuts_acting_backfill -f "$ROOT/supabase/migrations/20270870000000_acting_roles.sql" >/dev/null 2>&1 || true
+[ "$("${PSQL[@]}" -d rustnuts_acting_backfill -tAc "select c.slug from public.vote_electors e join public.chapters c on c.id = e.for_chapter where e.vote_id = '00000000-0000-0000-0000-000000000101' and e.member_id = '00000000-0000-0000-0000-000000000001'")" = west ] \
+  || { echo 'A second paste of the acting migration moved an open NEC ballot to another chapter'; exit 1; }
+echo 'A second paste of the acting migration says it is already in, and moves no NEC ballot'
 
 echo 'ALL DATABASE CHECKS PASSED'

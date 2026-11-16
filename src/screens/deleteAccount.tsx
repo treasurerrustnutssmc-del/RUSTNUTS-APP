@@ -51,7 +51,7 @@ function StepDownSeats({ seats }: { seats: SeatToStepDown[] }) {
   return (
     <Card>
       <H2>Your seats</H2>
-      {error ? <Small style={{ color: colors.warn }}>{error}</Small> : null}
+      {error ? <Small style={{ color: colors.danger }}>{error}</Small> : null}
       {seats.map(({ position: p, selfEnd, note }) =>
         selfEnd ? (
           <StepDownButton
