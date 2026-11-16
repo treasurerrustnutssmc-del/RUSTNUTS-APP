@@ -51,6 +51,7 @@ import {
   ClubContext,
   EMPTY_DATA,
   NotAllowedError,
+  RouteNotOnRideError,
   validateApplicationBike,
   validateBike,
   validateContact,
@@ -816,7 +817,7 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       await after();
     },
 
-    saveRoute: async (input) => {
+    saveRoute: async (input, rideId) => {
       requireUser();
       // The rule checks first, then the file, the same order as save_route.
       const existing = input.id === null ? undefined : data.routes?.find((r) => r.id === input.id);
@@ -842,8 +843,21 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
           p_bounds: summary?.bounds ?? null,
         }),
       );
+      const id = result.data ?? input.id ?? '';
+      if (rideId && id) {
+        // The new route isn't in `data` yet, so only the ride's own checks run here; the
+        // database checks the route itself.
+        try {
+          const rideProblem = rideRouteProblem(visibleMe, data.rides.find((r) => r.id === rideId), null, data, new Date().toISOString());
+          if (rideProblem) throw new NotAllowedError(rideProblem);
+          ok(await supabase().rpc('set_ride_route', { p_ride: rideId, p_route: id }));
+        } catch (e) {
+          await after();
+          throw new RouteNotOnRideError(id, (e as Error).message);
+        }
+      }
       await after();
-      return result.data ?? input.id ?? '';
+      return id;
     },
 
     archiveRoute: async (routeId) => {

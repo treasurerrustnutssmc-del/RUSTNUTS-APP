@@ -9,6 +9,8 @@ import {
   libraryFor,
   managesChapterRoutes,
   rideRouteChapters,
+  rideRouteChoices,
+  startingRouteChapter,
   rideRouteProblem,
   routeChapterName,
   routeFileName,
@@ -354,4 +356,26 @@ test('a starting name is cut to 80 characters without splitting one in two', () 
   assert.equal(startingRouteName(`${'a'.repeat(79)} b`, 'x.gpx'), 'a'.repeat(79), 'no space left at the end');
   // Whatever the cut, the name passes the 80-character rule saveRouteProblem applies.
   assert.ok([...startingRouteName('é'.repeat(200), 'x.gpx')].length <= 80);
+});
+
+test('a ride chooses from every route, its own chapter’s and whole-club ones first', () => {
+  const d = data();
+  assert.deepEqual(rideRouteChoices(WEST_RIDE, d).map((r) => r.id), ['west-route', 'club-route', 'north-route'], 'west ride: west and club first');
+  assert.deepEqual(rideRouteChoices(CLUB_RIDE, d).map((r) => r.id), ['club-route', 'north-route', 'west-route'], 'club ride: whole-club first, then newest');
+  assert.deepEqual(rideRouteChoices(ride('n', { category: 'north' }), d).map((r) => r.id), ['north-route', 'club-route', 'west-route']);
+  assert.ok(!rideRouteChoices(WEST_RIDE, d).some((r) => r.id === 'old-route'), 'archived routes left out');
+  assert.deepEqual(rideRouteChoices(WEST_RIDE, data({ routes: undefined })), [], 'no routes');
+});
+
+test('the chapter a new route starts filed under', () => {
+  const d = data();
+  // Added from a ride: the ride's own chapter, so it is there to choose straight away.
+  assert.equal(startingRouteChapter(westVp, WEST_RIDE, d), 'ch-west');
+  assert.equal(startingRouteChapter(nec, WEST_RIDE, d), 'ch-west', 'the NEC can file under any chapter');
+  assert.equal(startingRouteChapter(nec, CLUB_RIDE, d), null, 'a club ride: whole club');
+  assert.equal(startingRouteChapter(northRc, WEST_RIDE, d), null, 'can’t file under West: whole club');
+  // From the library: your own chapter when you can file there, else whole club.
+  assert.equal(startingRouteChapter(westVp, undefined, d), 'ch-west');
+  assert.equal(startingRouteChapter(nec, undefined, d), 'ch-north');
+  assert.equal(startingRouteChapter(rider, undefined, d), null);
 });

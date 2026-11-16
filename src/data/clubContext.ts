@@ -54,6 +54,16 @@ import type { PickedMedia } from '../domain/chat';
 
 export class NotAllowedError extends Error {}
 
+/** A new route was saved to the library, but putting it on the ride it was added for was refused. */
+export class RouteNotOnRideError extends Error {
+  constructor(
+    readonly routeId: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 export interface ApplicationInput {
   chapterId: string;
   fullName: string;
@@ -210,8 +220,12 @@ export interface ClubContextValue {
   setCrew: (rideId: string, memberId: string, role: CrewRole) => Promise<void>;
   /** Takes a member off a ride's crew (yourself, or anyone if you manage the ride). */
   leaveCrew: (rideId: string, memberId: string) => Promise<void>;
-  /** Adds or changes a route in the library (route managers only). Resolves to the route's id. */
-  saveRoute: (input: RouteInput) => Promise<string>;
+  /**
+   * Adds or changes a route in the library (route managers only). Resolves to the route's id.
+   * With `rideId`, a new route then goes straight onto that ride; if only that step is refused it
+   * throws RouteNotOnRideError, and the route stays in the library.
+   */
+  saveRoute: (input: RouteInput, rideId?: string) => Promise<string>;
   /** Hides a route from the library and from choosing. Rides that use it keep it. */
   archiveRoute: (routeId: string) => Promise<void>;
   /** Chooses a ride's route, or clears it with null (the ride's crew managers only). */

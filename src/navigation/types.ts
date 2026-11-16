@@ -4,13 +4,17 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { FeedItem } from '../data/chat/chatContext';
 import type { PickedMedia } from '../domain/chat';
 import type { CrewRole, PositionRole } from '../domain/types';
+import type { NeedsYouKind } from '../domain/boardLayout';
+
+/** The part of a member's page to open at (from the Board's Needs-you rows). */
+export type MemberFocus = 'ride-ready' | 'contacts';
 
 export type TabParams = {
   Home: undefined;
   Chats: undefined; // Stage 3 (lane B), labelled Chat
   Members: undefined;
   Rides: undefined;
-  Board: undefined;
+  Board: { focus?: NeedsYouKind } | undefined; // Home's board rows open the Board at the matching list
   Shop: undefined; // labelled Merch: the Discord members' shop, the website shop and in-app gear
   Me: undefined;
 };
@@ -26,7 +30,7 @@ export type RootParams = {
   LoadError: undefined;
   // signed in
   Tabs: NavigatorScreenParams<TabParams>;
-  MemberDetail: { memberId: string };
+  MemberDetail: { memberId: string; focus?: MemberFocus };
   Chapters: undefined;
   ChapterDetail: { chapterId: string };
   RideDetail: { rideId: string };
@@ -51,7 +55,7 @@ export type RootParams = {
   // ride routes
   Routes: undefined;
   Route: { routeId: string };
-  EditRoute: { routeId?: string } | undefined;
+  EditRoute: { routeId?: string; rideId?: string } | undefined;
   PickRoute: { rideId: string };
   // ride briefings
   Briefing: { rideId: string };
