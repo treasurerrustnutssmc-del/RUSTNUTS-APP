@@ -67,12 +67,22 @@ test('the NEC list renders necRows', () => {
 test('RoleChip gets a chipLabel in MemberRow and AuthorLine', () => {
   const chips = fn(memberBits, 'RoleChips');
   assert.match(chips, /<RoleChip\b/);
-  assert.match(chips, /chipLabel\(\w+, data\.chapters\)/, 'an acting seat spells itself out: ACTING TREASURER (NORTH)');
-  assert.match(fn(memberBits, 'MemberRow'), /<RoleChips\b/);
-  assert.match(fn(members, 'MemberDetailScreen'), /<RoleChips\b/, 'member detail shows the same chips');
+  assert.match(chips, /chipLabel\(\w+, data\.chapters, form\)/, 'an acting seat says Acting: ACTING TREASURER (NORTH), or ACTING TREAS (NORTH) in a dense row');
+  assert.match(chips, /form = 'long'/, 'the long form unless a row asks for the short one');
+  assert.match(fn(memberBits, 'MemberRow'), /<RoleChips\b[^>]*\bform="short"/, 'a Members list row has 216 px at 360 wide');
+  const detail = fn(members, 'MemberDetailScreen');
+  assert.match(detail, /<RoleChips\b/, 'member detail shows the same chips');
+  assert.doesNotMatch(detail, /<RoleChips\b[^>]*\bform=/, 'member detail has the full width, so it keeps the long form');
   const author = fn(chatBits, 'AuthorLine');
   assert.match(author, /heldPositions\(member\.id, data\.positions\)/);
-  assert.match(author, /<RoleChip role=\{top\.role\} label=\{chipLabel\(top, data\.chapters\)\} \/>/);
+  assert.match(author, /<RoleChip\s+role=\{top\.role\}\s+label=\{chipLabel\(top, data\.chapters, 'short'\)\}/, 'a chat name line is a dense row too');
+});
+
+test('a role chip tells a screen reader the whole title, not the short form', () => {
+  const chips = fn(memberBits, 'RoleChips');
+  assert.match(chips, /positionTitles\(positions, data\.chapters, homeChapterId, ROLE_LABEL\)/, 'the long titles, in the same order as the chips');
+  assert.match(chips, /accessibilityLabel=\{spoken\[i\]\.text\}/);
+  assert.match(fn(chatBits, 'AuthorLine'), /accessibilityLabel=\{seatTitle\(top, data\.chapters, ROLE_LABEL\)\}/);
 });
 
 test('the Home header puts a stint’s until date on a line of its own', () => {

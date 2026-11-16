@@ -13,6 +13,16 @@ const fn = (name: string) => {
 
 test('RoleChip takes an optional label and shows it in place of the short form', () => {
   const chip = fn('RoleChip');
-  assert.match(chip, /\{\s*role,\s*label\s*\}:\s*\{\s*role:\s*PositionRole;\s*label\?:\s*string\s*\}/);
-  assert.match(chip, /<Chip label=\{label \?\? ROLE_SHORT\[role\]\} tone="bone" \/>/);
+  assert.match(chip, /\{\s*role,\s*label,\s*accessibilityLabel\s*\}:\s*\{\s*role:\s*PositionRole;\s*label\?:\s*string;\s*accessibilityLabel\?:\s*string\s*\}/);
+  assert.match(chip, /<Chip label=\{label \?\? ROLE_SHORT\[role\]\} tone="bone"/);
+});
+
+test('RoleChip and Chip pass a spoken label through, so TREAS (WEST) is read as Treasurer (West)', () => {
+  const role = fn('RoleChip');
+  assert.match(role, /accessibilityLabel\?: string/);
+  assert.match(role, /<Chip label=\{label \?\? ROLE_SHORT\[role\]\} tone="bone" accessibilityLabel=\{accessibilityLabel\} \/>/);
+  const chip = fn('Chip');
+  assert.match(chip, /accessibilityLabel\?: string/);
+  assert.match(chip, /accessible=\{accessibilityLabel != null\}/, 'read as one piece only when it has its own words');
+  assert.match(chip, /accessibilityLabel=\{accessibilityLabel\}/);
 });

@@ -60,10 +60,17 @@ export function longSeatTitle(position: Position, chapters: Chapter[], labels: R
   return longTitle(positionTitles([position], chapters, '', labels)[0]);
 }
 
-/** A role chip's words: an acting seat spelt out ("ACTING TREASURER (NORTH)"), else the short form ("TREAS"). */
-export function chipLabel(position: Position, chapters: Chapter[]): string {
+/** How much room a role chip has: the long form where the chips get a line of their own, the short one in a dense row. */
+export type ChipForm = 'long' | 'short';
+
+/**
+ * A role chip's words: an acting seat spelt out ("ACTING TREASURER (NORTH)"), else the short form
+ * ("TREAS"). In a dense row (a Members list row has 216 px at 360 wide, a chat name line) an acting
+ * seat takes the short role but keeps the Acting word and its chapter: "ACTING TREAS (NORTH)".
+ */
+export function chipLabel(position: Position, chapters: Chapter[], form: ChipForm = 'long'): string {
   if (!isActing(position)) return ROLE_SHORT[position.role];
-  return seatTitle(position, chapters, ROLE_LABEL).toUpperCase();
+  return seatTitle(position, chapters, form === 'short' ? ROLE_SHORT : ROLE_LABEL).toUpperCase();
 }
 
 const nameOf = (id: string | null | undefined, data: Pick<ClubData, 'members'>) => {

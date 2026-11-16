@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { heldPositions, isActing } from '../domain/acting';
-import { chipLabel, positionTitles, seatTitle, stepDownNote } from '../domain/home';
+import { chipLabel, positionTitles, seatTitle, stepDownNote, type ChipForm } from '../domain/home';
 import { ROLE_LABEL, ROLE_ORDER, ROLE_SHORT } from '../domain/labels';
 import { displayName, initials } from '../domain/profile';
 import type { ClubData, Member, Position } from '../domain/types';
@@ -16,15 +16,36 @@ export function sortedPositions(memberId: string, data: ClubData) {
 }
 
 /**
- * One chip per title, in the short form ("PRES (WEST)", "TREAS (WEST, NORTH)"). A stint spells
- * itself out with chipLabel ("ACTING TREASURER (NORTH)"), so it never reads as a full term.
+ * One chip per title, in the short form ("PRES (WEST)", "TREAS (WEST, NORTH)"). A stint says Acting
+ * with chipLabel, so it never reads as a full term: spelt out where the chips have a line of their
+ * own ("ACTING TREASURER (NORTH)"), short in a dense row (form "short": "ACTING TREAS (NORTH)").
+ * A screen reader hears each title in full ("Treasurer (West, North)").
  */
-export function RoleChips({ positions, data, homeChapterId }: { positions: Position[]; data: ClubData; homeChapterId: string }) {
+export function RoleChips({
+  positions,
+  data,
+  homeChapterId,
+  form = 'long',
+}: {
+  positions: Position[];
+  data: ClubData;
+  homeChapterId: string;
+  form?: ChipForm;
+}) {
+  // The same titles in words, grouped the same way, so each lines up with its chip.
+  const spoken = positionTitles(positions, data.chapters, homeChapterId, ROLE_LABEL);
   return (
     <>
-      {positionTitles(positions, data.chapters, homeChapterId, ROLE_SHORT).map((t) => {
+      {positionTitles(positions, data.chapters, homeChapterId, ROLE_SHORT).map((t, i) => {
         const first = positions.find((p) => p.id === t.key)!;
-        return <RoleChip key={t.key} role={first.role} label={isActing(first) ? chipLabel(first, data.chapters) : t.text} />;
+        return (
+          <RoleChip
+            key={t.key}
+            role={first.role}
+            label={isActing(first) ? chipLabel(first, data.chapters, form) : t.text}
+            accessibilityLabel={spoken[i].text}
+          />
+        );
       })}
     </>
   );
@@ -94,7 +115,7 @@ export function MemberRow({
           <Row style={{ gap: 6 }}>
             <StatusChip status={member.status} />
             {member.onHiatus ? <Chip label="On hiatus" icon="pause" /> : null}
-            <RoleChips positions={positions} data={data} homeChapterId={member.chapterId} />
+            <RoleChips positions={positions} data={data} homeChapterId={member.chapterId} form="short" />
             {showChapter && chapter ? <Small style={{ color: colors.boneMute }}>{chapter.name}</Small> : null}
           </Row>
           {extra}

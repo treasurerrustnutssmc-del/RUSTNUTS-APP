@@ -11,8 +11,8 @@ import { useChat } from '../data/chat/chatContext';
 import { searchGifs, type GifResult } from '../data/chat/gifSearch';
 import { heldPositions } from '../domain/acting';
 import { findLinks, mediaSummary, REACTIONS, type Message, type MessageMedia } from '../domain/chat';
-import { chipLabel } from '../domain/home';
-import { ROLE_ORDER } from '../domain/labels';
+import { chipLabel, seatTitle } from '../domain/home';
+import { ROLE_LABEL, ROLE_ORDER } from '../domain/labels';
 import { displayName } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
 import { colors, fonts, radius, space, type } from '../theme';
@@ -154,7 +154,11 @@ export function MessageText({ body }: { body: string }) {
   );
 }
 
-/** A name with the rank and top position beside it, as the club reads them. A stint shows as acting ("ACTING TREASURER (NORTH)"). */
+/**
+ * A name with the rank and top position beside it, as the club reads them. A stint shows as acting,
+ * in the short form a name line has room for ("ACTING TREAS (NORTH)"); a screen reader hears the
+ * whole title ("Acting Treasurer (North)").
+ */
 export function AuthorLine({ member, data }: { member: Member | undefined; data: ClubData }) {
   if (!member) return <Text style={styles.author}>Former member</Text>;
   const top = heldPositions(member.id, data.positions).sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))[0];
@@ -162,7 +166,13 @@ export function AuthorLine({ member, data }: { member: Member | undefined; data:
     <View style={styles.authorRow}>
       <Text style={styles.author} numberOfLines={1}>{displayName(member)}</Text>
       <StatusChip status={member.status} />
-      {top ? <RoleChip role={top.role} label={chipLabel(top, data.chapters)} /> : null}
+      {top ? (
+        <RoleChip
+          role={top.role}
+          label={chipLabel(top, data.chapters, 'short')}
+          accessibilityLabel={seatTitle(top, data.chapters, ROLE_LABEL)}
+        />
+      ) : null}
     </View>
   );
 }

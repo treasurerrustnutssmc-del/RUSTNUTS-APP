@@ -149,6 +149,13 @@ test('chipLabel spells out an acting seat, and keeps the short form otherwise', 
   assert.equal(chipLabel(pos('b', 'nec_chair', null), chapters), 'NEC CHAIR');
 });
 
+test('chipLabel short: a dense row (the Members list, a chat name) shortens the role but still says Acting', () => {
+  // At 360 wide a Members list row has 216 px; ACTING TREASURER (NORTH) needs 229, ACTING TREAS (NORTH) 190.
+  assert.equal(chipLabel(crankActingTreasurer, chapters, 'short'), 'ACTING TREAS (NORTH)');
+  assert.equal(chipLabel(crankActingTreasurer, chapters, 'long'), 'ACTING TREASURER (NORTH)');
+  assert.equal(chipLabel(smokeyPres, chapters, 'short'), 'PRES', 'a full term is already short');
+});
+
 test('the NEC list: one row per chapter for whoever casts its vote (11.2)', () => {
   const rustyPres = seat('rusty-pres', 'rusty', 'president', 'ch-west');
   const rustyChair = seat('rusty-chair', 'rusty', 'nec_chair', null);
