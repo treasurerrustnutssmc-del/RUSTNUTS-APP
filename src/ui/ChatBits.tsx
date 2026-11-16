@@ -167,6 +167,7 @@ export function AuthorLine({ member, data }: { member: Member | undefined; data:
       <StatusChip status={member.status} />
       {top ? (
         <RoleChip
+          key={top.id}
           role={top.role}
           label={chipLabel(top, data.chapters, 'short')}
           accessibilityLabel={actingSpoken(top, data.chapters)}

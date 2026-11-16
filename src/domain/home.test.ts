@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import {
-  actingSpoken, authorPageLabel, chipLabel, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, roleChipTexts,
+  actingSpoken, authorPageLabel, chipLabel, DENSE_CHIP_CHARS, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, roleChipTexts,
   seatTitle, stepDownNote, topSeat,
 } from './home';
-import { ROLE_LABEL, ROLE_SHORT } from './labels';
+import { BOARD_ROLES, CLUB_ROLES, ROLE_LABEL, ROLE_SHORT } from './labels';
 import type { Chapter, ClubData, Member, Position } from './types';
 
 const chapters: Chapter[] = [
@@ -176,12 +176,13 @@ test('roleChipTexts: a stint says Acting, long or short, and a screen reader hea
   ]);
 });
 
-test('roleChipTexts: a stint held in two chapters shows both, as it is read', () => {
+test('roleChipTexts: a stint held in two chapters names both where there is room, as it is read', () => {
+  // One stint at a time, in the member's own chapter (ONE_STINT), so this can't be recorded today.
   const west = seat('crank-acting-tre-w', 'crank', 'treasurer', 'ch-west', { startedOn: '2026-11-15', actingUntil: '2026-12-13' });
-  const [short] = roleChipTexts([crankActingTreasurer, west], chapters, 'short');
-  assert.equal(short.label, 'ACTING TREAS (NORTH, WEST)');
-  assert.equal(short.spoken, 'Acting Treasurer (North, West)');
   assert.equal(roleChipTexts([crankActingTreasurer, west], chapters, 'long')[0].label, 'ACTING TREASURER (NORTH, WEST)');
+  const [short] = roleChipTexts([crankActingTreasurer, west], chapters, 'short');
+  assert.equal(short.label, 'ACTING TREAS', 'ACTING TREAS (NORTH, WEST) would wrap in a member row');
+  assert.equal(short.spoken, 'Acting Treasurer (North, West)');
 });
 
 test('roleChipTexts: each spoken title belongs to its own chip, in a mix of terms and stints', () => {
@@ -195,6 +196,30 @@ test('roleChipTexts: each spoken title belongs to its own chip, in a mix of term
     ['ACTING SEC (NORTH)', 'Acting Secretary (North)'],
     ['ACTING TREAS (WEST)', 'Acting Treasurer (West)'],
   ]);
+});
+
+test('a dense row drops a stint’s chapter only where its chip would wrap at 360 (ACTING RIDE COMM)', () => {
+  // Measured in the stencil at 11.5 with its padding: ACTING CHARITY (NORTH), 22 characters, is 206
+  // of the row's 216; ACTING RIDE COMM (WEST), 23, is 216 and ACTING RIDE COMM (NORTH), 24, is 226.
+  assert.equal(DENSE_CHIP_CHARS, 22);
+  const stint = (role: Position['role'], chapterId: string) =>
+    seat(`x-${role}-${chapterId}`, 'crank', role, chapterId, { startedOn: '2026-11-15', actingUntil: '2026-12-13' });
+  for (const chapterId of ['ch-north', 'ch-west']) {
+    const [row] = roleChipTexts([stint('ride_committee', chapterId)], chapters, 'short');
+    assert.equal(row.label, 'ACTING RIDE COMM');
+    assert.equal(row.spoken, `Acting Ride Committee (${chapterId === 'ch-north' ? 'North' : 'West'})`, 'a screen reader still hears the chapter');
+    assert.equal(chipLabel(stint('ride_committee', chapterId), chapters, 'short'), 'ACTING RIDE COMM', 'the chat name line is a dense row too');
+  }
+  assert.equal(roleChipTexts([stint('charity_committee', 'ch-north')], chapters, 'short')[0].label, 'ACTING CHARITY (NORTH)', 'fits, so it keeps its chapter');
+  assert.equal(roleChipTexts([stint('ride_committee', 'ch-north')], chapters, 'long')[0].label, 'ACTING RIDE COMMITTEE (NORTH)', 'member detail has the room');
+  // Every role a stint can hold, in either chapter, fits a dense row on one line.
+  for (const role of [...BOARD_ROLES, ...CLUB_ROLES]) {
+    for (const chapterId of ['ch-north', 'ch-west']) {
+      const [chip] = roleChipTexts([stint(role, chapterId)], chapters, 'short');
+      assert.ok(chip.label.length <= DENSE_CHIP_CHARS, `${chip.label} fits`);
+      assert.equal(chipLabel(stint(role, chapterId), chapters, 'short'), chip.label, 'the chat name line says the same');
+    }
+  }
 });
 
 test('topSeat: the seat a name line shows is the first held one in role order', () => {

@@ -75,7 +75,8 @@ test('RoleChips draws roleChipTexts, short in a member row, long on member detai
   assert.doesNotMatch(detail, /<RoleChips\b[^>]*\bform=/, 'member detail has the full width, so it keeps the long form');
   const author = fn(chatBits, 'AuthorLine');
   assert.match(author, /topSeat\(member\.id, data\.positions\)/, 'the same top seat the name button reads out');
-  assert.match(author, /<RoleChip\s+role=\{top\.role\}\s+label=\{chipLabel\(top, data\.chapters, 'short'\)\}/, 'a chat name line is a dense row too');
+  assert.match(author, /<RoleChip\s+key=\{top\.id\}\s+role=\{top\.role\}\s+label=\{chipLabel\(top, data\.chapters, 'short'\)\}/, 'a chat name line is a dense row too');
+  // Keyed by seat: when the top seat changes, Android would otherwise keep the old spoken words on the chip.
 });
 
 test('a screen reader hears an acting chip’s whole title, and a full-term chip as shown', () => {

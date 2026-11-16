@@ -64,14 +64,32 @@ export function longSeatTitle(position: Position, chapters: Chapter[], labels: R
 export type ChipForm = 'long' | 'short';
 
 /**
+ * The most characters a role chip fits on one line in a dense row at 360 wide (a member row has 216
+ * of room). In the stencil at 11.5, padding included, ACTING CHARITY (NORTH), 22 characters, is 206;
+ * ACTING RIDE COMM (WEST), 23, is 216 and ACTING RIDE COMM (NORTH), 24, is 226.
+ */
+export const DENSE_CHIP_CHARS = 22;
+
+/**
+ * A stint's chip in a dense row: "ACTING TREAS (NORTH)", or without its chapter where that would wrap
+ * ("ACTING RIDE COMM"). A stint is always in the member's own chapter, and a screen reader still
+ * hears it ("Acting Ride Committee (North)").
+ */
+function denseStint(withChapter: string, role: PositionRole): string {
+  const label = withChapter.toUpperCase();
+  return label.length <= DENSE_CHIP_CHARS ? label : `${actingWord(ROLE_SHORT[role])} ${ROLE_SHORT[role]}`;
+}
+
+/**
  * One seat's chip words, as a chat name line shows its top seat: an acting seat spelt out
  * ("ACTING TREASURER (NORTH)"), else the bare short form ("TREAS"). In a dense row (a chat name
- * line) an acting seat takes the short role but keeps the Acting word and its chapter:
- * "ACTING TREAS (NORTH)". A member's own chips come from roleChipTexts.
+ * line) an acting seat takes the short role but keeps the Acting word and, where it fits, its
+ * chapter: "ACTING TREAS (NORTH)", "ACTING RIDE COMM". A member's own chips come from roleChipTexts.
  */
 export function chipLabel(position: Position, chapters: Chapter[], form: ChipForm = 'long'): string {
   if (!isActing(position)) return ROLE_SHORT[position.role];
-  return seatTitle(position, chapters, form === 'short' ? ROLE_SHORT : ROLE_LABEL).toUpperCase();
+  if (form === 'short') return denseStint(seatTitle(position, chapters, ROLE_SHORT), position.role);
+  return seatTitle(position, chapters, ROLE_LABEL).toUpperCase();
 }
 
 /**
@@ -95,7 +113,8 @@ export interface RoleChipText {
  * A full term keeps the short form ("PRES (WEST)", "TREAS (WEST, NORTH)") and is read as shown. A
  * stint says Acting and names every chapter it's held in: spelt out where the chips have a line of
  * their own ("ACTING TREASURER (NORTH)"), with the short role in a member row, which has 216 of room
- * at 360 wide ("ACTING TREAS (NORTH)"), and read out whole ("Acting Treasurer (North)").
+ * at 360 wide ("ACTING TREAS (NORTH)", or "ACTING RIDE COMM" where the chapter won't fit), and read
+ * out whole ("Acting Treasurer (North)").
  */
 export function roleChipTexts(positions: Position[], chapters: Chapter[], form: ChipForm = 'long'): RoleChipText[] {
   // Both lists group the same rows the same way, whatever the labels, so each spoken title lines up with its chip.
@@ -103,7 +122,7 @@ export function roleChipTexts(positions: Position[], chapters: Chapter[], form: 
   return positionTitles(positions, chapters, '', ROLE_SHORT).map((t, i) => {
     const first = positions.find((p) => p.id === t.key)!;
     if (!isActing(first)) return { key: t.key, role: first.role, label: t.text.toUpperCase(), spoken: undefined };
-    const label = (form === 'short' ? t.text : spoken[i].text).toUpperCase();
+    const label = form === 'short' ? denseStint(t.text, first.role) : spoken[i].text.toUpperCase();
     return { key: t.key, role: first.role, label, spoken: spoken[i].text };
   });
 }
