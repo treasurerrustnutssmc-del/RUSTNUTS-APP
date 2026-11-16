@@ -1,9 +1,9 @@
 // The Home screen's header titles and club counts, and the title forms for acting (Acting Treasurer
 // (North) until 13/12/2026) and covers. See docs/superpowers/specs/2026-11-15-acting-roles-design.md.
 
-import { dutyRows, heldRows, isActing, necVoterRow, stintsEndingWith } from './acting';
+import { dutyRows, heldPositions, heldRows, isActing, necVoterRow, stintsEndingWith } from './acting';
 import { formatAuDate } from './dates';
-import { ROLE_LABEL, ROLE_SHORT } from './labels';
+import { ROLE_LABEL, ROLE_ORDER, ROLE_SHORT } from './labels';
 import { displayName } from './profile';
 import type { Chapter, ClubData, Member, MemberStatus, Position, PositionRole, RosterTally } from './types';
 
@@ -64,13 +64,64 @@ export function longSeatTitle(position: Position, chapters: Chapter[], labels: R
 export type ChipForm = 'long' | 'short';
 
 /**
- * A role chip's words: an acting seat spelt out ("ACTING TREASURER (NORTH)"), else the short form
- * ("TREAS"). In a dense row (a Members list row has 216 px at 360 wide, a chat name line) an acting
- * seat takes the short role but keeps the Acting word and its chapter: "ACTING TREAS (NORTH)".
+ * One seat's chip words, as a chat name line shows its top seat: an acting seat spelt out
+ * ("ACTING TREASURER (NORTH)"), else the bare short form ("TREAS"). In a dense row (a chat name
+ * line) an acting seat takes the short role but keeps the Acting word and its chapter:
+ * "ACTING TREAS (NORTH)". A member's own chips come from roleChipTexts.
  */
 export function chipLabel(position: Position, chapters: Chapter[], form: ChipForm = 'long'): string {
   if (!isActing(position)) return ROLE_SHORT[position.role];
   return seatTitle(position, chapters, form === 'short' ? ROLE_SHORT : ROLE_LABEL).toUpperCase();
+}
+
+/**
+ * What a screen reader hears for a stint's chip, whose short form drops words: "Acting Treasurer
+ * (North)". Nothing for a full term, which is read as shown ("PRES (WEST)").
+ */
+export function actingSpoken(position: Position, chapters: Chapter[]): string | undefined {
+  return isActing(position) ? seatTitle(position, chapters, ROLE_LABEL) : undefined;
+}
+
+/** One role chip: its words, upper case as drawn, and for a stint the whole title a screen reader hears. */
+export interface RoleChipText {
+  key: string;
+  role: PositionRole;
+  label: string;
+  spoken?: string;
+}
+
+/**
+ * A member's role chips, one per title in the order given, grouped as positionTitles groups them.
+ * A full term keeps the short form ("PRES (WEST)", "TREAS (WEST, NORTH)") and is read as shown. A
+ * stint says Acting and names every chapter it's held in: spelt out where the chips have a line of
+ * their own ("ACTING TREASURER (NORTH)"), with the short role in a member row, which has 216 of room
+ * at 360 wide ("ACTING TREAS (NORTH)"), and read out whole ("Acting Treasurer (North)").
+ */
+export function roleChipTexts(positions: Position[], chapters: Chapter[], form: ChipForm = 'long'): RoleChipText[] {
+  // Both lists group the same rows the same way, whatever the labels, so each spoken title lines up with its chip.
+  const spoken = positionTitles(positions, chapters, '', ROLE_LABEL);
+  return positionTitles(positions, chapters, '', ROLE_SHORT).map((t, i) => {
+    const first = positions.find((p) => p.id === t.key)!;
+    if (!isActing(first)) return { key: t.key, role: first.role, label: t.text.toUpperCase(), spoken: undefined };
+    const label = (form === 'short' ? t.text : spoken[i].text).toUpperCase();
+    return { key: t.key, role: first.role, label, spoken: spoken[i].text };
+  });
+}
+
+/** The seat a name line shows: the member's first held seat in role order (a covered holder keeps theirs). */
+export function topSeat(memberId: string, positions: Position[]): Position | undefined {
+  return [...heldPositions(memberId, positions)].sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))[0];
+}
+
+/**
+ * The words on a chat author's name button, which hide the chips inside it from a screen reader:
+ * "Crank’s page", with an acting top seat's whole title, which its short chip can't say: "Crank’s
+ * page, Acting Treasurer (North)". A full term is left as it was.
+ */
+export function authorPageLabel(member: Member, data: Pick<ClubData, 'positions' | 'chapters'>): string {
+  const top = topSeat(member.id, data.positions);
+  const spoken = top ? actingSpoken(top, data.chapters) : undefined;
+  return spoken ? `${displayName(member)}’s page, ${spoken}` : `${displayName(member)}’s page`;
 }
 
 const nameOf = (id: string | null | undefined, data: Pick<ClubData, 'members'>) => {

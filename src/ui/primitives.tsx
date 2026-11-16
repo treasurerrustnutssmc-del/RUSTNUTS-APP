@@ -313,20 +313,21 @@ export function Chip({
   tone?: ChipTone;
   icon?: IconName;
   active?: boolean;
-  /** Words for a screen reader when the label is a short form ("Treasurer (West)" for TREAS (WEST)). */
+  /**
+   * Words for a screen reader when the label drops some ("Acting Treasurer (North)" for ACTING TREAS
+   * (NORTH)). They sit on the Text, so they join the row or button around the chip, never a stop of their own.
+   */
   accessibilityLabel?: string;
 }) {
   const t = chipTones[tone];
   const lift = active && tone === 'steel' ? { backgroundColor: colors.steelHi, borderColor: colors.lineStrong } : null;
   return (
-    <View
-      accessible={accessibilityLabel != null}
-      accessibilityLabel={accessibilityLabel}
-      style={[styles.chip, { backgroundColor: t.bg, borderColor: t.border }, lift]}
-    >
+    <View style={[styles.chip, { backgroundColor: t.bg, borderColor: t.border }, lift]}>
       {icon ? <Ionicons name={icon} size={11} color={t.fg} /> : null}
       {/* Upper-cased here, not by textTransform: Android measures the lower-case text and clips the end. */}
-      <Text style={[styles.chipText, { color: t.fg }]}>{label.toUpperCase()}</Text>
+      <Text accessibilityLabel={accessibilityLabel} style={[styles.chipText, { color: t.fg }]}>
+        {label.toUpperCase()}
+      </Text>
     </View>
   );
 }
@@ -356,8 +357,9 @@ export function StatusChip({ status }: { status: MemberStatus }) {
 }
 
 /**
- * A role's chip: the short form ("TREAS"), or the words given, as chipLabel(position, chapters) gives
- * an acting seat ("ACTING TREASURER (NORTH)"). accessibilityLabel is the whole title, for a screen reader.
+ * A role's chip: the short form ("TREAS"), or the words given, as roleChipTexts and chipLabel give an
+ * acting seat ("ACTING TREASURER (NORTH)", "ACTING TREAS (NORTH)"). accessibilityLabel is a stint's
+ * whole title, for a screen reader.
  */
 export function RoleChip({ role, label, accessibilityLabel }: { role: PositionRole; label?: string; accessibilityLabel?: string }) {
   return <Chip label={label ?? ROLE_SHORT[role]} tone="bone" accessibilityLabel={accessibilityLabel} />;

@@ -33,6 +33,7 @@ import {
 import { pickReadable } from '../domain/contrast';
 import { hasAgreedPostingRules } from '../domain/postingRules'; // Family chat
 import { formatAuDate } from '../domain/dates';
+import { authorPageLabel } from '../domain/home';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
 import type { Member } from '../domain/types';
@@ -430,7 +431,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
                 onPress={() => author && !family && navigation.navigate('MemberDetail', { memberId: author.id })}
                 style={{ minHeight: 44, justifyContent: 'center' }}
                 accessibilityRole={family ? 'text' : 'button'}
-                accessibilityLabel={author && !family ? `${displayName(author)}’s page` : undefined}
+                accessibilityLabel={author && !family ? authorPageLabel(author, data) : undefined}
                 accessibilityHint={family ? undefined : 'Opens their page, where you can message, block or report them'}
               >
                 <AuthorLine member={author} data={data} />
