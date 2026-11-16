@@ -88,6 +88,12 @@ test('a screen reader hears an acting chip’s whole title, and a full-term chip
   assert.doesNotMatch(chat, /`\$\{displayName\(author\)\}’s page`/, 'no second spelling of the name button’s words');
 });
 
+test('Me draws its chips with roleChipTexts: long words for every title, and a stint that fits at 360', () => {
+  const screen = fn(me, 'MeScreen');
+  assert.match(screen, /roleChipTexts\(positions, data\.chapters, 'long', ROLE_LABEL\)/);
+  assert.match(screen, /<Chip key=\{c\.key\} label=\{c\.label\} tone="bone" accessibilityLabel=\{c\.spoken\} \/>/);
+});
+
 test('the Home header puts a stint’s until date on a line of its own', () => {
   const home = fn(members, 'HomeScreen');
   // Each title wraps as one piece, so at 360 wide a line breaks between titles, never inside one

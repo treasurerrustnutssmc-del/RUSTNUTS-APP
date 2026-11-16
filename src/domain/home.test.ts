@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import {
-  actingSpoken, authorPageLabel, chipLabel, DENSE_CHIP_CHARS, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, roleChipTexts,
+  actingSpoken, authorPageLabel, CHIP_CHARS, chipLabel, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, roleChipTexts,
   seatTitle, stepDownNote, topSeat,
 } from './home';
 import { BOARD_ROLES, CLUB_ROLES, ROLE_LABEL, ROLE_SHORT } from './labels';
@@ -201,7 +201,7 @@ test('roleChipTexts: each spoken title belongs to its own chip, in a mix of term
 test('a dense row drops a stint’s chapter only where its chip would wrap at 360 (ACTING RIDE COMM)', () => {
   // Measured in the stencil at 11.5 with its padding: ACTING CHARITY (NORTH), 22 characters, is 206
   // of the row's 216; ACTING RIDE COMM (WEST), 23, is 216 and ACTING RIDE COMM (NORTH), 24, is 226.
-  assert.equal(DENSE_CHIP_CHARS, 22);
+  assert.equal(CHIP_CHARS.short, 22);
   const stint = (role: Position['role'], chapterId: string) =>
     seat(`x-${role}-${chapterId}`, 'crank', role, chapterId, { startedOn: '2026-11-15', actingUntil: '2026-12-13' });
   for (const chapterId of ['ch-north', 'ch-west']) {
@@ -216,10 +216,42 @@ test('a dense row drops a stint’s chapter only where its chip would wrap at 36
   for (const role of [...BOARD_ROLES, ...CLUB_ROLES]) {
     for (const chapterId of ['ch-north', 'ch-west']) {
       const [chip] = roleChipTexts([stint(role, chapterId)], chapters, 'short');
-      assert.ok(chip.label.length <= DENSE_CHIP_CHARS, `${chip.label} fits`);
+      assert.ok(chip.label.length <= CHIP_CHARS.short, `${chip.label} fits`);
       assert.equal(chipLabel(stint(role, chapterId), chapters, 'short'), chip.label, 'the chat name line says the same');
     }
   }
+});
+
+test('where the chips have a line of their own, a stint too long for it takes the short role (ACTING SMO (NORTH))', () => {
+  // Member detail and Me give the chips 294 of room at 360. Measured in the stencil: ACTING SERGEANT AT
+  // ARMS (NORTH) and ACTING CHARITY COMMITTEE (WEST), 31 characters, are 286; ACTING CHARITY COMMITTEE
+  // (NORTH), 32, is 296; ACTING SOCIAL MEDIA OFFICER (NORTH), 35, is 314.
+  assert.equal(CHIP_CHARS.long, 31);
+  const stint = (role: Position['role'], chapterId: string) =>
+    seat(`x-${role}-${chapterId}`, 'crank', role, chapterId, { startedOn: '2026-11-15', actingUntil: '2026-12-13' });
+  const long = (role: Position['role'], chapterId = 'ch-north') => roleChipTexts([stint(role, chapterId)], chapters, 'long')[0];
+  assert.equal(long('social_media_officer').label, 'ACTING SMO (NORTH)');
+  assert.equal(long('social_media_officer').spoken, 'Acting Social Media Officer (North)', 'a screen reader still hears it whole');
+  assert.equal(long('assistant_tail_gunner', 'ch-west').label, 'ACTING ATG (WEST)');
+  assert.equal(long('charity_committee').label, 'ACTING CHARITY (NORTH)');
+  assert.equal(long('charity_committee', 'ch-west').label, 'ACTING CHARITY COMMITTEE (WEST)', '31 characters fit');
+  assert.equal(long('sergeant_at_arms').label, 'ACTING SERGEANT AT ARMS (NORTH)');
+  assert.equal(chipLabel(stint('social_media_officer', 'ch-north'), chapters, 'long'), 'ACTING SMO (NORTH)', 'chipLabel says the same');
+  for (const role of [...BOARD_ROLES, ...CLUB_ROLES]) {
+    for (const chapterId of ['ch-north', 'ch-west']) {
+      const chip = long(role, chapterId);
+      assert.ok(chip.label.length <= CHIP_CHARS.long, `${chip.label} fits`);
+      assert.match(chip.label, /^ACTING /);
+    }
+  }
+});
+
+test('roleChipTexts with the long words for full terms, as Me shows them (TREASURER (WEST))', () => {
+  const chips = roleChipTexts([seat('m-tre', 'crank', 'treasurer', 'ch-west'), crankActingTreasurer], chapters, 'long', ROLE_LABEL);
+  assert.deepEqual(chips.map((c) => [c.label, c.spoken]), [
+    ['TREASURER (WEST)', undefined],
+    ['ACTING TREASURER (NORTH)', 'Acting Treasurer (North)'],
+  ]);
 });
 
 test('topSeat: the seat a name line shows is the first held one in role order', () => {
