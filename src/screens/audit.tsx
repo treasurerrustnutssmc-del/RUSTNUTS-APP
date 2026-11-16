@@ -8,15 +8,13 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { isAuditor, reviewsChapter } from '../domain/access';
 import {
-  AREA_LABEL, AUDIT_AREAS, auditChecks, answersRequest, KIND_LABEL, requestState, scopeName, visibleReports, visibleRequests,
+  AREA_LABEL, AUDIT_AREAS, auditChecks, auditSeatRows, answersRequest, KIND_LABEL, requestState, scopeName, visibleReports, visibleRequests,
   type AuditCheck, type RequestState,
 } from '../domain/audit';
 import { formatAuDate } from '../domain/dates';
-import { ROLE_LABEL } from '../domain/labels';
 import { displayName } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
 import { standingOf } from '../domain/standing';
-import { termEndsOn, termState } from '../domain/terms';
 import type { AuditArea, AuditReport, AuditRequest, AuditRequestKind, Member } from '../domain/types';
 import type { RootParams, RootScreen } from '../navigation/types';
 import { space, type } from '../theme';
@@ -86,7 +84,7 @@ export function AuditScreen({ navigation }: RootScreen<'Audit'>) {
                   key={c.key}
                   last={i === checks.length - 1}
                   left={<IconBadge icon="alert-circle-outline" tone={c.area === 'controls' || c.area === 'bank' ? 'red' : 'steel'} />}
-                  title={<Text style={type.name} numberOfLines={3}>{c.title}</Text>}
+                  title={<Text style={type.name}>{c.title}</Text>}
                   subtitle={
                     <View style={{ gap: space.xs, alignItems: 'flex-start' }}>
                       <Text style={styles.meta}>{c.detail}</Text>
@@ -212,7 +210,8 @@ export function AuditRecordsScreen({ navigation }: RootScreen<'AuditRecords'>) {
   const theirs = data.members.filter((m) => m.chapterId === chapterId).sort((a, b) => displayName(a).localeCompare(displayName(b)));
   const applicants = theirs.filter((m) => m.approval === 'pending');
   const members = theirs.filter((m) => m.approval === 'approved' && m.status !== 'legacy');
-  const seats = data.positions.filter((p) => p.endedOn === null && (p.chapterId === chapterId || (p.chapterId === null && theirs.some((m) => m.id === p.memberId))));
+  // In role order, a cover under the holder it covers, a stint with its until date (auditSeatRows).
+  const seats = auditSeatRows(chapterId, data, today);
 
   const standingLine = (m: Member): { text: string; tone: Tone } | null => {
     const s = standingOf(m, data, today);
@@ -242,23 +241,15 @@ export function AuditRecordsScreen({ navigation }: RootScreen<'AuditRecords'>) {
             <Small>No positions held.</Small>
           </View>
         ) : (
-          seats.map((p, i) => {
-            const state = termState(p, today);
-            const ends = termEndsOn(p);
-            return (
-              <ListRow
-                key={p.id}
-                last={i === seats.length - 1}
-                title={ROLE_LABEL[p.role]}
-                subtitle={
-                  <Text style={styles.meta}>
-                    {`${nameOf(p.memberId, data.members)} · since ${formatAuDate(p.startedOn)}${ends ? ` · ${state === 'ended' ? 'ended' : 'ends'} ${formatAuDate(ends)}` : ''}`}
-                  </Text>
-                }
-                right={state === 'ended' ? <Chip label="Past term" tone="danger" /> : state === 'ending' ? <Chip label="Ending" tone="warn" /> : undefined}
-              />
-            );
-          })
+          seats.map((s, i) => (
+            <ListRow
+              key={s.id}
+              last={i === seats.length - 1}
+              title={s.title}
+              subtitle={<Text style={styles.meta}>{s.line}</Text>}
+              right={s.chip ? <Chip label={s.chip.label} tone={s.chip.tone} /> : undefined}
+            />
+          ))
         )}
       </Card>
 

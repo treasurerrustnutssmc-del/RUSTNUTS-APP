@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { meGroups } from './meLayout';
+import { DEMO_DATA } from '../data/demoStory.testkit';
+import {
+  ACTING_COMBINED, ACTING_FAMILY, ACTING_LICENCE_VACANCY, endTermProblem, HOLDER_ACTING, LICENCE_ENDS, requestCoverProblem, RUN_OVER, SMALL_BOARD,
+  untilRange, WHY_NEEDED, withdrawRequestProblem,
+} from './access';
+import { coveredNotice, coverNote } from './home';
+import { coverConfirmNote, coverPanels, coverUntilError, homeCoverPanels, meGroups, standInChoices, standInPanels } from './meLayout';
+import type { ActingRequest, ClubData, Member, MemberPrivate, Position, PositionRole } from './types';
 
 const base = { contacts: 1, bikes: 1, owingCents: 0, onHiatus: false, roadRules: null };
 const byId = (input: Parameters<typeof meGroups>[0]) => Object.fromEntries(meGroups(input).map((g) => [g.id, g]));
@@ -41,4 +48,202 @@ test('money owing opens Fees; paid up and on hiatus read plainly', () => {
   assert.equal(owing.fees.summary, '$125.00 owing');
   assert.equal(byId(base).fees.summary, 'All paid up');
   assert.equal(byId({ ...base, onHiatus: true }).fees.summary, 'On hiatus: no new fees');
+});
+
+// ---------------------------------------------------------------------------
+// Acting roles, Task 20: Me and Home for cover. North has Smokey (President), Jet (VP) and Crank
+// (Road Captain); Ned and Gus have no seat unless a case seats them. Today is 15/11/2026.
+// ---------------------------------------------------------------------------
+
+const AT = '2026-11-15';
+const UNTIL = '2026-12-13';
+const rider = (id: string, over: Partial<Member> = {}): Member => ({
+  id, chapterId: 'north', fullName: `${id[0].toUpperCase()}${id.slice(1)} Rider`, roadName: `${id[0].toUpperCase()}${id.slice(1)}`, status: 'full',
+  approval: 'approved', joinedOn: '2023-01-01', patchedOn: '2025-06-01', fngStartedOn: null, bio: null, sharePhone: false, appliedOn: '2023-01-01',
+  onHiatus: false, ...over,
+});
+const seat = (id: string, memberId: string, role: PositionRole, over: Partial<Position> = {}): Position => ({
+  id, memberId, chapterId: 'north', role, startedOn: '2026-08-01', endedOn: null, ...over,
+});
+const SMOKEY_PRES = seat('smokey-president', 'smokey', 'president');
+const SEATS = [SMOKEY_PRES, seat('jet-vp', 'jet', 'vice_president'), seat('crank-rc', 'crank', 'road_captain')];
+const JET_COVERS = seat('jet-covers-smokey', 'jet', 'president', {
+  startedOn: AT, actingUntil: UNTIL, covers: 'smokey-president', actingWhy: 'Smokey overseas', appointedBy: 'crank',
+});
+const NED_SEC = seat('ned-secretary', 'ned', 'secretary');
+const FIVE = [NED_SEC, seat('gus-treasurer', 'gus', 'treasurer')];
+const ask = (over: Partial<ActingRequest> = {}): ActingRequest => ({
+  id: 'smokey-asks-jet', chapterId: 'north', role: 'president', memberId: 'jet', covers: 'smokey-president', until: UNTIL,
+  why: 'Smokey overseas', requestedBy: 'smokey', createdAt: `${AT}T01:00:00.000Z`, closedAt: null, outcome: null, ...over,
+});
+const RIDERS = ['smokey', 'jet', 'crank', 'ned', 'gus'];
+/** A recorded licence ending on `expiry`. */
+const licence = (memberId: string, expiry: string): MemberPrivate => ({
+  memberId, email: null, phone: null, licenceClass: 'full_open', licenceExpiry: expiry, firstAidExpiry: null, introducedBy: null, applicationNote: null,
+});
+/** North, everyone's licence recorded to 2030 unless `licences` says otherwise. */
+const north = (w: {
+  seats?: Position[]; without?: string[]; requests?: ActingRequest[]; members?: Record<string, Partial<Member>>; licences?: Record<string, string>;
+} = {}): ClubData => ({
+  ...DEMO_DATA,
+  chapters: [{ id: 'north', slug: 'north', name: 'North', area: 'Northern Melbourne', state: 'VIC' }],
+  members: RIDERS.map((id) => rider(id, w.members?.[id])),
+  positions: [...SEATS, ...(w.seats ?? [])].filter((p) => !w.without?.includes(p.id)),
+  privates: RIDERS.map((id) => licence(id, w.licences?.[id] ?? '2030-01-01')),
+  votes: [], meetings: [], crew: [], rides: [], actingRequests: w.requests ?? [], actingChanges: [],
+});
+const who = (data: ClubData, id: string) => data.members.find((m) => m.id === id)!;
+
+test('a board holder gets ‘Arrange cover while I’m away’', () => {
+  const data = north();
+  const panels = coverPanels(who(data, 'smokey'), data, AT);
+  assert.equal(panels.length, 1, 'one panel per full board seat');
+  const [panel] = panels;
+  assert.equal(panel.kind, 'arrange');
+  assert.equal(panel.title, 'Arrange cover while I’m away');
+  assert.equal(panel.seat.id, 'smokey-president');
+  if (panel.kind !== 'arrange') return;
+  assert.equal(panel.summary, 'President (North) · Jet (VP) can stand in');
+  // A cover runs four weeks unless changed, and three months at most (from today).
+  assert.equal(panel.until, UNTIL);
+  assert.equal(panel.untilHint, 'Last acting day. Up to 15/02/2027.');
+  assert.equal(panel.whyHint, 'Required. Every member can read this. Keep health details out.');
+  // Crank's Road Captain seat is a board seat too; Ned has no seat, so nothing to cover.
+  assert.deepEqual(coverPanels(who(data, 'crank'), data, AT).map((p) => [p.kind, p.seat.id]), [['arrange', 'crank-rc']]);
+  assert.deepEqual(coverPanels(who(data, 'ned'), data, AT), []);
+  // Only a full seat is covered: a stint, or a non-board role, gets no panel.
+  const stint = north({ seats: [seat('ned-acting-sec', 'ned', 'secretary', { startedOn: AT, actingUntil: UNTIL, actingWhy: 'No Secretary', appointedBy: 'smokey' }), seat('gus-tg', 'gus', 'tail_gunner')] });
+  assert.deepEqual(coverPanels(who(stint, 'ned'), stint, AT), []);
+  assert.deepEqual(coverPanels(who(stint, 'gus'), stint, AT), []);
+});
+
+test('standInChoices gives ‘Jet (VP)’ first (only the VP for a President)', () => {
+  const data = north();
+  assert.deepEqual(standInChoices(who(data, 'smokey'), SMOKEY_PRES, data, AT), [{ value: 'jet', label: 'Jet (VP)' }]);
+  // Any board member may cover another seat: the VP first, then by seat.
+  const five = north({ seats: FIVE });
+  assert.deepEqual(standInChoices(who(five, 'ned'), NED_SEC, five, AT).map((c) => c.label), ['Jet (VP)', 'Smokey (PRES)', 'Gus (TREAS)', 'Crank (RC)']);
+  // The panel's one-line summary counts them, so it stays on one line at 360 wide.
+  assert.equal((coverPanels(who(five, 'ned'), five, AT)[0] as { summary?: string }).summary, 'Secretary (North) · 4 can stand in');
+  // Only the ones the seat allows: on hiatus, or already acting, they're left out.
+  const busy = north({ seats: [...FIVE, seat('gus-acting-saa', 'gus', 'sergeant_at_arms', { startedOn: AT, actingUntil: UNTIL, actingWhy: 'No SAA', appointedBy: 'smokey' })], members: { crank: { onHiatus: true } } });
+  assert.deepEqual(standInChoices(who(busy, 'ned'), NED_SEC, busy, AT).map((c) => c.value), ['jet', 'smokey']);
+});
+
+test('the covered holder gets coveredNotice and an ‘I’m back’ ConfirmButton', () => {
+  const data = north({ seats: [JET_COVERS] });
+  const [panel] = coverPanels(who(data, 'smokey'), data, AT);
+  assert.equal(panel.kind, 'covered');
+  if (panel.kind !== 'covered') return;
+  assert.equal(panel.title, 'Your seat is covered');
+  assert.equal(panel.cover.id, 'jet-covers-smokey');
+  assert.equal(panel.notice, coveredNotice(SMOKEY_PRES, JET_COVERS, data));
+  assert.deepEqual(panel.button, { label: 'I’m back', confirmLabel: 'Yes, I’m back', confirmNote: 'Jet’s acting ends today, and the seat’s duties come back to you.' });
+  // The ending is the holder's own: endTermProblem lets them end the cover (holder_back).
+  assert.equal(endTermProblem(who(data, 'smokey'), JET_COVERS, data, AT), null);
+  // Home shows only this panel; once the cover lapses the seat is Smokey's to cover again.
+  assert.deepEqual(homeCoverPanels(who(data, 'smokey'), data, AT).map((p) => p.kind), ['covered']);
+  assert.deepEqual(homeCoverPanels(who(north(), 'smokey'), north(), AT), []);
+  assert.equal(coverPanels(who(data, 'smokey'), data, '2026-12-14')[0].kind, 'arrange');
+});
+
+test('a board of two gets the 8.6 refer-to-NEC line instead', () => {
+  const two = north({ without: ['crank-rc'] });
+  const [panel] = coverPanels(who(two, 'smokey'), two, AT);
+  assert.equal(panel.kind, 'blocked');
+  assert.equal(panel.title, 'Arrange cover while I’m away');
+  if (panel.kind !== 'blocked') return;
+  assert.equal(panel.line, SMALL_BOARD);
+  assert.equal(panel.summary, 'President (North) · Refer it to the NEC (8.6)');
+  assert.ok(!('choices' in panel), 'no stand-ins to pick');
+  // A board of one too.
+  const one = north({ without: ['crank-rc', 'jet-vp'] });
+  assert.equal((coverPanels(who(one, 'smokey'), one, AT)[0] as { line?: string }).line, SMALL_BOARD);
+});
+
+test('the note is coverNote plus actingWarnings (9.6, 9.7, 9.5)', () => {
+  const data = north();
+  // The VP acting for the President combines nothing (8.2): what moves, then 9.6 and 9.7.
+  assert.equal(
+    coverConfirmNote(SMOKEY_PRES, who(data, 'jet'), UNTIL, data, AT),
+    [coverNote(SMOKEY_PRES, who(data, 'jet'), UNTIL, data), ACTING_FAMILY, ACTING_LICENCE_VACANCY].join('\n\n'),
+  );
+  // Crank, already on the board as Road Captain, combines duties to cover Ned's Secretary seat (9.5).
+  const five = north({ seats: FIVE });
+  assert.equal(
+    coverConfirmNote(NED_SEC, who(five, 'crank'), UNTIL, five, AT),
+    [coverNote(NED_SEC, who(five, 'crank'), UNTIL, five), ACTING_FAMILY, ACTING_LICENCE_VACANCY, ACTING_COMBINED].join('\n\n'),
+  );
+});
+
+test('the holder’s open request shows Withdraw request', () => {
+  const data = north({ requests: [ask()] });
+  const [panel] = coverPanels(who(data, 'smokey'), data, AT);
+  assert.equal(panel.kind, 'asked');
+  if (panel.kind !== 'asked') return;
+  assert.equal(panel.title, 'Cover asked for your seat');
+  assert.equal(panel.request.id, 'smokey-asks-jet');
+  assert.equal(panel.line, 'You asked for Jet to cover as President (North) until 13/12/2026: Smokey overseas. A third board member confirms the cover you asked for (9.5).');
+  assert.deepEqual(panel.button, {
+    label: 'Withdraw request', confirmLabel: 'Yes, withdraw it', confirmNote: 'This closes the request. Nothing about the seat changes.',
+  });
+  assert.equal(withdrawRequestProblem(who(data, 'smokey'), ask(), data, AT), null);
+  // Someone else asked for a cover of the seat (a board vote): the holder can still withdraw it.
+  const voted = north({ requests: [ask({ id: 'crank-asks-jet', requestedBy: 'crank', why: 'Smokey can’t be reached' })] });
+  const [other] = coverPanels(who(voted, 'smokey'), voted, AT);
+  assert.equal(other.kind, 'asked');
+  if (other.kind !== 'asked') return;
+  assert.equal(other.line, 'Crank asked for Jet to act as President (North) for you until 13/12/2026: Smokey can’t be reached. If you’re available, withdraw it.');
+  // A closed request is gone, and the seat can be covered again.
+  const closed = north({ requests: [ask({ closedAt: `${AT}T02:00:00.000Z`, outcome: 'withdrawn' })] });
+  assert.equal(coverPanels(who(closed, 'smokey'), closed, AT)[0].kind, 'arrange');
+});
+
+test('a holder acting in a role gets ‘Not now’ for their own seat (HOLDER_ACTING)', () => {
+  // Crank, North's Road Captain, is Acting Treasurer in the empty seat.
+  const data = north({ seats: [seat('crank-acting-treasurer', 'crank', 'treasurer', { startedOn: AT, actingUntil: UNTIL, actingWhy: 'No Treasurer', appointedBy: 'smokey' })] });
+  const [panel] = coverPanels(who(data, 'crank'), data, AT);
+  assert.equal(panel.kind, 'blocked');
+  if (panel.kind !== 'blocked') return;
+  assert.equal(panel.line, HOLDER_ACTING);
+  assert.equal(panel.summary, 'Road Captain (North) · Not now');
+});
+
+test('a stand-in whose licence ends before four weeks is still offered; the form then asks for an earlier date', () => {
+  // Gus's licence ends on 30/11: he can cover Ned's seat until then, not to the default 13/12.
+  const five = north({ seats: FIVE, licences: { gus: '2026-11-30' } });
+  assert.ok(standInChoices(who(five, 'ned'), NED_SEC, five, AT).some((c) => c.value === 'gus'));
+  assert.equal(requestCoverProblem(who(five, 'ned'), NED_SEC, who(five, 'gus'), UNTIL, 'Away', five, AT), LICENCE_ENDS);
+  assert.equal(requestCoverProblem(who(five, 'ned'), NED_SEC, who(five, 'gus'), '2026-11-30', 'Away', five, AT), null);
+  // One whose licence ended yesterday can't cover at all.
+  const gone = north({ seats: FIVE, licences: { gus: '2026-11-14' } });
+  assert.ok(!standInChoices(who(gone, 'ned'), NED_SEC, gone, AT).some((c) => c.value === 'gus'));
+});
+
+test('coverUntilError puts the date refusals on the Until field, and leaves the rest under the form', () => {
+  const cap = '2027-02-15';
+  assert.equal(coverUntilError(untilRange(cap), cap), untilRange(cap));
+  assert.equal(coverUntilError(RUN_OVER, cap), RUN_OVER);
+  assert.equal(coverUntilError(LICENCE_ENDS, cap), LICENCE_ENDS, 'an earlier date fixes it');
+  assert.equal(coverUntilError(WHY_NEEDED, cap), null);
+  assert.equal(coverUntilError(SMALL_BOARD, cap), null);
+  assert.equal(coverUntilError(null, cap), null);
+});
+
+test('a stand-in without the Board tab sees the request on Me, with Decline', () => {
+  // North's President seat is empty, and Crank asks for Ned, who sits on no board, to act in it.
+  const asks = ask({ id: 'crank-asks-ned', memberId: 'ned', covers: null, requestedBy: 'crank', why: 'No President since the ACM' });
+  const data = north({ without: ['smokey-president'], requests: [asks] });
+  const [panel, ...rest] = standInPanels(who(data, 'ned'), data, AT);
+  assert.equal(rest.length, 0);
+  assert.equal(panel.title, 'You’re asked to act');
+  assert.equal(panel.request.id, 'crank-asks-ned');
+  assert.equal(panel.line, 'Crank asked for you to act as President (North) until 13/12/2026: No President since the ACM. If you can’t, decline it.');
+  assert.deepEqual(panel.button, { label: 'Decline', confirmLabel: 'Yes, decline', confirmNote: 'This closes the request. Nothing about the seat changes.' });
+  // Jet sits on the board, so his request is on his Board tab, not on Me; a closed one is gone.
+  const jets = north({ requests: [ask()] });
+  assert.deepEqual(standInPanels(who(jets, 'jet'), jets, AT), []);
+  const closed = north({ without: ['smokey-president'], requests: [{ ...asks, closedAt: `${AT}T02:00:00.000Z`, outcome: 'withdrawn' }] });
+  assert.deepEqual(standInPanels(who(closed, 'ned'), closed, AT), []);
+  assert.deepEqual(standInPanels(who(data, 'gus'), data, AT), [], 'not his request');
 });

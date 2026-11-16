@@ -3,6 +3,7 @@
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
 import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, isStepDown, LEARNER_FNG, restoreAccessProblem, statusChangeProblem, suspendAccessProblem } from '../domain/access';
+import { endPositionRows, isActing, openRows, settleActing } from '../domain/acting'; // Acting roles
 import { bioProblem } from '../domain/postingRules'; // Member content rules
 import { deleteAccountProblem, FORMER_MEMBER } from '../domain/account'; // Delete my account
 import { big4GoingProblem } from '../domain/big4';
@@ -17,8 +18,8 @@ import { rsvpProblem } from '../domain/rides';
 import type { Casting } from '../domain/votes';
 import { APPROVE_AS, NATIONAL_ROLES } from '../domain/labels';
 import type {
-  BallotChoice, BusBooking, BusPurpose, ClubData, CrewRole, Electorate, HubStaying, MeetingKind, Member, MemberStatus,
-  PlanStop, PositionRole, RideCallState, RideCategory, Route, RsvpAnswer, StatusChange, Threshold,
+  ActingChange, BallotChoice, BusBooking, BusPurpose, ClubData, CrewRole, Electorate, EndedReason, HubStaying, MeetingKind, Member,
+  MemberStatus, PlanStop, Position, PositionRole, RideCallState, RideCategory, Route, RsvpAnswer, StatusChange, Threshold,
 } from '../domain/types';
 import * as business from './businessActions';
 import * as planning from './planningActions'; // Ride planning extras
@@ -321,12 +322,24 @@ export function removeContact(ctx: DemoCtx, contactId: string): ClubData {
  * database's private.forget_member does the same.
  */
 export function deleteMyAccount(ctx: DemoCtx): ClubData {
-  const problem = deleteAccountProblem(ctx.me, ctx.data.positions);
+  // Settled first, as private.forget_member runs the lazy close.
+  const d = settleActing(ctx.data, ctx.today);
+  const problem = deleteAccountProblem(ctx.me, d.positions);
   if (problem) throw new NotAllowedError(problem);
   const id = ctx.me!.id;
-  const d = ctx.data;
   const notMine = <T extends { memberId: string }>(rows: T[] | undefined): T[] | undefined => rows?.filter((r) => r.memberId !== id);
   const bikes = d.bikes.filter((b) => b.memberId !== id);
+  // A seat that hasn't started goes; every other open row ends today as forgotten, and someone
+  // else's cover of it with it. Their own stints go first, so each of their rows reads forgotten,
+  // as the database's one update leaves them.
+  const open = openRows(d.positions).filter((p) => p.memberId === id);
+  const notStarted = new Set(open.filter((p) => p.startedOn > ctx.today).map((p) => p.id));
+  const mine = open.filter((p) => !notStarted.has(p.id));
+  const ended = endRows(
+    d.positions.filter((p) => !notStarted.has(p.id)),
+    [...mine.filter(isActing), ...mine.filter((p) => !isActing(p))].map((p) => p.id),
+    { reason: 'forgotten', by: null, today: ctx.today, now: ctx.now },
+  );
   return patchMember(
     {
       ...d,
@@ -344,36 +357,69 @@ export function deleteMyAccount(ctx: DemoCtx): ClubData {
       charitySignups: notMine(d.charitySignups),
       documentSignoffs: notMine(d.documentSignoffs),
       notificationPrefs: null,
-      positions: d.positions.map((p) => (p.memberId === id && p.endedOn === null ? { ...p, endedOn: ctx.today } : p)),
+      positions: ended.positions,
+      ...withChanges(d, ended.changes),
     },
     id,
     { fullName: FORMER_MEMBER, roadName: null, bio: null, sharePhone: false, onHiatus: false, approval: 'declined' },
   );
 }
 
+/** Ends each row as public.end_position does, with what rests on it, collecting the changes logged. */
+function endRows(
+  positions: Position[], ids: string[], how: { reason: EndedReason; by: string | null; today: string; now?: string },
+): { positions: Position[]; changes: ActingChange[] } {
+  const changes: ActingChange[] = [];
+  for (const id of ids) {
+    const ended = endPositionRows(positions, id, how);
+    positions = ended.positions;
+    changes.push(...ended.changes);
+  }
+  return { positions, changes };
+}
+
+const withChanges = (data: ClubData, changes: ActingChange[]): Partial<ClubData> =>
+  changes.length === 0 ? {} : { actingChanges: [...(data.actingChanges ?? []), ...changes] };
+
+/**
+ * A full appointment (public.appoint_position), settled first. The member's own acting in an empty
+ * seat of this role is the one row it replaces: it ends today (`replaced`).
+ */
 export function appoint(ctx: DemoCtx, memberId: string, chapterId: string | null, role: PositionRole): ClubData {
-  const target = findMember(ctx.data, memberId);
-  const problem = appointProblem(ctx.me, target, chapterId, role, ctx.data, ctx.today);
+  const data = settleActing(ctx.data, ctx.today);
+  const target = findMember(data, memberId);
+  const problem = appointProblem(ctx.me, target, chapterId, role, data, ctx.today);
   if (problem) throw new NotAllowedError(problem);
   const seatChapter = NATIONAL_ROLES.includes(role) ? null : chapterId;
+  const replaced = openRows(data.positions)
+    .filter((p) => p.memberId === memberId && p.role === role && p.chapterId === seatChapter && isActing(p) && p.covers == null)
+    .map((p) => p.id);
+  const ended = endRows(data.positions, replaced, { reason: 'replaced', by: ctx.me!.id, today: ctx.today, now: ctx.now });
   return {
-    ...ctx.data,
+    ...data,
     positions: [
-      ...ctx.data.positions,
-      { id: newId('p'), memberId, chapterId: seatChapter, role, startedOn: ctx.today, endedOn: null },
+      ...ended.positions,
+      { id: newId('p'), memberId, chapterId: seatChapter, role, startedOn: ctx.today, endedOn: null, appointedBy: ctx.me!.id },
     ],
+    ...withChanges(data, ended.changes),
   };
 }
 
+/**
+ * Ends a term (public.end_position), settled first, saying why: your own steps down; the covered
+ * holder ending a cover is back; anything else follows a removal vote. A cover resting on it ends with it.
+ */
 export function endTerm(ctx: DemoCtx, positionId: string): ClubData {
-  const position = ctx.data.positions.find((p) => p.id === positionId);
+  const data = settleActing(ctx.data, ctx.today);
+  const position = data.positions.find((p) => p.id === positionId);
   if (!position) throw new Error('That position no longer exists.');
-  const problem = endTermProblem(ctx.me, position, ctx.data, ctx.today);
+  const problem = endTermProblem(ctx.me, position, data, ctx.today);
   if (problem) throw new NotAllowedError(problem);
-  return {
-    ...ctx.data,
-    positions: ctx.data.positions.map((p) => (p.id === positionId ? { ...p, endedOn: ctx.today } : p)),
-  };
+  const me = ctx.me!.id;
+  const holderBack = isActing(position) && data.positions.some((h) => h.id === position.covers && h.memberId === me);
+  const reason: EndedReason = position.memberId === me ? 'stepped_down' : holderBack ? 'holder_back' : 'removed';
+  const ended = endRows(data.positions, [positionId], { reason, by: me, today: ctx.today, now: ctx.now });
+  return { ...data, positions: ended.positions, ...withChanges(data, ended.changes) };
 }
 
 export function setRsvp(ctx: DemoCtx, rideId: string, answer: RsvpAnswer): ClubData {

@@ -2,6 +2,7 @@
 
 // Stage 5: meetings and votes
 import type {
+  ActingOutcome, EndedReason, // Acting roles
   AgendaItem, BallotChoice, Big4Ground, NoticeAbout, NoticeOutcome, BusCostKind, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
 } from '../domain/types'; // HubStaying, PlanStop, RideCallState, SwapState: ride planning extras
 import type { BusinessJson } from './businessLive';
@@ -201,8 +202,34 @@ export type Database = {
           member_id: string;
           role: PositionRole;
           started_on: string;
+          // Acting roles
+          acting_until: string | null;
+          covers: string | null;
+          acting_why: string | null;
+          acting_vote: string | null;
+          acting_request: string | null;
+          ended_reason: EndedReason | null;
         };
         Insert: { [_ in never]: never }; // positions change only through appoint_position / end_position
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      // Acting roles
+      acting_requests: {
+        Row: {
+          id: string; chapter_id: string; role: PositionRole; member_id: string; covers: string | null; until: string; why: string;
+          requested_by: string; created_at: string; closed_at: string | null; outcome: ActingOutcome | null;
+        };
+        Insert: { [_ in never]: never }; // only through the acting RPCs
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
+      acting_changes: {
+        Row: {
+          id: number; position_id: string; chapter_id: string; old_until: string | null; new_until: string | null;
+          changed_by: string | null; changed_at: string; note: string | null;
+        };
+        Insert: { [_ in never]: never }; // only through the acting RPCs and the position triggers
         Update: { [_ in never]: never };
         Relationships: [];
       };
@@ -651,6 +678,17 @@ export type Database = {
       };
       appoint_position: { Args: { p_member: string; p_chapter: string | null; p_role: PositionRole }; Returns: string };
       end_position: { Args: { p_position: string }; Returns: undefined };
+      // Acting roles (supabase/migrations/20270870000000_acting_roles.sql §4, §6)
+      appoint_acting: { Args: { p_member: string; p_chapter: string; p_role: PositionRole; p_until: string; p_why: string }; Returns: string };
+      request_cover: { Args: { p_position: string; p_member: string; p_until: string; p_why: string }; Returns: string };
+      request_acting: {
+        Args: { p_member: string; p_chapter: string; p_role: PositionRole; p_covers: string | null; p_until: string; p_why: string };
+        Returns: string;
+      };
+      withdraw_acting_request: { Args: { p_request: string }; Returns: undefined };
+      confirm_acting: { Args: { p_request: string }; Returns: string };
+      set_acting_until: { Args: { p_position: string; p_until: string }; Returns: undefined };
+      open_acting_vote: { Args: { p_request: string; p_quorum: number; p_closes_at: string; p_meeting: string | null }; Returns: string };
       delete_my_account: { Args: never; Returns: undefined };
       // Ask the club (the club AI assistant)
       assistant_status: {

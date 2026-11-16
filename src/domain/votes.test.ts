@@ -1,8 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
-import type { Vote } from './types';
+import { AUDITOR_STAYS_OUT, BOARD_RECORDS_ACTING, NO_REQUEST, NOT_YOURSELF, SMALL_BOARD } from './access';
+import type { ActingRequest, ClubData, Member, Position, PositionRole, Vote } from './types';
+import { settleActing } from './acting';
 import {
+  ACTING_END_SHAPE,
+  ACTING_VOTE_OPEN,
+  aboutActing,
+  actingVoteNote,
+  actingVoteQuestion,
+  ballotRowFor,
+  CAST_BOARD_ENDED,
+  castNecCast,
+  castNecNotYours,
   canSeeVote,
   castProblem,
   chairOf,
@@ -11,8 +22,14 @@ import {
   decide,
   defaultQuorum,
   electorsFor,
+  endActingQuestion,
+  isRemovalVote,
   lacksChapters,
   NEC_SEATS_ONLY,
+  necElectorChapters,
+  necVoterBefore,
+  NO_VOTE_NEEDED,
+  openActingVoteProblem,
   openVoteProblem,
   outcome,
   patchVoteFor,
@@ -26,6 +43,7 @@ import {
   ruleLine,
   seatVoteFor,
   SEAT_VOTE_IS_NATIONAL,
+  stintVoteWarnings,
   type VoteInput,
 } from './votes';
 
@@ -168,14 +186,14 @@ test('a patch vote is secret and unanimous among the chapter’s Full Members, a
 });
 
 test('casting a ballot', () => {
-  assert.equal(castProblem(m('m-torque'), undefined, NOW), 'No such vote.');
-  assert.equal(castProblem(m('m-spanner'), vote(), NOW), 'You’re not on this vote.');
-  assert.equal(castProblem(m('m-torque'), vote({ votedIds: ['m-torque'] }), NOW), 'You’ve already voted.');
-  assert.equal(castProblem(m('m-torque'), vote({ closedAt: NOW }), NOW), 'That vote has closed.');
-  assert.equal(castProblem(m('m-torque'), vote(), LATER), 'That vote has closed.', 'past its closing time');
-  assert.equal(castProblem(m('m-torque'), vote(), NOW), null);
+  assert.equal(castProblem(m('m-torque'), undefined, NOW, d), 'No such vote.');
+  assert.equal(castProblem(m('m-spanner'), vote(), NOW, d), 'You’re not on this vote.');
+  assert.equal(castProblem(m('m-torque'), vote({ votedIds: ['m-torque'] }), NOW, d), 'You’ve already voted.');
+  assert.equal(castProblem(m('m-torque'), vote({ closedAt: NOW }), NOW, d), 'That vote has closed.');
+  assert.equal(castProblem(m('m-torque'), vote(), LATER, d), 'That vote has closed.', 'past its closing time');
+  assert.equal(castProblem(m('m-torque'), vote(), NOW, d), null);
   // The electorate was taken when the vote opened, so a later change of status doesn't take the ballot away.
-  assert.equal(castProblem({ ...m('m-torque'), status: 'legacy' }, vote(), NOW), null);
+  assert.equal(castProblem({ ...m('m-torque'), status: 'legacy' }, vote(), NOW, d), null);
 });
 
 test('closing a vote', () => {
@@ -351,4 +369,433 @@ test('the removal vote about a term: the open one, or else the latest result', (
   assert.equal(removalVoteFor(p7, [carried, lost])?.id, 'new', 'latest result');
   assert.equal(removalVoteFor(p7, [carried, open, lost])?.id, 'open', 'an open vote comes first');
   assert.equal(removalVoteFor(p7, [about('shape', { electorate: 'chapter_patched', threshold: 'two_thirds' })]), null, 'the wrong shape isn’t this vote');
+});
+
+// ---------------------------------------------------------------------------
+// Acting roles (docs/superpowers/specs/2026-11-15-acting-roles-design.md, "Votes and ballots"):
+// the same order and words as the database (supabase/migrations/20270870000000_acting_roles.sql §6,
+// §8). The fixture is acting_test.sql's, as in access.test.ts: North has Smokey (President), Jet
+// (VP), Crank (Road Captain), Lou (National Secretary), Ned and Gus (no seat); West has Rusty
+// (President), Torque (Secretary), Penny (Treasurer), Spanner and Hal (no seat) and Kim (National
+// Auditor).
+// ---------------------------------------------------------------------------
+
+const AT = '2026-11-15';
+/** Noon in Melbourne on AT. */
+const AT_NOW = '2026-11-15T01:00:00.000Z';
+const UNTIL = '2026-12-13';
+const hoursFrom = (iso: string, hours: number) => new Date(Date.parse(iso) + hours * 3_600_000).toISOString();
+const RIDERS: [string, string][] = [
+  ['smokey', 'north'], ['jet', 'north'], ['crank', 'north'], ['lou', 'north'], ['ned', 'north'], ['gus', 'north'],
+  ['rusty', 'west'], ['torque', 'west'], ['penny', 'west'], ['spanner', 'west'], ['hal', 'west'], ['kim', 'west'],
+];
+const rider = (id: string, chapterId: string): Member => ({
+  id, chapterId, fullName: `${id[0].toUpperCase()}${id.slice(1)} Rider`, roadName: null, status: 'full', approval: 'approved',
+  joinedOn: '2023-01-01', patchedOn: '2025-06-01', fngStartedOn: null, bio: null, sharePhone: false, appliedOn: '2023-01-01', onHiatus: false,
+});
+const seat = (id: string, memberId: string, chapterId: string | null, role: PositionRole, over: Partial<Position> = {}): Position => ({
+  id, memberId, chapterId, role, startedOn: '2026-08-01', endedOn: null, ...over,
+});
+/** A stint from today to UNTIL: in an empty seat, unless `covers`. */
+const stint = (id: string, memberId: string, chapterId: string, role: PositionRole, over: Partial<Position> = {}): Position =>
+  seat(id, memberId, chapterId, role, { startedOn: AT, actingUntil: UNTIL, actingWhy: 'No one since the ACM', appointedBy: 'smokey', ...over });
+const SEATS: Position[] = [
+  seat('smokey-president', 'smokey', 'north', 'president'),
+  seat('jet-vp', 'jet', 'north', 'vice_president'),
+  seat('crank-rc', 'crank', 'north', 'road_captain'),
+  seat('lou-nec-secretary', 'lou', null, 'nec_secretary'),
+  seat('rusty-president', 'rusty', 'west', 'president'),
+  seat('torque-secretary', 'torque', 'west', 'secretary'),
+  seat('penny-treasurer', 'penny', 'west', 'treasurer'),
+  seat('kim-auditor', 'kim', null, 'nec_auditor'),
+];
+/** Jet (North's VP) covers Smokey's President seat from today, agreed: Smokey asked, Crank confirmed. */
+const JET_COVERS = stint('jet-covers-smokey', 'jet', 'north', 'president', { covers: 'smokey-president', actingWhy: 'Smokey overseas', appointedBy: 'crank' });
+/** North with five board members: Ned seated Secretary and Gus Treasurer. */
+const FIVE: Position[] = [seat('ned-secretary', 'ned', 'north', 'secretary'), seat('gus-treasurer', 'gus', 'north', 'treasurer')];
+
+interface World { seats?: Position[]; without?: string[]; ended?: Record<string, string>; requests?: ActingRequest[] }
+const world = (w: World = {}): ClubData => ({
+  ...d,
+  chapters: [
+    { id: 'north', slug: 'north', name: 'North', area: 'Northern Melbourne', state: 'VIC' },
+    { id: 'west', slug: 'west', name: 'West', area: 'Western Melbourne', state: 'VIC' },
+  ],
+  members: RIDERS.map(([id, ch]) => rider(id, ch)),
+  positions: [...SEATS, ...(w.seats ?? [])]
+    .filter((p) => !w.without?.includes(p.id))
+    .map((p) => (w.ended?.[p.id] ? { ...p, endedOn: w.ended[p.id] } : p)),
+  privates: [], votes: [], meetings: [], actingRequests: w.requests ?? [], actingChanges: [], crew: [], rides: [],
+});
+const who = (data: ClubData, id: string): Member => {
+  const found = data.members.find((x) => x.id === id);
+  if (!found) throw new Error(`no member ${id}`);
+  return found;
+};
+const row = (data: ClubData, id: string): Position => {
+  const found = data.positions.find((p) => p.id === id);
+  if (!found) throw new Error(`no position ${id}`);
+  return found;
+};
+/** Crank proposes that Jet cover Smokey's President seat until UNTIL: a cover the holder didn't ask for. */
+const ask = (id: string, over: Partial<ActingRequest> = {}): ActingRequest => ({
+  id, chapterId: 'north', role: 'president', memberId: 'jet', covers: 'smokey-president', until: UNTIL, why: 'Smokey can’t be reached',
+  requestedBy: 'crank', createdAt: '2026-11-15T00:30:00.000Z', closedAt: null, outcome: null, ...over,
+});
+/** An open NEC vote opened on 13/11: North's ballot named for `north`, West's for Rusty. */
+const necVote = (north: string, over: Partial<Vote> = {}): Vote =>
+  vote({
+    id: 'v-nec', chapterId: null, electorate: 'nec', threshold: 'majority', quorum: 2, openedAt: '2026-11-13T01:00:00.000Z',
+    closesAt: '2026-11-20T01:00:00.000Z', electorIds: [north, 'rusty'].sort(), electorChapters: { [north]: 'north', rusty: 'west' }, ...over,
+  });
+/** An open North board vote, opened yesterday with the three of them. */
+const boardVote = (over: Partial<Vote> = {}): Vote =>
+  vote({
+    id: 'v-board', chapterId: 'north', openedAt: '2026-11-14T01:00:00.000Z', closesAt: '2026-11-21T01:00:00.000Z',
+    electorIds: ['crank', 'jet', 'smokey'], ...over,
+  });
+
+test('the acting vote words are the spec’s Appendix A', () => {
+  assert.equal(ACTING_END_SHAPE, 'Ending someone’s acting is a majority vote of the chapter board (9.3).');
+  assert.equal(ACTING_VOTE_OPEN, 'A vote about acting stays open for at least 48 hours, so everyone affected can answer.');
+  assert.equal(NO_VOTE_NEEDED, 'This request doesn’t need a vote. A third board member confirms it.');
+  assert.equal(CAST_BOARD_ENDED, 'Your board seat has ended, so this ballot isn’t yours now.');
+  assert.equal(castNecNotYours('North'), 'You don’t cast North’s NEC vote now, so this ballot isn’t yours.');
+  assert.equal(castNecCast('North'), 'North’s NEC ballot has already been cast.');
+});
+
+test('North keeps three board electors under a cover', () => {
+  const w = world({ seats: [JET_COVERS] });
+  assert.deepEqual(electorsFor('chapter_board', 'north', w), ['crank', 'jet', 'smokey'], 'Smokey keeps his ballot, and Jet has one, not two (8.1)');
+  const opening = input({ chapterId: 'north', quorum: 3, closesAt: hoursFrom(AT_NOW, 7 * 24) });
+  assert.equal(openVoteProblem(who(w, 'smokey'), opening, w, AT_NOW), null, 'the covered President still opens a board vote');
+});
+
+test('the cast-time board check', () => {
+  const open = boardVote();
+  const removed = world({ ended: { 'crank-rc': AT } });
+  assert.equal(castProblem(who(removed, 'crank'), open, AT_NOW, removed), CAST_BOARD_ENDED, 'his seat ended after it opened (8.5)');
+  assert.equal(castProblem(who(removed, 'smokey'), open, AT_NOW, removed), null);
+  assert.equal(castProblem(who(world(), 'crank'), open, AT_NOW, world()), null, 'while he holds it');
+  assert.equal(castProblem(who(removed, 'crank'), { ...open, votedIds: ['crank'] }, AT_NOW, removed), 'You’ve already voted.', 'the older checks come first');
+  assert.equal(castProblem(who(removed, 'crank'), open, hoursFrom(open.closesAt, 1), removed), 'That vote has closed.');
+  assert.equal(castProblem(who(removed, 'crank'), { ...open, electorate: 'chapter_patched' }, AT_NOW, removed), null, 'a vote of the Full Members needs no seat');
+  // A stint past its date has ended, settled or not: the phone left open past midnight.
+  const lapsed = world({ seats: [stint('ned-acting-secretary', 'ned', 'north', 'secretary', { startedOn: '2026-10-01', actingUntil: '2026-11-14' })] });
+  const withNed = boardVote({ openedAt: '2026-11-10T01:00:00.000Z', electorIds: ['crank', 'jet', 'ned', 'smokey'] });
+  assert.equal(castProblem(who(lapsed, 'ned'), withNed, AT_NOW, lapsed), CAST_BOARD_ENDED);
+  assert.equal(castProblem(who(lapsed, 'ned'), withNed, '2026-11-14T01:00:00.000Z', lapsed), null, 'on his last day he still casts');
+});
+
+test('NEC ballot pass-over', () => {
+  const w = world();
+  const v = necVote('jet');
+  assert.equal(castProblem(who(w, 'smokey'), v, AT_NOW, w), null, 'North’s voter before the opening day takes its uncast ballot');
+  assert.equal(castProblem(who(w, 'smokey'), { ...v, votedIds: ['jet'] }, AT_NOW, w), castNecCast('North'), 'a cast one stands');
+  assert.equal(castProblem(who(w, 'jet'), v, AT_NOW, w), castNecNotYours('North'), 'Jet is named, but doesn’t cast North’s vote now, or before it opened');
+  assert.equal(castProblem(who(w, 'ned'), v, AT_NOW, w), 'You’re not on this vote.');
+  assert.equal(castProblem(who(w, 'rusty'), v, AT_NOW, w), null, 'West’s voter, named');
+  assert.equal(castProblem(who(w, 'jet'), { ...v, electorChapters: {} }, AT_NOW, w), null, 'a ballot with no chapter keeps the old rule');
+  // A lapsed Acting President can't cast the ballot named for him; the returning President can.
+  const lapsed = world({ seats: [stint('jet-old-cover', 'jet', 'north', 'president', { covers: 'smokey-president', startedOn: '2026-11-01', actingUntil: '2026-11-14' })] });
+  assert.equal(castProblem(who(lapsed, 'jet'), v, AT_NOW, lapsed), castNecNotYours('North'));
+  assert.equal(castProblem(who(lapsed, 'smokey'), v, AT_NOW, lapsed), null);
+  // Under a voted cover that started after it opened, North's ballot waits: the named President is off
+  // the NEC, and the board didn't pick Jet to cast it before it opened.
+  const voted = world({ seats: [{ ...JET_COVERS, actingVote: 'v-acting' }] });
+  const smokeys = necVote('smokey');
+  assert.equal(castProblem(who(voted, 'smokey'), smokeys, AT_NOW, voted), castNecNotYours('North'));
+  assert.equal(castProblem(who(voted, 'jet'), smokeys, AT_NOW, voted), 'You’re not on this vote.');
+  assert.equal(castProblem(who(voted, 'ned'), smokeys, AT_NOW, voted), 'You’re not on this vote.');
+});
+
+test('a seat started on or after the opening day neither takes nor removes it, but an agreed cover or a roster claim takes it', () => {
+  // Opened on 13/11 with North's President seat empty, so Jet (VP) was named.
+  const empty = (seats: Position[]) => world({ without: ['smokey-president'], seats });
+  const v = necVote('jet');
+  const seated = empty([seat('smokey-new', 'smokey', 'north', 'president', { startedOn: AT })]);
+  assert.equal(castProblem(who(seated, 'smokey'), v, AT_NOW, seated), 'You’re not on this vote.', 'a President seated after it opened doesn’t take it');
+  assert.equal(castProblem(who(seated, 'jet'), v, AT_NOW, seated), null, 'and the VP named at opening keeps it');
+  const sameDay = empty([seat('smokey-new', 'smokey', 'north', 'president', { startedOn: '2026-11-13' })]);
+  assert.equal(castProblem(who(sameDay, 'smokey'), v, AT_NOW, sameDay), 'You’re not on this vote.', 'not even seated on the day it opened');
+  assert.equal(castProblem(who(sameDay, 'jet'), v, AT_NOW, sameDay), null);
+  const recorded = empty([stint('jet-acting-president', 'jet', 'north', 'president', { appointedBy: 'crank' })]);
+  assert.equal(castProblem(who(recorded, 'jet'), v, AT_NOW, recorded), null, 'the named VP keeps it once recorded Acting President');
+  // A roster claim records a 2026 election (17.6): the seat runs from 1/8/2026, so it takes the ballot.
+  const claimed = empty([seat('smokey-claim', 'smokey', 'north', 'president', { startedOn: '2026-08-01' })]);
+  assert.equal(castProblem(who(claimed, 'smokey'), v, AT_NOW, claimed), null);
+  assert.equal(castProblem(who(claimed, 'jet'), v, AT_NOW, claimed), castNecNotYours('North'));
+  // A cover the holder agreed counts from the holder's own start, so it takes the ballot named for them.
+  const covered = world({ seats: [JET_COVERS] });
+  const smokeys = necVote('smokey');
+  assert.equal(castProblem(who(covered, 'jet'), smokeys, AT_NOW, covered), null);
+  assert.equal(castProblem(who(covered, 'smokey'), smokeys, AT_NOW, covered), castNecNotYours('North'), 'the covered President is off the NEC');
+  assert.equal(necVoterBefore('north', '2026-11-13', covered.positions), 'jet');
+  assert.equal(necVoterBefore('north', '2026-11-13', world({ seats: [{ ...JET_COVERS, actingVote: 'v-acting' }] }).positions), null, 'a voted one, from its own start, gives nobody');
+  assert.equal(necVoterBefore('north', '2026-11-13', seated.positions), 'jet');
+  assert.equal(necVoterBefore('north', '2026-11-16', seated.positions), 'smokey', 'a vote opened after his seating is his');
+});
+
+test('canSeeVote shows Jet the NEC vote while he covers Smokey, not after I’m back', () => {
+  const v = necVote('smokey');
+  const covered = world({ seats: [JET_COVERS] });
+  assert.equal(canSeeVote(who(covered, 'jet'), v, covered.positions), true);
+  const back = world({ seats: [{ ...JET_COVERS, endedOn: AT, endedReason: 'holder_back' }] });
+  assert.equal(canSeeVote(who(back, 'jet'), v, back.positions), false, 'once Smokey is back, Jet is VP only');
+  assert.equal(canSeeVote(who(back, 'smokey'), v, back.positions), true);
+  // A VP who would take an uncast ballot sees the vote: Smokey's seat ended after it opened.
+  const stepped = world({ ended: { 'smokey-president': AT } });
+  assert.equal(canSeeVote(who(stepped, 'jet'), v, stepped.positions), true, 'Jet takes North’s ballot, so he sees it');
+  assert.equal(castProblem(who(stepped, 'jet'), v, AT_NOW, stepped), null);
+  assert.equal(canSeeVote(who(stepped, 'jet'), { ...v, votedIds: ['smokey'] }, stepped.positions), false, 'not once it’s cast');
+  assert.equal(canSeeVote(who(stepped, 'jet'), { ...v, closedAt: AT_NOW, result: 'lost' }, stepped.positions), false, 'nor once it has closed');
+});
+
+test('canSeeVote on settled rows: a stand-in whose cover lapsed at midnight no longer sees the NEC vote', () => {
+  // canSeeVote reads the rows it's given; the providers hand it settled ones (Task 16), as
+  // club_business reads the views.
+  const v = necVote('smokey');
+  const lapsed = world({ seats: [{ ...JET_COVERS, startedOn: '2026-10-20', actingUntil: '2026-11-14' }] });
+  const settled = settleActing(lapsed, AT);
+  assert.equal(canSeeVote(who(settled, 'jet'), v, settled.positions), false, 'Jet is VP only again');
+  assert.equal(canSeeVote(who(settled, 'smokey'), v, settled.positions), true, 'Smokey has his seat’s duties back');
+});
+
+test('closeProblem refuses a day-old acting vote, all voted', () => {
+  const w = world({ seats: FIVE, requests: [ask('crank-asks-jet')] });
+  const all = ['crank', 'gus', 'ned'];
+  const acting = vote({
+    id: 'v-acting', chapterId: 'north', subjectMemberId: 'jet', subjectRole: 'president', actingRequestId: 'crank-asks-jet',
+    openedAt: hoursFrom(AT_NOW, -24), closesAt: hoursFrom(AT_NOW, 6 * 24), electorIds: all, votedIds: all,
+  });
+  const tally = { yes: 3, no: 0, abstain: 0 };
+  assert.equal(closeProblem(who(w, 'crank'), acting, tally, null, w, AT_NOW), ACTING_VOTE_OPEN);
+  assert.equal(closeProblem(who(w, 'crank'), acting, tally, null, w, hoursFrom(acting.openedAt, 48)), null, 'at 48 hours it closes');
+  assert.equal(closeProblem(who(w, 'crank'), { ...acting, closedAt: AT_NOW }, tally, null, w, AT_NOW), 'That vote has already closed.');
+  // A vote to end someone's acting waits as long, from the day it opens: on a board seat only that
+  // takes the board's majority shape, so it still waits once the stint has ended.
+  const ending = { ...acting, id: 'v-end', actingRequestId: null };
+  const covered = world({ seats: [...FIVE, JET_COVERS] });
+  assert.equal(closeProblem(who(covered, 'crank'), ending, tally, null, covered, AT_NOW), ACTING_VOTE_OPEN);
+  assert.equal(closeProblem(who(w, 'crank'), ending, tally, null, w, AT_NOW), ACTING_VOTE_OPEN, 'Jet’s cover has ended, and it still waits');
+  const removal = { ...ending, id: 'v-remove', electorate: 'chapter_patched' as const, threshold: 'two_thirds' as const };
+  assert.equal(closeProblem(who(covered, 'crank'), removal, tally, null, covered, AT_NOW), null, 'a 9.3 vote of the Full Members closes as any other');
+});
+
+test('the line under a vote about acting names who isn’t on it, and the Auditor on a President or Treasurer seat', () => {
+  const end = (subject: string, role: PositionRole) =>
+    vote({ chapterId: 'north', subjectMemberId: subject, subjectRole: role, electorate: 'chapter_board', threshold: 'majority' });
+  const crank = world({ seats: [stint('crank-acting-treasurer', 'crank', 'north', 'treasurer')] });
+  const auditorToo = 'Crank and the National Auditor aren’t on this vote (8.5, 11.8, 11.10).';
+  assert.equal(actingVoteNote(end('crank', 'treasurer'), crank), auditorToo);
+  assert.equal(actingVoteNote(end('crank', 'treasurer'), world()), auditorToo, 'once the stint has ended too');
+  const covered = world({ seats: [JET_COVERS] });
+  const cover = 'The stand-in, the holder and the National Auditor aren’t on this vote (8.5, 11.8, 11.10).';
+  assert.equal(actingVoteNote(end('jet', 'president'), covered), cover);
+  const back = world({ seats: [{ ...JET_COVERS, endedOn: AT, endedReason: 'holder_back' }] });
+  assert.equal(actingVoteNote(end('jet', 'president'), back), cover, 'an ended cover was still a cover');
+  // A vote on a request for Jet to cover Crank's Road Captain seat: no Auditor there.
+  const rc = world({ requests: [ask('crank-rc-cover', { role: 'road_captain', covers: 'crank-rc' })] });
+  assert.equal(
+    actingVoteNote(vote({ chapterId: 'north', subjectMemberId: 'jet', subjectRole: 'road_captain', actingRequestId: 'crank-rc-cover' }), rc),
+    'The stand-in and the holder aren’t on this vote (8.5, 11.10).',
+  );
+  const ned = world({ seats: [stint('ned-acting-tg', 'ned', 'north', 'tail_gunner')] });
+  assert.equal(actingVoteNote(end('ned', 'tail_gunner'), ned), 'Ned isn’t on this vote (8.5, 11.10).');
+  assert.equal(actingVoteNote(end('ned', 'tail_gunner'), world()), null, 'a Tail Gunner removal with no stint is a 9.3 vote');
+  assert.equal(actingVoteNote(vote({ chapterId: 'north' }), world()), null);
+});
+
+test('endActingQuestion', () => {
+  const w = world({ seats: [JET_COVERS] });
+  assert.equal(endActingQuestion(row(w, 'jet-covers-smokey'), w), 'End Jet’s acting as President (North)?');
+  const ned = world({ seats: [stint('ned-acting-secretary', 'ned', 'north', 'secretary')] });
+  assert.equal(endActingQuestion(row(ned, 'ned-acting-secretary'), ned), 'End Ned’s acting as Secretary (North)?');
+});
+
+test('chairOf follows duties, with a duty VP fallback', () => {
+  assert.equal(chairOf('north', world({ seats: [JET_COVERS] }).positions), 'jet', 'the President’s stand-in chairs');
+  // Seated and covered the same day: the stand-in still chairs, whichever row sorts first.
+  assert.equal(chairOf('north', world({ seats: [{ ...JET_COVERS, startedOn: '2026-08-01' }] }).positions), 'jet');
+  const empty = (seats: Position[], without: string[] = []) => world({ without: ['smokey-president', ...without], seats }).positions;
+  assert.equal(chairOf('north', empty([])), 'jet', 'then the VP (10.9)');
+  assert.equal(chairOf('north', empty([stint('ned-acting-president', 'ned', 'north', 'president', { actingVote: 'v-acting' })])), 'ned', 'an Acting President before the VP');
+  const vpCovered = empty([stint('crank-covers-jet', 'crank', 'north', 'vice_president', { covers: 'jet-vp', startedOn: '2026-08-01' })]);
+  assert.equal(chairOf('north', vpCovered), 'crank', 'a VP’s stand-in has the VP seat’s duties, so chairs');
+  assert.equal(chairOf('north', empty([stint('ned-acting-vp', 'ned', 'north', 'vice_president')], ['jet-vp'])), 'ned', 'so does an Acting VP');
+});
+
+test('acting votes leave out the stand-in, the holder and the Auditor', () => {
+  const w = world({ seats: [...FIVE, JET_COVERS] });
+  assert.deepEqual(electorsFor('chapter_board', 'north', w, { memberId: 'jet', role: 'president' }), ['crank', 'gus', 'ned']);
+  assert.deepEqual(electorsFor('chapter_board', 'north', w), ['crank', 'gus', 'jet', 'ned', 'smokey'], 'any other board vote has the whole board');
+  const end = (over: Partial<VoteInput> = {}) =>
+    input({ chapterId: 'north', subjectMemberId: 'jet', subjectRole: 'president', quorum: 3, closesAt: hoursFrom(AT_NOW, 7 * 24), ...over });
+  assert.equal(openVoteProblem(who(w, 'crank'), end(), w, AT_NOW), null);
+  assert.equal(openVoteProblem(who(w, 'crank'), end({ quorum: 4 }), w, AT_NOW), 'Quorum must be between 3 and 3.', 'the quorum is worked out on the three left');
+  assert.equal(openVoteProblem(who(w, 'crank'), end({ electorate: 'chapter_patched', threshold: 'two_thirds' }), w, AT_NOW), ACTING_END_SHAPE);
+  assert.equal(openVoteProblem(who(w, 'crank'), end({ closesAt: hoursFrom(AT_NOW, 24) }), w, AT_NOW), ACTING_VOTE_OPEN);
+  const three = world({ seats: [JET_COVERS] });
+  assert.equal(openVoteProblem(who(three, 'crank'), end({ quorum: 1 }), three, AT_NOW), SMALL_BOARD, 'Crank alone is left (8.6)');
+  // The National Auditor on West's board gets no ballot on acting in a President or Treasurer seat (11.8).
+  const west = world({
+    without: ['penny-treasurer'],
+    seats: [seat('kim-west-vp', 'kim', 'west', 'vice_president'), seat('spanner-saa', 'spanner', 'west', 'sergeant_at_arms'),
+      stint('hal-acting-treasurer', 'hal', 'west', 'treasurer', { appointedBy: 'rusty' })],
+  });
+  assert.deepEqual(electorsFor('chapter_board', 'west', west, { memberId: 'hal', role: 'treasurer' }), ['rusty', 'spanner', 'torque']);
+  assert.deepEqual(electorsFor('chapter_board', 'west', west, { memberId: 'hal', role: 'secretary' }), ['hal', 'kim', 'rusty', 'spanner', 'torque'], 'he isn’t acting as Secretary');
+  // A covered holder still faces a 9.3 removal vote in the role's own shape: the seat is still theirs.
+  const removal = input({
+    chapterId: 'north', subjectMemberId: 'smokey', subjectRole: 'president', electorate: 'chapter_patched', threshold: 'two_thirds', quorum: 2,
+    closesAt: hoursFrom(AT_NOW, 7 * 24),
+  });
+  assert.equal(openVoteProblem(who(w, 'crank'), removal, w, AT_NOW), null);
+});
+
+test('acting votes aren’t removal votes', () => {
+  const seating = vote({
+    id: 'v-acting', chapterId: 'north', subjectMemberId: 'jet', subjectRole: 'president', actingRequestId: 'crank-asks-jet',
+    closedAt: '2026-11-14T01:00:00.000Z', result: 'carried',
+  });
+  const ending: Vote = { ...seating, id: 'v-end', actingRequestId: null, closedAt: null, result: null };
+  assert.equal(isRemovalVote(seating), false);
+  assert.equal(isRemovalVote(ending), true, 'a vote to end acting is one');
+  const w = world({ seats: [JET_COVERS] });
+  const cover = row(w, 'jet-covers-smokey');
+  assert.equal(removalVoteFor(cover, [seating]), null, 'the vote that seated it doesn’t end it');
+  assert.equal(removalVoteFor(cover, [seating, ending])?.id, 'v-end', 'a board majority ends acting');
+  assert.deepEqual(removalShape('president', true), { electorate: 'chapter_board', threshold: 'majority' });
+  assert.deepEqual(removalShape('president'), { electorate: 'chapter_patched', threshold: 'two_thirds' });
+});
+
+test('the acting vote question', () => {
+  assert.equal(actingVoteQuestion(ask('crank-asks-jet'), world()), 'Jet acts as President (North) for Smokey until 13/12/2026: Smokey can’t be reached');
+  const empty = world({ without: ['smokey-president'] });
+  const asked = ask('crank-asks-jet', { covers: null, why: 'No President since the ACM' });
+  assert.equal(actingVoteQuestion(asked, empty), 'Jet acts as President (North) until 13/12/2026: No President since the ACM');
+});
+
+test('opening the board’s vote on a request: the database’s order and words', () => {
+  const five = world({ seats: FIVE, requests: [ask('crank-asks-jet'), ask('smokey-asks-jet', { requestedBy: 'smokey', why: 'Smokey overseas' })] });
+  const open = (
+    me: string | null, id = 'crank-asks-jet',
+    o: { quorum?: number; closesAt?: string; meeting?: string | null; data?: ClubData; now?: string } = {},
+  ) => {
+    const data = o.data ?? five;
+    const request = (data.actingRequests ?? []).find((r) => r.id === id);
+    return openActingVoteProblem(
+      me ? who(data, me) : null, request, o.quorum ?? 3, o.closesAt ?? hoursFrom(o.now ?? AT_NOW, 7 * 24), o.meeting ?? null, data, o.now ?? AT_NOW,
+    );
+  };
+  assert.equal(open('crank'), null);
+  assert.equal(open('ned'), null, 'any board member but the stand-in');
+  assert.equal(open(null), 'Sign in first.');
+  assert.equal(open('crank', 'nope'), NO_REQUEST);
+  const withdrawn = world({ seats: FIVE, requests: [ask('crank-asks-jet', { closedAt: '2026-11-15T00:45:00.000Z', outcome: 'withdrawn' })] });
+  assert.equal(open('crank', 'crank-asks-jet', { data: withdrawn }), NO_REQUEST);
+  assert.equal(open('crank', 'crank-asks-jet', { now: '2026-12-14T01:00:00.000Z' }), NO_REQUEST, 'it lapsed at its until date');
+  assert.equal(open('crank', 'smokey-asks-jet'), NO_VOTE_NEEDED, 'the holder asked: a third board member confirms it');
+  assert.equal(open('lou'), BOARD_RECORDS_ACTING);
+  assert.equal(open('jet'), NOT_YOURSELF);
+  assert.equal(open('crank', 'crank-asks-jet', { data: world({ requests: [ask('crank-asks-jet')] }) }), SMALL_BOARD);
+  assert.equal(open('crank', 'crank-asks-jet', { closesAt: hoursFrom(AT_NOW, 47) }), ACTING_VOTE_OPEN);
+  assert.equal(open('crank', 'crank-asks-jet', { closesAt: hoursFrom(AT_NOW, 48) }), null, '48 hours is enough');
+  assert.equal(open('crank', 'crank-asks-jet', { quorum: 2 }), 'Quorum must be between 3 and 3.', 'worked out on Crank, Gus and Ned');
+  assert.equal(open('crank', 'crank-asks-jet', { closesAt: hoursFrom(AT_NOW, 61 * 24) }), 'Votes can stay open for 60 days at most.');
+  assert.equal(open('crank', 'crank-asks-jet', { meeting: 'mt-none' }), 'No such meeting.');
+  // The Auditor in West's VP seat stays out of a President seat (11.8).
+  const west = world({
+    without: ['rusty-president'],
+    seats: [seat('kim-west-vp', 'kim', 'west', 'vice_president'), seat('spanner-saa', 'spanner', 'west', 'sergeant_at_arms')],
+    requests: [ask('torque-asks-hal', { chapterId: 'west', memberId: 'hal', covers: null, requestedBy: 'torque', why: 'No President since the ACM' })],
+  });
+  assert.equal(open('kim', 'torque-asks-hal', { data: west }), AUDITOR_STAYS_OUT);
+  assert.equal(open('torque', 'torque-asks-hal', { data: west }), null);
+});
+
+test('the stint warning on opening', () => {
+  const later = '2026-12-20T08:00:00.000Z';
+  const lastDay = '2026-12-13T08:00:00.000Z';
+  // NEC: Jet covers Smokey until 13/12, so after that Smokey casts North's ballot.
+  const covered = world({ seats: [JET_COVERS] });
+  const nec = input({ chapterId: null, electorate: 'nec', quorum: 1, closesAt: later });
+  assert.deepEqual(stintVoteWarnings(nec, covered, AT), ['Jet’s acting ends 13/12. Close before then, or Smokey votes for North instead.']);
+  assert.deepEqual(stintVoteWarnings({ ...nec, closesAt: lastDay }, covered, AT), [], 'closing on his last day is fine');
+  // The sitting VP recorded Acting President casts it as VP once the stint ends.
+  const vp = world({ without: ['smokey-president'], seats: [stint('jet-acting-president', 'jet', 'north', 'president', { appointedBy: 'crank' })] });
+  assert.deepEqual(stintVoteWarnings(nec, vp, AT), []);
+  const nobody = world({ without: ['smokey-president', 'jet-vp'], seats: [stint('ned-acting-president', 'ned', 'north', 'president', { actingVote: 'v-acting' })] });
+  assert.deepEqual(stintVoteWarnings(nec, nobody, AT), ['Ned’s acting ends 13/12. Close before then, or Ned can’t vote.']);
+  // A board vote: Crank, acting in North's empty Treasurer seat with no seat of his own, loses his ballot.
+  const board = input({ chapterId: 'north', quorum: 3, closesAt: later });
+  const crank = world({ without: ['crank-rc'], seats: [stint('crank-acting-treasurer', 'crank', 'north', 'treasurer')] });
+  assert.deepEqual(stintVoteWarnings(board, crank, AT), ['Crank’s acting ends 13/12. Close before then, or Crank can’t vote.']);
+  assert.deepEqual(stintVoteWarnings({ ...board, closesAt: lastDay }, crank, AT), []);
+  const seated = world({ seats: [stint('crank-acting-treasurer', 'crank', 'north', 'treasurer')] });
+  assert.deepEqual(stintVoteWarnings(board, seated, AT), [], 'his own seat keeps his ballot');
+  assert.deepEqual(stintVoteWarnings(board, covered, AT), [], 'a cover takes no ballot away');
+});
+
+test('the board can’t vote on a request whose covered seat has ended: it lapsed with the seat', () => {
+  // Smokey's President row ended yesterday, so Crank's request for Jet to cover it has lapsed.
+  const gone = world({ seats: FIVE, ended: { 'smokey-president': '2026-11-14' }, requests: [ask('crank-asks-jet')] });
+  const request = gone.actingRequests![0];
+  assert.equal(openActingVoteProblem(who(gone, 'crank'), request, 3, hoursFrom(AT_NOW, 7 * 24), null, gone, AT_NOW), NO_REQUEST);
+  assert.equal(openActingVoteProblem(null, request, 3, hoursFrom(AT_NOW, 7 * 24), null, gone, AT_NOW), 'Sign in first.');
+});
+
+test('the Auditor on a board doesn’t open a vote to end acting in a President or Treasurer seat (11.8)', () => {
+  // West without Penny: Kim (the Auditor) is VP, Spanner SAA, Hal Acting Treasurer, Penny Acting Road Captain.
+  const west = world({
+    without: ['penny-treasurer'],
+    seats: [
+      seat('kim-west-vp', 'kim', 'west', 'vice_president'), seat('spanner-saa', 'spanner', 'west', 'sergeant_at_arms'),
+      stint('hal-acting-treasurer', 'hal', 'west', 'treasurer', { appointedBy: 'rusty' }),
+      stint('penny-acting-rc', 'penny', 'west', 'road_captain', { appointedBy: 'rusty' }),
+    ],
+  });
+  const end = (me: string, subject: string, role: PositionRole) => openVoteProblem(who(west, me), {
+    chapterId: 'west', meetingId: null, subjectMemberId: subject, subjectRole: role, question: 'End their acting?', details: null,
+    electorate: 'chapter_board', threshold: 'majority', secret: false, quorum: 3, closesAt: hoursFrom(AT_NOW, 7 * 24),
+  }, west, AT_NOW);
+  assert.equal(end('kim', 'hal', 'treasurer'), AUDITOR_STAYS_OUT);
+  assert.equal(end('torque', 'hal', 'treasurer'), null);
+  assert.equal(end('kim', 'penny', 'road_captain'), null, 'a Road Captain seat is hers to vote on');
+});
+
+test('a vote is about acting from the day it opens: on a board seat only acting takes the board’s majority shape', () => {
+  const plain = world();
+  const about = (over: Partial<Vote>, data: ClubData) => aboutActing(
+    vote({ chapterId: 'north', subjectMemberId: 'jet', subjectRole: 'treasurer', electorate: 'chapter_board', threshold: 'majority', ...over }),
+    data.positions,
+  );
+  assert.equal(about({}, plain), true, 'a vote to end acting stays one once the stint has ended');
+  const crank = world({ seats: [stint('crank-acting-treasurer', 'crank', 'north', 'treasurer')] });
+  assert.equal(about({ subjectMemberId: 'crank', electorate: 'chapter_patched', threshold: 'two_thirds' }, crank), false, 'a 9.3 vote of the Full Members never is');
+  // A non-board role's removal takes the board's majority shape too, so there it goes by the stint.
+  const ned = world({ seats: [stint('ned-acting-tg', 'ned', 'north', 'tail_gunner')] });
+  assert.equal(about({ subjectMemberId: 'ned', subjectRole: 'tail_gunner' }, ned), true);
+  assert.equal(about({ subjectMemberId: 'ned', subjectRole: 'tail_gunner' }, plain), false);
+  assert.equal(about({ actingRequestId: 'ar-1', subjectRole: 'president' }, plain), true, 'a vote on a request');
+  assert.equal(about({ subjectMemberId: null, subjectRole: null }, plain), false);
+});
+
+test('one person who casts two chapters’ NEC votes gets one ballot, for the chapter whose name comes first', () => {
+  // Rusty, West's President, is North's President here too.
+  const two = world({ without: ['smokey-president'], seats: [seat('rusty-north-president', 'rusty', 'north', 'president')] });
+  const ids = electorsFor('nec', null, two);
+  assert.deepEqual(ids, ['rusty']);
+  assert.deepEqual(necElectorChapters(ids, two), { rusty: 'north' });
+  const renamed = { ...two, chapters: two.chapters.map((c) => (c.id === 'north' ? { ...c, name: 'Zeehan' } : c)) };
+  assert.deepEqual(necElectorChapters(ids, renamed), { rusty: 'west' }, 'by name, not by id');
+});
+
+test('a voter before the opening day for two chapters takes the uncast ballot of the one whose name comes first', () => {
+  // Both Presidents named on the vote have gone; Jet was VP of both before it opened.
+  const data = world({ seats: [seat('jet-west-vp', 'jet', 'west', 'vice_president')], ended: { 'smokey-president': AT, 'rusty-president': AT } });
+  const v = necVote('smokey');
+  assert.equal(ballotRowFor(who(data, 'jet'), v, AT_NOW, data), 'smokey', 'North before West');
+  const renamed = { ...data, chapters: data.chapters.map((c) => (c.id === 'north' ? { ...c, name: 'Zeehan' } : c)) };
+  assert.equal(ballotRowFor(who(renamed, 'jet'), v, AT_NOW, renamed), 'rusty', 'by name, not by id');
 });

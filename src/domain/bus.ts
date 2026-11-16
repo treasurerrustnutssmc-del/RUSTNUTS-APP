@@ -3,7 +3,8 @@
 // decide_bus and cancel_bus actions apply, in the same order with the same words, so the app never
 // offers what the server would refuse.
 
-import { activePositions, isNational } from './access';
+import { isNational } from './access';
+import { heldPositions } from './acting';
 import { charCount } from './chat';
 import { byName } from './crew';
 import { addDays, daysBetween, formatAuDate } from './dates';
@@ -100,13 +101,13 @@ export function formatDays(first: string, last: string): string {
 }
 
 /**
- * Who says yes or no: an approved member on the NEC (`isNational`), or with a sitting board seat
- * in any chapter. Mirrors private.manages_bus.
+ * Who says yes or no: an approved member on the NEC (`isNational`), or with a held board seat
+ * in any chapter, covered or not. Mirrors private.manages_bus.
  */
 export function managesBus(me: Member | null, data: ClubData): boolean {
   if (!me || me.approval !== 'approved') return false;
   if (isNational(me.id, data.positions)) return true;
-  return activePositions(me.id, data.positions).some((p) => p.chapterId !== null && BOARD_ROLES.includes(p.role));
+  return heldPositions(me.id, data.positions).some((p) => p.chapterId !== null && BOARD_ROLES.includes(p.role));
 }
 
 /** Who can book: approved Full and Nomad members, plus bus managers. */

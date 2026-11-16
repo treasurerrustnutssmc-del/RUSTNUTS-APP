@@ -15,7 +15,8 @@ import {
 } from '../domain/meetings';
 import { melbourneDate } from '../domain/rides';
 import type { BallotChoice, ClubData, Meeting, Tally, Vote } from '../domain/types';
-import { castProblem, closeProblem, electorsFor, openVoteProblem, outcome, type Casting, type VoteInput } from '../domain/votes';
+import { settleActing } from '../domain/acting';
+import { ballotRowFor, castProblem, closeProblem, electorsFor, necElectorChapters, openVoteProblem, outcome, type Casting, type VoteInput } from '../domain/votes';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
 
@@ -105,8 +106,18 @@ export function setActionDone(ctx: DemoCtx, id: string, done: boolean): ClubData
   return { ...ctx.data, actionItems: items.map((a) => (a.id === id ? { ...a, doneOn } : a)) };
 }
 
+/**
+ * Opens a vote on the club as it stands now (settled, as public.open_vote runs the lazy close). An
+ * NEC ballot is written with the chapter it belongs to, so it can pass to that chapter's voter;
+ * someone who casts two chapters' votes gets one ballot (necElectorChapters).
+ */
 export function openVote(ctx: DemoCtx, input: VoteInput): { data: ClubData; id: string } {
-  refuse(openVoteProblem(ctx.me, input, ctx.data, nowOf(ctx)));
+  const now = nowOf(ctx);
+  const data = settleActing(ctx.data, melbourneDate(now));
+  refuse(openVoteProblem(ctx.me, input, data, now));
+  const electorIds = electorsFor(input.electorate, input.chapterId, data, { memberId: input.subjectMemberId, role: input.subjectRole });
+  // One ballot each, for the chapter it belongs to (one per person, as vote_electors holds them).
+  const electorChapters = input.electorate === 'nec' ? necElectorChapters(electorIds, data) : {};
   const vote: Vote = {
     id: newId('v'),
     chapterId: input.chapterId,
@@ -119,30 +130,45 @@ export function openVote(ctx: DemoCtx, input: VoteInput): { data: ClubData; id: 
     threshold: input.threshold,
     secret: input.secret,
     quorum: input.quorum,
-    openedAt: nowOf(ctx),
+    openedAt: now,
     closesAt: input.closesAt,
     closedAt: null,
     result: null,
     castingVote: null,
     tally: null,
-    electorIds: electorsFor(input.electorate, input.chapterId, ctx.data),
+    electorIds,
     votedIds: [],
     ballots: [],
     createdBy: ctx.me!.id,
+    electorChapters,
   };
-  return { data: { ...ctx.data, votes: [...votesOf(ctx.data), vote] }, id: vote.id };
+  return { data: { ...data, votes: [...votesOf(data), vote] }, id: vote.id };
 }
 
 function patchVote(data: ClubData, id: string, patch: Partial<Vote>): ClubData {
   return { ...data, votes: votesOf(data).map((v) => (v.id === id ? { ...v, ...patch } : v)) };
 }
 
-/** The demo keeps every ballot on the vote (a secret one without its voter); screens show them only once closed. */
+/**
+ * The demo keeps every ballot on the vote (a secret one without its voter); screens show them only
+ * once closed. An uncast NEC ballot taken over by its chapter's voter moves to them, as
+ * public.cast_ballot moves the elector row's member.
+ */
 export function castBallot(ctx: DemoCtx, voteId: string, choice: BallotChoice): ClubData {
-  const vote = votesOf(ctx.data).find((v) => v.id === voteId);
-  refuse(castProblem(ctx.me, vote, nowOf(ctx)));
+  const now = nowOf(ctx);
+  const data = settleActing(ctx.data, melbourneDate(now));
+  const vote = votesOf(data).find((v) => v.id === voteId);
+  refuse(castProblem(ctx.me, vote, now, data));
   const me = ctx.me!.id;
-  return patchVote(ctx.data, voteId, {
+  const row = ballotRowFor(ctx.me!, vote!, now, data)!;
+  const moved = row === me
+    ? {}
+    : {
+        electorIds: vote!.electorIds.map((id) => (id === row ? me : id)).sort(),
+        electorChapters: Object.fromEntries(Object.entries(vote!.electorChapters ?? {}).map(([id, c]) => [id === row ? me : id, c])),
+      };
+  return patchVote(data, voteId, {
+    ...moved,
     votedIds: [...vote!.votedIds, me].sort(),
     ballots: [...vote!.ballots, { memberId: vote!.secret ? null : me, choice }],
   });

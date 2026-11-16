@@ -5,8 +5,11 @@
 // (supabase/migrations/20270101000200_treasurer.sql) apply the same rules with the same words.
 
 import { activePositions, holdsBoardSeat, isAuditor } from './access';
+import { clubwidePositions, heldAllOf, heldPositions, heldSometimeOn, isActing } from './acting';
 import { fyOf } from './fees';
+import { BOARD_ROLES } from './labels';
 import { signedInProblem } from './meetings';
+import { displayName } from './profile';
 import { melbourneDate } from './rides';
 import type {
   Budget, ClubData, LedgerCode, LedgerEntry, Member, MonthReport, Payment, Position, Vote,
@@ -44,29 +47,39 @@ export const BANK_WITHIN_WORKING_DAYS = 5;
 export const isCredit = (code: string): boolean => (CREDIT_CODES as string[]).includes(code);
 export const isDebit = (code: string): boolean => (DEBIT_CODES as string[]).includes(code);
 
+/** Does the duties of a row that passes `test` (src/domain/acting.ts's duties reading). */
 const holds = (me: Member, positions: Position[], test: (p: Position) => boolean) =>
   activePositions(me.id, positions).some(test);
+/** Holds a club-wide row that passes `test`: a duty row that isn't acting. */
+const holdsClubwide = (me: Member, positions: Position[], test: (p: Position) => boolean) =>
+  clubwidePositions(me.id, positions).some(test);
 const approved = (me: Member | null): me is Member => !!me && me.approval === 'approved';
 const isNecMoney = (p: Position) => p.role === 'nec_chair' || p.role === 'nec_secretary';
 
 /**
- * Keeps a fund's books: its chapter's Treasurer, or the National Chairman or Secretary. The Club
- * fund's books are kept by any chapter Treasurer too, standing in for the Association Treasurer (inferred).
+ * Keeps a fund's books: its chapter's Treasurer (an acting one, or a Treasurer's stand-in,
+ * included), or the National Chairman or Secretary. The Club fund's books are kept by any chapter
+ * Treasurer too, standing in for the Association Treasurer (inferred), though never an acting or
+ * covered one. Mirrors private.keeps_books.
  */
 export function keepsBooks(me: Member | null, chapterId: string | null, positions: Position[]): boolean {
   if (!approved(me)) return false;
-  return holds(me, positions, (p) => isNecMoney(p) || (p.role === 'treasurer' && (chapterId === null || p.chapterId === chapterId)));
+  if (holds(me, positions, isNecMoney)) return true;
+  return chapterId === null
+    ? holdsClubwide(me, positions, (p) => p.role === 'treasurer')
+    : holds(me, positions, (p) => p.role === 'treasurer' && p.chapterId === chapterId);
 }
 
 /**
- * Can approve a fund's spending (13.3): a chapter's board seats, or for the Club fund the sitting
- * Presidents; the National Chairman and Secretary for both. Never the National Auditor (11.8).
+ * Can approve a fund's spending (13.3): a chapter's board members (a covered holder and an acting
+ * one included), or for the Club fund the sitting Presidents, none of them acting or covered; the
+ * National Chairman and Secretary for both. Never the National Auditor (11.8). Mirrors private.approves_for.
  */
 export function approvesFor(me: Member | null, chapterId: string | null, positions: Position[]): boolean {
   if (!approved(me)) return false;
   if (holds(me, positions, isNecMoney)) return true;
   return chapterId === null
-    ? holds(me, positions, (p) => p.role === 'president')
+    ? holdsClubwide(me, positions, (p) => p.role === 'president')
     : holdsBoardSeat(me.id, chapterId, positions);
 }
 
@@ -105,6 +118,13 @@ export const BUDGET_LOCKED = 'That budget is approved and locked. Reopen it to c
 export const BUDGET_BOARD = 'Only that fund’s board, or the National Chairman or Secretary, approves its budget.';
 export const BUDGET_STALE_VOTE = 'That vote closed before the budget’s last change. It needs a new vote (13.4).';
 export const PAID_BEFORE_APPROVED = 'It can’t be paid before it was approved (13.3).';
+// Two independent approvers (13.3, 9.5). The same words as private.approval_conflict.
+export const independentSeated = (name: string) =>
+  `You’re acting because ${name} put you there, so you can’t be the second approver on their entry (13.3).`;
+export const independentPlanted = (name: string) =>
+  `${name} is acting because you put them there, so you can’t be the second approver after them (13.3).`;
+export const independentStandIn = (name: string) =>
+  `You’re covering ${name}’s seat, so their payment goes to the other approvers (13.3).`;
 
 const isAmount = (cents: number) => Number.isInteger(cents) && cents > 0;
 const isIsoDate = (s: string | null | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -170,6 +190,66 @@ export function debitProblem(me: Member | null, input: DebitInput, data: ClubDat
 
 const entryOf = (id: string, data: ClubData) => (data.ledger ?? []).find((e) => e.id === id);
 
+/** A board row in the entry's fund's chapter (none for the Club fund). */
+const fundBoardRow = (p: Position, chapterId: string | null) =>
+  chapterId !== null && p.chapterId === chapterId && BOARD_ROLES.includes(p.role);
+/** Gives the fund a full footing: a non-acting board row in its chapter, or the National Chairman or Secretary. */
+const fullFooting = (p: Position, chapterId: string | null) => !isActing(p) && (fundBoardRow(p, chapterId) || isNecMoney(p));
+/** Who put an acting row there: whoever recorded or confirmed it, and whoever asked for it. */
+function putThereBy(p: Position, data: ClubData): string[] {
+  const askedBy = p.actingRequestId ? (data.actingRequests ?? []).find((r) => r.id === p.actingRequestId)?.requestedBy : null;
+  return [p.appointedBy, askedBy].filter((x): x is string => !!x);
+}
+
+/**
+ * Whether approving would pair `memberId` with someone who put them in an acting seat, or the
+ * other way round, or make the payee's stand-in an approver (13.3, 9.5). "Put there by" is a
+ * stint's appointedBy, or the requestedBy of the request it was confirmed from. "Stands only
+ * through acting" is an acting board row in the fund's chapter with no non-acting board row there
+ * and no National Chairman or Secretary row, so nobody does on the Club fund. The member is judged
+ * by their held rows now (settled data); each approver already counted by their rows on the day
+ * they approved: a stint held at any time that day, a full row only if held all day, so a later or
+ * same-day step-down, lapse or seating changes nothing. Null, or the refusal's words. Mirrors
+ * private.approval_conflict, check for check and in its order.
+ */
+export function approvalConflict(memberId: string, entry: LedgerEntry, data: ClubData): string | null {
+  const nameOf = (id: string) => {
+    const m = data.members.find((x) => x.id === id);
+    return m ? displayName(m) : null;
+  };
+  const counted = entry.approvals
+    .filter((a) => a.memberId !== memberId)
+    .sort((a, b) => a.approvedAt.localeCompare(b.approvedAt) || a.memberId.localeCompare(b.memberId));
+  const mine = heldPositions(memberId, data.positions);
+  // Seated: the member stands only through stints that the recorder, the payee or an approver
+  // already counted put there.
+  if (!mine.some((o) => fullFooting(o, entry.chapterId))) {
+    const putters = new Set(mine.filter((h) => isActing(h) && fundBoardRow(h, entry.chapterId)).flatMap((h) => putThereBy(h, data)));
+    for (const x of [entry.recordedBy, entry.payeeMemberId, ...counted.map((a) => a.memberId)]) {
+      const who = x && x !== memberId && putters.has(x) ? nameOf(x) : null;
+      if (who) return independentSeated(who);
+    }
+  }
+  // Planted: an approver already counted stood only through acting the day they approved, in a
+  // stint the member put there.
+  for (const a of counted) {
+    const day = melbourneDate(a.approvedAt);
+    const theirs = data.positions.filter((p) => p.memberId === a.memberId);
+    if (theirs.some((o) => fullFooting(o, entry.chapterId) && heldAllOf(o, day))) continue;
+    const planted = theirs.some((h) =>
+      isActing(h) && fundBoardRow(h, entry.chapterId) && heldSometimeOn(h, day) && putThereBy(h, data).includes(memberId));
+    const who = planted ? nameOf(a.memberId) : null;
+    if (who) return independentPlanted(who);
+  }
+  // The payee's stand-in, in any fund: their payment goes to the other approvers.
+  for (const c of mine) {
+    const covered = c.covers ? data.positions.find((p) => p.id === c.covers) : undefined;
+    const who = covered && entry.payeeMemberId !== null && covered.memberId === entry.payeeMemberId ? nameOf(covered.memberId) : null;
+    if (who) return independentStandIn(who);
+  }
+  return null;
+}
+
 export function approveProblem(me: Member | null, entryId: string, data: ClubData): string | null {
   const signedIn = signedInProblem(me);
   if (signedIn) return signedIn;
@@ -179,7 +259,7 @@ export function approveProblem(me: Member | null, entryId: string, data: ClubDat
   if (entry.state !== 'awaiting') return 'That isn’t waiting for approval.';
   if (entry.payeeMemberId === me!.id) return PAYEE_CANT_APPROVE;
   if (entry.approvals.some((a) => a.memberId === me!.id)) return 'You’ve already approved this.';
-  return null;
+  return approvalConflict(me!.id, entry, data);
 }
 
 export function payProblem(me: Member | null, entryId: string, paidOn: string, data: ClubData, today: string): string | null {

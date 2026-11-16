@@ -47,6 +47,8 @@ export type RootParams = {
   OtterGuide: undefined; // the secretary's guide to Draft from Otter
   EditMeeting: { meetingId?: string; chapterId?: string | null } | undefined;
   Vote: { voteId: string };
+  // A subject and role they hold as acting opens the vote to end that acting (9.3), a chapter board
+  // majority: NewVote finds the stint itself (stintAbout), so there's no flag for it.
   NewVote: { chapterId?: string | null; meetingId?: string; subjectMemberId?: string; subjectRole?: PositionRole } | undefined;
   // ride crew
   PickCrew: { rideId: string; role: CrewRole };

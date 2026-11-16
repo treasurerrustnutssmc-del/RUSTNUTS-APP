@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PGBIN="$(dirname "$(ls /usr/lib/postgresql/*/bin/initdb | sort -V | tail -1)")"
 WORK="$(mktemp -d)"
-PORT=54329
+PORT="${TEST_DB_PORT:-54329}"
 trap '"$PGBIN/pg_ctl" -D "$WORK/data" -m immediate stop >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
 
 run_pg() {
@@ -592,5 +592,79 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_no_passwords -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_no_passwords -f "$ROOT/supabase/tests/no_passwords_test.sql"
+
+# Acting in a role, until a date, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_acting" >/dev/null
+"${PSQL[@]}" -d rustnuts_acting -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_acting -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_acting -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_acting -f "$ROOT/supabase/tests/acting_test.sql"
+# The acting migration on a database with open NEC votes: each open NEC ballot gets the chapter of
+# its elector's open President seat, else their VP seat, else their own chapter. Nothing else moves.
+"${PSQL[@]}" -c "create database rustnuts_acting_backfill" >/dev/null
+"${PSQL[@]}" -d rustnuts_acting_backfill -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  [[ "$(basename "$f")" < "20270870000000" ]] || continue
+  "${PSQL[@]}" -d rustnuts_acting_backfill -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_acting_backfill -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_acting_backfill >/dev/null <<'SQL'
+insert into public.chapters (slug, name, area, state) values ('east', 'East', 'Eastern Melbourne', 'VIC'), ('south', 'South', 'Southern Melbourne', 'VIC');
+insert into auth.users (id, email, email_confirmed_at)
+select ('00000000-0000-0000-0000-00000000000' || n)::uuid, 'b' || n || '@example.com', now() from generate_series(1, 5) n;
+-- 1 Smokey (South): West VP since January, North President since June. 2 Jet (North): East VP.
+-- 3 Crank (West): no seat. 4 Lou (North): South President until September, East Secretary since.
+-- 5 Ned (West): West President, on a closed NEC vote and an open board vote only.
+insert into public.members (id, chapter_id, full_name, status, approval)
+select ('00000000-0000-0000-0000-00000000000' || n)::uuid, (select id from public.chapters where slug = ch), name, 'full', 'approved'
+from (values (1, 'south', 'Smokey Stone'), (2, 'north', 'Jet Black'), (3, 'west', 'Crank Shaw'),
+  (4, 'north', 'Lou Reed'), (5, 'west', 'Ned Kelly')) as v(n, ch, name);
+insert into public.positions (member_id, chapter_id, role, started_on, ended_on)
+select ('00000000-0000-0000-0000-00000000000' || n)::uuid, (select id from public.chapters where slug = ch), r::public.position_role, s::date, e::date
+from (values (1, 'west', 'vice_president', '2026-01-01', null), (1, 'north', 'president', '2026-06-01', null),
+  (2, 'east', 'vice_president', '2026-03-01', null), (4, 'south', 'president', '2026-01-01', '2026-09-01'),
+  (4, 'east', 'secretary', '2026-09-02', null), (5, 'west', 'president', '2026-01-01', null)) as v(n, ch, r, s, e);
+insert into public.votes (id, chapter_id, question, electorate, threshold, quorum, opened_at, closes_at, closed_at, result) values
+  ('00000000-0000-0000-0000-000000000101', null, 'Open NEC vote', 'nec', 'majority', 2, now() - interval '1 day', now() + interval '6 days', null, null),
+  ('00000000-0000-0000-0000-000000000102', null, 'Closed NEC vote', 'nec', 'majority', 2, now() - interval '9 days', now() - interval '2 days', now() - interval '2 days', 'carried'),
+  ('00000000-0000-0000-0000-000000000103', (select id from public.chapters where slug = 'west'), 'Open board vote', 'chapter_board', 'majority', 2,
+    now() - interval '1 day', now() + interval '6 days', null, null);
+insert into public.vote_electors (vote_id, member_id)
+select ('00000000-0000-0000-0000-000000000' || v)::uuid, ('00000000-0000-0000-0000-00000000000' || n)::uuid
+from (values (101, 1), (101, 2), (101, 3), (101, 4), (102, 5), (103, 5)) as e(v, n);
+SQL
+"${PSQL[@]}" -d rustnuts_acting_backfill -f "$ROOT/supabase/migrations/20270870000000_acting_roles.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_acting_backfill >/dev/null <<'SQL'
+do $$
+declare
+  open_nec constant uuid := '00000000-0000-0000-0000-000000000101';
+  ch uuid;
+begin
+  select for_chapter into ch from public.vote_electors where vote_id = open_nec and member_id = '00000000-0000-0000-0000-000000000001';
+  assert ch = (select id from public.chapters where slug = 'north'), 'Smokey''s ballot is North''s: his President seat, before his older VP seat';
+  select for_chapter into ch from public.vote_electors where vote_id = open_nec and member_id = '00000000-0000-0000-0000-000000000002';
+  assert ch = (select id from public.chapters where slug = 'east'), 'Jet''s is East''s: his VP seat, not his own chapter';
+  select for_chapter into ch from public.vote_electors where vote_id = open_nec and member_id = '00000000-0000-0000-0000-000000000003';
+  assert ch = (select id from public.chapters where slug = 'west'), 'Crank has no seat: his own chapter';
+  select for_chapter into ch from public.vote_electors where vote_id = open_nec and member_id = '00000000-0000-0000-0000-000000000004';
+  assert ch = (select id from public.chapters where slug = 'north'), 'Lou''s ended President seat and Secretary seat don''t count: his own chapter';
+  assert not exists (select 1 from public.vote_electors where vote_id <> open_nec and for_chapter is not null),
+    'a closed NEC vote and a board vote are left alone';
+end $$;
+SQL
+echo 'The acting migration gives each open NEC ballot its chapter: President seat, then VP seat, then their own'
+# Pasted again, as one transaction, it stops at once and says it is already in. Pasted again in a
+# client that keeps going after errors, the backfill only fills empty values, so an open NEC ballot
+# keeps the chapter open_vote or cast_ballot gave it.
+"${PSQL[@]}" -d rustnuts_acting_backfill -c "update public.vote_electors set for_chapter = (select id from public.chapters where slug = 'west') where vote_id = '00000000-0000-0000-0000-000000000101' and member_id = '00000000-0000-0000-0000-000000000001'" >/dev/null
+again="$("${PSQL[@]}" -d rustnuts_acting_backfill --single-transaction -f "$ROOT/supabase/migrations/20270870000000_acting_roles.sql" 2>&1 || true)"
+grep -q 'The acting roles migration is already in' <<<"$again" \
+  || { echo "A second paste of the acting migration didn't say it is already in: $again"; exit 1; }
+psql -h "$WORK" -p "$PORT" -U postgres -q -X -d rustnuts_acting_backfill -f "$ROOT/supabase/migrations/20270870000000_acting_roles.sql" >/dev/null 2>&1 || true
+[ "$("${PSQL[@]}" -d rustnuts_acting_backfill -tAc "select c.slug from public.vote_electors e join public.chapters c on c.id = e.for_chapter where e.vote_id = '00000000-0000-0000-0000-000000000101' and e.member_id = '00000000-0000-0000-0000-000000000001'")" = west ] \
+  || { echo 'A second paste of the acting migration moved an open NEC ballot to another chapter'; exit 1; }
+echo 'A second paste of the acting migration says it is already in, and moves no NEC ballot'
 
 echo 'ALL DATABASE CHECKS PASSED'

@@ -1,12 +1,13 @@
-// Ride reminders, set on the phone itself: after every load the phone schedules the reminders the
-// plan wants and cancels the rest (an answer changed, a ride moved or was cancelled, reminders turned
-// off, someone else signed in). The club sends nothing.
+// Ride and acting reminders, set on the phone itself: after every load the phone schedules the
+// reminders the plan wants and cancels the rest (an answer changed, a ride moved or was cancelled,
+// reminders turned off, a stint's date changed or it ended, someone else signed in). The club sends
+// nothing: the acting person and the covered holder hear 7 days and 1 day before a stint's until date.
 
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
-import { DEFAULT_PREFS, reminderDiff, reminderPlan, type Reminder } from '../domain/notifications';
+import { actingReminderPlan, DEFAULT_PREFS, reminderDiff, reminderPlan, type Reminder } from '../domain/notifications';
 import { mayAskAutomatically } from '../domain/notifyIntro';
 import { useClub } from './ClubStore';
 import { ensureChannels } from './notificationChannels';
@@ -65,10 +66,15 @@ export function ReminderSync() {
   // Undefined: the settings couldn't be read, so leave the phone's reminders as they are.
   const unknown = !!me && data.notificationPrefs === undefined;
   const prefs = data.notificationPrefs ?? DEFAULT_PREFS;
-  // Recomputed when the data changes; the time only matters for dropping reminders already past.
+  // Recomputed when the data changes; the time only matters for dropping reminders already past. The
+  // data is settled, so a stint that ended tonight drops its reminders on the next render.
   const plan = useMemo(
-    () => reminderPlan(data.rides, data.rsvps, me?.id ?? null, prefs, new Date().toISOString(), data.rideCalls),
-    [data.rides, data.rsvps, me?.id, prefs, data.rideCalls],
+    () => {
+      const now = new Date().toISOString();
+      return [...reminderPlan(data.rides, data.rsvps, me?.id ?? null, prefs, now, data.rideCalls), ...actingReminderPlan(me?.id ?? null, data, now, prefs)];
+    },
+    // All of data: the provider memoises it (settled to today), and the acting plan reads many parts.
+    [data, me?.id, prefs],
   );
   const key = JSON.stringify(plan.map((r) => [r.id, r.at, r.body, r.sound]));
   useEffect(() => {

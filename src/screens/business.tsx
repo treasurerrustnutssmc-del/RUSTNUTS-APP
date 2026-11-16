@@ -32,8 +32,11 @@ import {
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
 import type { ActionItem, AgendaItem, BallotChoice, ClubData, Electorate, Meeting, MeetingKind, Member, NecSeatRole, PositionRole, Threshold, Vote } from '../domain/types';
-import { auditorSeat, isNecSeat } from '../domain/access';
-import { castProblem, chairOf, defaultQuorum, electorsFor, isRemovalVote, lacksChapters, REINSTATABLE, removalShape, ruleLine, TIE } from '../domain/votes';
+import { auditorSeat, isNecSeat, SMALL_BOARD } from '../domain/access';
+import {
+  aboutActing, ACTING_VOTE_HOURS, ACTING_VOTE_OPEN, actingVoteNote, castProblem, chairOf, defaultQuorum, electorsFor, endActingQuestion, isRemovalVote, lacksChapters, REINSTATABLE, removalShape, ruleLine,
+  stintAbout, stintVoteWarnings, TIE,
+} from '../domain/votes';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
 import {
@@ -532,7 +535,7 @@ export function MeetingScreen({ route, navigation }: RootScreen<'Meeting'>) {
             <ListCard
               items={votes}
               render={(v, last) => (
-                <VoteRow key={v.id} vote={v} needsMe={castProblem(me, v, now) === null} last={last} onPress={() => navigation.navigate('Vote', { voteId: v.id })} />
+                <VoteRow key={v.id} vote={v} needsMe={castProblem(me, v, now, data) === null} last={last} onPress={() => navigation.navigate('Vote', { voteId: v.id })} />
               )}
             />
           ) : null}
@@ -756,13 +759,23 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
   const closed = vote.closedAt !== null;
   const runs = runsScope(me, vote.chapterId, data.positions);
   const iVoted = vote.votedIds.includes(me.id);
-  const castBlock = castProblem(me, vote, now);
+  const castBlock = castProblem(me, vote, now, data);
   const pastTime = new Date(vote.closesAt).getTime() <= new Date(now).getTime();
   const everyone = vote.votedIds.length === vote.electorIds.length;
   const isChair = chairOf(vote.chapterId, data.positions) === me.id;
   const tied = closing.error === TIE;
   const subject = vote.subjectMemberId ? data.members.find((m) => m.id === vote.subjectMemberId) : undefined;
   const share = vote.electorIds.length ? vote.votedIds.length / vote.electorIds.length : 0;
+  // A vote on an acting request seats nobody by itself: a board member who isn't the stand-in confirms it.
+  const seatsActing = (vote.actingRequestId ?? null) !== null;
+  // About acting by the vote's own shape, so a carried vote that ended a stint still reads as one.
+  const aboutActingVote = aboutActing(vote, data.positions);
+  const endsActing = aboutActingVote && !seatsActing;
+  // A vote about acting can't close in its first 48 hours, even once everyone has voted.
+  const earliestClose = new Date(Date.parse(vote.openedAt) + ACTING_VOTE_HOURS * 3_600_000).toISOString();
+  const tooSoon = aboutActingVote && Date.parse(now) < Date.parse(earliestClose);
+  // Its electors leave out the stand-in, on a cover the holder, and on a President or Treasurer seat the Auditor.
+  const actingNote = actingVoteNote(vote, data);
 
   return (
     <Screen>
@@ -770,7 +783,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
         <Row style={{ gap: 6 }}>
           <Chip label={scopeLabel(vote.chapterId, data)} tone="steel" />
           {subject ? (
-            <Chip label={voteKindLabel(vote)} tone="redOutline" />
+            <Chip label={voteKindLabel(vote, endsActing)} tone="redOutline" />
           ) : null}
           {vote.secret ? <Chip label="Secret ballot" tone="bone" icon="lock-closed" /> : null}
         </Row>
@@ -781,6 +794,7 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
           <Fact icon="podium-outline" text={ruleLine(vote)} />
           <Fact icon="time-outline" text={closed ? `Closed ${when(vote.closedAt!)}` : `Closes ${when(vote.closesAt)}`} />
         </Stack>
+        {actingNote ? <Small>{actingNote}</Small> : null}
       </Card>
 
       {closed ? (
@@ -807,11 +821,13 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
                 : `Fewer than ${vote.quorum} ballots came in, so the vote doesn’t count.`}
             </Small>
           ) : null}
-          {subject && vote.result === 'carried' && runs && (vote.electorate !== 'nec' || REINSTATABLE.includes(subject.status) || vote.subjectRole) ? (
+          {subject && vote.result === 'carried' && runs && !seatsActing && (vote.electorate !== 'nec' || REINSTATABLE.includes(subject.status) || vote.subjectRole) ? (
             <Button
               label={
                 isRemovalVote(vote)
-                  ? `End ${displayName(subject)}’s ${ROLE_LABEL[vote.subjectRole!]} term`
+                  ? endsActing
+                    ? `End ${displayName(subject)}’s acting as ${ROLE_LABEL[vote.subjectRole!]}`
+                    : `End ${displayName(subject)}’s ${ROLE_LABEL[vote.subjectRole!]} term`
                   : vote.electorate !== 'nec'
                     ? `Record ${displayName(subject)}’s patch`
                     : vote.subjectRole === 'nec_auditor'
@@ -837,7 +853,8 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
         </Stack>
       )}
 
-      {!closed && vote.electorIds.includes(me.id) ? (
+      {/* An NEC ballot can pass to its chapter's voter (11.2), so whoever could cast one sees it. */}
+      {!closed && (vote.electorIds.includes(me.id) || castBlock === null) ? (
         <Stack gap={space.sm}>
           <SectionTitle title="Your vote" />
           {iVoted ? (
@@ -891,7 +908,9 @@ export function VoteScreen({ route, navigation }: RootScreen<'Vote'>) {
         <Stack gap={space.sm}>
           <SectionTitle title="Close the vote" />
           {subject && vote.threshold === 'majority' ? <Small>No casting vote on a vote about a member: a tie is lost (10.7).</Small> : null}
-          {!pastTime && !everyone ? (
+          {tooSoon ? (
+            <Small>{`${ACTING_VOTE_OPEN} It can be closed from ${when(earliestClose)}.`}</Small>
+          ) : !pastTime && !everyone ? (
             <Small>{`It can be closed once it’s past closing time, or as soon as everyone has voted.`}</Small>
           ) : tied && isChair ? (
             <Card>
@@ -975,11 +994,20 @@ const QUORUM_RULE: Record<Electorate, string> = {
 /** "West", for a sentence that already says "chapter" or "board". */
 const chapterName = (chapterId: string | null, data: ClubData) => data.chapters.find((c) => c.id === chapterId)?.name ?? 'chapter';
 
+/** "Diesel, Sparks or the National Auditor" */
+const orList = (parts: string[]) => (parts.length < 2 ? parts.join('') : `${parts.slice(0, -1).join(', ')} or ${parts[parts.length - 1]}`);
+
 /** What the chip on a vote for a national seat says. */
 const SEAT_VOTE_LABEL: Record<NecSeatRole, string> = { nec_auditor: 'Auditor vote', nec_secretary: 'Secretary vote' };
 
-/** What the chip on a vote about a member says: patch (4.9), removal (9.3), national seat (11.6, 11.8) or NEC reinstatement (5.6). */
-function voteKindLabel(vote: Pick<Vote, 'chapterId' | 'electorate' | 'subjectRole'>): string {
+/**
+ * What the chip on a vote about a member says: acting (on a request to seat someone acting), ending
+ * acting (`endsActing`, by the vote's shape: acting is never discipline, so it doesn't say removal),
+ * patch (4.9), removal (9.3), national seat (11.6, 11.8) or NEC reinstatement (5.6).
+ */
+function voteKindLabel(vote: Pick<Vote, 'chapterId' | 'electorate' | 'subjectRole' | 'actingRequestId'>, endsActing: boolean): string {
+  if ((vote.actingRequestId ?? null) !== null) return 'Acting vote';
+  if (endsActing) return 'End acting vote';
   if (isRemovalVote(vote)) return 'Removal vote';
   if (vote.electorate !== 'nec') return 'Patch vote';
   return vote.subjectRole && isNecSeat(vote.subjectRole) ? SEAT_VOTE_LABEL[vote.subjectRole] : 'NEC vote';
@@ -1000,6 +1028,13 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   // the NEC's on bringing someone back (5.6), or the NEC's two-thirds vote on a Full Member for a national
   // seat: Auditor (11.8) or Secretary (11.6).
   const removal: PositionRole | null = subject && params.subjectRole && !isNecSeat(params.subjectRole) ? params.subjectRole : null;
+  // A removal vote naming a role its subject holds as acting there ends their acting (9.3): a board
+  // majority, without them, the holder they cover and, for a President or Treasurer seat, the Auditor.
+  const stint = removal ? stintAbout(params.chapterId ?? subject!.chapterId, subject!.id, removal, data.positions) : null;
+  // Only a stint it found: a stint that has since lapsed gets the removal form, whose words the rules use.
+  const acting = stint !== null;
+  const coveredId = stint?.covers ? data.positions.find((p) => p.id === stint.covers)?.memberId : undefined;
+  const holder = coveredId ? data.members.find((m) => m.id === coveredId) : undefined;
   const seat = subject?.status === 'full' && params.subjectRole && isNecSeat(params.subjectRole) ? params.subjectRole : null;
   const auditor = seat === 'nec_auditor';
   const secretary = seat === 'nec_secretary';
@@ -1011,10 +1046,10 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
     national ? null : removal ? params.chapterId ?? subject!.chapterId : subject ? subject.chapterId : params.chapterId !== undefined ? params.chapterId : scopes[0] ?? null,
   );
   const [electorate, setElectorate] = useState<Electorate>(
-    national ? 'nec' : removal ? removalShape(removal).electorate : subject ? 'chapter_patched' : electoratesFor(scope)[0],
+    national ? 'nec' : removal ? removalShape(removal, acting).electorate : subject ? 'chapter_patched' : electoratesFor(scope)[0],
   );
   const [threshold, setThreshold] = useState<Threshold>(
-    seat ? 'two_thirds' : removal ? removalShape(removal).threshold : subject && !reinstate ? 'unanimous' : 'majority',
+    seat ? 'two_thirds' : removal ? removalShape(removal, acting).threshold : subject && !reinstate ? 'unanimous' : 'majority',
   );
   const [question, setQuestion] = useState(
     auditor
@@ -1023,13 +1058,15 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
         : `Appoint ${displayName(subject!)} as National Auditor for twelve months?`
       : secretary
         ? `Appoint ${displayName(subject!)} as National Secretary?`
-        : removal
+        : stint
+          ? endActingQuestion(stint, data)
+          : removal
           ? `Remove ${displayName(subject!)} as ${chapterName(params.chapterId ?? subject!.chapterId, data)} ${ROLE_LABEL[removal]}? (9.3)`
           : reinstate ? `Bring ${displayName(subject)} back to Full or Nomad?` : subject ? `Patch ${displayName(subject)} as a Full member?` : '',
   );
   const [details, setDetails] = useState('');
   const [secret, setSecret] = useState(!!subject && !national && !removal);
-  const size = electorsFor(electorate, scope, data).length;
+  const size = electorsFor(electorate, scope, data, { memberId: subject?.id ?? null, role: removal }).length;
   const [quorumText, setQuorumText] = useState<string | null>(null);
   const close = defaultClose();
   const [date, setDate] = useState(close.date);
@@ -1041,6 +1078,12 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
   const dateIso = date.trim() ? parseAuDate(date) : null;
   const hhmm = parseTime(time);
   const closesAt = dateIso && hhmm ? melbourneInstant(dateIso, hhmm) : null;
+  const warnings = closesAt
+    ? stintVoteWarnings(
+      { chapterId: scope, meetingId: null, subjectMemberId: subject?.id ?? null, subjectRole: seat ?? removal, question, details: null, electorate, threshold, secret, quorum, closesAt },
+      data, melbourneDate(nowIso()),
+    )
+    : [];
   const pickScope = (s: string) => {
     const next = s === 'club' ? null : s;
     setScope(next);
@@ -1089,6 +1132,14 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
         <Notice title="NEC vote">
           {`Each chapter’s President votes for their chapter (11.2), and it passes on a majority. If it carries, the NEC can bring ${displayName(subject!)} back to Full or Nomad within 90 days (5.6).`}
         </Notice>
+      ) : acting ? (
+        <Notice title="Vote to end acting">
+          {`The ${chapterName(scope, data)} board votes without ${orList([
+            displayName(subject!),
+            ...(holder ? [displayName(holder)] : []),
+            ...(removal === 'president' || removal === 'treasurer' ? ['the National Auditor (11.8)'] : []),
+          ])}, and it passes on a majority (9.3). ${ACTING_VOTE_OPEN} If it carries, the board can end ${displayName(subject!)}’s acting within 90 days.`}
+        </Notice>
       ) : removal ? (
         <Notice title="Removal vote">
           {BOARD_ROLES.includes(removal)
@@ -1130,7 +1181,7 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
       ) : null}
       {/* A patch vote needs every ballot anyway, so its quorum stays at the least allowed. */}
       {electorate === 'chapter_board' && size < 3 ? (
-        <Small>{`This board has ${size} ${size === 1 ? 'member' : 'members'}. A board vote needs at least three (8.5).`}</Small>
+        <Small>{acting ? SMALL_BOARD : `This board has ${size} ${size === 1 ? 'member' : 'members'}. A board vote needs at least three (8.5).`}</Small>
       ) : !subject || removal ? (
         <Field
           label="Quorum"
@@ -1155,6 +1206,11 @@ export function NewVoteScreen({ route, navigation }: RootScreen<'NewVote'>) {
           <Field label="At" value={time} onChangeText={setTime} placeholder="7 pm" error={time.trim() && !hhmm ? 'Like 7 pm or 19:00.' : null} />
         </View>
       </Row>
+      {warnings.length ? (
+        <Notice tone="warn" title="Acting ends before it closes">
+          {warnings.join(' ')}
+        </Notice>
+      ) : null}
       <ErrorNotice error={action.error} />
       <Button label="Open vote" icon="hand-left" busy={action.busy} onPress={submit} />
     </Screen>

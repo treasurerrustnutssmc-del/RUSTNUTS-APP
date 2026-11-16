@@ -2,7 +2,8 @@
 // set_skills, save_mechanic, archive_mechanic and vouch_mechanic apply the same checks with the
 // same words, in the same order.
 
-import { activePositions, canSeeMember, isNational } from '../access';
+import { canSeeMember, isNational } from '../access';
+import { heldPositions } from '../acting';
 import { BOARD_ROLES } from '../labels';
 import { displayName } from '../profile';
 import { postingRulesProblem } from '../postingRules';
@@ -97,11 +98,11 @@ const LIMITS: { key: keyof Omit<MechanicInput, 'id'>; max: number; words: string
 
 const chars = (s: string) => [...s].length;
 
-/** Holds a board seat in any chapter, or sits on the NEC: lane B's private.is_any_board. */
+/** Holds a board seat in any chapter (covered or not), or sits on the NEC: lane B's private.is_any_board. */
 export function isAnyBoard(me: Member | null, positions: Position[]): boolean {
   if (!me || me.approval !== 'approved') return false;
   if (isNational(me.id, positions)) return true;
-  return activePositions(me.id, positions).some((p) => p.chapterId !== null && BOARD_ROLES.includes(p.role));
+  return heldPositions(me.id, positions).some((p) => p.chapterId !== null && BOARD_ROLES.includes(p.role));
 }
 
 export function skillsProblem(me: Member | null, skills: string[]): string | null {

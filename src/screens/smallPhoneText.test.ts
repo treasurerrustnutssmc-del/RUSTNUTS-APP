@@ -304,3 +304,9 @@ test('Ride replay video: the title still wraps to two lines of 20, and the stop 
   assert.equal(card.match(/\bclip\(/g)?.length, 2, 'no other line is clipped');
   assert.doesNotMatch(card, CLAMP);
 });
+
+test('Audit: a finding’s title shows in full, with its rule', () => {
+  // "Jet casts North’s NEC vote without being formally Acting President (11.2)" is four lines at 360.
+  const tag = tagHolding(read('audit.tsx'), '{c.title}</Text>', 'Text');
+  assert.doesNotMatch(tag, CLAMP);
+});

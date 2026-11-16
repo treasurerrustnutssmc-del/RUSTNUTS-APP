@@ -338,8 +338,9 @@ export function StatusChip({ status }: { status: MemberStatus }) {
   return <Chip label={STATUS_LABEL[status]} tone={statusTone[status]} />;
 }
 
-export function RoleChip({ role }: { role: PositionRole }) {
-  return <Chip label={ROLE_SHORT[role]} tone="bone" />;
+/** A role's chip: the short form ("TREAS"), or the words given, as chipLabel(position, chapters) gives an acting seat ("ACTING TREASURER (NORTH)"). */
+export function RoleChip({ role, label }: { role: PositionRole; label?: string }) {
+  return <Chip label={label ?? ROLE_SHORT[role]} tone="bone" />;
 }
 
 export function Avatar({ text, size = 44 }: { text: string; size?: number }) {
@@ -425,6 +426,7 @@ export function ConfirmButton({
   disabled,
   size,
   confirmAccessibilityLabel,
+  onArmedChange,
 }: {
   label: string;
   confirmLabel: string;
@@ -441,9 +443,19 @@ export function ConfirmButton({
   confirmNote?: string;
   /** Off, and back to the first step if it was armed, while there's a reason it can't go ahead. */
   disabled?: boolean;
+  /**
+   * Told true while the confirm step shows and false once it goes (confirmed, cancelled, turned off
+   * or gone), so a form can hide lines its confirmNote repeats. Pass a stable function, such as a state setter.
+   */
+  onArmedChange?: (armed: boolean) => void;
 }) {
   const [armed, setArmed] = useState(false);
   if (armed && disabled) setArmed(false);
+  useEffect(() => {
+    if (!armed || !onArmedChange) return;
+    onArmedChange(true);
+    return () => onArmedChange(false);
+  }, [armed, onArmedChange]);
   if (!armed || disabled) {
     return (
       <Button

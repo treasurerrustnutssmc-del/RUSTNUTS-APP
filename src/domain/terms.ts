@@ -2,8 +2,10 @@
 // Meeting, Non-Board appointments up to two years (9.2), the National Chairperson two years (11.3),
 // the National Secretary up to two years (11.6) and the National Auditor twelve months (11.8). The
 // two-year terms recorded as beginning 1 August 2026 are preserved (17.6), so an older start date
-// counts from then. Terms can be renewed without limit: end the term and appoint again.
+// counts from then. Terms can be renewed without limit: end the term and appoint again. An acting
+// stint isn't a term: it ends on its until date, its last acting day.
 
+import { isActing, isEnded } from './acting';
 import { daysBetween } from './dates';
 import type { Position } from './types';
 
@@ -16,6 +18,7 @@ function addYears(iso: string, years: number): string {
 }
 
 export function termEndsOn(position: Position): string | null {
+  if (isActing(position)) return position.actingUntil!;
   if (position.role === 'founder') return null;
   if (position.role === 'nec_auditor') return addYears(position.startedOn, 1);
   return addYears(position.startedOn < TERMS_BEGAN ? TERMS_BEGAN : position.startedOn, 2);
@@ -24,7 +27,7 @@ export function termEndsOn(position: Position): string | null {
 /** For a position still held: running, ending within 60 days, or ended (and not yet renewed). */
 export function termState(position: Position, today: string): 'running' | 'ending' | 'ended' | null {
   const ends = termEndsOn(position);
-  if (!ends || position.endedOn !== null) return null;
+  if (!ends || isEnded(position)) return null;
   const days = daysBetween(today, ends);
   if (days < 0) return 'ended';
   return days <= TERM_SOON_DAYS ? 'ending' : 'running';
