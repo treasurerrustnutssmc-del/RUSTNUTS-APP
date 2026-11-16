@@ -10,20 +10,20 @@ const read = (f: string) => fs.readFileSync(path.resolve(import.meta.dirname, f)
 
 test('the author name above a chat message is itself 44pt tall, not just given a bigger invisible area', () => {
   const chat = read('chat.tsx');
-  const at = chat.indexOf('accessibilityLabel={author && !family');
+  const at = chat.indexOf('accessibilityLabel={authorPageLabel(author, data)}');
   const block = chat.slice(at - 500, at + 400);
   assert.match(block, /style=\{styles\.bubbleName\}/);
   // 44 tall under its 8 of top padding, which it takes over from the bubble.
   assert.match(chat, /bubbleName: \{ minHeight: 44 \+ space\.sm, paddingTop: space\.sm,/);
 });
 
-test('the chat name and the message are two buttons side by side, so iPhone VoiceOver can stop on the name', () => {
+test('the chat name and the message are two buttons, the name above the message, so iPhone VoiceOver can stop on the name', () => {
   // VoiceOver treats a button as one item, so a name button inside the message's button can't be reached.
   const chat = read('chat.tsx');
   const start = chat.indexOf('const renderMessage = ');
   const msg = chat.slice(start, chat.indexOf('\n  };\n', start));
   const shell = msg.indexOf('<View style={[styles.bubbleShell');
-  const name = msg.indexOf('accessibilityLabel={author && !family');
+  const name = msg.indexOf('accessibilityLabel={authorPageLabel(author, data)}');
   const body = msg.indexOf('accessibilityHint="Shows reactions and what you can do with this message"');
   assert.ok(shell > 0 && name > shell && body > name, 'shell, then the name button, then the message button');
   // The name button closes before the message button opens: siblings, not nested.
@@ -33,7 +33,21 @@ test('the chat name and the message are two buttons side by side, so iPhone Voic
   assert.match(chat, /bubbleShell: \{ borderRadius: radius\.md \},/);
   assert.match(chat, /bubbleName: \{ minHeight: 44 \+ space\.sm, paddingTop: space\.sm, paddingHorizontal: space\.md, justifyContent: 'center' \},/);
   assert.match(chat, /bubbleBody: \{ paddingHorizontal: space\.md, paddingVertical: space\.sm, gap: 6 \},/);
-  assert.match(msg, /style=\{\[styles\.bubbleBody, showAuthor && \{ paddingTop: 6 \}\]\}/);
+  assert.match(msg, /style=\{\[styles\.bubbleBody, nameLinks && \{ paddingTop: 6 \}\]\}/);
+});
+
+test('a chat name that opens no page (Family viewers, a former member) stays inside the message button', () => {
+  // A disabled button takes no tap, so beside the message it would leave a dead strip; inside, a tap selects the message.
+  const chat = read('chat.tsx');
+  const start = chat.indexOf('const renderMessage = ');
+  const msg = chat.slice(start, chat.indexOf('\n  };\n', start));
+  assert.match(msg, /const nameLinks = showAuthor && author !== undefined && !family;/);
+  assert.match(msg, /\{nameLinks \? \(\s*<Pressable\b/, 'only a name that opens a page is a button of its own');
+  assert.doesNotMatch(msg, /disabled=\{!author \|\| family\}/, 'no disabled name button left beside the message');
+  const body = msg.indexOf('accessibilityHint="Shows reactions and what you can do with this message"');
+  const inside = msg.slice(body, msg.indexOf('</Pressable>', body));
+  assert.match(inside, /\{showAuthor && !nameLinks \? \(\s*<View style=\{styles\.bubbleNameText\}>\s*<AuthorLine member=\{author\} data=\{data\} \/>/);
+  assert.match(chat, /bubbleNameText: \{ minHeight: 44, justifyContent: 'center' \},/);
 });
 
 test('a reaction chip under a message is 44pt tall', () => {

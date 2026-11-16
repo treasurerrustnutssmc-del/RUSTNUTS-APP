@@ -398,6 +398,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     const author = people.find((x) => x.id === m.authorId);
     const isSelected = selected === m.id;
     const showAuthor = first && !mine && conv.kind !== 'direct';
+    // The name is a button of its own only when it opens their page (not for Family viewers or a former member).
+    const nameLinks = showAuthor && author !== undefined && !family;
     const firstLink = m.body ? findLinks(m.body).find((p) => p.url)?.url : undefined;
     const replied = m.replyToId ? messages.find((x) => x.id === m.replyToId) : undefined;
     const removable = removeProblem(me, conv, m, data) === null;
@@ -416,17 +418,16 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           {!mine && conv.kind !== 'direct' ? (
             <View style={{ width: 32 }}>{first && author ? <Avatar text={initials(author)} size={32} /> : null}</View>
           ) : null}
-          {/* The name and the message are two buttons side by side in one bubble, not one inside the other:
+          {/* The name and the message are two buttons in one bubble, the name above, not one inside the other:
               iPhone VoiceOver reads a button as one item, so a name inside the message's button can't be reached. */}
           <View style={[styles.bubbleShell, mine ? styles.bubbleMine : styles.bubbleTheirs, { maxWidth: bubbleWidth }, isSelected && styles.bubbleSelected]}>
-            {showAuthor ? (
+            {nameLinks ? (
               <Pressable
-                disabled={!author || family}
-                onPress={() => author && !family && navigation.navigate('MemberDetail', { memberId: author.id })}
+                onPress={() => navigation.navigate('MemberDetail', { memberId: author.id })}
                 style={styles.bubbleName}
-                accessibilityRole={family ? 'text' : 'button'}
-                accessibilityLabel={author && !family ? authorPageLabel(author, data) : undefined}
-                accessibilityHint={family ? undefined : 'Opens their page, where you can message, block or report them'}
+                accessibilityRole="button"
+                accessibilityLabel={authorPageLabel(author, data)}
+                accessibilityHint="Opens their page, where you can message, block or report them"
               >
                 <AuthorLine member={author} data={data} />
               </Pressable>
@@ -438,8 +439,13 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               }}
               accessibilityRole="button"
               accessibilityHint="Shows reactions and what you can do with this message"
-              style={[styles.bubbleBody, showAuthor && { paddingTop: 6 }]}
+              style={[styles.bubbleBody, nameLinks && { paddingTop: 6 }]}
             >
+              {showAuthor && !nameLinks ? (
+                <View style={styles.bubbleNameText}>
+                  <AuthorLine member={author} data={data} />
+                </View>
+              ) : null}
               {m.replyToId ? <ReplyQuote message={replied} author={replied ? nameOf(replied.authorId) : ''} /> : null}
               {m.media[0]?.kind === 'voice' ? (
                 <VoiceNote media={m.media[0]} width={Math.min(bubbleWidth - space.md * 2, 260)} />
@@ -901,6 +907,8 @@ const styles = StyleSheet.create({
   bubbleShell: { borderRadius: radius.md },
   bubbleName: { minHeight: 44 + space.sm, paddingTop: space.sm, paddingHorizontal: space.md, justifyContent: 'center' },
   bubbleBody: { paddingHorizontal: space.md, paddingVertical: space.sm, gap: 6 },
+  // A name that opens no page is part of the message, so a tap on it selects the message.
+  bubbleNameText: { minHeight: 44, justifyContent: 'center' },
   bubbleTheirs: { backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line },
   bubbleMine: { backgroundColor: colors.steelHi },
   bubbleSelected: { borderWidth: 1, borderColor: colors.bone },
