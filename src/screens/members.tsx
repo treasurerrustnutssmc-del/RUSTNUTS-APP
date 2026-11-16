@@ -506,7 +506,7 @@ export function MemberDetailScreen({ route, navigation }: RootScreen<'MemberDeta
         <Row style={{ gap: 6 }}>
           <StatusChip status={member.status} />
           {member.onHiatus ? <Chip label="On hiatus" icon="pause" /> : null}
-          <RoleChips positions={positions} data={data} homeChapterId={member.chapterId} />
+          <RoleChips positions={positions} data={data} />
         </Row>
         <Stack gap={2}>
           <KeyValue label="Chapter" value={`${chapter?.name} · ${chapter?.area}`} />

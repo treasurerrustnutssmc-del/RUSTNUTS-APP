@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import {
-  chipLabel, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, seatTitle, stepDownNote,
+  actingSpoken, authorPageLabel, CHIP_CHARS, chipLabel, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, roleChipTexts,
+  seatTitle, stepDownNote, topSeat,
 } from './home';
-import { ROLE_LABEL, ROLE_SHORT } from './labels';
+import { BOARD_ROLES, CLUB_ROLES, ROLE_LABEL, ROLE_SHORT } from './labels';
 import type { Chapter, ClubData, Member, Position } from './types';
 
 const chapters: Chapter[] = [
@@ -147,6 +148,132 @@ test('chipLabel spells out an acting seat, and keeps the short form otherwise', 
   assert.equal(chipLabel(crankActingTreasurer, chapters), 'ACTING TREASURER (NORTH)');
   assert.equal(chipLabel(smokeyPres, chapters), 'PRES');
   assert.equal(chipLabel(pos('b', 'nec_chair', null), chapters), 'NEC CHAIR');
+});
+
+test('chipLabel short: a chat name line shortens the role but still says Acting', () => {
+  // At 360 wide a Members list row has 216 px; ACTING TREASURER (NORTH) needs 229, ACTING TREAS (NORTH) 190.
+  assert.equal(chipLabel(crankActingTreasurer, chapters, 'short'), 'ACTING TREAS (NORTH)');
+  assert.equal(chipLabel(crankActingTreasurer, chapters, 'long'), 'ACTING TREASURER (NORTH)');
+  assert.equal(chipLabel(smokeyPres, chapters, 'short'), 'PRES', 'a full term is already short');
+});
+
+test('roleChipTexts: a full term keeps its short chip and is read as shown', () => {
+  const chips = roleChipTexts([smokeyPres, seat('smokey-tre-w', 'smokey', 'treasurer', 'ch-west'), seat('smokey-tre-n', 'smokey', 'treasurer', 'ch-north')], chapters, 'short');
+  assert.deepEqual(chips, [
+    { key: 'smokey-pres', role: 'president', label: 'PRES (NORTH)', spoken: undefined },
+    { key: 'smokey-tre-w', role: 'treasurer', label: 'TREAS (WEST, NORTH)', spoken: undefined },
+  ]);
+  assert.deepEqual(roleChipTexts([smokeyPres], chapters, 'long'), roleChipTexts([smokeyPres], chapters, 'short'), 'the form only changes a stint');
+});
+
+test('roleChipTexts: a stint says Acting, long or short, and a screen reader hears its whole title', () => {
+  assert.deepEqual(roleChipTexts([crankActingTreasurer], chapters, 'long'), [
+    { key: 'crank-acting-tre', role: 'treasurer', label: 'ACTING TREASURER (NORTH)', spoken: 'Acting Treasurer (North)' },
+  ]);
+  // At 360 wide a Members list row has 216 of room; ACTING TREASURER (NORTH) needs 229, ACTING TREAS (NORTH) 190.
+  assert.deepEqual(roleChipTexts([crankActingTreasurer], chapters, 'short'), [
+    { key: 'crank-acting-tre', role: 'treasurer', label: 'ACTING TREAS (NORTH)', spoken: 'Acting Treasurer (North)' },
+  ]);
+});
+
+test('roleChipTexts: a stint held in two chapters names both where there is room, as it is read', () => {
+  // One stint at a time, in the member's own chapter (ONE_STINT), so this can't be recorded today.
+  const west = seat('crank-acting-tre-w', 'crank', 'treasurer', 'ch-west', { startedOn: '2026-11-15', actingUntil: '2026-12-13' });
+  assert.equal(roleChipTexts([crankActingTreasurer, west], chapters, 'long')[0].label, 'ACTING TREASURER (NORTH, WEST)');
+  const [short] = roleChipTexts([crankActingTreasurer, west], chapters, 'short');
+  assert.equal(short.label, 'ACTING TREAS', 'ACTING TREAS (NORTH, WEST) would wrap in a member row');
+  assert.equal(short.spoken, 'Acting Treasurer (North, West)');
+});
+
+test('roleChipTexts: each spoken title belongs to its own chip, in a mix of terms and stints', () => {
+  const later = seat('crank-acting-sec', 'crank', 'secretary', 'ch-north', { startedOn: '2026-11-15', actingUntil: '2027-01-31' });
+  const westTre = seat('crank-acting-tre-w', 'crank', 'treasurer', 'ch-west', { startedOn: '2026-11-15', actingUntil: '2027-02-28' });
+  const rc = seat('crank-rc', 'crank', 'road_captain', 'ch-north');
+  const chips = roleChipTexts([rc, crankActingTreasurer, later, westTre, seat('crank-rc-w', 'crank', 'road_captain', 'ch-west')], chapters, 'short');
+  assert.deepEqual(chips.map((c) => [c.label, c.spoken]), [
+    ['RC (NORTH, WEST)', undefined],
+    ['ACTING TREAS (NORTH)', 'Acting Treasurer (North)'],
+    ['ACTING SEC (NORTH)', 'Acting Secretary (North)'],
+    ['ACTING TREAS (WEST)', 'Acting Treasurer (West)'],
+  ]);
+});
+
+test('a dense row drops a stint’s chapter only where its chip would wrap at 360 (ACTING RIDE COMM)', () => {
+  // Measured in the stencil at 11.5 with its padding: ACTING CHARITY (NORTH), 22 characters, is 206
+  // of the row's 216; ACTING RIDE COMM (WEST), 23, is 216 and ACTING RIDE COMM (NORTH), 24, is 226.
+  assert.equal(CHIP_CHARS.short, 22);
+  const stint = (role: Position['role'], chapterId: string) =>
+    seat(`x-${role}-${chapterId}`, 'crank', role, chapterId, { startedOn: '2026-11-15', actingUntil: '2026-12-13' });
+  for (const chapterId of ['ch-north', 'ch-west']) {
+    const [row] = roleChipTexts([stint('ride_committee', chapterId)], chapters, 'short');
+    assert.equal(row.label, 'ACTING RIDE COMM');
+    assert.equal(row.spoken, `Acting Ride Committee (${chapterId === 'ch-north' ? 'North' : 'West'})`, 'a screen reader still hears the chapter');
+    assert.equal(chipLabel(stint('ride_committee', chapterId), chapters, 'short'), 'ACTING RIDE COMM', 'the chat name line is a dense row too');
+  }
+  assert.equal(roleChipTexts([stint('charity_committee', 'ch-north')], chapters, 'short')[0].label, 'ACTING CHARITY (NORTH)', 'fits, so it keeps its chapter');
+  assert.equal(roleChipTexts([stint('ride_committee', 'ch-north')], chapters, 'long')[0].label, 'ACTING RIDE COMMITTEE (NORTH)', 'member detail has the room');
+  // Every role a stint can hold, in either chapter, fits a dense row on one line.
+  for (const role of [...BOARD_ROLES, ...CLUB_ROLES]) {
+    for (const chapterId of ['ch-north', 'ch-west']) {
+      const [chip] = roleChipTexts([stint(role, chapterId)], chapters, 'short');
+      assert.ok(chip.label.length <= CHIP_CHARS.short, `${chip.label} fits`);
+      assert.equal(chipLabel(stint(role, chapterId), chapters, 'short'), chip.label, 'the chat name line says the same');
+    }
+  }
+});
+
+test('where the chips have a line of their own, a stint too long for it takes the short role (ACTING SMO (NORTH))', () => {
+  // Member detail and Me give the chips 294 of room at 360. Measured in the stencil: ACTING SERGEANT AT
+  // ARMS (NORTH) and ACTING CHARITY COMMITTEE (WEST), 31 characters, are 286; ACTING CHARITY COMMITTEE
+  // (NORTH), 32, is 296; ACTING SOCIAL MEDIA OFFICER (NORTH), 35, is 314.
+  assert.equal(CHIP_CHARS.long, 31);
+  const stint = (role: Position['role'], chapterId: string) =>
+    seat(`x-${role}-${chapterId}`, 'crank', role, chapterId, { startedOn: '2026-11-15', actingUntil: '2026-12-13' });
+  const long = (role: Position['role'], chapterId = 'ch-north') => roleChipTexts([stint(role, chapterId)], chapters, 'long')[0];
+  assert.equal(long('social_media_officer').label, 'ACTING SMO (NORTH)');
+  assert.equal(long('social_media_officer').spoken, 'Acting Social Media Officer (North)', 'a screen reader still hears it whole');
+  assert.equal(long('assistant_tail_gunner', 'ch-west').label, 'ACTING ATG (WEST)');
+  assert.equal(long('charity_committee').label, 'ACTING CHARITY (NORTH)');
+  assert.equal(long('charity_committee', 'ch-west').label, 'ACTING CHARITY COMMITTEE (WEST)', '31 characters fit');
+  assert.equal(long('sergeant_at_arms').label, 'ACTING SERGEANT AT ARMS (NORTH)');
+  assert.equal(chipLabel(stint('social_media_officer', 'ch-north'), chapters, 'long'), 'ACTING SMO (NORTH)', 'chipLabel says the same');
+  for (const role of [...BOARD_ROLES, ...CLUB_ROLES]) {
+    for (const chapterId of ['ch-north', 'ch-west']) {
+      const chip = long(role, chapterId);
+      assert.ok(chip.label.length <= CHIP_CHARS.long, `${chip.label} fits`);
+      assert.match(chip.label, /^ACTING /);
+    }
+  }
+});
+
+test('roleChipTexts with the long words for full terms, as Me shows them (TREASURER (WEST))', () => {
+  const chips = roleChipTexts([seat('m-tre', 'crank', 'treasurer', 'ch-west'), crankActingTreasurer], chapters, 'long', ROLE_LABEL);
+  assert.deepEqual(chips.map((c) => [c.label, c.spoken]), [
+    ['TREASURER (WEST)', undefined],
+    ['ACTING TREASURER (NORTH)', 'Acting Treasurer (North)'],
+  ]);
+});
+
+test('topSeat: the seat a name line shows is the first held one in role order', () => {
+  const rc = seat('crank-rc', 'crank', 'road_captain', 'ch-north');
+  const ended = seat('crank-pres', 'crank', 'president', 'ch-north', { endedOn: '2026-10-01' });
+  assert.equal(topSeat('crank', [rc, ended, crankActingTreasurer])?.id, 'crank-acting-tre');
+  assert.equal(topSeat('nobody', [rc]), undefined);
+});
+
+test('actingSpoken: a stint’s whole title for a screen reader, nothing for a full term (read as shown)', () => {
+  assert.equal(actingSpoken(crankActingTreasurer, chapters), 'Acting Treasurer (North)');
+  assert.equal(actingSpoken(smokeyPres, chapters), undefined);
+});
+
+test('authorPageLabel: a chat name button says an acting title its short chip cannot', () => {
+  const data = clubOf([crankActingTreasurer, smokeyPres]);
+  const crank = people.find((m) => m.id === 'crank')!;
+  const smokey = people.find((m) => m.id === 'smokey')!;
+  const rusty = people.find((m) => m.id === 'rusty')!;
+  assert.equal(authorPageLabel(crank, data), 'Crank’s page, Acting Treasurer (North)');
+  assert.equal(authorPageLabel(smokey, data), 'Smokey’s page', 'a full term is read as it was');
+  assert.equal(authorPageLabel(rusty, data), 'Rusty’s page');
 });
 
 test('the NEC list: one row per chapter for whoever casts its vote (11.2)', () => {

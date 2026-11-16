@@ -64,15 +64,34 @@ test('the NEC list renders necRows', () => {
   assert.doesNotMatch(chapters, /p\.role === 'president'/, 'the Presidents no longer come from the raw rows');
 });
 
-test('RoleChip gets a chipLabel in MemberRow and AuthorLine', () => {
+test('RoleChips draws roleChipTexts, short in a member row, long on member detail; AuthorLine uses chipLabel', () => {
   const chips = fn(memberBits, 'RoleChips');
-  assert.match(chips, /<RoleChip\b/);
-  assert.match(chips, /chipLabel\(\w+, data\.chapters\)/, 'an acting seat spells itself out: ACTING TREASURER (NORTH)');
-  assert.match(fn(memberBits, 'MemberRow'), /<RoleChips\b/);
-  assert.match(fn(members, 'MemberDetailScreen'), /<RoleChips\b/, 'member detail shows the same chips');
+  assert.match(chips, /roleChipTexts\(positions, data\.chapters, form\)/, 'an acting seat says Acting: ACTING TREASURER (NORTH), or ACTING TREAS (NORTH) in a dense row');
+  assert.match(chips, /<RoleChip key=\{c\.key\} role=\{c\.role\} label=\{c\.label\} accessibilityLabel=\{c\.spoken\} \/>/);
+  assert.match(chips, /form = 'long'/, 'the long form unless a row asks for the short one');
+  assert.match(fn(memberBits, 'MemberRow'), /<RoleChips\b[^>]*\bform="short"/, 'a member row has 216 of room at 360 wide');
+  const detail = fn(members, 'MemberDetailScreen');
+  assert.match(detail, /<RoleChips\b/, 'member detail shows the same chips');
+  assert.doesNotMatch(detail, /<RoleChips\b[^>]*\bform=/, 'member detail has the full width, so it keeps the long form');
   const author = fn(chatBits, 'AuthorLine');
-  assert.match(author, /heldPositions\(member\.id, data\.positions\)/);
-  assert.match(author, /<RoleChip role=\{top\.role\} label=\{chipLabel\(top, data\.chapters\)\} \/>/);
+  assert.match(author, /topSeat\(member\.id, data\.positions\)/, 'the same top seat the name button reads out');
+  assert.match(author, /<RoleChip\s+key=\{top\.id\}\s+role=\{top\.role\}\s+label=\{chipLabel\(top, data\.chapters, 'short'\)\}/, 'a chat name line is a dense row too');
+  // Keyed by seat: when the top seat changes, Android would otherwise keep the old spoken words on the chip.
+});
+
+test('a screen reader hears an acting chip’s whole title, and a full-term chip as shown', () => {
+  // Only a stint gets spoken words (spoken is undefined for a full term, so PRES (WEST) is read as it was).
+  assert.match(fn(chatBits, 'AuthorLine'), /accessibilityLabel=\{actingSpoken\(top, data\.chapters\)\}/);
+  // The chat name is a button with its own label, which hides the chip inside it, so the label says the title.
+  const chat = read('chat.tsx');
+  assert.match(chat, /accessibilityLabel=\{author && !family \? authorPageLabel\(author, data\) : undefined\}/);
+  assert.doesNotMatch(chat, /`\$\{displayName\(author\)\}’s page`/, 'no second spelling of the name button’s words');
+});
+
+test('Me draws its chips with roleChipTexts: long words for every title, and a stint that fits at 360', () => {
+  const screen = fn(me, 'MeScreen');
+  assert.match(screen, /roleChipTexts\(positions, data\.chapters, 'long', ROLE_LABEL\)/);
+  assert.match(screen, /<Chip key=\{c\.key\} label=\{c\.label\} tone="bone" accessibilityLabel=\{c\.spoken\} \/>/);
 });
 
 test('the Home header puts a stint’s until date on a line of its own', () => {

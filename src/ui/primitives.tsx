@@ -302,14 +302,32 @@ type ChipTone = 'red' | 'redOutline' | 'steel' | 'bone' | 'ok' | 'warn' | 'dange
  * A small stencil label. `active` is for a chip inside a Pressable: pressed or hovered, a steel chip
  * lifts to steelHi with a stronger edge (its opaque fill would hide the Pressable's own highlight).
  */
-export function Chip({ label, tone = 'steel', icon, active = false }: { label: string; tone?: ChipTone; icon?: IconName; active?: boolean }) {
+export function Chip({
+  label,
+  tone = 'steel',
+  icon,
+  active = false,
+  accessibilityLabel,
+}: {
+  label: string;
+  tone?: ChipTone;
+  icon?: IconName;
+  active?: boolean;
+  /**
+   * Words for a screen reader when the label drops some ("Acting Treasurer (North)" for ACTING TREAS
+   * (NORTH)). They sit on the Text, so they join the row or button around the chip, never a stop of their own.
+   */
+  accessibilityLabel?: string;
+}) {
   const t = chipTones[tone];
   const lift = active && tone === 'steel' ? { backgroundColor: colors.steelHi, borderColor: colors.lineStrong } : null;
   return (
     <View style={[styles.chip, { backgroundColor: t.bg, borderColor: t.border }, lift]}>
       {icon ? <Ionicons name={icon} size={11} color={t.fg} /> : null}
       {/* Upper-cased here, not by textTransform: Android measures the lower-case text and clips the end. */}
-      <Text style={[styles.chipText, { color: t.fg }]}>{label.toUpperCase()}</Text>
+      <Text accessibilityLabel={accessibilityLabel} style={[styles.chipText, { color: t.fg }]}>
+        {label.toUpperCase()}
+      </Text>
     </View>
   );
 }
@@ -338,9 +356,13 @@ export function StatusChip({ status }: { status: MemberStatus }) {
   return <Chip label={STATUS_LABEL[status]} tone={statusTone[status]} />;
 }
 
-/** A role's chip: the short form ("TREAS"), or the words given, as chipLabel(position, chapters) gives an acting seat ("ACTING TREASURER (NORTH)"). */
-export function RoleChip({ role, label }: { role: PositionRole; label?: string }) {
-  return <Chip label={label ?? ROLE_SHORT[role]} tone="bone" />;
+/**
+ * A role's chip: the short form ("TREAS"), or the words given, as roleChipTexts and chipLabel give an
+ * acting seat ("ACTING TREASURER (NORTH)", "ACTING TREAS (NORTH)"). accessibilityLabel is a stint's
+ * whole title, for a screen reader.
+ */
+export function RoleChip({ role, label, accessibilityLabel }: { role: PositionRole; label?: string; accessibilityLabel?: string }) {
+  return <Chip label={label ?? ROLE_SHORT[role]} tone="bone" accessibilityLabel={accessibilityLabel} />;
 }
 
 export function Avatar({ text, size = 44 }: { text: string; size?: number }) {

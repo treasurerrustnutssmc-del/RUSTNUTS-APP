@@ -9,10 +9,8 @@ import { GIPHY_KEY } from '../data/config';
 import type { Attachment, FeedItem, GifPick, LinkPreview, MediaSource } from '../data/chat/chatContext';
 import { useChat } from '../data/chat/chatContext';
 import { searchGifs, type GifResult } from '../data/chat/gifSearch';
-import { heldPositions } from '../domain/acting';
 import { findLinks, mediaSummary, REACTIONS, type Message, type MessageMedia } from '../domain/chat';
-import { chipLabel } from '../domain/home';
-import { ROLE_ORDER } from '../domain/labels';
+import { actingSpoken, chipLabel, topSeat } from '../domain/home';
 import { displayName } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
 import { colors, fonts, radius, space, type } from '../theme';
@@ -154,15 +152,27 @@ export function MessageText({ body }: { body: string }) {
   );
 }
 
-/** A name with the rank and top position beside it, as the club reads them. A stint shows as acting ("ACTING TREASURER (NORTH)"). */
+/**
+ * A name with the rank and top position beside it, as the club reads them. A stint shows as acting,
+ * in the short form a name line has room for ("ACTING TREAS (NORTH)"), and a screen reader hears the
+ * whole title ("Acting Treasurer (North)"): from the chip, and from authorPageLabel on the name
+ * button around it, whose own label hides the chip.
+ */
 export function AuthorLine({ member, data }: { member: Member | undefined; data: ClubData }) {
   if (!member) return <Text style={styles.author}>Former member</Text>;
-  const top = heldPositions(member.id, data.positions).sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))[0];
+  const top = topSeat(member.id, data.positions);
   return (
     <View style={styles.authorRow}>
       <Text style={styles.author} numberOfLines={1}>{displayName(member)}</Text>
       <StatusChip status={member.status} />
-      {top ? <RoleChip role={top.role} label={chipLabel(top, data.chapters)} /> : null}
+      {top ? (
+        <RoleChip
+          key={top.id}
+          role={top.role}
+          label={chipLabel(top, data.chapters, 'short')}
+          accessibilityLabel={actingSpoken(top, data.chapters)}
+        />
+      ) : null}
     </View>
   );
 }

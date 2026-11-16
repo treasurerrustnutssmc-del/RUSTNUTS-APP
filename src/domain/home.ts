@@ -1,9 +1,9 @@
 // The Home screen's header titles and club counts, and the title forms for acting (Acting Treasurer
 // (North) until 13/12/2026) and covers. See docs/superpowers/specs/2026-11-15-acting-roles-design.md.
 
-import { dutyRows, heldRows, isActing, necVoterRow, stintsEndingWith } from './acting';
+import { dutyRows, heldPositions, heldRows, isActing, necVoterRow, stintsEndingWith } from './acting';
 import { formatAuDate } from './dates';
-import { ROLE_LABEL, ROLE_SHORT } from './labels';
+import { ROLE_LABEL, ROLE_ORDER, ROLE_SHORT } from './labels';
 import { displayName } from './profile';
 import type { Chapter, ClubData, Member, MemberStatus, Position, PositionRole, RosterTally } from './types';
 
@@ -60,10 +60,95 @@ export function longSeatTitle(position: Position, chapters: Chapter[], labels: R
   return longTitle(positionTitles([position], chapters, '', labels)[0]);
 }
 
-/** A role chip's words: an acting seat spelt out ("ACTING TREASURER (NORTH)"), else the short form ("TREAS"). */
-export function chipLabel(position: Position, chapters: Chapter[]): string {
+/** How much room a role chip has: the long form where the chips get a line of their own, the short one in a dense row. */
+export type ChipForm = 'long' | 'short';
+
+/**
+ * The most characters a role chip fits on one line at 360 wide, in the stencil at 11.5 with its
+ * padding. A dense row (a member row) has 216 of room: ACTING CHARITY (NORTH), 22 characters, is 206,
+ * and ACTING RIDE COMM (WEST), 23, is 216. Where the chips have a line of their own (member detail,
+ * Me) there's 294: ACTING CHARITY COMMITTEE (WEST), 31, is 286, and the same in North, 32, is 296.
+ */
+export const CHIP_CHARS: Record<ChipForm, number> = { short: 22, long: 31 };
+
+/**
+ * A stint's chip, the longest words that fit on one line: spelt out ("ACTING TREASURER (NORTH)")
+ * where the chips have a line of their own, else the short role ("ACTING TREAS (NORTH)", or "ACTING
+ * SMO (NORTH)" on member detail), else without its chapter, which is always the member's own
+ * ("ACTING RIDE COMM" in a member row). A screen reader still hears the whole title.
+ */
+function stintChip(longTitle: string, shortTitle: string, role: PositionRole, form: ChipForm): string {
+  const room = CHIP_CHARS[form];
+  const words = [...(form === 'long' ? [longTitle] : []), shortTitle].map((t) => t.toUpperCase());
+  return words.find((w) => w.length <= room) ?? `${actingWord(ROLE_SHORT[role])} ${ROLE_SHORT[role]}`;
+}
+
+/**
+ * One seat's chip words, as a chat name line shows its top seat: an acting seat spelt out
+ * ("ACTING TREASURER (NORTH)"), else the bare short form ("TREAS"). In a dense row (a chat name
+ * line) an acting seat takes the short role but keeps the Acting word and, where it fits, its
+ * chapter: "ACTING TREAS (NORTH)", "ACTING RIDE COMM" (stintChip). A member's own chips come from
+ * roleChipTexts.
+ */
+export function chipLabel(position: Position, chapters: Chapter[], form: ChipForm = 'long'): string {
   if (!isActing(position)) return ROLE_SHORT[position.role];
-  return seatTitle(position, chapters, ROLE_LABEL).toUpperCase();
+  return stintChip(seatTitle(position, chapters, ROLE_LABEL), seatTitle(position, chapters, ROLE_SHORT), position.role, form);
+}
+
+/**
+ * What a screen reader hears for a stint's chip, whose short form drops words: "Acting Treasurer
+ * (North)". Nothing for a full term, which is read as shown ("PRES (WEST)").
+ */
+export function actingSpoken(position: Position, chapters: Chapter[]): string | undefined {
+  return isActing(position) ? seatTitle(position, chapters, ROLE_LABEL) : undefined;
+}
+
+/** One role chip: its words, upper case as drawn, and for a stint the whole title a screen reader hears. */
+export interface RoleChipText {
+  key: string;
+  role: PositionRole;
+  label: string;
+  spoken?: string;
+}
+
+/**
+ * A member's role chips, one per title in the order given, grouped as positionTitles groups them.
+ * A full term takes the words given, the short form unless a screen has room for more ("PRES (WEST)",
+ * "TREAS (WEST, NORTH)"; Me: "TREASURER (WEST)"), and is read as shown. A stint says Acting in the
+ * longest words that fit on one line at 360 (stintChip): "ACTING TREASURER (NORTH)" where the chips
+ * have a line of their own, "ACTING TREAS (NORTH)" in a member row, which has 216 of room, and
+ * "ACTING RIDE COMM" where even that won't fit. It's read out whole ("Acting Treasurer (North)").
+ */
+export function roleChipTexts(
+  positions: Position[],
+  chapters: Chapter[],
+  form: ChipForm = 'long',
+  termLabels: Record<PositionRole, string> = ROLE_SHORT,
+): RoleChipText[] {
+  // Every list groups the same rows the same way, whatever the labels, so they line up by index.
+  const spoken = positionTitles(positions, chapters, '', ROLE_LABEL);
+  const short = positionTitles(positions, chapters, '', ROLE_SHORT);
+  return positionTitles(positions, chapters, '', termLabels).map((t, i) => {
+    const first = positions.find((p) => p.id === t.key)!;
+    if (!isActing(first)) return { key: t.key, role: first.role, label: t.text.toUpperCase(), spoken: undefined };
+    return { key: t.key, role: first.role, label: stintChip(spoken[i].text, short[i].text, first.role, form), spoken: spoken[i].text };
+  });
+}
+
+/** The seat a name line shows: the member's first held seat in role order (a covered holder keeps theirs). */
+export function topSeat(memberId: string, positions: Position[]): Position | undefined {
+  return [...heldPositions(memberId, positions)].sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))[0];
+}
+
+/**
+ * The words on a chat author's name button, which hide the chips inside it from a screen reader:
+ * "Crank’s page", with an acting top seat's whole title, which its short chip can't say: "Crank’s
+ * page, Acting Treasurer (North)". A full term is left as it was.
+ */
+export function authorPageLabel(member: Member, data: Pick<ClubData, 'positions' | 'chapters'>): string {
+  const top = topSeat(member.id, data.positions);
+  const spoken = top ? actingSpoken(top, data.chapters) : undefined;
+  return spoken ? `${displayName(member)}’s page, ${spoken}` : `${displayName(member)}’s page`;
 }
 
 const nameOf = (id: string | null | undefined, data: Pick<ClubData, 'members'>) => {

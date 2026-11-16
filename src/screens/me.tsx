@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { compassFor } from '../domain/compass';
 import { dateHintWith, formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
-import { positionTitles } from '../domain/home';
+import { positionTitles, roleChipTexts } from '../domain/home';
 import { LICENCE_LABEL, ROLE_LABEL } from '../domain/labels';
 import { displayName, hasEarnedDisc, initials } from '../domain/profile';
 import { StandingCard } from './attendance';
@@ -118,12 +118,13 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
             </Small>
           </View>
         </Row>
-        {/* The chips take the card's full width, so a stint's title (ACTING TREASURER (NORTH)) stays on one line,
-            and the long form's date sits under them: Acting Treasurer (North) … until 13/12/2026. */}
+        {/* The chips take the card's full width, so a stint's title (ACTING TREASURER (NORTH)) stays on one line
+            (a longer one takes the short role: ACTING SMO (NORTH)), and the long form's date sits under them:
+            Acting Treasurer (North) … until 13/12/2026. */}
         <Row style={{ gap: 6 }}>
           <StatusChip status={me.status} />
-          {titles.map((t) => (
-            <Chip key={t.key} label={t.text} tone="bone" />
+          {roleChipTexts(positions, data.chapters, 'long', ROLE_LABEL).map((c) => (
+            <Chip key={c.key} label={c.label} tone="bone" accessibilityLabel={c.spoken} />
           ))}
         </Row>
         {until ? <Small>{`Acting until ${until}`}</Small> : null}
