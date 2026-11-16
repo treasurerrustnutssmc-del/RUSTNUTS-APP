@@ -398,6 +398,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     const author = people.find((x) => x.id === m.authorId);
     const isSelected = selected === m.id;
     const showAuthor = first && !mine && conv.kind !== 'direct';
+    // The name is a button of its own only when it opens their page (not for Family viewers or a former member).
+    const nameLinks = showAuthor && author !== undefined && !family;
     const firstLink = m.body ? findLinks(m.body).find((p) => p.url)?.url : undefined;
     const replied = m.replyToId ? messages.find((x) => x.id === m.replyToId) : undefined;
     const removable = removeProblem(me, conv, m, data) === null;
@@ -416,46 +418,54 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           {!mine && conv.kind !== 'direct' ? (
             <View style={{ width: 32 }}>{first && author ? <Avatar text={initials(author)} size={32} /> : null}</View>
           ) : null}
-          <Pressable
-            onPress={() => {
-              setSelected(isSelected ? null : m.id);
-              setReporting(null);
-            }}
-            accessibilityRole="button"
-            accessibilityHint="Shows reactions and what you can do with this message"
-            style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs, { maxWidth: bubbleWidth }, isSelected && styles.bubbleSelected]}
-          >
-            {showAuthor ? (
+          {/* The name and the message are two buttons in one bubble, the name above, not one inside the other:
+              iPhone VoiceOver reads a button as one item, so a name inside the message's button can't be reached. */}
+          <View style={[styles.bubbleShell, mine ? styles.bubbleMine : styles.bubbleTheirs, { maxWidth: bubbleWidth }, isSelected && styles.bubbleSelected]}>
+            {nameLinks ? (
               <Pressable
-                disabled={!author || family}
-                onPress={() => author && !family && navigation.navigate('MemberDetail', { memberId: author.id })}
-                style={{ minHeight: 44, justifyContent: 'center' }}
-                accessibilityRole={family ? 'text' : 'button'}
-                accessibilityLabel={author && !family ? authorPageLabel(author, data) : undefined}
-                accessibilityHint={family ? undefined : 'Opens their page, where you can message, block or report them'}
+                onPress={() => navigation.navigate('MemberDetail', { memberId: author.id })}
+                style={styles.bubbleName}
+                accessibilityRole="button"
+                accessibilityLabel={authorPageLabel(author, data)}
+                accessibilityHint="Opens their page, where you can message, block or report them"
               >
                 <AuthorLine member={author} data={data} />
               </Pressable>
             ) : null}
-            {m.replyToId ? <ReplyQuote message={replied} author={replied ? nameOf(replied.authorId) : ''} /> : null}
-            {m.media[0]?.kind === 'voice' ? (
-              <VoiceNote media={m.media[0]} width={Math.min(bubbleWidth - space.md * 2, 260)} />
-            ) : m.media.length ? (
-              <MediaGrid
-                media={m.media}
-                width={bubbleWidth - space.md * 2}
-                onOpen={(index) => {
-                  const items = feedItemsOf(m);
-                  const shown = m.media[index];
-                  if (shown.kind === 'gif') return setSelected(isSelected ? null : m.id);
-                  navigation.navigate('MediaViewer', { items, index: Math.max(0, items.findIndex((x) => x.id === shown.id)) });
-                }}
-              />
-            ) : null}
-            {m.body ? <MessageText body={m.body} /> : null}
-            {firstLink ? <LinkCard url={firstLink} /> : null}
-            {last || isSelected ? <Text style={[styles.time, mine && { textAlign: 'right', color: MINE_META_COLOR }]}>{melbourneTime(m.createdAt)}</Text> : null}
-          </Pressable>
+            <Pressable
+              onPress={() => {
+                setSelected(isSelected ? null : m.id);
+                setReporting(null);
+              }}
+              accessibilityRole="button"
+              accessibilityHint="Shows reactions and what you can do with this message"
+              style={[styles.bubbleBody, nameLinks && styles.bubbleBodyUnderName]}
+            >
+              {showAuthor && !nameLinks ? (
+                <View style={styles.bubbleNameText}>
+                  <AuthorLine member={author} data={data} />
+                </View>
+              ) : null}
+              {m.replyToId ? <ReplyQuote message={replied} author={replied ? nameOf(replied.authorId) : ''} /> : null}
+              {m.media[0]?.kind === 'voice' ? (
+                <VoiceNote media={m.media[0]} width={Math.min(bubbleWidth - space.md * 2, 260)} />
+              ) : m.media.length ? (
+                <MediaGrid
+                  media={m.media}
+                  width={bubbleWidth - space.md * 2}
+                  onOpen={(index) => {
+                    const items = feedItemsOf(m);
+                    const shown = m.media[index];
+                    if (shown.kind === 'gif') return setSelected(isSelected ? null : m.id);
+                    navigation.navigate('MediaViewer', { items, index: Math.max(0, items.findIndex((x) => x.id === shown.id)) });
+                  }}
+                />
+              ) : null}
+              {m.body ? <MessageText body={m.body} /> : null}
+              {firstLink ? <LinkCard url={firstLink} /> : null}
+              {last || isSelected ? <Text style={[styles.time, mine && { textAlign: 'right', color: MINE_META_COLOR }]}>{melbourneTime(m.createdAt)}</Text> : null}
+            </Pressable>
+          </View>
         </View>
         <View style={[styles.under, mine ? { alignItems: 'flex-end' } : { paddingLeft: conv.kind !== 'direct' ? 40 : 0 }]}>
           <ReactionPills message={m} meId={me.id} onToggle={(e) => run(() => chat.react(m.id, e))} />
@@ -893,6 +903,15 @@ const styles = StyleSheet.create({
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, marginTop: 3 },
   msgRowMine: { justifyContent: 'flex-end' },
   bubble: { paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.md, gap: 6 },
+  // A message's bubble: the shell draws it, and its two buttons (name, message) carry the padding so together they cover it.
+  bubbleShell: { borderRadius: radius.md },
+  // Each button rounds its outer corners like the bubble, so a keyboard focus ring on the web follows the bubble.
+  bubbleName: { minHeight: 44 + space.sm, paddingTop: space.sm, paddingHorizontal: space.md, justifyContent: 'center', borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md },
+  bubbleBody: { paddingHorizontal: space.md, paddingVertical: space.sm, gap: 6, borderRadius: radius.md },
+  // Under the name button: 6 of space below the name, and square top corners where it meets the name.
+  bubbleBodyUnderName: { paddingTop: 6, borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+  // A name that opens no page is part of the message, so a tap on it selects the message.
+  bubbleNameText: { minHeight: 44, justifyContent: 'center' },
   bubbleTheirs: { backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line },
   bubbleMine: { backgroundColor: colors.steelHi },
   bubbleSelected: { borderWidth: 1, borderColor: colors.bone },

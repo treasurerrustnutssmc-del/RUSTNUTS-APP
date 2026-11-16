@@ -84,7 +84,7 @@ test('a screen reader hears an acting chip’s whole title, and a full-term chip
   assert.match(fn(chatBits, 'AuthorLine'), /accessibilityLabel=\{actingSpoken\(top, data\.chapters\)\}/);
   // The chat name is a button with its own label, which hides the chip inside it, so the label says the title.
   const chat = read('chat.tsx');
-  assert.match(chat, /accessibilityLabel=\{author && !family \? authorPageLabel\(author, data\) : undefined\}/);
+  assert.match(chat, /accessibilityLabel=\{authorPageLabel\(author, data\)\}/);
   assert.doesNotMatch(chat, /`\$\{displayName\(author\)\}’s page`/, 'no second spelling of the name button’s words');
 });
 
