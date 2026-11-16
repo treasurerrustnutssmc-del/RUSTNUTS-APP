@@ -439,7 +439,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               }}
               accessibilityRole="button"
               accessibilityHint="Shows reactions and what you can do with this message"
-              style={[styles.bubbleBody, nameLinks && { paddingTop: 6 }]}
+              style={[styles.bubbleBody, nameLinks && styles.bubbleBodyUnderName]}
             >
               {showAuthor && !nameLinks ? (
                 <View style={styles.bubbleNameText}>
@@ -905,8 +905,11 @@ const styles = StyleSheet.create({
   bubble: { paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.md, gap: 6 },
   // A message's bubble: the shell draws it, and its two buttons (name, message) carry the padding so together they cover it.
   bubbleShell: { borderRadius: radius.md },
-  bubbleName: { minHeight: 44 + space.sm, paddingTop: space.sm, paddingHorizontal: space.md, justifyContent: 'center' },
-  bubbleBody: { paddingHorizontal: space.md, paddingVertical: space.sm, gap: 6 },
+  // Each button rounds its outer corners like the bubble, so a keyboard focus ring on the web follows the bubble.
+  bubbleName: { minHeight: 44 + space.sm, paddingTop: space.sm, paddingHorizontal: space.md, justifyContent: 'center', borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md },
+  bubbleBody: { paddingHorizontal: space.md, paddingVertical: space.sm, gap: 6, borderRadius: radius.md },
+  // Under the name button: 6 of space below the name, and square top corners where it meets the name.
+  bubbleBodyUnderName: { paddingTop: 6, borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   // A name that opens no page is part of the message, so a tap on it selects the message.
   bubbleNameText: { minHeight: 44, justifyContent: 'center' },
   bubbleTheirs: { backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line },

@@ -1,5 +1,5 @@
-// Small things stay easy to hit: a chat author's name is a 25px line, so its tap area grows to 44+
-// with hitSlop, and it's a button of its own beside the message's, so a screen reader reaches it. The Welcome page folds its 13 club links into one group so the first screen is calm.
+// Small things stay easy to hit: a chat author's name is a 25px line, so its button is itself 44pt tall,
+// and it's a button of its own above the message's, so a screen reader reaches it. The Welcome page folds its 13 club links into one group so the first screen is calm.
 // Home's three answers under Next ride stay one even row, and don't change height while one saves.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -29,11 +29,17 @@ test('the chat name and the message are two buttons, the name above the message,
   // The name button closes before the message button opens: siblings, not nested.
   const between = msg.slice(name, body);
   assert.match(between, /<\/Pressable>[\s\S]*<Pressable/);
+  // The shell keeps everything the bubble's look needs: its colour or border, its width limit, the selected border.
+  assert.match(msg, /<View style=\{\[styles\.bubbleShell, mine \? styles\.bubbleMine : styles\.bubbleTheirs, \{ maxWidth: bubbleWidth \}, isSelected && styles\.bubbleSelected\]\}>/);
+  const bodyTag = msg.slice(msg.lastIndexOf('<Pressable', body), msg.indexOf('>\n', body));
+  assert.doesNotMatch(bodyTag, /bubbleSelected|bubbleTheirs|bubbleMine|maxWidth/, 'the look stays on the shell, not on the message button');
   // The two buttons cover the whole bubble, at the sizes it had: 8 above the 44pt name, 6 under it, 12 at the sides.
+  // Each button has the bubble's rounded corners on its outer edges, so a keyboard focus ring on the web follows the bubble.
   assert.match(chat, /bubbleShell: \{ borderRadius: radius\.md \},/);
-  assert.match(chat, /bubbleName: \{ minHeight: 44 \+ space\.sm, paddingTop: space\.sm, paddingHorizontal: space\.md, justifyContent: 'center' \},/);
-  assert.match(chat, /bubbleBody: \{ paddingHorizontal: space\.md, paddingVertical: space\.sm, gap: 6 \},/);
-  assert.match(msg, /style=\{\[styles\.bubbleBody, nameLinks && \{ paddingTop: 6 \}\]\}/);
+  assert.match(chat, /bubbleName: \{ minHeight: 44 \+ space\.sm, paddingTop: space\.sm, paddingHorizontal: space\.md, justifyContent: 'center', borderTopLeftRadius: radius\.md, borderTopRightRadius: radius\.md \},/);
+  assert.match(chat, /bubbleBody: \{ paddingHorizontal: space\.md, paddingVertical: space\.sm, gap: 6, borderRadius: radius\.md \},/);
+  assert.match(chat, /bubbleBodyUnderName: \{ paddingTop: 6, borderTopLeftRadius: 0, borderTopRightRadius: 0 \},/);
+  assert.match(msg, /style=\{\[styles\.bubbleBody, nameLinks && styles\.bubbleBodyUnderName\]\}/);
 });
 
 test('a chat name that opens no page (Family viewers, a former member) stays inside the message button', () => {
