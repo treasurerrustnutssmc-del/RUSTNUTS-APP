@@ -1,0 +1,61 @@
+# Runs the project's own checks on every pull request, before anything merges, and again on main.
+# Until 18 Nov 2026 the rule tests and types ran only after a merge (preview-update.yml), and the
+# database tests and lint ran only when someone ran them by hand (side-by-side audit, finding 2).
+# Needs no secrets: nothing here touches the live database, Expo or the stores.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same pull request replaces the run in progress.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App (types, lint, rule tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Types
+        run: npm run typecheck
+      - name: Lint
+        run: npx expo lint
+      - name: Rule tests
+        run: npm test
+
+  database:
+    name: Database rules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # scripts/test-db.sh starts its own throwaway Postgres from /usr/lib/postgresql. The runner
+      # image ships one; this installs it only if a future image stops doing so.
+      - name: Make sure Postgres is installed
+        run: |
+          if ! ls /usr/lib/postgresql/*/bin/initdb >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql
+          fi
+          sudo systemctl stop postgresql || true
+          ls /usr/lib/postgresql/
+      - name: Database tests (access rules, demo and database parity, every feature's rules)
+        run: npm run test:db
