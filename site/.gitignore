@@ -1,2 +1,2 @@
-# The PC web version is built by the Pages workflow (scripts/web-preview.sh); never commit a local build.
+# The PC web version was built here by the Pages workflow until 18 Nov 2026 (now retired); never commit a local build.
 /pc-*/

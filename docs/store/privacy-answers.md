@@ -3,11 +3,11 @@
 Drafted 31/10/2026 from the same audit as the privacy policy (`src/domain/privacyPolicy.ts`).
 Keep the three in step: when the app starts collecting something new, change the policy, then these.
 
-- **Privacy policy URL (both stores):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/privacy.html
-- **Support URL (both stores):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/support.html
-- **Account deletion web link (Google Play asks for one):** https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/delete-account.html
+- **Privacy policy URL (both stores):** https://www.rustnutssmc.com.au/app/privacy.html
+- **Support URL (both stores):** https://www.rustnutssmc.com.au/app/support.html
+- **Account deletion web link (Google Play asks for one):** https://www.rustnutssmc.com.au/app/delete-account.html
   (in the app: Me, Notifications and privacy, Delete my account; without the app: email apps@rustnutssmc.com.au).
-- The same pages are also on the club domain (www.rustnutssmc.com.au/app/privacy.html, support.html, delete-account.html). The store forms keep the GitHub Pages addresses until the club domain has stayed up for a good while (it was down on 1 Nov 2026); each GitHub copy carries a note (not a redirect) pointing to the club-domain copy. Switch the forms over later in one go.
+- These are the club-website copies. The store forms moved to them on 18 Nov 2026 so the app repository can go private (going private takes its GitHub Pages copies, treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/…, offline). If the club domain is ever down, the store links are down with it.
 - **Contact email:** apps@rustnutssmc.com.au
 
 Rules used for both forms:
@@ -50,8 +50,8 @@ same day. Change this table and the policy together if anything changes.
 | Does your app collect or share any of the required user data types? | Yes |
 | Is all of the user data collected by your app encrypted in transit? | Yes |
 | Account creation | Username and other authentication (email plus a one-time code; no passwords) |
-| Delete account URL | https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/delete-account.html |
-| Can users ask for some of their data to be deleted without deleting the account? | Yes (saved 3 Nov 2026). Delete data URL: https://treasurerrustnutssmc-del.github.io/RUSTNUTS-APP/delete-account.html, the same page as account deletion; its "Delete some of your data and keep your account" section has the steps. |
+| Delete account URL | https://www.rustnutssmc.com.au/app/delete-account.html |
+| Can users ask for some of their data to be deleted without deleting the account? | Yes (saved 3 Nov 2026). Delete data URL: https://www.rustnutssmc.com.au/app/delete-account.html, the same page as account deletion; its "Delete some of your data and keep your account" section has the steps. |
 | Independent security review | No |
 | Target audience (its own App content page) | 18 and over |
 | Contains ads (its own App content page) | Yes: the club's own sponsors and their member deals; no ad networks |
