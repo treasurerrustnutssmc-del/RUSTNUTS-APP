@@ -26,6 +26,8 @@ import {
   groupMessages,
   MAX_MEDIA,
   mediaSummary,
+  messageSpoken,
+  quoteWords,
   removeProblem,
   unknownAuthors,
   type Message,
@@ -33,7 +35,7 @@ import {
 import { pickReadable } from '../domain/contrast';
 import { hasAgreedPostingRules } from '../domain/postingRules'; // Family chat
 import { formatAuDate } from '../domain/dates';
-import { authorPageLabel } from '../domain/home';
+import { authorPageLabel, authorSpoken } from '../domain/home';
 import { displayName, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
 import type { Member } from '../domain/types';
@@ -403,6 +405,22 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     const firstLink = m.body ? findLinks(m.body).find((p) => p.url)?.url : undefined;
     const replied = m.replyToId ? messages.find((x) => x.id === m.replyToId) : undefined;
     const removable = removeProblem(me, conv, m, data) === null;
+    const toggle = () => {
+      setSelected(isSelected ? null : m.id);
+      setReporting(null);
+    };
+    // iPhone's VoiceOver reads a button as one item and never looks inside it, so there the message's
+    // button stands aside (it keeps every tap) and a reader behind the content says the message.
+    const ios = Platform.OS === 'ios';
+    const spoken = ios
+      ? messageSpoken({
+          author: showAuthor && !nameLinks ? authorSpoken(author, data) : undefined,
+          quote: m.replyToId ? { name: replied ? nameOf(replied.authorId) : '', words: quoteWords(replied) } : undefined,
+          media: m.media,
+          body: m.body,
+          time: last || isSelected ? melbourneTime(m.createdAt) : undefined,
+        })
+      : '';
     if (m.removedAt) {
       return (
         <View style={[styles.msgRow, mine && styles.msgRowMine, first && { marginTop: space.md }]}>
@@ -433,22 +451,34 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               </Pressable>
             ) : null}
             <Pressable
-              onPress={() => {
-                setSelected(isSelected ? null : m.id);
-                setReporting(null);
-              }}
+              onPress={toggle}
+              accessible={ios ? false : undefined}
               accessibilityRole="button"
               accessibilityHint="Shows reactions and what you can do with this message"
               style={[styles.bubbleBody, nameLinks && styles.bubbleBodyUnderName]}
             >
+              {/* iPhone only: the message's own VoiceOver stop, with its words and the double-tap that shows its
+                  actions. A plain View first, behind the content, so a tap anywhere still reaches the button.
+                  The play button, each photo and each link after it are stops of their own. */}
+              {ios ? (
+                <View
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={spoken}
+                  accessibilityHint="Shows reactions and what you can do with this message"
+                  accessibilityState={{ selected: isSelected }}
+                  onAccessibilityTap={toggle}
+                  style={[StyleSheet.absoluteFill, styles.bubbleReader, nameLinks && styles.bubbleReaderUnderName]}
+                />
+              ) : null}
               {showAuthor && !nameLinks ? (
-                <View style={styles.bubbleNameText}>
+                <View style={styles.bubbleNameText} accessibilityElementsHidden={ios}>
                   <AuthorLine member={author} data={data} />
                 </View>
               ) : null}
-              {m.replyToId ? <ReplyQuote message={replied} author={replied ? nameOf(replied.authorId) : ''} /> : null}
+              {m.replyToId ? <ReplyQuote message={replied} author={replied ? nameOf(replied.authorId) : ''} spokenByMessage={ios} /> : null}
               {m.media[0]?.kind === 'voice' ? (
-                <VoiceNote media={m.media[0]} width={Math.min(bubbleWidth - space.md * 2, 260)} />
+                <VoiceNote media={m.media[0]} width={Math.min(bubbleWidth - space.md * 2, 260)} hideTimeFromReader={ios} />
               ) : m.media.length ? (
                 <MediaGrid
                   media={m.media}
@@ -461,9 +491,9 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
                   }}
                 />
               ) : null}
-              {m.body ? <MessageText body={m.body} /> : null}
+              {m.body ? <MessageText body={m.body} spokenByMessage={ios} /> : null}
               {firstLink ? <LinkCard url={firstLink} /> : null}
-              {last || isSelected ? <Text style={[styles.time, mine && { textAlign: 'right', color: MINE_META_COLOR }]}>{melbourneTime(m.createdAt)}</Text> : null}
+              {last || isSelected ? <Text accessibilityElementsHidden={ios} style={[styles.time, mine && { textAlign: 'right', color: MINE_META_COLOR }]}>{melbourneTime(m.createdAt)}</Text> : null}
             </Pressable>
           </View>
         </View>
@@ -910,6 +940,9 @@ const styles = StyleSheet.create({
   bubbleBody: { paddingHorizontal: space.md, paddingVertical: space.sm, gap: 6, borderRadius: radius.md },
   // Under the name button: 6 of space below the name, and square top corners where it meets the name.
   bubbleBodyUnderName: { paddingTop: 6, borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+  // The iPhone reader draws nothing; its corners only shape a keyboard focus ring.
+  bubbleReader: { borderRadius: radius.md },
+  bubbleReaderUnderName: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   // A name that opens no page is part of the message, so a tap on it selects the message.
   bubbleNameText: { minHeight: 44, justifyContent: 'center' },
   bubbleTheirs: { backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line },

@@ -3,7 +3,7 @@
 
 import { dutyRows, heldPositions, heldRows, isActing, necVoterRow, stintsEndingWith } from './acting';
 import { formatAuDate } from './dates';
-import { ROLE_LABEL, ROLE_ORDER, ROLE_SHORT } from './labels';
+import { ROLE_LABEL, ROLE_ORDER, ROLE_SHORT, STATUS_LABEL } from './labels';
 import { displayName } from './profile';
 import type { Chapter, ClubData, Member, MemberStatus, Position, PositionRole, RosterTally } from './types';
 
@@ -149,6 +149,18 @@ export function authorPageLabel(member: Member, data: Pick<ClubData, 'positions'
   const top = topSeat(member.id, data.positions);
   const spoken = top ? actingSpoken(top, data.chapters) : undefined;
   return spoken ? `${displayName(member)}’s page, ${spoken}` : `${displayName(member)}’s page`;
+}
+
+/**
+ * A chat author's name where it opens no page (a Family viewer, a former member), as its chips read, for
+ * the message's own VoiceOver stop on iPhone, which hides the name line: "Crank, Full member, Acting
+ * Treasurer (North)"; a full term as its chip shows it ("PRES").
+ */
+export function authorSpoken(member: Member | undefined, data: Pick<ClubData, 'positions' | 'chapters'>): string {
+  if (!member) return 'Former member';
+  const top = topSeat(member.id, data.positions);
+  const seat = top ? (actingSpoken(top, data.chapters) ?? chipLabel(top, data.chapters, 'short')) : undefined;
+  return [displayName(member), STATUS_LABEL[member.status], seat].filter(Boolean).join(', ');
 }
 
 const nameOf = (id: string | null | undefined, data: Pick<ClubData, 'members'>) => {

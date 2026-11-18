@@ -9,7 +9,7 @@ import { GIPHY_KEY } from '../data/config';
 import type { Attachment, FeedItem, GifPick, LinkPreview, MediaSource } from '../data/chat/chatContext';
 import { useChat } from '../data/chat/chatContext';
 import { searchGifs, type GifResult } from '../data/chat/gifSearch';
-import { findLinks, mediaSummary, REACTIONS, type Message, type MessageMedia } from '../domain/chat';
+import { findLinks, mediaKindWord, quoteWords, REACTIONS, type Message, type MessageMedia } from '../domain/chat';
 import { actingSpoken, chipLabel, topSeat } from '../domain/home';
 import { displayName } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
@@ -59,7 +59,7 @@ export function MediaTile({
   label?: string;
 }) {
   const shown = useMediaSource(media.kind === 'video' ? media.posterPath : media.path);
-  const kindWord = media.kind === 'video' ? 'Video' : media.kind === 'gif' ? 'GIF' : 'Photo';
+  const kindWord = mediaKindWord(media.kind);
   return (
     <Pressable
       onPress={onPress}
@@ -135,10 +135,15 @@ export function LinkCard({ url }: { url: string }) {
   );
 }
 
-/** Words with their links tappable. */
-export function MessageText({ body }: { body: string }) {
-  return (
-    <Text style={styles.body} selectable>
+/**
+ * Words with their links tappable. Inside a message on iPhone (spokenByMessage), the message's own
+ * VoiceOver stop reads the words, so they are hidden here, and each link gets a link stop of its own:
+ * plain Views behind the words (the words stay on top for taps, links and Copy), opened by VoiceOver's
+ * double-tap, never by a tap on the screen.
+ */
+export function MessageText({ body, spokenByMessage }: { body: string; spokenByMessage?: boolean }) {
+  const words = (
+    <Text style={styles.body} selectable accessibilityElementsHidden={spokenByMessage}>
       {findLinks(body).map((part, i) =>
         part.url ? (
           <Text key={i} style={styles.link} accessibilityRole="link" onPress={() => openLink(part.url!).catch(() => {})}>
@@ -149,6 +154,24 @@ export function MessageText({ body }: { body: string }) {
         ),
       )}
     </Text>
+  );
+  const links = findLinks(body).filter((p) => p.url);
+  if (!spokenByMessage || !links.length) return words;
+  return (
+    <View>
+      {links.map((p, i) => (
+        <View
+          key={i}
+          accessible
+          accessibilityRole="link"
+          accessibilityLabel={p.text}
+          onAccessibilityTap={() => openLink(p.url!).catch(() => {})}
+          // A pixel apart, so VoiceOver, which goes by position, keeps them in order.
+          style={[StyleSheet.absoluteFill, { top: i }]}
+        />
+      ))}
+      {words}
+    </View>
   );
 }
 
@@ -204,15 +227,11 @@ export function ReactionPills({ message, meId, onToggle }: { message: Message; m
   );
 }
 
-/** The quoted message a reply answers. */
-export function ReplyQuote({ message, author }: { message: Message | undefined; author: string }) {
-  const words = !message
-    ? 'An earlier message'
-    : message.removedAt
-      ? 'Message removed'
-      : message.body || mediaSummary(message.media.length, message.media.some((m) => m.kind === 'voice'));
+/** The quoted message a reply answers. In a message on iPhone, the message's own stop reads it (spokenByMessage). */
+export function ReplyQuote({ message, author, spokenByMessage }: { message: Message | undefined; author: string; spokenByMessage?: boolean }) {
+  const words = quoteWords(message);
   return (
-    <View style={styles.quote}>
+    <View style={styles.quote} accessibilityElementsHidden={spokenByMessage}>
       <Text style={styles.quoteName} numberOfLines={1}>{author}</Text>
       <Small numberOfLines={2}>{words}</Small>
     </View>
