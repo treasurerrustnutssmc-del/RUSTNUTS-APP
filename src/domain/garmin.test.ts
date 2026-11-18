@@ -95,6 +95,14 @@ test('garminGpx: keeps stops as waypoints, named and escaped', () => {
   assert.ok(out.indexOf('<wpt') < out.indexOf('<trk>'));
 });
 
+test('garminGpx: a height no place on Earth has is left out, so every number written is a plain decimal', () => {
+  const out = made(garminGpx(gpx(`<trk><trkseg>${pt(1, 1, 99999999999999999999999)}${pt(2, 2, -0.04)}${pt(3, 3, 8848.86)}${pt(4, 4, -100001)}</trkseg></trk>`), 'R'));
+  assert.equal(count(out, '<trkpt '), 4);
+  assert.deepEqual(out.match(/<ele>[^<]*<\/ele>/g), ['<ele>-0.0</ele>', '<ele>8848.9</ele>']);
+  assert.ok(!/e[+-]?\d/i.test(out.replace(/<\?xml[^>]*>|<gpx[^>]*>/g, '')), 'no exponent anywhere');
+  assert.equal(typeof readGpx(out), 'object');
+});
+
 test('garminGpx: cuts a long track to the Garmin limit, keeping the ends and bends', () => {
   const n = GARMIN_MAX_POINTS * 2 + 7;
   const points: string[] = [];

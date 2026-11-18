@@ -1,0 +1,42 @@
+# Whether Supabase checks the caller's sign-in before each server function runs.
+# `supabase functions deploy <name>` reads this file, so a deploy no longer depends on remembering
+# the right switch. src/functionsConfig.test.ts keeps it complete.
+#
+# These values were taken from each function's own opening comment on 19 Nov 2026. They have not
+# been compared with the live project's dashboard, so check the dashboard matches before the
+# first deploy that relies on this file.
+
+# Signed-in members only.
+[functions.ask-club]
+verify_jwt = true
+
+[functions.link-preview]
+verify_jwt = true
+
+[functions.ride-voice-token]
+verify_jwt = true
+
+[functions.shop-order]
+verify_jwt = true
+
+# Retired on 2 Nov 2026; answers 410 to everyone.
+[functions.seed-shop-pictures]
+verify_jwt = true
+
+# The club website's door: the website has no sign-in. It decides everything itself
+# (supabase/functions/_shared/siteApi.ts) and the database keeps the spam limits.
+[functions.site-api]
+verify_jwt = false
+
+# Called by the database's clock. Each refuses a call without the cron secret.
+[functions.purge-files]
+verify_jwt = false
+
+[functions.send-push]
+verify_jwt = false
+
+[functions.sync-rides]
+verify_jwt = false
+
+[functions.voice-sweep]
+verify_jwt = false

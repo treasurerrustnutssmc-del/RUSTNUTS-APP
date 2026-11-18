@@ -9,6 +9,8 @@ import { readGpxPoints, simplifyIndices } from './gpx';
 export const GARMIN_MAX_POINTS = 10_000;
 /** File names are cut to this many characters before `.gpx`. */
 const FILE_NAME_MAX = 40;
+/** Heights further than this from sea level, in metres, are not written. */
+const MAX_HEIGHT_M = 100_000;
 
 /** The text with XML's special characters escaped and characters XML refuses left out. */
 function xmlText(text: string): string {
@@ -35,7 +37,9 @@ export function garminGpx(text: string, name: string): { gpx: string } | string 
 
   const title = `<name>${xmlText(name)}</name>`;
   const wpts = read.stops.map((s) => `<wpt ${at(s.lat, s.lng)}><name>${xmlText(s.name)}</name></wpt>`);
-  const trkpts = kept.map((p) => (p.ele === null ? `<trkpt ${at(p.lat, p.lng)}/>` : `<trkpt ${at(p.lat, p.lng)}><ele>${p.ele.toFixed(1)}</ele></trkpt>`));
+  // A height no place on Earth has is left out: written down, a huge one stops being a plain decimal (1e+23).
+  const high = (ele: number | null): ele is number => ele !== null && Math.abs(ele) <= MAX_HEIGHT_M;
+  const trkpts = kept.map((p) => (high(p.ele) ? `<trkpt ${at(p.lat, p.lng)}><ele>${p.ele.toFixed(1)}</ele></trkpt>` : `<trkpt ${at(p.lat, p.lng)}/>`));
   const gpx = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<gpx version="1.1" creator="Rustnuts SMC" xmlns="http://www.topografix.com/GPX/1/1">',
