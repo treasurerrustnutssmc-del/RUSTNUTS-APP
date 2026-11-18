@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import {
-  actingSpoken, authorPageLabel, CHIP_CHARS, chipLabel, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, roleChipTexts,
+  actingSpoken, authorPageLabel, authorSpoken, CHIP_CHARS, chipLabel, clubCounts, coveredNotice, coveredStepDownNote, coverNote, longTitle, necRows, positionTitles, roleChipTexts,
   seatTitle, stepDownNote, topSeat,
 } from './home';
 import { BOARD_ROLES, CLUB_ROLES, ROLE_LABEL, ROLE_SHORT } from './labels';
@@ -274,6 +274,17 @@ test('authorPageLabel: a chat name button says an acting title its short chip ca
   assert.equal(authorPageLabel(crank, data), 'Crank’s page, Acting Treasurer (North)');
   assert.equal(authorPageLabel(smokey, data), 'Smokey’s page', 'a full term is read as it was');
   assert.equal(authorPageLabel(rusty, data), 'Rusty’s page');
+});
+
+test('authorSpoken: a name that opens no page, as its chips read, for the message’s own stop', () => {
+  const data = clubOf([crankActingTreasurer, smokeyPres]);
+  const crank = people.find((m) => m.id === 'crank')!;
+  const smokey = people.find((m) => m.id === 'smokey')!;
+  const rusty = people.find((m) => m.id === 'rusty')!;
+  assert.equal(authorSpoken(crank, data), 'Crank, Full member, Acting Treasurer (North)', 'a stint’s whole title');
+  assert.equal(authorSpoken(smokey, data), 'Smokey, Full member, PRES', 'a full term as its chip shows it');
+  assert.equal(authorSpoken(rusty, data), 'Rusty, Full member');
+  assert.equal(authorSpoken(undefined, data), 'Former member');
 });
 
 test('the NEC list: one row per chapter for whoever casts its vote (11.2)', () => {

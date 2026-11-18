@@ -12,7 +12,11 @@ import {
   findLinks,
   groupMessages,
   mediaProblem,
+  mediaKindWord,
+  mediaSpoken,
   mediaSummary,
+  messageSpoken,
+  quoteWords,
   postProblem,
   reactProblem,
   readProblem,
@@ -399,4 +403,54 @@ test('Family post, react, report and block in the Family chat, after agreeing to
   assert.equal(canModerate(secretary, familyChat, data), true, 'any board member moderates it');
   assert.equal(canModerate(westie, familyChat, data), false);
   assert.equal(canSeeReport(secretary, familyChat, kerry, data), true);
+});
+
+// What VoiceOver hears for a message on iPhone, where the message's own stop carries its words and the
+// play button, photos and links are stops of their own.
+const media = (kind: 'photo' | 'video' | 'gif' | 'voice') => ({ kind });
+
+test('mediaKindWord names a tile as a screen reader hears it', () => {
+  assert.equal(mediaKindWord('photo'), 'Photo');
+  assert.equal(mediaKindWord('video'), 'Video');
+  assert.equal(mediaKindWord('gif'), 'GIF');
+  assert.equal(mediaKindWord('voice'), 'Voice note');
+});
+
+test('mediaSpoken says what a message holds, by kind', () => {
+  assert.equal(mediaSpoken([]), '');
+  assert.equal(mediaSpoken([media('voice')]), 'Voice note');
+  assert.equal(mediaSpoken([media('photo')]), 'Photo');
+  assert.equal(mediaSpoken([media('video')]), 'Video');
+  assert.equal(mediaSpoken([media('gif')]), 'GIF');
+  assert.equal(mediaSpoken([media('photo'), media('photo')]), '2 photos');
+  assert.equal(mediaSpoken([media('photo'), media('video'), media('photo')]), '2 photos, 1 video');
+  assert.equal(mediaSpoken([media('gif'), media('gif'), media('gif')]), '3 GIFs');
+  assert.equal(mediaSpoken([media('photo'), media('photo'), media('gif')]), '2 photos, 1 GIF', 'GIF keeps its capitals');
+  assert.equal(mediaSpoken([media('photo'), media('gif')]), '1 photo, 1 GIF');
+});
+
+test('quoteWords: what a reply’s quote says', () => {
+  const quoted = (over: Partial<Message>) => ({ body: null, removedAt: null, media: [], ...over }) as Pick<Message, 'body' | 'removedAt' | 'media'>;
+  assert.equal(quoteWords(undefined), 'An earlier message');
+  assert.equal(quoteWords(quoted({ removedAt: '2026-11-01T00:00:00Z', body: 'gone' })), 'Message removed');
+  assert.equal(quoteWords(quoted({ body: 'Who’s keen?' })), 'Who’s keen?');
+  assert.equal(quoteWords(quoted({ media: [{ kind: 'voice' }] as Message['media'] })), 'Voice note');
+  assert.equal(quoteWords(quoted({ media: [{ kind: 'photo' }, { kind: 'photo' }] as Message['media'] })), '2 photos');
+});
+
+test('messageSpoken: the words on a message’s own stop, in the order they sit on screen', () => {
+  assert.equal(messageSpoken({ media: [], body: 'North’s coming down in force.' }), 'North’s coming down in force.');
+  assert.equal(
+    messageSpoken({ author: 'Spanner, Full member', quote: { name: 'Rusty', words: 'Who’s keen?' }, media: [media('photo')], body: 'In.', time: '2:00 pm' }),
+    'Spanner, Full member, Replying to Rusty: Who’s keen?, Photo, In., 2:00 pm',
+  );
+  assert.equal(messageSpoken({ quote: { name: '', words: 'An earlier message' }, media: [], body: 'Yes' }), 'Replying to An earlier message, Yes', 'a quote with no name');
+  assert.equal(messageSpoken({ media: [media('voice')], body: null, time: '7:05 pm' }), 'Voice note, 7:05 pm');
+  assert.equal(
+    messageSpoken({ media: [], body: 'Rego reminder: check yours at https://www.vicroads.vic.gov.au before the ride.' }),
+    'Rego reminder: check yours at https://www.vicroads.vic.gov.au before the ride.',
+    'a link stays in the words; its own stop follows',
+  );
+  assert.equal(messageSpoken({ media: [], body: 'Hi' }), 'Hi', 'no time unless it shows');
+  assert.equal(messageSpoken({ media: [], body: null }), 'Message', 'never an empty label');
 });

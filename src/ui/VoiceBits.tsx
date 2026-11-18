@@ -176,8 +176,21 @@ export function VoiceRecorderBar({
 /** The one voice note playing: starting another pauses it. */
 let nowPlaying: { pause: () => void } | null = null;
 
-/** A voice note in a message: play and pause, how far through, and how long it is. */
-export function VoiceNote({ media, width }: { media: Pick<MessageMedia, 'path' | 'durationMs'>; width: number }) {
+/**
+ * A voice note in a message: play and pause, how far through, and how long it is. In a message on iPhone
+ * (hideTimeFromReader) the play button, which says the length, is the voice note's one VoiceOver stop
+ * except while it plays or is paused part-way: then the time beside it shows how far through, and
+ * VoiceOver reads that too.
+ */
+export function VoiceNote({
+  media,
+  width,
+  hideTimeFromReader,
+}: {
+  media: Pick<MessageMedia, 'path' | 'durationMs'>;
+  width: number;
+  hideTimeFromReader?: boolean;
+}) {
   const source = useMediaSource(media.path);
   const player = useAudioPlayer(source, { updateInterval: 250 });
   const status = useAudioPlayerStatus(player);
@@ -208,6 +221,7 @@ export function VoiceNote({ media, width }: { media: Pick<MessageMedia, 'path' |
   }, [player]);
 
   const fill = length > 0 ? at / length : 0;
+  const showsAt = status.playing || at > 0;
   return (
     <View style={[styles.note, { width }]}>
       <Pressable
@@ -220,13 +234,13 @@ export function VoiceNote({ media, width }: { media: Pick<MessageMedia, 'path' |
         <Ionicons name={broken ? 'alert' : status.playing ? 'pause' : 'play'} size={22} color={colors.bone} />
       </Pressable>
       {broken ? (
-        <Text style={styles.cant} numberOfLines={1}>Can’t play this one</Text>
+        <Text style={styles.cant} numberOfLines={1} accessibilityElementsHidden={hideTimeFromReader}>Can’t play this one</Text>
       ) : (
         <View style={styles.track} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <View style={[styles.trackFill, { width: `${Math.round(fill * 100)}%` }]} />
         </View>
       )}
-      <Text style={styles.noteTime}>{clock(status.playing || at > 0 ? at : length)}</Text>
+      <Text style={styles.noteTime} accessibilityElementsHidden={hideTimeFromReader && !showsAt}>{clock(showsAt ? at : length)}</Text>
     </View>
   );
 }

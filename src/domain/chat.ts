@@ -385,6 +385,57 @@ export function mediaSummary(count: number, voice: boolean): string {
   return count > 1 ? `${count} photos` : 'Photo';
 }
 
+/** What a reply's quote says: the quoted message's words, or what it held. */
+export function quoteWords(message: Pick<Message, 'body' | 'removedAt' | 'media'> | undefined): string {
+  if (!message) return 'An earlier message';
+  if (message.removedAt) return 'Message removed';
+  return message.body || mediaSummary(message.media.length, message.media.some((m) => m.kind === 'voice'));
+}
+
+const KIND_WORD: Record<MediaKind, string> = { photo: 'Photo', video: 'Video', gif: 'GIF', voice: 'Voice note' };
+type TileKind = Exclude<MediaKind, 'voice'>;
+const KIND_ONE: Record<TileKind, string> = { photo: 'photo', video: 'video', gif: 'GIF' };
+const KIND_PLURAL: Record<TileKind, string> = { photo: 'photos', video: 'videos', gif: 'GIFs' };
+
+/** A piece of media's name as a screen reader hears it: Photo, Video, GIF or Voice note. */
+export function mediaKindWord(kind: MediaKind): string {
+  return KIND_WORD[kind];
+}
+
+/** What a message holds, by kind, for the words a screen reader hears: "Photo", "2 photos, 1 video". */
+export function mediaSpoken(media: Pick<MessageMedia, 'kind'>[]): string {
+  if (media.some((m) => m.kind === 'voice')) return KIND_WORD.voice;
+  if (media.length === 1) return KIND_WORD[media[0].kind];
+  const kinds: TileKind[] = ['photo', 'video', 'gif'];
+  return kinds
+    .map((k) => ({ k, n: media.filter((m) => m.kind === k).length }))
+    .filter((x) => x.n > 0)
+    .map((x) => `${x.n} ${x.n === 1 ? KIND_ONE[x.k] : KIND_PLURAL[x.k]}`)
+    .join(', ');
+}
+
+/**
+ * The words on a message's own VoiceOver stop on iPhone, in the order they sit on screen: the name
+ * (only where it is no button of its own), the quote ("Replying to Rusty: Who's keen?", so the two names
+ * don't run together), what it holds, its words, and its time when that shows. The play button, the photos and the links are stops of their own after it.
+ */
+export function messageSpoken(parts: {
+  author?: string;
+  quote?: { name: string; words: string };
+  media: Pick<MessageMedia, 'kind'>[];
+  body: string | null;
+  time?: string;
+}): string {
+  const said = [
+    parts.author,
+    parts.quote ? (parts.quote.name ? `Replying to ${parts.quote.name}: ${parts.quote.words}` : `Replying to ${parts.quote.words}`) : undefined,
+    mediaSpoken(parts.media),
+    parts.body ?? undefined,
+    parts.time,
+  ].filter((x): x is string => !!x);
+  return said.length ? said.join(', ') : 'Message';
+}
+
 /** Authors the member list doesn't have yet: someone who joined after the club was loaded (or a
  *  removed member). The chat reloads the club once for these before calling anyone "Former member". */
 export function unknownAuthors(messages: Pick<Message, 'authorId'>[], members: Pick<Member, 'id'>[]): string[] {

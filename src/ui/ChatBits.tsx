@@ -9,7 +9,7 @@ import { GIPHY_KEY } from '../data/config';
 import type { Attachment, FeedItem, GifPick, LinkPreview, MediaSource } from '../data/chat/chatContext';
 import { useChat } from '../data/chat/chatContext';
 import { searchGifs, type GifResult } from '../data/chat/gifSearch';
-import { findLinks, mediaSummary, REACTIONS, type Message, type MessageMedia } from '../domain/chat';
+import { findLinks, mediaKindWord, quoteWords, REACTIONS, type Message, type MessageMedia } from '../domain/chat';
 import { actingSpoken, chipLabel, topSeat } from '../domain/home';
 import { displayName } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
@@ -46,26 +46,32 @@ function seconds(ms: number | null) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** One photo, video still or GIF, filling its box. Videos carry a play mark and their length. */
+/**
+ * One photo, video still or GIF, filling its box. Videos carry a play mark and their length.
+ * hiddenFromReader: hidden from VoiceOver, where something around it already says it and does its job.
+ */
 export function MediaTile({
   media,
   style,
   onPress,
   label,
+  hiddenFromReader,
 }: {
   media: Pick<MessageMedia, 'kind' | 'path' | 'posterPath' | 'durationMs'>;
   style: object;
   onPress?: () => void;
   label?: string;
+  hiddenFromReader?: boolean;
 }) {
   const shown = useMediaSource(media.kind === 'video' ? media.posterPath : media.path);
-  const kindWord = media.kind === 'video' ? 'Video' : media.kind === 'gif' ? 'GIF' : 'Photo';
+  const kindWord = mediaKindWord(media.kind);
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'imagebutton' : 'image'}
       accessibilityLabel={label ?? kindWord}
+      accessibilityElementsHidden={hiddenFromReader}
       style={({ pressed }) => [styles.tile, style, pressed && { opacity: 0.85 }]}
     >
       {shown !== null ? (
@@ -89,18 +95,32 @@ export function MediaTile({
   );
 }
 
-/** A message's photos: one at its own shape, more in a two-across grid. */
-export function MediaGrid({ media, width, onOpen }: { media: MessageMedia[]; width: number; onOpen: (index: number) => void }) {
+/**
+ * A message's photos: one at its own shape, more in a two-across grid. Inside a message on iPhone
+ * (spokenByMessage), a GIF tile is hidden from VoiceOver: its tap selects the message, which the
+ * message's own stop already does and names. Photos and videos open the viewer, so they stay stops.
+ */
+export function MediaGrid({
+  media,
+  width,
+  onOpen,
+  spokenByMessage,
+}: {
+  media: MessageMedia[];
+  width: number;
+  onOpen: (index: number) => void;
+  spokenByMessage?: boolean;
+}) {
   if (media.length === 1) {
     const m = media[0];
     const ratio = m.width && m.height ? Math.min(Math.max(m.height / m.width, 0.5), 1.4) : 0.75;
-    return <MediaTile media={m} style={{ width, height: Math.round(width * ratio) }} onPress={() => onOpen(0)} />;
+    return <MediaTile media={m} style={{ width, height: Math.round(width * ratio) }} onPress={() => onOpen(0)} hiddenFromReader={spokenByMessage && m.kind === 'gif'} />;
   }
   const cell = Math.floor((width - 4) / 2);
   return (
     <View style={[styles.grid, { width }]}>
       {media.map((m, i) => (
-        <MediaTile key={m.id} media={m} style={{ width: cell, height: cell }} onPress={() => onOpen(i)} />
+        <MediaTile key={m.id} media={m} style={{ width: cell, height: cell }} onPress={() => onOpen(i)} hiddenFromReader={spokenByMessage && m.kind === 'gif'} />
       ))}
     </View>
   );
@@ -135,11 +155,17 @@ export function LinkCard({ url }: { url: string }) {
   );
 }
 
-/** Words with their links tappable. */
-export function MessageText({ body }: { body: string }) {
-  return (
-    <Text style={styles.body} selectable>
-      {findLinks(body).map((part, i) =>
+/**
+ * Words with their links tappable. Inside a message on iPhone (spokenByMessage), the message's own
+ * VoiceOver stop reads the words, so they are hidden here, and each link gets a link stop of its own:
+ * plain Views behind the words (the words stay on top for taps, links and Copy), opened by VoiceOver's
+ * double-tap, never by a tap on the screen.
+ */
+export function MessageText({ body, spokenByMessage }: { body: string; spokenByMessage?: boolean }) {
+  const parts = findLinks(body);
+  const words = (
+    <Text style={styles.body} selectable accessibilityElementsHidden={spokenByMessage}>
+      {parts.map((part, i) =>
         part.url ? (
           <Text key={i} style={styles.link} accessibilityRole="link" onPress={() => openLink(part.url!).catch(() => {})}>
             {part.text}
@@ -149,6 +175,24 @@ export function MessageText({ body }: { body: string }) {
         ),
       )}
     </Text>
+  );
+  const links = parts.filter((p) => p.url);
+  if (!spokenByMessage || !links.length) return words;
+  return (
+    <View>
+      {links.map((p, i) => (
+        <View
+          key={i}
+          accessible
+          accessibilityRole="link"
+          accessibilityLabel={p.text}
+          onAccessibilityTap={() => openLink(p.url!).catch(() => {})}
+          // A pixel apart, so VoiceOver, which goes by position, keeps them in order.
+          style={[StyleSheet.absoluteFill, { top: i }]}
+        />
+      ))}
+      {words}
+    </View>
   );
 }
 
@@ -204,15 +248,11 @@ export function ReactionPills({ message, meId, onToggle }: { message: Message; m
   );
 }
 
-/** The quoted message a reply answers. */
-export function ReplyQuote({ message, author }: { message: Message | undefined; author: string }) {
-  const words = !message
-    ? 'An earlier message'
-    : message.removedAt
-      ? 'Message removed'
-      : message.body || mediaSummary(message.media.length, message.media.some((m) => m.kind === 'voice'));
+/** The quoted message a reply answers. In a message on iPhone, the message's own stop reads it (spokenByMessage). */
+export function ReplyQuote({ message, author, spokenByMessage }: { message: Message | undefined; author: string; spokenByMessage?: boolean }) {
+  const words = quoteWords(message);
   return (
-    <View style={styles.quote}>
+    <View style={styles.quote} accessibilityElementsHidden={spokenByMessage}>
       <Text style={styles.quoteName} numberOfLines={1}>{author}</Text>
       <Small numberOfLines={2}>{words}</Small>
     </View>

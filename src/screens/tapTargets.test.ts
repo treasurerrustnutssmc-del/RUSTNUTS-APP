@@ -52,7 +52,7 @@ test('a chat name that opens no page (Family viewers, a former member) stays ins
   assert.doesNotMatch(msg, /disabled=\{!author \|\| family\}/, 'no disabled name button left beside the message');
   const body = msg.indexOf('accessibilityHint="Shows reactions and what you can do with this message"');
   const inside = msg.slice(body, msg.indexOf('</Pressable>', body));
-  assert.match(inside, /\{showAuthor && !nameLinks \? \(\s*<View style=\{styles\.bubbleNameText\}>\s*<AuthorLine member=\{author\} data=\{data\} \/>/);
+  assert.match(inside, /\{showAuthor && !nameLinks \? \(\s*<View style=\{styles\.bubbleNameText\} accessibilityElementsHidden=\{ios\}>\s*<AuthorLine member=\{author\} data=\{data\} \/>/);
   assert.match(chat, /bubbleNameText: \{ minHeight: 44, justifyContent: 'center' \},/);
 });
 

@@ -284,7 +284,7 @@ test('Quoted replies and the Replying-to bar still keep the name to one line and
   assert.match(tagHolding(quote, '{words}</Small>', 'Small'), TWO);
   // Both are that one quote: in a message, and in the bar over the message being typed.
   const chat = read('chat.tsx');
-  assert.match(chat, /\{m\.replyToId \? <ReplyQuote message=\{replied\} author=\{replied \? nameOf\(replied\.authorId\) : ''\} \/> : null\}/);
+  assert.match(chat, /\{m\.replyToId \? <ReplyQuote message=\{replied\} author=\{replied \? nameOf\(replied\.authorId\) : ''\} spokenByMessage=\{ios\} \/> : null\}/);
   assert.match(chat, /<View style=\{styles\.replyBar\}>\s*<View style=\{\{ flex: 1 \}\}>\s*<ReplyQuote message=\{replyTo\} author=\{`Replying to \$\{nameOf\(replyTo\.authorId\)\}`\} \/>/);
 });
 
