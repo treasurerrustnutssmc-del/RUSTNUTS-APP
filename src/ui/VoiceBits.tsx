@@ -178,7 +178,8 @@ let nowPlaying: { pause: () => void } | null = null;
 
 /**
  * A voice note in a message: play and pause, how far through, and how long it is. In a message on iPhone
- * (hideTimeFromReader) the play button, which says the length, is the voice note's one VoiceOver stop.
+ * (hideTimeFromReader) the play button, which says the length, is the voice note's one VoiceOver stop
+ * until it has played; then the time beside it shows how far through, and VoiceOver reads that too.
  */
 export function VoiceNote({
   media,
@@ -219,6 +220,7 @@ export function VoiceNote({
   }, [player]);
 
   const fill = length > 0 ? at / length : 0;
+  const showsAt = status.playing || at > 0;
   return (
     <View style={[styles.note, { width }]}>
       <Pressable
@@ -237,7 +239,7 @@ export function VoiceNote({
           <View style={[styles.trackFill, { width: `${Math.round(fill * 100)}%` }]} />
         </View>
       )}
-      <Text style={styles.noteTime} accessibilityElementsHidden={hideTimeFromReader}>{clock(status.playing || at > 0 ? at : length)}</Text>
+      <Text style={styles.noteTime} accessibilityElementsHidden={hideTimeFromReader && !showsAt}>{clock(showsAt ? at : length)}</Text>
     </View>
   );
 }

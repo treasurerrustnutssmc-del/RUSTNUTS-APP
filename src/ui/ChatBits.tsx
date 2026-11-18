@@ -46,17 +46,22 @@ function seconds(ms: number | null) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** One photo, video still or GIF, filling its box. Videos carry a play mark and their length. */
+/**
+ * One photo, video still or GIF, filling its box. Videos carry a play mark and their length.
+ * hiddenFromReader: hidden from VoiceOver, where something around it already says it and does its job.
+ */
 export function MediaTile({
   media,
   style,
   onPress,
   label,
+  hiddenFromReader,
 }: {
   media: Pick<MessageMedia, 'kind' | 'path' | 'posterPath' | 'durationMs'>;
   style: object;
   onPress?: () => void;
   label?: string;
+  hiddenFromReader?: boolean;
 }) {
   const shown = useMediaSource(media.kind === 'video' ? media.posterPath : media.path);
   const kindWord = mediaKindWord(media.kind);
@@ -66,6 +71,7 @@ export function MediaTile({
       disabled={!onPress}
       accessibilityRole={onPress ? 'imagebutton' : 'image'}
       accessibilityLabel={label ?? kindWord}
+      accessibilityElementsHidden={hiddenFromReader}
       style={({ pressed }) => [styles.tile, style, pressed && { opacity: 0.85 }]}
     >
       {shown !== null ? (
@@ -89,18 +95,32 @@ export function MediaTile({
   );
 }
 
-/** A message's photos: one at its own shape, more in a two-across grid. */
-export function MediaGrid({ media, width, onOpen }: { media: MessageMedia[]; width: number; onOpen: (index: number) => void }) {
+/**
+ * A message's photos: one at its own shape, more in a two-across grid. Inside a message on iPhone
+ * (spokenByMessage), a GIF tile is hidden from VoiceOver: its tap selects the message, which the
+ * message's own stop already does and names. Photos and videos open the viewer, so they stay stops.
+ */
+export function MediaGrid({
+  media,
+  width,
+  onOpen,
+  spokenByMessage,
+}: {
+  media: MessageMedia[];
+  width: number;
+  onOpen: (index: number) => void;
+  spokenByMessage?: boolean;
+}) {
   if (media.length === 1) {
     const m = media[0];
     const ratio = m.width && m.height ? Math.min(Math.max(m.height / m.width, 0.5), 1.4) : 0.75;
-    return <MediaTile media={m} style={{ width, height: Math.round(width * ratio) }} onPress={() => onOpen(0)} />;
+    return <MediaTile media={m} style={{ width, height: Math.round(width * ratio) }} onPress={() => onOpen(0)} hiddenFromReader={spokenByMessage && m.kind === 'gif'} />;
   }
   const cell = Math.floor((width - 4) / 2);
   return (
     <View style={[styles.grid, { width }]}>
       {media.map((m, i) => (
-        <MediaTile key={m.id} media={m} style={{ width: cell, height: cell }} onPress={() => onOpen(i)} />
+        <MediaTile key={m.id} media={m} style={{ width: cell, height: cell }} onPress={() => onOpen(i)} hiddenFromReader={spokenByMessage && m.kind === 'gif'} />
       ))}
     </View>
   );
@@ -142,9 +162,10 @@ export function LinkCard({ url }: { url: string }) {
  * double-tap, never by a tap on the screen.
  */
 export function MessageText({ body, spokenByMessage }: { body: string; spokenByMessage?: boolean }) {
+  const parts = findLinks(body);
   const words = (
     <Text style={styles.body} selectable accessibilityElementsHidden={spokenByMessage}>
-      {findLinks(body).map((part, i) =>
+      {parts.map((part, i) =>
         part.url ? (
           <Text key={i} style={styles.link} accessibilityRole="link" onPress={() => openLink(part.url!).catch(() => {})}>
             {part.text}
@@ -155,7 +176,7 @@ export function MessageText({ body, spokenByMessage }: { body: string; spokenByM
       )}
     </Text>
   );
-  const links = findLinks(body).filter((p) => p.url);
+  const links = parts.filter((p) => p.url);
   if (!spokenByMessage || !links.length) return words;
   return (
     <View>

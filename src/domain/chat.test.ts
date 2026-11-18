@@ -425,6 +425,8 @@ test('mediaSpoken says what a message holds, by kind', () => {
   assert.equal(mediaSpoken([media('photo'), media('photo')]), '2 photos');
   assert.equal(mediaSpoken([media('photo'), media('video'), media('photo')]), '2 photos, 1 video');
   assert.equal(mediaSpoken([media('gif'), media('gif'), media('gif')]), '3 GIFs');
+  assert.equal(mediaSpoken([media('photo'), media('photo'), media('gif')]), '2 photos, 1 GIF', 'GIF keeps its capitals');
+  assert.equal(mediaSpoken([media('photo'), media('gif')]), '1 photo, 1 GIF');
 });
 
 test('quoteWords: what a reply’s quote says', () => {
@@ -440,9 +442,9 @@ test('messageSpoken: the words on a message’s own stop, in the order they sit 
   assert.equal(messageSpoken({ media: [], body: 'North’s coming down in force.' }), 'North’s coming down in force.');
   assert.equal(
     messageSpoken({ author: 'Spanner, Full member', quote: { name: 'Rusty', words: 'Who’s keen?' }, media: [media('photo')], body: 'In.', time: '2:00 pm' }),
-    'Spanner, Full member, Rusty, Who’s keen?, Photo, In., 2:00 pm',
+    'Spanner, Full member, Replying to Rusty: Who’s keen?, Photo, In., 2:00 pm',
   );
-  assert.equal(messageSpoken({ quote: { name: '', words: 'An earlier message' }, media: [], body: 'Yes' }), 'An earlier message, Yes', 'a quote with no name');
+  assert.equal(messageSpoken({ quote: { name: '', words: 'An earlier message' }, media: [], body: 'Yes' }), 'Replying to An earlier message, Yes', 'a quote with no name');
   assert.equal(messageSpoken({ media: [media('voice')], body: null, time: '7:05 pm' }), 'Voice note, 7:05 pm');
   assert.equal(
     messageSpoken({ media: [], body: 'Rego reminder: check yours at https://www.vicroads.vic.gov.au before the ride.' }),

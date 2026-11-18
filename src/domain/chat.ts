@@ -393,9 +393,11 @@ export function quoteWords(message: Pick<Message, 'body' | 'removedAt' | 'media'
 }
 
 const KIND_WORD: Record<MediaKind, string> = { photo: 'Photo', video: 'Video', gif: 'GIF', voice: 'Voice note' };
-const KIND_PLURAL: Record<MediaKind, string> = { photo: 'photos', video: 'videos', gif: 'GIFs', voice: 'voice notes' };
+type TileKind = Exclude<MediaKind, 'voice'>;
+const KIND_ONE: Record<TileKind, string> = { photo: 'photo', video: 'video', gif: 'GIF' };
+const KIND_PLURAL: Record<TileKind, string> = { photo: 'photos', video: 'videos', gif: 'GIFs' };
 
-/** A tile's name as a screen reader hears it: Photo, Video or GIF. */
+/** A piece of media's name as a screen reader hears it: Photo, Video, GIF or Voice note. */
 export function mediaKindWord(kind: MediaKind): string {
   return KIND_WORD[kind];
 }
@@ -404,18 +406,18 @@ export function mediaKindWord(kind: MediaKind): string {
 export function mediaSpoken(media: Pick<MessageMedia, 'kind'>[]): string {
   if (media.some((m) => m.kind === 'voice')) return KIND_WORD.voice;
   if (media.length === 1) return KIND_WORD[media[0].kind];
-  const kinds: MediaKind[] = ['photo', 'video', 'gif'];
+  const kinds: TileKind[] = ['photo', 'video', 'gif'];
   return kinds
     .map((k) => ({ k, n: media.filter((m) => m.kind === k).length }))
     .filter((x) => x.n > 0)
-    .map((x) => `${x.n} ${x.n === 1 ? KIND_WORD[x.k].toLowerCase() : KIND_PLURAL[x.k]}`)
+    .map((x) => `${x.n} ${x.n === 1 ? KIND_ONE[x.k] : KIND_PLURAL[x.k]}`)
     .join(', ');
 }
 
 /**
  * The words on a message's own VoiceOver stop on iPhone, in the order they sit on screen: the name
- * (only where it is no button of its own), the quote, what it holds, its words, and its time when that
- * shows. The play button, the photos and the links are stops of their own after it.
+ * (only where it is no button of its own), the quote ("Replying to Rusty: Who's keen?", so the two names
+ * don't run together), what it holds, its words, and its time when that shows. The play button, the photos and the links are stops of their own after it.
  */
 export function messageSpoken(parts: {
   author?: string;
@@ -426,7 +428,7 @@ export function messageSpoken(parts: {
 }): string {
   const said = [
     parts.author,
-    parts.quote ? [parts.quote.name, parts.quote.words].filter(Boolean).join(', ') : undefined,
+    parts.quote ? (parts.quote.name ? `Replying to ${parts.quote.name}: ${parts.quote.words}` : `Replying to ${parts.quote.words}`) : undefined,
     mediaSpoken(parts.media),
     parts.body ?? undefined,
     parts.time,

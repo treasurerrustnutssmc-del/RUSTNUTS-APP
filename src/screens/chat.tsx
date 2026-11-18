@@ -459,7 +459,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
             >
               {/* iPhone only: the message's own VoiceOver stop, with its words and the double-tap that shows its
                   actions. A plain View first, behind the content, so a tap anywhere still reaches the button.
-                  The play button, each photo and each link after it are stops of their own. */}
+                  The play button, each photo or video and each link after it are stops of their own. */}
               {ios ? (
                 <View
                   accessible
@@ -468,7 +468,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
                   accessibilityHint="Shows reactions and what you can do with this message"
                   accessibilityState={{ selected: isSelected }}
                   onAccessibilityTap={toggle}
-                  style={[StyleSheet.absoluteFill, styles.bubbleReader, nameLinks && styles.bubbleReaderUnderName]}
+                  style={StyleSheet.absoluteFill}
                 />
               ) : null}
               {showAuthor && !nameLinks ? (
@@ -483,10 +483,11 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
                 <MediaGrid
                   media={m.media}
                   width={bubbleWidth - space.md * 2}
+                  spokenByMessage={ios}
                   onOpen={(index) => {
                     const items = feedItemsOf(m);
                     const shown = m.media[index];
-                    if (shown.kind === 'gif') return setSelected(isSelected ? null : m.id);
+                    if (shown.kind === 'gif') return toggle();
                     navigation.navigate('MediaViewer', { items, index: Math.max(0, items.findIndex((x) => x.id === shown.id)) });
                   }}
                 />
@@ -940,9 +941,6 @@ const styles = StyleSheet.create({
   bubbleBody: { paddingHorizontal: space.md, paddingVertical: space.sm, gap: 6, borderRadius: radius.md },
   // Under the name button: 6 of space below the name, and square top corners where it meets the name.
   bubbleBodyUnderName: { paddingTop: 6, borderTopLeftRadius: 0, borderTopRightRadius: 0 },
-  // The iPhone reader draws nothing; its corners only shape a keyboard focus ring.
-  bubbleReader: { borderRadius: radius.md },
-  bubbleReaderUnderName: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   // A name that opens no page is part of the message, so a tap on it selects the message.
   bubbleNameText: { minHeight: 44, justifyContent: 'center' },
   bubbleTheirs: { backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line },
