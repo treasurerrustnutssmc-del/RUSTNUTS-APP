@@ -179,7 +179,8 @@ let nowPlaying: { pause: () => void } | null = null;
 /**
  * A voice note in a message: play and pause, how far through, and how long it is. In a message on iPhone
  * (hideTimeFromReader) the play button, which says the length, is the voice note's one VoiceOver stop
- * until it has played; then the time beside it shows how far through, and VoiceOver reads that too.
+ * except while it plays or is paused part-way: then the time beside it shows how far through, and
+ * VoiceOver reads that too.
  */
 export function VoiceNote({
   media,
