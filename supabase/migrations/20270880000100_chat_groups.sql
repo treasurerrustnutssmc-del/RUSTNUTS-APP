@@ -11,6 +11,7 @@
 -- A group's name, and who started it.
 alter table public.conversations add column if not exists name text;
 alter table public.conversations add column if not exists created_by uuid references public.members (id) on delete set null;
+create index if not exists conversations_created_by_idx on public.conversations (created_by) where created_by is not null;
 alter table public.conversations drop constraint if exists conversations_group_name;
 alter table public.conversations add constraint conversations_group_name
   check ((kind = 'group') = (name is not null) and (name is null or char_length(name) between 1 and 40));
