@@ -7,10 +7,13 @@
 #   send-build-for-review  gives build N to the public-link group "Rustnuts members" and sends it for
 #                          Beta App Review (fills in "What to Test" if it's empty)
 # The log is public (public repository), so the script prints counts and build states only.
-# Scheduled runs only happen from main.
+# Scheduled runs only happen from main; a push that changes this job runs status.
 name: TestFlight
 
 on:
+  # A change to this job runs status, which also checks the key still works.
+  push:
+    paths: ['.github/workflows/testflight.yml', '.github/scripts/testflight.mjs']
   schedule:
     - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
@@ -46,7 +49,7 @@ jobs:
           python3 .github/scripts/write-asc-key.py ../asc/AuthKey.p8
       - name: Run
         env:
-          ACTION: ${{ inputs.action || 'add-members' }}
+          ACTION: ${{ inputs.action || (github.event_name == 'schedule' && 'add-members' || 'status') }}
           BUILD: ${{ inputs.build }}
           ASC_KEY_PATH: ../asc/AuthKey.p8
           ASC_KEY_ID: GZ4F28YT8V
