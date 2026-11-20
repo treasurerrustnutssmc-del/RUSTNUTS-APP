@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { RECORD_AGM_ONLY } from '../domain/clubYear';
 import type { ClubData } from '../domain/types';
 import { NotAllowedError } from './clubContext';
-import { withPatchInFee, type DemoCtx } from './demoActions';
+import { approve, withPatchInFee, type DemoCtx } from './demoActions';
 import { DEMO_DATA } from './demoStory.testkit';
 import { raiseFees, recordAgm } from './demoStage4';
 
@@ -39,6 +39,15 @@ test('becoming Full adds the pro rata fee once', () => {
   assert.deepEqual(fees(once).map((c) => [c.fy, c.kind, c.amountCents, c.description]), [[2026, 'annual', 30000, 'Pro rata, 10 of 12 months']]);
   const again = withPatchInFee({ ...ctx, data: { ...once, members: base.members } }, 'm-throttle', once);
   assert.equal(fees(again).length, 1);
+});
+
+test('letting an applicant in as Full adds the pro rata fee, as the database trigger does', () => {
+  const data = withMember('m-throttle', { status: 'introduced', approval: 'pending', patchedOn: null, fngStartedOn: null });
+  const after = approve(ctxFor('m-sparks', data), 'm-throttle', 'full');
+  const fees = (after.charges ?? []).filter((c) => c.memberId === 'm-throttle');
+  assert.deepEqual(fees.map((c) => [c.kind, c.amountCents]), [['annual', 30000]]);
+  const supporter = approve(ctxFor('m-sparks', data), 'm-throttle', 'supporter');
+  assert.equal((supporter.charges ?? []).filter((c) => c.memberId === 'm-throttle').length, 0);
 });
 
 test('only the National Chairman or Secretary records the AGM, and recording again replaces it', () => {

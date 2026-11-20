@@ -181,7 +181,32 @@ begin
     = 'A learner permit rider can’t become an FNG yet (3.2).', 'decide';
   assert pg_temp.try_as(sec, format($q$select public.approve_member(%L, 'fng')$q$, lee))
     = 'A learner permit rider can’t become an FNG yet (3.2).', 'approve';
+  assert pg_temp.try_as(sec, format($q$select public.decide_application(%L, 'full', 5, 0, 0, null)$q$, lee))
+    = 'A learner permit rider can’t be let in as Full.', 'no Full on L plates either';
+  assert pg_temp.try_as(sec, format($q$select public.approve_member(%L, 'full')$q$, lee))
+    = 'A learner permit rider can’t be let in as Full.', 'approve_member refuses it too';
   assert pg_temp.try_as(sec, format($q$select public.decide_application(%L, 'introduced', 5, 0, 0, null)$q$, lee)) is null, 'introduced is fine';
+end $$;
+
+\echo 'A patched member who signed up under another email can be let in as Full'
+do $$
+declare
+  sec constant uuid := '00000000-0000-0000-0000-0000000000a1';
+  pat constant uuid := '00000000-0000-0000-0000-0000000000f1';
+  nom constant uuid := '00000000-0000-0000-0000-0000000000f2';
+  west uuid := (select id from chapters where slug = 'west');
+begin
+  insert into auth.users (id, email, email_confirmed_at) values (pat, 'patched@example.com', now()), (nom, 'away@example.com', now());
+  insert into members (id, chapter_id, full_name, status, approval) values
+    (pat, west, 'Pat Patched', 'introduced', 'pending'), (nom, west, 'Nora Away', 'introduced', 'pending');
+  assert pg_temp.try_as(sec, format($q$select public.decide_application(%L, 'nomad', 5, 0, 0, null)$q$, nom))
+    = 'Let them in as Introduced, FNG, Full, Supporter or Family.', 'Nomad isn''t an approval choice';
+  assert pg_temp.try_as(sec, format($q$select public.decide_application(%L, 'full', 5, 0, 0, 'Already patched')$q$, pat)) is null, 'the board lets him in as Full';
+  assert (select status from members where id = pat) = 'full', 'Pat is Full';
+  assert (select approval from members where id = pat) = 'approved', 'Pat is approved';
+  assert (select patched_on from members where id = pat) = private.club_date(), 'patched date starts as today';
+  assert (select status from member_decisions where member_id = pat and kind = 'application') = 'full', 'decision recorded as Full';
+  assert pg_temp.try_as(sec, format($q$select public.approve_member(%L, 'full')$q$, nom)) is null, 'approve_member takes Full too';
 end $$;
 
 \echo 'A Patch review needs nine months and a carried patch vote'

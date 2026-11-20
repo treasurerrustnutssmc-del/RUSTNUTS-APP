@@ -2,10 +2,10 @@
 // FNG reviews at 6, 9 and 12 months and every 3 months after (4.7, 4.10). The database's
 // decide_application and record_fng_review actions apply the same rules with the same words.
 
-import { hasCarriedPatchVote, isBoardOf, isLearner, LEARNER_FNG, NEEDS_PATCH_VOTE } from './access';
+import { hasCarriedPatchVote, isBoardOf, isLearner, LEARNER_FNG, LEARNER_FULL, NEEDS_PATCH_VOTE } from './access';
 import { attendanceCount } from './attendance';
 import { daysBetween } from './dates';
-import { APPROVE_AS } from './labels';
+import { APPROVE_AS, APPROVE_AS_PROBLEM } from './labels';
 import { addMonths } from './profile';
 import type { ClubData, DecisionOutcome, Member, MemberDecision, MemberStatus, Votes } from './types';
 import { patchVoteTooEarly } from './votes';
@@ -91,8 +91,9 @@ export function decideApplicationProblem(
     return `Only the ${chapter} board can approve this applicant.`;
   }
   if (target.approval !== 'pending') return 'This person isn’t waiting for approval.';
-  if (status !== null && !APPROVE_AS.includes(status)) return 'Let them in as Introduced, FNG, Supporter or Family.';
+  if (status !== null && !APPROVE_AS.includes(status)) return APPROVE_AS_PROBLEM;
   if (status === 'fng' && isLearner(target.id, data)) return LEARNER_FNG;
+  if (status === 'full' && isLearner(target.id, data)) return LEARNER_FULL;
   return votesProblem(votes);
 }
 

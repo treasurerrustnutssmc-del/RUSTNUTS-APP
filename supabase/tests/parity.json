@@ -750,12 +750,20 @@
       "allowed": false
     },
     {
-      "name": "Board lets a new applicant in as Full",
+      "name": "Board lets a new applicant in as Nomad",
+      "as": "torque",
+      "action": "approve",
+      "member": "dylan",
+      "status": "nomad",
+      "allowed": false
+    },
+    {
+      "name": "Board lets an already-patched applicant in as Full",
       "as": "torque",
       "action": "approve",
       "member": "dylan",
       "status": "full",
-      "allowed": false
+      "allowed": true
     },
     {
       "name": "A member removes their own bike",
