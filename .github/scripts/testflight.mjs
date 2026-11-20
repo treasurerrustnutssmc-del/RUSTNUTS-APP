@@ -8,6 +8,7 @@
 //
 // The repository is public, so its Actions logs are too: this prints counts and build states only,
 // never a member's name or email. Run by .github/workflows/testflight.yml.
+import { Buffer } from 'node:buffer';
 import { createPrivateKey, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -54,22 +55,40 @@ export function pickBuild(builds, number) {
   return build;
 }
 
-function client(token) {
+/**
+ * How to fill "What to Test": App Store Connect may already have made an empty locale for the build,
+ * and a second one for the same locale is refused, so an empty one is filled in place.
+ */
+export function whatToTestStep(locs) {
+  if (locs.some((l) => l.attributes?.whatsNew)) return null;
+  const empty = locs.find((l) => l.attributes?.locale === 'en-AU') ?? locs[0];
+  return empty ? { method: 'PATCH', id: empty.id } : { method: 'POST' };
+}
+
+export function client(token, fetchImpl = fetch) {
   async function call(method, path, body) {
-    const res = await fetch(path.startsWith('http') ? path : API + path, {
+    const where = `${method} ${new URL(path, API).pathname}`;
+    const res = await fetchImpl(path.startsWith('http') ? path : API + path, {
       method,
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
-    const json = text ? JSON.parse(text) : {};
+    let json = {};
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      // A parse error quotes the text around it, which could be someone's details: say only where.
+      throw Object.assign(new Error(`${where} → ${res.status}, reply wasn't JSON`), { status: res.status });
+    }
     if (!res.ok) {
-      // Apple's error codes and titles name the problem without repeating anyone's details.
-      const why = (json.errors ?? []).map((e) => `${e.code}: ${e.title}`).join('; ');
-      const err = new Error(`${method} ${path.split('?')[0]} → ${res.status} ${why}`);
-      err.status = res.status;
-      err.errors = json.errors ?? [];
-      throw err;
+      // Apple's error codes and titles name the problem; its "detail" can repeat an email, so it's left out.
+      const errors = Array.isArray(json.errors) ? json.errors : [];
+      const why = errors.map((e) => `${e.code}: ${e.title}`).join('; ');
+      throw Object.assign(new Error(`${where} → ${res.status} ${why}`.trim()), {
+        status: res.status,
+        codes: errors.map((e) => e.code),
+      });
     }
     return json;
   }
@@ -85,12 +104,13 @@ function client(token) {
   return { call, all };
 }
 
-async function addMembers(api) {
+/** Puts every App Store Connect user in the inside group. One Apple won't take is a warning only. */
+export async function addMembers(api, out = { log: console.log, warn: console.error }) {
   const users = await api.all('/v1/users?limit=200');
   const testers = await api.all(`/v1/betaGroups/${INSIDE_GROUP}/betaTesters?limit=200`);
   const todo = membersToAdd(users, testers);
   let added = 0;
-  let failed = 0;
+  let skipped = 0;
   for (const m of todo) {
     try {
       await api.call('POST', '/v1/betaTesters', {
@@ -102,12 +122,13 @@ async function addMembers(api) {
       });
       added++;
     } catch (e) {
-      failed++;
-      console.error(`::warning::One member couldn't be added: ${e.message.split('→')[1]?.trim()}`);
+      skipped++;
+      out.warn(`::warning::Apple didn't take one member as an inside tester (${e.status ?? 'no reply'})`);
     }
   }
-  console.log(`App Store Connect users: ${users.length}. Inside testers before: ${testers.length}. Added: ${added}. Failed: ${failed}.`);
-  if (failed) process.exitCode = 1;
+  const result = { users: users.length, testersBefore: testers.length, added, skipped };
+  out.log(`App Store Connect users: ${result.users}. Inside testers before: ${result.testersBefore}. Added: ${added}. Not taken: ${skipped}.`);
+  return result;
 }
 
 async function status(api) {
@@ -133,8 +154,12 @@ async function sendBuildForReview(api, number) {
   if (!/^\d+$/.test(String(number ?? ''))) throw new Error('Give the build number to send (for example 4)');
   const builds = await api.all(`/v1/builds?filter[app]=${APP_ID}&filter[version]=${number}&limit=10`);
   const build = pickBuild(builds, number);
-  const locs = await api.all(`/v1/builds/${build.id}/betaBuildLocalizations`);
-  if (!locs.some((l) => l.attributes?.whatsNew)) {
+  const step = whatToTestStep(await api.all(`/v1/builds/${build.id}/betaBuildLocalizations`));
+  if (step?.method === 'PATCH') {
+    await api.call('PATCH', `/v1/betaBuildLocalizations/${step.id}`, {
+      data: { type: 'betaBuildLocalizations', id: step.id, attributes: { whatsNew: WHAT_TO_TEST } },
+    });
+  } else if (step?.method === 'POST') {
     await api.call('POST', '/v1/betaBuildLocalizations', {
       data: {
         type: 'betaBuildLocalizations',
@@ -142,8 +167,8 @@ async function sendBuildForReview(api, number) {
         relationships: { build: { data: { type: 'builds', id: build.id } } },
       },
     });
-    console.log(`Build ${number}: "What to Test" filled in.`);
   }
+  if (step) console.log(`Build ${number}: "What to Test" filled in.`);
   await api.call('POST', `/v1/betaGroups/${PUBLIC_GROUP}/relationships/builds`, {
     data: [{ type: 'builds', id: build.id }],
   });
@@ -154,7 +179,7 @@ async function sendBuildForReview(api, number) {
     });
     console.log(`Build ${number}: sent for Beta App Review.`);
   } catch (e) {
-    if (e.status === 409 && /already|exists/i.test(JSON.stringify(e.errors))) {
+    if (e.status === 409 && /already|exists/i.test(e.message)) {
       console.log(`Build ${number}: already sent for Beta App Review.`);
     } else throw e;
   }

@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import * as tf from '../.github/scripts/testflight.mjs';
 
 const workflow = readFileSync(join(__dirname, '../.github/workflows/testflight.yml'), 'utf8');
+const smoke = readFileSync(join(__dirname, '../.github/workflows/ios-sim-smoke.yml'), 'utf8');
 const script = readFileSync(join(__dirname, '../.github/scripts/testflight.mjs'), 'utf8');
 
 const b64url = (s: string) => JSON.parse(Buffer.from(s, 'base64url').toString('utf8'));
@@ -48,6 +49,61 @@ test('the build to send is found by its build number and must have finished proc
   assert.equal(tf.pickBuild(builds, '3').id, 'b3');
   assert.throws(() => tf.pickBuild(builds, '4'), /still processing/);
   assert.throws(() => tf.pickBuild(builds, '9'), /no build 9/i);
+  const expired = [{ id: 'b2', attributes: { version: '2', processingState: 'VALID', expired: true } }];
+  assert.throws(() => tf.pickBuild(expired, '2'), /expired/);
+});
+
+test('"What to Test" fills an empty locale Apple already made instead of adding a second one', () => {
+  const loc = (id: string, locale: string, whatsNew: string | null) => ({ id, attributes: { locale, whatsNew } });
+  assert.deepEqual(tf.whatToTestStep([]), { method: 'POST' });
+  assert.deepEqual(tf.whatToTestStep([loc('l1', 'en-AU', null)]), { method: 'PATCH', id: 'l1' });
+  assert.deepEqual(tf.whatToTestStep([loc('l1', 'en-US', ''), loc('l2', 'en-AU', '')]), { method: 'PATCH', id: 'l2' });
+  assert.equal(tf.whatToTestStep([loc('l1', 'en-AU', 'Try the rides')]), null);
+});
+
+const reply = (status: number, body: string) => async () => new Response(body, { status });
+
+test("Apple's error details never reach the public log, only the status, code and title", async () => {
+  const api = tf.client(
+    'token',
+    reply(409, JSON.stringify({ errors: [{ code: 'ENTITY_ERROR', title: 'Conflict', detail: 'kane@example.com is already a tester' }] })),
+  );
+  await assert.rejects(api.call('POST', '/v1/betaTesters', {}), (e: Error) => {
+    assert.match(e.message, /409 ENTITY_ERROR: Conflict/);
+    assert.doesNotMatch(e.message, /@|kane/);
+    return true;
+  });
+  const html = tf.client('token', reply(502, '<html>bad gateway for kane@example.com</html>'));
+  await assert.rejects(html.call('GET', '/v1/users?limit=200'), (e: Error) => {
+    assert.match(e.message, /GET \/v1\/users → 502/);
+    assert.doesNotMatch(e.message, /@|kane|limit/);
+    return true;
+  });
+  const garbled = tf.client('token', reply(200, '{"data":[{"username":"kane@example.com"'));
+  await assert.rejects(garbled.call('GET', '/v1/users'), (e: Error) => {
+    assert.doesNotMatch(e.message, /@|kane/);
+    return true;
+  });
+});
+
+test("a member Apple won't take is a warning, not a red run, and nobody's details are printed", async () => {
+  const printed: string[] = [];
+  const log = (...a: unknown[]) => printed.push(a.join(' '));
+  const api = {
+    all: async (path: string) =>
+      path.startsWith('/v1/users')
+        ? [{ attributes: { username: 'kane@example.com', firstName: 'Kane', lastName: 'B' } }, { attributes: { username: 'bob@example.com' } }]
+        : [],
+    call: async (_m: string, _p: string, body: { data: { attributes: { email: string } } }) => {
+      if (body.data.attributes.email.startsWith('kane')) throw Object.assign(new Error('POST /v1/betaTesters → 409 X: Y'), { status: 409 });
+      return {};
+    },
+  };
+  const before = process.exitCode;
+  const result = await tf.addMembers(api, { log, warn: log });
+  assert.deepEqual(result, { users: 2, testersBefore: 0, added: 1, skipped: 1 });
+  assert.equal(process.exitCode, before);
+  assert.doesNotMatch(printed.join('\n'), /@|kane|bob/i);
 });
 
 test('the workflow keeps member names and emails out of the public log', () => {
@@ -62,4 +118,14 @@ test('the TestFlight workflow writes the key outside the checkout and adds membe
   assert.match(workflow, /schedule:\s*\n\s*- cron:/);
   assert.match(workflow, /options: \[add-members, status, send-build-for-review\]/);
   assert.match(workflow, /group: testflight/, 'runs never overlap');
+  assert.match(workflow, /cancel-in-progress: false/);
+  assert.match(workflow, /inputs\.action \|\| \(github\.event_name == 'schedule' && 'add-members' \|\| 'status'\)/);
+});
+
+test('the simulator smoke test runs by hand, one at a time anywhere, and goes red when the app closes', () => {
+  assert.doesNotMatch(smoke, /^\s*push:/m, 'each run is an EAS iPhone build, so never on push');
+  assert.match(smoke, /group: ios-sim-smoke\s*\n\s*cancel-in-progress: false/);
+  assert.match(smoke, /exit 1/);
+  assert.match(smoke, /path: \|\s*\n\s*shot\.png\s*\n\s*launch\.log\s*\n\s*reports\/\s*\n/);
+  assert.doesNotMatch(smoke, /DiagnosticReports\/\s*$/m, 'only the app\'s own crash reports are uploaded');
 });

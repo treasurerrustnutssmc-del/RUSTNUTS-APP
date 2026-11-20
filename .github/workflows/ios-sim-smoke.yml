@@ -11,9 +11,10 @@ on:
 permissions:
   contents: read
 
+# One at a time on any branch, never cancelled: a cancelled job leaves its EAS build running.
 concurrency:
-  group: ios-sim-smoke-${{ github.ref }}
-  cancel-in-progress: true
+  group: ios-sim-smoke
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -62,7 +63,8 @@ jobs:
           sleep 45
           echo "=== still running? ==="
           RUNNING=yes
-          xcrun simctl spawn "$DEVICE" launchctl list | grep -i rustnuts || { RUNNING=no; echo "NOT RUNNING"; }
+          # launchctl lists PID, status, label; a job left behind by an app that exited has PID "-".
+          xcrun simctl spawn "$DEVICE" launchctl list | awk 'tolower($3) ~ /rustnuts/ && $1 ~ /^[0-9]+$/ {print; found=1} END {exit !found}' || { RUNNING=no; echo "NOT RUNNING"; }
           xcrun simctl io "$DEVICE" screenshot shot.png || true
           echo "=== console ==="
           tail -200 launch.log || true
