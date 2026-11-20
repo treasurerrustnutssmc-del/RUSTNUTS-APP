@@ -151,6 +151,7 @@ export type RootParams = {
   MeetingReport: { id?: string } | undefined;
   Budget: { fund: string; fy?: number };
   ClubFinances: undefined;
+  ClubSpending: undefined;
   // Stage 5D: conduct records, merch, national contributions and new chapters
   Conduct: { mine?: boolean } | undefined;
   ConductRecord: { recordId: string };

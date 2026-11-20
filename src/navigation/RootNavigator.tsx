@@ -46,6 +46,7 @@ import { ShareInScreen } from '../screens/shareIn';
 import {
   DocumentApprovalScreen, DocumentScreen, DocumentSignoffsScreen, DocumentsScreen, NewDocumentScreen, PublishDocumentScreen,
 } from '../screens/documents'; // Stage 5C
+import { ClubSpendingScreen } from '../screens/clubSpending';
 import { BudgetScreen, ClubFinancesScreen, LedgerEntryScreen, LedgerScreen, MonthReportScreen, NewEntryScreen, TreasuryScreen } from '../screens/treasury';
 import { MeetingReportScreen } from '../screens/meetingReport';
 // Lane E: ride comms
@@ -476,6 +477,7 @@ export function RootNavigator() {
             <Stack.Screen name="MeetingReport" component={MeetingReportScreen} options={{ title: 'Report for a meeting' }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ title: 'Budget' }} />
             <Stack.Screen name="ClubFinances" component={ClubFinancesScreen} options={{ title: 'Club finances' }} />
+            <Stack.Screen name="ClubSpending" component={ClubSpendingScreen} options={{ title: 'Club spending' }} />
             {/* Stage 5D: conduct records, merch, national contributions and new chapters */}
             <Stack.Screen name="Conduct" component={ConductScreen} options={{ title: 'Conduct records' }} />
             <Stack.Screen name="ConductRecord" component={ConductRecordScreen} options={{ title: 'Record' }} />

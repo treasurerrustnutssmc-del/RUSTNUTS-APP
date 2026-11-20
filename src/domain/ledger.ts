@@ -95,9 +95,9 @@ export function seesAnyLedger(me: Member | null, data: ClubData): boolean {
   return [null, ...data.chapters.map((c) => c.id)].some((f) => seesLedger(me, f, data.positions));
 }
 
-/** Presented reports are for every approved member who hasn't left (13.8). */
+/** Presented reports are for every approved member who hasn't left (13.8), never Family (as the database). */
 export function seesReports(me: Member | null): boolean {
-  return approved(me) && me.status !== 'legacy';
+  return approved(me) && me.status !== 'legacy' && me.status !== 'family';
 }
 
 export function fundName(chapterId: string | null, data: Pick<ClubData, 'chapters'>): string {

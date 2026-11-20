@@ -26,5 +26,5 @@ for (const file of ['treasury.tsx', 'meetingReport.tsx']) {
 }
 
 test('the meeting report PDF is dated on the Melbourne day it was presented', () => {
-  assert.match(read('meetingReport.tsx'), /preparedOn: report\?\.presentedAt \? melbourneDate\(report\.presentedAt\) : today/);
+  assert.match(read('meetingReport.tsx'), /meetingOn = report\?\.presentedAt \? melbourneDate\(report\.presentedAt\) : today/);
 });

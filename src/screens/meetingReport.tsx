@@ -11,12 +11,14 @@ import { pickReportPdf } from '../data/reportPdfFile';
 import { openLink } from '../ui/openLink';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import { formatCents } from '../domain/fees';
-import { CODE_LABEL, fundKey, fundName, keepsBooks, seesAnyLedger, seesReports } from '../domain/ledger';
+import { CODE_LABEL, fundName, keepsBooks, seesAnyLedger, seesReports } from '../domain/ledger';
 import {
-  bankCents, defaultPeriod, figuresFor, meetingChecks, meetingFigures, meetingLines, meetingProblem, monthName, monthRowLabel,
+  defaultPeriod, figuresFor, meetingChecks, meetingFigures, meetingLines, meetingProblem, monthName, monthRowLabel,
   MR_NOTES, MR_NOTES_MAX, preparedBy, readOut, readsEveryFund,
 } from '../domain/meetingReport';
+import { meetingReportFullHtml } from '../domain/meetingReportFullHtml';
 import { meetingReportHtml } from '../domain/meetingReportHtml';
+import { meetingStatement, noteParagraphs } from '../domain/meetingStatement';
 import { melbourneDate, melbourneDateShown } from '../domain/rides';
 import type { LedgerCode, LedgerEntry, MeetingFigures } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
@@ -76,61 +78,42 @@ function CodeCard({ title, codes, total, lines }: {
   );
 }
 
-function Figures({ f, lines, data }: { f: MeetingFigures; lines?: Partial<Record<LedgerCode, LedgerEntry[]>>; data: Parameters<typeof fundName>[1] }) {
+/** The statement every reader sees, as on Jeff's report. */
+function Statement({ f, data, meetingOn }: { f: MeetingFigures; data: Parameters<typeof fundName>[1]; meetingOn: string }) {
+  const s = meetingStatement(f, data, meetingOn);
+  return (
+    <Card>
+      <Stack gap={2}>
+        <H2>{s.title}</H2>
+        <Text style={type.name}>{s.subtitle}</Text>
+        <Small>{s.period}</Small>
+      </Stack>
+      <View style={{ gap: 2 }}>
+        {s.rows.map((r, i) => (
+          <View key={i} style={r.kind !== 'item' && i > 0 ? { marginTop: space.sm } : undefined}>
+            {r.kind === 'item' ? (
+              <Line label={r.label}>
+                <Amount cents={r.cents ?? 0} />
+              </Line>
+            ) : (
+              <Line label={r.label} strong>
+                {r.cents === null ? null : <Amount cents={r.cents} strong />}
+              </Line>
+            )}
+          </View>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+/** The workings, for whoever reads every fund's lines: each line, the months and the read-out. */
+function Workings({ f, lines }: { f: MeetingFigures; lines: Partial<Record<LedgerCode, LedgerEntry[]>> }) {
   const [each, setEach] = useState<'totals' | 'lines'>('totals');
   const shown = each === 'lines' ? lines : undefined;
-  const change = bankCents(f, 'closing') - bankCents(f, 'opening');
-  const funds = [...data.chapters.map((c) => c.id), null];
   return (
     <>
-      <Card>
-        <H2>Cash position</H2>
-        <Line label={`Opening bank balance at ${formatAuDate(f.from)}`}>
-          <Amount cents={bankCents(f, 'opening')} />
-        </Line>
-        <Line label="Receipts">
-          <Amount cents={f.receiptsCents} />
-        </Line>
-        <Line label="Payments">
-          <Amount cents={f.paymentsCents} out />
-        </Line>
-        <Divider />
-        <Line label={`In the bank at ${formatAuDate(f.to)}`} strong>
-          <Text style={[type.h2, num]}>{formatCents(bankCents(f, 'closing'))}</Text>
-        </Line>
-        <Line label="Recorded cash float">
-          <Amount cents={f.floatCents} />
-        </Line>
-        <Line label="Total recorded cash funds" strong>
-          <Amount cents={f.closingCents} strong />
-        </Line>
-        <Small>
-          {change === 0
-            ? 'The bank balance didn’t change over the period.'
-            : `The bank balance ${change > 0 ? 'increased' : 'decreased'} by ${formatCents(Math.abs(change))} over the period.`}
-        </Small>
-      </Card>
-
-      <Card>
-        <H2>Funds</H2>
-        {funds.map((id) => {
-          const m = f.funds[fundKey(id)] ?? { openingCents: 0, receiptsCents: 0, paymentsCents: 0, closingCents: 0 };
-          return (
-            <View key={fundKey(id)} style={{ gap: 2 }}>
-              <Line label={id === null ? 'Club / shared funds' : `${fundName(id, data)} Chapter`}>
-                <Amount cents={m.closingCents} />
-              </Line>
-              <Small>{`Opened ${formatCents(m.openingCents)} · in ${formatCents(m.receiptsCents)} · out ${formatCents(m.paymentsCents)}`}</Small>
-            </View>
-          );
-        })}
-        <Divider />
-        <Line label="Total" strong>
-          <Amount cents={f.closingCents} strong />
-        </Line>
-        <Small>Allocations within the one bank account, not separate balances. The Club fund holds the cash float.</Small>
-      </Card>
-
+      <Small>Only you see the workings below, and “Share the full workings” puts them in a PDF. Members see the statement above, your notes and your PDF.</Small>
       <Card>
         <H2>Month by month</H2>
         {f.months.map((m) => {
@@ -151,17 +134,15 @@ function Figures({ f, lines, data }: { f: MeetingFigures; lines?: Partial<Record
         <Body style={{ fontStyle: 'italic' }}>{`“${readOut(f)}”`}</Body>
       </Card>
 
-      {lines ? (
-        <Choices<'totals' | 'lines'>
-          label="Receipts and payments"
-          options={[
-            { value: 'totals', label: 'Totals' },
-            { value: 'lines', label: 'Each line' },
-          ]}
-          value={each}
-          onChange={setEach}
-        />
-      ) : null}
+      <Choices<'totals' | 'lines'>
+        label="Receipts and payments"
+        options={[
+          { value: 'totals', label: 'Totals' },
+          { value: 'lines', label: 'Each line' },
+        ]}
+        value={each}
+        onChange={setEach}
+      />
       <CodeCard title="Receipts" codes={f.credits} total={f.receiptsCents} lines={shown} />
       <CodeCard title="Payments" codes={f.debits} total={f.paymentsCents} lines={shown} />
     </>
@@ -196,7 +177,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
   const to = useDate(start.toOn);
   const [notes, setNotes] = useState(report?.notes ?? '');
   const [msg, setMsg] = useState<Msg>(null);
-  const [busy, setBusy] = useState<'save' | 'pdf' | 'attach' | 'open' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'pdf' | 'full' | 'attach' | 'open' | null>(null);
 
   const allowed = report
     ? report.presentedAt ? seesReports(me) || seesAnyLedger(me, data) : keeper
@@ -220,6 +201,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
   const figures = fromOn && toOn ? (local ? meetingFigures(fromOn, toOn, data) : report ? figuresFor(report, data) : null) : null;
   const lines = local && figures ? meetingLines(figures.from, figures.to, data) : undefined;
   const dirty = !report || report.fromOn !== input.fromOn || report.toOn !== input.toOn || report.notes !== notes;
+  const meetingOn = report?.presentedAt ? melbourneDate(report.presentedAt) : today;
   const fail = (e: unknown) => setMsg({ tone: 'danger', text: (e as Error).message });
 
   const save = () => {
@@ -273,22 +255,26 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
     }
   };
 
-  const pdf = async () => {
+  // The members' one-page statement, or (for whoever reads every fund) the full workings.
+  const pdf = async (kind: 'pdf' | 'full') => {
     if (!figures) return;
-    setBusy('pdf');
+    setBusy(kind);
     setMsg(null);
     try {
       const assets = await reportAssets();
-      const html = meetingReportHtml({
-        figures,
-        data,
-        notes,
-        preparedBy: preparedBy(report?.presentedBy ?? report?.savedBy ?? me.id, data),
-        preparedOn: report?.presentedAt ? melbourneDate(report.presentedAt) : today,
-        lines,
-        ...assets,
-      });
-      await shareReportPdf(html, `Rustnuts Treasurer's Report ${figures.from} to ${figures.to}.pdf`);
+      const html = kind === 'full'
+        ? meetingReportFullHtml({
+          figures,
+          data,
+          notes,
+          preparedBy: preparedBy(report?.presentedBy ?? report?.savedBy ?? me.id, data),
+          preparedOn: meetingOn,
+          lines,
+          ...assets,
+        })
+        : meetingReportHtml({ figures, data, notes, meetingOn, ...assets });
+      const name = kind === 'full' ? 'Treasurer\'s workings' : 'Treasurer\'s Report';
+      await shareReportPdf(html, `Rustnuts ${name} ${figures.from} to ${figures.to}.pdf`);
     } catch (e) {
       fail(e);
     } finally {
@@ -336,7 +322,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
       ) : null}
       {editable && !local && !report ? <Notice tone="info">Save the draft to work out the figures.</Notice> : null}
 
-      {figures ? <Figures f={figures} lines={lines} data={data} /> : null}
+      {figures ? <Statement f={figures} data={data} meetingOn={meetingOn} /> : null}
 
       {editable ? (
         <Card>
@@ -355,8 +341,11 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
       ) : report?.notes.trim() ? (
         <Card>
           <H2>Treasurer’s notes</H2>
-          {report.notes.trim().split(/\n\s*\n/).map((p, i) => (
-            <Body key={i}>{p.trim()}</Body>
+          {noteParagraphs(report.notes).map((p, i) => (
+            <Body key={i}>
+              {p.lead ? <Text style={{ fontWeight: '700' }}>{`${p.lead} `}</Text> : null}
+              {p.text}
+            </Body>
           ))}
         </Card>
       ) : null}
@@ -400,14 +389,18 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
         </Card>
       ) : null}
 
-      {figures ? <Checks f={figures} /> : null}
+      {figures && lines ? <Workings f={figures} lines={lines} /> : null}
+      {figures && lines ? <Checks f={figures} /> : null}
 
       <Stack gap={space.sm}>
         {editable ? (
           <Button label="Save draft" kind="secondary" icon="save-outline" busy={busy === 'save'} disabled={!!problem || !dirty} onPress={save} />
         ) : null}
         {figures ? (
-          <Button label="Share as PDF" kind="secondary" icon="share-outline" busy={busy === 'pdf'} disabled={!!busy || (editable && !local && dirty)} onPress={pdf} />
+          <Button label="Share as PDF" kind="secondary" icon="share-outline" busy={busy === 'pdf'} disabled={!!busy || (editable && !local && dirty)} onPress={() => pdf('pdf')} />
+        ) : null}
+        {figures && lines ? (
+          <Button label="Share the full workings" kind="secondary" icon="document-text-outline" busy={busy === 'full'} disabled={!!busy} onPress={() => pdf('full')} />
         ) : null}
         {editable && report ? (
           dirty ? (
