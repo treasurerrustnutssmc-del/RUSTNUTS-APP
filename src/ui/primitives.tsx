@@ -676,6 +676,12 @@ export function ListRow({
 
 type NoticeTone = 'info' | 'ok' | 'warn' | 'danger';
 
+/**
+ * Where a shown error message is counted for the board's App usage card (src/data/usage.ts sets it).
+ * Kept as a hook-in here so the shared UI doesn't import the data layer.
+ */
+export const noticeErrors: { report: (message: string) => void } = { report: () => undefined };
+
 export function Notice({
   tone = 'info',
   title,
@@ -694,6 +700,10 @@ export function Notice({
     warn: { bg: colors.warnBg, fg: colors.warn, icon: 'alert-circle' as IconName },
     danger: { bg: colors.dangerBg, fg: colors.danger, icon: 'warning' as IconName },
   }[tone];
+  const errorText = tone === 'danger' ? noticeText(title, children) : '';
+  useEffect(() => {
+    if (errorText) noticeErrors.report(errorText);
+  }, [errorText]);
   const content = (
     <>
       <Ionicons name={t.icon} size={20} color={t.fg} style={{ marginTop: 1 }} />
@@ -718,6 +728,16 @@ export function Notice({
       {content}
     </Pressable>
   );
+}
+
+/** The plain words of a notice, for counting: its title and any string children. */
+function noticeText(title: string | undefined, children: React.ReactNode): string {
+  const parts: string[] = [];
+  if (title) parts.push(title);
+  React.Children.forEach(children, (c) => {
+    if (typeof c === 'string' || typeof c === 'number') parts.push(String(c));
+  });
+  return parts.join(' ').trim();
 }
 
 export function LockNote({ text = 'Board only' }: { text?: string }) {

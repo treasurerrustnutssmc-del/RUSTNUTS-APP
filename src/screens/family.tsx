@@ -34,6 +34,7 @@ import { ClubLinksSection } from './clubLinks';
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { FeedbackRow } from './feedback'; // Feedback and issues
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
+import { UsageToggle } from './appUsage'; // app usage counts switch
 import { RideChip, RideRow, timeRange } from './rides';
 
 
@@ -245,6 +246,7 @@ export function FamilyMeScreen({ navigation }: TabScreen<'Me'>) {
           Club members can see your name, chapter and what you write about yourself. Your mobile, email and emergency
           contacts are for you and your chapter’s board.
         </Small>
+        <UsageToggle />
       </Card>
       <PrivacyPolicyRow />
 

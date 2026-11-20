@@ -24,7 +24,7 @@ and the privacy choice (anonymous or named) is his card.
 - **Visit id**: a random id made each time the app opens, kept only in memory. It joins one visit's
   screens together (so "last screen" and "started but didn't finish" can be counted) and nothing else.
 - **Demo build**: records nothing.
-- **Off switch**: Me › Notifications and privacy › "Help improve the app" (on by default). Off means
+- **Off switch**: the Me tab, Privacy, "Help improve the app" (on by default). Off means
   nothing is queued.
 
 ## Storage (Supabase, free)

@@ -90,7 +90,7 @@ export function boardGroups(c: BoardCounts): BoardGroup[] {
     { id: 'people', title: 'People', summary: people.length ? people.join(', ') : 'Nothing due', startsOpen: people.length > 0 },
     { id: 'meetings', title: 'Meetings and attendance', summary: 'Attendance and check-ins', startsOpen: false },
     { id: 'money', title: 'Money', summary: 'Chapter fees', startsOpen: false },
-    { id: 'website', title: 'Website and app', summary: 'Enquiries, news, visits and app feedback', startsOpen: false },
+    { id: 'website', title: 'Website and app', summary: 'Enquiries, news, visits, app feedback and app usage', startsOpen: false },
   ];
 }
 

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { usageScreenChanged, useUsageSender } from '../data/usage';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HeaderBackButton, HeaderTitle } from '@react-navigation/elements';
 import { createNavigationContainerRef, DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
@@ -295,14 +296,18 @@ export function RootNavigator() {
   const { level, me, needsApplication, loadError } = useClub();
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
   const toastScreenChange = useToastScreenChange();
+  useUsageSender();
   return (
     <NavigationContainer
       ref={navigationRef}
       theme={navTheme}
+      onReady={() => usageScreenChanged(navigationRef.getRootState())}
       onStateChange={(state) => {
         // Toasts clear when you move on, and sit lower on a stack screen (no tab bar).
         const focused = state?.routes[state.index ?? 0];
         toastScreenChange(focused?.name === 'Tabs');
+        // App usage counts: which screen is showing (nothing about who).
+        usageScreenChanged(state);
       }}
     >
       {/* Lane E: notifications */}

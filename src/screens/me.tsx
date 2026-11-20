@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { UsageToggle } from './appUsage';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { compassFor } from '../domain/compass';
@@ -286,6 +287,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
                     }}
                   />
                   {shareError ? <Notice tone="danger">{shareError}</Notice> : null}
+                  <UsageToggle />
                   {/* Lane E: live ride */}
                   <Small>Live ride location sharing is always your choice, switches off after the ride, and keeps nothing.</Small>
                 </Card>
@@ -631,4 +633,5 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
     </Screen>
   );
 }
+
 
