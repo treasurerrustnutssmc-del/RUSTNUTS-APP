@@ -38,7 +38,7 @@ test('a chat-list entry gives its chat, ride, last message and unread count', ()
     ride: rideRow, unread: 3,
     last: { id: 'm9', author_id: 'a1', body: null, created_at: '2026-10-24T01:00:00+00:00', removed: false, media_count: 2 },
   });
-  assert.deepEqual(parts.conversation, { id: 'c1', kind: 'ride', chapterId: null, rideId: 'r1', committee: null, pinnedMessageId: null, memberIds: [] });
+  assert.deepEqual(parts.conversation, { id: 'c1', kind: 'ride', chapterId: null, rideId: 'r1', committee: null, pinnedMessageId: null, memberIds: [], name: null, createdBy: null });
   assert.equal(parts.ride?.startsAt, '2026-11-07T21:30:00.000Z');
   assert.deepEqual(parts.last, { id: 'm9', authorId: 'a1', body: null, createdAt: '2026-10-24T01:00:00.000Z', removed: false, mediaCount: 2, voice: false });
   assert.equal(parts.unread, 3);

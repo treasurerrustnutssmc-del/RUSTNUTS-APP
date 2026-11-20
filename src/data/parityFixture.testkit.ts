@@ -821,13 +821,14 @@ function demoAnswerOf(c: ParityCase): string | null {
 // Stage 3 (lane B): the fixture's chats, each with its fixture name as its id.
 export function fixtureChat(): ChatData {
   const chat = (id: string, over: Partial<Conversation> & Pick<Conversation, 'kind'>): Conversation => ({
-    id, chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], ...over,
+    id, chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], name: null, createdBy: null, ...over,
   });
   const chapters = fixtureData().chapters;
   return {
     conversations: [
       chat('club', { kind: 'club' }),
       chat('nec', { kind: 'nec' }),
+      chat('boards', { kind: 'boards' }),
       chat('committee:ride', { kind: 'committee', committee: 'ride' }),
       chat('committee:charity', { kind: 'committee', committee: 'charity' }),
       ...chapters.flatMap((c) => [

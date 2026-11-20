@@ -8,16 +8,18 @@ import { NotAllowedError } from '../clubContext';
 import type { ChatSummary, FeedItem, RideWall } from './chatContext';
 import type { ChatData } from './demoChatActions';
 
-const KIND_ORDER = ['club', 'family', 'chapter', 'board', 'nec', 'committee', 'ride', 'direct'];
+const KIND_ORDER = ['club', 'family', 'chapter', 'board', 'boards', 'nec', 'committee', 'ride', 'group', 'direct'];
 
-/** The whole club first, then Family, chapter, big table, NEC and committee chats, ride chats by when the
- *  ride starts, and private chats with the latest message first. */
+/** The whole club first, then Family, chapter, big table, All boards, NEC and committee chats, ride chats
+ *  by when the ride starts, then groups and private chats with the latest message first. */
 export function sortSummaries(list: ChatSummary[]): ChatSummary[] {
   const rank = (s: ChatSummary) => KIND_ORDER.indexOf(s.conversation.kind);
   return [...list].sort((a, b) => {
     if (rank(a) !== rank(b)) return rank(a) - rank(b);
     if (a.conversation.kind === 'ride') return (a.ride?.startsAt ?? '').localeCompare(b.ride?.startsAt ?? '');
-    if (a.conversation.kind === 'direct') return (b.last?.createdAt ?? '').localeCompare(a.last?.createdAt ?? '');
+    if (a.conversation.kind === 'direct' || a.conversation.kind === 'group') {
+      return (b.last?.createdAt ?? '').localeCompare(a.last?.createdAt ?? '');
+    }
     return a.title.localeCompare(b.title);
   });
 }

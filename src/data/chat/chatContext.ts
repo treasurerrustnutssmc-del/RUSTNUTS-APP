@@ -100,6 +100,12 @@ export interface ChatContextValue {
   report: (messageId: string, reason: string) => Promise<void>;
   setBlock: (memberId: string, blocked: boolean) => Promise<void>;
   openDirect: (memberId: string) => Promise<string>;
+  /** Groups (board members and the NEC run them): starts one and gives its id. */
+  createGroup: (name: string, memberIds: string[]) => Promise<string>;
+  addToGroup: (chatId: string, memberIds: string[]) => Promise<void>;
+  renameGroup: (chatId: string, name: string) => Promise<void>;
+  removeFromGroup: (chatId: string, memberId: string) => Promise<void>;
+  leaveGroup: (chatId: string) => Promise<void>;
   rideChat: (rideId: string) => Promise<string>;
   reports: () => Promise<ReportView[]>;
   resolveReport: (reportId: string, remove: boolean) => Promise<void>;

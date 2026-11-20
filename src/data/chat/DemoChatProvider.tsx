@@ -79,6 +79,15 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
       setChat(result.chat);
       return result.id;
     },
+    createGroup: async (name, memberIds) => {
+      const result = act.createGroup(ctx(), name, memberIds);
+      setChat(result.chat);
+      return result.id;
+    },
+    addToGroup: async (chatId, memberIds) => setChat(act.addToGroup(ctx(), chatId, memberIds)),
+    renameGroup: async (chatId, name) => setChat(act.renameGroup(ctx(), chatId, name)),
+    removeFromGroup: async (chatId, memberId) => setChat(act.removeFromGroup(ctx(), chatId, memberId)),
+    leaveGroup: async (chatId) => setChat(act.leaveGroup(ctx(), chatId)),
     rideChat: async (rideId) => {
       const result = act.rideChat(ctx(), rideId);
       setChat(result.chat);

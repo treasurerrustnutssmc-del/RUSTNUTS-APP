@@ -158,17 +158,16 @@ begin
 end $$;
 
 \o
-\echo 'Someone with the chat open in the last minute isn''t buzzed for every reply'
+\echo 'Every message reaches everyone in the chat, even someone who had it open a moment ago (the phone hides the banner only while that chat is on screen)'
 \o /dev/null
 do $$
 declare msg uuid;
 begin
   assert pg_temp.try_as('00000000-0000-0000-0000-0000000000d2', format('select public.mark_chat_read(%L)', pg_temp.chat('club'))) is null;
   msg := pg_temp.send(pg_temp.chat('club'), 'Sunday it is');
-  assert pg_temp.reached(msg) = 'Nick,Nora', pg_temp.reached(msg);
-  update public.chat_reads set read_at = now() - interval '5 minutes' where member_id = '00000000-0000-0000-0000-0000000000d2';
+  assert pg_temp.reached(msg) = 'Nick,Nora,Sue', pg_temp.reached(msg);
   msg := pg_temp.send(pg_temp.chat('club'), 'Bring a jacket');
-  assert pg_temp.reached(msg) = 'Nick,Nora,Sue', 'five minutes later they hear it again';
+  assert pg_temp.reached(msg) = 'Nick,Nora,Sue', 'and the next one too';
 end $$;
 
 \o

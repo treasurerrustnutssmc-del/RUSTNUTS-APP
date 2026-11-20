@@ -54,6 +54,9 @@ export interface ChatJson {
   committee: ChatCommittee | null;
   pinned_message_id?: string | null;
   member_ids?: string[];
+  // From the chat groups paste on; before it, there are no groups.
+  name?: string | null;
+  created_by?: string | null;
 }
 
 export interface ChatListJson extends ChatJson {
@@ -117,6 +120,7 @@ export function toConversation(c: ChatJson): Conversation {
   return {
     id: c.id, kind: c.kind, chapterId: c.chapter_id, rideId: c.ride_id, committee: c.committee,
     pinnedMessageId: c.pinned_message_id ?? null, memberIds: c.member_ids ?? [],
+    name: c.name ?? null, createdBy: c.created_by ?? null,
   };
 }
 

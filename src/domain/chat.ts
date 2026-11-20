@@ -1,16 +1,20 @@
-// Club chats: the whole club, each chapter, each ride, and private chats between two members.
+// Club chats: the whole club, each chapter, each ride, All boards, groups the boards set up, and private
+// chats between two members.
 // Who can read, post, remove and react. The database's chat actions apply the same rules with
 // the same words (supabase/migrations/20261101000100_chat.sql).
 
-import { accessLevel, activePositions, isBoardOf, isNational, seesBoardOf, seesEveryChapter } from './access';
+import { accessLevel, activePositions, isApprovedMember, isBoardOf, isNational, seesBoardOf, seesEveryChapter } from './access';
+import { isAnyBoard } from './social/help';
 import { daysBetween, formatAuDate } from './dates';
 import { postingRulesProblem } from './postingRules';
 import { displayName } from './profile';
 import { lastDay, melbourneDate } from './rides';
 import type { ClubData, Member, Ride, RsvpAnswer } from './types';
 
-/** 'family' is the one chat members share with Family accounts (2026-11-03-family-chat-design.md). */
-export type ChatKind = 'club' | 'family' | 'chapter' | 'board' | 'nec' | 'committee' | 'ride' | 'direct';
+/** 'family' is the one chat members share with Family accounts (2026-11-03-family-chat-design.md).
+ *  'boards' is All boards, every chapter's board and the NEC; 'group' is a named group the boards set
+ *  up (2026-11-20-chat-groups-design.md). */
+export type ChatKind = 'club' | 'family' | 'chapter' | 'board' | 'boards' | 'nec' | 'committee' | 'ride' | 'group' | 'direct';
 export type ChatCommittee = 'ride' | 'charity';
 /** A GIF is GIPHY's own https address, not a file in the club's storage. A voice note is a
  *  recording that goes in a message on its own. */
@@ -23,7 +27,11 @@ export interface Conversation {
   rideId: string | null; // ride chats
   committee: ChatCommittee | null; // committee chats
   pinnedMessageId: string | null;
-  memberIds: string[]; // private chats: the two people in it
+  memberIds: string[]; // private chats: the two people in it; groups: everyone in it
+  /** A group's name. */
+  name: string | null;
+  /** Who started a group. */
+  createdBy: string | null;
 }
 
 export interface MessageMedia {
@@ -119,6 +127,7 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
   // Someone who might join gets the whole-club and ride chats only, until they're an FNG.
   if (me.status === 'introduced' && conv.kind !== 'club' && conv.kind !== 'ride') {
     if (conv.kind === 'direct') return 'Private chats open up once you’re an FNG.';
+    if (conv.kind === 'group') return 'Group chats open up once you’re an FNG.';
     return conv.kind === 'chapter' ? 'Chapter chats open up once you’re an FNG.' : 'That chat opens up once you’re an FNG.';
   }
   if (conv.kind === 'chapter') {
@@ -131,6 +140,7 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
     if (conv.chapterId && seesBoardOf(me, conv.chapterId, data.positions)) return null;
     return `That chat is for the ${data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'chapter'} board.`;
   }
+  if (conv.kind === 'boards') return isAnyBoard(me, data.positions) ? null : 'That chat is for board members and the NEC.';
   if (conv.kind === 'nec') return isNational(me.id, data.positions) ? null : 'That chat is for the NEC.';
   if (conv.kind === 'committee') {
     const onIt = conv.committee === 'charity' ? isCharityCommittee(me.id, data) : isRideCommittee(me.id, data);
@@ -138,6 +148,7 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
     return `That chat is for the ${conv.committee === 'charity' ? 'charity' : 'ride'} committee.`;
   }
   if (conv.kind === 'direct') return conv.memberIds.includes(me.id) ? null : 'That’s a private chat.';
+  if (conv.kind === 'group') return conv.memberIds.includes(me.id) ? null : 'That’s a private group.';
   return null;
 }
 
@@ -196,7 +207,7 @@ export function canModerate(me: Member | null, conv: Conversation, data: ClubDat
   if (!me || me.approval !== 'approved' || me.status === 'family') return false;
   if (conv.kind === 'chapter' || conv.kind === 'board') return !!conv.chapterId && isBoardOf(me, conv.chapterId, data.positions);
   if (conv.kind === 'nec') return isNational(me.id, data.positions);
-  if (conv.kind === 'direct') return false;
+  if (conv.kind === 'direct' || conv.kind === 'group') return false;
   if (conv.kind === 'committee' && readProblem(me, conv, data)) return false;
   const level = accessLevel(me, data.positions);
   return level === 'board' || level === 'national';
@@ -281,10 +292,10 @@ export function reportProblem(
   return null;
 }
 
-/** Who acts on a report: whoever moderates the chat, or for a private chat (which nobody
+/** Who acts on a report: whoever moderates the chat, or for a private chat or group (which nobody
  *  moderates) the reporter's chapter board. Mirrors private.can_act_on_report. */
 export function canSeeReport(me: Member | null, conv: Conversation, reporter: Member | undefined, data: ClubData): boolean {
-  if (conv.kind !== 'direct') return canModerate(me, conv, data);
+  if (conv.kind !== 'direct' && conv.kind !== 'group') return canModerate(me, conv, data);
   return !!reporter && isBoardOf(me, reporter.chapterId, data.positions);
 }
 
@@ -454,8 +465,12 @@ export function chatTitle(conv: Conversation, me: Member | null, data: ClubData,
       return `${data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'Chapter'} chapter`;
     case 'board':
       return `${data.chapters.find((c) => c.id === conv.chapterId)?.name ?? 'Chapter'} big table`;
+    case 'boards':
+      return 'All boards';
     case 'nec':
       return 'NEC';
+    case 'group':
+      return conv.name ?? 'Group chat';
     case 'committee':
       return conv.committee === 'charity' ? 'Charity committee' : 'Ride committee';
     case 'ride':
@@ -465,4 +480,94 @@ export function chatTitle(conv: Conversation, me: Member | null, data: ClubData,
       return other ? displayName(other) : 'Private chat';
     }
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Groups (2026-11-20-chat-groups-design.md). Each mirrors its database action in
+// supabase/migrations/20270880000100_chat_groups.sql, in the same order and with the same words.
+
+export const MAX_GROUP_NAME = 40;
+export const MAX_GROUP_PEOPLE = 100;
+
+/** Starts groups and runs them (adds people, renames, takes people out): a board member of any chapter
+ *  or the NEC, the same people as All boards. Mirrors private.raise_not_group_runner. */
+export function canRunGroups(me: Member | null, data: Pick<ClubData, 'positions'>): boolean {
+  return isApprovedMember(me) && isAnyBoard(me, data.positions);
+}
+
+/** Why this can't be a group's name, or null. Mirrors private.group_name. */
+export function groupNameProblem(name: string): string | null {
+  const words = trimWords(name);
+  if (!words) return 'Give the group a name.';
+  if (charCount(words) > MAX_GROUP_NAME) return 'Keep the name to 40 characters.';
+  return null;
+}
+
+/** Why `me` can't put these people in a group, or null. Mirrors private.put_in_group (but the
+ *  100-people count, which the callers check). */
+function peopleProblem(me: Member, memberIds: string[], data: ClubData, blocks: Block[]): string | null {
+  for (const id of memberIds) {
+    if (id === me.id) continue;
+    const t = data.members.find((m) => m.id === id);
+    if (!t) return 'That member no longer exists.';
+    if (t.approval !== 'approved') return `${displayName(t)} isn’t an approved member.`;
+    if (t.status === 'family') return 'Family only use the Family chat, not groups.';
+    if (t.status === 'introduced') return `${displayName(t)} can’t join groups until they’re an FNG.`;
+    if (blockedBetween(me.id, id, blocks)) return `You can’t add ${displayName(t)}.`;
+  }
+  return null;
+}
+
+/** Why `me` can't start this group, or null. Mirrors public.create_group_chat. */
+export function createGroupProblem(me: Member | null, name: string, memberIds: string[], data: ClubData, blocks: Block[] = []): string | null {
+  const cant = memberProblem(me);
+  if (cant || !me) return cant;
+  if (!canRunGroups(me, data)) return 'Only board members and the NEC can start groups.';
+  const badName = groupNameProblem(name);
+  if (badName) return badName;
+  const others = new Set(memberIds.filter((id) => id !== me.id));
+  if (others.size === 0) return 'Add at least one other person.';
+  if (others.size + 1 > MAX_GROUP_PEOPLE) return 'A group can have up to 100 people.';
+  return peopleProblem(me, memberIds, data, blocks);
+}
+
+/** A group `me` is in, or why not. Mirrors private.my_group. */
+function myGroupProblem(me: Member | null, conv: Conversation | undefined, data: ClubData): string | null {
+  if (!me) return 'Sign in first.';
+  if (conv && conv.kind !== 'group') return 'That’s not a group chat.';
+  return readProblem(me, conv, data);
+}
+
+/** Why `me` can't add these people to this group, or null. Mirrors public.add_to_group. */
+export function addToGroupProblem(me: Member | null, conv: Conversation | undefined, memberIds: string[], data: ClubData, blocks: Block[] = []): string | null {
+  const cant = myGroupProblem(me, conv, data);
+  if (cant || !me || !conv) return cant;
+  if (!canRunGroups(me, data)) return 'Only board members and the NEC can add people.';
+  const bad = peopleProblem(me, memberIds, data, blocks);
+  if (bad) return bad;
+  if (new Set([...conv.memberIds, ...memberIds]).size > MAX_GROUP_PEOPLE) return 'A group can have up to 100 people.';
+  return null;
+}
+
+/** Why `me` can't rename this group, or null. Mirrors public.rename_group. */
+export function renameGroupProblem(me: Member | null, conv: Conversation | undefined, name: string, data: ClubData): string | null {
+  const cant = myGroupProblem(me, conv, data);
+  if (cant || !me) return cant;
+  if (!canRunGroups(me, data)) return 'Only board members and the NEC can rename a group.';
+  return groupNameProblem(name);
+}
+
+/** Why `me` can't take this person out of this group, or null. Mirrors public.remove_from_group. */
+export function removeFromGroupProblem(me: Member | null, conv: Conversation | undefined, memberId: string, data: ClubData): string | null {
+  const cant = myGroupProblem(me, conv, data);
+  if (cant || !me || !conv) return cant;
+  if (!canRunGroups(me, data)) return 'Only board members and the NEC can take people out.';
+  if (memberId === me.id) return 'Use Leave group to leave.';
+  if (!conv.memberIds.includes(memberId)) return 'They’re not in that group.';
+  return null;
+}
+
+/** Why `me` can't leave this group, or null. Mirrors public.leave_group. */
+export function leaveGroupProblem(me: Member | null, conv: Conversation | undefined, data: ClubData): string | null {
+  return myGroupProblem(me, conv, data);
 }

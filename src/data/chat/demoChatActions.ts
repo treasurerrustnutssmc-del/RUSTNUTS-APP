@@ -3,7 +3,12 @@
 // the database uses. src/data/parity.test.ts checks them against the database's rules.
 
 import {
+  addToGroupProblem,
+  createGroupProblem,
+  leaveGroupProblem,
   memberProblem,
+  removeFromGroupProblem,
+  renameGroupProblem,
   blockProblem,
   canSeeReport,
   directProblem,
@@ -213,6 +218,7 @@ export function openDirect(ctx: ChatCtx, memberId: string): { chat: ChatData; id
   if (findChat(ctx.chat, id)) return { chat: ctx.chat, id };
   const conv: Conversation = {
     id, kind: 'direct', chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [ctx.me!.id, memberId],
+    name: null, createdBy: null,
   };
   return { chat: { ...ctx.chat, conversations: [...ctx.chat.conversations, conv] }, id };
 }
@@ -225,8 +231,45 @@ export function rideChat(ctx: ChatCtx, rideId: string): { chat: ChatData; id: st
   if (existing) return { chat: ctx.chat, id: existing.id };
   const conv: Conversation = {
     id: `ride:${rideId}`, kind: 'ride', chapterId: null, rideId, committee: null, pinnedMessageId: null, memberIds: [],
+    name: null, createdBy: null,
   };
   return { chat: { ...ctx.chat, conversations: [...ctx.chat.conversations, conv] }, id: conv.id };
+}
+
+/** A new group, started by me with the people I picked (2026-11-20-chat-groups-design.md). */
+export function createGroup(ctx: ChatCtx, name: string, memberIds: string[]): { chat: ChatData; id: string } {
+  refuse(createGroupProblem(ctx.me, name, memberIds, ctx.club, ctx.chat.blocks));
+  const me = ctx.me!;
+  const conv: Conversation = {
+    id: newId('group'), kind: 'group', chapterId: null, rideId: null, committee: null, pinnedMessageId: null,
+    memberIds: [...new Set([me.id, ...memberIds])], name: trimWords(name), createdBy: me.id,
+  };
+  return { chat: { ...ctx.chat, conversations: [...ctx.chat.conversations, conv] }, id: conv.id };
+}
+
+function patchChat(chat: ChatData, id: string, patch: (c: Conversation) => Conversation): ChatData {
+  return { ...chat, conversations: chat.conversations.map((c) => (c.id === id ? patch(c) : c)) };
+}
+
+export function addToGroup(ctx: ChatCtx, chatId: string, memberIds: string[]): ChatData {
+  refuse(addToGroupProblem(ctx.me, findChat(ctx.chat, chatId), memberIds, ctx.club, ctx.chat.blocks));
+  return patchChat(ctx.chat, chatId, (c) => ({ ...c, memberIds: [...new Set([...c.memberIds, ...memberIds])] }));
+}
+
+export function renameGroup(ctx: ChatCtx, chatId: string, name: string): ChatData {
+  refuse(renameGroupProblem(ctx.me, findChat(ctx.chat, chatId), name, ctx.club));
+  return patchChat(ctx.chat, chatId, (c) => ({ ...c, name: trimWords(name) }));
+}
+
+export function removeFromGroup(ctx: ChatCtx, chatId: string, memberId: string): ChatData {
+  refuse(removeFromGroupProblem(ctx.me, findChat(ctx.chat, chatId), memberId, ctx.club));
+  return patchChat(ctx.chat, chatId, (c) => ({ ...c, memberIds: c.memberIds.filter((id) => id !== memberId) }));
+}
+
+export function leaveGroup(ctx: ChatCtx, chatId: string): ChatData {
+  refuse(leaveGroupProblem(ctx.me, findChat(ctx.chat, chatId), ctx.club));
+  const me = ctx.me!.id;
+  return patchChat(ctx.chat, chatId, (c) => ({ ...c, memberIds: c.memberIds.filter((id) => id !== me) }));
 }
 
 export function markRead(ctx: ChatCtx, chatId: string): ChatData {
