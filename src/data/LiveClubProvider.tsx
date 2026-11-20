@@ -1034,7 +1034,8 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       await after();
     },
     setRideLegs: async (ids) => {
-      deny(setLegsProblem(visibleMe, ids, data, new Date().toISOString()));
+      // A leg saved a moment ago isn't in this render's data yet: then the database alone checks.
+      if (ids.every((id) => data.rides.some((r) => r.id === id))) deny(setLegsProblem(visibleMe, ids, data, new Date().toISOString()));
       ok(await supabase().rpc('set_ride_legs', setRideLegsArgs(ids)));
       await after();
     },

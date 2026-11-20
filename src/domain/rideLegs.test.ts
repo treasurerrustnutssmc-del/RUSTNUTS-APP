@@ -67,8 +67,14 @@ test('linking legs: refusals in the database’s order, then allowed', () => {
   assert.equal(setLegsProblem(sec, ['b4-out', 'b4-2', 'b4-home'], data, NOW), null);
   assert.equal(setLegsProblem(who(data, 'rc2'), ['b4-2', 'b4-home'], data, NOW), null);
   assert.equal(setLegsProblem(who(data, 'nrc'), ['b4-out', 'north-run'], data, NOW), null, 'any manager runs club rides');
-  // One ride, or none: unlinking.
+  // One ride, or none: unlinking (a leg that's history too).
   assert.equal(setLegsProblem(sec, ['b4-out'], data, NOW), null);
+  // A trip under way: its first leg is history but stays, and a new leg can follow.
+  const day3 = '2026-11-22T20:00:00.000Z'; // 23 Nov, 7am Melbourne
+  const later = club({ rides: [...club().rides, ride('b4-4', { source: 'app', category: 'club', startsAt: '2026-11-23T00:00:00.000Z' })] });
+  assert.equal(setLegsProblem(sec, ['b4-out', 'b4-2', 'b4-home', 'b4-4'], later, day3), null);
+  assert.equal(setLegsProblem(sec, ['old', 'b4-4'], later, day3), RIDE_OVER, 'history not in the trip');
+  assert.equal(setLegsProblem(sec, ['b4-2'], later, day3), null, 'unlinking a history leg');
 });
 
 test('the rides a manager can link to a ride: their own, on, not history, within 14 days, in start order', () => {
@@ -76,6 +82,8 @@ test('the rides a manager can link to a ride: their own, on, not history, within
   assert.deepEqual(linkableRides(who(data, 'sec'), 'b4-2', data, NOW).map((r) => r.id), ['r-club', 'r-west', 'b4-out', 'b4-2', 'b4-home']);
   assert.deepEqual(linkableRides(who(data, 'nrc'), 'b4-2', data, NOW).map((r) => r.id), ['r-club', 'b4-out', 'b4-2', 'b4-home', 'north-run']);
   assert.deepEqual(linkableRides(who(data, 'rider'), 'b4-2', data, NOW), []);
+  // Once under way, the trip's own legs are listed even when history.
+  assert.deepEqual(linkableRides(who(data, 'sec'), 'b4-home', data, '2026-11-22T20:00:00.000Z').map((r) => r.id), ['b4-out', 'b4-2', 'b4-home']);
 });
 
 test('the next leg starts filled in from the last leg, and the trip it joins', () => {
@@ -84,6 +92,8 @@ test('the next leg starts filled in from the last leg, and the trip it joins', (
   assert.equal(draft.category, 'club');
   assert.equal(draft.title, 'Big 4 Alpine Run, leg 4');
   assert.equal(draft.dateIso, '2026-11-22', 'the day the last leg starts');
+  assert.equal(draft.legNo, 4);
+  assert.equal(draft.after, 'Leg home');
   assert.deepEqual(tripAfterSave('b4-2', 'new', data), ['b4-out', 'b4-2', 'b4-home', 'new']);
   // From a ride on its own: it becomes leg 1, the new ride leg 2.
   const single = nextLegDraft('far', data);

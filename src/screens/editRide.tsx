@@ -19,6 +19,7 @@ import type { RideCategory } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, space } from '../theme';
+import { useToast } from '../ui/Toast';
 import { Button, Card, Choices, ConfirmButton, Field, ListRow, Notice, Screen, Small, Toggle } from '../ui/primitives';
 
 const nowIso = () => new Date().toISOString();
@@ -45,6 +46,7 @@ function useAction() {
 
 export function EditRideScreen({ route: nav, navigation }: RootScreen<'EditRide'>) {
   const { me, data, saveRide, setRideLegs } = useClub();
+  const toast = useToast();
   const rideId = nav.params?.rideId;
   const ride = rideId ? data.rides.find((r) => r.id === rideId) : undefined;
   // Start the next leg: a new ride filled in from the trip it follows, linked as its next leg on save.
@@ -120,12 +122,11 @@ export function EditRideScreen({ route: nav, navigation }: RootScreen<'EditRide'
       if (problem) throw new Error(problem);
       const id = await saveRide(built, ride?.id);
       if (!ride && nextLegOf) {
-        // Saved; linking it is a second step, so a refusal there still leaves the new ride to open.
+        // Saved; linking it is a second step, so a refusal there still opens the new ride, and says so.
         try {
           await setRideLegs(tripAfterSave(nextLegOf, id, data));
         } catch (e) {
-          navigation.replace('RideDetail', { rideId: id });
-          throw new Error(`The ride is saved, but it isn’t linked as the next leg: ${(e as Error).message}`);
+          toast(`The ride is saved, but it isn’t linked as the next leg: ${(e as Error).message}`);
         }
       }
       if (!ride) navigation.replace('RideDetail', { rideId: id });
@@ -134,8 +135,8 @@ export function EditRideScreen({ route: nav, navigation }: RootScreen<'EditRide'
   return (
     <Screen>
       {draft && nextLegOf ? (
-        <Notice title={`Leg ${(legsOf(nextLegOf, data)?.length ?? 1) + 1}`}>
-          {`Once saved, this ride becomes the next leg after ${data.rides.find((r) => r.id === nextLegOf)?.title ?? 'that ride'}. Check the date and set the start time.`}
+        <Notice title={`Leg ${draft.legNo}`}>
+          {`Once saved, this ride becomes leg ${draft.legNo}, after ${draft.after}. Check the date and set the start time.`}
         </Notice>
       ) : null}
       <Card>
@@ -299,7 +300,12 @@ export function RideLegsScreen({ route: nav, navigation }: RootScreen<'RideLegs'
           confirmNote="The rides stay as they are; they just stop being one trip."
           kind="quiet"
           disabled={busy}
-          onConfirm={() => save([rideId])}
+          onConfirm={() =>
+            run(async () => {
+              // One ride out at a time; the trip ends when one is left.
+              for (const leg of current.slice(0, -1)) await setRideLegs([leg.id]);
+            }, () => navigation.goBack())
+          }
         />
       ) : null}
     </Screen>

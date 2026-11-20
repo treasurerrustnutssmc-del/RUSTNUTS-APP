@@ -57,6 +57,10 @@ Approach 1 gives what Jeff asked for at the lowest risk to the parts riders rely
   form offers them in start order). Linking a single ride or none clears the trip.
 - A trip can't change once its last leg is history (same "history" rule as saving a ride).
 - Legs of one trip start within 14 days of the first.
+- A ride that's history can't join a trip, but a leg already in the trip stays when the trip changes
+  or gets a new leg (so a trip under way keeps its first legs). Unlinking is always allowed.
+- Linking rides takes them out of other trips; what's left of those is renumbered (or ends at one ride),
+  even legs the caller doesn't run. Accepted: managers run club rides together.
 
 ## Built (21 Nov)
 

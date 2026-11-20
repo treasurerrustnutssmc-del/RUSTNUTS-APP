@@ -45,7 +45,7 @@ import { HubSection, RideCallBanner, RidePlanSection, SwapSection } from './ride
 import { CharitySection } from './charity'; // Charity ride sign-ups
 import { isCharityRide } from '../domain/charity'; // Charity ride sign-ups
 import { callOffProblem, isAppRide, managesAnyCategory, putBackProblem, RIDE_OVER, saveRideProblem, takeOverProblem } from '../domain/newRide';
-import { legLabel, legsOf, linkableRides } from '../domain/rideLegs'; // Rides ridden in legs // Rides made in the app
+import { legLabel, legsOf, linkableRides } from '../domain/rideLegs'; // Rides ridden in legs
 // Stage 3 (lane B): ride chat and wall
 import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
@@ -531,14 +531,20 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   const mayLinkLegs = runsLegs && linkableRides(me, ride.id, data, nowIso).length >= 2;
   // One tap for Going on every leg still to come that you haven't said Going to.
   const legsToGo = (legs ?? []).filter(
-    (l) => !l.cancelledAt && l.startsAt > nowIso && data.rsvps.find((r) => r.rideId === l.id && r.memberId === me.id)?.answer !== 'going',
+    (l) =>
+      !l.cancelledAt &&
+      l.startsAt > nowIso &&
+      data.rsvps.find((r) => r.rideId === l.id && r.memberId === me.id)?.answer !== 'going' &&
+      rsvpProblem(me, l, nowIso) === null &&
+      !mustSignFirst(me, data, today) &&
+      big4GoingProblem(me, l.id, 'going', data, today) === null,
   );
   const goingToAll = me.approval === 'approved' && !isFamily(me) && legsToGo.length >= 2;
   const goAll = async () => {
     setAllBusy(true);
     try {
       for (const l of legsToGo) await setRsvp(l.id, 'going');
-      toast(`You’re going to all ${legs?.length ?? 0} legs.`);
+      toast(legsToGo.length === (legs?.length ?? 0) ? `You’re going to all ${legsToGo.length} legs.` : `You’re going to ${legsToGo.length} more legs.`);
     } catch (e) {
       toast((e as Error).message);
     } finally {
@@ -603,7 +609,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   return (
     <Screen>
       <Card>
-        <Row style={{ gap: 6 }}>
+        <Row style={{ gap: 6, flexWrap: 'wrap' }}>
           <RideChip category={ride.category} />
           {isBig4(ride.id, data) ? <Chip label="Big 4" tone="red" icon="trophy" /> : null}
           {legText ? <Chip label={legText} tone="bone" icon="git-commit-outline" /> : null}

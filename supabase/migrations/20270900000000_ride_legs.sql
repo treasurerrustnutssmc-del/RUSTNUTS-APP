@@ -47,21 +47,30 @@ begin
   if exists (select 1 from public.rides r where r.id = any(p_rides) and not private.manages_ride_category(r.category)) then
     raise exception 'Only that chapter’s board or ride committee can run its rides.';
   end if;
-  -- A ride is history once its last Melbourne day has passed (a calendar's all-day end is the midnight after).
-  if exists (
-    select 1 from public.rides r where r.id = any(p_rides) and private.club_date(case
-      when r.ends_at is null then r.starts_at
-      when r.all_day then r.ends_at - interval '1 millisecond'
-      else r.ends_at end) < private.club_date()) then
-    raise exception 'That ride is history; it can’t change now.';
-  end if;
   if n >= 2 then
+    -- A ride that's history can't join a trip, but one already in it with another listed leg stays
+    -- (a trip under way keeps its first legs when it changes or gets a new one). A ride is history
+    -- once its last Melbourne day has passed (a calendar's all-day end is the midnight after).
+    if exists (
+      select 1 from public.rides r
+      where r.id = any(p_rides)
+        and private.club_date(case
+          when r.ends_at is null then r.starts_at
+          when r.all_day then r.ends_at - interval '1 millisecond'
+          else r.ends_at end) < private.club_date()
+        and not exists (
+          select 1 from public.ride_legs a join public.ride_legs b on b.trip_id = a.trip_id
+          where a.ride_id = r.id and b.ride_id <> r.id and b.ride_id = any(p_rides))) then
+      raise exception 'That ride is history; it can’t change now.';
+    end if;
     select r.starts_at into first_start from public.rides r where r.id = p_rides[1];
     if exists (select 1 from public.rides r where r.id = any(p_rides) and abs(extract(epoch from r.starts_at - first_start)) > 14 * 86400) then
       raise exception 'Legs start within 14 days of the first.';
     end if;
   end if;
 
+  -- One change to legs at a time, so two saves at once queue rather than collide.
+  perform pg_advisory_xact_lock(hashtext('public.set_ride_legs'));
   -- Take the listed rides out of the trips they were in, and tidy what's left of those trips.
   select coalesce(array_agg(distinct l.trip_id), '{}') into old_trips from public.ride_legs l where l.ride_id = any(p_rides);
   delete from public.ride_legs l where l.ride_id = any(p_rides);

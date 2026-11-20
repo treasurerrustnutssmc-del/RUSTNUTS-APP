@@ -237,14 +237,14 @@ export interface Route {
   updatedAt: string;
 }
 
-/** The route a ride uses. A ride has at most one. */
-/** One ride's place in a trip ridden in legs: the trip is the first leg's ride id when they were linked. */
+/** One ride's place in a trip ridden in legs. The trip id is only a grouping key. */
 export interface RideLeg {
   rideId: string;
   tripId: string;
   legNo: number;
 }
 
+/** The route a ride uses. A ride has at most one. */
 export interface RideRoute {
   rideId: string;
   routeId: string;

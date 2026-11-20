@@ -110,6 +110,14 @@ begin
   assert pg_temp.trip(b2::uuid) is null and pg_temp.trip(x7::uuid) is null, 'a trip of one is no trip';
   assert pg_temp.trip(b1::uuid) = '401,403', 'other trips untouched';
 
+  -- A trip under way: a leg that's history stays in when the trip changes, and can be unlinked.
+  update rides set starts_at = now() - interval '2 days', ends_at = null, all_day = false where id = b1::uuid;
+  assert pg_temp.try_as(wes, pg_temp.legs_sql(array[b1, b3, x7])) is null, 'history leg already in the trip stays';
+  assert pg_temp.trip(b1::uuid) = '401,403,407', 'with the new leg: ' || pg_temp.trip(b1::uuid);
+  assert pg_temp.try_as(wes, pg_temp.legs_sql(array[b1, b2])) = 'That ride is history; it can’t change now.', 'not into a new trip';
+  assert pg_temp.try_as(wes, pg_temp.legs_sql(array[b1])) is null, 'unlinking a history leg';
+  assert pg_temp.trip(b3::uuid) = '403,407', 'the rest stay a trip';
+
   -- Members read the legs; the public doesn't.
   perform set_config('request.jwt.claim.sub', nell::text, true);
   set local role authenticated;

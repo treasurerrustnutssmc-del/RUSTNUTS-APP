@@ -52,40 +52,61 @@ export function setLegsProblem(me: Member | null, rideIds: string[], data: ClubD
   }
   const manager = managerProblem(me, rides.map((r) => r.category), data);
   if (manager) return manager;
-  const over = rides.find((r) => isOver(r, now));
-  if (over) return RIDE_OVER;
   if (rides.length >= 2) {
+    // A ride that's history can't join a trip, but one already in it with another listed leg stays
+    // (a trip under way keeps its first legs when it changes or gets a new one).
+    const legs = data.rideLegs ?? [];
+    const tripOf = (id: string) => legs.find((l) => l.rideId === id)?.tripId;
+    const kept = (r: Ride) => {
+      const trip = tripOf(r.id);
+      return !!trip && rideIds.some((id) => id !== r.id && tripOf(id) === trip);
+    };
+    if (rides.some((r) => isOver(r, now) && !kept(r))) return RIDE_OVER;
     const first = new Date(rides[0].startsAt).getTime();
     if (rides.some((r) => Math.abs(new Date(r.startsAt).getTime() - first) > LEG_SPAN_DAYS * DAY_MS)) return LEGS_SPREAD;
   }
   return null;
 }
 
-/** The rides `me` could link with this one: ones they run, still on and not history, within 14 days, in start order. */
+/**
+ * The rides `me` could link with this one: ones they run, still on and not history, within 14 days,
+ * in start order. The legs already in this ride's trip are always listed (history legs stay put).
+ */
 export function linkableRides(me: Member | null, rideId: string, data: ClubData, now: string): Ride[] {
   const ride = data.rides.find((r) => r.id === rideId);
-  if (!me || !ride) return [];
+  if (!me || !ride || !managesRide(me, ride, data)) return [];
   const at = new Date(ride.startsAt).getTime();
+  const current = new Set((legsOf(rideId, data) ?? []).map((r) => r.id));
   return data.rides
     .filter(
       (r) =>
-        (r.id === rideId || !r.cancelledAt) &&
-        !isOver(r, now) &&
-        managesRide(me, r, data) &&
-        Math.abs(new Date(r.startsAt).getTime() - at) <= LEG_SPAN_DAYS * DAY_MS,
+        current.has(r.id) ||
+        ((r.id === rideId || !r.cancelledAt) &&
+          !isOver(r, now) &&
+          managesRide(me, r, data) &&
+          Math.abs(new Date(r.startsAt).getTime() - at) <= LEG_SPAN_DAYS * DAY_MS),
     )
     .sort(byStart);
 }
 
 /** What the New ride form starts with for the leg after this ride's trip (or after this ride on its own). */
-export function nextLegDraft(rideId: string, data: ClubData): { title: string; category: RideCategory; dateIso: string } {
+export function nextLegDraft(
+  rideId: string,
+  data: ClubData,
+): { title: string; category: RideCategory; dateIso: string; legNo: number; after: string } {
   const legs = legsOf(rideId, data) ?? data.rides.filter((r) => r.id === rideId);
   const first = legs[0];
   const last = legs[legs.length - 1];
   const suffix = `, leg ${legs.length + 1}`;
   const base = first ? first.title.slice(0, MAX_RIDE_TITLE - suffix.length).trim() : 'Ride';
   // The day the last leg finishes: the next leg usually sets off that day or the morning after.
-  return { title: `${base}${suffix}`, category: last?.category ?? 'club', dateIso: last ? lastDay(last) : '' };
+  return {
+    title: `${base}${suffix}`,
+    category: last?.category ?? 'club',
+    dateIso: last ? lastDay(last) : '',
+    legNo: legs.length + 1,
+    after: last?.title ?? 'that ride',
+  };
 }
 
 /** The trip's rides after a new leg `newId` is added after the trip this ride is in. */

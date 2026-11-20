@@ -115,13 +115,13 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     },
     () => [],
   );
-  // Acting roles: the requests and date changes, alongside the rest. Empty rather than blocking the
-  // app (also before the live database has the tables).
   // Rides ridden in legs: empty rather than blocking the app (also before the live database has the table).
   const legsLoad = db.from('ride_legs').select('ride_id, trip_id, leg_no').then(
     (r) => (r.error ? [] : (r.data ?? [])),
     () => [],
   );
+  // Acting roles: the requests and date changes, alongside the rest. Empty rather than blocking the
+  // app (also before the live database has the tables).
   const actingLoad = Promise.all([db.from('acting_requests').select('*'), db.from('acting_changes').select('*')]).catch(
     () => [null, null] as const,
   );
