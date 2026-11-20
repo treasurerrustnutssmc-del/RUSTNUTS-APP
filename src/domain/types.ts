@@ -627,8 +627,9 @@ export interface Vote {
 }
 
 // Lane E: live ride
-/** 'out' is "I've dropped out" (the database keeps the word drop out of its SQL). */
-export type AlertKind = 'emergency' | 'out' | 'regroup';
+/** 'out' is "I've dropped out" (the database keeps the word drop out of its SQL). 'fuel' is a call
+ *  for fuel: calmer than an emergency, and the rider stays on the ride. */
+export type AlertKind = 'emergency' | 'out' | 'fuel' | 'regroup';
 
 export interface LatLng {
   lat: number;

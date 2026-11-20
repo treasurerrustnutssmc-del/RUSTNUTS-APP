@@ -182,6 +182,8 @@ begin
   assert (select data->>'rideId' from private.push_outbox where member_id = tom) = r::text, 'opens the ride';
   insert into ride_alerts (ride_id, member_id, kind) values (r, ned, 'out');
   assert pg_temp.outbox(tom) like '% | Ned is out of the ride / Open live ride', pg_temp.outbox(tom);
+  insert into ride_alerts (ride_id, member_id, kind) values (r, ned, 'fuel');
+  assert pg_temp.outbox(tom) like '% | Ned needs fuel / Open live ride', pg_temp.outbox(tom);
 end $$;
 
 \echo 'Phones register themselves; only the send function reads the outbox'
@@ -204,8 +206,8 @@ begin
   -- Switch off (no setting): everything queued is held, and stays held.
   res := public.push_take(10);
   assert (res->>'enabled')::boolean = false and jsonb_array_length(res->'messages') = 0, res::text;
-  assert (select count(*) from private.push_outbox where status = 'held') = 3
-    and not exists (select 1 from private.push_outbox where status = 'queued'), 'all three live alerts are held';
+  assert (select count(*) from private.push_outbox where status = 'held') = 5
+    and not exists (select 1 from private.push_outbox where status = 'queued'), 'all five live alert pushes are held';
   insert into private.app_settings (key, value) values ('push_enabled', 'true');
   res := public.push_take(10);
   assert jsonb_array_length(res->'messages') = 0, 'held rows are never sent later';

@@ -13,12 +13,19 @@ export function unseenAlerts(seen: string[], alerts: RideAlert[], meId: string):
 const TITLE: Record<AlertKind, (name: string) => string> = {
   emergency: (name) => `EMERGENCY: ${name} needs help`,
   out: (name) => `${name} has dropped out`,
+  fuel: (name) => `${name} needs fuel`,
   regroup: () => 'Regroup here',
 };
 
 export function alertNotice(alert: RideAlert, myPos: LatLng | null): { title: string; body: string } {
   const where = awayText(myPos, alert.position) ?? 'Location unknown';
   return { title: TITLE[alert.kind](alert.name), body: `${where} · ${melbourneTime(alert.createdAt)}` };
+}
+
+/** A press the club refused for good (say the ride ended before signal came back) that the rider
+ *  must be told about: a call for help or fuel, or dropping out. A regroup pin or a stop isn't. */
+export function tellWhenRefused(kind: AlertKind | 'stop'): boolean {
+  return kind === 'emergency' || kind === 'out' || kind === 'fuel';
 }
 
 /** Something to send when signal comes back: an alert, or a stop the club hasn't heard yet. */

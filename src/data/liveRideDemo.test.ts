@@ -76,3 +76,19 @@ test('demo live ride: a resent press is the same alert, even once cleared', asyn
   const s = await b.state('r-today');
   assert.equal(s.alerts.filter((a) => a.kind === 'emergency' && !a.resolvedAt).length, 0);
 });
+
+test('demo live ride: a fuel call reaches the leader with a number, and the rider keeps sharing', async () => {
+  const { b, as } = backend();
+  await b.start('r-today');
+  const id = await b.raise('r-today', 'fuel', FIX);
+  assert.equal(await b.raise('r-today', 'fuel', null), id, 'pressing it again is the same call');
+  assert.ok((await b.state('r-today')).me, 'still sharing');
+  as('m-diesel');
+  await b.start('r-today');
+  const d = await b.state('r-today');
+  const fuel = d.alerts.find((a) => a.id === id);
+  assert.equal(fuel?.kind, 'fuel');
+  assert.equal(fuel?.phone, '0409 555 826', 'the leader can ring them');
+  assert.deepEqual(d.contacts, [], 'no emergency contacts for fuel');
+  await b.resolve(id);
+});
