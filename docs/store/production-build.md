@@ -76,7 +76,7 @@ text in the secret, and change the key id in the workflow and in `eas.json`.
    iPhones never get push.
 5. **Privacy manifests** are checked by `ios-submit` itself (`.github/scripts/check-ipa-privacy.py`)
    before anything is uploaded: the app, every app extension (`PlugIns/*.appex`) and every embedded
-   framework on Apple's list of commonly used SDKs (SDWebImage, hermes and so on) must carry a
+   framework on Apple's list of commonly used SDKs (SDWebImage and the like) must carry a
    `PrivacyInfo.xcprivacy`, or App Store Connect rejects the upload with a privacy-manifest email (see
    `docs/superpowers/specs/2026-10-31-ios-readiness-design.md`, section 1). A red job names the
    bundle that's missing one.

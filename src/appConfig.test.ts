@@ -206,7 +206,10 @@ test('the TestFlight upload sends one finished store build, by its id, after che
   assert.match(wf, /eas build:list[^\n]*--build-profile production/, 'never an ios-simulator build');
   assert.match(wf, /eas submit[^\n]*--id "\$BUILD_ID"/);
   assert.doesNotMatch(wf, /eas submit[^\n]*--latest/);
-  assert.match(wf, /check-ipa-privacy\.py/);
+  assert.match(wf, /eas build:list[^\n]*--platform ios/);
+  const check = wf.indexOf('check-ipa-privacy.py');
+  assert.ok(check > 0 && check < wf.search(/eas submit[^\n]*--id/), 'the check runs before the upload');
+  assert.match(wf, /newer iPhone build is still building/, 'never sends an older build while a newer one is building');
 });
 
 test('an ipa missing a privacy manifest App Store Connect asks for is stopped before upload', () => {
@@ -241,7 +244,7 @@ test('an ipa missing a privacy manifest App Store Connect asks for is stopped be
   const statik = check(ipa(good.filter((f) => !f.includes('SDWebImage'))));
   assert.equal(statik.status, 0, statik.stderr + statik.stdout);
   for (const [missing, named] of [
-    [`${app}PrivacyInfo.xcprivacy`, /Rustnuts\.app/],
+    [`${app}PrivacyInfo.xcprivacy`, /in Rustnuts\.app;/],
     [`${app}Frameworks/SDWebImage.framework/PrivacyInfo.xcprivacy`, /SDWebImage/],
     [`${app}PlugIns/expo-sharing-extension.appex/PrivacyInfo.xcprivacy`, /expo-sharing-extension/],
   ] as const) {
@@ -250,6 +253,10 @@ test('an ipa missing a privacy manifest App Store Connect asks for is stopped be
     assert.match(r.stderr, /::error::/);
     assert.match(r.stderr, named);
   }
+  // A listed framework inside an extension needs one too.
+  const inExt = check(ipa([...good, `${app}PlugIns/expo-sharing-extension.appex/Frameworks/SDWebImage.framework/SDWebImage`]));
+  assert.notEqual(inExt.status, 0);
+  assert.match(inExt.stderr, /expo-sharing-extension\.appex\/Frameworks\/SDWebImage\.framework/);
   const notZip = join(dir, 'junk.ipa');
   writeFileSync(notZip, 'not a zip');
   const junk = check(notZip);

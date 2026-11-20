@@ -83,14 +83,23 @@ jobs:
             echo "::error::Put the App Store Connect app's Apple ID in eas.json submit.production.ios.ascAppId first"
             exit 1
           fi
-          eas build:list --platform ios --build-profile production --status finished --limit 1 --json --non-interactive > "$RUNNER_TEMP/ios-build.json"
+          eas build:list --platform ios --build-profile production --status finished --limit 1 --json --non-interactive > "$RUNNER_TEMP/ios-finished.json"
+          eas build:list --platform ios --build-profile production --limit 1 --json --non-interactive > "$RUNNER_TEMP/ios-newest.json"
           read -r BUILD_ID IPA_URL BUILD_NUMBER < <(node -e "
-            const b = require(process.argv[1])[0];
-            if (!b || !b.artifacts || !b.artifacts.buildUrl) process.exit(1);
-            console.log(b.id, b.artifacts.buildUrl, b.appBuildVersion);
-          " "$RUNNER_TEMP/ios-build.json") || { echo "::error::No finished iPhone store build yet; run ios first and wait for it to finish on expo.dev"; exit 1; }
+            const [finished] = require(process.argv[1]);
+            const [newest] = require(process.argv[2]);
+            if (newest && newest.id !== (finished && finished.id) && /^(NEW|IN_QUEUE|IN_PROGRESS)$/i.test(newest.status)) {
+              console.error('::error::A newer iPhone build is still building; run ios-submit again once it has finished on expo.dev');
+              process.exit(1);
+            }
+            if (!finished || !finished.artifacts || !finished.artifacts.buildUrl) {
+              console.error('::error::No finished iPhone store build yet; run ios first and wait for it to finish on expo.dev');
+              process.exit(1);
+            }
+            console.log(finished.id, finished.artifacts.buildUrl, finished.appBuildVersion);
+          " "$RUNNER_TEMP/ios-finished.json" "$RUNNER_TEMP/ios-newest.json") || exit 1
           echo "Checking iPhone build $BUILD_NUMBER ($BUILD_ID)"
-          curl -fsSL -o "$RUNNER_TEMP/Rustnuts.ipa" "$IPA_URL"
+          curl -fsSL -o "$RUNNER_TEMP/Rustnuts.ipa" "$IPA_URL" || { echo "::error::Couldn't download that build's .ipa (it may have expired on expo.dev); make a new one with ios"; exit 1; }
           python3 .github/scripts/check-ipa-privacy.py "$RUNNER_TEMP/Rustnuts.ipa"
           eas submit --platform ios --profile production --id "$BUILD_ID" --non-interactive
       # The build itself runs on EAS; --no-wait ends this job once it's queued. The build page link

@@ -55,12 +55,16 @@ def main() -> None:
 
     # Each bundle that needs a manifest, as its folder inside the ipa.
     needs = [app]
-    bundles = {m.group(0) for n in names if (m := re.match(re.escape(app) + r"(PlugIns/[^/]+\.appex|Frameworks/[^/]+\.framework)/", n))}
-    for bundle in sorted(bundles):
-        if bundle.startswith(app + "PlugIns/"):
-            needs.append(bundle)
-        elif bundle[len(app) + len("Frameworks/") : -len(".framework/")].lower() in LISTED_SDKS:
-            needs.append(bundle)
+    # App extensions (PlugIns/ or Extensions/), and frameworks in the app or inside an extension.
+    extension = r"(?:PlugIns|Extensions)/[^/]+\.appex/"
+    bundles = set()
+    for n in names:
+        if m := re.match(re.escape(app) + extension, n):
+            bundles.add(m.group(0))
+        if m := re.match(re.escape(app) + f"(?:{extension})?Frameworks/([^/]+)\\.framework/", n):
+            if m.group(1).lower() in LISTED_SDKS:
+                bundles.add(m.group(0))
+    needs += sorted(bundles)
 
     missing = [b for b in needs if b + MANIFEST not in names]
     if missing:
