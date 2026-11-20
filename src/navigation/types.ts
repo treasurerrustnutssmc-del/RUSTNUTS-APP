@@ -65,7 +65,9 @@ export type RootParams = {
   Hub: { rideId: string };
   EditHub: { rideId: string };
   // Rides made in the app: a new ride, or changing one made in the app
-  EditRide: { rideId?: string } | undefined;
+  EditRide: { rideId?: string; nextLegOf?: string } | undefined;
+  // Rides ridden in legs: linking rides as the legs of one trip
+  RideLegs: { rideId: string };
   // Charity ride sign-ups
   Charity: { rideId: string };
   EditCharity: { rideId: string };

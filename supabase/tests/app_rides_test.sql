@@ -240,4 +240,78 @@ begin
   assert not (rows -> 0 ? 'website') and not (rows -> 0 ? 'created_by') and not (rows -> 0 ? 'updated_by'), 'no new columns leak';
 end $$;
 
+\o
+\echo 'App rides: taking a calendar ride over in the app, and the sync leaving it alone after'
+\o /dev/null
+do $$
+declare
+  rc constant uuid := '00000000-0000-0000-0000-0000000007a2';
+  nrc constant uuid := '00000000-0000-0000-0000-0000000007a3';
+  chair constant uuid := '00000000-0000-0000-0000-0000000007a4';
+  nell constant uuid := '00000000-0000-0000-0000-0000000007a5';
+  paul constant uuid := '00000000-0000-0000-0000-0000000007a6';
+  feed constant uuid := '00000000-0000-0000-0000-00000000fe01';
+  at_time timestamptz := date_trunc('minute', now()) + interval '6 days';
+  gone_time timestamptz := date_trunc('minute', now()) + interval '8 days';
+  cal uuid;
+  gone uuid;
+  r rides%rowtype;
+  take text;
+begin
+  insert into private.ride_feeds (id, url) values (feed, 'https://example.com/cal.ics');
+  perform public.apply_ride_sync(feed, jsonb_build_array(
+    jsonb_build_object('uid', 'big4@x', 'startsAt', at_time, 'endsAt', null, 'allDay', false, 'title', 'Big 4 run',
+                       'location', 'Laverton', 'notes', 'From the calendar', 'category', 'club'),
+    jsonb_build_object('uid', 'gone@x', 'startsAt', gone_time, 'endsAt', null, 'allDay', false, 'title', 'West breakfast',
+                       'location', null, 'notes', null, 'category', 'west')));
+  select id into cal from rides where external_uid = 'big4@x';
+  select id into gone from rides where external_uid = 'gone@x';
+  take := format('select public.take_over_ride(%L::uuid)', cal);
+
+  assert pg_temp.try_as(null, take) like 'permission denied%', 'anon can''t take over';
+  assert pg_temp.try_as(paul, take) = 'Only approved members can do that.', 'pending';
+  assert pg_temp.try_as(nell, format('select public.take_over_ride(%L::uuid)', gen_random_uuid())) = 'No such ride.', 'no ride';
+  assert pg_temp.try_as(nell, take) = 'Only the board, ride committee or NEC can make and change rides.', 'no seat';
+  assert pg_temp.try_as(nrc, format('select public.take_over_ride(%L::uuid)', gone))
+    = 'Only that chapter’s board or ride committee can run its rides.', 'North committee can''t take a West ride';
+  assert pg_temp.try_as(rc, format('select public.take_over_ride(%L::uuid)', '00000000-0000-0000-0000-00000000ad02'))
+    = 'That ride is already made in the app.', 'an app ride';
+  assert pg_temp.try_as(rc, format('select public.take_over_ride(%L::uuid)',
+    (select id from rides where title = 'Calendar run' limit 1))) is null, 'West committee takes over a West calendar ride';
+
+  -- A ride manager (West ride committee) takes the club ride over; then changes it like any app ride.
+  assert pg_temp.try_as(rc, take) is null, 'taken over';
+  select * into r from rides where id = cal;
+  assert r.source = 'app' and r.updated_by = rc and r.website and r.title = 'Big 4 run', 'now an app ride, unchanged otherwise';
+  assert pg_temp.try_as(rc, take) = 'That ride is already made in the app.', 'only once';
+  assert pg_temp.try_as(rc, pg_temp.save_sql(cal, 'Big 4 run, leg one', at_time, null, false, 'club', 'Ballarat', 'Changed', true)) is null,
+    'changes like an app ride';
+
+  -- The next sync leaves it alone: no overwrite, no cancel when the calendar drops it, no second copy.
+  perform public.apply_ride_sync(feed, jsonb_build_array(
+    jsonb_build_object('uid', 'big4@x', 'startsAt', at_time, 'endsAt', null, 'allDay', false, 'title', 'Big 4 run',
+                       'location', 'Laverton', 'notes', 'From the calendar', 'category', 'club')));
+  select * into r from rides where id = cal;
+  assert r.title = 'Big 4 run, leg one' and r.location = 'Ballarat' and r.notes = 'Changed' and r.cancelled_at is null,
+    'the sync doesn''t overwrite a taken-over ride: ' || r.title;
+  assert (select count(*) from rides where external_uid = 'big4@x') = 1, 'no second copy';
+  assert (select cancelled_at is not null from rides where id = gone), 'a calendar ride dropped from the feed is still cancelled';
+  -- Moved an hour later in the app: the calendar still lists it at the old time, and still no second copy.
+  assert pg_temp.try_as(rc, pg_temp.save_sql(cal, 'Big 4 run, leg one', at_time + interval '1 hour', null, false, 'club', 'Ballarat', 'Changed', true)) is null,
+    'moved in the app';
+  perform public.apply_ride_sync(feed, jsonb_build_array(
+    jsonb_build_object('uid', 'big4@x', 'startsAt', at_time, 'endsAt', null, 'allDay', false, 'title', 'Big 4 run',
+                       'location', 'Laverton', 'notes', 'From the calendar', 'category', 'club')));
+  assert (select count(*) from rides where external_uid = 'big4@x') = 1, 'no second copy after a move in the app';
+  assert (select starts_at from rides where id = cal) = at_time + interval '1 hour', 'the move stands';
+  perform public.apply_ride_sync(feed, '[]'::jsonb);
+  assert (select cancelled_at is null from rides where id = cal), 'dropped from the calendar: a taken-over ride stays on';
+
+  -- A ride that's history can't be taken over.
+  insert into rides (id, source, feed_id, external_uid, starts_at, title, category)
+  values ('00000000-0000-0000-0000-00000000fe02', 'feed', feed, 'old@x', now() - interval '3 days', 'Old calendar run', 'club');
+  assert pg_temp.try_as(chair, format('select public.take_over_ride(%L::uuid)', '00000000-0000-0000-0000-00000000fe02'))
+    = 'That ride is history; it can’t change now.', 'history';
+end $$;
+
 \echo app_rides: ok

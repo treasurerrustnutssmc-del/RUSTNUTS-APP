@@ -481,6 +481,14 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_app_rides -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_app_rides -f "$ROOT/supabase/tests/app_rides_test.sql"
+# Rides ridden in legs, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_ride_legs" >/dev/null
+"${PSQL[@]}" -d rustnuts_ride_legs -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_ride_legs -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_ride_legs -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_ride_legs -f "$ROOT/supabase/tests/ride_legs_test.sql"
 
 # The performance advisor's shape of the schema (deep audit F4), on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_performance" >/dev/null

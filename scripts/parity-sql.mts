@@ -980,6 +980,10 @@ const planningCall = (c: ParityCase & Record<string, any>): string | null => {
     }
     case 'setRideCalledOff':
       return `public.set_ride_called_off(${id('r', c.ride)}, ${c.off})`;
+    case 'takeOverRide':
+      return `public.take_over_ride(${id('r', c.ride)})`;
+    case 'setRideLegs':
+      return `public.set_ride_legs(array[${c.rides.map((k: string) => id('r', k)).join(', ')}]::uuid[])`;
     default:
       return null;
   }

@@ -29,6 +29,7 @@ export const CALENDAR_RIDE = 'This ride comes from the club calendar; change it 
 export const RIDE_OVER = 'That ride is history; it can’t change now.';
 export const RIDE_ALREADY_OFF = 'That ride is already called off.';
 export const RIDE_NOT_OFF = 'That ride isn’t called off.';
+export const ALREADY_APP_RIDE = 'That ride is already made in the app.';
 
 /** What the form sends. Instants are ISO strings; an all-day ride's instants are Melbourne midnights. */
 export interface RideInput {
@@ -78,7 +79,7 @@ export function managesAnyCategory(me: Member | null, data: ClubData): boolean {
   return RIDE_CATEGORIES.some((c) => managesCategory(me, c, data));
 }
 
-function managerProblem(me: Member, categories: RideCategory[], data: ClubData): string | null {
+export function managerProblem(me: Member, categories: RideCategory[], data: ClubData): string | null {
   if (!managesAnyCategory(me, data)) return NOT_RIDE_MANAGER;
   if (categories.some((c) => !managesCategory(me, c, data))) return NOT_CHAPTER_RIDE_MANAGER;
   return null;
@@ -89,7 +90,7 @@ function validInstant(iso: string | null | undefined): boolean {
 }
 
 /** A ride is history once its last Melbourne day has passed. */
-function isOver(ride: Ride, now: string): boolean {
+export function isOver(ride: Ride, now: string): boolean {
   return lastDay(ride) < melbourneDate(now);
 }
 
@@ -148,6 +149,21 @@ export function putBackProblem(me: Member | null, ride: Ride | undefined, data: 
   const shared = offSwitchProblem(me, ride, data, now);
   if (shared) return shared;
   if (!ride?.cancelledAt) return RIDE_NOT_OFF;
+  return null;
+}
+
+/**
+ * Why `me` can't take this calendar ride over in the app, or null when they can. Taken over, it
+ * becomes a ride made in the app and the calendar sync leaves it alone. Mirrors public.take_over_ride.
+ */
+export function takeOverProblem(me: Member | null, ride: Ride | undefined, data: ClubData, now: string): string | null {
+  const signedIn = signedInProblem(me);
+  if (signedIn || !me) return signedIn;
+  if (!ride) return RIDE_GONE;
+  const manager = managerProblem(me, [ride.category], data);
+  if (manager) return manager;
+  if (isAppRide(ride)) return ALREADY_APP_RIDE;
+  if (isOver(ride, now)) return RIDE_OVER;
   return null;
 }
 
