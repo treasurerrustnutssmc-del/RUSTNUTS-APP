@@ -123,6 +123,57 @@ test('iOS store builds are submitted with the club Apple account to the right Ap
   assert.equal(ios?.language, 'en-AU');
 });
 
+test('iOS uploads use the App Store Connect team key that CI writes from a secret, never a committed file', () => {
+  const ios = eas.submit.production.ios;
+  assert.equal(ios?.appleTeamId, 'M873J4CTU6');
+  assert.equal(ios?.ascApiKeyPath, './.asc/AuthKey.p8');
+  assert.equal(ios?.ascApiKeyId, 'GZ4F28YT8V');
+  assert.equal(ios?.ascApiKeyIssuerId, '7ef898c5-8375-4f11-b43f-e41cc28c8c30');
+  const ignored = readFileSync(join(__dirname, '../.gitignore'), 'utf8').split('\n').map((l) => l.trim());
+  assert.ok(ignored.includes('.asc/'), 'the key folder is never committed or uploaded with the project');
+  assert.ok(ignored.includes('*.p8'));
+  // EAS uses .easignore instead of .gitignore when one exists, so it must keep the key out too.
+  const easignore = join(__dirname, '../.easignore');
+  if (existsSync(easignore)) {
+    assert.ok(readFileSync(easignore, 'utf8').split('\n').map((l) => l.trim()).includes('.asc/'));
+  }
+});
+
+test('the first iPhone build answers only the credential questions it expects and fails on anything else', () => {
+  const exp = readFileSync(join(__dirname, '../.github/scripts/eas-ios-setup.exp'), 'utf8');
+  for (const q of [
+    'Generate a new Apple Distribution Certificate',
+    'Generate a new Apple Provisioning Profile',
+    'Reuse this distribution certificate',
+  ]) {
+    assert.ok(exp.includes(q), `answers "${q}"`);
+  }
+  // A pick-list's first choice can be harmful (Apple Team Type lists Enterprise first), so none are answered.
+  assert.doesNotMatch(exp, /send -- "\\r"/);
+  assert.match(exp, /Select certificates to revoke/, 'never revokes a certificate');
+  // eas killed by a signal reports exit value 0 from wait, so that must fail too.
+  assert.match(exp, /lindex \$r 2/);
+});
+
+test('the TestFlight upload stops with a clear message until the App Store Connect app id is set', () => {
+  const wf = readFileSync(join(__dirname, '../.github/workflows/store-build.yml'), 'utf8');
+  assert.match(wf, /ascAppId/);
+});
+
+test('the Store build workflow can set up iPhone signing and upload to TestFlight with that key', () => {
+  const wf = readFileSync(join(__dirname, '../.github/workflows/store-build.yml'), 'utf8');
+  const options = wf.match(/options: \[(.*)\]/)?.[1].split(',').map((o) => o.trim()) ?? [];
+  for (const o of ['ios', 'ios-setup', 'ios-submit']) assert.ok(options.includes(o), `offers ${o}`);
+  assert.match(wf, /secrets\.ASC_API_KEY_P8/, 'the key text comes from the repository secret');
+  assert.match(wf, /EXPO_ASC_ISSUER_ID=7ef898c5-8375-4f11-b43f-e41cc28c8c30/, 'a team key (with Issuer ID) can make certificates');
+  assert.match(wf, /EXPO_APPLE_TEAM_TYPE=INDIVIDUAL/);
+  assert.ok(existsSync(join(__dirname, '../.github/scripts/eas-ios-setup.exp')), 'first-time setup runs under expect');
+  // eas-cli treats CI=true as --non-interactive, and won't create a missing certificate then.
+  assert.match(wf, /CI: 'false'/);
+  // Only an Apple password login can make a push key, so eas build must not stop to ask for one.
+  assert.equal(eas.cli.promptToConfigurePushNotifications, false);
+});
+
 test('saving a ride replay to Photos has an add-only purpose string (the share sheet crashes without it)', () => {
   assert.equal(
     expo.ios.infoPlist?.NSPhotoLibraryAddUsageDescription,
