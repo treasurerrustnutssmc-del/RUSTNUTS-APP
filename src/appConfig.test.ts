@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { generateKeyPairSync, createPrivateKey } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { APP_LINK_HOST, APP_LINK_PATH } from './domain/appLinks';
@@ -197,6 +197,64 @@ test('the key secret is turned back into a clean .p8 however it was pasted, and 
 test('the TestFlight upload stops with a clear message until the App Store Connect app id is set', () => {
   const wf = readFileSync(join(__dirname, '../.github/workflows/store-build.yml'), 'utf8');
   assert.match(wf, /ascAppId/);
+});
+
+test('the TestFlight upload sends one finished store build, by its id, after checking its privacy manifests', () => {
+  const wf = readFileSync(join(__dirname, '../.github/workflows/store-build.yml'), 'utf8');
+  // --latest can pick a build that is still running; a finished one is picked and sent by id instead.
+  assert.match(wf, /eas build:list[^\n]*--status finished/);
+  assert.match(wf, /eas build:list[^\n]*--build-profile production/, 'never an ios-simulator build');
+  assert.match(wf, /eas submit[^\n]*--id "\$BUILD_ID"/);
+  assert.doesNotMatch(wf, /eas submit[^\n]*--latest/);
+  assert.match(wf, /check-ipa-privacy\.py/);
+});
+
+test('an ipa missing a privacy manifest App Store Connect asks for is stopped before upload', () => {
+  const script = join(__dirname, '../.github/scripts/check-ipa-privacy.py');
+  const dir = mkdtempSync(join(tmpdir(), 'ipa-'));
+  let n = 0;
+  // A stand-in ipa: a zip holding just the named files.
+  const ipa = (files: string[]) => {
+    const out = join(dir, `t${n++}.ipa`);
+    const make = spawnSync(
+      'python3',
+      ['-c', 'import sys,zipfile\nwith zipfile.ZipFile(sys.argv[1],"w") as z:\n  [z.writestr(f,"x") for f in sys.argv[2:]]', out, ...files],
+      { encoding: 'utf8' },
+    );
+    assert.equal(make.status, 0, make.stderr);
+    return out;
+  };
+  const check = (path: string) => spawnSync('python3', [script, path], { encoding: 'utf8' });
+  const app = 'Payload/Rustnuts.app/';
+  const good = [
+    `${app}Rustnuts`,
+    `${app}PrivacyInfo.xcprivacy`,
+    `${app}Frameworks/SDWebImage.framework/SDWebImage`,
+    `${app}Frameworks/SDWebImage.framework/PrivacyInfo.xcprivacy`,
+    `${app}Frameworks/Other.framework/Other`, // not on Apple's list, so it needs none
+    `${app}PlugIns/expo-sharing-extension.appex/expo-sharing-extension`,
+    `${app}PlugIns/expo-sharing-extension.appex/PrivacyInfo.xcprivacy`,
+  ];
+  const ok = check(ipa(good));
+  assert.equal(ok.status, 0, ok.stderr + ok.stdout);
+  // SDWebImage linked statically (no framework at all) is fine too.
+  const statik = check(ipa(good.filter((f) => !f.includes('SDWebImage'))));
+  assert.equal(statik.status, 0, statik.stderr + statik.stdout);
+  for (const [missing, named] of [
+    [`${app}PrivacyInfo.xcprivacy`, /Rustnuts\.app/],
+    [`${app}Frameworks/SDWebImage.framework/PrivacyInfo.xcprivacy`, /SDWebImage/],
+    [`${app}PlugIns/expo-sharing-extension.appex/PrivacyInfo.xcprivacy`, /expo-sharing-extension/],
+  ] as const) {
+    const r = check(ipa(good.filter((f) => f !== missing)));
+    assert.notEqual(r.status, 0, `fails without ${missing}`);
+    assert.match(r.stderr, /::error::/);
+    assert.match(r.stderr, named);
+  }
+  const notZip = join(dir, 'junk.ipa');
+  writeFileSync(notZip, 'not a zip');
+  const junk = check(notZip);
+  assert.notEqual(junk.status, 0);
+  assert.match(junk.stderr, /::error::/);
 });
 
 test('the Store build workflow can set up iPhone signing and upload to TestFlight with that key', () => {
