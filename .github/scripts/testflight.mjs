@@ -136,6 +136,8 @@ export async function addMembers(api, out = { log: console.log, warn: console.er
       });
       added++;
     } catch (e) {
+      // 401/403 means the key itself can't add testers any more: that's for a person to fix.
+      if (e.status === 401 || e.status === 403) throw e;
       skipped++;
       out.warn(`::warning::Apple didn't take one member as an inside tester (${e.status ?? 'no reply'})`);
     }
@@ -187,16 +189,15 @@ async function sendBuildForReview(api, number) {
     data: [{ type: 'builds', id: build.id }],
   });
   console.log(`Build ${number}: given to the public-link group.`);
-  try {
-    await api.call('POST', '/v1/betaAppReviewSubmissions', {
-      data: { type: 'betaAppReviewSubmissions', relationships: { build: { data: { type: 'builds', id: build.id } } } },
-    });
-    console.log(`Build ${number}: sent for Beta App Review.`);
-  } catch (e) {
-    if (e.status === 409 && /already|exists/i.test(e.message)) {
-      console.log(`Build ${number}: already sent for Beta App Review.`);
-    } else throw e;
+  const sent = (await api.call('GET', `/v1/builds/${build.id}/betaAppReviewSubmission`)).data;
+  if (sent) {
+    console.log(`Build ${number}: already sent for Beta App Review (${sent.attributes?.betaReviewState}).`);
+    return;
   }
+  await api.call('POST', '/v1/betaAppReviewSubmissions', {
+    data: { type: 'betaAppReviewSubmissions', relationships: { build: { data: { type: 'builds', id: build.id } } } },
+  });
+  console.log(`Build ${number}: sent for Beta App Review.`);
 }
 
 async function retireBuild(api, number) {

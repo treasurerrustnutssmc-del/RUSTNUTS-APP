@@ -115,6 +115,16 @@ test("a member Apple won't take is a warning, not a red run, and nobody's detail
   assert.doesNotMatch(printed.join('\n'), /@|kane|bob/i);
 });
 
+test('a key that may no longer add testers turns the run red', async () => {
+  const api = {
+    all: async (path: string) => (path.startsWith('/v1/users') ? [{ attributes: { username: 'a@example.com' } }] : []),
+    call: async () => {
+      throw Object.assign(new Error('POST /v1/betaTesters → 403 FORBIDDEN_ERROR: no'), { status: 403 });
+    },
+  };
+  await assert.rejects(tf.addMembers(api, { log: () => {}, warn: () => {} }), /403/);
+});
+
 test('the workflow keeps member names and emails out of the public log', () => {
   // The repository is public, so Actions logs are too: the script prints counts and build states only.
   assert.doesNotMatch(script, /console\.(log|error)\([^)]*\b(email|username|firstName|lastName)\b/);

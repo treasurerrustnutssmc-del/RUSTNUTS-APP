@@ -93,7 +93,10 @@ put its text in the secret, and change the key id in both workflows and in `eas.
    App Store Connect user (members who accepted their invite) in the inside group "Team (Expo)",
    which gets every build without Beta App Review. `send-build-for-review` with a build number gives
    that build to the public-link group "Rustnuts members" and sends it for Beta App Review.
-   `status` prints the newest builds and their review states. The log is public, so it shows counts
+   `status` prints the newest builds and their review states. Apple reviews one build at a time, so
+   `retire-build` with an older build number expires that build for good (it refuses the newest
+   one); check `status` afterwards before sending the newer build. Retiring can't be undone, so it
+   needs Jeff's yes. The log is public, so it shows counts
    and states only. Before uploading, check that no embedded framework needs a symbol another one
    doesn't export: build 1.0.0 (3) closed on launch because precompiled Expo modules didn't match,
    which is why `package.json` builds every Expo module from source (`buildFromSource: [".*"]`).
