@@ -371,6 +371,7 @@ export function isLearner(memberId: string, data: ClubData): boolean {
 }
 
 export const LEARNER_FNG = 'A learner permit rider can’t become an FNG yet (3.2).';
+export const LEARNER_FULL = 'A learner permit rider can’t be let in as Full.';
 /** How long a carried NEC reinstatement vote stays good for (inferred). */
 export const REINSTATE_VOTE_DAYS = 90;
 

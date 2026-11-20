@@ -67,7 +67,8 @@ test('deciding an application', () => {
   assert.equal(decideApplicationProblem(who(data, 'northsec'), applicant, null, none, data), 'Only that chapter’s board can decline this applicant.');
   assert.equal(decideApplicationProblem(sec, who(data, 'rider'), 'fng', none, data), 'This person isn’t waiting for approval.');
   assert.equal(decideApplicationProblem(sec, who(data, 'rider'), null, none, data), 'This person isn’t waiting for approval.');
-  assert.equal(decideApplicationProblem(sec, applicant, 'full', none, data), 'Let them in as Introduced, FNG, Supporter or Family.');
+  assert.equal(decideApplicationProblem(sec, applicant, 'full', none, data), null, 'a patched member who signed up under another email');
+  assert.equal(decideApplicationProblem(sec, applicant, 'nomad', none, data), 'Let them in as Introduced, FNG, Full, Supporter or Family.');
   assert.equal(decideApplicationProblem(sec, applicant, 'fng', { for: -2, against: 0, abstained: 0 }, data), 'Vote counts can’t be negative.');
   assert.equal(decideApplicationProblem(null, applicant, 'fng', none, data), 'Only the West board can approve this applicant.');
 });

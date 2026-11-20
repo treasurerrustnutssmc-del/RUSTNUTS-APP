@@ -135,7 +135,11 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
         onChange={setStatus}
       />
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      <Small>{`Approving lets them in as ${STATUS_LABEL[status]}.`}</Small>
+      <Small>
+        {status === 'full'
+          ? 'Approving lets them in as a Full member. Only for someone already patched who signed up with a different email. Their patch date starts as today.'
+          : `Approving lets them in as ${STATUS_LABEL[status]}.`}
+      </Small>
       <Row style={{ gap: space.sm }}>
         <Button
           label="Approve"
