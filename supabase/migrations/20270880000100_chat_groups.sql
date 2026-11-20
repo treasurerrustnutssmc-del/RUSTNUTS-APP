@@ -220,7 +220,7 @@ begin
     for who in
       select distinct d.member_id from public.push_devices d
       where d.member_id <> new.author_id
-        and (c.kind <> 'direct' or exists (
+        and (c.kind not in ('direct', 'group') or exists (
           select 1 from public.conversation_members cm where cm.conversation_id = c.id and cm.member_id = d.member_id))
         and not private.blocked_between(new.author_id, d.member_id)
         and coalesce((select p.chat_messages from public.notification_prefs p where p.member_id = d.member_id), true)
@@ -319,6 +319,8 @@ declare
   who uuid;
   t public.members%rowtype;
 begin
+  -- One change to a group at a time, so two people adding at once can't take it past 100.
+  perform 1 from public.conversations where id = p_chat for update;
   foreach who in array coalesce(p_members, '{}') loop
     if who = me then continue; end if;
     select * into t from public.members where id = who;

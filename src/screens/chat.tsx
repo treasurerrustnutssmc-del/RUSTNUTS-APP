@@ -21,6 +21,7 @@ import { pickMedia } from '../data/chat/media';
 import { watchChat } from '../data/viewingChat';
 import {
   addToGroupProblem,
+  trimWords,
   canModerate,
   canRunGroups,
   chatTitle,
@@ -42,7 +43,7 @@ import { pickReadable } from '../domain/contrast';
 import { hasAgreedPostingRules } from '../domain/postingRules'; // Family chat
 import { formatAuDate } from '../domain/dates';
 import { authorPageLabel, authorSpoken } from '../domain/home';
-import { displayName, initials } from '../domain/profile';
+import { displayName, FORMER_MEMBER, initials } from '../domain/profile';
 import { melbourneDate, melbourneTime } from '../domain/rides';
 import type { Member } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -934,6 +935,12 @@ export function GroupInfoScreen({ route, navigation }: RootScreen<'GroupInfo'>) 
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Renamed by someone else while this is open: show the new name.
+  const [shownName, setShownName] = useState(conv?.name ?? '');
+  if ((conv?.name ?? '') !== shownName) {
+    setShownName(conv?.name ?? '');
+    setName(conv?.name ?? '');
+  }
   if (!conv || conv.kind !== 'group' || !me || !conv.memberIds.includes(me.id)) {
     return (
       <Screen>
@@ -941,6 +948,8 @@ export function GroupInfoScreen({ route, navigation }: RootScreen<'GroupInfo'>) 
       </Screen>
     );
   }
+  // Someone the member list doesn't hold (left the club, say) still counts and can be taken out.
+  const missing = conv.memberIds.filter((id) => !data.members.some((m) => m.id === id));
   const people = conv.memberIds
     .map((id) => data.members.find((m) => m.id === id))
     .filter((m): m is Member => !!m)
@@ -958,7 +967,7 @@ export function GroupInfoScreen({ route, navigation }: RootScreen<'GroupInfo'>) 
     }
   };
   const nameProblem = groupNameProblem(name);
-  const renamed = name.trim() !== (conv.name ?? '');
+  const renamed = trimWords(name) !== (conv.name ?? '');
 
   return (
     <Screen>
@@ -996,7 +1005,7 @@ export function GroupInfoScreen({ route, navigation }: RootScreen<'GroupInfo'>) 
       {starter ? <Small>Started by {starter.id === me.id ? 'you' : displayName(starter)}. Only the people here see it.</Small> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
       <SectionTitle
-        title={people.length === 1 ? '1 person' : `${people.length} people`}
+        title={conv.memberIds.length === 1 ? '1 person' : `${conv.memberIds.length} people`}
         action={runner ? <Button label="Add people" kind="secondary" size="small" icon="person-add" onPress={() => navigation.navigate('NewGroup', { chatId })} /> : undefined}
       />
       <Card style={{ padding: 0 }}>
@@ -1005,12 +1014,13 @@ export function GroupInfoScreen({ route, navigation }: RootScreen<'GroupInfo'>) 
             key={m.id}
             member={m}
             data={data}
-            last={i === people.length - 1}
+            last={i === people.length - 1 && missing.length === 0}
             extra={
               runner && m.id !== me.id ? (
                 <ConfirmButton
                   label="Take out"
                   confirmLabel="Yes, take out"
+                  disabled={busy}
                   size="small"
                   accessibilityLabel={`Take ${displayName(m)} out of the group`}
                   confirmAccessibilityLabel={`Yes, take ${displayName(m)} out`}
@@ -1019,6 +1029,26 @@ export function GroupInfoScreen({ route, navigation }: RootScreen<'GroupInfo'>) 
               ) : m.id === me.id ? (
                 <Small>You</Small>
               ) : null
+            }
+          />
+        ))}
+        {missing.map((id, i) => (
+          <ListRow
+            key={id}
+            last={i === missing.length - 1}
+            left={<Avatar text="?" />}
+            title={FORMER_MEMBER}
+            right={
+              runner ? (
+                <ConfirmButton
+                  label="Take out"
+                  confirmLabel="Yes, take out"
+                  disabled={busy}
+                  size="small"
+                  accessibilityLabel="Take a former member out of the group"
+                  onConfirm={() => run(() => chat.removeFromGroup(chatId, id))}
+                />
+              ) : undefined
             }
           />
         ))}
@@ -1156,7 +1186,8 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
             </Small>
             <ConfirmButton label="Remove the message" confirmLabel="Yes, remove it" icon="trash-outline" onConfirm={() => deal(r.id, true)} />
             <Button label="Leave it up" kind="secondary" onPress={() => deal(r.id, false)} />
-            {r.conversation.kind !== 'direct' ? (
+            {/* The board dealing with a private chat or group isn't in it. */}
+            {r.conversation.kind !== 'direct' && r.conversation.kind !== 'group' ? (
               <Button label="Open the chat" kind="quiet" icon="chatbubbles-outline" onPress={() => navigation.navigate('Chat', { chatId: r.conversation.id })} />
             ) : null}
           </Card>

@@ -17,6 +17,7 @@ export const PHOTO_GONE = 'No such photo.';
 export const NOT_A_PHOTO = 'Only photos go on the website, not videos or GIFs.';
 export const PRIVATE_PHOTO = 'Photos from private chats stay private.';
 /** Family chat: family members' photos stay in the club. */
+export const GROUP_PHOTO = 'Photos from group chats stay private.';
 export const FAMILY_PHOTO = 'Photos from the Family chat stay off the website.';
 export const PHOTO_ALREADY_PICKED = 'That photo is already on the list.';
 export const NO_CONSENT_TICK = 'Tick that everyone in the photo is happy to be on the website.';
@@ -115,7 +116,7 @@ function formProblem(input: PhotoPickInput): string | null {
 /** A chat photo as the pick screen knows it: the media row plus where it came from. */
 export interface PickablePhoto {
   media: MessageMedia;
-  /** 'direct' for a private chat; anything else is a club chat. */
+  /** 'direct' for a private chat, 'group' for a group; anything else is a club chat. */
   chatKind: string;
   authorId: string;
 }
@@ -139,6 +140,7 @@ export function pickProblem(
   if (!photo) return PHOTO_GONE;
   if (photo.media.kind !== 'photo') return NOT_A_PHOTO;
   if (photo.chatKind === 'direct') return PRIVATE_PHOTO;
+  if (photo.chatKind === 'group') return GROUP_PHOTO;
   if (photo.chatKind === 'family') return FAMILY_PHOTO;
   if (list.some((p) => p.mediaId === photo.media.id && p.status !== 'removed')) return PHOTO_ALREADY_PICKED;
   return formProblem(input);
