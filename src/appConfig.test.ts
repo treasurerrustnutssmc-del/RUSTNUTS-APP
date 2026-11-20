@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { generateKeyPairSync, createPrivateKey } from 'node:crypto';
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { APP_LINK_HOST, APP_LINK_PATH } from './domain/appLinks';
 
@@ -155,6 +158,40 @@ test('the first iPhone build answers only the credential questions it expects an
   assert.match(exp, /Select certificates to revoke/, 'never revokes a certificate');
   // eas killed by a signal reports exit value 0 from wait, so that must fail too.
   assert.match(exp, /lindex \$r 2/);
+});
+
+test('the key secret is turned back into a clean .p8 however it was pasted, and junk is refused without echoing it', () => {
+  const script = join(__dirname, '../.github/scripts/write-asc-key.py');
+  const wf = readFileSync(join(__dirname, '../.github/workflows/store-build.yml'), 'utf8');
+  assert.match(wf, /write-asc-key\.py/, 'the workflow writes the key with this script');
+  // A throwaway key made for the test, never a real one.
+  const pem = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+    .privateKey.export({ type: 'pkcs8', format: 'pem' })
+    .toString();
+  const body = pem.split('\n').filter((l) => l && !l.startsWith('-----')).join('');
+  const dir = mkdtempSync(join(tmpdir(), 'asc-'));
+  const write = (value: string) => {
+    const out = join(dir, 'AuthKey.p8');
+    const r = spawnSync('python3', [script, out], { env: { ...process.env, ASC_API_KEY_P8: value }, encoding: 'utf8' });
+    return { ...r, out };
+  };
+  for (const pasted of [
+    pem,
+    pem.replace(/\n/g, '\r\n'), // Windows line endings
+    `\n  ${pem}  \n\n`, // stray blank lines and spaces
+    pem.replace(/\n/g, ' '), // all on one line
+    body, // just the middle
+  ]) {
+    const r = write(pasted);
+    assert.equal(r.status, 0, r.stderr);
+    const text = readFileSync(r.out, 'utf8');
+    assert.ok(text.startsWith('-----BEGIN PRIVATE KEY-----\n'));
+    assert.doesNotThrow(() => createPrivateKey(text));
+  }
+  const junk = write('GZ4F28YT8V not a key');
+  assert.notEqual(junk.status, 0);
+  assert.match(junk.stderr, /::error::/);
+  assert.doesNotMatch(junk.stderr + junk.stdout, /not a key/, 'never prints what was pasted');
 });
 
 test('the TestFlight upload stops with a clear message until the App Store Connect app id is set', () => {
