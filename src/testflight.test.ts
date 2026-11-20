@@ -53,6 +53,15 @@ test('the build to send is found by its build number and must have finished proc
   assert.throws(() => tf.pickBuild(expired, '2'), /expired/);
 });
 
+test('only an older build can be retired, never the newest working one', () => {
+  const b = (id: string, version: string, expired = false) => ({ id, attributes: { version, processingState: 'VALID', expired } });
+  const builds = [b('b4', '4'), b('b3', '3'), b('b2', '2', true)];
+  assert.equal(tf.buildToRetire(builds, '3').id, 'b3');
+  assert.throws(() => tf.buildToRetire(builds, '4'), /newest/);
+  assert.throws(() => tf.buildToRetire(builds, '2'), /already/);
+  assert.throws(() => tf.buildToRetire(builds, '9'), /no build 9/i);
+});
+
 test('"What to Test" fills an empty locale Apple already made instead of adding a second one', () => {
   const loc = (id: string, locale: string, whatsNew: string | null) => ({ id, attributes: { locale, whatsNew } });
   assert.deepEqual(tf.whatToTestStep([]), { method: 'POST' });
@@ -116,7 +125,7 @@ test('the TestFlight workflow writes the key outside the checkout and adds membe
   assert.match(workflow, /write-asc-key\.py \.\.\/asc\/AuthKey\.p8/);
   assert.match(workflow, /permissions:\s*\n\s*contents: read/);
   assert.match(workflow, /schedule:\s*\n\s*- cron:/);
-  assert.match(workflow, /options: \[add-members, status, send-build-for-review\]/);
+  assert.match(workflow, /options: \[add-members, status, send-build-for-review, retire-build\]/);
   assert.match(workflow, /group: testflight/, 'runs never overlap');
   assert.match(workflow, /cancel-in-progress: false/);
   assert.match(workflow, /inputs\.action \|\| \(github\.event_name == 'schedule' && 'add-members' \|\| 'status'\)/);

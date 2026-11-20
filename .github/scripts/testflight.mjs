@@ -5,6 +5,8 @@
 //                          the inside-testers group, so TestFlight emails them the app
 //   status                 prints the newest builds, their processing and Beta App Review states
 //   send-build-for-review  gives build N to the public-link group and sends it for Beta App Review
+//   retire-build           expires build N (never the newest), which also takes it out of Beta App
+//                          Review; Apple reviews one build at a time. It can't be undone.
 //
 // The repository is public, so its Actions logs are too: this prints counts and build states only,
 // never a member's name or email. Run by .github/workflows/testflight.yml.
@@ -52,6 +54,18 @@ export function pickBuild(builds, number) {
   if (build.attributes.expired) throw new Error(`Build ${number} has expired`);
   if (build.attributes.processingState !== 'VALID')
     throw new Error(`Build ${number} is still processing (${build.attributes.processingState}); run this again in a few minutes`);
+  return build;
+}
+
+/** Build N, if it can be retired: not already expired, and not the newest build still working. */
+export function buildToRetire(builds, number) {
+  const build = builds.find((b) => String(b.attributes?.version) === String(number));
+  if (!build) throw new Error(`No build ${number} in App Store Connect`);
+  if (build.attributes.expired) throw new Error(`Build ${number} is already retired (expired)`);
+  const newest = builds
+    .filter((b) => !b.attributes.expired && b.attributes.processingState === 'VALID')
+    .reduce((a, b) => (Number(b.attributes.version) > Number(a?.attributes.version ?? -1) ? b : a), null);
+  if (newest?.id === build.id) throw new Error(`Build ${number} is the newest working build; upload a newer one first`);
   return build;
 }
 
@@ -185,6 +199,14 @@ async function sendBuildForReview(api, number) {
   }
 }
 
+async function retireBuild(api, number) {
+  if (!/^\d+$/.test(String(number ?? ''))) throw new Error('Give the build number to retire (for example 3)');
+  const builds = await api.all(`/v1/builds?filter[app]=${APP_ID}&limit=50&fields[builds]=version,processingState,expired`);
+  const build = buildToRetire(builds, number);
+  await api.call('PATCH', `/v1/builds/${build.id}`, { data: { type: 'builds', id: build.id, attributes: { expired: true } } });
+  console.log(`Build ${number}: retired (expired).`);
+}
+
 async function main() {
   const [action = 'add-members', number] = process.argv.slice(2);
   const token = makeToken({
@@ -196,6 +218,7 @@ async function main() {
   if (action === 'add-members') await addMembers(api);
   else if (action === 'status') await status(api);
   else if (action === 'send-build-for-review') await sendBuildForReview(api, number);
+  else if (action === 'retire-build') await retireBuild(api, number);
   else throw new Error(`Unknown action ${action}`);
 }
 

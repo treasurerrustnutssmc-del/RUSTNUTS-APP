@@ -6,6 +6,8 @@
 #   status                 newest builds with their processing and Beta App Review states
 #   send-build-for-review  gives build N to the public-link group "Rustnuts members" and sends it for
 #                          Beta App Review (fills in "What to Test" if it's empty)
+#   retire-build           expires an older build N for good, which also takes it out of Beta App
+#                          Review (Apple reviews one build at a time); refuses the newest build
 # The log is public (public repository), so the script prints counts and build states only.
 # Scheduled runs only happen from main; a push that changes this job runs status.
 name: TestFlight
@@ -21,10 +23,10 @@ on:
       action:
         description: What to do
         type: choice
-        options: [add-members, status, send-build-for-review]
+        options: [add-members, status, send-build-for-review, retire-build]
         default: status
       build:
-        description: Build number (send-build-for-review only), for example 4
+        description: Build number (send-build-for-review or retire-build), for example 4
         required: false
 
 permissions:
