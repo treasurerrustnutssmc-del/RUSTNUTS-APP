@@ -5,10 +5,10 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { openInMapsApp, sendToGarmin } from '../data/routeFiles';
-import { lastKnownSpot } from '../data/whereAmI';
+import { whereAmI } from '../data/whereAmI';
 import { formatClimb, formatKm, routeChapterName } from '../domain/routes';
 import { routeScore, starsLine } from '../domain/ratings';
-import { followRouteOptions, navigateOptions, routeAhead, type NavApp, type NavOption } from '../domain/rideMap';
+import { followApps, followRouteOptions, navigateOptions, routeAhead, type NavApp } from '../domain/rideMap';
 import type { ClubData, LatLng, Route } from '../domain/types';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import { Button, Card, Chip, Ionicons, Notice, Row, Small, Stack } from './primitives';
@@ -227,6 +227,8 @@ export function SendToGarminButton({ route, kind = 'secondary' }: { route: Pick<
   );
 }
 
+const FOLLOW_LABEL: Record<NavApp, string> = { apple: 'Apple Maps', google: 'Google Maps', waze: 'Waze' };
+
 const NAV_ICON: Record<NavApp, React.ComponentProps<typeof Ionicons>['name']> = {
   apple: 'logo-apple',
   google: 'logo-google',
@@ -239,27 +241,37 @@ const NAV_ICON: Record<NavApp, React.ComponentProps<typeof Ionicons>['name']> = 
  */
 function FollowRouteButton({ app, label, line, onOpened }: { app: NavApp; label: string; line: [number, number][]; onOpened: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const open = async () => {
     if (busy) return;
+    setFailed(false);
     setBusy(true);
     try {
-      const ahead = routeAhead(line, await lastKnownSpot());
-      const option = followRouteOptions(ahead, Platform.OS, Platform.Version).find((o: NavOption) => o.app === app);
-      if (option) await Linking.openURL(option.url).catch(() => {});
+      const ahead = routeAhead(line, await whereAmI());
+      const option = followRouteOptions(ahead, Platform.OS, Platform.Version).find((o) => o.app === app);
+      if (!option) throw new Error('no link');
+      await Linking.openURL(option.url);
       onOpened();
+    } catch {
+      setFailed(true);
     } finally {
       setBusy(false);
     }
   };
   return (
-    <Button
-      label={label}
-      icon={NAV_ICON[app]}
-      kind="secondary"
-      busy={busy}
-      accessibilityLabel={`Follow the route in ${label}, from where you are`}
-      onPress={open}
-    />
+    <Stack gap={space.sm}>
+      <Button
+        label={label}
+        icon={NAV_ICON[app]}
+        kind="secondary"
+        busy={busy}
+        accessibilityLabel={`Follow the route in ${label}, from where you are`}
+        onPress={open}
+      />
+      <View accessibilityLiveRegion="polite" role="alert">
+        {failed ? <Notice tone="danger">{`${label} didn’t open. Try the GPX for OsmAnd or MyRoute below.`}</Notice> : null}
+      </View>
+    </Stack>
   );
 }
 
@@ -284,7 +296,7 @@ export function NavigateChooser({
 }) {
   const [open, setOpen] = useState(false);
   const options = navigateOptions(to, Platform.OS);
-  const follow = route ? followRouteOptions({ line: route.line, fromStart: true }, Platform.OS, Platform.Version) : [];
+  const follow = route && route.line.length > 0 ? followApps(Platform.OS, Platform.Version) : [];
   return (
     <Stack gap={space.sm}>
       <Button
@@ -299,11 +311,13 @@ export function NavigateChooser({
           {route ? (
             <>
               <Text style={styles.navTitle}>Follow the route</Text>
-              {follow.map((o) => (
-                <FollowRouteButton key={o.app} app={o.app} label={o.label} line={route.line} onOpened={() => setOpen(false)} />
+              {follow.map((app) => (
+                <FollowRouteButton key={app} app={app} label={FOLLOW_LABEL[app]} line={route.line} onOpened={() => setOpen(false)} />
               ))}
               {follow.length > 0 ? (
-                <Small>From where you are, through points along the route to its end. For every bend, use OsmAnd, MyRoute or Garmin.</Small>
+                <Small>
+                  From where you are, through 9 points along the route to its end. Best in the Google Maps app, not the browser. For every bend, use OsmAnd, MyRoute or Garmin.
+                </Small>
               ) : null}
               <OpenInMapsButton route={route} kind="secondary" />
               <SendToGarminButton route={route} />

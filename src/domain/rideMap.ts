@@ -79,8 +79,15 @@ export function navigateOptions(to: LatLng, os: string): NavOption[] {
   return list;
 }
 
-/** How far from the line a rider can be and still count as on the route: a wrong turn, not a ride to the start. */
-const ON_ROUTE_M = 1000;
+/**
+ * How far from the line a rider can be and still count as on the ride: a servo, a lunch stop or a
+ * wrong turn. Further than this, they're on their way to the start.
+ */
+const ON_ROUTE_M = 5000;
+/** A rider this close to the start hasn't set off yet, whatever stretch is nearest (on a loop, the last one). */
+const AT_START_M = 300;
+/** Stretches this close to the nearest one count as "here too" (the two sides of an out-and-back). */
+const SAME_PLACE_M = 60;
 /** Google Maps takes 9 waypoints from a link; Apple Maps takes more, but 9 keeps both alike. */
 const MAX_WAYPOINTS = 9;
 
@@ -89,6 +96,9 @@ export interface RouteAhead {
   line: [number, number][];
   fromStart: boolean;
 }
+
+/** Where the rider is, and the way they're heading in degrees from north when the phone knows. */
+export type RiderSpot = LatLng & { heading?: number | null };
 
 /** Metres from `p` to the segment a–b, on a flat projection (fine over a few kilometres). */
 function toSegmentM(p: LatLng, a: [number, number], b: [number, number]): number {
@@ -106,24 +116,46 @@ function toSegmentM(p: LatLng, a: [number, number], b: [number, number]): number
   return haversineM([p.lat, p.lng], [p.lat + y, p.lng + x / (kx || 1)]);
 }
 
+/** The compass bearing from a to b, 0–360. */
+function bearing(a: [number, number], b: [number, number]): number {
+  const rad = Math.PI / 180;
+  const y = Math.sin((b[1] - a[1]) * rad) * Math.cos(b[0] * rad);
+  const x = Math.cos(a[0] * rad) * Math.sin(b[0] * rad) - Math.sin(a[0] * rad) * Math.cos(b[0] * rad) * Math.cos((b[1] - a[1]) * rad);
+  return ((Math.atan2(y, x) / rad) + 360) % 360;
+}
+
+const turnBetween = (a: number, b: number) => Math.abs((((a - b) % 360) + 540) % 360 - 180);
+
 /**
  * What's left of the route for a rider at `at`: from the next point past the stretch they're on,
- * so a maps app never turns them round. The whole route when we don't know where they are, or
- * they're more than a kilometre off it (on the way to the start, say). The first nearest stretch
- * wins, so on a loop a rider at the start gets the whole way round.
+ * so a maps app never turns them round. Where the route passes the same spot twice (an
+ * out-and-back), the pass running the way they're heading wins, else the earlier. Within 300 m of the start it's
+ * the whole route (on a loop the closing stretch is right there too). The whole route from its
+ * start when we don't know where they are, or they're more than 5 km off it.
  */
-export function routeAhead(line: [number, number][], at: LatLng | null): RouteAhead {
+export function routeAhead(line: [number, number][], at: RiderSpot | null): RouteAhead {
   if (!at || line.length < 2) return { line, fromStart: true };
-  let best = -1;
-  let bestM = Infinity;
-  for (let i = 0; i < line.length - 1; i++) {
-    const m = toSegmentM(at, line[i], line[i + 1]);
-    if (m < bestM) {
-      bestM = m;
-      best = i;
-    }
+  const dist = line.slice(0, -1).map((p, i) => toSegmentM(at, p, line[i + 1]));
+  const nearestM = Math.min(...dist);
+  if (nearestM > ON_ROUTE_M) return { line, fromStart: true };
+  if (haversineM([at.lat, at.lng], line[0]) <= AT_START_M) return { line, fromStart: false };
+  // Stretches about as near as the nearest, in runs of neighbours: each run is one pass of that
+  // spot (both sides of an out-and-back are two runs). Each run's own nearest stretch stands for it.
+  const legs: number[] = [];
+  let prev = -2;
+  dist.forEach((m, i) => {
+    if (m > nearestM + SAME_PLACE_M) return;
+    if (i === prev + 1 && legs.length > 0) {
+      if (m < dist[legs[legs.length - 1]]) legs[legs.length - 1] = i;
+    } else legs.push(i);
+    prev = i;
+  });
+  const heading = typeof at.heading === 'number' && at.heading >= 0 ? at.heading : null;
+  let best = legs[0];
+  if (heading !== null && legs.length > 1) {
+    const going = legs.find((i) => turnBetween(bearing(line[i], line[i + 1]), heading) < 90);
+    if (going !== undefined) best = going;
   }
-  if (bestM > ON_ROUTE_M) return { line, fromStart: true };
   return { line: line.slice(best + 1), fromStart: false };
 }
 
@@ -155,6 +187,11 @@ function appleTakesWaypoints(version: string | number): boolean {
  * along it as waypoints, from wherever the phone is. Apple Maps (iPhone, iOS 18.4 and later), then
  * Google Maps. Waze can't take waypoints, so it isn't offered. The GPX share follows every bend.
  */
+/** The apps that can follow a route on this phone, in order, without working any route out. */
+export function followApps(os: string, version: string | number): NavApp[] {
+  return os === 'ios' && appleTakesWaypoints(version) ? ['apple', 'google'] : ['google'];
+}
+
 export function followRouteOptions(ahead: RouteAhead, os: string, version: string | number): NavOption[] {
   const { line } = ahead;
   if (line.length === 0) return [];
@@ -163,9 +200,10 @@ export function followRouteOptions(ahead: RouteAhead, os: string, version: strin
   const points = ahead.fromStart && line.length > 1 ? [line[0], ...spread(line.slice(1), MAX_WAYPOINTS - 1)] : spread(line, MAX_WAYPOINTS);
   const fmt = (p: [number, number]) => `${coord(p[0])},${coord(p[1])}`;
   const dest = fmt(end);
-  const wps = points.map(fmt);
+  // No repeats, and never the destination itself: each one would be a stop for nothing.
+  const wps = [...new Set(points.map(fmt))].filter((p) => p !== dest);
   const list: NavOption[] = [];
-  if (os === 'ios' && appleTakesWaypoints(version)) {
+  if (followApps(os, version).includes('apple')) {
     const w = wps.map((p) => `&waypoint=${p}`).join('');
     list.push({ app: 'apple', label: 'Apple Maps', url: `https://maps.apple.com/directions?destination=${dest}${w}&mode=driving` });
   }

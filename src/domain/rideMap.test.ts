@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { boundsAround, fitCamera, followRouteOptions, mapsAvailable, navigateOptions, placeSearchUrl, riderPins, routeAhead } from './rideMap';
+import { boundsAround, fitCamera, followApps, followRouteOptions, mapsAvailable, navigateOptions, placeSearchUrl, riderPins, routeAhead } from './rideMap';
 import type { LiveRider } from './types';
 
 const NOW = '2026-11-08T01:00:00.000Z';
@@ -115,7 +115,10 @@ const north: [number, number][] = Array.from({ length: 21 }, (_, i) => [-38 + i 
 test('the route ahead is the whole route, from its start, when we don\'t know where the rider is or they\'re off it', () => {
   assert.deepEqual(routeAhead(north, null), { line: north, fromStart: true });
   assert.deepEqual(routeAhead(north, { lat: -36, lng: 145 }), { line: north, fromStart: true });
-  assert.deepEqual(routeAhead(north, { lat: -37.95, lng: 145.02 }), { line: north, fromStart: true }); // ~1.8 km off
+  // ~1.8 km off, at a servo or lunch stop: still on the ride, so carry on from there.
+  assert.equal(routeAhead(north, { lat: -37.95, lng: 145.02 }).fromStart, false);
+  // ~9 km off: on the way to the ride.
+  assert.deepEqual(routeAhead(north, { lat: -37.95, lng: 145.1 }), { line: north, fromStart: true });
 });
 
 test('the route ahead starts at the next point past the rider, so Navigate never sends them back', () => {
@@ -133,7 +136,7 @@ test('the route ahead starts at the next point past the rider, so Navigate never
 
 test('on a loop, a rider standing at the start gets the whole way round, not the last metre', () => {
   const loop: [number, number][] = [[-38, 145], [-37.99, 145], [-37.99, 145.01], [-38, 145.01], [-38, 145]];
-  assert.deepEqual(routeAhead(loop, { lat: -38, lng: 145 }), { line: loop.slice(1), fromStart: false });
+  assert.deepEqual(routeAhead(loop, { lat: -38, lng: 145 }), { line: loop, fromStart: false });
 });
 
 test('Follow the route: Google Maps gets the end plus 9 waypoints spread along the route, from where you are', () => {
@@ -183,4 +186,32 @@ test('Follow the route: a short route sends what it has, and an empty one sends 
   assert.deepEqual(url.searchParams.get('waypoints')!.split('|'), ['-38,145']);
   assert.equal(new URL(followRouteOptions({ line: [[-38, 145]], fromStart: false }, 'android', 0)[0].url).searchParams.get('waypoints'), null);
   assert.deepEqual(followRouteOptions({ line: [], fromStart: true }, 'android', 0), []);
+});
+
+test('near the start of a loop, the closing stretch never wins, even when it is the nearer one', () => {
+  const loop: [number, number][] = [[-38, 145], [-37.9, 145], [-37.9, 145.1], [-38, 145.1], [-38, 145]];
+  // About 170 m from the start, at the meeting café, a little nearer the last stretch.
+  assert.deepEqual(routeAhead(loop, { lat: -38.0008, lng: 145.0015 }), { line: loop, fromStart: false });
+});
+
+test('on an out-and-back, the way the rider is heading picks the leg they are on', () => {
+  const outBack: [number, number][] = [[-38, 145], [-37.95, 145], [-37.9, 145], [-37.95, 145.0001], [-38, 145.0001]];
+  const at = { lat: -37.96, lng: 145 };
+  assert.deepEqual(routeAhead(outBack, { ...at, heading: 0 }).line, outBack.slice(1)); // heading north: outbound
+  assert.deepEqual(routeAhead(outBack, { ...at, heading: 180 }).line, outBack.slice(4)); // heading south: on the way back
+});
+
+test('Follow the route never sends a waypoint that is the destination or a repeat', () => {
+  const [g] = followRouteOptions({ line: [[-38, 145], [-38, 145], [-38, 145]], fromStart: false }, 'android', 0);
+  assert.equal(new URL(g.url).searchParams.get('waypoints'), null);
+  const [h] = followRouteOptions({ line: [[-38, 145], [-37.99, 145], [-38, 145], [-37.99, 145], [-38, 145]], fromStart: false }, 'android', 0);
+  const wps = new URL(h.url).searchParams.get('waypoints')!.split('|');
+  assert.equal(new Set(wps).size, wps.length);
+  assert.ok(!wps.includes('-38,145'));
+});
+
+test('followApps lists the apps that can follow a route without working the route out', () => {
+  assert.deepEqual(followApps('ios', '18.4'), ['apple', 'google']);
+  assert.deepEqual(followApps('ios', '17.2'), ['google']);
+  assert.deepEqual(followApps('android', 35), ['google']);
 });
