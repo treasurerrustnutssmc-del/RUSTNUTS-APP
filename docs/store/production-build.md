@@ -43,8 +43,8 @@ own organisation enrolment was blocked by its D&B record; the account can be mov
 
 Nobody types an Apple password anywhere. EAS signs in to Apple with the App Store Connect **team**
 API key "EAS build" (Admin role; an individual key can't make certificates). Its `.p8` text is the
-`ASC_API_KEY_P8` repository secret; the Store build workflow writes it to `.asc/AuthKey.p8`
-(git-ignored) and sets the `EXPO_ASC_*` and `EXPO_APPLE_TEAM_*` variables. If the key is ever
+`ASC_API_KEY_P8` repository secret; the Store build workflow writes it to `../asc/AuthKey.p8`
+(outside the checkout, so no .gitignore line changes the runtime fingerprint) and sets the `EXPO_ASC_*` and `EXPO_APPLE_TEAM_*` variables. If the key is ever
 revoked, make a new team key (Users and Access › Integrations › App Store Connect API), put its
 text in the secret, and change the key id in the workflow and in `eas.json`.
 

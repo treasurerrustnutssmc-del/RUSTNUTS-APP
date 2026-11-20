@@ -44,23 +44,24 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-      # The key goes in .asc/ (git-ignored, so EAS never uploads it with the project); eas.json's
-      # iOS submit profile reads it from there.
+      # The key goes in ../asc/, outside the checkout, so EAS never uploads it with the project and no
+      # .gitignore line is needed (one would change the runtime fingerprint and strand the installed
+      # builds). eas.json's iOS submit profile reads it from there.
       - name: App Store Connect key
         if: contains(fromJSON('["ios", "all", "ios-setup", "ios-submit"]'), inputs.platform)
         env:
           ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
         run: |
-          mkdir -p .asc
+          mkdir -p ../asc
           # Rewraps the pasted key into a clean .p8 (Windows pastes break it) and checks it's a real
           # PKCS#8 key before eas-cli tries it. Neither step prints the key.
-          python3 .github/scripts/write-asc-key.py .asc/AuthKey.p8
-          if ! openssl pkey -in .asc/AuthKey.p8 -noout 2>/dev/null; then
+          python3 .github/scripts/write-asc-key.py ../asc/AuthKey.p8
+          if ! openssl pkey -in ../asc/AuthKey.p8 -noout 2>/dev/null; then
             echo "::error::ASC_API_KEY_P8 looks like a key but isn't a valid one; copy the .p8 file's text again"
             exit 1
           fi
           {
-            echo "EXPO_ASC_API_KEY_PATH=$PWD/.asc/AuthKey.p8"
+            echo "EXPO_ASC_API_KEY_PATH=$(cd .. && pwd)/asc/AuthKey.p8"
             echo "EXPO_ASC_KEY_ID=GZ4F28YT8V"
             echo "EXPO_ASC_ISSUER_ID=7ef898c5-8375-4f11-b43f-e41cc28c8c30"
             echo "EXPO_APPLE_TEAM_ID=M873J4CTU6"
