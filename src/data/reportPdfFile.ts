@@ -10,7 +10,9 @@ export type PickedPdfFile = PickedPdf & { uri: string };
 
 /** Lets the treasurer pick one PDF. Null when they back out. */
 export async function pickReportPdf(): Promise<PickedPdfFile | null> {
-  const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true, multiple: false });
+  // Every file shows in the picker: Android greys out a PDF its file app or Drive doesn't label as
+  // one, so asking only for application/pdf can leave nothing to tap. attachPdfProblem checks the pick.
+  const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true, multiple: false });
   if (result.canceled || !result.assets || result.assets.length === 0) return null;
   const a = result.assets[0];
   return { uri: a.uri, name: a.name ?? '', size: typeof a.size === 'number' ? a.size : null, mimeType: a.mimeType ?? null };
