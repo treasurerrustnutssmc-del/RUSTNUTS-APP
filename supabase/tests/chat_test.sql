@@ -133,12 +133,12 @@ begin
   assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d1', 'conversations') = 7, 'West member on the ride committee';
   -- club, Family, North, 3 rides
   assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d3', 'conversations') = 6, 'North member';
-  -- club, Family, North, North big table, ride committee, 3 rides
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d4', 'conversations') = 8, 'North Road Captain';
-  -- club, Family, West, West big table, 3 rides
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d2', 'conversations') = 7, 'West Secretary';
-  -- club, Family, NEC, 3 chapters, 3 big tables, 2 committees, 3 rides
-  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d5', 'conversations') = 14, 'the NEC';
+  -- club, Family, North, North big table, All boards, ride committee, 3 rides
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d4', 'conversations') = 9, 'North Road Captain';
+  -- club, Family, West, West big table, All boards, 3 rides
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d2', 'conversations') = 8, 'West Secretary';
+  -- club, Family, NEC, 3 chapters, 3 big tables, All boards, 2 committees, 3 rides
+  assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d5', 'conversations') = 15, 'the NEC';
   assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d6', 'conversations') = 6, 'Legacy: club, Family, West, rides';
   assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d7', 'conversations') in (0, -1), 'an applicant sees none';
   assert pg_temp.count_as('00000000-0000-0000-0000-0000000000d8', 'conversations') in (0, -1), 'a stranger sees none';
