@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { saveRideArgs, setRideCalledOffArgs, takeOverRideArgs } from './rideLive';
+import { saveRideArgs, setRideCalledOffArgs, setRideLegsArgs, takeOverRideArgs } from './rideLive';
 
 test('save_ride gets the cleaned form: trimmed words, empty place and notes as null, the id or null', () => {
   const args = saveRideArgs({
@@ -23,4 +23,5 @@ test('save_ride gets the cleaned form: trimmed words, empty place and notes as n
 test('set_ride_called_off gets the ride and the switch', () => {
   assert.deepEqual(setRideCalledOffArgs('r-1', true), { p_id: 'r-1', p_off: true });
   assert.deepEqual(takeOverRideArgs('r-1'), { p_id: 'r-1' });
+  assert.deepEqual(setRideLegsArgs(['r-1', 'r-2']), { p_rides: ['r-1', 'r-2'] });
 });

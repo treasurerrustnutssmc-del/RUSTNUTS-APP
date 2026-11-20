@@ -79,7 +79,7 @@ export function managesAnyCategory(me: Member | null, data: ClubData): boolean {
   return RIDE_CATEGORIES.some((c) => managesCategory(me, c, data));
 }
 
-function managerProblem(me: Member, categories: RideCategory[], data: ClubData): string | null {
+export function managerProblem(me: Member, categories: RideCategory[], data: ClubData): string | null {
   if (!managesAnyCategory(me, data)) return NOT_RIDE_MANAGER;
   if (categories.some((c) => !managesCategory(me, c, data))) return NOT_CHAPTER_RIDE_MANAGER;
   return null;
@@ -90,7 +90,7 @@ function validInstant(iso: string | null | undefined): boolean {
 }
 
 /** A ride is history once its last Melbourne day has passed. */
-function isOver(ride: Ride, now: string): boolean {
+export function isOver(ride: Ride, now: string): boolean {
   return lastDay(ride) < melbourneDate(now);
 }
 

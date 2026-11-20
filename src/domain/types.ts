@@ -238,6 +238,13 @@ export interface Route {
 }
 
 /** The route a ride uses. A ride has at most one. */
+/** One ride's place in a trip ridden in legs: the trip is the first leg's ride id when they were linked. */
+export interface RideLeg {
+  rideId: string;
+  tripId: string;
+  legNo: number;
+}
+
 export interface RideRoute {
   rideId: string;
   routeId: string;
@@ -347,6 +354,8 @@ export interface ClubData extends LedgerData, AdminData, AuditData, ShopData {
   routes?: Route[];
   /** Which route each ride uses. Missing means none. */
   rideRoutes?: RideRoute[];
+  /** Rides linked as legs of one trip. Missing means none. */
+  rideLegs?: RideLeg[];
   /** The briefing for each ride that has one. Missing means none. */
   briefings?: Briefing[];
   /** Who has tapped Got it on which ride's briefing. Missing means none. */

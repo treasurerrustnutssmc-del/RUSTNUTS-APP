@@ -28,9 +28,9 @@ Approach 1 gives what Jeff asked for at the lowest risk to the parts riders rely
 ## Goals
 
 - A ride manager can link rides as legs 1, 2, 3 ... of one trip, change the order, or unlink.
-- From a ride, "Add the next leg" opens the New ride form pre-filled (same chapter/colour, the
+- From a ride, "Start the next leg" (Jeff, 21 Nov: "an easy start next leg option") opens the New ride form pre-filled (same chapter/colour, the
   day of the last leg) and links the new ride as the next leg when saved.
-- Ride page: a "LEG 2 OF 3" chip and a "The legs" card listing each leg (date, time, meeting
+- Ride page: a "LEG 2 OF 3" chip at the top (Jeff asked for the leg number and count on the ride screen) and a "The legs" card listing each leg (date, time, meeting
   place) with a tap to open it.
 - Rides list: each leg's card carries the "LEG N OF M" chip so the legs read as one trip.
 - Members can answer every leg at once: "Going to every leg" on the legs card (one RSVP per leg,
@@ -58,11 +58,21 @@ Approach 1 gives what Jeff asked for at the lowest risk to the parts riders rely
 - A trip can't change once its last leg is history (same "history" rule as saving a ride).
 - Legs of one trip start within 14 days of the first.
 
+## Built (21 Nov)
+
+Ride page: "LEG 2 OF 3" chip, "The legs" card (numbered rows, this leg marked), "Going to every leg",
+"Start the next leg" (New ride form titled "<first leg>, leg N", same colour, dated the day the last
+leg finishes; linked on save) and "Link legs" / "Change the legs" (tick list of rides the person runs
+within 14 days, numbered by start; Unlink). Rides list rows carry the leg chip. Calendar rides can be
+legs; taking a calendar ride over (PR #181) keeps its leg.
+
 ## Data
 
 `public.ride_legs (ride_id uuid primary key references rides on delete cascade, trip_id uuid not
-null, leg_no smallint not null, set_by, set_at)`, unique (trip_id, leg_no). `trip_id` is the first
-leg's ride id at the time of linking (just a grouping key). Approved members read it (RLS like
+null, leg_no smallint not null, set_by, set_at)`, unique (trip_id, leg_no). `trip_id` is a fresh id
+for each linking (just a grouping key; reusing a ride id could collide with what's left of an old trip).
+Relinking takes the listed rides out of their old trips; a trip left with one ride ends, the rest are
+renumbered. The unique (trip_id, leg_no) is deferred so renumbering works in one statement. Approved members read it (RLS like
 ride_routes); writes only through `set_ride_legs(p_rides uuid[])`. Apart from `rides` so the
 calendar sync never touches it. Parity cases in `supabase/tests/parity.json`.
 

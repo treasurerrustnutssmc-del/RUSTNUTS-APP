@@ -16219,6 +16219,48 @@
       "action": "takeOverRide",
       "allowed": true,
       "ride": "calendar-west"
+    },
+    {
+      "name": "Ride legs: someone not signed in can't link legs",
+      "as": null,
+      "action": "setRideLegs",
+      "allowed": false,
+      "rides": ["future-west", "future-club"]
+    },
+    {
+      "name": "Ride legs: a member without a seat can't link legs",
+      "as": "spanner",
+      "action": "setRideLegs",
+      "allowed": false,
+      "rides": ["future-west", "future-club"]
+    },
+    {
+      "name": "Ride legs: North's road captain can't link a West ride as a leg",
+      "as": "crank",
+      "action": "setRideLegs",
+      "allowed": false,
+      "rides": ["future-club", "future-west"]
+    },
+    {
+      "name": "Ride legs: a ride that is history can't be a leg",
+      "as": "torque",
+      "action": "setRideLegs",
+      "allowed": false,
+      "rides": ["past-club", "future-club"]
+    },
+    {
+      "name": "Ride legs: a ride can't be listed twice",
+      "as": "torque",
+      "action": "setRideLegs",
+      "allowed": false,
+      "rides": ["future-club", "future-club"]
+    },
+    {
+      "name": "Ride legs: the West secretary links a West ride and a club ride as legs",
+      "as": "torque",
+      "action": "setRideLegs",
+      "allowed": true,
+      "rides": ["future-west", "future-club"]
     }
   ],
   "chapters": [

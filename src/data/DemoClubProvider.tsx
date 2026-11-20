@@ -231,6 +231,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     setRideCalledOff: async (id, off) => keep(rides.setRideCalledOff(fresh(), id, off)),
     takeOverRide: async (id) => keep(rides.takeOverRide(fresh(), id)),
+    setRideLegs: async (ids) => keep(rides.setRideLegs(fresh(), ids)),
     // Charity ride sign-ups
     saveCharity: async (rideId, input) => keep(charity.saveCharity(fresh(), rideId, input)),
     signUpCharity: async (rideId, input) => keep(charity.signUpCharity(fresh(), rideId, input)),

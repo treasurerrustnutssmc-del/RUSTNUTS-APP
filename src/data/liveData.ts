@@ -117,6 +117,11 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   );
   // Acting roles: the requests and date changes, alongside the rest. Empty rather than blocking the
   // app (also before the live database has the tables).
+  // Rides ridden in legs: empty rather than blocking the app (also before the live database has the table).
+  const legsLoad = db.from('ride_legs').select('ride_id, trip_id, leg_no').then(
+    (r) => (r.error ? [] : (r.data ?? [])),
+    () => [],
+  );
   const actingLoad = Promise.all([db.from('acting_requests').select('*'), db.from('acting_changes').select('*')]).catch(
     () => [null, null] as const,
   );
@@ -234,6 +239,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   };
   const typeOf = new Map(rowsOf(meetingTypes, 'meeting types').map((t) => [t.id, t.meeting_type]));
   const [actingRequests, actingChanges] = await actingLoad;
+  const rideLegs = (await legsLoad).map((l) => ({ rideId: l.ride_id, tripId: l.trip_id, legNo: l.leg_no }));
   const unclaimed = await unclaimedLoad;
   const planning = await planningLoad;
   const charity = await charityLoad;
@@ -388,6 +394,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     })),
     // Missing for anyone who isn't an approved member.
     // A cleared route is stored as a row with no route; the calendar leaves those out, and so do we.
+    rideLegs,
     rideRoutes: (calendar.data?.ride_routes ?? [])
       .filter((r) => r.route_id != null)
       .map((r) => ({ rideId: r.ride_id, routeId: r.route_id })),

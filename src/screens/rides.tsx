@@ -44,7 +44,8 @@ import { ShareRideButton } from './shareRide';
 import { HubSection, RideCallBanner, RidePlanSection, SwapSection } from './ridePlanning'; // Ride planning extras
 import { CharitySection } from './charity'; // Charity ride sign-ups
 import { isCharityRide } from '../domain/charity'; // Charity ride sign-ups
-import { callOffProblem, isAppRide, managesAnyCategory, putBackProblem, RIDE_OVER, saveRideProblem, takeOverProblem } from '../domain/newRide'; // Rides made in the app
+import { callOffProblem, isAppRide, managesAnyCategory, putBackProblem, RIDE_OVER, saveRideProblem, takeOverProblem } from '../domain/newRide';
+import { legLabel, legsOf, linkableRides } from '../domain/rideLegs'; // Rides ridden in legs // Rides made in the app
 // Stage 3 (lane B): ride chat and wall
 import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
@@ -238,6 +239,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
                 big4={isBig4(ride.id, data)}
                 call={activeCall(ride.id, data)}
                 charity={isCharityRide(ride.id, data)}
+                leg={legLabel(ride.id, data)}
                 last={i === g.rides.length - 1}
                 onPress={() => navigation.navigate('RideDetail', { rideId: ride.id })}
               />
@@ -296,6 +298,7 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
           big4={isBig4(ride.id, data)}
           call={activeCall(ride.id, data)}
           charity={isCharityRide(ride.id, data)}
+          leg={legLabel(ride.id, data)}
           last={!quick}
           onPress={() => onOpen(ride.id)}
         />
@@ -339,6 +342,7 @@ export function RideRow({
   big4,
   call,
   charity,
+  leg,
   last,
   onPress,
 }: {
@@ -355,6 +359,8 @@ export function RideRow({
   call: RideCall | null;
   /** Takes charity sign-ups. */
   charity?: boolean;
+  /** "Leg 2 of 3" for a ride ridden in legs. */
+  leg?: string | null;
   last: boolean;
   onPress: () => void;
 }) {
@@ -370,6 +376,7 @@ export function RideRow({
     RIDE_CATEGORY_LABEL[ride.category],
     big4 ? 'Big 4' : null,
     charity ? 'charity ride' : null,
+    leg ?? null,
     !cancelled && going > 0 ? `${going} going` : null,
     !cancelled && mine ? `you: ${RSVP_LABEL[mine]}` : null,
     !cancelled && spot ? `you’re crew: ${ROLE_LABEL[spot]}` : null,
@@ -400,9 +407,10 @@ export function RideRow({
           <Text style={styles.metaTime}>{startLabel(ride)}</Text>
           {ride.location ? ` · ${ride.location}` : ''}
         </Text>
-        <Row style={{ gap: 6, marginTop: 2 }}>
+        <Row style={{ gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
           <RideChip category={ride.category} />
           {big4 ? <Chip label="Big 4" tone="red" icon="trophy" /> : null}
+          {leg ? <Chip label={leg} tone="bone" icon="git-commit-outline" /> : null}
           {charity ? <Chip label="Charity" tone="bone" icon="heart" /> : null}
           {cancelled ? (
             <Chip label="Cancelled" tone="danger" />
@@ -436,6 +444,8 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   // Rides made in the app: calling off and putting back on
   const [offBusy, setOffBusy] = useState(false);
   const [offError, setOffError] = useState<string | null>(null);
+  // Rides ridden in legs: Going to every leg
+  const [allBusy, setAllBusy] = useState(false);
   // The Going gate prompt's sentence, which the turned-off Going points to. Unique per screen,
   // since the web keeps earlier screens mounted.
   const signToGoId = useId();
@@ -513,6 +523,28 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   const mayCallOff = appRide && callOffProblem(me, ride, data, nowIso) === null;
   const mayPutBack = appRide && putBackProblem(me, ride, data, nowIso) === null;
   const rideOver = appRide && managesRide(me, ride, data) && lastDay(ride) < today;
+  // Rides ridden in legs: this ride's trip, and what a manager can do with it.
+  const legs = legsOf(ride.id, data);
+  const legText = legLabel(ride.id, data);
+  const runsLegs = managesRide(me, ride, data) && lastDay(ride) >= today;
+  const mayStartNextLeg = runsLegs && managesAnyCategory(me, data);
+  const mayLinkLegs = runsLegs && linkableRides(me, ride.id, data, nowIso).length >= 2;
+  // One tap for Going on every leg still to come that you haven't said Going to.
+  const legsToGo = (legs ?? []).filter(
+    (l) => !l.cancelledAt && l.startsAt > nowIso && data.rsvps.find((r) => r.rideId === l.id && r.memberId === me.id)?.answer !== 'going',
+  );
+  const goingToAll = me.approval === 'approved' && !isFamily(me) && legsToGo.length >= 2;
+  const goAll = async () => {
+    setAllBusy(true);
+    try {
+      for (const l of legsToGo) await setRsvp(l.id, 'going');
+      toast(`You’re going to all ${legs?.length ?? 0} legs.`);
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setAllBusy(false);
+    }
+  };
   // A calendar ride a manager can take over, so it changes here instead of in the calendar.
   const mayTakeOver = !appRide && takeOverProblem(me, ride, data, nowIso) === null;
   const takeOver = async () => {
@@ -574,6 +606,7 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
         <Row style={{ gap: 6 }}>
           <RideChip category={ride.category} />
           {isBig4(ride.id, data) ? <Chip label="Big 4" tone="red" icon="trophy" /> : null}
+          {legText ? <Chip label={legText} tone="bone" icon="git-commit-outline" /> : null}
           {isCharityRide(ride.id, data) ? <Chip label="Charity" tone="bone" icon="heart" /> : null}
           {cancelled ? <Chip label="Cancelled" tone="danger" /> : null}
           {!cancelled && call ? <Chip label={callTitle(call)} tone={call.state === 'off' ? 'danger' : 'warn'} icon="rainy" /> : null}
@@ -665,6 +698,51 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
           </Pressable>
         ) : null}
       </Card>
+
+      {/* Rides ridden in legs: the trip's legs in order, and the manager's buttons */}
+      {legs || mayStartNextLeg || mayLinkLegs ? (
+        <Stack gap={space.sm}>
+          <SectionTitle title={legs ? 'The legs' : 'Ridden in legs?'} />
+          <Card style={{ padding: 0, gap: 0 }}>
+            {legs
+              ? legs.map((leg, i) => {
+                  const day = melbourneDate(leg.startsAt);
+                  const here = leg.id === ride.id;
+                  return (
+                    <ListRow
+                      key={leg.id}
+                      left={<Text style={[styles.legNo, here && styles.legNoHere]}>{i + 1}</Text>}
+                      title={leg.title}
+                      subtitle={[`${weekday(day)} ${formatAuDate(day)}`, startLabel(leg), leg.location, leg.cancelledAt ? 'cancelled' : null].filter(Boolean).join(' · ')}
+                      right={here ? <Chip label="This leg" tone="bone" /> : undefined}
+                      accessibilityLabel={`Leg ${i + 1} of ${legs.length}, ${leg.title}${here ? ', this leg' : ''}`}
+                      onPress={here ? undefined : () => navigation.push('RideDetail', { rideId: leg.id })}
+                    />
+                  );
+                })
+              : (
+                <View style={{ padding: space.lg }}>
+                  <Small>Start the next leg from here, or link rides already made as the legs of one trip.</Small>
+                </View>
+              )}
+            {legs && goingToAll ? (
+              <View style={{ padding: space.lg, paddingBottom: mayStartNextLeg || mayLinkLegs ? 0 : space.lg }}>
+                <Button label="Going to every leg" icon="checkmark-done" kind="secondary" size="small" disabled={allBusy} onPress={() => void goAll()} />
+              </View>
+            ) : null}
+            {mayStartNextLeg || mayLinkLegs ? (
+              <Row style={{ gap: space.sm, flexWrap: 'wrap', padding: space.lg }}>
+                {mayStartNextLeg ? (
+                  <Button label="Start the next leg" icon="add" kind="secondary" size="small" onPress={() => navigation.navigate('EditRide', { nextLegOf: ride.id })} />
+                ) : null}
+                {mayLinkLegs ? (
+                  <Button label={legs ? 'Change the legs' : 'Link legs'} icon="git-merge-outline" kind="quiet" size="small" onPress={() => navigation.navigate('RideLegs', { rideId: ride.id })} />
+                ) : null}
+              </Row>
+            ) : null}
+          </Card>
+        </Stack>
+      ) : null}
 
       {/* Ride planning extras: the ride's off or postponed */}
       <RideCallBanner ride={ride} me={me} data={data} />
@@ -1347,6 +1425,14 @@ const styles = StyleSheet.create({
   // Full row width, so a two-tap confirm and its Cancel fit on one line at phone size.
   crewActions: { gap: space.sm },
   busChip: { borderRadius: radius.sm, alignSelf: 'flex-start', maxWidth: '100%' },
+  legNo: {
+    width: 32,
+    textAlign: 'center',
+    fontFamily: fonts.stencil,
+    fontSize: 22,
+    color: colors.boneMute,
+  },
+  legNoHere: { color: colors.redText },
   busLink: {
     fontFamily: fonts.stencil,
     fontSize: 15,

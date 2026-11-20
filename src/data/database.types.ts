@@ -293,6 +293,12 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      ride_legs: {
+        Row: { ride_id: string; trip_id: string; leg_no: number; set_by: string | null; set_at: string };
+        Insert: { [_ in never]: never }; // legs change only through set_ride_legs
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       ride_routes: {
         Row: { ride_id: string; route_id: string | null; set_at: string; set_by: string | null };
         Insert: { [_ in never]: never }; // a ride's route changes only through set_ride_route
@@ -617,6 +623,7 @@ export type Database = {
       };
       set_ride_called_off: { Args: { p_id: string; p_off: boolean }; Returns: undefined };
       take_over_ride: { Args: { p_id: string }; Returns: undefined };
+      set_ride_legs: { Args: { p_rides: string[] }; Returns: string | null };
       save_charity: {
         Args: {
           p_ride: string; p_cause: string; p_about: string | null; p_closes_on: string | null; p_places: number | null; p_jobs: string[];

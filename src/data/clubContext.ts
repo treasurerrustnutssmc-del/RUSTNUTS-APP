@@ -296,6 +296,8 @@ export interface ClubContextValue {
   setRideCalledOff: (id: string, off: boolean) => Promise<void>;
   /** Takes a calendar ride over: it becomes a ride made in the app, and the calendar sync leaves it alone. */
   takeOverRide: (id: string) => Promise<void>;
+  /** Links rides, in this order, as the legs of one trip; one ride or none unlinks. */
+  setRideLegs: (rideIds: string[]) => Promise<void>;
   // Charity ride sign-ups
   /** Makes a ride a charity ride, or changes its sign-ups (its crew managers and the Charity Committee). */
   saveCharity: (rideId: string, input: CharityInput) => Promise<void>;

@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
+import { formatAuDate, parseAuDate, typeDate, weekday } from '../domain/dates';
 import { RIDE_CATEGORIES, RIDE_CATEGORY_LABEL } from '../domain/labels';
 import {
   CALENDAR_RIDE, DATE_HINT, isAppRide, managesCategory, MAX_RIDE_LOCATION, MAX_RIDE_NOTES, MAX_RIDE_TITLE, readRideTime, RIDE_END, RIDE_START,
@@ -13,11 +13,13 @@ import {
 } from '../domain/newRide';
 import { melbourneHhmm } from '../domain/business';
 import { lastDay, melbourneDate } from '../domain/rides';
+import { legsOf, linkableRides, nextLegDraft, setLegsProblem, tripAfterSave } from '../domain/rideLegs';
 import { typeTime } from '../domain/ridePlan';
 import type { RideCategory } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
-import { space } from '../theme';
-import { Button, Card, Choices, Field, Notice, Screen, Small, Toggle } from '../ui/primitives';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, space } from '../theme';
+import { Button, Card, Choices, ConfirmButton, Field, ListRow, Notice, Screen, Small, Toggle } from '../ui/primitives';
 
 const nowIso = () => new Date().toISOString();
 
@@ -42,16 +44,20 @@ function useAction() {
 }
 
 export function EditRideScreen({ route: nav, navigation }: RootScreen<'EditRide'>) {
-  const { me, data, saveRide } = useClub();
+  const { me, data, saveRide, setRideLegs } = useClub();
   const rideId = nav.params?.rideId;
   const ride = rideId ? data.rides.find((r) => r.id === rideId) : undefined;
+  // Start the next leg: a new ride filled in from the trip it follows, linked as its next leg on save.
+  const nextLegOf = !rideId ? nav.params?.nextLegOf : undefined;
+  const draft = nextLegOf && data.rides.some((r) => r.id === nextLegOf) ? nextLegDraft(nextLegOf, data) : null;
   const allowed = RIDE_CATEGORIES.filter((c) => managesCategory(me, c, data));
   const ownSlug = data.chapters.find((c) => c.id === me?.chapterId)?.slug;
-  const firstCategory: RideCategory = allowed.find((c) => c === ownSlug) ?? allowed[0] ?? 'club';
+  const firstCategory: RideCategory =
+    (draft && allowed.includes(draft.category) ? draft.category : null) ?? allowed.find((c) => c === ownSlug) ?? allowed[0] ?? 'club';
 
-  const [title, setTitle] = useState(ride?.title ?? '');
+  const [title, setTitle] = useState(ride?.title ?? draft?.title ?? '');
   const [allDay, setAllDay] = useState(ride?.allDay ?? false);
-  const [dateText, setDateText] = useState(ride ? formatAuDate(melbourneDate(ride.startsAt)) : '');
+  const [dateText, setDateText] = useState(ride ? formatAuDate(melbourneDate(ride.startsAt)) : draft?.dateIso ? formatAuDate(draft.dateIso) : '');
   const [timeText, setTimeText] = useState(ride && !ride.allDay ? melbourneHhmm(ride.startsAt) : '');
   const [hasEnd, setHasEnd] = useState(!!ride?.endsAt);
   const [endDateText, setEndDateText] = useState(ride?.endsAt ? formatAuDate(ride.allDay ? lastDay(ride) : melbourneDate(ride.endsAt)) : '');
@@ -113,11 +119,25 @@ export function EditRideScreen({ route: nav, navigation }: RootScreen<'EditRide'
       const problem = saveRideProblem(me, ride, built, data, nowIso());
       if (problem) throw new Error(problem);
       const id = await saveRide(built, ride?.id);
+      if (!ride && nextLegOf) {
+        // Saved; linking it is a second step, so a refusal there still leaves the new ride to open.
+        try {
+          await setRideLegs(tripAfterSave(nextLegOf, id, data));
+        } catch (e) {
+          navigation.replace('RideDetail', { rideId: id });
+          throw new Error(`The ride is saved, but it isn’t linked as the next leg: ${(e as Error).message}`);
+        }
+      }
       if (!ride) navigation.replace('RideDetail', { rideId: id });
     }, () => { if (ride) navigation.goBack(); });
 
   return (
     <Screen>
+      {draft && nextLegOf ? (
+        <Notice title={`Leg ${(legsOf(nextLegOf, data)?.length ?? 1) + 1}`}>
+          {`Once saved, this ride becomes the next leg after ${data.rides.find((r) => r.id === nextLegOf)?.title ?? 'that ride'}. Check the date and set the start time.`}
+        </Notice>
+      ) : null}
       <Card>
         <Field
           label="Title"
@@ -215,6 +235,73 @@ export function EditRideScreen({ route: nav, navigation }: RootScreen<'EditRide'
       </View>
       <Button label={ride ? 'Save changes' : 'Create ride'} icon="checkmark" busy={busy} onPress={save} />
       {ride ? null : <Small style={{ textAlign: 'center' }}>Members see it in Rides straight away. Those who asked for new-ride alerts hear about it.</Small>}
+    </Screen>
+  );
+}
+
+/** Rides ridden in legs: tick the rides that make up the trip; they're numbered in start order. */
+export function RideLegsScreen({ route: nav, navigation }: RootScreen<'RideLegs'>) {
+  const { me, data, setRideLegs } = useClub();
+  const rideId = nav.params.rideId;
+  const now = nowIso();
+  const choices = linkableRides(me, rideId, data, now);
+  const current = legsOf(rideId, data);
+  const [picked, setPicked] = useState<string[]>(current ? current.map((r) => r.id) : [rideId]);
+  const { busy, error, setError, run } = useAction();
+  if (!me) return null;
+  const toggle = (id: string) => {
+    setError(null);
+    setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  };
+  // Numbered in start order, the way riders ride them.
+  const ordered = choices.filter((r) => picked.includes(r.id)).map((r) => r.id);
+  const save = (ids: string[]) =>
+    run(async () => {
+      const problem = setLegsProblem(me, ids, data, now);
+      if (problem) throw new Error(problem);
+      await setRideLegs(ids);
+    }, () => navigation.goBack());
+  return (
+    <Screen>
+      <Small>Tick the rides that make up the trip. They’re numbered by when they start. Each leg keeps its own route, crew, chat and ride comms.</Small>
+      <Card style={{ padding: 0, gap: 0 }}>
+        {choices.map((r, i) => {
+          const day = melbourneDate(r.startsAt);
+          const on = picked.includes(r.id);
+          const no = ordered.indexOf(r.id);
+          return (
+            <ListRow
+              key={r.id}
+              checked={on}
+              left={<Ionicons name={on ? 'checkbox' : 'square-outline'} size={24} color={on ? colors.redText : colors.boneMute} />}
+              last={i === choices.length - 1}
+              title={r.title}
+              subtitle={`${on && ordered.length >= 2 ? `Leg ${no + 1} · ` : ''}${weekday(day)} ${formatAuDate(day)}${r.allDay ? '' : ` · ${melbourneHhmm(r.startsAt)}`}`}
+              onPress={() => toggle(r.id)}
+            />
+          );
+        })}
+      </Card>
+      <View accessibilityLiveRegion="polite" role="alert">
+        {error ? <Notice tone="danger">{error}</Notice> : null}
+      </View>
+      <Button
+        label={ordered.length >= 2 ? `Save ${ordered.length} legs` : 'Tick two or more rides'}
+        icon="checkmark"
+        busy={busy}
+        disabled={ordered.length < 2}
+        onPress={() => save(ordered)}
+      />
+      {current ? (
+        <ConfirmButton
+          label="Unlink the legs"
+          confirmLabel="Yes, unlink them"
+          confirmNote="The rides stay as they are; they just stop being one trip."
+          kind="quiet"
+          disabled={busy}
+          onConfirm={() => save([rideId])}
+        />
+      ) : null}
     </Screen>
   );
 }
