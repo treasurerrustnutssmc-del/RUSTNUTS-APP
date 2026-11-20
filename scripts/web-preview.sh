@@ -7,10 +7,13 @@
 # Expo's web export writes root paths (/_expo, /assets, /favicon.ico); this rewrites them to sit under
 # the Pages sub-path, so app.json (and the phone builds' update fingerprint) stays untouched.
 set -euo pipefail
+cd "$(dirname "$0")/.."
 SLUG="${1:?usage: scripts/web-preview.sh <slug>}"
+[[ $SLUG =~ ^[a-z0-9-]+$ ]] || { echo "slug must be lowercase letters, digits and dashes" >&2; exit 1; }
 BASE="/RUSTNUTS-APP/$SLUG"
-OUT="site/$SLUG"
-rm -rf "$OUT"
+# Built beside the final folder and moved in last, so a failed build never publishes a half-built app.
+OUT="site/$SLUG.tmp"
+rm -rf "$OUT" "site/$SLUG"
 EXPO_PUBLIC_SUPABASE_URL=https://mfhbvsybudneimgbfjpy.supabase.co \
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_SQmN9OqIfZoyxopWB_wpNA_WjzUfHkK \
   npx expo export --platform web --output-dir "$OUT"
@@ -21,5 +24,6 @@ find "$OUT" -name '*.html' -o -name '*.js' | while read -r f; do
 done
 # Keep search engines out; added to an iPhone home screen it opens full screen with the club icon.
 cp assets/icon.png "$OUT/apple-touch-icon.png"
-sed -i "s#<head>#<head><meta name=\"robots\" content=\"noindex,nofollow\"><meta name=\"apple-mobile-web-app-capable\" content=\"yes\"><meta name=\"apple-mobile-web-app-title\" content=\"Rustnuts\"><link rel=\"apple-touch-icon\" href=\"$BASE/apple-touch-icon.png\">#" "$OUT/index.html"
-echo "Built $OUT for $BASE/"
+sed -i "s#<head>#<head><meta name=\"robots\" content=\"noindex,nofollow\"><meta name=\"apple-mobile-web-app-capable\" content=\"yes\"><meta name=\"mobile-web-app-capable\" content=\"yes\"><meta name=\"apple-mobile-web-app-title\" content=\"Rustnuts\"><link rel=\"apple-touch-icon\" href=\"$BASE/apple-touch-icon.png\">#" "$OUT/index.html"
+mv "$OUT" "site/$SLUG"
+echo "Built site/$SLUG for $BASE/"

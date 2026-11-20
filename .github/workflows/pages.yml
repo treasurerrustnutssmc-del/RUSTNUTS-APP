@@ -26,11 +26,14 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Every app-build step may fail without holding up the static pages.
       - uses: actions/setup-node@v4
+        continue-on-error: true
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+        continue-on-error: true
       # The web version at /RUSTNUTS-APP/ride-68e58a114b/ (unlinked, behind the roster sign-in). If the app
       # fails to build, the static pages above still publish (without the web version) rather than being held up.
       - run: scripts/web-preview.sh ride-68e58a114b

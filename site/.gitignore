@@ -1,3 +1,4 @@
 # The web version of the app is built here by the Pages workflow (scripts/web-preview.sh); never commit a local build.
 /pc-*/
 /ride-*/
+/*.tmp/

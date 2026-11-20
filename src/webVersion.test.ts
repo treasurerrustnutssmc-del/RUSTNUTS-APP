@@ -12,7 +12,8 @@ const SLUG = 'ride-68e58a114b';
 
 test('the Pages workflow builds the web version at its unlisted address, and the static pages still publish if it fails', () => {
   assert.match(pages, new RegExp(`- run: scripts/web-preview\\.sh ${SLUG}\\s*\\n\\s*continue-on-error: true`));
-  assert.match(pages, /- run: npm ci/);
+  assert.match(pages, /- uses: actions\/setup-node@v4\s*\n\s*continue-on-error: true/);
+  assert.match(pages, /- run: npm ci\s*\n\s*continue-on-error: true/);
   const build = pages.indexOf('scripts/web-preview.sh');
   const upload = pages.indexOf('actions/upload-pages-artifact');
   assert.ok(build > 0 && build < upload, 'built before site/ is uploaded');
@@ -25,6 +26,8 @@ test('the web version talks to the live club database, stays out of search engin
   assert.match(script, /noindex,nofollow/);
   assert.match(script, /apple-mobile-web-app-capable/);
   assert.match(script, /BASE="\/RUSTNUTS-APP\/\$SLUG"/);
+  assert.match(script, /\^\[a-z0-9-\]\+\$/, 'the slug is checked before anything is removed');
+  assert.match(script, /mv "\$OUT" "site\/\$SLUG"/, 'a half-built app is never published');
 });
 
 test('a local build of the web version is never committed', () => {
