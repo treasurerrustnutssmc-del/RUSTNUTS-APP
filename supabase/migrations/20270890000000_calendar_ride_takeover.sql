@@ -5,7 +5,24 @@
 -- it changes and calls off like any app ride. Same words and order as takeOverProblem in
 -- src/domain/newRide.ts. Checked by supabase/tests/app_rides_test.sql.
 
--- The sync, as before, but only for rides still owned by the calendar.
+-- Where each taken-over ride sat in its calendar. A ride made in the app can move its start, so the
+-- sync can no longer find it by (feed, uid, start); this remembers the calendar's own start so the
+-- sync never adds the calendar's copy back beside it.
+create table if not exists private.ride_takeovers (
+  ride_id uuid primary key references public.rides (id) on delete cascade,
+  feed_id uuid not null,
+  external_uid text not null,
+  calendar_starts_at timestamptz not null,
+  taken_by uuid references public.members (id) on delete set null,
+  taken_at timestamptz not null default now()
+);
+create index if not exists ride_takeovers_event on private.ride_takeovers (feed_id, external_uid, calendar_starts_at);
+create index if not exists ride_takeovers_taken_by on private.ride_takeovers (taken_by);
+alter table private.ride_takeovers enable row level security;
+revoke all on private.ride_takeovers from public, anon, authenticated;
+
+-- The sync, as before, but only for rides still owned by the calendar, and never re-adding a
+-- calendar event a manager has taken over.
 create or replace function public.apply_ride_sync(p_feed uuid, p_events jsonb)
 returns int language plpgsql security definer set search_path = '' as $$
 declare
@@ -31,6 +48,9 @@ begin
   from jsonb_to_recordset(incoming) as e(
     uid text, "startsAt" timestamptz, "endsAt" timestamptz, "allDay" boolean, title text, location text,
     notes text, category public.ride_category)
+  where not exists (
+    select 1 from private.ride_takeovers t
+    where t.feed_id = p_feed and t.external_uid = e.uid and t.calendar_starts_at = e."startsAt")
   on conflict (feed_id, external_uid, starts_at) do update set
     ends_at = excluded.ends_at, all_day = excluded.all_day, title = excluded.title, location = excluded.location,
     notes = excluded.notes, category = excluded.category, cancelled_at = null, synced_at = now()
@@ -76,6 +96,11 @@ begin
   update public.rides
   set source = 'app', website = true, updated_by = me, updated_at = now()
   where id = p_id;
+  if existing.feed_id is not null and existing.external_uid is not null then
+    insert into private.ride_takeovers (ride_id, feed_id, external_uid, calendar_starts_at, taken_by)
+    values (p_id, existing.feed_id, existing.external_uid, existing.starts_at, me)
+    on conflict (ride_id) do nothing;
+  end if;
 end;
 $$;
 revoke all on function public.take_over_ride(uuid) from public, anon;

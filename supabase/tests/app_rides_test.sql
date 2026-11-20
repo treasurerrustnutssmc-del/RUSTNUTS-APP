@@ -296,6 +296,14 @@ begin
     'the sync doesn''t overwrite a taken-over ride: ' || r.title;
   assert (select count(*) from rides where external_uid = 'big4@x') = 1, 'no second copy';
   assert (select cancelled_at is not null from rides where id = gone), 'a calendar ride dropped from the feed is still cancelled';
+  -- Moved an hour later in the app: the calendar still lists it at the old time, and still no second copy.
+  assert pg_temp.try_as(rc, pg_temp.save_sql(cal, 'Big 4 run, leg one', at_time + interval '1 hour', null, false, 'club', 'Ballarat', 'Changed', true)) is null,
+    'moved in the app';
+  perform public.apply_ride_sync(feed, jsonb_build_array(
+    jsonb_build_object('uid', 'big4@x', 'startsAt', at_time, 'endsAt', null, 'allDay', false, 'title', 'Big 4 run',
+                       'location', 'Laverton', 'notes', 'From the calendar', 'category', 'club')));
+  assert (select count(*) from rides where external_uid = 'big4@x') = 1, 'no second copy after a move in the app';
+  assert (select starts_at from rides where id = cal) = at_time + interval '1 hour', 'the move stands';
   perform public.apply_ride_sync(feed, '[]'::jsonb);
   assert (select cancelled_at is null from rides where id = cal), 'dropped from the calendar: a taken-over ride stays on';
 
