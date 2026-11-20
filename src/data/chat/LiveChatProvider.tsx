@@ -318,6 +318,27 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
       await loadList();
       return id;
     },
+    createGroup: async (name, memberIds) => {
+      const id = await rpc<string>('create_group_chat', { p_name: name, p_members: memberIds });
+      await loadList();
+      return id;
+    },
+    addToGroup: async (chatId, memberIds) => {
+      await rpc('add_to_group', { p_chat: chatId, p_members: memberIds });
+      await loadList();
+    },
+    renameGroup: async (chatId, name) => {
+      await rpc('rename_group', { p_chat: chatId, p_name: name });
+      await loadList();
+    },
+    removeFromGroup: async (chatId, memberId) => {
+      await rpc('remove_from_group', { p_chat: chatId, p_member: memberId });
+      await loadList();
+    },
+    leaveGroup: async (chatId) => {
+      await rpc('leave_group', { p_chat: chatId });
+      await loadList();
+    },
     rideChat: async (rideId) => {
       const id = await rpc<string>('ride_chat', { p_ride: rideId });
       await loadList();

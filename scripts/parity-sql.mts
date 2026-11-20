@@ -276,7 +276,7 @@ for (const r of fx.rsvps ?? []) {
 const chatId = (name: string): string => {
   const [kind, a, b] = name.split(':');
   const where =
-    kind === 'club' || kind === 'nec' ? `kind = ${q(kind)}`
+    kind === 'club' || kind === 'nec' || kind === 'boards' ? `kind = ${q(kind)}`
     : kind === 'committee' ? `kind = 'committee' and committee = ${q(a)}`
     : kind === 'chapter' || kind === 'board' ? `kind = ${q(kind)} and chapter_id = ${chapter(a)}`
     : kind === 'ride' ? `kind = 'ride' and ride_id = ${id('r', a)}`

@@ -2,6 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtureChat, fixtureData } from '../parityFixture.testkit';
 import {
+  addToGroup,
+  createGroup,
+  leaveGroup,
+  removeFromGroup,
+  renameGroup,
   markRead,
   openDirect,
   pinMessage,
@@ -113,4 +118,29 @@ test('marking a chat read needs a chat you can read', () => {
   const chat = markRead(ctxAs('spanner'), 'chapter:west');
   assert.equal(chat.reads.find((r) => r.conversationId === 'chapter:west' && r.memberId === 'spanner')?.readAt, NOW);
   assert.throws(() => markRead(ctxAs('crank'), 'chapter:west'), /That chat is for West chapter members\./);
+});
+
+test('a board member starts a group; its people read it, nobody else does', () => {
+  const { chat, id } = createGroup(ctxAs('torque'), '  Big 4 crew  ', ['spanner', 'crank']);
+  const g = chat.conversations.find((c) => c.id === id)!;
+  assert.equal(g.kind, 'group');
+  assert.equal(g.name, 'Big 4 crew');
+  assert.equal(g.createdBy, 'torque');
+  assert.deepEqual([...g.memberIds].sort(), ['crank', 'spanner', 'torque']);
+  assert.ok(sendMessage({ ...ctxAs('spanner'), chat }, id, 'In', []).id);
+  assert.throws(() => sendMessage({ ...ctxAs('chair'), chat }, id, 'Hi', []), /That’s a private group\./);
+  assert.throws(() => createGroup(ctxAs('spanner'), 'Mine', ['crank']), /Only board members and the NEC can start groups\./);
+});
+
+test('board members in a group add, rename and take out; anyone leaves', () => {
+  let { chat, id } = createGroup(ctxAs('torque'), 'Big 4 crew', ['spanner', 'crank']);
+  assert.throws(() => addToGroup({ ...ctxAs('spanner'), chat }, id, ['gravel']), /Only board members and the NEC can add people\./);
+  chat = addToGroup({ ...ctxAs('crank'), chat }, id, ['gravel', 'spanner']);
+  assert.deepEqual([...chat.conversations.find((c) => c.id === id)!.memberIds].sort(), ['crank', 'gravel', 'spanner', 'torque']);
+  chat = renameGroup({ ...ctxAs('crank'), chat }, id, ' Big 4 or bust ');
+  assert.equal(chat.conversations.find((c) => c.id === id)!.name, 'Big 4 or bust');
+  chat = removeFromGroup({ ...ctxAs('torque'), chat }, id, 'gravel');
+  assert.throws(() => sendMessage({ ...ctxAs('gravel'), chat }, id, 'Hi', []), /That’s a private group\./);
+  chat = leaveGroup({ ...ctxAs('spanner'), chat }, id);
+  assert.deepEqual([...chat.conversations.find((c) => c.id === id)!.memberIds].sort(), ['crank', 'torque']);
 });

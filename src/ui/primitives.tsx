@@ -624,6 +624,8 @@ export function ListRow({
   onPress,
   last,
   lines = 2,
+  checked,
+  accessibilityLabel,
 }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -631,6 +633,9 @@ export function ListRow({
   right?: React.ReactNode;
   onPress?: () => void;
   last?: boolean;
+  /** A row in a tick list: it reads as a checkbox, ticked or not, and has no chevron. */
+  checked?: boolean;
+  accessibilityLabel?: string;
   /** Most lines a string title or subtitle may take before it is cut short; 'all' never cuts it. */
   lines?: number | 'all';
 }) {
@@ -643,13 +648,16 @@ export function ListRow({
         {typeof subtitle === 'string' ? <Small numberOfLines={clamp}>{subtitle}</Small> : subtitle}
       </View>
       {right}
-      {onPress ? <Ionicons name="chevron-forward" size={18} color={colors.boneMute} /> : null}
+      {onPress && checked === undefined ? <Ionicons name="chevron-forward" size={18} color={colors.boneMute} /> : null}
     </>
   );
   if (!onPress) return <View style={[styles.listRow, last && styles.listRowLast]}>{content}</View>;
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={checked === undefined ? 'button' : 'checkbox'}
+      accessibilityState={checked === undefined ? undefined : { checked }}
+      aria-checked={checked}
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
         styles.listRow,

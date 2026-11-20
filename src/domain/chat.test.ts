@@ -4,6 +4,12 @@ import {
   blockProblem,
   canModerate,
   canSeeReport,
+  addToGroupProblem,
+  canRunGroups,
+  createGroupProblem,
+  leaveGroupProblem,
+  removeFromGroupProblem,
+  renameGroupProblem,
   pinProblem,
   reportProblem,
   chatTitle,
@@ -63,7 +69,7 @@ const data: ClubData = {
 };
 
 const chat = (over: Partial<Conversation> & Pick<Conversation, 'kind'>): Conversation => ({
-  id: `c-${over.kind}`, chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], ...over,
+  id: `c-${over.kind}`, chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], name: null, createdBy: null, ...over,
 });
 const club = chat({ kind: 'club' });
 const west = chat({ kind: 'chapter', id: 'c-west', chapterId: 'ch-west' });
@@ -453,4 +459,81 @@ test('messageSpoken: the words on a message’s own stop, in the order they sit 
   );
   assert.equal(messageSpoken({ media: [], body: 'Hi' }), 'Hi', 'no time unless it shows');
   assert.equal(messageSpoken({ media: [], body: null }), 'Message', 'never an empty label');
+});
+
+// All boards and group chats (docs/superpowers/specs/2026-11-20-chat-groups-design.md), mirroring
+// supabase/tests/chat_groups_test.sql.
+const allBoards = chat({ kind: 'boards' });
+const group = chat({ kind: 'group', id: 'c-group', name: 'Big 4 crew', createdBy: 'secretary', memberIds: ['secretary', 'westie', 'northie'] });
+
+test('All boards is for every chapter’s board and the NEC, following the seats', () => {
+  assert.equal(readProblem(secretary, allBoards, data), null, 'West board');
+  assert.equal(readProblem(northie, allBoards, data), null, 'North Road Captain');
+  assert.equal(readProblem(northPres, allBoards, data), null, 'NEC');
+  assert.equal(readProblem(westie, allBoards, data), 'That chat is for board members and the NEC.', 'ride committee isn’t a board');
+  assert.equal(readProblem(legacy, allBoards, data), 'That chat is for board members and the NEC.');
+  const offBoard = { ...data, positions: data.positions.map((p) => (p.memberId === 'northie' ? { ...p, endedOn: '2025-06-01' } : p)) };
+  assert.equal(readProblem(northie, allBoards, offBoard), 'That chat is for board members and the NEC.', 'off the board, out of the chat');
+  assert.equal(canModerate(northie, allBoards, data), true, 'anyone in it tidies it');
+  assert.equal(chatTitle(allBoards, secretary, data), 'All boards');
+});
+
+test('a group is for the people in it only, and nobody moderates it', () => {
+  assert.equal(readProblem(westie, group, data), null);
+  assert.equal(readProblem(northPres, group, data), 'That’s a private group.', 'not even the NEC');
+  assert.equal(readProblem(member('nick', { status: 'introduced' }), group, data), 'Group chats open up once you’re an FNG.');
+  assert.equal(canModerate(secretary, group, data), false, 'not even a board member in it');
+  assert.equal(chatTitle(group, westie, data), 'Big 4 crew');
+  assert.equal(canSeeReport(northPres, group, northie, data), true, 'reports go to the reporter’s chapter board');
+  assert.equal(canSeeReport(secretary, group, northie, data), false);
+});
+
+test('board members and the NEC start groups; who can be in one', () => {
+  const fred = member('fred', { status: 'fng' });
+  const nick = member('nick', { status: 'introduced', roadName: 'Nick' });
+  const kerry = member('kerry', { status: 'family' });
+  const pat = member('pat', { approval: 'pending', roadName: 'Pat' });
+  const bob = member('bob', { roadName: 'Bob' });
+  const club2 = { ...data, members: [...data.members, fred, nick, kerry, pat, bob] };
+  assert.equal(canRunGroups(secretary, club2), true);
+  assert.equal(canRunGroups(northPres, club2), true);
+  assert.equal(canRunGroups(westie, club2), false);
+  assert.equal(createGroupProblem(secretary, 'Big 4 crew', ['westie', 'fred'], club2), null);
+  assert.equal(createGroupProblem(northPres, 'x', ['westie'], club2), null);
+  assert.equal(createGroupProblem(null, 'x', ['westie'], club2), 'Sign in first.');
+  assert.equal(createGroupProblem(westie, 'x', ['northie'], club2), 'Only board members and the NEC can start groups.');
+  assert.equal(createGroupProblem(kerry, 'x', ['northie'], club2), 'Only approved members can do that.');
+  assert.equal(createGroupProblem(secretary, '   ', ['westie'], club2), 'Give the group a name.');
+  assert.equal(createGroupProblem(secretary, 'a'.repeat(41), ['westie'], club2), 'Keep the name to 40 characters.');
+  assert.equal(createGroupProblem(secretary, '🏍'.repeat(40), ['westie'], club2), null, 'an emoji counts as one');
+  assert.equal(createGroupProblem(secretary, 'x', [], club2), 'Add at least one other person.');
+  assert.equal(createGroupProblem(secretary, 'x', ['secretary'], club2), 'Add at least one other person.');
+  assert.equal(createGroupProblem(secretary, 'x', ['nick'], club2), 'Nick can’t join groups until they’re an FNG.');
+  assert.equal(createGroupProblem(secretary, 'x', ['kerry'], club2), 'Family only use the Family chat, not groups.');
+  assert.equal(createGroupProblem(secretary, 'x', ['pat'], club2), 'Pat isn’t an approved member.');
+  assert.equal(createGroupProblem(secretary, 'x', ['gone'], club2), 'That member no longer exists.');
+  assert.equal(createGroupProblem(secretary, 'x', ['bob'], club2, [{ blockerId: 'secretary', blockedId: 'bob' }]), 'You can’t add Bob.');
+  assert.equal(createGroupProblem(secretary, 'x', ['bob'], club2, [{ blockerId: 'bob', blockedId: 'secretary' }]), 'You can’t add Bob.');
+  assert.equal(createGroupProblem(secretary, 'x', ['bob', 'westie'], club2, [{ blockerId: 'westie', blockedId: 'bob' }]), null, 'others’ blocks don’t count');
+  assert.equal(createGroupProblem(secretary, 'x', Array.from({ length: 100 }, (_, i) => `m${i}`), club2), 'A group can have up to 100 people.');
+});
+
+test('board members in a group add people, rename it and take people out; anyone leaves', () => {
+  const nick = member('nick', { status: 'introduced', roadName: 'Nick' });
+  const club2 = { ...data, members: [...data.members, nick] };
+  assert.equal(addToGroupProblem(westie, group, ['legacy'], club2), 'Only board members and the NEC can add people.');
+  assert.equal(addToGroupProblem(northPres, group, ['northpres'], club2), 'That’s a private group.', 'a board member outside can’t add themselves');
+  assert.equal(addToGroupProblem(secretary, group, ['legacy'], club2), null);
+  assert.equal(addToGroupProblem(northie, group, ['nick'], club2), 'Nick can’t join groups until they’re an FNG.');
+  assert.equal(addToGroupProblem(secretary, club, ['legacy'], club2), 'That’s not a group chat.');
+  assert.equal(renameGroupProblem(westie, group, 'Mine', club2), 'Only board members and the NEC can rename a group.');
+  assert.equal(renameGroupProblem(northie, group, 'Big 4 or bust', club2), null);
+  assert.equal(renameGroupProblem(northie, group, '', club2), 'Give the group a name.');
+  assert.equal(removeFromGroupProblem(westie, group, 'northie', club2), 'Only board members and the NEC can take people out.');
+  assert.equal(removeFromGroupProblem(secretary, group, 'secretary', club2), 'Use Leave group to leave.');
+  assert.equal(removeFromGroupProblem(northie, group, 'westie', club2), null);
+  assert.equal(removeFromGroupProblem(northie, group, 'legacy', club2), 'They’re not in that group.');
+  assert.equal(leaveGroupProblem(westie, group, club2), null);
+  assert.equal(leaveGroupProblem(legacy, group, club2), 'That’s a private group.');
+  assert.equal(leaveGroupProblem(westie, club, club2), 'That’s not a group chat.');
 });

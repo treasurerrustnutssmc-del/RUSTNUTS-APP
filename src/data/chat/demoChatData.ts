@@ -32,7 +32,7 @@ export function demoPastRides(now: Date): Ride[] {
 }
 
 const conv = (id: string, over: Partial<Conversation> & Pick<Conversation, 'kind'>): Conversation => ({
-  id, chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], ...over,
+  id, chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], name: null, createdBy: null, ...over,
 });
 
 /** The demo's chats as they stand at `now`, around the club's `rides`. */
@@ -122,16 +122,27 @@ export function demoChatData(now: Date, rides: Ride[]): ChatData {
   say('direct:m-rusty:m-spanner', 'm-rusty', 4 * 60, 'Can you bring the first aid kit to the breakfast run?');
   say('direct:m-rusty:m-spanner', 'm-spanner', 3 * 60 + 50, 'Already in the panniers.');
 
+  // All boards: both chapters' boards and the NEC. A group the boards set up for the Big 4.
+  say('boards', 'm-torque', 26 * 60, 'Both boards: can we get together for a joint meeting soon?');
+  say('boards', 'm-smokey', 25 * 60, 'North’s keen. Clubrooms work for us.', { reactions: [['m-torque', '👍']] });
+  say('group:big4', 'm-rusty', 90, 'Big 4 crew: meet at the servo at 7:30, full tanks.');
+  say('group:big4', 'm-crank', 75, 'North’s lot will be there at 7:15.', { reactions: [['m-rusty', '🔥']] });
+
   const chapters = ['ch-west', 'ch-north'];
   return {
     conversations: [
       conv('club', { kind: 'club', pinnedMessageId: lunchRide }),
       conv('family', { kind: 'family', pinnedMessageId: bbq }),
+      conv('boards', { kind: 'boards' }),
       conv('nec', { kind: 'nec' }),
       conv('committee:ride', { kind: 'committee', committee: 'ride' }),
       conv('committee:charity', { kind: 'committee', committee: 'charity' }),
       ...chapters.flatMap((c) => [conv(`chapter:${c}`, { kind: 'chapter', chapterId: c }), conv(`board:${c}`, { kind: 'board', chapterId: c })]),
       ...[...demoPastRides(now), ...rides].map((r) => conv(`ride:${r.id}`, { kind: 'ride', rideId: r.id })),
+      conv('group:big4', {
+        kind: 'group', name: 'Big 4 crew', createdBy: 'm-rusty',
+        memberIds: ['m-rusty', 'm-crank', 'm-spanner', 'm-diesel', 'm-throttle'],
+      }),
       conv('direct:m-rusty:m-spanner', { kind: 'direct', memberIds: ['m-rusty', 'm-spanner'] }),
     ],
     messages,

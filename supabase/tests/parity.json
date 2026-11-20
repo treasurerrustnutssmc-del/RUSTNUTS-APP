@@ -13926,6 +13926,39 @@
       "allowed": false
     },
     {
+      "name": "A West board member posts in All boards",
+      "as": "torque",
+      "action": "chatSend",
+      "chat": "boards",
+      "body": "Joint meeting?",
+      "allowed": true
+    },
+    {
+      "name": "A North board member posts in All boards",
+      "as": "crank",
+      "action": "chatSend",
+      "chat": "boards",
+      "body": "North’s in",
+      "allowed": true
+    },
+    {
+      "name": "The NEC chair posts in All boards",
+      "as": "chair",
+      "action": "chatSend",
+      "chat": "boards",
+      "body": "Good",
+      "allowed": true
+    },
+    {
+      "name": "A Tail Gunner (not a board seat) posts in All boards",
+      "as": "spanner",
+      "action": "chatSend",
+      "chat": "boards",
+      "body": "Hi",
+      "refusal": "That chat is for board members and the NEC.",
+      "allowed": false
+    },
+    {
       "name": "A listing before agreeing to the club rules",
       "as": "finn",
       "action": "socialSaveListing",

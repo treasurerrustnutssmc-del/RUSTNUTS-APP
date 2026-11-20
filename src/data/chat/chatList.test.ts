@@ -34,7 +34,7 @@ test('the list holds the chats you can read, and ride chats only for rides youâ€
   const ids = listFor(chatWith(), club, as('spanner'), '2026-10-24').map((s) => s.conversation.id);
   assert.deepEqual(ids, ['club', 'chapter:west', 'ride:soon', 'direct:gravel:spanner']);
   const crank = listFor(chatWith(), club, as('crank'), '2026-10-24').map((s) => s.conversation.id);
-  assert.deepEqual(crank, ['club', 'chapter:north', 'board:north', 'committee:ride'], 'a Road Captain sits at the big table and on the ride committee; no ride chat without an answer');
+  assert.deepEqual(crank, ['club', 'chapter:north', 'board:north', 'boards', 'committee:ride'], 'a Road Captain sits at the big table, in All boards and on the ride committee; no ride chat without an answer');
   assert.deepEqual(listFor(chatWith(), club, as('dylan'), '2026-10-24'), [], 'an applicant gets nothing');
 });
 
