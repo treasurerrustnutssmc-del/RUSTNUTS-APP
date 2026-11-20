@@ -14,8 +14,6 @@ expo-env.d.ts
 *.orig.*
 *.jks
 *.p8
-# App Store Connect key written by the Store build workflow (never commit or upload it)
-.asc/
 *.p12
 *.key
 *.mobileprovision

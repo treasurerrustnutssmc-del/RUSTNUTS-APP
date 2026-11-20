@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { generateKeyPairSync, createPrivateKey } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { APP_LINK_HOST, APP_LINK_PATH } from './domain/appLinks';
 
 const expo = JSON.parse(readFileSync(join(__dirname, '../app.json'), 'utf8')).expo;
@@ -113,10 +113,22 @@ test('live ride alerts may break through Focus as time-sensitive notifications',
   assert.equal(expo.ios.entitlements?.['com.apple.developer.usernotifications.time-sensitive'], true);
 });
 
+const builtFromSource = (name: string) =>
+  ((pkg.expo?.autolinking?.ios?.buildFromSource ?? []) as string[]).some((p) => new RegExp(`^${p}$`).test(name));
+
 test('the SDWebImage consumers build from source so the ipa carries no manifest-less framework', () => {
-  const from: string[] = pkg.expo?.autolinking?.ios?.buildFromSource ?? [];
-  assert.ok(from.includes('expo-image'));
-  assert.ok(from.includes('expo-image-manipulator'));
+  assert.ok(builtFromSource('expo-image'));
+  assert.ok(builtFromSource('expo-image-manipulator'));
+});
+
+test('every Expo module on iPhone is built from source in the same build, never mixed with precompiled ones', () => {
+  assert.deepEqual(pkg.expo?.autolinking?.ios?.buildFromSource, ['.*'], 'one pattern that matches every module');
+  // iPhone build 1.0.0 (3), 20/11/2026: the precompiled ExpoMaps needed four symbols the precompiled
+  // ExpoModulesCore and ExpoModulesJSI don't export, so the app closed the moment it opened. Built
+  // together from source they always match. Patterns are anchored regexes (expo-modules-autolinking).
+  for (const name of ['expo-maps', 'expo-modules-core', 'expo-camera', 'expo-video', 'expo-file-system', 'expo-font', 'expo-print']) {
+    assert.ok(builtFromSource(name), `${name} is built from source`);
+  }
 });
 
 test('iOS store builds are submitted with the club Apple account to the right App Store listing', () => {
@@ -129,18 +141,26 @@ test('iOS store builds are submitted with the club Apple account to the right Ap
 test('iOS uploads use the App Store Connect team key that CI writes from a secret, never a committed file', () => {
   const ios = eas.submit.production.ios;
   assert.equal(ios?.appleTeamId, 'M873J4CTU6');
-  assert.equal(ios?.ascApiKeyPath, './.asc/AuthKey.p8');
+  // Outside the checkout: EAS never uploads it with the project, and no .gitignore line is needed for
+  // it. A .gitignore line is part of the runtime fingerprint, so adding one (.asc/, 20/11/2026) moved
+  // every build's fingerprint and stopped updates reaching the Play build.
+  assert.equal(ios?.ascApiKeyPath, '../asc/AuthKey.p8');
+  const root = join(__dirname, '..');
+  assert.ok(!resolve(root, ios?.ascApiKeyPath ?? '').startsWith(root + sep), 'the key is written outside the project');
   assert.equal(ios?.ascApiKeyId, 'GZ4F28YT8V');
   assert.equal(ios?.ascApiKeyIssuerId, '7ef898c5-8375-4f11-b43f-e41cc28c8c30');
   // The App Store Connect app "Rustnuts SMC" (made 20/11/2026); its Apple ID is in the app's URL.
   assert.equal(ios?.ascAppId, '6837151025');
+  const wf = readFileSync(join(__dirname, '../.github/workflows/store-build.yml'), 'utf8');
+  assert.match(wf, /write-asc-key\.py \.\.\/asc\/AuthKey\.p8/, 'the workflow writes the key outside the checkout');
+  assert.doesNotMatch(wf, /\.asc\//, 'nothing in the workflow uses a key folder inside the checkout');
   const ignored = readFileSync(join(__dirname, '../.gitignore'), 'utf8').split('\n').map((l) => l.trim());
-  assert.ok(ignored.includes('.asc/'), 'the key folder is never committed or uploaded with the project');
-  assert.ok(ignored.includes('*.p8'));
-  // EAS uses .easignore instead of .gitignore when one exists, so it must keep the key out too.
+  assert.ok(ignored.includes('*.p8'), 'a key file copied into the project by hand is still never committed or uploaded');
+  assert.ok(!ignored.includes('.asc/'), 'no ignore line for the key folder: it would change the fingerprint');
+  // EAS uses .easignore instead of .gitignore when one exists, so it must keep keys out too.
   const easignore = join(__dirname, '../.easignore');
   if (existsSync(easignore)) {
-    assert.ok(readFileSync(easignore, 'utf8').split('\n').map((l) => l.trim()).includes('.asc/'));
+    assert.ok(readFileSync(easignore, 'utf8').split('\n').map((l) => l.trim()).includes('*.p8'));
   }
 });
 

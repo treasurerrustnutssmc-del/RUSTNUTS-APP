@@ -1,0 +1,62 @@
+# TestFlight jobs through the App Store Connect API with the same team key as Store build (the
+# ASC_API_KEY_P8 secret), so nobody has to be signed in to App Store Connect in a browser.
+#   add-members            every 15 minutes, and by hand: members who accepted their App Store Connect
+#                          invite go into the inside-testers group "Team (Expo)" and TestFlight emails
+#                          them the app (no Beta App Review wait for inside testers)
+#   status                 newest builds with their processing and Beta App Review states
+#   send-build-for-review  gives build N to the public-link group "Rustnuts members" and sends it for
+#                          Beta App Review (fills in "What to Test" if it's empty)
+#   retire-build           expires an older build N for good, which also takes it out of Beta App
+#                          Review (Apple reviews one build at a time); refuses the newest build
+# The log is public (public repository), so the script prints counts and build states only.
+# Scheduled runs only happen from main; a push that changes this job runs status.
+name: TestFlight
+
+on:
+  # A change to this job runs status, which also checks the key still works.
+  push:
+    paths: ['.github/workflows/testflight.yml', '.github/scripts/testflight.mjs']
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to do
+        type: choice
+        options: [add-members, status, send-build-for-review, retire-build]
+        default: status
+      build:
+        description: Build number (send-build-for-review or retire-build), for example 4
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Outside the checkout, like Store build; neither step prints the key.
+      - name: App Store Connect key
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          mkdir -p ../asc
+          python3 .github/scripts/write-asc-key.py ../asc/AuthKey.p8
+      - name: Run
+        env:
+          ACTION: ${{ inputs.action || (github.event_name == 'schedule' && 'add-members' || 'status') }}
+          BUILD: ${{ inputs.build }}
+          ASC_KEY_PATH: ../asc/AuthKey.p8
+          ASC_KEY_ID: GZ4F28YT8V
+          ASC_ISSUER_ID: 7ef898c5-8375-4f11-b43f-e41cc28c8c30
+        run: node .github/scripts/testflight.mjs "$ACTION" "$BUILD"

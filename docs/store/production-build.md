@@ -43,10 +43,13 @@ own organisation enrolment was blocked by its D&B record; the account can be mov
 
 Nobody types an Apple password anywhere. EAS signs in to Apple with the App Store Connect **team**
 API key "EAS build" (Admin role; an individual key can't make certificates). Its `.p8` text is the
-`ASC_API_KEY_P8` repository secret; the Store build workflow writes it to `.asc/AuthKey.p8`
-(git-ignored) and sets the `EXPO_ASC_*` and `EXPO_APPLE_TEAM_*` variables. If the key is ever
-revoked, make a new team key (Users and Access › Integrations › App Store Connect API), put its
-text in the secret, and change the key id in the workflow and in `eas.json`.
+`ASC_API_KEY_P8` repository secret; the Store build workflow writes it to `../asc/AuthKey.p8`
+(outside the checkout, so no .gitignore line changes the runtime fingerprint) and sets the
+`EXPO_ASC_*` and `EXPO_APPLE_TEAM_*` variables. `eas.json` reads it from that path relative to the
+folder `eas submit` runs in, so a hand-run submit from a PC needs the key one folder above the
+project. The TestFlight workflow uses the same key for testers and Beta App Review (below). If the
+key is ever revoked, make a new team key (Users and Access › Integrations › App Store Connect API),
+put its text in the secret, and change the key id in both workflows and in `eas.json`.
 
 1. **App group and App IDs, by hand.** `group.au.com.rustnutssmc.app` (used by the share extension)
    was registered in Certificates, Identifiers & Profiles on 20/11/2026, and both App IDs below
@@ -85,3 +88,15 @@ text in the secret, and change the key id in the workflow and in `eas.json`.
    above, then runs `eas submit --id <that build>` with the same key. It stops early until
    `ascAppId` is set, or when no store build has finished yet. Submitting sends the key to Expo's
    submission service, which uses it to talk to Apple; that's expected.
+7. **Testers and review: the TestFlight workflow** (`.github/workflows/testflight.yml`), with the
+   same key and no browser sign-in. `add-members` runs every 15 minutes from `main` and puts every
+   App Store Connect user (members who accepted their invite) in the inside group "Team (Expo)",
+   which gets every build without Beta App Review. `send-build-for-review` with a build number gives
+   that build to the public-link group "Rustnuts members" and sends it for Beta App Review.
+   `status` prints the newest builds and their review states. Apple reviews one build at a time, so
+   `retire-build` with an older build number expires that build for good (it refuses the newest
+   one); check `status` afterwards before sending the newer build. Retiring can't be undone, so it
+   needs Jeff's yes. The log is public, so it shows counts
+   and states only. Before uploading, check that no embedded framework needs a symbol another one
+   doesn't export: build 1.0.0 (3) closed on launch because precompiled Expo modules didn't match,
+   which is why `package.json` builds every Expo module from source (`buildFromSource: [".*"]`).
