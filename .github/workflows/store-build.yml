@@ -8,7 +8,8 @@
 #   ios-setup  the FIRST iPhone build only: runs eas build interactively (see .github/scripts/
 #              eas-ios-setup.exp) so EAS can make the distribution certificate and profiles.
 #   ios        every later iPhone build (non-interactive, reuses what ios-setup made).
-#   ios-submit uploads the latest finished iPhone build to App Store Connect / TestFlight.
+#   ios-submit uploads the latest iPhone store build to App Store Connect / TestFlight (needs
+#              ascAppId in eas.json; run it once the build has finished).
 # ios-simulator is a test iPhone build for the iOS Simulator: it needs no Apple account, and the job
 # waits for it, so a red job means the iPhone app doesn't compile.
 # android-preview is the tester APK (preview channel) for Jeff's S25 and the test crew. Make one
@@ -71,9 +72,15 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq expect
           expect .github/scripts/eas-ios-setup.exp
+      # --latest takes the newest store build (never a simulator one), even one still building.
       - name: Upload the latest iPhone build to TestFlight
         if: inputs.platform == 'ios-submit'
-        run: eas submit --platform ios --profile production --latest --non-interactive
+        run: |
+          if ! node -e "process.exit(require('./eas.json').submit.production.ios.ascAppId ? 0 : 1)"; then
+            echo "::error::Put the App Store Connect app's Apple ID in eas.json submit.production.ios.ascAppId first"
+            exit 1
+          fi
+          eas submit --platform ios --profile production --latest --non-interactive
       # The build itself runs on EAS; --no-wait ends this job once it's queued. The build page link
       # is in the log. Env vars (Google Maps key) come from the EAS "production" environment.
       - if: inputs.platform != 'ios-setup' && inputs.platform != 'ios-submit'

@@ -132,6 +132,32 @@ test('iOS uploads use the App Store Connect team key that CI writes from a secre
   const ignored = readFileSync(join(__dirname, '../.gitignore'), 'utf8').split('\n').map((l) => l.trim());
   assert.ok(ignored.includes('.asc/'), 'the key folder is never committed or uploaded with the project');
   assert.ok(ignored.includes('*.p8'));
+  // EAS uses .easignore instead of .gitignore when one exists, so it must keep the key out too.
+  const easignore = join(__dirname, '../.easignore');
+  if (existsSync(easignore)) {
+    assert.ok(readFileSync(easignore, 'utf8').split('\n').map((l) => l.trim()).includes('.asc/'));
+  }
+});
+
+test('the first iPhone build answers only the credential questions it expects and fails on anything else', () => {
+  const exp = readFileSync(join(__dirname, '../.github/scripts/eas-ios-setup.exp'), 'utf8');
+  for (const q of [
+    'Generate a new Apple Distribution Certificate',
+    'Generate a new Apple Provisioning Profile',
+    'Reuse this distribution certificate',
+  ]) {
+    assert.ok(exp.includes(q), `answers "${q}"`);
+  }
+  // A pick-list's first choice can be harmful (Apple Team Type lists Enterprise first), so none are answered.
+  assert.doesNotMatch(exp, /send -- "\\r"/);
+  assert.match(exp, /Select certificates to revoke/, 'never revokes a certificate');
+  // eas killed by a signal reports exit value 0 from wait, so that must fail too.
+  assert.match(exp, /lindex \$r 2/);
+});
+
+test('the TestFlight upload stops with a clear message until the App Store Connect app id is set', () => {
+  const wf = readFileSync(join(__dirname, '../.github/workflows/store-build.yml'), 'utf8');
+  assert.match(wf, /ascAppId/);
 });
 
 test('the Store build workflow can set up iPhone signing and upload to TestFlight with that key', () => {

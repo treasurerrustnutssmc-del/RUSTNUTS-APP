@@ -7,21 +7,54 @@
 # makes the certificate and both provisioning profiles (app + share extension) and stores them,
 # so every later build can run non-interactively ("ios").
 #
-# eas.json sets cli.promptToConfigurePushNotifications false: only an Apple password login can
-# make a push key, so that key is added separately. Any other question takes "yes" or the first
-# choice; an Apple password prompt means the key wasn't used, so the run stops instead.
-set timeout 1800
+# It answers "yes" only to the credential questions below (checked against eas-cli 27.11). Any
+# other yes/no question, any pick-list (the first choice can be harmful, e.g. Apple Team Type lists
+# Enterprise first), an Apple password prompt or a certificate-revoke list stops the run instead,
+# so a person can look. eas.json sets cli.promptToConfigurePushNotifications false: only an Apple
+# password login can make a push key, so that key is added separately.
+set timeout 900
 log_user 1
+set expected {Generate a new Apple Distribution Certificate\?|Generate a new Apple Provisioning Profile\?|Reuse this distribution certificate\?}
+
+proc fail {code message} {
+  send_user "\n::error::$message\n"
+  exit $code
+}
+
 spawn eas build --profile production --platform ios --no-wait
 expect {
   -re {Apple ID:|Password \(for |Apple ID Password} {
-    send_user "\n::error::EAS asked for an Apple password, so the App Store Connect key was not used\n"
-    exit 4
+    fail 4 "EAS asked for an Apple password, so the App Store Connect key was not used"
   }
-  -re {\(y/N\)|\(Y/n\)} { sleep 1; send -- "y"; exp_continue }
-  -re {Use arrow-keys} { sleep 1; send -- "\r"; exp_continue }
-  timeout { send_user "\n::error::eas build gave no output for 30 minutes\n"; exit 5 }
+  -re {Select certificates to revoke} {
+    fail 6 "Apple has too many distribution certificates; revoke one by hand, then run ios-setup again"
+  }
+  -re {\(Y/n\)|\(y/N\)} {
+    if {![regexp $expected $expect_out(buffer)]} {
+      fail 6 "eas build asked a yes/no question this script doesn't answer (see the log above)"
+    }
+    # Answer, then read past the "yes" eas prints back, so a redraw of this question (or its text
+    # left in the buffer) can't be taken for the next one.
+    sleep 1
+    send -- "y"
+    expect {
+      -re {yes} {}
+      timeout { fail 5 "eas build didn't take the answer to its question" }
+    }
+    exp_continue
+  }
+  -re {Use arrow-keys|Space to select} {
+    fail 6 "eas build showed a pick-list this script doesn't answer (see the log above)"
+  }
+  timeout {
+    fail 5 "eas build went 15 minutes without a question this script answers or finishing; it may be waiting on a typed answer"
+  }
   eof
 }
-lassign [wait] pid spawnid os_error value
-exit $value
+# wait gives: pid spawn_id os_error value, plus extra fields when the child was killed by a signal
+# (then value is 0), so anything but a clean exit fails the job.
+set r [wait]
+if {[lindex $r 2] != 0 || [llength $r] > 4} {
+  fail 1 "eas build ended abnormally: $r"
+}
+exit [lindex $r 3]
