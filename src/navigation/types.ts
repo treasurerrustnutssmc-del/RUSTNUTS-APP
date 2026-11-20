@@ -107,6 +107,9 @@ export type RootParams = {
   // Stage 3 (lane B): chats and photos
   Chat: { chatId: string; /** Lane E: share in. What was shared, as the starting draft. */ shared?: { text: string; media: PickedMedia[] } };
   NewChat: undefined;
+  /** Board members and the NEC: a new group, or (with chatId) more people for that group. */
+  NewGroup: { chatId?: string } | undefined;
+  GroupInfo: { chatId: string };
   ChatReports: undefined;
   Photos: undefined;
   RideWall: { rideId: string };

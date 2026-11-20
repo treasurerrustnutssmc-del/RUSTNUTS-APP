@@ -12,7 +12,7 @@ import { pendingFor } from '../domain/access';
 import { needsPostingRules } from '../domain/postingRules';
 import { BoardScreen, ManageMemberScreen } from '../screens/board';
 import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteScreen } from '../screens/business';
-import { ChatListScreen, ChatReportsScreen, ChatScreen, NewChatScreen } from '../screens/chat';
+import { ChatListScreen, ChatReportsScreen, ChatScreen, GroupInfoScreen, NewChatScreen, NewGroupScreen } from '../screens/chat';
 import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
 import { PickWebsitePhotoScreen, WebsitePhotosScreen } from '../screens/sitePhotos'; // club photos on the website
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
@@ -453,6 +453,8 @@ export function RootNavigator() {
                 reuses the one on screen with its half-typed message. */}
             <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', ...twoLineHeader }} getId={({ params }) => params.chatId} />
             <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'New private chat' }} />
+            <Stack.Screen name="NewGroup" component={NewGroupScreen} options={({ route }) => ({ title: route.params?.chatId ? 'Add people' : 'New group' })} />
+            <Stack.Screen name="GroupInfo" component={GroupInfoScreen} options={{ title: 'Group' }} />
             <Stack.Screen name="ChatReports" component={ChatReportsScreen} options={{ title: 'Reports' }} />
             <Stack.Screen name="Photos" component={PhotosScreen} options={{ title: 'Photos' }} />
             <Stack.Screen name="RideWall" component={RideWallScreen} options={{ title: 'Ride wall', ...twoLineHeader }} />

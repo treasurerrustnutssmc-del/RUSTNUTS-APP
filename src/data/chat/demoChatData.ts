@@ -123,8 +123,8 @@ export function demoChatData(now: Date, rides: Ride[]): ChatData {
   say('direct:m-rusty:m-spanner', 'm-spanner', 3 * 60 + 50, 'Already in the panniers.');
 
   // All boards: both chapters' boards and the NEC. A group the boards set up for the Big 4.
-  say('boards', 'm-torque', 26 * 60, 'Both boards: can we lock in the joint meeting for the first Sunday in December?');
-  say('boards', 'm-smokey', 25 * 60, 'North’s good for that. Clubrooms at 10?', { reactions: [['m-torque', '👍']] });
+  say('boards', 'm-torque', 26 * 60, 'Both boards: can we get together for a joint meeting soon?');
+  say('boards', 'm-smokey', 25 * 60, 'North’s keen. Clubrooms work for us.', { reactions: [['m-torque', '👍']] });
   say('group:big4', 'm-rusty', 90, 'Big 4 crew: meet at the servo at 7:30, full tanks.');
   say('group:big4', 'm-crank', 75, 'North’s lot will be there at 7:15.', { reactions: [['m-rusty', '🔥']] });
 
