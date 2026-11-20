@@ -31,7 +31,7 @@ expect {
   }
   -re {\(Y/n\)|\(y/N\)} {
     if {![regexp $expected $expect_out(buffer)]} {
-      fail 6 "eas build asked a yes/no question this script doesn't answer (see the log above)"
+      fail 6 "eas build stopped on a question or an error this script doesn't handle (see the eas output above)"
     }
     # Answer, then read past the "yes" eas prints back, so a redraw of this question (or its text
     # left in the buffer) can't be taken for the next one.
