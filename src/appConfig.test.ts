@@ -129,6 +129,8 @@ test('iOS uploads use the App Store Connect team key that CI writes from a secre
   assert.equal(ios?.ascApiKeyPath, './.asc/AuthKey.p8');
   assert.equal(ios?.ascApiKeyId, 'GZ4F28YT8V');
   assert.equal(ios?.ascApiKeyIssuerId, '7ef898c5-8375-4f11-b43f-e41cc28c8c30');
+  // The App Store Connect app "Rustnuts SMC" (made 20/11/2026); its Apple ID is in the app's URL.
+  assert.equal(ios?.ascAppId, '6837151025');
   const ignored = readFileSync(join(__dirname, '../.gitignore'), 'utf8').split('\n').map((l) => l.trim());
   assert.ok(ignored.includes('.asc/'), 'the key folder is never committed or uploaded with the project');
   assert.ok(ignored.includes('*.p8'));

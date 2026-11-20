@@ -49,7 +49,8 @@ revoked, make a new team key (Users and Access › Integrations › App Store Co
 text in the secret, and change the key id in the workflow and in `eas.json`.
 
 1. **App group and App IDs, by hand.** `group.au.com.rustnutssmc.app` (used by the share extension)
-   was registered in Certificates, Identifiers & Profiles on 20/11/2026. EAS can't *assign* an app
+   was registered in Certificates, Identifiers & Profiles on 20/11/2026, and both App IDs below
+   were registered by hand the same day with it assigned. EAS can't *assign* an app
    group to an App ID when it signs in with an API key (eas-cli skips "capability identifier
    syncing" without a password session), and a profile without the group fails code signing. So
    register both App IDs by hand first, each with **App Groups** on and that group assigned:
@@ -60,7 +61,8 @@ text in the secret, and change the key id in the workflow and in `eas.json`.
 2. **The App Store Connect app**, by hand (the API key can't create apps): App Store Connect ›
    Apps › **New App**. Platform **iOS**, name **Rustnuts SMC**, primary language **English
    (Australia)**, bundle id **au.com.rustnutssmc.app**, SKU **rustnutssmc-app**. Put its Apple ID
-   (the number on App Information) in `eas.json` `submit.production.ios.ascAppId`.
+   (the number on App Information) in `eas.json` `submit.production.ios.ascAppId`. Done 20/11/2026:
+   Apple ID **6837151025**.
 3. **First build: Store build › `ios-setup`.** eas-cli refuses to *create* a missing distribution
    certificate in `--non-interactive` mode, so this runs `eas build` interactively under `expect`
    (`.github/scripts/eas-ios-setup.exp`) with `CI=false`. EAS finds both App IDs from step 1, makes
