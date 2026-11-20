@@ -14,7 +14,8 @@ insert into auth.users (id, email, email_confirmed_at) values
   ('00000000-0000-0000-0000-0000000009a4', 'nell@example.com', now()),  -- Full, no seat
   ('00000000-0000-0000-0000-0000000009a5', 'fran@example.com', now()),  -- Family
   ('00000000-0000-0000-0000-0000000009a6', 'ivy@example.com', now()),   -- Introduced applicant
-  ('00000000-0000-0000-0000-0000000009a7', 'nora@example.com', now());  -- North Secretary
+  ('00000000-0000-0000-0000-0000000009a7', 'nora@example.com', now()),  -- North Secretary
+  ('00000000-0000-0000-0000-0000000009a8', 'ollie@example.com', now());  -- Full, took an Officer spot on the day
 
 insert into members (id, chapter_id, full_name, road_name, status, approval)
 select v.id::uuid, c.id, v.name, v.road, v.status::member_status, v.approval::approval_state
@@ -25,7 +26,8 @@ from (values
   ('00000000-0000-0000-0000-0000000009a4', 'west', 'Nell Member', 'Cobra', 'full', 'approved'),
   ('00000000-0000-0000-0000-0000000009a5', 'west', 'Fran Family', null, 'family', 'approved'),
   ('00000000-0000-0000-0000-0000000009a6', 'west', 'Ivy Intro', null, 'introduced', 'pending'),
-  ('00000000-0000-0000-0000-0000000009a7', 'north', 'Nora North', null, 'full', 'approved')
+  ('00000000-0000-0000-0000-0000000009a7', 'north', 'Nora North', null, 'full', 'approved'),
+  ('00000000-0000-0000-0000-0000000009a8', 'west', 'Ollie Officer', null, 'full', 'approved')
 ) as v(id, slug, name, road, status, approval)
 join chapters c on c.slug = v.slug;
 
@@ -45,7 +47,8 @@ insert into rides (id, source, starts_at, title, category, cancelled_at) values
   ('00000000-0000-0000-0000-00000000c904', 'app', (private.club_date() + time '12:00') at time zone 'Australia/Melbourne', 'Nobody about', 'west', null);
 insert into ride_crew (ride_id, member_id, role) values
   ('00000000-0000-0000-0000-00000000c901', '00000000-0000-0000-0000-0000000009a3', 'road_captain'),
-  ('00000000-0000-0000-0000-00000000c901', '00000000-0000-0000-0000-0000000009a5', 'officer');
+  ('00000000-0000-0000-0000-00000000c901', '00000000-0000-0000-0000-0000000009a5', 'tail_gunner'),
+  ('00000000-0000-0000-0000-00000000c901', '00000000-0000-0000-0000-0000000009a8', 'officer');
 insert into rsvps (ride_id, member_id, answer) values
   ('00000000-0000-0000-0000-00000000c901', '00000000-0000-0000-0000-0000000009a1', 'going'),
   ('00000000-0000-0000-0000-00000000c901', '00000000-0000-0000-0000-0000000009a2', 'no');
@@ -95,6 +98,7 @@ declare
   fran constant uuid := '00000000-0000-0000-0000-0000000009a5';
   ivy constant uuid := '00000000-0000-0000-0000-0000000009a6';
   nora constant uuid := '00000000-0000-0000-0000-0000000009a7';
+  ollie constant uuid := '00000000-0000-0000-0000-0000000009a8';
   run constant text := '00000000-0000-0000-0000-00000000c901';
   sess uuid;
   heard text;
@@ -141,6 +145,7 @@ begin
   assert pg_temp.try_as(nell, format('select public.answer_check_in(%L, %L, true)', sess, nell)) = 'Only the ride crew or the board can confirm check-ins.', 'not herself';
   assert pg_temp.try_as(fran, format('select public.answer_check_in(%L, %L, true)', sess, nell)) = 'Only the ride crew or the board can confirm check-ins.', 'not Family crew';
   assert pg_temp.try_as(nora, format('select public.answer_check_in(%L, %L, true)', sess, nell)) = 'Only the ride crew or the board can confirm check-ins.', 'not North';
+  assert pg_temp.try_as(ollie, format('select public.answer_check_in(%L, %L, true)', sess, nell)) = 'Only the ride crew or the board can confirm check-ins.', 'not an Officer spot';
   assert pg_temp.try_as(rick, format('select public.answer_check_in(%L, %L, true)', sess, ivy)) = 'They’re not waiting to be confirmed.', 'nobody waiting';
   assert pg_temp.try_as(rick, format('select public.answer_check_in(%L, %L, true)', sess, nell)) is null, 'Rick confirms Nell';
   assert (select marked_by from attendance where session_id = sess and member_id = nell) = rick, 'in, ticked off by Rick';
@@ -154,9 +159,18 @@ begin
   assert not exists (select 1 from attendance where session_id = sess and member_id = ivy), 'not in';
   assert not exists (select 1 from checkin_requests where session_id = sess and member_id = ivy), 'not waiting';
 
-  -- Whoever confirms goes straight in: the crew, and the board.
+  -- The crew waits for someone else; the board goes straight in.
   assert pg_temp.try_as(rick, format('select public.ask_check_in(%L, null)', run)) is null, 'Rick';
-  assert exists (select 1 from attendance where session_id = sess and member_id = rick and marked_by is null), 'Rick straight in';
+  assert exists (select 1 from checkin_requests where session_id = sess and member_id = rick), 'Rick waits';
+  assert pg_temp.try_as(rick, format('select public.answer_check_in(%L, %L, true)', sess, rick)) = 'Someone else has to confirm you.', 'not himself';
+  update members set status = 'family' where id = ivy;
+  assert pg_temp.try_as(ivy, format('select public.ask_check_in(%L, null)', run)) = 'Only members and applicants can check in.', 'Family can''t ask';
+  update members set status = 'introduced' where id = ivy;
+  assert pg_temp.try_as(ivy, format('select public.ask_check_in(%L, null)', run)) is null, 'Ivy asks again';
+  update members set approval = 'declined' where id = ivy;
+  assert pg_temp.try_as(wes, format('select public.answer_check_in(%L, %L, true)', sess, ivy)) = 'They can’t be checked in.', 'declined since';
+  update members set approval = 'pending' where id = ivy;
+  assert pg_temp.try_as(wes, format('select public.answer_check_in(%L, %L, true)', sess, rick)) is null, 'Wes confirms Rick';
   assert pg_temp.try_as(sam, format('select public.ask_check_in(%L, null)', run)) is null, 'Sam';
   assert exists (select 1 from attendance where session_id = sess and member_id = sam), 'Sam straight in';
 
@@ -167,6 +181,12 @@ begin
   assert heard = 'Sam Sec', 'meeting heard by: ' || coalesce(heard, 'nobody');
   assert pg_temp.try_as(nell, $q$select public.check_in('IMHER1')$q$) is null, 'the code still works';
   assert not exists (select 1 from checkin_requests where session_id = '00000000-0000-0000-0000-00000000ce01'), 'the code cleared the wait';
+
+  -- Closing ends the wait, and nobody confirms on a closed check-in.
+  assert exists (select 1 from checkin_requests where session_id = sess and member_id = ivy), 'Ivy still waiting';
+  assert pg_temp.try_as(sam, format('select public.close_checkin(%L)', sess)) is null, 'closed';
+  assert not exists (select 1 from checkin_requests where session_id = sess), 'closing cleared the waits';
+  assert pg_temp.try_as(wes, format('select public.answer_check_in(%L, %L, true)', sess, ivy)) = 'That check-in has closed.', 'closed';
 
   -- A ride with nobody near: everyone who runs it hears (the West board).
   assert pg_temp.try_as(nell, $q$select public.ask_check_in('00000000-0000-0000-0000-00000000c904', null)$q$) is null, 'Nell at a quiet ride';

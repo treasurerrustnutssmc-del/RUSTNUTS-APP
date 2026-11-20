@@ -130,7 +130,11 @@ export function askCheckIn(ctx: DemoCtx, at: CheckInAt): { data: ClubData; id: s
   switch (checkinAsk(me, session, data)) {
     case 'in':
       return {
-        data: { ...data, attendance: [...(data.attendance ?? []), { sessionId: session.id, memberId: me.id, checkedInAt: nowOf(ctx), markedBy: null }] },
+        data: {
+          ...data,
+          attendance: [...(data.attendance ?? []), { sessionId: session.id, memberId: me.id, checkedInAt: nowOf(ctx), markedBy: null }],
+          checkinRequests: (data.checkinRequests ?? []).filter((r) => !(r.sessionId === session.id && r.memberId === me.id)),
+        },
         id: session.id,
       };
     case 'ask':
@@ -177,6 +181,8 @@ export function closeCheckin(ctx: DemoCtx, sessionId: string): ClubData {
   return {
     ...ctx.data,
     checkinSessions: (ctx.data.checkinSessions ?? []).map((x) => (x.id === sessionId ? { ...x, closedAt: nowOf(ctx) } : x)),
+    // Closing it ends any wait.
+    checkinRequests: (ctx.data.checkinRequests ?? []).filter((r) => r.sessionId !== sessionId),
   };
 }
 

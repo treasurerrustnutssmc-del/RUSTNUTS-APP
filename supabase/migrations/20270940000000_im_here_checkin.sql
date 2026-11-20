@@ -1,8 +1,10 @@
 -- "I'm here" check-in (Jeff, 21 Nov 2026: no QR scan, a notice to the ride leader to confirm).
 -- A rider taps I'm here on the day: at a ride the check-in opens itself if nobody has opened it, and
--- the ride's leaders get a push to confirm them. Whoever runs the check-in, or anyone on that ride's
--- crew, taps Confirm (attended, ticked off by them) or Not here. Someone who confirms check-ins
--- themselves goes straight in. The code and QR stay as a backup. Same rules and words as
+-- the ride's leaders get a push to confirm them. Whoever runs the check-in, or the ride's Road
+-- Captain, Tail Gunner or ATG (not an Officer spot, which anyone can take on the day), taps Confirm
+-- (attended, ticked off by them) or Not here. Nobody confirms themselves: those who run the
+-- check-in go straight in (as they could with the code), the crew waits for someone else. The code
+-- and QR stay as a backup. Same rules and words as
 -- src/domain/attendance.ts (askCheckInProblem, checkinAsk, answerCheckinProblem, canConfirmCheckin).
 
 create table public.checkin_requests (
@@ -13,14 +15,15 @@ create table public.checkin_requests (
 );
 create index checkin_requests_member on public.checkin_requests (member_id);
 
--- Whoever runs the check-in, and on a ride anyone on that ride's crew (not Family). Mirrors canConfirmCheckin.
+-- Whoever runs the check-in, and on a ride its Road Captain, Tail Gunner and ATG (not Family). Mirrors canConfirmCheckin.
 create or replace function private.can_confirm_checkin(p_session uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.checkin_sessions s where s.id = p_session and private.can_run_checkin(s.chapter_id))
     or (private.is_approved_member() and exists (
       select 1 from public.checkin_sessions s
       join public.ride_crew c on c.ride_id = s.ride_id
-      where s.id = p_session and s.kind = 'ride' and c.member_id = auth.uid()));
+      where s.id = p_session and s.kind = 'ride' and c.member_id = auth.uid()
+        and c.role in ('road_captain', 'tail_gunner', 'assistant_tail_gunner')));
 $$;
 
 alter table public.checkin_requests enable row level security;
@@ -46,7 +49,8 @@ returns setof uuid language sql stable security definer set search_path = '' as 
     where s.chapter_id is null and d.role in ('nec_chair', 'nec_secretary', 'president')
   ),
   near as (
-    select c.member_id from public.ride_crew c, s where s.kind = 'ride' and c.ride_id = s.ride_id
+    select c.member_id from public.ride_crew c, s
+    where s.kind = 'ride' and c.ride_id = s.ride_id and c.role in ('road_captain', 'tail_gunner', 'assistant_tail_gunner')
     union
     select r.member_id from runners r, s
     where r.member_id = s.opened_by
@@ -92,10 +96,12 @@ begin
   if s.held_on <> private.club_date() then raise exception 'You can only check in on the day.'; end if;
 
   if exists (select 1 from public.attendance where session_id = s.id and member_id = me) then return s.id; end if;
-  if private.can_confirm_checkin(s.id) then
+  if private.can_run_checkin(s.chapter_id) then
     insert into public.attendance (session_id, member_id) values (s.id, me) on conflict do nothing;
   else
-    insert into public.checkin_requests (session_id, member_id) values (s.id, me) on conflict do nothing;
+    insert into public.checkin_requests (session_id, member_id)
+    select s.id, me where not exists (select 1 from public.attendance where session_id = s.id and member_id = me)
+    on conflict do nothing;
   end if;
   return s.id;
 end;
@@ -104,11 +110,20 @@ $$;
 -- Confirm (p_here) or turn down someone waiting.
 create or replace function public.answer_check_in(p_session uuid, p_member uuid, p_here boolean)
 returns void language plpgsql security definer set search_path = '' as $$
+declare
+  s public.checkin_sessions%rowtype;
+  target public.members%rowtype;
 begin
-  if not exists (select 1 from public.checkin_sessions where id = p_session) then
-    raise exception 'That check-in no longer exists.';
-  end if;
+  select * into s from public.checkin_sessions where id = p_session;
+  if not found then raise exception 'That check-in no longer exists.'; end if;
   if not private.can_confirm_checkin(p_session) then raise exception 'Only the ride crew or the board can confirm check-ins.'; end if;
+  if p_member = auth.uid() then raise exception 'Someone else has to confirm you.'; end if;
+  if s.closed_at is not null then raise exception 'That check-in has closed.'; end if;
+  select * into target from public.members where id = p_member;
+  if not found or not ((target.approval = 'approved' and target.status <> 'family')
+                       or (target.approval = 'pending' and target.status = 'introduced')) then
+    raise exception 'They can’t be checked in.';
+  end if;
   delete from public.checkin_requests where session_id = p_session and member_id = p_member;
   if not found then raise exception 'They’re not waiting to be confirmed.'; end if;
   if p_here then
@@ -149,6 +164,20 @@ $$;
 create trigger attendance_clears_request after insert on public.attendance
   for each row execute function private.clear_checkin_request();
 
+-- Closing a check-in ends any wait.
+create or replace function private.clear_checkin_requests_on_close()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.closed_at is not null and old.closed_at is null then
+    delete from public.checkin_requests where session_id = new.id;
+  end if;
+  return new;
+end;
+$$;
+create trigger checkin_close_clears_requests after update of closed_at on public.checkin_sessions
+  for each row execute function private.clear_checkin_requests_on_close();
+
+revoke all on function private.clear_checkin_requests_on_close() from public, anon, authenticated;
 revoke all on function private.can_confirm_checkin(uuid), private.checkin_leaders(uuid),
   private.push_checkin_request(), private.clear_checkin_request() from public, anon, authenticated;
 grant execute on function private.can_confirm_checkin(uuid) to authenticated; -- the read policy calls it

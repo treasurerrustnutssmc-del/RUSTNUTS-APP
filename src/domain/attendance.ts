@@ -103,11 +103,19 @@ export function checkInProblem(me: Member | null, session: CheckinSession | unde
 /** A ride (its check-in opens itself if nobody has opened it yet), or an open check-in such as a meeting. */
 export type CheckInAt = { rideId: string } | { sessionId: string };
 
-/** Whoever runs the check-in, and on a ride anyone on that ride's crew. Mirrors private.can_confirm_checkin. */
+/** The crew spots that lead a ride, and so confirm check-ins on it: one of each per ride. Not
+ *  Officer, which anyone can take on the day. */
+export const LEADING_CREW: readonly string[] = ['road_captain', 'tail_gunner', 'assistant_tail_gunner'];
+
+function leadsRide(viewer: Member, session: CheckinSession, data: ClubData): boolean {
+  if (viewer.approval !== 'approved' || viewer.status === 'family' || session.kind !== 'ride') return false;
+  return (data.crew ?? []).some((c) => c.rideId === session.rideId && c.memberId === viewer.id && LEADING_CREW.includes(c.role));
+}
+
+/** Whoever runs the check-in, and on a ride its Road Captain, Tail Gunner and ATG. Mirrors private.can_confirm_checkin. */
 export function canConfirmCheckin(viewer: Member | null, session: CheckinSession, data: ClubData): boolean {
   if (canRunCheckin(viewer, session.chapterId, data.positions)) return true;
-  if (!viewer || viewer.approval !== 'approved' || viewer.status === 'family' || session.kind !== 'ride') return false;
-  return (data.crew ?? []).some((c) => c.rideId === session.rideId && c.memberId === viewer.id);
+  return !!viewer && leadsRide(viewer, session, data);
 }
 
 const ON_THE_DAY = 'You can only check in on the day.';
@@ -133,11 +141,12 @@ export function askCheckInProblem(me: Member | null, at: CheckInAt, data: ClubDa
   return null;
 }
 
-/** What tapping "I'm here" does for `me`: checks them straight in if they confirm check-ins themselves,
- *  otherwise asks; or nothing, when they're already in or already waiting. */
+/** What tapping "I'm here" does for `me`: checks them straight in if they run the check-in (as they
+ *  could with the code), otherwise asks (the crew too: someone else confirms them); or nothing,
+ *  when they're already in or already waiting. */
 export function checkinAsk(me: Member, session: CheckinSession, data: ClubData): 'in' | 'ask' | 'already' | 'waiting' {
   if ((data.attendance ?? []).some((a) => a.sessionId === session.id && a.memberId === me.id)) return 'already';
-  if (canConfirmCheckin(me, session, data)) return 'in';
+  if (canRunCheckin(me, session.chapterId, data.positions)) return 'in';
   if ((data.checkinRequests ?? []).some((r) => r.sessionId === session.id && r.memberId === me.id)) return 'waiting';
   return 'ask';
 }
@@ -154,6 +163,9 @@ export function waitingFor(sessionId: string, data: ClubData): Member[] {
 export function answerCheckinProblem(me: Member | null, session: CheckinSession | undefined, memberId: string, data: ClubData): string | null {
   if (!session) return 'That check-in no longer exists.';
   if (!canConfirmCheckin(me, session, data)) return 'Only the ride crew or the board can confirm check-ins.';
+  if (me!.id === memberId) return 'Someone else has to confirm you.';
+  if (session.closedAt) return 'That check-in has closed.';
+  if (!canCheckIn(data.members.find((m) => m.id === memberId) ?? null)) return 'They can’t be checked in.';
   if (!(data.checkinRequests ?? []).some((r) => r.sessionId === session.id && r.memberId === memberId)) {
     return 'They’re not waiting to be confirmed.';
   }

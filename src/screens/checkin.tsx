@@ -98,7 +98,8 @@ export function ImHere({ at }: { at: CheckInAt }) {
   const session = sessionAt(at, sessionsOf(data.checkinSessions));
   const meeting = session?.kind === 'meeting';
   const inNow = !!session && (data.attendance ?? []).some((a) => a.sessionId === session.id && a.memberId === me.id);
-  const waiting = !!session && (data.checkinRequests ?? []).some((r) => r.sessionId === session.id && r.memberId === me.id);
+  const waiting = !!session && !session.closedAt && session.heldOn === today
+    && (data.checkinRequests ?? []).some((r) => r.sessionId === session.id && r.memberId === me.id);
 
   if (inNow) {
     return <ListRow left={<IconBadge icon="checkmark" tone="red" />} title="You’re checked in" subtitle={`${attendeesOf(session!.id, data).length} here so far`} last />;
@@ -338,6 +339,11 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
     const t = setInterval(() => refreshRef.current().catch(() => undefined), 20000);
     return () => clearInterval(t);
   }, [isDemo, confirmer, liveToday]);
+  // Opened from a notice about a check-in that opened itself after the app last loaded: load again.
+  const missing = !session;
+  useEffect(() => {
+    if (!isDemo && missing) refreshRef.current().catch(() => undefined);
+  }, [isDemo, missing]);
   // The provider's actions aren't memoised, so keep the one from when the screen opened: the code
   // is fetched once per session, not again on every refresh.
   const fetchCode = useRef(checkinCode);
@@ -354,8 +360,8 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
 
   if (!session || !me) {
     return (
-      <Screen>
-        <Notice tone="warn" title="Check-in not found">It may have been for another chapter.</Notice>
+      <Screen onRefresh={isDemo ? undefined : refresh}>
+        <Notice tone="warn" title="Check-in not found">Pull down to load it again. It may have been for another chapter.</Notice>
       </Screen>
     );
   }
@@ -432,7 +438,7 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
         <Text style={[type.name, { color: colors.boneDim }]}>{formatAuDate(session.heldOn)}</Text>
       </Card>
 
-      {confirmer && (live || waiting.length > 0) ? (
+      {confirmer && live ? (
         <>
           <SectionTitle title="Waiting to be confirmed" action={<Text style={[type.name, { color: colors.boneMute }]}>{waiting.length}</Text>} />
           <Card style={{ padding: 0, gap: 0 }}>
@@ -768,6 +774,12 @@ export function RideCheckinCard({ ride }: { ride: Ride }) {
             <View style={{ padding: space.lg, gap: space.sm }}>
               <Small>No check-in was run. Record who came to tick them off.</Small>
               <Button label="Record who came" kind="secondary" icon="checkmark-done-outline" busy={busy} onPress={open} />
+              {error ? <Notice tone="danger">{error}</Notice> : null}
+            </View>
+          ) : canOpen ? (
+            // Not riding, or want to tick people off or show the code: open it without checking in.
+            <View style={{ paddingHorizontal: space.lg, paddingBottom: space.md }}>
+              <Button label="Open check-in" kind="quiet" icon="people-outline" busy={busy} onPress={open} />
               {error ? <Notice tone="danger">{error}</Notice> : null}
             </View>
           ) : null}

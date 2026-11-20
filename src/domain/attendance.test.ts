@@ -229,10 +229,11 @@ test('saying you’re here: at a ride on its day (no check-in needs opening firs
 
 test('who confirms: whoever runs the check-in, and on a ride its crew', () => {
   const data = club({
-    members: [...club().members, member('rc'), member('fam', { status: 'family' })],
+    members: [...club().members, member('rc'), member('fam', { status: 'family' }), member('off')],
     crew: [
       { rideId: 'r-west', memberId: 'rc', role: 'road_captain' },
-      { rideId: 'r-west', memberId: 'fam', role: 'officer' },
+      { rideId: 'r-west', memberId: 'fam', role: 'tail_gunner' },
+      { rideId: 'r-west', memberId: 'off', role: 'officer' },
     ],
   });
   const rideSession = session('s-ride', { kind: 'ride', rideId: 'r-west', chapterId: 'west' });
@@ -242,6 +243,7 @@ test('who confirms: whoever runs the check-in, and on a ride its crew', () => {
   assert.equal(canConfirmCheckin(who(data, 'rc'), otherRide, data), false, 'not another ride’s');
   assert.equal(canConfirmCheckin(who(data, 'rc'), session('m'), data), false, 'not a meeting');
   assert.equal(canConfirmCheckin(who(data, 'fam'), rideSession, data), false, 'not Family');
+  assert.equal(canConfirmCheckin(who(data, 'off'), rideSession, data), false, 'not an Officer spot (anyone can take one on the day)');
   assert.equal(canConfirmCheckin(who(data, 'rider'), rideSession, data), false);
   assert.equal(canConfirmCheckin(null, rideSession, data), false);
 });
@@ -256,7 +258,7 @@ test('what saying you’re here does: straight in for those who confirm, otherwi
   });
   const s = data.checkinSessions![0];
   assert.equal(checkinAsk(who(data, 'rider'), s, data), 'ask');
-  assert.equal(checkinAsk(who(data, 'rc'), s, data), 'in', 'the crew checks themselves in');
+  assert.equal(checkinAsk(who(data, 'rc'), s, data), 'ask', 'the crew is confirmed by someone else');
   assert.equal(checkinAsk(who(data, 'sec'), s, data), 'in', 'so does the board');
   assert.equal(checkinAsk(who(data, 'tre'), s, data), 'already');
   assert.equal(checkinAsk(who(data, 'fng'), s, data), 'waiting');
@@ -276,4 +278,9 @@ test('confirming or turning down someone who says they’re here', () => {
   assert.equal(answerCheckinProblem(who(data, 'rider'), s, 'fng', data), 'Only the ride crew or the board can confirm check-ins.');
   assert.equal(answerCheckinProblem(who(data, 'rc'), s, 'rider', data), 'They’re not waiting to be confirmed.');
   assert.equal(answerCheckinProblem(who(data, 'rc'), undefined, 'fng', data), 'That check-in no longer exists.');
+  const asking = { ...data, checkinRequests: [...data.checkinRequests!, { sessionId: 's-ride', memberId: 'rc', askedAt: onTheDay }] };
+  assert.equal(answerCheckinProblem(who(data, 'rc'), s, 'rc', asking), 'Someone else has to confirm you.');
+  assert.equal(answerCheckinProblem(who(data, 'rc'), { ...s, closedAt: onTheDay }, 'fng', data), 'That check-in has closed.');
+  const gone = { ...data, members: data.members.map((m) => (m.id === 'fng' ? { ...m, status: 'family' as const } : m)) };
+  assert.equal(answerCheckinProblem(who(data, 'rc'), s, 'fng', gone), 'They can’t be checked in.');
 });

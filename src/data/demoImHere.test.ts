@@ -34,14 +34,17 @@ test('demo: I’m here opens the ride’s check-in, waits, and a leader confirms
   assert.deepEqual(data.attendance, [{ sessionId: s.id, memberId: 'rider', checkedInAt: now, markedBy: 'rc' }]);
 });
 
-test('demo: the crew goes straight in, and Not here leaves no attendance', () => {
+test('demo: the board goes straight in, the crew waits for someone else, and Not here leaves no attendance', () => {
   let data = base();
-  const rc = askCheckIn({ data, me: who(data, 'rc'), today, now }, { rideId: 'r-today' });
-  data = rc.data;
-  assert.deepEqual(data.attendance, [{ sessionId: rc.id, memberId: 'rc', checkedInAt: now, markedBy: null }]);
-  data = askCheckIn({ data, me: who(data, 'fng'), today, now }, { sessionId: rc.id }).data;
-  data = answerCheckin({ data, me: who(data, 'rc'), today, now }, rc.id, 'fng', false);
-  assert.deepEqual(data.checkinRequests, []);
+  const sec = askCheckIn({ data, me: who(data, 'sec'), today, now }, { rideId: 'r-today' });
+  data = sec.data;
+  assert.deepEqual(data.attendance, [{ sessionId: sec.id, memberId: 'sec', checkedInAt: now, markedBy: null }]);
+  data = askCheckIn({ data, me: who(data, 'rc'), today, now }, { rideId: 'r-today' }).data;
+  assert.deepEqual(data.checkinRequests!.map((r) => r.memberId), ['rc']);
+  assert.throws(() => answerCheckin({ data, me: who(data, 'rc'), today, now }, sec.id, 'rc', true), /Someone else has to confirm you/);
+  data = askCheckIn({ data, me: who(data, 'fng'), today, now }, { sessionId: sec.id }).data;
+  data = answerCheckin({ data, me: who(data, 'rc'), today, now }, sec.id, 'fng', false);
+  assert.deepEqual(data.checkinRequests!.map((r) => r.memberId), ['rc']);
   assert.equal(data.attendance!.length, 1);
   assert.throws(() => askCheckIn({ data, me: who(data, 'rider'), today, now }, { sessionId: 'nope' }), /That check-in no longer exists/);
   assert.throws(() => askCheckIn({ data: club({ checkinSessions: [session('m', { heldOn: '2026-10-30' })] }), me: who(data, 'rider'), today, now }, { sessionId: 'm' }), /on the day/);
