@@ -208,7 +208,7 @@ export function followRouteOptions(ahead: RouteAhead, os: string, version: strin
     list.push({ app: 'apple', label: 'Apple Maps', url: `https://maps.apple.com/directions?destination=${dest}${w}&mode=driving` });
   }
   const gw = wps.length > 0 ? `&waypoints=${wps.join('%7C')}` : '';
-  list.push({ app: 'google', label: 'Google Maps', url: `https://www.google.com/maps/dir/?api=1&destination=${dest}${gw}&travelmode=driving&dir_action=navigate` });
+  list.push({ app: 'google', label: 'Google Maps', url: `https://www.google.com/maps/dir/?api=1&destination=${dest}${gw}&travelmode=driving` });
   return list;
 }
 
