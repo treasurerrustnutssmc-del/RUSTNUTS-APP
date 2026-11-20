@@ -50,13 +50,14 @@ but there is no way to pick a PDF from his phone and put it in the app. He wants
 - Club context: `attachMeetingReportPdf(id, file)`, `removeMeetingReportPdf(id)`, `meetingReportPdfUrl(path)`.
   Live: upload, then the action; if the action refuses, the upload is removed. Demo: keeps the name and a local
   address only.
-- Open uses a signed address (10 minutes) and `Linking.openURL`, so the phone's PDF viewer or browser shows it.
+- Open uses a signed address (10 minutes): the in-app browser sheet on phones (`openLink`), a new tab opened during the tap on the web.
+- A blank file name gets "Treasurer's report.pdf" on both sides.
 
 ## Tests first
 
 - `npm test`: `attachPdfProblem` / `removePdfProblem` (signed out, not the books keeper, presented, no such report,
   not a PDF, too big), demo actions, `toMeetingReports` reading the new fields.
-- `npm run test:db` (`supabase/tests/meeting_report_pdf_test.sql`): who can upload, read and delete in the bucket;
+- `npm run test:db` (added to `supabase/tests/meeting_reports_test.sql`): who can upload, read and delete in the bucket;
   the action's refusals in the app's words; presented locks it; members read it once presented and not before;
   Legacy never; replace and remove queue the old file.
 

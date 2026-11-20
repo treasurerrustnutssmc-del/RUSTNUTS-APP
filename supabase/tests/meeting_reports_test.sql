@@ -215,8 +215,8 @@ begin
     = 'That PDF didn’t upload. Try again.', 'not in Storage';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, 'Oct.pdf')$q$, draft, shown || '/a.pdf'))
     = 'That PDF didn’t upload. Try again.', 'another report''s folder';
-  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, '  ')$q$, draft, draft || '/a.pdf'))
-    = 'Pick a PDF file.', 'no name';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, '  ')$q$, draft, draft || '/a.pdf')) is null, 'no name';
+  assert (select pdf_name = 'Treasurer’s report.pdf' from treasurer_meeting_reports where id = draft), 'a blank name gets one, as pdfFileName';
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, '  October report.pdf ')$q$, draft, draft || '/a.pdf')) is null, 'attached';
   assert (select pdf_path = draft || '/a.pdf' and pdf_name = 'October report.pdf' from treasurer_meeting_reports where id = draft), 'trimmed name and path saved';
 
@@ -242,6 +242,9 @@ begin
   assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, null, null)$q$, draft)) is null, 'removed';
   assert (select pdf_path is null and pdf_name is null from treasurer_meeting_reports where id = draft), 'nothing attached';
   assert (select count(*) from private.storage_purge where bucket = 'treasurer-reports' and path = draft || '/c.pdf') = 1, 'the removed file is queued';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, 'back.pdf')$q$, draft, draft || '/c.pdf')) is null, 'put back';
+  assert (select count(*) from private.storage_purge where bucket = 'treasurer-reports' and path = draft || '/c.pdf' and done_at is null) = 0, 'and off the purge queue';
+  perform pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, null, null)$q$, draft));
 
   -- Presented: locked, and members read it; Legacy never.
   perform pg_temp.try_as(pg_temp.u(2), format(up, draft || '/d.pdf'));

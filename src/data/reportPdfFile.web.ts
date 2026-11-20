@@ -30,6 +30,11 @@ export function pickReportPdf(): Promise<PickedPdfFile | null> {
   });
 }
 
+/** The picked file's bytes, to upload. The live build lets go of the picked file once it's read. */
 export async function reportPdfBytes(file: PickedPdfFile): Promise<ArrayBuffer> {
-  return (await fetch(file.uri)).arrayBuffer();
+  try {
+    return await (await fetch(file.uri)).arrayBuffer();
+  } finally {
+    URL.revokeObjectURL(file.uri);
+  }
 }

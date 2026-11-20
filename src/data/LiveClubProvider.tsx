@@ -102,7 +102,7 @@ import {
   addFeeProblem, approveBudgetProblem, approveProblem, budgetProblem, creditProblem, debitProblem, floatProblem, openingProblem,
   payProblem, presentProblem, reopenBudgetProblem, voidProblem,
 } from '../domain/ledger'; // Stage 5B
-import { attachPdfProblem, deleteMeetingProblem, meetingProblem, pdfFileName, presentMeetingProblem, removePdfProblem } from '../domain/meetingReport';
+import { attachPdfProblem, deleteMeetingProblem, meetingProblem, MR_PDF_BIG, pdfFileName, presentMeetingProblem, removePdfProblem } from '../domain/meetingReport';
 import { reportPdfBytes } from './reportPdfFile';
 import {
   cleanDocumentInput, cleanVersionInput, createDocumentProblem, markReviewedProblem, publishVersionProblem, recordApprovalProblem,
@@ -1163,7 +1163,10 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const path = `${id}/${newClientRef()}.pdf`;
       const bytes = await reportPdfBytes(file);
       const up = await supabase().storage.from(MEETING_PDF_BUCKET).upload(path, bytes, { contentType: 'application/pdf', upsert: false });
-      if (up.error) throw new Error('That PDF couldn’t be uploaded. Check your signal and try again.');
+      if (up.error) {
+        const big = /size|too large|413/i.test(`${up.error.message ?? ''} ${(up.error as { statusCode?: string }).statusCode ?? ''}`);
+        throw new Error(big ? MR_PDF_BIG : 'That PDF couldn’t be uploaded. Check your signal and try again.');
+      }
       const r = await supabase().rpc('set_meeting_report_pdf', { p_id: id, p_path: path, p_name: pdfFileName(file.name) });
       if (r.error) {
         supabase().storage.from(MEETING_PDF_BUCKET).remove([path]).then(() => undefined, () => undefined);

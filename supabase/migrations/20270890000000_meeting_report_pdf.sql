@@ -81,7 +81,9 @@ begin
        or not exists (select 1 from storage.objects o where o.bucket_id = 'treasurer-reports' and o.name = p_path) then
       raise exception 'That PDF didn’t upload. Try again.';
     end if;
-    if v_name = '' then raise exception 'Pick a PDF file.'; end if;
+    if v_name = '' then v_name := 'Treasurer’s report.pdf'; end if; -- as pdfFileName
+    -- A path queued for the purge job (direct calls only; the app makes a fresh one) comes off the queue.
+    delete from private.storage_purge where bucket = 'treasurer-reports' and path = p_path and done_at is null;
   end if;
   if r.pdf_path is not null and r.pdf_path is distinct from p_path then
     insert into private.storage_purge (bucket, path) values ('treasurer-reports', r.pdf_path);

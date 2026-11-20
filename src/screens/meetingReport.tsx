@@ -4,10 +4,11 @@
 // treasurer can also attach their own PDF to a draft, which members open once it's presented.
 
 import React, { useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { reportAssets, shareReportPdf } from '../data/reportPdf';
 import { pickReportPdf } from '../data/reportPdfFile';
+import { openLink } from '../ui/openLink';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import { formatCents } from '../domain/fees';
 import { CODE_LABEL, fundKey, fundName, keepsBooks, seesAnyLedger, seesReports } from '../domain/ledger';
@@ -233,10 +234,15 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
   };
 
   const attach = async () => {
-    if (!report) return;
+    if (!report || busy) return;
     setMsg(null);
+    // Busy from the tap, so a second tap can't open a second picker (iOS refuses that). On the web
+    // a backed-out chooser may never report, so the web build frees the button once it's open.
+    setBusy('attach');
     try {
-      const file = await pickReportPdf();
+      const picking = pickReportPdf();
+      if (Platform.OS === 'web') setBusy(null);
+      const file = await picking;
       if (!file) return;
       setBusy('attach');
       await attachMeetingReportPdf(report.id, file);
@@ -252,9 +258,15 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
     if (!report?.pdfPath) return;
     setBusy('open');
     setMsg(null);
+    // The web build opens the tab during the tap (browsers block one opened after a wait) and
+    // points it at the signed address once it comes back. Phones use the in-app browser sheet.
+    const tab = Platform.OS === 'web' ? window.open('', '_blank') : null;
     try {
-      await Linking.openURL(await meetingReportPdfUrl(report.pdfPath));
+      const url = await meetingReportPdfUrl(report.pdfPath);
+      if (tab) tab.location.href = url;
+      else await openLink(url);
     } catch (e) {
+      tab?.close();
       fail(e);
     } finally {
       setBusy(null);
@@ -380,6 +392,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
               confirmLabel="Remove it"
               confirmNote="The PDF comes off this draft. The report and the books don’t change."
               icon="trash-outline"
+              disabled={!!busy}
               onConfirm={() => removeMeetingReportPdf(report.id).then(() => setMsg({ tone: 'ok', text: 'PDF removed.' }), fail)}
             />
           ) : null}
