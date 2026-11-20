@@ -1,0 +1,74 @@
+# Opens the iPhone app in a simulator and prints why it closes, if it does. Builds the ios-simulator
+# profile on EAS from this commit, then installs and launches it on a macOS runner and prints the
+# app's log and any crash report. Runs on a push that changes this file, or by hand.
+name: iPhone simulator smoke test
+
+on:
+  push:
+    paths: ['.github/workflows/ios-sim-smoke.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.build.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - id: build
+        run: |
+          eas build --profile ios-simulator --platform ios --non-interactive --wait --json > "$RUNNER_TEMP/build.json"
+          url=$(node -p "require('$RUNNER_TEMP/build.json')[0].artifacts.buildUrl")
+          echo "Simulator build: $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+  launch:
+    needs: build
+    runs-on: macos-15
+    steps:
+      - name: Install and open the app
+        env:
+          URL: ${{ needs.build.outputs.url }}
+        run: |
+          set -x
+          curl -sSL "$URL" -o app.tar.gz
+          mkdir app && tar -xzf app.tar.gz -C app
+          APP=$(find app -maxdepth 3 -name '*.app' | head -1)
+          echo "App: $APP"
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          ids=[(rt,x['udid'],x['name']) for rt,xs in d.items() if 'iOS' in rt for x in xs if x['name'].startswith('iPhone')]
+          ids.sort(); print(ids[-1][1]); sys.stderr.write(str(ids[-1])+'\n')")
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" "$APP"
+          (xcrun simctl launch --console-pty "$DEVICE" au.com.rustnutssmc.app > launch.log 2>&1 &)
+          sleep 45
+          echo "=== still running? ==="
+          xcrun simctl spawn "$DEVICE" launchctl list | grep -i rustnuts || echo "NOT RUNNING"
+          xcrun simctl io "$DEVICE" screenshot shot.png || true
+          echo "=== console ==="
+          tail -200 launch.log || true
+          echo "=== app log ==="
+          xcrun simctl spawn "$DEVICE" log show --last 3m --style compact --predicate 'process == "Rustnuts" AND (messageType == error OR messageType == fault OR eventMessage CONTAINS[c] "exception" OR eventMessage CONTAINS[c] "fatal" OR eventMessage CONTAINS[c] "error")' | tail -200 || true
+          echo "=== crash reports ==="
+          ls -la ~/Library/Logs/DiagnosticReports/ || true
+          for f in ~/Library/Logs/DiagnosticReports/Rustnuts*; do echo "--- $f"; head -c 20000 "$f"; done || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator
+          path: |
+            shot.png
+            launch.log
+            ~/Library/Logs/DiagnosticReports/
