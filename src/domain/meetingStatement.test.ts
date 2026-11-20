@@ -98,4 +98,12 @@ test('notes: a short opening sentence becomes the lead, as in Jeff’s PDF', () 
   ]);
   assert.deepEqual(noteParagraphs('Line one\nline two'), [{ lead: null, text: 'Line one\nline two' }]);
   assert.deepEqual(noteParagraphs('Paid $50.00 today.'), [{ lead: null, text: 'Paid $50.00 today.' }]);
+  assert.deepEqual(noteParagraphs('Approx. fifty dollars came in.'), [{ lead: null, text: 'Approx. fifty dollars came in.' }], 'one word is no lead');
+});
+
+test('a period from 1 January opens at 31 December of the year before', () => {
+  const jan = meetingFigures('2027-01-01', '2027-01-31', data);
+  const s = meetingStatement(jan, data, '2027-02-01');
+  assert.ok(s.rows[0].label.startsWith('Opening club funds at 31 December 2026'), s.rows[0].label);
+  assert.equal(s.period, 'Cashbook period 1 January to 31 January 2027');
 });

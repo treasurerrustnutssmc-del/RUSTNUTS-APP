@@ -31,7 +31,8 @@ from (values
   (null, 'DB-001', 'Rustyness test', 100, '2026-10-08', 'paid', null, null),
   (null, 'DB-001', 'Awaiting', 5000, null, 'awaiting', null, null),
   (null, 'DB-001', 'Void', 1200, '2026-10-09', 'void', null, null),
-  (null, 'CR-003', 'Club oil (Gary Kowalski)', 3000, '2026-10-10', 'paid', null, null)
+  (null, 'CR-003', 'Club oil (Gary Kowalski)', 3000, '2026-10-10', 'paid', null, null),
+  (null, 'DB-001', 'Years ago', 700, '2020-01-01', 'paid', null, null)
 ) as v(ch, code, what, cents, on_, state, payee, pm);
 
 create function pg_temp.spending_as(who uuid) returns jsonb language plpgsql as $$
@@ -52,7 +53,7 @@ grant execute on function pg_temp.spending_as(uuid), pg_temp.u(int) to authentic
 do $$
 declare r jsonb := pg_temp.spending_as(pg_temp.u(4));
 begin
-  assert jsonb_array_length(r) = 4, 'four paid expenses, got ' || jsonb_array_length(r);
+  assert jsonb_array_length(r) = 4, 'four paid expenses (not the one from 2020, before last financial year), got ' || jsonb_array_length(r);
   assert r->0->>'description' = 'Rustyness test' and r->0->>'payee' is null, 'only whole words; no payee';
   assert r->1->>'description' = 'Refund to a member for a member’s fuel', 'full and road names, any case: ' || (r->1->>'description');
   assert r->1->>'payee' = 'A member', 'a member payee by id';
@@ -78,7 +79,7 @@ begin
   end;
   begin
     set local role authenticated;
-    perform private.hide_member_names('x');
+    perform private.hide_member_names('x', null);
     assert false, 'the helper is private';
   exception when insufficient_privilege then reset role;
   end;

@@ -66,12 +66,13 @@ export function meetingStatement(f: MeetingFigures, data: Pick<ClubData, 'chapte
   const net = f.closingCents - f.openingCents;
   const funds = [null, ...data.chapters.map((c) => c.id)];
   const sameYear = f.from.slice(0, 4) === f.to.slice(0, 4);
+  const openedOn = dayBefore(f.from);
   return {
     title: 'Club Treasurer’s Report',
     subtitle: `${longDate(meetingOn, { weekday: true })} • Provisional figures`,
     period: `Cashbook period ${longDate(f.from, { year: !sameYear })} to ${longDate(f.to)}`,
     rows: [
-      head(`Opening club funds at ${longDate(dayBefore(f.from), { year: !sameYear })}${float}`, f.openingCents),
+      head(`Opening club funds at ${longDate(openedOn, { year: openedOn.slice(0, 4) !== f.to.slice(0, 4) })}${float}`, f.openingCents),
       item('Opening bank balance', bankCents(f, 'opening')),
       head('Total credits', f.receiptsCents),
       ...CREDIT_CODES.map((c) => item(STATEMENT_LABEL[c], byCode(f.credits, c))),
@@ -92,11 +93,12 @@ export const statementAmount = (r: StatementRow) => (r.cents === null ? '' : for
 
 /**
  * The treasurer's notes as paragraphs (a blank line between). A short opening sentence of a few
- * words ("Club expenses.") becomes the paragraph's bold lead, as in Jeff's PDF.
+ * words ("Club expenses.", two to five) becomes the paragraph's bold lead, as in Jeff's PDF.
  */
 export function noteParagraphs(notes: string): { lead: string | null; text: string }[] {
   return notes.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => {
     const m = /^([A-Z][^.\n\d$]{0,38}\.)[ \t]+(\S[\s\S]*)$/.exec(p);
-    return m && m[1].split(/\s+/).length <= 5 ? { lead: m[1], text: m[2] } : { lead: null, text: p };
+    const words = m ? m[1].split(/\s+/).length : 0;
+    return m && words >= 2 && words <= 5 ? { lead: m[1], text: m[2] } : { lead: null, text: p };
   });
 }

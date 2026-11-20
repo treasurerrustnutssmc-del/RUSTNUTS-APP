@@ -90,7 +90,7 @@ function Statement({ f, data, meetingOn }: { f: MeetingFigures; data: Parameters
       </Stack>
       <View style={{ gap: 2 }}>
         {s.rows.map((r, i) => (
-          <View key={r.label} style={r.kind !== 'item' && i > 0 ? { marginTop: space.sm } : undefined}>
+          <View key={i} style={r.kind !== 'item' && i > 0 ? { marginTop: space.sm } : undefined}>
             {r.kind === 'item' ? (
               <Line label={r.label}>
                 <Amount cents={r.cents ?? 0} />
