@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { boundsAround, fitCamera, mapsAvailable, navigateOptions, placeSearchUrl, riderPins } from './rideMap';
+import { boundsAround, fitCamera, followApps, followRouteOptions, mapsAvailable, navigateOptions, placeSearchUrl, riderPins, routeAhead } from './rideMap';
 import type { LiveRider } from './types';
 
 const NOW = '2026-11-08T01:00:00.000Z';
@@ -107,4 +107,111 @@ test('needing help wins over being a leader, split off or stale', () => {
     splitOff: new Set(['x']),
   });
   assert.equal(pins[0].tone, 'help');
+});
+
+// A straight route due north, 21 points about 1.1 km apart (0.01° of latitude each).
+const north: [number, number][] = Array.from({ length: 21 }, (_, i) => [-38 + i * 0.01, 145]);
+
+test('the route ahead is the whole route, from its start, when we don\'t know where the rider is or they\'re off it', () => {
+  assert.deepEqual(routeAhead(north, null), { line: north, fromStart: true });
+  assert.deepEqual(routeAhead(north, { lat: -36, lng: 145 }), { line: north, fromStart: true });
+  // ~1.8 km off, at a servo or lunch stop: still on the ride, so carry on from there.
+  assert.equal(routeAhead(north, { lat: -37.95, lng: 145.02 }).fromStart, false);
+  // ~9 km off: on the way to the ride.
+  assert.deepEqual(routeAhead(north, { lat: -37.95, lng: 145.1 }), { line: north, fromStart: true });
+});
+
+test('the route ahead starts at the next point past the rider, so Navigate never sends them back', () => {
+  const ahead = routeAhead(north, { lat: -37.8999, lng: 145.001 });
+  assert.equal(ahead.fromStart, false);
+  assert.deepEqual(ahead.line[0], [-37.89, 145]);
+  assert.equal(ahead.line.length, 10);
+  assert.deepEqual(ahead.line[ahead.line.length - 1], north[20]);
+  // Partway along a long straight with no points on it still counts as on the route.
+  const sparse: [number, number][] = [[-38, 145], [-37.9, 145], [-37.8, 145]];
+  assert.deepEqual(routeAhead(sparse, { lat: -37.95, lng: 145.001 }), { line: [[-37.9, 145], [-37.8, 145]], fromStart: false });
+  // Past the end, the end is all that's left.
+  assert.deepEqual(routeAhead(north, { lat: -37.8, lng: 145 }).line, [north[20]]);
+});
+
+test('on a loop, a rider standing at the start gets the whole way round, not the last metre', () => {
+  const loop: [number, number][] = [[-38, 145], [-37.99, 145], [-37.99, 145.01], [-38, 145.01], [-38, 145]];
+  assert.deepEqual(routeAhead(loop, { lat: -38, lng: 145 }), { line: loop, fromStart: false });
+});
+
+test('Follow the route: Google Maps gets the end plus 9 waypoints spread along the route, from where you are', () => {
+  const [g] = followRouteOptions({ line: north, fromStart: false }, 'android', 0);
+  assert.equal(g.app, 'google');
+  const url = new URL(g.url);
+  assert.equal(url.origin + url.pathname, 'https://www.google.com/maps/dir/');
+  assert.equal(url.searchParams.get('api'), '1');
+  assert.equal(url.searchParams.get('origin'), null);
+  assert.equal(url.searchParams.get('destination'), '-37.8,145');
+  assert.equal(url.searchParams.get('travelmode'), 'driving');
+  assert.equal(url.searchParams.get('dir_action'), 'navigate');
+  assert.deepEqual(url.searchParams.get('waypoints')!.split('|'), [
+    '-37.98,145', '-37.96,145', '-37.94,145', '-37.92,145', '-37.9,145', '-37.88,145', '-37.86,145', '-37.84,145', '-37.82,145',
+  ]);
+  assert.match(g.url, /waypoints=[^&]*%7C/);
+});
+
+test('Follow the route from its start: the start is the first waypoint, then 8 spread along it', () => {
+  const [g] = followRouteOptions({ line: north, fromStart: true }, 'android', 0);
+  const wps = new URL(g.url).searchParams.get('waypoints')!.split('|');
+  assert.equal(wps.length, 9);
+  assert.equal(wps[0], '-38,145');
+  assert.equal(new URL(g.url).searchParams.get('destination'), '-37.8,145');
+});
+
+test('Follow the route: Apple Maps from iOS 18.4 gets the same waypoints; Waze never, since it can\'t follow one', () => {
+  const ahead = { line: north, fromStart: false };
+  const ios = followRouteOptions(ahead, 'ios', '18.4');
+  assert.deepEqual(ios.map((o) => o.app), ['apple', 'google']);
+  const url = new URL(ios[0].url);
+  assert.equal(url.origin + url.pathname, 'https://maps.apple.com/directions');
+  assert.equal(url.searchParams.get('destination'), '-37.8,145');
+  assert.equal(url.searchParams.get('mode'), 'driving');
+  assert.equal(url.searchParams.getAll('waypoint').length, 9);
+  assert.equal(url.searchParams.getAll('waypoint')[0], '-37.98,145');
+  assert.deepEqual(followRouteOptions(ahead, 'ios', '18.3.2').map((o) => o.app), ['google']);
+  assert.deepEqual(followRouteOptions(ahead, 'ios', '17.5').map((o) => o.app), ['google']);
+  assert.deepEqual(followRouteOptions(ahead, 'ios', '26.1').map((o) => o.app), ['apple', 'google']);
+  assert.deepEqual(followRouteOptions(ahead, 'web', '').map((o) => o.app), ['google']);
+});
+
+test('Follow the route: a short route sends what it has, and an empty one sends nothing', () => {
+  const [g] = followRouteOptions({ line: [[-38, 145], [-37.99, 145]], fromStart: true }, 'android', 0);
+  const url = new URL(g.url);
+  assert.equal(url.searchParams.get('destination'), '-37.99,145');
+  assert.deepEqual(url.searchParams.get('waypoints')!.split('|'), ['-38,145']);
+  assert.equal(new URL(followRouteOptions({ line: [[-38, 145]], fromStart: false }, 'android', 0)[0].url).searchParams.get('waypoints'), null);
+  assert.deepEqual(followRouteOptions({ line: [], fromStart: true }, 'android', 0), []);
+});
+
+test('near the start of a loop, the closing stretch never wins, even when it is the nearer one', () => {
+  const loop: [number, number][] = [[-38, 145], [-37.9, 145], [-37.9, 145.1], [-38, 145.1], [-38, 145]];
+  // About 170 m from the start, at the meeting café, a little nearer the last stretch.
+  assert.deepEqual(routeAhead(loop, { lat: -38.0008, lng: 145.0015 }), { line: loop, fromStart: false });
+});
+
+test('on an out-and-back, the way the rider is heading picks the leg they are on', () => {
+  const outBack: [number, number][] = [[-38, 145], [-37.95, 145], [-37.9, 145], [-37.95, 145.0001], [-38, 145.0001]];
+  const at = { lat: -37.96, lng: 145 };
+  assert.deepEqual(routeAhead(outBack, { ...at, heading: 0 }).line, outBack.slice(1)); // heading north: outbound
+  assert.deepEqual(routeAhead(outBack, { ...at, heading: 180 }).line, outBack.slice(4)); // heading south: on the way back
+});
+
+test('Follow the route never sends a waypoint that is the destination or a repeat', () => {
+  const [g] = followRouteOptions({ line: [[-38, 145], [-38, 145], [-38, 145]], fromStart: false }, 'android', 0);
+  assert.equal(new URL(g.url).searchParams.get('waypoints'), null);
+  const [h] = followRouteOptions({ line: [[-38, 145], [-37.99, 145], [-38, 145], [-37.99, 145], [-38, 145]], fromStart: false }, 'android', 0);
+  const wps = new URL(h.url).searchParams.get('waypoints')!.split('|');
+  assert.equal(new Set(wps).size, wps.length);
+  assert.ok(!wps.includes('-38,145'));
+});
+
+test('followApps lists the apps that can follow a route without working the route out', () => {
+  assert.deepEqual(followApps('ios', '18.4'), ['apple', 'google']);
+  assert.deepEqual(followApps('ios', '17.2'), ['google']);
+  assert.deepEqual(followApps('android', 35), ['google']);
 });
