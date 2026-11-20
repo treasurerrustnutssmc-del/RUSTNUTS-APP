@@ -74,7 +74,7 @@ import {
   Stack,
   type IconName,
 } from '../ui/primitives';
-import { ChapterChip, NavigateChooser, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
+import { ChapterChip, FollowRouteNow, NavigateChooser, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
 import { RideMap } from '../ui/RideMap';
 import { canReplay } from '../domain/rideReplay'; // Ride replay
 import { OtherClubsRow, RideInvitesSection } from './invites'; // Invites to and from other clubs
@@ -1051,7 +1051,10 @@ function RouteSection({
               </Stack>
             ) : null}
             {route.line.length > 0 ? (
-              <NavigateChooser to={{ lat: route.line[0][0], lng: route.line[0][1] }} toLabel="the start" route={route} />
+              <>
+                <FollowRouteNow route={route} />
+                <NavigateChooser to={{ lat: route.line[0][0], lng: route.line[0][1] }} toLabel="the start" route={route} />
+              </>
             ) : (
               <OpenInMapsButton route={route} kind="secondary" />
             )}

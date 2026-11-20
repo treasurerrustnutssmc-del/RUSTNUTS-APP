@@ -239,7 +239,21 @@ const NAV_ICON: Record<NavApp, React.ComponentProps<typeof Ionicons>['name']> = 
  * One "Follow the route" button: works out what's left of the route from where the phone last was
  * (the whole route when it can't tell), then opens that maps app with the end and points along it.
  */
-function FollowRouteButton({ app, label, line, onOpened }: { app: NavApp; label: string; line: [number, number][]; onOpened: () => void }) {
+function FollowRouteButton({
+  app,
+  label,
+  line,
+  onOpened,
+  kind = 'secondary',
+  buttonLabel = label,
+}: {
+  app: NavApp;
+  label: string;
+  line: [number, number][];
+  onOpened?: () => void;
+  kind?: 'primary' | 'secondary';
+  buttonLabel?: string;
+}) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const open = async () => {
@@ -251,7 +265,7 @@ function FollowRouteButton({ app, label, line, onOpened }: { app: NavApp; label:
       const option = followRouteOptions(ahead, Platform.OS, Platform.Version).find((o) => o.app === app);
       if (!option) throw new Error('no link');
       await Linking.openURL(option.url);
-      onOpened();
+      onOpened?.();
     } catch {
       setFailed(true);
     } finally {
@@ -261,9 +275,9 @@ function FollowRouteButton({ app, label, line, onOpened }: { app: NavApp; label:
   return (
     <Stack gap={space.sm}>
       <Button
-        label={label}
+        label={buttonLabel}
         icon={NAV_ICON[app]}
-        kind="secondary"
+        kind={kind}
         busy={busy}
         accessibilityLabel={`Follow the route in ${label}, from where you are`}
         onPress={open}
@@ -271,6 +285,22 @@ function FollowRouteButton({ app, label, line, onOpened }: { app: NavApp; label:
       <View accessibilityLiveRegion="polite" role="alert">
         {failed ? <Notice tone="danger">{`${label} didn’t open. Try the GPX for OsmAnd or MyRoute below.`}</Notice> : null}
       </View>
+    </Stack>
+  );
+}
+
+/**
+ * One big "Follow the route" button for mid-ride. Google Maps ends at each point it's given, so a
+ * rider comes back here and taps once to carry on from where they are. Nothing when this phone has
+ * no app that can follow a route, or the route has no line.
+ */
+export function FollowRouteNow({ route }: { route: Pick<Route, 'line'> }) {
+  const app = route.line.length > 0 ? followApps(Platform.OS, Platform.Version)[0] : undefined;
+  if (!app) return null;
+  return (
+    <Stack gap={space.xs}>
+      <FollowRouteButton app={app} label={FOLLOW_LABEL[app]} line={route.line} kind="primary" buttonLabel={`Follow the route in ${FOLLOW_LABEL[app]}`} />
+      <Small>Picks up from where you are. When Maps stops at a point, come back and tap again. OsmAnd rides it with no stops.</Small>
     </Stack>
   );
 }
@@ -316,7 +346,7 @@ export function NavigateChooser({
               ))}
               {follow.length > 0 ? (
                 <Small>
-                  From where you are, through 9 points along the route to its end. Maps shows the stops first: tap Start to ride them. Best in the Google Maps app, not the browser. For every bend, use OsmAnd, MyRoute or Garmin.
+                  From where you are, through 9 points along the route to its end. Maps shows the stops first: tap Start to ride them. Google ends at each point, so come back and tap again. For no stops and every bend, use OsmAnd, MyRoute or Garmin.
                 </Small>
               ) : null}
               <OpenInMapsButton route={route} kind="secondary" />
