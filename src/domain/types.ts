@@ -808,6 +808,19 @@ export interface MeetingFigures {
   lastChangeAt: string | null;
 }
 
+/** A paid expense as members read it (Club spending): member names taken out. */
+export interface SpendingLine {
+  id: string;
+  entryOn: string;
+  code: LedgerCode;
+  /** Null: the Club fund. */
+  chapterId: string | null;
+  amountCents: number;
+  description: string;
+  /** Who was paid; "A member" for a member; null when the books don't say. */
+  payee: string | null;
+}
+
 export interface LedgerData {
   ledger?: LedgerEntry[];
   fundOpenings?: FundOpening[];
@@ -819,6 +832,8 @@ export interface LedgerData {
   meetingReports?: MeetingReport[];
   /** Live only: each meeting report's figures, worked out by the database. */
   meetingTotals?: (MeetingFigures & { id: string })[];
+  /** Live only: every paid expense with member names taken out, from club_spending(). */
+  spending?: SpendingLine[];
 }
 
 // Stage 5D: conduct records, merch, national contributions and new chapters ----------------------

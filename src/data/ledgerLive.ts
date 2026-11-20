@@ -1,6 +1,6 @@
 // The live database's club_ledger() read (snake_case JSON) as the app's treasurer data.
 
-import type { EntryState, LedgerCode, LedgerData, MonthReport } from '../domain/types';
+import type { EntryState, LedgerCode, LedgerData, MonthReport, SpendingLine } from '../domain/types';
 
 interface ReportJson {
   month: string; opening_cents: number; credits: { code: LedgerCode; cents: number }[]; credit_total: number;
@@ -47,7 +47,7 @@ function toReport(r: ReportJson): MonthReport {
 
 const list = <T>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
 
-export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<LedgerData, 'meetingReports' | 'meetingTotals'>> {
+export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<LedgerData, 'meetingReports' | 'meetingTotals' | 'spending'>> {
   // Anything but a plain object (an old database without club_ledger, a stub) reads as no books.
   const json = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
   return {
@@ -133,4 +133,22 @@ export function toMeetingReports(raw: MeetingReportJson[] | null | undefined): R
       lastChangeAt: maybeInstant(f.last_change_at),
     })),
   };
+}
+
+// Club spending: club_spending() -----------------------------------------------------------------
+
+export interface SpendingJson {
+  id: string; entry_on: string; code: LedgerCode; chapter_id: string | null; amount_cents: number | string;
+  description: string | null; payee: string | null;
+}
+
+/** Undefined when the database hasn't the function yet, so the app works the lines out as before. */
+export function toSpending(raw: SpendingJson[] | null | undefined): SpendingLine[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw
+    .filter((r) => r && typeof r.id === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.entry_on ?? '') && typeof r.code === 'string')
+    .map((r) => ({
+      id: r.id, entryOn: r.entry_on, code: r.code, chapterId: r.chapter_id ?? null, amountCents: num(r.amount_cents),
+      description: r.description ?? '', payee: r.payee ?? null,
+    }));
 }

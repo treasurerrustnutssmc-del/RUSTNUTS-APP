@@ -6,7 +6,7 @@ import type {
   AgendaItem, BallotChoice, Big4Ground, NoticeAbout, NoticeOutcome, BusCostKind, BusPurpose, BusStatus, Electorate, HubStaying, MeetingKind, MeetingType, PlanStop, RideCallState, SwapState, Threshold,
 } from '../domain/types'; // HubStaying, PlanStop, RideCallState, SwapState: ride planning extras
 import type { BusinessJson } from './businessLive';
-import type { LedgerJson, MeetingReportJson } from './ledgerLive'; // Stage 5B
+import type { LedgerJson, MeetingReportJson, SpendingJson } from './ledgerLive'; // Stage 5B
 import type { AdminJson } from './adminLive'; // Stage 5D
 import type { CatalogueJson, OrderJson } from './shopLive'; // The club shop
 import type { AuditJson } from './auditLive'; // National Auditor
@@ -786,6 +786,7 @@ export type Database = {
       // Stage 5B: treasurer
       club_ledger: { Args: never; Returns: LedgerJson };
       meeting_reports: { Args: never; Returns: MeetingReportJson[] };
+      club_spending: { Args: never; Returns: SpendingJson[] };
       // Stage 5D: board and admin
       club_admin: { Args: never; Returns: AdminJson };
       // The club shop (in-app merch ordering)

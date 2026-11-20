@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
-import { meetingFigures, meetingLines } from './meetingReport';
+import { meetingFigures } from './meetingReport';
 import { meetingReportHtml } from './meetingReportHtml';
 import type { ClubData, LedgerEntry } from './types';
 
@@ -25,54 +25,43 @@ const figures = meetingFigures('2026-08-01', '2026-10-21', data);
 const base = {
   figures,
   data,
-  notes: 'Bear and Tigs: paid.\n\nCobra: <check> the register.',
-  preparedBy: 'Jeff Ostler, Treasurer, West and North Chapters',
-  preparedOn: '2026-10-25',
+  notes: 'Club expenses. Bear & Tigs paid.\n\nCobra: <check> the register.',
+  meetingOn: '2026-10-25',
   logoSrc: 'data:image/png;base64,AAAA',
   fontSrc: null,
 };
 
-test('the printed report has every section of Jeff’s, in order', () => {
+test('the printed report is Jeff’s one-page statement, in his order', () => {
   const html = meetingReportHtml(base);
-  const order = ['Treasurer’s Report', 'Cash position', 'Chapter and shared-fund allocations', 'Monthly cash movement',
-    'Meeting read-out', 'Receipts', 'Payments', 'Treasurer’s notes', 'Basis and checks'];
+  const order = ['Rustnuts Social Motorcycle Club Incorporated', 'Incorporation No. A0119901K', 'A.B.N 13188715331',
+    '38 Delaney Boulevard, Williams Landing VIC 3027', 'Club Treasurer’s Report', 'Sunday 25 October 2026 • Provisional figures',
+    'Cashbook period 1 August to 21 October 2026', 'Opening club funds at 31 July, including $400 float', 'Total credits',
+    'Members’ fees', 'Event buy-in', 'Total debits', 'Club expenses', 'Club meeting expenses',
+    'Provisional balances at 21 October 2026', 'Total club funds', 'Club allocation', 'West allocation', 'North allocation',
+    'Net decrease in recorded club funds', 'Bear &amp; Tigs paid.', 'From the club’s cashbook in the Rustnuts app.'];
   let at = -1;
-  for (const heading of order) {
-    const i = html.indexOf(heading, at + 1);
-    assert.ok(i > at, `${heading} after the one before`);
+  for (const text of order) {
+    const i = html.indexOf(text, at + 1);
+    assert.ok(i > at, `${text} after the one before`);
     at = i;
   }
-  assert.match(html, /October 2026 \| Reporting period: 01\/08\/2026 to 21\/10\/2026/);
-  assert.match(html, /Prepared by Jeff Ostler, Treasurer, West and North Chapters/);
-  assert.match(html, /Prepared 25\/10\/2026 from the club’s books in the Rustnuts app\./);
-  assert.match(html, /RUSTNUTS SMC \| A0119901K \| Treasurer’s report • October 2026/);
   assert.match(html, /<img[^>]+src="data:image\/png;base64,AAAA"/);
+  assert.match(html, /size: A4/);
 });
 
-test('the figures, in Jeff’s format', () => {
+test('the figures, as on Jeff’s report', () => {
   const html = meetingReportHtml(base);
-  assert.match(html, /Opening bank balance at 01\/08\/2026<\/td><td[^>]*>\$7,897\.71/);
-  assert.match(html, /Payments during the reporting period<\/td><td[^>]*>\(\$1,330\.00\)/);
-  assert.match(html, /Recorded cash float<\/td><td[^>]*>\$400\.00/);
-  assert.match(html, /The bank balance decreased by \$970\.00 over the reporting period\./);
-  assert.match(html, /West Chapter/);
-  assert.match(html, /Club \/ shared funds/);
-  assert.match(html, /September<\/td><td[^>]*>\$360\.00<\/td><td[^>]*>\$1,330\.00<\/td><td[^>]*>-\$970\.00/);
-  assert.match(html, /October \(to 21\/10\/2026\)/);
+  assert.match(html, /Opening bank balance<\/td><td[^>]*>\$7,897\.71/);
+  assert.match(html, /Total debits<\/td><td[^>]*>\$1,330\.00/);
+  assert.match(html, /Donations to RSMC<\/td><td[^>]*>\$0\.00/);
+  assert.match(html, /Net decrease in recorded club funds<\/td><td[^>]*>\$970\.00/);
+  assert.ok(!html.includes('Princetown'), 'no line descriptions on the members’ report');
 });
 
-test('lines go under their code when given, and everything typed is escaped', () => {
-  const plain = meetingReportHtml(base);
-  assert.ok(!plain.includes('Princetown'), 'no lines unless asked for');
-  const withLines = meetingReportHtml({ ...base, lines: meetingLines('2026-08-01', '2026-10-21', data) });
-  assert.match(withLines, /Accommodation &lt;Princetown&gt; &amp; co/);
-  assert.ok(!withLines.includes('<Princetown>'));
-  assert.match(plain, /<p>Bear and Tigs: paid\.<\/p>\s*<p>Cobra: &lt;check&gt; the register\.<\/p>/);
-});
-
-test('no notes, no notes section; a failed check says so', () => {
-  assert.ok(!meetingReportHtml({ ...base, notes: '  ' }).includes('Treasurer’s notes'));
-  const off = { ...figures, closingCents: figures.closingCents + 1 };
-  assert.match(meetingReportHtml({ ...base, figures: off }), /Check failed/);
-  assert.match(meetingReportHtml(base), /Each of the 2 paid lines/);
+test('notes: the lead in bold, everything typed escaped, no notes no notes', () => {
+  const html = meetingReportHtml(base);
+  assert.match(html, /<p><b>Club expenses\.<\/b> Bear &amp; Tigs paid\.<\/p>/);
+  assert.match(html, /<p>Cobra: &lt;check&gt; the register\.<\/p>/);
+  assert.ok(!html.includes('<check>'));
+  assert.ok(!meetingReportHtml({ ...base, notes: '  ' }).includes('class="notes"'));
 });

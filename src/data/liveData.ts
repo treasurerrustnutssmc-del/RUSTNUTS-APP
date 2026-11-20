@@ -7,7 +7,7 @@ import { cleanRoadRules, type RoadRulesInput } from '../domain/roadRules';
 import type { BusInput } from '../domain/bus';
 import type { ClubData, MeetingType, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
-import { toLedger, toMeetingReports } from './ledgerLive'; // Stage 5B
+import { toLedger, toMeetingReports, toSpending } from './ledgerLive'; // Stage 5B
 import { loadPlanning } from './planningLive'; // Ride planning extras
 import { loadCharity } from './charityLive'; // Charity ride sign-ups
 import { loadBusExtras } from './busExtrasLive'; // Rusty Bus extras
@@ -183,6 +183,17 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     await db.rpc('meeting_reports').then(
       (r) => {
         if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('meeting_reports:', r.error.message);
+        return r.error ? null : r.data;
+      },
+      () => null,
+    ),
+  );
+
+  // Club spending (member names taken out), the same way; before its migration, nothing.
+  const spending = toSpending(
+    await db.rpc('club_spending').then(
+      (r) => {
+        if (r.error && !MISSING_FUNCTION.includes(r.error.code ?? '')) console.warn('club_spending:', r.error.message);
         return r.error ? null : r.data;
       },
       () => null,
@@ -469,6 +480,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     ...business,
     ...ledger,
     ...meetingReports,
+    ...(spending ? { spending } : {}),
     ...admin,
     ...audit,
     ...documents,

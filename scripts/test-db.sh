@@ -235,6 +235,15 @@ done
 "${PSQL[@]}" -d rustnuts_meeting_reports -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_meeting_reports -f "$ROOT/supabase/tests/meeting_reports_test.sql"
 
+# Club spending for members, member names taken out, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_club_spending" >/dev/null
+"${PSQL[@]}" -d rustnuts_club_spending -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_club_spending -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_club_spending -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_club_spending -f "$ROOT/supabase/tests/club_spending_test.sql"
+
 # Stage 5D: conduct records, merch, national contributions and new chapters, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_board_admin" >/dev/null
 "${PSQL[@]}" -d rustnuts_board_admin -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null

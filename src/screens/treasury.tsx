@@ -5,6 +5,7 @@ import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
+import { spendingFor, spendingTotal } from '../domain/clubSpending';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import { fyLabel, fyOf, formatCents, parseDollars } from '../domain/fees';
 import {
@@ -946,7 +947,7 @@ function ApproveBudget({ votes, onApprove }: { votes: { value: string; label: st
 // ---------------------------------------------------------------------------
 
 export function ClubFinancesScreen({ navigation }: RootScreen<'ClubFinances'>) {
-  const { me, data } = useClub();
+  const { me, data, today } = useClub();
   if (!seesReports(me)) {
     return (
       <Screen>
@@ -962,6 +963,16 @@ export function ClubFinancesScreen({ navigation }: RootScreen<'ClubFinances'>) {
         <H1>Club finances</H1>
         <Small>The Treasurer’s Reports, once they’ve been presented. Every member can read them (13.8).</Small>
       </Stack>
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          last
+          left={<IconBadge icon="receipt-outline" />}
+          title="Club spending"
+          subtitle={`Every expense this year, ${fyLabel(fyOf(today))}`}
+          right={<Text style={[type.name, num, { color: colors.boneDim }]}>{formatCents(spendingTotal(spendingFor(data, fyOf(today))))}</Text>}
+          onPress={() => navigation.navigate('ClubSpending')}
+        />
+      </Card>
       {meetings.length > 0 ? (
         <>
           <SectionTitle title="For meetings" />
