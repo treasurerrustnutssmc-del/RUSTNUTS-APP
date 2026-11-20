@@ -21,7 +21,8 @@
         "appleTeamId": "M873J4CTU6",
         "ascApiKeyPath": "./.asc/AuthKey.p8",
         "ascApiKeyId": "GZ4F28YT8V",
-        "ascApiKeyIssuerId": "7ef898c5-8375-4f11-b43f-e41cc28c8c30"
+        "ascApiKeyIssuerId": "7ef898c5-8375-4f11-b43f-e41cc28c8c30",
+        "ascAppId": "6837151025"
       }
     }
   }
