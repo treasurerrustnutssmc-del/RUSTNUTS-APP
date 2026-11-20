@@ -1,7 +1,9 @@
 # Publishes the site/ folder (privacy policy, support and account deletion pages) to GitHub Pages on every push to
-# main. The web version of the app for helpers on a PC used to be built here too; it was retired on 18 Nov 2026 so
-# the repository can go private (the club-website copies at www.rustnutssmc.com.au/app/ are the addresses the stores
-# use). Needs Settings → Pages → Source set to "GitHub Actions" once.
+# main, together with the web version of the app (scripts/web-preview.sh) for members whose phone can't get the
+# store app yet, built fresh each time so it always matches main. (The PC version for helpers was retired on
+# 18 Nov 2026; this one came back on 20 Nov for iPhone members while Apple reviews the TestFlight beta.) The
+# addresses the stores use are the club-website copies at www.rustnutssmc.com.au/app/. Needs Settings → Pages →
+# Source set to "GitHub Actions" once.
 name: Privacy page
 
 on:
@@ -24,6 +26,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The web version at /RUSTNUTS-APP/ride-68e58a114b/ (unlinked, behind the roster sign-in). If the app
+      # fails to build, the static pages above still publish (without the web version) rather than being held up.
+      - run: scripts/web-preview.sh ride-68e58a114b
+        continue-on-error: true
+        env:
+          # GIPHY's app key for GIF search, as in preview-update.yml. Unset means no GIF button.
+          EXPO_PUBLIC_GIPHY_KEY: ${{ secrets.GIPHY_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
