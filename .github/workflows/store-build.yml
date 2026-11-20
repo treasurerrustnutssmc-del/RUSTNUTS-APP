@@ -2,7 +2,13 @@
 # matches what the "Preview update" workflow publishes. Builds made on Windows don't match.
 # Run it by hand from the Actions tab. Needs the EXPO_TOKEN repository secret.
 #
-# Android makes an app bundle for Google Play. iOS needs the club's Apple developer account first.
+# Android makes an app bundle for Google Play.
+# iPhone uses the App Store Connect team key "EAS build" (Admin): its .p8 text is the ASC_API_KEY_P8
+# repository secret, and the ids below aren't secret. With it EAS signs in to Apple without a password.
+#   ios-setup  the FIRST iPhone build only: runs eas build interactively (see .github/scripts/
+#              eas-ios-setup.exp) so EAS can make the distribution certificate and profiles.
+#   ios        every later iPhone build (non-interactive, reuses what ios-setup made).
+#   ios-submit uploads the latest finished iPhone build to App Store Connect / TestFlight.
 # ios-simulator is a test iPhone build for the iOS Simulator: it needs no Apple account, and the job
 # waits for it, so a red job means the iPhone app doesn't compile.
 # android-preview is the tester APK (preview channel) for Jeff's S25 and the test crew. Make one
@@ -17,7 +23,7 @@ on:
       platform:
         description: Which phones
         type: choice
-        options: [android, ios, all, ios-simulator, android-preview]
+        options: [android, ios, all, ios-simulator, android-preview, ios-setup, ios-submit]
         default: android
 
 jobs:
@@ -36,9 +42,42 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+      # The key goes in .asc/ (git-ignored, so EAS never uploads it with the project); eas.json's
+      # iOS submit profile reads it from there.
+      - name: App Store Connect key
+        if: contains(fromJSON('["ios", "all", "ios-setup", "ios-submit"]'), inputs.platform)
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_API_KEY_P8" ]; then
+            echo "::error::The ASC_API_KEY_P8 repository secret is missing"
+            exit 1
+          fi
+          mkdir -p .asc
+          printf '%s\n' "$ASC_API_KEY_P8" > .asc/AuthKey.p8
+          chmod 600 .asc/AuthKey.p8
+          {
+            echo "EXPO_ASC_API_KEY_PATH=$PWD/.asc/AuthKey.p8"
+            echo "EXPO_ASC_KEY_ID=GZ4F28YT8V"
+            echo "EXPO_ASC_ISSUER_ID=7ef898c5-8375-4f11-b43f-e41cc28c8c30"
+            echo "EXPO_APPLE_TEAM_ID=M873J4CTU6"
+            echo "EXPO_APPLE_TEAM_TYPE=INDIVIDUAL"
+          } >> "$GITHUB_ENV"
+      # eas-cli treats CI=true as --non-interactive, which can't create a missing certificate.
+      - name: First iPhone build (makes the signing certificate and profiles)
+        if: inputs.platform == 'ios-setup'
+        env:
+          CI: 'false'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq expect
+          expect .github/scripts/eas-ios-setup.exp
+      - name: Upload the latest iPhone build to TestFlight
+        if: inputs.platform == 'ios-submit'
+        run: eas submit --platform ios --profile production --latest --non-interactive
       # The build itself runs on EAS; --no-wait ends this job once it's queued. The build page link
       # is in the log. Env vars (Google Maps key) come from the EAS "production" environment.
-      - env:
+      - if: inputs.platform != 'ios-setup' && inputs.platform != 'ios-submit'
+        env:
           PLATFORM: ${{ inputs.platform }}
         run: |
           if [ "$PLATFORM" = ios-simulator ]; then

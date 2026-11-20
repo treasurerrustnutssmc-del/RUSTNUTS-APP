@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+# First iPhone production build, run once by the Store build workflow ("ios-setup").
+#
+# eas-cli won't create a missing distribution certificate in --non-interactive mode, so this runs
+# `eas build` interactively inside a pseudo-terminal. The App Store Connect team key in the
+# EXPO_ASC_* variables signs EAS in to Apple (no password), and EAS then registers the bundle ids,
+# makes the certificate and both provisioning profiles (app + share extension) and stores them,
+# so every later build can run non-interactively ("ios").
+#
+# eas.json sets cli.promptToConfigurePushNotifications false: only an Apple password login can
+# make a push key, so that key is added separately. Any other question takes "yes" or the first
+# choice; an Apple password prompt means the key wasn't used, so the run stops instead.
+set timeout 1800
+log_user 1
+spawn eas build --profile production --platform ios --no-wait
+expect {
+  -re {Apple ID:|Password \(for |Apple ID Password} {
+    send_user "\n::error::EAS asked for an Apple password, so the App Store Connect key was not used\n"
+    exit 4
+  }
+  -re {\(y/N\)|\(Y/n\)} { sleep 1; send -- "y"; exp_continue }
+  -re {Use arrow-keys} { sleep 1; send -- "\r"; exp_continue }
+  timeout { send_user "\n::error::eas build gave no output for 30 minutes\n"; exit 5 }
+  eof
+}
+lassign [wait] pid spawnid os_error value
+exit $value
