@@ -2,7 +2,7 @@
 // is and hand back the club as it should be, or throw when the person isn't allowed. The
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
-import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, isStepDown, LEARNER_FNG, restoreAccessProblem, statusChangeProblem, suspendAccessProblem } from '../domain/access';
+import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, isStepDown, LEARNER_FNG, LEARNER_FULL, restoreAccessProblem, statusChangeProblem, suspendAccessProblem } from '../domain/access';
 import { endPositionRows, isActing, openRows, settleActing } from '../domain/acting'; // Acting roles
 import { bioProblem } from '../domain/postingRules'; // Member content rules
 import { deleteAccountProblem, FORMER_MEMBER } from '../domain/account'; // Delete my account
@@ -16,7 +16,7 @@ import { NO_TRACK, readGpx } from '../domain/gpx';
 import { archiveRouteProblem, NO_ROUTE, rideRouteProblem, saveRouteProblem, signedInProblem } from '../domain/routes';
 import { rsvpProblem } from '../domain/rides';
 import type { Casting } from '../domain/votes';
-import { APPROVE_AS, NATIONAL_ROLES } from '../domain/labels';
+import { APPROVE_AS, APPROVE_AS_PROBLEM, NATIONAL_ROLES } from '../domain/labels';
 import type {
   ActingChange, BallotChoice, BusBooking, BusPurpose, ClubData, CrewRole, Electorate, EndedReason, HubStaying, MeetingKind, Member,
   MemberStatus, PlanStop, Position, PositionRole, RideCallState, RideCategory, Route, RsvpAnswer, StatusChange, Threshold,
@@ -151,14 +151,16 @@ export function approve(ctx: DemoCtx, memberId: string, status: MemberStatus): C
     throw new NotAllowedError(`Only the ${chapterName(ctx.data, target.chapterId)} board can approve this applicant.`);
   }
   if (target.approval !== 'pending') throw new NotAllowedError('This person isn’t waiting for approval.');
-  if (!APPROVE_AS.includes(status)) throw new NotAllowedError('Let them in as Introduced, FNG, Supporter or Family.');
+  if (!APPROVE_AS.includes(status)) throw new NotAllowedError(APPROVE_AS_PROBLEM);
   if (status === 'fng' && isLearner(memberId, ctx.data)) throw new NotAllowedError(LEARNER_FNG);
-  return patchMember(ctx.data, memberId, {
+  if (status === 'full' && isLearner(memberId, ctx.data)) throw new NotAllowedError(LEARNER_FULL);
+  // Letting someone in as Full raises the pro rata fee, like the members_patch_in_fee trigger.
+  return withPatchInFee(ctx, memberId, patchMember(ctx.data, memberId, {
     approval: 'approved',
     status,
     joinedOn: target.joinedOn ?? ctx.today,
     ...statusDates(target, status, ctx.today),
-  });
+  }));
 }
 
 // Member content rules (App Store Guideline 1.2) -------------------------------------------------

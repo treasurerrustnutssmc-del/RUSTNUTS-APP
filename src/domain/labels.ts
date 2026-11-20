@@ -22,8 +22,12 @@ export const STATUS_LABEL: Record<MemberStatus, string> = {
   legacy: 'Legacy',
 };
 
-/** What a board can let a new applicant in as. Full and Nomad are earned, and Legacy is for leaving. */
-export const APPROVE_AS: MemberStatus[] = ['introduced', 'fng', 'supporter', 'family'];
+/**
+ * What a board can let a new applicant in as. Full is only for someone already patched whose
+ * sign-up email didn't match the roster (Jeff, 20 Nov 2026). Nomad is earned, Legacy is for leaving.
+ */
+export const APPROVE_AS: MemberStatus[] = ['introduced', 'fng', 'full', 'supporter', 'family'];
+export const APPROVE_AS_PROBLEM = 'Let them in as Introduced, FNG, Full, Supporter or Family.';
 
 export const STATUS_ORDER: MemberStatus[] = ['full', 'nomad', 'fng', 'introduced', 'supporter', 'family', 'legacy'];
 
