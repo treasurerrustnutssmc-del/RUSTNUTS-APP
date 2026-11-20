@@ -5,7 +5,7 @@ name: iPhone simulator smoke test
 
 on:
   push:
-    paths: ['.github/workflows/ios-sim-smoke.yml']
+    paths: ['.github/workflows/ios-sim-smoke.yml', 'package.json']
   workflow_dispatch:
 
 jobs:

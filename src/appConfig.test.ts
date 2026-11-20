@@ -113,10 +113,21 @@ test('live ride alerts may break through Focus as time-sensitive notifications',
   assert.equal(expo.ios.entitlements?.['com.apple.developer.usernotifications.time-sensitive'], true);
 });
 
+const builtFromSource = (name: string) =>
+  ((pkg.expo?.autolinking?.ios?.buildFromSource ?? []) as string[]).some((p) => new RegExp(`^${p}$`).test(name));
+
 test('the SDWebImage consumers build from source so the ipa carries no manifest-less framework', () => {
-  const from: string[] = pkg.expo?.autolinking?.ios?.buildFromSource ?? [];
-  assert.ok(from.includes('expo-image'));
-  assert.ok(from.includes('expo-image-manipulator'));
+  assert.ok(builtFromSource('expo-image'));
+  assert.ok(builtFromSource('expo-image-manipulator'));
+});
+
+test('every Expo module on iPhone is built from source in the same build, never mixed with precompiled ones', () => {
+  // iPhone build 1.0.0 (3), 20/11/2026: the precompiled ExpoMaps needed four symbols the precompiled
+  // ExpoModulesCore and ExpoModulesJSI don't export, so the app closed the moment it opened. Built
+  // together from source they always match. Patterns are anchored regexes (expo-modules-autolinking).
+  for (const name of ['expo-maps', 'expo-modules-core', 'expo-camera', 'expo-video', 'expo-file-system', 'expo-font', 'expo-print']) {
+    assert.ok(builtFromSource(name), `${name} is built from source`);
+  }
 });
 
 test('iOS store builds are submitted with the club Apple account to the right App Store listing', () => {

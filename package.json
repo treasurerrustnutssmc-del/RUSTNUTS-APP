@@ -79,8 +79,7 @@
     "autolinking": {
       "ios": {
         "buildFromSource": [
-          "expo-image",
-          "expo-image-manipulator"
+          ".*"
         ]
       }
     }
