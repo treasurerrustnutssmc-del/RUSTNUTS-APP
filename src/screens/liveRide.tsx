@@ -234,7 +234,7 @@ export function LiveRideScreen({ route, navigation }: RootScreen<'LiveRide'>) {
       {myFuel ? (
         <Notice tone="warn" title="Fuel call sent">
           <Stack gap={space.sm}>
-            <Body>The riders sharing on this ride can see where you are. Leaders can ring you.</Body>
+            <Body>Everyone sharing on this ride has been told. Leaders can ring you.</Body>
             <Button label="Got fuel, cancel" kind="quiet" busy={busy === myFuel.id} onPress={run(myFuel.id, () => live.resolve(myFuel.id))} />
           </Stack>
         </Notice>

@@ -104,7 +104,7 @@ export function fixProblem(at: LatLng | null | undefined): string | null {
 }
 
 /**
- * Why this alert can't be raised, or null. `live` is liveProblem for the ride now. An emergency or
+ * Why this alert can't be raised, or null. `live` is liveProblem for the ride now. An emergency, a fuel call or
  * dropping out needs only the ride's window to be open, so one raised with no signal still goes
  * through after your own sharing has switched off. A regroup pin needs a leader who is sharing.
  * Mirrors raise_ride_alert.
