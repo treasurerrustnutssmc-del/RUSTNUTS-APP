@@ -5,9 +5,10 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { openInMapsApp, sendToGarmin } from '../data/routeFiles';
+import { lastKnownSpot } from '../data/whereAmI';
 import { formatClimb, formatKm, routeChapterName } from '../domain/routes';
 import { routeScore, starsLine } from '../domain/ratings';
-import { navigateOptions, type NavApp } from '../domain/rideMap';
+import { followRouteOptions, navigateOptions, routeAhead, type NavApp, type NavOption } from '../domain/rideMap';
 import type { ClubData, LatLng, Route } from '../domain/types';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import { Button, Card, Chip, Ionicons, Notice, Row, Small, Stack } from './primitives';
@@ -233,10 +234,41 @@ const NAV_ICON: Record<NavApp, React.ComponentProps<typeof Ionicons>['name']> = 
 };
 
 /**
- * "Navigate": opens a row of maps apps the rider picks from, all heading to `to` (Apple Maps on an
- * iPhone, Google Maps, Waze). With a `route`, the list ends with the locked GPX for OsmAnd or
- * MyRoute and a Garmin-ready copy, which follow the route itself rather than their own way to one
- * spot. No pop-up: the choices open in place, since the web preview can't show dialogs.
+ * One "Follow the route" button: works out what's left of the route from where the phone last was
+ * (the whole route when it can't tell), then opens that maps app with the end and points along it.
+ */
+function FollowRouteButton({ app, label, line, onOpened }: { app: NavApp; label: string; line: [number, number][]; onOpened: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const open = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const ahead = routeAhead(line, await lastKnownSpot());
+      const option = followRouteOptions(ahead, Platform.OS, Platform.Version).find((o: NavOption) => o.app === app);
+      if (option) await Linking.openURL(option.url).catch(() => {});
+      onOpened();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button
+      label={label}
+      icon={NAV_ICON[app]}
+      kind="secondary"
+      busy={busy}
+      accessibilityLabel={`Follow the route in ${label}, from where you are`}
+      onPress={open}
+    />
+  );
+}
+
+/**
+ * "Navigate": opens the maps apps the rider picks from. With a `route`, "Follow the route" comes
+ * first: Apple Maps (iOS 18.4+) and Google Maps led along the route's own points from where the
+ * rider is, then the locked GPX for OsmAnd or MyRoute and a Garmin-ready copy, which follow every
+ * bend. Then "To `to`": Apple Maps, Google Maps and Waze, each its own way to that one spot.
+ * No pop-up: the choices open in place, since the web preview can't show dialogs.
  */
 export function NavigateChooser({
   to,
@@ -247,23 +279,37 @@ export function NavigateChooser({
   to: LatLng;
   /** What `to` is, for the button: "the start", "the regroup pin", "Rocko". */
   toLabel: string;
-  route?: Pick<Route, 'id' | 'name'>;
+  route?: Pick<Route, 'id' | 'name' | 'line'>;
   kind?: 'primary' | 'secondary';
 }) {
   const [open, setOpen] = useState(false);
   const options = navigateOptions(to, Platform.OS);
+  const follow = route ? followRouteOptions({ line: route.line, fromStart: true }, Platform.OS, Platform.Version) : [];
   return (
     <Stack gap={space.sm}>
       <Button
         label={open ? 'Close' : 'Navigate'}
         icon={open ? 'close' : 'navigate-outline'}
         kind={open ? 'quiet' : kind}
-        accessibilityLabel={open ? 'Close the maps apps' : `Navigate to ${toLabel}`}
+        accessibilityLabel={open ? 'Close the maps apps' : route ? `Navigate ${route.name}` : `Navigate to ${toLabel}`}
         onPress={() => setOpen((o) => !o)}
       />
       {open ? (
         <Card style={{ gap: space.sm }}>
-          <Text style={styles.navTitle}>{`To ${toLabel}`}</Text>
+          {route ? (
+            <>
+              <Text style={styles.navTitle}>Follow the route</Text>
+              {follow.map((o) => (
+                <FollowRouteButton key={o.app} app={o.app} label={o.label} line={route.line} onOpened={() => setOpen(false)} />
+              ))}
+              {follow.length > 0 ? (
+                <Small>From where you are, through points along the route to its end. For every bend, use OsmAnd, MyRoute or Garmin.</Small>
+              ) : null}
+              <OpenInMapsButton route={route} kind="secondary" />
+              <SendToGarminButton route={route} />
+            </>
+          ) : null}
+          <Text style={[styles.navTitle, route ? { marginTop: space.sm } : null]}>{`To ${toLabel}`}</Text>
           {options.map((o) => (
             <Button
               key={o.app}
@@ -277,13 +323,7 @@ export function NavigateChooser({
               }}
             />
           ))}
-          {route ? (
-            <>
-              <Text style={[styles.navTitle, { marginTop: space.sm }]}>The whole route</Text>
-              <OpenInMapsButton route={route} kind="secondary" />
-              <SendToGarminButton route={route} />
-            </>
-          ) : null}
+          {route ? <Small>{`These take their own way to ${toLabel} only. Waze can’t follow a route.`}</Small> : null}
         </Card>
       ) : null}
     </Stack>

@@ -2,6 +2,7 @@
 // riders fit, the pins for riders on a live ride, and the "Navigate" hand-off to a maps app. The
 // map itself is the phone's own: Apple Maps on an iPhone, Google Maps on Android.
 
+import { haversineM } from './gpx';
 import { isStale } from './liveRide';
 import type { LatLng, LiveRider, Route } from './types';
 
@@ -75,6 +76,101 @@ export function navigateOptions(to: LatLng, os: string): NavOption[] {
   if (os === 'ios') list.push({ app: 'apple', label: 'Apple Maps', url: `https://maps.apple.com/?daddr=${at}&dirflg=d` });
   list.push({ app: 'google', label: 'Google Maps', url: `https://www.google.com/maps/dir/?api=1&destination=${at}&travelmode=driving` });
   list.push({ app: 'waze', label: 'Waze', url: `https://waze.com/ul?ll=${at}&navigate=yes` });
+  return list;
+}
+
+/** How far from the line a rider can be and still count as on the route: a wrong turn, not a ride to the start. */
+const ON_ROUTE_M = 1000;
+/** Google Maps takes 9 waypoints from a link; Apple Maps takes more, but 9 keeps both alike. */
+const MAX_WAYPOINTS = 9;
+
+/** The part of a route still to ride, and whether that's the whole thing from its start. */
+export interface RouteAhead {
+  line: [number, number][];
+  fromStart: boolean;
+}
+
+/** Metres from `p` to the segment a–b, on a flat projection (fine over a few kilometres). */
+function toSegmentM(p: LatLng, a: [number, number], b: [number, number]): number {
+  const kx = Math.cos((p.lat * Math.PI) / 180);
+  const ax = (a[1] - p.lng) * kx;
+  const ay = a[0] - p.lat;
+  const bx = (b[1] - p.lng) * kx;
+  const by = b[0] - p.lat;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = dx * dx + dy * dy;
+  const t = len > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len)) : 0;
+  const x = ax + t * dx;
+  const y = ay + t * dy;
+  return haversineM([p.lat, p.lng], [p.lat + y, p.lng + x / (kx || 1)]);
+}
+
+/**
+ * What's left of the route for a rider at `at`: from the next point past the stretch they're on,
+ * so a maps app never turns them round. The whole route when we don't know where they are, or
+ * they're more than a kilometre off it (on the way to the start, say). The first nearest stretch
+ * wins, so on a loop a rider at the start gets the whole way round.
+ */
+export function routeAhead(line: [number, number][], at: LatLng | null): RouteAhead {
+  if (!at || line.length < 2) return { line, fromStart: true };
+  let best = -1;
+  let bestM = Infinity;
+  for (let i = 0; i < line.length - 1; i++) {
+    const m = toSegmentM(at, line[i], line[i + 1]);
+    if (m < bestM) {
+      bestM = m;
+      best = i;
+    }
+  }
+  if (bestM > ON_ROUTE_M) return { line, fromStart: true };
+  return { line: line.slice(best + 1), fromStart: false };
+}
+
+/** Up to `n` points spread evenly by distance along `line`, never its last point. */
+function spread(line: [number, number][], n: number): [number, number][] {
+  if (n <= 0 || line.length < 2) return [];
+  const at: number[] = [0];
+  for (let i = 1; i < line.length; i++) at.push(at[i - 1] + haversineM(line[i - 1], line[i]));
+  const total = at[at.length - 1];
+  const picked: number[] = [];
+  let j = 0;
+  for (let k = 1; k <= n; k++) {
+    const want = (total * k) / (n + 1);
+    while (j < at.length - 1 && Math.abs(at[j + 1] - want) < Math.abs(at[j] - want)) j++;
+    if (j < line.length - 1 && picked[picked.length - 1] !== j) picked.push(j);
+  }
+  return picked.map((i) => line[i]);
+}
+
+/** Whether this iPhone's Apple Maps takes waypoints in a link (iOS 18.4 and later). */
+function appleTakesWaypoints(version: string | number): boolean {
+  const [major, minor] = String(version).split('.').map((n) => parseInt(n, 10) || 0);
+  return major > 18 || (major === 18 && minor >= 4);
+}
+
+/**
+ * "Follow the route": maps apps that will lead a rider along `ahead` rather than their own way to
+ * one spot, as closely as a link allows: the route's end as the destination and up to 9 points
+ * along it as waypoints, from wherever the phone is. Apple Maps (iPhone, iOS 18.4 and later), then
+ * Google Maps. Waze can't take waypoints, so it isn't offered. The GPX share follows every bend.
+ */
+export function followRouteOptions(ahead: RouteAhead, os: string, version: string | number): NavOption[] {
+  const { line } = ahead;
+  if (line.length === 0) return [];
+  const end = line[line.length - 1];
+  // From the start, the start itself goes first, so a rider on their way there is taken to it.
+  const points = ahead.fromStart && line.length > 1 ? [line[0], ...spread(line.slice(1), MAX_WAYPOINTS - 1)] : spread(line, MAX_WAYPOINTS);
+  const fmt = (p: [number, number]) => `${coord(p[0])},${coord(p[1])}`;
+  const dest = fmt(end);
+  const wps = points.map(fmt);
+  const list: NavOption[] = [];
+  if (os === 'ios' && appleTakesWaypoints(version)) {
+    const w = wps.map((p) => `&waypoint=${p}`).join('');
+    list.push({ app: 'apple', label: 'Apple Maps', url: `https://maps.apple.com/directions?destination=${dest}${w}&mode=driving` });
+  }
+  const gw = wps.length > 0 ? `&waypoints=${wps.join('%7C')}` : '';
+  list.push({ app: 'google', label: 'Google Maps', url: `https://www.google.com/maps/dir/?api=1&destination=${dest}${gw}&travelmode=driving&dir_action=navigate` });
   return list;
 }
 
