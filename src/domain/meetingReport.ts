@@ -205,6 +205,51 @@ export function deleteMeetingProblem(me: Member | null, id: string, data: ClubDa
   return report.presentedAt ? MR_LOCKED : null;
 }
 
+// The treasurer's own PDF (spec 2026-11-21-treasurer-own-pdf-design.md). The database's
+// set_meeting_report_pdf and the treasurer-reports bucket check the same.
+
+export const MR_PDF_TYPE = 'Pick a PDF file.';
+export const MR_PDF_BIG = 'That PDF is over 10 MB. Save a smaller copy and try again.';
+export const MR_PDF_MAX_BYTES = 10 * 1024 * 1024;
+const MR_PDF_NAME_MAX = 120;
+
+/** A file picked from the phone, as far as the rules need it. */
+export interface PickedPdf {
+  name: string;
+  /** Bytes; null when the phone didn't say. */
+  size: number | null;
+  mimeType: string | null;
+}
+
+/** The name shown for an attached PDF: trimmed and cut to 120 characters, as the database keeps it. */
+export function pdfFileName(name: string): string {
+  const trimmed = [...name.trim()].slice(0, MR_PDF_NAME_MAX).join('');
+  return trimmed || 'Treasurer’s report.pdf';
+}
+
+function draftProblem(me: Member | null, id: string, data: ClubData): string | null {
+  const books = booksProblem(me, data);
+  if (books) return books;
+  const report = reportOf(id, data);
+  if (!report) return 'No such report.';
+  return report.presentedAt ? MR_LOCKED : null;
+}
+
+/** Attaching (or replacing) the treasurer's own PDF on a draft. */
+export function attachPdfProblem(me: Member | null, id: string, file: PickedPdf, data: ClubData): string | null {
+  const draft = draftProblem(me, id, data);
+  if (draft) return draft;
+  const isPdf = file.mimeType === 'application/pdf' || /\.pdf$/i.test(file.name.trim());
+  if (!isPdf) return MR_PDF_TYPE;
+  if (file.size !== null && file.size > MR_PDF_MAX_BYTES) return MR_PDF_BIG;
+  return null;
+}
+
+/** Taking the treasurer's own PDF off a draft. */
+export function removePdfProblem(me: Member | null, id: string, data: ClubData): string | null {
+  return draftProblem(me, id, data);
+}
+
 // Screens --------------------------------------------------------------------------------------
 
 /** Reads every fund's lines, so the figures can be worked out on the phone. */

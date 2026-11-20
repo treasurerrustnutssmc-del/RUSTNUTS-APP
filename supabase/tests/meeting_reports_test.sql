@@ -184,4 +184,82 @@ begin
   assert (select count(*) from treasurer_meeting_reports) = 1, 'one left';
 end $$;
 
+
+\echo 'The treasurer''s own PDF: who uploads, reads and removes it'
+do $$
+declare
+  draft uuid;
+  shown uuid := (select id from treasurer_meeting_reports where presented_at is not null limit 1);
+  up text := $q$insert into storage.objects (bucket_id, name, owner, owner_id) values ('treasurer-reports', %L, auth.uid(), auth.uid()::text)$q$;
+  r jsonb;
+begin
+  assert (select count(*) from storage.buckets where id = 'treasurer-reports' and not public
+    and allowed_mime_types = array['application/pdf'] and file_size_limit = 10485760) = 1, 'a private PDF-only bucket';
+  draft := pg_temp.value_as(pg_temp.u(2), $q$public.save_meeting_report(null, date '2026-08-01', date '2026-10-21', '')$q$)::uuid;
+
+  -- Uploading: the books keeper, into a draft's folder only.
+  assert pg_temp.try_as(pg_temp.u(2), format(up, draft || '/a.pdf')) is null, 'the treasurer uploads into the draft''s folder';
+  assert pg_temp.try_as(pg_temp.u(3), format(up, draft || '/b.pdf')) like '%row-level security%', 'not the Secretary';
+  assert pg_temp.try_as(pg_temp.u(4), format(up, draft || '/b.pdf')) like '%row-level security%', 'not a member';
+  assert pg_temp.try_as(pg_temp.u(2), format(up, shown || '/b.pdf')) like '%row-level security%', 'not a presented report''s folder';
+  assert pg_temp.try_as(pg_temp.u(2), format(up, gen_random_uuid() || '/b.pdf')) like '%row-level security%', 'not a made-up folder';
+
+  -- Attaching: the refusals in the app's words.
+  assert pg_temp.try_as(pg_temp.u(3), format($q$select public.set_meeting_report_pdf(%L, %L, 'Oct.pdf')$q$, draft, draft || '/a.pdf'))
+    = 'Only that fund’s treasurer, or the National Chairman or Secretary, keeps its books.', 'Secretary attaches';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, 'Oct.pdf')$q$, gen_random_uuid(), draft || '/a.pdf'))
+    = 'No such report.', 'unknown report';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, 'Oct.pdf')$q$, shown, draft || '/a.pdf'))
+    = 'That report is presented and can’t be changed.', 'presented';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, 'Oct.pdf')$q$, draft, draft || '/missing.pdf'))
+    = 'That PDF didn’t upload. Try again.', 'not in Storage';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, 'Oct.pdf')$q$, draft, shown || '/a.pdf'))
+    = 'That PDF didn’t upload. Try again.', 'another report''s folder';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, '  ')$q$, draft, draft || '/a.pdf'))
+    = 'Pick a PDF file.', 'no name';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, '  October report.pdf ')$q$, draft, draft || '/a.pdf')) is null, 'attached';
+  assert (select pdf_path = draft || '/a.pdf' and pdf_name = 'October report.pdf' from treasurer_meeting_reports where id = draft), 'trimmed name and path saved';
+
+  -- Reading: book-keepers see the draft's file; members don't until it's presented.
+  assert pg_temp.value_as(pg_temp.u(1), format($q$(select count(*) from storage.objects where bucket_id = 'treasurer-reports' and name = %L)$q$, draft || '/a.pdf')) = '1', 'the Chairman reads it';
+  assert pg_temp.value_as(pg_temp.u(4), format($q$(select count(*) from storage.objects where bucket_id = 'treasurer-reports' and name = %L)$q$, draft || '/a.pdf')) = '0', 'a member doesn''t, while it''s a draft';
+  r := pg_temp.reports_as(pg_temp.u(2));
+  assert (select x->>'pdf_name' from jsonb_array_elements(r) x where x->>'id' = draft::text) = 'October report.pdf', 'meeting_reports gives the name';
+  assert (select x->>'pdf_path' from jsonb_array_elements(r) x where x->>'id' = draft::text) = draft || '/a.pdf', 'and the path';
+
+  -- Replacing queues the old file; a file in use can't be deleted directly.
+  assert pg_temp.try_as(pg_temp.u(2), format($q$delete from storage.objects where bucket_id = 'treasurer-reports' and name = %L$q$, draft || '/a.pdf')) is null, 'no error';
+  assert (select count(*) from storage.objects where name = draft || '/a.pdf') = 1, 'but the attached file stays';
+  perform pg_temp.try_as(pg_temp.u(2), format(up, draft || '/c.pdf'));
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, 'v2.pdf')$q$, draft, draft || '/c.pdf')) is null, 'replaced';
+  assert (select count(*) from private.storage_purge where bucket = 'treasurer-reports' and path = draft || '/a.pdf') = 1, 'the old file is queued';
+  assert pg_temp.try_as(pg_temp.u(4), format($q$delete from storage.objects where bucket_id = 'treasurer-reports' and name = %L$q$, draft || '/a.pdf')) is null, 'no error';
+  assert (select count(*) from storage.objects where name = draft || '/a.pdf') = 1, 'a member can''t tidy it';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$delete from storage.objects where bucket_id = 'treasurer-reports' and name = %L$q$, draft || '/a.pdf')) is null, 'the keeper tidies the old one';
+  assert (select count(*) from storage.objects where name = draft || '/a.pdf') = 0, 'gone';
+
+  -- Removing.
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, null, null)$q$, draft)) is null, 'removed';
+  assert (select pdf_path is null and pdf_name is null from treasurer_meeting_reports where id = draft), 'nothing attached';
+  assert (select count(*) from private.storage_purge where bucket = 'treasurer-reports' and path = draft || '/c.pdf') = 1, 'the removed file is queued';
+
+  -- Presented: locked, and members read it; Legacy never.
+  perform pg_temp.try_as(pg_temp.u(2), format(up, draft || '/d.pdf'));
+  perform pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, 'Final.pdf')$q$, draft, draft || '/d.pdf'));
+  assert pg_temp.try_as(pg_temp.u(2), format('select public.present_meeting_report(%L)', draft)) is null, 'presented';
+  assert pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, null, null)$q$, draft))
+    = 'That report is presented and can’t be changed.', 'locked once presented';
+  assert pg_temp.value_as(pg_temp.u(4), format($q$(select count(*) from storage.objects where bucket_id = 'treasurer-reports' and name = %L)$q$, draft || '/d.pdf')) = '1', 'a member reads it now';
+  assert pg_temp.value_as(pg_temp.u(8), format($q$(select count(*) from storage.objects where bucket_id = 'treasurer-reports' and name = %L)$q$, draft || '/d.pdf')) = '0', 'Legacy members have left';
+  assert pg_temp.value_as(pg_temp.u(9), format($q$(select count(*) from storage.objects where bucket_id = 'treasurer-reports' and name = %L)$q$, draft || '/d.pdf')) = '0', 'applicants don''t';
+  assert (select x->>'pdf_name' from jsonb_array_elements(pg_temp.reports_as(pg_temp.u(4))) x where x->>'id' = draft::text) = 'Final.pdf', 'members get the name';
+
+  -- Deleting a draft queues its file.
+  draft := pg_temp.value_as(pg_temp.u(2), $q$public.save_meeting_report(null, date '2026-09-01', date '2026-09-30', '')$q$)::uuid;
+  perform pg_temp.try_as(pg_temp.u(2), format(up, draft || '/e.pdf'));
+  perform pg_temp.try_as(pg_temp.u(2), format($q$select public.set_meeting_report_pdf(%L, %L, 'Sept.pdf')$q$, draft, draft || '/e.pdf'));
+  assert pg_temp.try_as(pg_temp.u(2), format('select public.delete_meeting_report(%L)', draft)) is null, 'draft deleted';
+  assert (select count(*) from private.storage_purge where bucket = 'treasurer-reports' and path = draft || '/e.pdf') = 1, 'its file is queued';
+end $$;
+
 \echo 'All meeting report checks passed'

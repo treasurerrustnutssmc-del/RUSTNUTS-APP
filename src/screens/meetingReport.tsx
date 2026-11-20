@@ -1,11 +1,13 @@
 // The Treasurer's Report for a meeting, laid out like Jeff's October 2026 report: pick the period,
 // read the cash position, each fund, the months, the read-out, receipts and payments and the
-// checks, write the notes, then save it, share it as a PDF and present it to members (13.8).
+// checks, write the notes, then save it, share it as a PDF and present it to members (13.8). The
+// treasurer can also attach their own PDF to a draft, which members open once it's presented.
 
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Linking, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { reportAssets, shareReportPdf } from '../data/reportPdf';
+import { pickReportPdf } from '../data/reportPdfFile';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
 import { formatCents } from '../domain/fees';
 import { CODE_LABEL, fundKey, fundName, keepsBooks, seesAnyLedger, seesReports } from '../domain/ledger';
@@ -182,7 +184,9 @@ function Checks({ f }: { f: MeetingFigures }) {
 }
 
 export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingReport'>) {
-  const { me, data, today, saveMeetingReport, presentMeetingReport, deleteMeetingReport } = useClub();
+  const {
+    me, data, today, saveMeetingReport, presentMeetingReport, deleteMeetingReport, attachMeetingReportPdf, removeMeetingReportPdf, meetingReportPdfUrl,
+  } = useClub();
   const id = route.params?.id ?? null;
   const report = id ? (data.meetingReports ?? []).find((r) => r.id === id) : undefined;
   const keeper = keepsBooks(me, null, data.positions);
@@ -191,7 +195,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
   const to = useDate(start.toOn);
   const [notes, setNotes] = useState(report?.notes ?? '');
   const [msg, setMsg] = useState<Msg>(null);
-  const [busy, setBusy] = useState<'save' | 'pdf' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'pdf' | 'attach' | 'open' | null>(null);
 
   const allowed = report
     ? report.presentedAt ? seesReports(me) || seesAnyLedger(me, data) : keeper
@@ -226,6 +230,35 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
         if (!report) navigation.setParams({ id: saved });
       }, fail)
       .finally(() => setBusy(null));
+  };
+
+  const attach = async () => {
+    if (!report) return;
+    setMsg(null);
+    try {
+      const file = await pickReportPdf();
+      if (!file) return;
+      setBusy('attach');
+      await attachMeetingReportPdf(report.id, file);
+      setMsg({ tone: 'ok', text: 'Your PDF is attached.' });
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const openOwn = async () => {
+    if (!report?.pdfPath) return;
+    setBusy('open');
+    setMsg(null);
+    try {
+      await Linking.openURL(await meetingReportPdfUrl(report.pdfPath));
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(null);
+    }
   };
 
   const pdf = async () => {
@@ -316,6 +349,44 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
         </Card>
       ) : null}
 
+      {editable || report?.pdfPath ? (
+        <Card>
+          <H2>{editable ? 'Your own PDF' : 'The treasurer’s PDF'}</H2>
+          {!report ? (
+            <Small>Save the draft first, then attach your PDF.</Small>
+          ) : report.pdfPath && report.pdfName ? (
+            <Row style={{ gap: space.sm, alignItems: 'center' }}>
+              <Ionicons name="document-text-outline" size={20} color={colors.boneMute} />
+              <Text style={[type.name, { flex: 1 }]} numberOfLines={2}>{report.pdfName}</Text>
+            </Row>
+          ) : (
+            <Small>Made your report somewhere else? Attach the PDF here and members can open it once it’s presented.</Small>
+          )}
+          {report?.pdfPath ? (
+            editable ? (
+              <Row style={{ gap: space.sm }}>
+                <Button style={{ flex: 1 }} label="Open" kind="secondary" icon="open-outline" busy={busy === 'open'} disabled={!!busy} onPress={openOwn} />
+                <Button style={{ flex: 1 }} label="Replace" kind="secondary" icon="attach-outline" busy={busy === 'attach'} disabled={!!busy} onPress={attach} />
+              </Row>
+            ) : (
+              <Button label="Open the PDF" kind="secondary" icon="open-outline" busy={busy === 'open'} disabled={!!busy} onPress={openOwn} />
+            )
+          ) : editable && report ? (
+            <Button label="Attach a PDF" kind="secondary" icon="attach-outline" busy={busy === 'attach'} disabled={!!busy} onPress={attach} />
+          ) : null}
+          {editable && report?.pdfPath ? (
+            <ConfirmButton
+              label="Remove the PDF"
+              confirmLabel="Remove it"
+              confirmNote="The PDF comes off this draft. The report and the books don’t change."
+              icon="trash-outline"
+              onConfirm={() => removeMeetingReportPdf(report.id).then(() => setMsg({ tone: 'ok', text: 'PDF removed.' }), fail)}
+            />
+          ) : null}
+          {editable && report ? <Small>PDF only, up to 10 MB. It’s locked with the report once you present it.</Small> : null}
+        </Card>
+      ) : null}
+
       {figures ? <Checks f={figures} /> : null}
 
       <Stack gap={space.sm}>
@@ -332,7 +403,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
             <ConfirmButton
               label="Present to members"
               confirmLabel="Present it"
-              confirmNote="Every member can read it from Me, with your notes, and it can’t be changed after."
+              confirmNote={`Every member can read it from Me, with your notes${report.pdfPath ? ' and your PDF' : ''}, and it can’t be changed after.`}
               icon="megaphone-outline"
               kind="primary"
               onConfirm={() => presentMeetingReport(report.id).then(() => setMsg({ tone: 'ok', text: 'Presented. Members can read it from Me.' }), fail)}

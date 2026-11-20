@@ -92,7 +92,7 @@ interface MovementJson { opening_cents: number; receipts_cents: number; payments
 
 export interface MeetingReportJson {
   id: string; from_on: string; to_on: string; notes: string; saved_by: string | null; saved_at: string;
-  presented_by: string | null; presented_at: string | null;
+  presented_by: string | null; presented_at: string | null; pdf_path?: string | null; pdf_name?: string | null;
   figures: {
     from: string; to: string; funds: Record<string, MovementJson>;
     credits: { code: LedgerCode; cents: number }[]; debits: { code: LedgerCode; cents: number }[];
@@ -111,6 +111,8 @@ export function toMeetingReports(raw: MeetingReportJson[] | null | undefined): R
     meetingReports: rows.map((r) => ({
       id: r.id, fromOn: r.from_on, toOn: r.to_on, notes: r.notes ?? '', savedBy: r.saved_by, savedAt: instant(r.saved_at),
       presentedBy: r.presented_by, presentedAt: maybeInstant(r.presented_at),
+      pdfPath: typeof r.pdf_path === 'string' && typeof r.pdf_name === 'string' ? r.pdf_path : null,
+      pdfName: typeof r.pdf_path === 'string' && typeof r.pdf_name === 'string' ? r.pdf_name : null,
     })),
     meetingTotals: rows.filter((r) => r.figures && typeof r.figures === 'object').map(({ id, figures: f }) => ({
       id,

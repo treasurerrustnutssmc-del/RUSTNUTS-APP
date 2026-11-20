@@ -767,6 +767,9 @@ export interface MeetingReport {
   /** Null while it's a draft. Presented reports are locked and every member can read them (13.8). */
   presentedBy: string | null;
   presentedAt: string | null;
+  /** The treasurer's own PDF, if attached: its Storage path (a local address in the demo) and name. */
+  pdfPath?: string | null;
+  pdfName?: string | null;
 }
 
 export interface FundMovement {
