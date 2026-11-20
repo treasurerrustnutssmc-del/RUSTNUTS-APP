@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   CALENDAR_RIDE, callOffProblem, cleanRideInput, isAppRide, managesCategory, MAX_RIDE_LOCATION, MAX_RIDE_NOTES, MAX_RIDE_TITLE,
   NOT_CHAPTER_RIDE_MANAGER, NOT_RIDE_MANAGER, putBackProblem, RIDE_ALREADY_OFF, RIDE_END, RIDE_GONE, RIDE_LOCATION, RIDE_NOT_OFF,
-  RIDE_NOTES, RIDE_OVER, RIDE_PAST, RIDE_START, RIDE_TITLE, readRideTime, rideEnd, rideStart, saveRideProblem, type RideInput,
+  RIDE_NOTES, RIDE_OVER, RIDE_PAST, RIDE_START, RIDE_TITLE, readRideTime, rideEnd, rideStart, saveRideProblem, ALREADY_APP_RIDE,
+  takeOverProblem, type RideInput,
 } from './newRide';
 import { member, planningClub, ride, who } from './planning.testkit';
 import type { ClubData } from './types';
@@ -128,6 +129,29 @@ test('calling off and putting back', () => {
   assert.equal(putBackProblem(sec, find(data, 'r-app'), data, NOW), RIDE_NOT_OFF);
   assert.equal(putBackProblem(sec, find(data, 'r-off'), data, NOW), CALENDAR_RIDE);
   assert.equal(putBackProblem(sec, find(data, 'r-app-off'), data, NOW), null);
+});
+
+test('taking a calendar ride over in the app: refusals in the database’s order, then allowed', () => {
+  const data = club({
+    rides: [
+      ...club().rides,
+      ride('r-cal-north', { category: 'north', startsAt: '2026-11-15T22:00:00.000Z' }),
+      ride('r-cal-past', { category: 'club', startsAt: '2026-10-20T22:00:00.000Z' }),
+      // A calendar Big 4 weekend under way (started yesterday): still changeable.
+      ride('r-cal-running', { category: 'club', allDay: true, startsAt: '2026-10-31T13:00:00.000Z', endsAt: '2026-11-02T13:00:00.000Z' }),
+    ],
+  });
+  const sec = who(data, 'sec');
+  assert.equal(takeOverProblem(null, find(data, 'r-west'), data, NOW), 'Sign in first.');
+  assert.equal(takeOverProblem(member('new', { approval: 'pending' }), find(data, 'r-west'), data, NOW), 'Only approved members can do that.');
+  assert.equal(takeOverProblem(sec, undefined, data, NOW), RIDE_GONE);
+  assert.equal(takeOverProblem(who(data, 'rider'), find(data, 'r-west'), data, NOW), NOT_RIDE_MANAGER);
+  assert.equal(takeOverProblem(who(data, 'rc2'), find(data, 'r-cal-north'), data, NOW), NOT_CHAPTER_RIDE_MANAGER);
+  assert.equal(takeOverProblem(sec, find(data, 'r-app'), data, NOW), ALREADY_APP_RIDE);
+  assert.equal(takeOverProblem(who(data, 'chair'), find(data, 'r-cal-past'), data, NOW), RIDE_OVER);
+  assert.equal(takeOverProblem(who(data, 'rc2'), find(data, 'r-west'), data, NOW), null);
+  assert.equal(takeOverProblem(who(data, 'nrc'), find(data, 'r-cal-north'), data, NOW), null);
+  assert.equal(takeOverProblem(sec, find(data, 'r-cal-running'), data, NOW), null);
 });
 
 test('the form’s times: 24-hour only, Melbourne instants, an all-day end is the midnight after its last day', () => {

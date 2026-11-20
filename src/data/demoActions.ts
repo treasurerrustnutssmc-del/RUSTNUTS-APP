@@ -740,6 +740,7 @@ export type DemoAction =
   | { action: 'saveRide'; ride: string | null; title: string; startsAt: string | null; endsAt: string | null; allDay: boolean; category: RideCategory;
       location: string | null; notes: string; website: boolean; repeat?: number; repeatField?: 'title' | 'location' | 'notes' }
   | { action: 'setRideCalledOff'; ride: string; off: boolean }
+  | { action: 'takeOverRide'; ride: string }
   | { action: 'saveCharity'; ride: string; cause: string; about: string; closesOn: string | null; places: number | null; jobs: string[]; website?: boolean; repeat?: number }
   | { action: 'signUpCharity'; ride: string; riding: boolean; pillion: boolean; guests: number; guestNames: string; job: string | null; notes: string; repeat?: number }
   | { action: 'withdrawCharity'; ride: string };
@@ -838,6 +839,8 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
     }
     case 'setRideCalledOff':
       return rides.setRideCalledOff(ctx, a.ride, a.off);
+    case 'takeOverRide':
+      return rides.takeOverRide(ctx, a.ride);
     case 'saveCharity':
       return charity.saveCharity(ctx, a.ride, { cause: a.cause, about: a.about.repeat(a.repeat ?? 1), closesOn: a.closesOn, places: a.places, jobs: a.jobs, website: a.website });
     case 'signUpCharity':

@@ -44,7 +44,7 @@ import { ShareRideButton } from './shareRide';
 import { HubSection, RideCallBanner, RidePlanSection, SwapSection } from './ridePlanning'; // Ride planning extras
 import { CharitySection } from './charity'; // Charity ride sign-ups
 import { isCharityRide } from '../domain/charity'; // Charity ride sign-ups
-import { callOffProblem, isAppRide, managesAnyCategory, putBackProblem, RIDE_OVER, saveRideProblem } from '../domain/newRide'; // Rides made in the app
+import { callOffProblem, isAppRide, managesAnyCategory, putBackProblem, RIDE_OVER, saveRideProblem, takeOverProblem } from '../domain/newRide'; // Rides made in the app
 // Stage 3 (lane B): ride chat and wall
 import { RideChatRows } from './chat';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
@@ -429,7 +429,7 @@ export function RideRow({
 const ANSWERS: RsvpAnswer[] = ['going', 'maybe', 'no'];
 
 export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>) {
-  const { me, data, today, setRsvp, setRideCalledOff } = useClub();
+  const { me, data, today, setRsvp, setRideCalledOff, takeOverRide } = useClub();
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
   const toast = useToast();
   const [error, setError] = useState<string | null>(null);
@@ -513,6 +513,20 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
   const mayCallOff = appRide && callOffProblem(me, ride, data, nowIso) === null;
   const mayPutBack = appRide && putBackProblem(me, ride, data, nowIso) === null;
   const rideOver = appRide && managesRide(me, ride, data) && lastDay(ride) < today;
+  // A calendar ride a manager can take over, so it changes here instead of in the calendar.
+  const mayTakeOver = !appRide && takeOverProblem(me, ride, data, nowIso) === null;
+  const takeOver = async () => {
+    setOffError(null);
+    setOffBusy(true);
+    try {
+      await takeOverRide(ride.id);
+      navigation.navigate('EditRide', { rideId: ride.id });
+    } catch (e) {
+      setOffError((e as Error).message);
+    } finally {
+      setOffBusy(false);
+    }
+  };
   const switchOff = async (off: boolean) => {
     setOffError(null);
     setOffBusy(true);
@@ -619,6 +633,19 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
               <ConfirmButton label="Put it back on" confirmLabel="Yes, it’s on" kind="secondary" size="small" disabled={offBusy} onConfirm={() => switchOff(false)} />
             ) : null}
           </Row>
+        ) : null}
+        {mayTakeOver ? (
+          <ConfirmButton
+            label="Change it in the app"
+            confirmLabel="Yes, take it over"
+            confirmNote="The club calendar won’t change this ride any more. Change it here from now on."
+            icon="create-outline"
+            kind="secondary"
+            size="small"
+            disabled={offBusy}
+            style={{ alignSelf: 'flex-start' }}
+            onConfirm={() => void takeOver()}
+          />
         ) : null}
         {rideOver ? <Small>{RIDE_OVER}</Small> : null}
         {offError ? <Notice tone="danger">{offError}</Notice> : null}

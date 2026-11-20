@@ -616,6 +616,7 @@ export type Database = {
         Returns: string;
       };
       set_ride_called_off: { Args: { p_id: string; p_off: boolean }; Returns: undefined };
+      take_over_ride: { Args: { p_id: string }; Returns: undefined };
       save_charity: {
         Args: {
           p_ride: string; p_cause: string; p_about: string | null; p_closes_on: string | null; p_places: number | null; p_jobs: string[];

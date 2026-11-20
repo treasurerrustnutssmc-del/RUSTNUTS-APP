@@ -21,8 +21,8 @@ import { rangeProblem } from '../domain/fuel';
 import { registerProblem, saveHubProblem, withdrawHubProblem } from '../domain/hubs';
 import { saveCharityProblem, signupProblem, withdrawCharityProblem } from '../domain/charity'; // Charity ride sign-ups
 import { saveCharityArgs, signUpCharityArgs } from './charityLive'; // Charity ride sign-ups
-import { callOffProblem, putBackProblem, RIDE_GONE, saveRideProblem } from '../domain/newRide'; // Rides made in the app
-import { saveRideArgs, setRideCalledOffArgs } from './rideLive'; // Rides made in the app
+import { callOffProblem, putBackProblem, RIDE_GONE, saveRideProblem, takeOverProblem } from '../domain/newRide'; // Rides made in the app
+import { saveRideArgs, setRideCalledOffArgs, takeOverRideArgs } from './rideLive'; // Rides made in the app
 import { removeWebsiteSignupProblem } from '../domain/websiteSignups';
 import { rateProblem } from '../domain/ratings';
 import { callProblem } from '../domain/rideCalls';
@@ -1025,6 +1025,11 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       deny(off ? callOffProblem(visibleMe, ride, data, now) : putBackProblem(visibleMe, ride, data, now));
       ok(await supabase().rpc('set_ride_called_off', setRideCalledOffArgs(id, off)));
+      await after();
+    },
+    takeOverRide: async (id) => {
+      deny(takeOverProblem(visibleMe, data.rides.find((r) => r.id === id), data, new Date().toISOString()));
+      ok(await supabase().rpc('take_over_ride', takeOverRideArgs(id)));
       await after();
     },
     // Charity ride sign-ups

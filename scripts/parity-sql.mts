@@ -980,6 +980,8 @@ const planningCall = (c: ParityCase & Record<string, any>): string | null => {
     }
     case 'setRideCalledOff':
       return `public.set_ride_called_off(${id('r', c.ride)}, ${c.off})`;
+    case 'takeOverRide':
+      return `public.take_over_ride(${id('r', c.ride)})`;
     default:
       return null;
   }

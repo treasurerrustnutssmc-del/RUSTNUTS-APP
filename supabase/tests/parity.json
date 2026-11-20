@@ -16184,6 +16184,41 @@
       "allowed": false,
       "ride": "past-club",
       "off": true
+    },
+    {
+      "name": "Calendar take-over: someone not signed in can't take a calendar ride over",
+      "as": null,
+      "action": "takeOverRide",
+      "allowed": false,
+      "ride": "calendar-west"
+    },
+    {
+      "name": "Calendar take-over: a member without a seat can't take a calendar ride over",
+      "as": "spanner",
+      "action": "takeOverRide",
+      "allowed": false,
+      "ride": "calendar-west"
+    },
+    {
+      "name": "Calendar take-over: North's road captain can't take a West calendar ride over",
+      "as": "crank",
+      "action": "takeOverRide",
+      "allowed": false,
+      "ride": "calendar-west"
+    },
+    {
+      "name": "Calendar take-over: a ride already made in the app can't be taken over",
+      "as": "torque",
+      "action": "takeOverRide",
+      "allowed": false,
+      "ride": "future-west"
+    },
+    {
+      "name": "Calendar take-over: the West secretary takes a West calendar ride over",
+      "as": "torque",
+      "action": "takeOverRide",
+      "allowed": true,
+      "ride": "calendar-west"
     }
   ],
   "chapters": [

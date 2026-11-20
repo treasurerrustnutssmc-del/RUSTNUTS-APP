@@ -11,4 +11,6 @@ export const saveRideArgs = (raw: RideInput, id: string | null) => {
   };
 };
 
+export const takeOverRideArgs = (id: string) => ({ p_id: id });
+
 export const setRideCalledOffArgs = (id: string, off: boolean) => ({ p_id: id, p_off: off });
