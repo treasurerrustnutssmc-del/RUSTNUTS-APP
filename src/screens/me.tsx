@@ -11,6 +11,7 @@ import { MyNotices } from './notices'; // the 5.5 notice
 import type { LicenceClass } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: notifications
+import { UsageToggle } from './appUsage';
 import { NotificationSettings } from './notificationSettings';
 // Stage 7: social extras
 import { MeSocialSection } from './social';
@@ -286,6 +287,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
                     }}
                   />
                   {shareError ? <Notice tone="danger">{shareError}</Notice> : null}
+                  <UsageToggle />
                   {/* Lane E: live ride */}
                   <Small>Live ride location sharing is always your choice, switches off after the ride, and keeps nothing.</Small>
                 </Card>
@@ -631,4 +633,3 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
     </Screen>
   );
 }
-

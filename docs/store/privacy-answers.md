@@ -11,7 +11,10 @@ Keep the three in step: when the app starts collecting something new, change the
 - **Contact email:** apps@rustnutssmc.com.au
 
 Rules used for both forms:
-- No advertising code, no ad networks and no analytics code of the club's own. The only ads are the
+- No advertising code, no ad networks and no analytics service. The club's own anonymous app usage
+  counts (from 21/11/2026: screens each visit goes through and the kind of error shown, never its words, a random per-visit
+  id, no account link, deleted after 90 days, switch on the Me tab under Privacy) are the only
+  analytics; they're declared under App interactions and Diagnostics below. The only ads are the
   club's own sponsors. On Android two Google parts the app uses send Google usage and diagnostic data
   under Google's own terms: the Maps SDK (draws ride maps: IP address, device and SDK details, a
   pseudonymous Maps SDK ID, crash traces and map pan/zoom) and ML Kit (reads the check-in QR code on the
@@ -77,17 +80,28 @@ same day. Change this table and the policy together if anything changes.
 | Audio | Voice or sound recordings (voice notes) | Optional | No | App functionality | |
 | Files and docs | Files and docs (route files, Otter transcript text) | Optional | No | App functionality | |
 | Contacts | Contacts (emergency contacts and the member's block list) | Optional | No | App functionality | |
-| App activity | App interactions (chat read markers, daily question counts, Maps SDK map moves) | Required | **Yes** (Google, Maps SDK) | App functionality, Analytics | Analytics |
+| App activity | App interactions (chat read markers, daily question counts, anonymous app usage counts of screens reached, Maps SDK map moves) | Required | **Yes** (Google, Maps SDK) | App functionality, Analytics | Analytics |
 | App activity | In-app search history (GIF search words) | Optional | **Yes** (GIPHY) | App functionality | App functionality |
 | App activity | Other user-generated content (listings, build threads, nominations, app-made rides, routes, Rusty Bus, charity sign-ups, reviews, captions, feedback text, Ask the club questions) | Optional | No | App functionality | |
 | App activity | Other actions (RSVPs, check-ins, votes, reactions, blocks, pins, sign-offs, notification settings) | Required | No | App functionality | |
 | App info and performance | Crash logs (Expo's error from a failed update launch; Maps SDK crash traces) | Required | **Yes** (Google, Maps SDK) | App functionality, Analytics | Analytics |
-| App info and performance | Diagnostics (app version, build and device on feedback reports and sign-in logs; Maps SDK and ML Kit device and usage details) | Required | **Yes** (Google: Maps SDK and ML Kit) | App functionality, Analytics, Fraud prevention, security and compliance | Analytics, App functionality |
+| App info and performance | Diagnostics (app version, build and device on feedback reports and sign-in logs; the kind of error shown (never its words), app version and phone type in the anonymous app usage counts; Maps SDK and ML Kit device and usage details) | Required | **Yes** (Google: Maps SDK and ML Kit) | App functionality, Analytics, Fraud prevention, security and compliance | Analytics, App functionality |
 | Device or other IDs | Device or other IDs (Expo install ID, Firebase installation ID, push tokens, Maps SDK ID, ML Kit install ID) | Required | **Yes** (Google: Maps SDK ID and ML Kit install ID) | App functionality, Analytics | Analytics |
 
 Not collected: Calendar events, Fitness info, Web browsing history, Other app performance data, User
 payment info, Credit score, Race and ethnicity, Political or religious beliefs, Sexual orientation, Emails,
 SMS or MMS, Music files, Other audio files, Installed apps.
+
+## App usage counts (21/11/2026): what changes in each store
+
+- **Google Play:** no new rows or ticks. App interactions and Diagnostics already have Collected for
+  Analytics (from the Maps SDK rows), so only the descriptions above change. Nothing to resubmit.
+- **App Store Connect:** Usage Data › Product Interaction and Diagnostics › Other Diagnostic Data each
+  gain the **Analytics** purpose. Both stay "Linked to the user: Yes", because the other data in those
+  rows is linked (Apple asks once per data type). Edit before the App Store release.
+- **iOS privacy manifest** (`app.json` `ios.privacyManifests`): add the Analytics purpose to the same two
+  types with the next native build, not now: an `app.json` change stops over-the-air updates reaching
+  the builds already out.
 
 ## Apple: App Privacy (App Store Connect)
 
@@ -122,8 +136,8 @@ Other Purposes: No), unless the row says otherwise.
 | Purchases | Purchase History | Club merch orders: item, size, quantity, price, status. Paid outside the app by PayID, bank or cash; no payment details |
 | Diagnostics | Crash Data | **Linked to the user: No.** When an update fails to launch, the Expo updates client sends that error and a random install id on its next update check. Tracking: No. Purpose: App Functionality |
 | Health and Fitness | Health | Health or injury reasons for an excused check-in or Big 4 ride, entered by the member's board |
-| Usage Data | Product Interaction | How far each member has read in each chat, and each member's daily count of Ask the club and Catch me up questions |
-| Diagnostics | Other Diagnostic Data | App version, build and device/OS attached to a feedback or issue report |
+| Usage Data | Product Interaction | How far each member has read in each chat, and each member's daily count of Ask the club and Catch me up questions. From 21/11/2026 also the anonymous app usage counts (screens reached): **Purposes: App Functionality and Analytics** |
+| Diagnostics | Other Diagnostic Data | App version, build and device/OS attached to a feedback or issue report. From 21/11/2026 also the kinds of error counted by the anonymous app usage counts: **Purposes: App Functionality and Analytics** |
 
 Not collected: Fitness, Sensitive Info, Contacts (address book; Apple's definition includes "social
 graph", which a block list arguably is, but it's kept as not collected), Browsing History, Usage Data

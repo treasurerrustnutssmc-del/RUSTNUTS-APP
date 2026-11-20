@@ -35,6 +35,7 @@ import { BoardAttendance } from './attendance';
 import { WebsiteEnquiries } from './enquiries';
 import { WebsiteNews } from './siteNews'; // club news for the website
 import { WebsiteVisits } from './siteVisits'; // website page views
+import { AppUsage } from './appUsage'; // app screens reached, anonymous
 import { AppFeedbackSection } from './feedback'; // Feedback and issues
 import { termState } from '../domain/terms';
 import { seatTitle } from '../domain/home';
@@ -402,6 +403,7 @@ export function BoardScreen({ navigation, route }: TabScreen<'Board'>) {
                 <WebsiteNews onDone={setDone} />
                 <WebsiteVisits />
                 <AppFeedbackSection onDone={setDone} />
+                <AppUsage />
               </>
             ) : null}
           </Disclosure>

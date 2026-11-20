@@ -15,7 +15,7 @@ export const PRIVACY_URL = 'https://www.rustnutssmc.com.au/app/privacy.html';
 export const PRIVACY_EMAIL = 'apps@rustnutssmc.com.au';
 
 /** ISO date the policy last changed. */
-export const PRIVACY_UPDATED_ON = '2026-11-15';
+export const PRIVACY_UPDATED_ON = '2026-11-21';
 
 /** A paragraph, or a list of points. */
 export type PrivacyBlock = string | { points: string[] };
@@ -58,10 +58,11 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Club records: where the constitution needs them, board decisions about your membership and conduct records. If your board excuses you from a check-in or a Big 4 ride, the reason is recorded, which can be health or injury; only you, your chapter’s board, the club’s national office-bearers and (for check-in excusals) the club’s Auditor see it.',
           'Your location, speed and direction, only during a live ride you’ve turned on (see “Location” below).',
           'Forms on the club website (rustnutssmc.com.au): if you send a join enquiry, your name, email, chapter and note go to that chapter’s board; if you sign up for a charity ride, your name, email, phone and answers go only to the people running that ride and are deleted with it. Neither form needs an account.',
+          'App usage: which screens each visit to the app goes through, and what kind of error showed on a screen (a connection problem, something you’re not allowed to do, a form to fix, or something else; never the words of the message), with the app version, the phone type (iPhone, Android or web) and whether the visit was signed out, a member, Family or the board. It isn’t linked to you: a visit is a random number made when the app opens (and again when someone else signs in), not linked to you or your phone, and no name, email, phone number, location or device ID is kept with it. Only the board sees it, as screens per visit and totals with no times, and it’s deleted after 90 days. Like everything the app sends, it passes through the request logs described under “Services that help run the app”. You can switch it off on the Me tab, under Privacy: “Help improve the app”; until you’ve signed in, screens are counted unless you switched it off before.',
           'Your phone: a push notification token so the app can send you alerts, your notification settings, and which device type you use (iPhone or Android). Like most online services, our servers also log the IP address and device details of each sign-in, for security.',
         ],
       },
-      'We don’t read your phone’s contacts, your browsing, advertising identifiers or anything from other apps. There’s no advertising code in the app and no analytics of the club’s own, but on Android two Google parts the app uses (the Maps SDK that draws ride maps, and ML Kit, which reads the check-in code) send Google usage and diagnostic data; see “Services that help run the app”. The club website (rustnutssmc.com.au) counts page views per day per page so the board knows which pages get read: the count keeps no cookies, no addresses, no device details and nothing about who, and it skips browsers that ask not to be tracked. (The ping passes through the same servers as the app, whose short-lived request logs are covered below under “Services that help run the app”.)',
+      'We don’t read your phone’s contacts, your browsing, advertising identifiers or anything from other apps. There’s no advertising code in the app, and no analytics service: the only usage counts are the club’s own anonymous ones above. On Android two Google parts the app uses (the Maps SDK that draws ride maps, and ML Kit, which reads the check-in code) send Google usage and diagnostic data; see “Services that help run the app”. The club website (rustnutssmc.com.au) counts page views per day per page so the board knows which pages get read: the count keeps no cookies, no addresses, no device details and nothing about who, and it skips browsers that ask not to be tracked. (The ping passes through the same servers as the app, whose short-lived request logs are covered below under “Services that help run the app”.)',
     ],
   },
   {

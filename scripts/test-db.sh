@@ -555,6 +555,14 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_app_feedback -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_app_feedback -f "$ROOT/supabase/tests/app_feedback_test.sql"
+# App usage counts (anonymous), on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_app_usage" >/dev/null
+"${PSQL[@]}" -d rustnuts_app_usage -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_app_usage -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_app_usage -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_app_usage -f "$ROOT/supabase/tests/app_usage_test.sql"
 
 # The club shop (in-app merch ordering into Make), on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_shop" >/dev/null

@@ -27,6 +27,7 @@ import { STATUS_LABEL, ROLE_SHORT } from '../domain/labels';
 import type { MemberStatus, PositionRole } from '../domain/types';
 import type { Compass } from '../domain/compass';
 import { colors, fonts, MAX_CONTENT_WIDTH, radius, space, type } from '../theme';
+import { noticeErrors } from './noticeHook';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -681,10 +682,13 @@ export function Notice({
   title,
   children,
   onPress,
+  notAnError = false,
 }: {
   tone?: NoticeTone;
   title?: string;
   children?: React.ReactNode;
+  /** A red notice that isn't an error (a decision, a warning to read), so App usage doesn't count it. */
+  notAnError?: boolean;
   /** Makes the whole notice a button to where it gets dealt with, with a chevron to say so. */
   onPress?: () => void;
 }) {
@@ -694,6 +698,10 @@ export function Notice({
     warn: { bg: colors.warnBg, fg: colors.warn, icon: 'alert-circle' as IconName },
     danger: { bg: colors.dangerBg, fg: colors.danger, icon: 'warning' as IconName },
   }[tone];
+  const errorText = tone === 'danger' && !notAnError ? noticeText(title, children) : '';
+  useEffect(() => {
+    if (errorText) noticeErrors.report(errorText);
+  }, [errorText]);
   const content = (
     <>
       <Ionicons name={t.icon} size={20} color={t.fg} style={{ marginTop: 1 }} />
@@ -718,6 +726,16 @@ export function Notice({
       {content}
     </Pressable>
   );
+}
+
+/** The plain words of a notice, for sorting into an error kind (the words are never kept or sent). */
+function noticeText(title: string | undefined, children: React.ReactNode): string {
+  const parts: string[] = [];
+  if (title) parts.push(title);
+  React.Children.forEach(children, (c) => {
+    if (typeof c === 'string' || typeof c === 'number') parts.push(String(c));
+  });
+  return parts.join(' ').trim();
 }
 
 export function LockNote({ text = 'Board only' }: { text?: string }) {

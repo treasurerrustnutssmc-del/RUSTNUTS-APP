@@ -3,9 +3,10 @@ import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom
 import { HeaderBackButton, HeaderTitle } from '@react-navigation/elements';
 import { createNavigationContainerRef, DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usageNewVisit, usageScreenChanged, usageScreenReader, useUsageSender } from '../data/usage';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { pendingFor } from '../domain/access';
@@ -290,19 +291,31 @@ function FamilyTabs() {
 
 // For the banner over every screen, which sits outside the navigators.
 const navigationRef = createNavigationContainerRef<RootParams>();
+usageScreenReader(() => (navigationRef.isReady() ? navigationRef.getCurrentRoute()?.name ?? null : null));
 
 export function RootNavigator() {
   const { level, me, needsApplication, loadError } = useClub();
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
   const toastScreenChange = useToastScreenChange();
+  useUsageSender();
+  // App usage: a new visit when someone else signs in, so two people on one phone stay apart.
+  const firstKey = useRef(stackKey);
+  useEffect(() => {
+    if (firstKey.current === stackKey) return;
+    firstKey.current = stackKey;
+    usageNewVisit();
+  }, [stackKey]);
   return (
     <NavigationContainer
       ref={navigationRef}
       theme={navTheme}
+      onReady={() => usageScreenChanged(navigationRef.getRootState())}
       onStateChange={(state) => {
         // Toasts clear when you move on, and sit lower on a stack screen (no tab bar).
         const focused = state?.routes[state.index ?? 0];
         toastScreenChange(focused?.name === 'Tabs');
+        // App usage counts: which screen is showing (nothing about who).
+        usageScreenChanged(state);
       }}
     >
       {/* Lane E: notifications */}
