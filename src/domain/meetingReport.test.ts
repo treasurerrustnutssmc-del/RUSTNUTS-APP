@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import { KEEPS_ONLY } from './ledger';
 import {
-  bankCents, defaultPeriod, deleteMeetingProblem, figuresFor, meetingChecks, meetingFigures, meetingLines, meetingProblem,
+  attachPdfProblem, bankCents, defaultPeriod, deleteMeetingProblem, MR_PDF_BIG, MR_PDF_TYPE, pdfFileName, removePdfProblem, figuresFor, meetingChecks, meetingFigures, meetingLines, meetingProblem,
   monthRowLabel, MR_FUTURE, MR_LOCKED, MR_NOTES, MR_ONE_YEAR, MR_ORDER, MR_RANGE, preparedBy, presentMeetingProblem,
   readOut, readsEveryFund,
 } from './meetingReport';
@@ -150,6 +150,28 @@ test('presenting and deleting: drafts only, by a Club fund book-keeper', () => {
   const edit = { fromOn: '2026-07-01', toOn: '2026-07-31', notes: '' };
   assert.equal(meetingProblem(me('m-sparks'), 'mr-0', edit, withReports, TODAY), MR_LOCKED);
   assert.equal(meetingProblem(me('m-sparks'), 'mr-9', edit, withReports, TODAY), 'No such report.');
+});
+
+test('the treasurer’s own PDF: books keeper, drafts only, a PDF of 10 MB or less', () => {
+  const pdf = { name: 'October report.pdf', size: 200_000, mimeType: 'application/pdf' };
+  assert.equal(attachPdfProblem(me('m-sparks'), 'mr-1', pdf, withReports), null);
+  assert.equal(attachPdfProblem(me('m-torque'), 'mr-1', pdf, withReports), KEEPS_ONLY);
+  assert.equal(attachPdfProblem(null, 'mr-1', pdf, withReports), 'Sign in first.');
+  assert.equal(attachPdfProblem(me('m-sparks'), 'mr-9', pdf, withReports), 'No such report.');
+  assert.equal(attachPdfProblem(me('m-sparks'), 'mr-0', pdf, withReports), MR_LOCKED);
+  assert.equal(attachPdfProblem(me('m-sparks'), 'mr-1', { ...pdf, name: 'photo.jpg', mimeType: 'image/jpeg' }, withReports), MR_PDF_TYPE);
+  assert.equal(attachPdfProblem(me('m-sparks'), 'mr-1', { ...pdf, mimeType: null }, withReports), null, 'a .pdf name is enough');
+  assert.equal(attachPdfProblem(me('m-sparks'), 'mr-1', { ...pdf, name: 'report', mimeType: 'application/pdf' }, withReports), null, 'so is the type');
+  assert.equal(attachPdfProblem(me('m-sparks'), 'mr-1', { ...pdf, size: 10 * 1024 * 1024 }, withReports), null, '10 MB is fine');
+  assert.equal(attachPdfProblem(me('m-sparks'), 'mr-1', { ...pdf, size: 10 * 1024 * 1024 + 1 }, withReports), MR_PDF_BIG);
+  assert.equal(attachPdfProblem(me('m-sparks'), 'mr-1', { ...pdf, size: null }, withReports), null, 'an unknown size is left to the bucket');
+  assert.equal(removePdfProblem(me('m-sparks'), 'mr-1', withReports), null);
+  assert.equal(removePdfProblem(me('m-torque'), 'mr-1', withReports), KEEPS_ONLY);
+  assert.equal(removePdfProblem(me('m-sparks'), 'mr-0', withReports), MR_LOCKED);
+  assert.equal(removePdfProblem(me('m-sparks'), 'mr-9', withReports), 'No such report.');
+  assert.equal(pdfFileName('  Oct.pdf  '), 'Oct.pdf');
+  assert.equal(pdfFileName('x'.repeat(130)), 'x'.repeat(120));
+  assert.equal(pdfFileName('   '), 'Treasurer’s report.pdf', 'a blank name gets one');
 });
 
 test('the default period runs on from the last presented report, inside this financial year', () => {

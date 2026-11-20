@@ -225,7 +225,7 @@ export function TreasuryScreen({ navigation }: RootScreen<'Treasury'>) {
           <ListRow
             left={<IconBadge icon="megaphone-outline" />}
             title="Report for a meeting"
-            subtitle={draft ? `Draft · ${formatAuDate(draft.fromOn)} to ${formatAuDate(draft.toOn)}` : 'Any period, with your notes, as a PDF'}
+            subtitle={draft ? `Draft · ${formatAuDate(draft.fromOn)} to ${formatAuDate(draft.toOn)}` : 'Any period, with your notes, or attach your own PDF'}
             onPress={() => navigation.navigate('MeetingReport', draft ? { id: draft.id } : {})}
           />
         ) : null}
@@ -972,7 +972,7 @@ export function ClubFinancesScreen({ navigation }: RootScreen<'ClubFinances'>) {
                 last={i === meetings.length - 1}
                 left={<IconBadge icon="megaphone-outline" />}
                 title={`${monthName(r.toOn)} ${r.toOn.slice(0, 4)}`}
-                subtitle={`${formatAuDate(r.fromOn)} to ${formatAuDate(r.toOn)}`}
+                subtitle={`${formatAuDate(r.fromOn)} to ${formatAuDate(r.toOn)}${r.pdfPath ? ' · with PDF' : ''}`}
                 right={(() => {
                   const f = figuresFor(r, data);
                   return f ? <Text style={[type.name, num, { color: colors.boneDim }]}>{formatCents(bankCents(f, 'closing'))}</Text> : undefined;

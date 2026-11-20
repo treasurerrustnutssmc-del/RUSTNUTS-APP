@@ -886,6 +886,7 @@ export type Database = {
       save_meeting_report: { Args: { p_id: string | null; p_from: string; p_to: string; p_notes: string }; Returns: string };
       present_meeting_report: { Args: { p_id: string }; Returns: undefined };
       delete_meeting_report: { Args: { p_id: string }; Returns: undefined };
+      set_meeting_report_pdf: { Args: { p_id: string; p_path: string | null; p_name: string | null }; Returns: undefined };
       // Stage 5C: document library
       club_documents: { Args: never; Returns: DocumentsJson };
       document_body: { Args: { p_version: string }; Returns: string | null };

@@ -102,7 +102,8 @@ import {
   addFeeProblem, approveBudgetProblem, approveProblem, budgetProblem, creditProblem, debitProblem, floatProblem, openingProblem,
   payProblem, presentProblem, reopenBudgetProblem, voidProblem,
 } from '../domain/ledger'; // Stage 5B
-import { deleteMeetingProblem, meetingProblem, presentMeetingProblem } from '../domain/meetingReport';
+import { attachPdfProblem, deleteMeetingProblem, meetingProblem, MR_PDF_BIG, pdfFileName, presentMeetingProblem, removePdfProblem } from '../domain/meetingReport';
+import { reportPdfBytes } from './reportPdfFile';
 import {
   cleanDocumentInput, cleanVersionInput, createDocumentProblem, markReviewedProblem, publishVersionProblem, recordApprovalProblem,
   signDocumentProblem,
@@ -120,6 +121,7 @@ import { prepareUpload } from './chat/media';
 import { SHOP_PICTURE_BUCKET, placeOrderBody, shopFunctionWords } from './shopLive'; // The club shop
 
 const clubCache = createClubCache(AsyncStorage);
+const MEETING_PDF_BUCKET = 'treasurer-reports';
 
 const deny = (problem: string | null) => {
   if (problem) throw new NotAllowedError(problem);
@@ -1154,6 +1156,34 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       deny(deleteMeetingProblem(visibleMe, id, data));
       ok(await supabase().rpc('delete_meeting_report', { p_id: id }));
       await after();
+    },
+    // The treasurer's own PDF: up into the report's folder, then attached; a refused attach takes the file back out.
+    attachMeetingReportPdf: async (id, file) => {
+      deny(attachPdfProblem(visibleMe, id, file, data));
+      const path = `${id}/${newClientRef()}.pdf`;
+      const bytes = await reportPdfBytes(file);
+      const up = await supabase().storage.from(MEETING_PDF_BUCKET).upload(path, bytes, { contentType: 'application/pdf', upsert: false });
+      if (up.error) {
+        const big = /size|too large|413/i.test(`${up.error.message ?? ''} ${(up.error as { statusCode?: string }).statusCode ?? ''}`);
+        throw new Error(big ? MR_PDF_BIG : 'That PDF couldn’t be uploaded. Check your signal and try again.');
+      }
+      const r = await supabase().rpc('set_meeting_report_pdf', { p_id: id, p_path: path, p_name: pdfFileName(file.name) });
+      if (r.error) {
+        supabase().storage.from(MEETING_PDF_BUCKET).remove([path]).then(() => undefined, () => undefined);
+        throw friendlyError(r.error);
+      }
+      await after();
+    },
+    removeMeetingReportPdf: async (id) => {
+      deny(removePdfProblem(visibleMe, id, data));
+      ok(await supabase().rpc('set_meeting_report_pdf', { p_id: id, p_path: null, p_name: null }));
+      await after();
+    },
+    meetingReportPdfUrl: async (path) => {
+      const { data: signed, error } = await supabase().storage.from(MEETING_PDF_BUCKET).createSignedUrl(path, 600);
+      if (error) throw friendlyError(error);
+      if (!signed) throw new Error('The PDF couldn’t be opened. Try again.');
+      return signed.signedUrl;
     },
 
     // Stage 5C: document library. The same rule first, then the database.

@@ -6,7 +6,9 @@ import {
   FEES_CODE, floatProblem, openingProblem, payProblem, presentProblem, reopenBudgetProblem, voidProblem,
   type CreditInput, type DebitInput,
 } from '../domain/ledger';
-import { deleteMeetingProblem, meetingProblem, presentMeetingProblem, type MeetingReportInput } from '../domain/meetingReport';
+import {
+  attachPdfProblem, deleteMeetingProblem, meetingProblem, pdfFileName, presentMeetingProblem, removePdfProblem, type MeetingReportInput, type PickedPdf,
+} from '../domain/meetingReport';
 import type { Budget, ClubData, LedgerCode, LedgerEntry } from '../domain/types';
 import { NotAllowedError } from './clubContext';
 import type { DemoCtx } from './demoActions';
@@ -158,6 +160,19 @@ export function presentMeetingReport(ctx: DemoCtx, id: string): ClubData {
 export function deleteMeetingReport(ctx: DemoCtx, id: string): ClubData {
   refuse(deleteMeetingProblem(ctx.me, id, ctx.data));
   return { ...ctx.data, meetingReports: (ctx.data.meetingReports ?? []).filter((r) => r.id !== id) };
+}
+
+/** Attaches the treasurer's own PDF to a draft. The demo keeps the picked file's local address. */
+export function attachMeetingReportPdf(ctx: DemoCtx, id: string, file: PickedPdf & { uri: string }): ClubData {
+  refuse(attachPdfProblem(ctx.me, id, file, ctx.data));
+  const meetingReports = (ctx.data.meetingReports ?? []).map((r) => (r.id === id ? { ...r, pdfPath: file.uri, pdfName: pdfFileName(file.name) } : r));
+  return { ...ctx.data, meetingReports };
+}
+
+export function removeMeetingReportPdf(ctx: DemoCtx, id: string): ClubData {
+  refuse(removePdfProblem(ctx.me, id, ctx.data));
+  const meetingReports = (ctx.data.meetingReports ?? []).map((r) => (r.id === id ? { ...r, pdfPath: null, pdfName: null } : r));
+  return { ...ctx.data, meetingReports };
 }
 
 /** The treasurer actions the shared parity cases use, by name. Dates are ISO; a case gives them as …Days from today. */

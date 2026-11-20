@@ -272,6 +272,9 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     },
     presentMeetingReport: async (id) => setData(ledger.presentMeetingReport(ctx, id)),
     deleteMeetingReport: async (id) => setData(ledger.deleteMeetingReport(ctx, id)),
+    attachMeetingReportPdf: async (id, file) => setData(ledger.attachMeetingReportPdf(ctx, id, file)),
+    removeMeetingReportPdf: async (id) => setData(ledger.removeMeetingReportPdf(ctx, id)),
+    meetingReportPdfUrl: async (path) => path, // the demo keeps the picked file's own address
     // Stage 5D: board and admin
     recordConduct: async (input) => {
       const result = admin.recordConduct(ctx, input);
