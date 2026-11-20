@@ -433,7 +433,7 @@ export function BusBookingScreen({ route, navigation }: RootScreen<'BusBooking'>
   return (
     <Screen>
       {booking.status === 'declined' ? (
-        <Notice tone="danger" title={`No from ${name(booking.decidedBy)}`}>
+        <Notice tone="danger" notAnError title={`No from ${name(booking.decidedBy)}`}>
           <Stack gap={space.xs}>
             {booking.declineReason ? (
               <Body selectable style={{ color: colors.bone }}>

@@ -27,6 +27,7 @@ import { STATUS_LABEL, ROLE_SHORT } from '../domain/labels';
 import type { MemberStatus, PositionRole } from '../domain/types';
 import type { Compass } from '../domain/compass';
 import { colors, fonts, MAX_CONTENT_WIDTH, radius, space, type } from '../theme';
+import { noticeErrors } from './noticeHook';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -676,21 +677,18 @@ export function ListRow({
 
 type NoticeTone = 'info' | 'ok' | 'warn' | 'danger';
 
-/**
- * Where a shown error message is counted for the board's App usage card (src/data/usage.ts sets it).
- * Kept as a hook-in here so the shared UI doesn't import the data layer.
- */
-export const noticeErrors: { report: (message: string) => void } = { report: () => undefined };
-
 export function Notice({
   tone = 'info',
   title,
   children,
   onPress,
+  notAnError = false,
 }: {
   tone?: NoticeTone;
   title?: string;
   children?: React.ReactNode;
+  /** A red notice that isn't an error (a decision, a warning to read), so App usage doesn't count it. */
+  notAnError?: boolean;
   /** Makes the whole notice a button to where it gets dealt with, with a chevron to say so. */
   onPress?: () => void;
 }) {
@@ -700,7 +698,7 @@ export function Notice({
     warn: { bg: colors.warnBg, fg: colors.warn, icon: 'alert-circle' as IconName },
     danger: { bg: colors.dangerBg, fg: colors.danger, icon: 'warning' as IconName },
   }[tone];
-  const errorText = tone === 'danger' ? noticeText(title, children) : '';
+  const errorText = tone === 'danger' && !notAnError ? noticeText(title, children) : '';
   useEffect(() => {
     if (errorText) noticeErrors.report(errorText);
   }, [errorText]);
@@ -730,7 +728,7 @@ export function Notice({
   );
 }
 
-/** The plain words of a notice, for counting: its title and any string children. */
+/** The plain words of a notice, for sorting into an error kind (the words are never kept or sent). */
 function noticeText(title: string | undefined, children: React.ReactNode): string {
   const parts: string[] = [];
   if (title) parts.push(title);

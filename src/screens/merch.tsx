@@ -208,7 +208,7 @@ export function MerchItemScreen({ route, navigation }: RootScreen<'MerchItem'>) 
         {runs ? <Small>{`Put up by ${proposer ? displayName(proposer) : 'a former member'}`}</Small> : null}
       </Card>
 
-      {item.status === 'declined' ? <Notice tone="danger" title="Declined">{item.declineReason || 'No reason given.'}</Notice> : null}
+      {item.status === 'declined' ? <Notice tone="danger" notAnError title="Declined">{item.declineReason || 'No reason given.'}</Notice> : null}
 
       {item.status === 'on_sale' && me.status !== 'legacy' ? (
         <>
@@ -379,7 +379,7 @@ export function MerchOrderScreen({ route, navigation }: RootScreen<'MerchOrder'>
         ) : null}
       </Card>
 
-      {order.status === 'declined' ? <Notice tone="danger" title="Declined">{order.declineReason || 'No reason given.'}</Notice> : null}
+      {order.status === 'declined' ? <Notice tone="danger" notAnError title="Declined">{order.declineReason || 'No reason given.'}</Notice> : null}
       {order.status === 'waiting' && mine ? <Notice tone="info">Waiting for the board’s yes. Don’t pay until then.</Notice> : null}
       {order.status === 'approved' && mine ? <HowToPayMerch item={item} order={order} /> : null}
 

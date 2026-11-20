@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useUsageSummary } from '../data/appUsageSummary';
 import { useUsageSharing } from '../data/usage';
-import { journeyCounts, screenLabel, screenTable } from '../domain/appUsage';
+import { ERROR_KIND_LABEL, journeyCounts, screenLabel, screenTable } from '../domain/appUsage';
 import { isAnyBoard } from '../domain/social/help';
 import { Card, Choices, Notice, Row, SectionTitle, Small, Toggle } from '../ui/primitives';
 import { colors, fonts, space, type } from '../theme';
@@ -69,16 +69,16 @@ export function AppUsage() {
               <Line key={s.name} left={screenLabel(s.name)} right={`${s.endedHere}`} />
             ))}
 
-            {summary.errors.length ? <Heading text="Errors people saw" /> : null}
-            {summary.errors.slice(0, 5).map((e) => (
+            {summary.errors.length ? <Heading text="Where errors showed" /> : null}
+            {summary.errors.slice(0, 6).map((e) => (
               <View key={`${e.screen}:${e.detail}`} style={{ gap: 2 }}>
                 <Line left={screenLabel(e.screen)} right={`${e.hits}×`} />
-                <Small>{e.detail}</Small>
+                <Small>{ERROR_KIND_LABEL[e.detail] ?? e.detail}</Small>
               </View>
             ))}
           </>
         )}
-        <Small>Counted per app visit: screens and error messages only. No names, no phones, no locations. Members can switch it off on the Me tab, under Privacy.</Small>
+        <Small>Counted per app visit: screens, and what kind of error showed (never its words). No names, no phones, no locations. Members can switch it off on the Me tab, under Privacy.</Small>
       </Card>
     </>
   );

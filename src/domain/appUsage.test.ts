@@ -5,7 +5,7 @@ import {
   USAGE_BATCH_MAX,
   USAGE_QUEUE_MAX,
   UsageQueue,
-  cleanErrorDetail,
+  errorKind,
   cleanUsageName,
   focusedRouteName,
   journeyCounts,
@@ -24,14 +24,16 @@ test('cleanUsageName keeps route names and drops anything else', () => {
   assert.equal(cleanUsageName('9Lives'), null, 'starts with a digit');
 });
 
-test('cleanErrorDetail cuts to 120 characters and blanks out emails and long numbers', () => {
-  assert.equal(cleanErrorDetail('Couldn’t save the ride.'), 'Couldn’t save the ride.');
-  assert.equal(cleanErrorDetail('No member with jeff@example.com'), 'No member with [email]');
-  assert.equal(cleanErrorDetail('Call 0412 345 678 now'), 'Call [number] now');
-  assert.equal(cleanErrorDetail('Ref 123456789'), 'Ref [number]');
-  assert.equal(cleanErrorDetail('Pick 1 of 3'), 'Pick 1 of 3', 'short numbers stay');
-  assert.equal(cleanErrorDetail('x'.repeat(200)).length, 120);
-  assert.equal(cleanErrorDetail('   '), null);
+test('errorKind keeps only what sort of error it was, never the words', () => {
+  assert.equal(errorKind('Couldn’t load rides. Check your connection.'), 'connection');
+  assert.equal(errorKind('You’re offline'), 'connection');
+  assert.equal(errorKind('Network request failed'), 'connection');
+  assert.equal(errorKind('Only the board can see app usage.'), 'not-allowed');
+  assert.equal(errorKind('You can’t do that.'), 'not-allowed');
+  assert.equal(errorKind('Check the fields marked in red.'), 'form');
+  assert.equal(errorKind('Fill in your road name'), 'form');
+  assert.equal(errorKind('No from Dave Smith'), 'other');
+  assert.equal(errorKind('   '), null);
 });
 
 test('focusedRouteName finds the deepest screen in nested navigators', () => {
@@ -54,13 +56,13 @@ test('UsageQueue numbers events, skips repeats of the same screen, and caps its 
   q.screen('Home');
   q.screen('Home'); // a re-render of the same screen isn't a new view
   q.screen('Rides');
-  q.error('Rides', 'Couldn’t load rides.');
+  q.error('Rides', 'Couldn’t load rides. Check your connection.');
   q.screen('Home');
   const batch = q.take();
   assert.deepEqual(batch, [
     { seq: 1, kind: 'screen', name: 'Home', detail: null },
     { seq: 2, kind: 'screen', name: 'Rides', detail: null },
-    { seq: 3, kind: 'error', name: 'Rides', detail: 'Couldn’t load rides.' },
+    { seq: 3, kind: 'error', name: 'Rides', detail: 'connection' },
     { seq: 4, kind: 'screen', name: 'Home', detail: null },
   ]);
   assert.deepEqual(q.take(), [], 'taken events leave the queue');
@@ -76,6 +78,14 @@ test('UsageQueue drops the same error repeated on the same screen and junk names
   q.screen('not a route');
   q.error('Rides', '  ');
   assert.equal(q.take().length, 1);
+});
+
+test('UsageQueue clear forgets the last screen, so it counts again when switched back on', () => {
+  const q = new UsageQueue();
+  q.screen('Home');
+  q.clear();
+  q.screen('Home');
+  assert.equal(q.size, 1);
 });
 
 test('UsageQueue records nothing while switched off', () => {

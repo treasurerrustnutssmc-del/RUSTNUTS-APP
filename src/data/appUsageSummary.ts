@@ -3,16 +3,15 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
-import type { UsageVisit } from '../domain/appUsage';
+import type { ErrorKind, UsageVisit } from '../domain/appUsage';
 import { liveDataOn } from './reviewMode';
 import { friendlyError, supabase } from './supabase';
 
 export interface UsageError {
   screen: string;
-  detail: string;
+  /** The kind of error; the words are never kept. */
+  detail: ErrorKind;
   hits: number;
-  last: string;
-  platforms: string;
 }
 
 export interface UsageSummary {
@@ -44,8 +43,9 @@ export function demoUsage(): UsageSummary {
   return {
     visits,
     errors: [
-      { screen: 'SignIn', detail: 'That code didn’t work. Ask for a new one.', hits: 3, last: '', platforms: 'ios' },
-      { screen: 'ShopCheckout', detail: 'Add a delivery address first.', hits: 2, last: '', platforms: 'android' },
+      { screen: 'SignIn', detail: 'other', hits: 3 },
+      { screen: 'ShopCheckout', detail: 'form', hits: 2 },
+      { screen: 'Rides', detail: 'connection', hits: 1 },
     ],
   };
 }

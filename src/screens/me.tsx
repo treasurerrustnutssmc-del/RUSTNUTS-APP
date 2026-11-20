@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { UsageToggle } from './appUsage';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { compassFor } from '../domain/compass';
@@ -12,6 +11,7 @@ import { MyNotices } from './notices'; // the 5.5 notice
 import type { LicenceClass } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: notifications
+import { UsageToggle } from './appUsage';
 import { NotificationSettings } from './notificationSettings';
 // Stage 7: social extras
 import { MeSocialSection } from './social';
@@ -633,5 +633,3 @@ export function EditContactScreen({ route, navigation }: RootScreen<'EditContact
     </Screen>
   );
 }
-
-

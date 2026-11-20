@@ -10,7 +10,7 @@ and the privacy choice (anonymous or named) is his card.
 1. Which screens get used, and which nobody finds (views per screen, last 7 and 30 days).
 2. Where people give up: the screen an app visit ended on, and short "started but didn't finish"
    paths for the jobs that matter (ask to join, sign in, RSVP, new ride, feedback, pay fees, merch order).
-3. Where things break: error messages members actually saw, by screen, with app version and platform.
+3. Where things break: which screens show errors, and what kind (connection, not allowed, form to fix, other).
 4. What changed after a fix: the same numbers week on week.
 
 ## How it works
@@ -31,14 +31,17 @@ and the privacy choice (anonymous or named) is his card.
 
 `public.app_usage_events(id, at, visit_id uuid, kind, name, detail, tier, platform, app_version)`.
 `name` must be a known route or job name (checked against a list, like site_visits' page check);
-`detail` is cut to 120 characters and only for errors. `tier` is member / family / board / public.
-RLS on, no grants; `app_usage_record` is security definer, signed-in or signed-out callers, 200 events
-per visit, 5,000 events a day cap. Rows older than 90 days are deleted by the nightly cron that already
-runs. **No member id, no name, no email, no IP, no device id.** (Option B on Jeff's card stores the
-member id too; everything else stays the same.)
+`detail` is only for errors and only one of four kinds (connection, not-allowed, form, other): the
+words of a message are never sent, because some quote people ("No from <name>"). Red notices that
+aren't errors (support's emergency box, a Declined status) opt out with `notAnError`. `tier` is member / family / board / public.
+RLS on, no grants; `app_usage_record` is security definer, signed-in or signed-out callers, only the
+first 50 events of a call looked at, 200 per visit, 5,000 a day of which signed-out visits share 1,000
+(soft caps). Rows older than 90 days are swept by the record call that wins an advisory lock. **No member id, no name, no email, no IP, no device id.** Jeff chose anonymous (21/11/2026). A new
+visit id starts when someone else signs in on the same phone.
 
-`app_usage_summary(days int)` (board only, like site_visit_summary) returns per-screen views and
-visits, last-screen counts, job started/finished counts, and the top error messages.
+`app_usage_summary(days int)` (board only, like site_visit_summary) returns each visit's screens in
+order (no time, tier or platform per visit, which could point at someone) and error kinds per screen
+with counts. The app works out views, where visits ended and journeys from that.
 
 ## Where it shows
 

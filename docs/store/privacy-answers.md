@@ -12,8 +12,8 @@ Keep the three in step: when the app starts collecting something new, change the
 
 Rules used for both forms:
 - No advertising code, no ad networks and no analytics service. The club's own anonymous app usage
-  counts (from 21/11/2026: screens each visit goes through and error messages shown, a random per-visit
-  id kept only in memory, no account link, deleted after 90 days, switch on the Me tab under Privacy) are the only
+  counts (from 21/11/2026: screens each visit goes through and the kind of error shown, never its words, a random per-visit
+  id, no account link, deleted after 90 days, switch on the Me tab under Privacy) are the only
   analytics; they're declared under App interactions and Diagnostics below. The only ads are the
   club's own sponsors. On Android two Google parts the app uses send Google usage and diagnostic data
   under Google's own terms: the Maps SDK (draws ride maps: IP address, device and SDK details, a
@@ -85,7 +85,7 @@ same day. Change this table and the policy together if anything changes.
 | App activity | Other user-generated content (listings, build threads, nominations, app-made rides, routes, Rusty Bus, charity sign-ups, reviews, captions, feedback text, Ask the club questions) | Optional | No | App functionality | |
 | App activity | Other actions (RSVPs, check-ins, votes, reactions, blocks, pins, sign-offs, notification settings) | Required | No | App functionality | |
 | App info and performance | Crash logs (Expo's error from a failed update launch; Maps SDK crash traces) | Required | **Yes** (Google, Maps SDK) | App functionality, Analytics | Analytics |
-| App info and performance | Diagnostics (app version, build and device on feedback reports and sign-in logs; error messages shown and app version and phone type in the anonymous app usage counts; Maps SDK and ML Kit device and usage details) | Required | **Yes** (Google: Maps SDK and ML Kit) | App functionality, Analytics, Fraud prevention, security and compliance | Analytics, App functionality |
+| App info and performance | Diagnostics (app version, build and device on feedback reports and sign-in logs; the kind of error shown (never its words), app version and phone type in the anonymous app usage counts; Maps SDK and ML Kit device and usage details) | Required | **Yes** (Google: Maps SDK and ML Kit) | App functionality, Analytics, Fraud prevention, security and compliance | Analytics, App functionality |
 | Device or other IDs | Device or other IDs (Expo install ID, Firebase installation ID, push tokens, Maps SDK ID, ML Kit install ID) | Required | **Yes** (Google: Maps SDK ID and ML Kit install ID) | App functionality, Analytics | Analytics |
 
 Not collected: Calendar events, Fitness info, Web browsing history, Other app performance data, User
@@ -137,7 +137,7 @@ Other Purposes: No), unless the row says otherwise.
 | Diagnostics | Crash Data | **Linked to the user: No.** When an update fails to launch, the Expo updates client sends that error and a random install id on its next update check. Tracking: No. Purpose: App Functionality |
 | Health and Fitness | Health | Health or injury reasons for an excused check-in or Big 4 ride, entered by the member's board |
 | Usage Data | Product Interaction | How far each member has read in each chat, and each member's daily count of Ask the club and Catch me up questions. From 21/11/2026 also the anonymous app usage counts (screens reached): **Purposes: App Functionality and Analytics** |
-| Diagnostics | Other Diagnostic Data | App version, build and device/OS attached to a feedback or issue report. From 21/11/2026 also the error messages counted by the anonymous app usage counts: **Purposes: App Functionality and Analytics** |
+| Diagnostics | Other Diagnostic Data | App version, build and device/OS attached to a feedback or issue report. From 21/11/2026 also the kinds of error counted by the anonymous app usage counts: **Purposes: App Functionality and Analytics** |
 
 Not collected: Fitness, Sensitive Info, Contacts (address book; Apple's definition includes "social
 graph", which a block list arguably is, but it's kept as not collected), Browsing History, Usage Data

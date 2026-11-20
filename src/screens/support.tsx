@@ -55,7 +55,7 @@ export function SupportScreen() {
       <Body style={{ color: colors.bone }}>
         Free, confidential and there any time, day or night. You don’t have to be in crisis to call. Reaching out is strength, not weakness.
       </Body>
-      <Notice tone="danger" title="In an emergency">
+      <Notice tone="danger" notAnError title="In an emergency">
         <Stack gap={space.sm}>
           <Small style={{ color: colors.boneDim }}>If you or someone else is in danger right now, call 000.</Small>
           <Button label="Call 000" icon="call" onPress={() => open('tel:000', '000')} />

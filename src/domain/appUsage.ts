@@ -7,7 +7,6 @@
  */
 
 export const USAGE_NAME_MAX = 60;
-export const USAGE_DETAIL_MAX = 120;
 /** Events kept on the phone waiting to be sent; the oldest drop off past this. */
 export const USAGE_QUEUE_MAX = 200;
 /** Events sent in one call. */
@@ -24,7 +23,8 @@ export interface UsageEvent {
   seq: number;
   kind: UsageKind;
   name: string;
-  detail: string | null;
+  /** For an error, its kind; null for a screen. */
+  detail: ErrorKind | null;
 }
 
 /** A screen (route) name as counted, or null when it isn't one (the event is then dropped). */
@@ -34,18 +34,25 @@ export function cleanUsageName(raw: string): string | null {
   return name;
 }
 
-/**
- * An error message as kept: emails and long numbers (phones, references) blanked out, cut to 120
- * characters, so a message that happens to quote someone's details doesn't keep them.
- */
-export function cleanErrorDetail(raw: string): string | null {
-  const text = raw
-    .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, '[email]')
-    .replace(/\d[\d\s-]{5,}\d/g, '[number]')
-    .replace(/\s+/g, ' ')
-    .trim();
+/** What sort of error a member saw. The words themselves are never kept: they can quote people. */
+export type ErrorKind = 'connection' | 'not-allowed' | 'form' | 'other';
+export const ERROR_KINDS: ErrorKind[] = ['connection', 'not-allowed', 'form', 'other'];
+
+export const ERROR_KIND_LABEL: Record<ErrorKind, string> = {
+  connection: 'Connection',
+  'not-allowed': 'Not allowed',
+  form: 'Form to fix',
+  other: 'Something went wrong',
+};
+
+/** Sorts an error message shown on screen into a kind; null for an empty one. */
+export function errorKind(message: string): ErrorKind | null {
+  const text = message.trim();
   if (!text) return null;
-  return text.slice(0, USAGE_DETAIL_MAX);
+  if (/connection|offline|network|internet|timed out|signal/i.test(text)) return 'connection';
+  if (/\bonly\b|not allowed|can[’']t do that|permission|sign in first/i.test(text)) return 'not-allowed';
+  if (/marked in red|fill in|fields?\b|required|must be|enter (a|an|your)|too long|pick (a|an)/i.test(text)) return 'form';
+  return 'other';
 }
 
 /** The shape of React Navigation state this needs: enough to walk down to the focused screen. */
@@ -86,9 +93,9 @@ export class UsageQueue {
     this.push({ kind: 'screen', name, detail: null });
   }
 
-  error(rawScreen: string, rawDetail: string): void {
+  error(rawScreen: string, message: string): void {
     const name = cleanUsageName(rawScreen);
-    const detail = cleanErrorDetail(rawDetail);
+    const detail = errorKind(message);
     if (!this.enabled || !name || !detail) return;
     const key = `${name}\n${detail}`;
     if (key === this.lastError) return;
@@ -99,6 +106,8 @@ export class UsageQueue {
   /** Empties the queue (the member switched it off). */
   clear(): void {
     this.items = [];
+    this.lastScreen = null;
+    this.lastError = null;
   }
 
   /** The next batch to send, oldest first; taken events leave the queue. */
