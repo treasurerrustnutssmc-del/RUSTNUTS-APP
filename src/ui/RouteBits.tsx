@@ -316,7 +316,7 @@ export function NavigateChooser({
               ))}
               {follow.length > 0 ? (
                 <Small>
-                  From where you are, through 9 points along the route to its end. Best in the Google Maps app, not the browser. For every bend, use OsmAnd, MyRoute or Garmin.
+                  From where you are, through 9 points along the route to its end. Maps shows the stops first: tap Start to ride them. Best in the Google Maps app, not the browser. For every bend, use OsmAnd, MyRoute or Garmin.
                 </Small>
               ) : null}
               <OpenInMapsButton route={route} kind="secondary" />

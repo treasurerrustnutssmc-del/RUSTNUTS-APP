@@ -148,7 +148,8 @@ test('Follow the route: Google Maps gets the end plus 9 waypoints spread along t
   assert.equal(url.searchParams.get('origin'), null);
   assert.equal(url.searchParams.get('destination'), '-37.8,145');
   assert.equal(url.searchParams.get('travelmode'), 'driving');
-  assert.equal(url.searchParams.get('dir_action'), 'navigate');
+  // Starting to drive at once makes the Google Maps app drop the waypoints and head for the end (Jeff, Big 4, 21 Nov).
+  assert.equal(url.searchParams.get('dir_action'), null);
   assert.deepEqual(url.searchParams.get('waypoints')!.split('|'), [
     '-37.98,145', '-37.96,145', '-37.94,145', '-37.92,145', '-37.9,145', '-37.88,145', '-37.86,145', '-37.84,145', '-37.82,145',
   ]);
