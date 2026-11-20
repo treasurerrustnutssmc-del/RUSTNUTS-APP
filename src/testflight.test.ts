@@ -58,6 +58,7 @@ test('the workflow keeps member names and emails out of the public log', () => {
 
 test('the TestFlight workflow writes the key outside the checkout and adds members on a schedule', () => {
   assert.match(workflow, /write-asc-key\.py \.\.\/asc\/AuthKey\.p8/);
+  assert.match(workflow, /permissions:\s*\n\s*contents: read/);
   assert.match(workflow, /schedule:\s*\n\s*- cron:/);
   assert.match(workflow, /options: \[add-members, status, send-build-for-review\]/);
   assert.match(workflow, /group: testflight/, 'runs never overlap');

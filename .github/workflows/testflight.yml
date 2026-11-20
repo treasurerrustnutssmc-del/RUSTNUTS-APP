@@ -27,6 +27,9 @@ on:
         description: Build number (send-build-for-review only), for example 4
         required: false
 
+permissions:
+  contents: read
+
 concurrency:
   group: testflight
   cancel-in-progress: false

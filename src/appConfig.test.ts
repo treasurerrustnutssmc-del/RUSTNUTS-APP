@@ -122,6 +122,7 @@ test('the SDWebImage consumers build from source so the ipa carries no manifest-
 });
 
 test('every Expo module on iPhone is built from source in the same build, never mixed with precompiled ones', () => {
+  assert.deepEqual(pkg.expo?.autolinking?.ios?.buildFromSource, ['.*'], 'one pattern that matches every module');
   // iPhone build 1.0.0 (3), 20/11/2026: the precompiled ExpoMaps needed four symbols the precompiled
   // ExpoModulesCore and ExpoModulesJSI don't export, so the app closed the moment it opened. Built
   // together from source they always match. Patterns are anchored regexes (expo-modules-autolinking).
@@ -152,7 +153,7 @@ test('iOS uploads use the App Store Connect team key that CI writes from a secre
   assert.equal(ios?.ascAppId, '6837151025');
   const wf = readFileSync(join(__dirname, '../.github/workflows/store-build.yml'), 'utf8');
   assert.match(wf, /write-asc-key\.py \.\.\/asc\/AuthKey\.p8/, 'the workflow writes the key outside the checkout');
-  assert.doesNotMatch(wf, /(^|[\s$/"])\.asc\//m, 'nothing in the workflow uses a key folder inside the checkout');
+  assert.doesNotMatch(wf, /\.asc\//, 'nothing in the workflow uses a key folder inside the checkout');
   const ignored = readFileSync(join(__dirname, '../.gitignore'), 'utf8').split('\n').map((l) => l.trim());
   assert.ok(ignored.includes('*.p8'), 'a key file copied into the project by hand is still never committed or uploaded');
   assert.ok(!ignored.includes('.asc/'), 'no ignore line for the key folder: it would change the fingerprint');
