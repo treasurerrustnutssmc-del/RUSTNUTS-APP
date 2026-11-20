@@ -42,7 +42,7 @@ type RouteLine = [number, number][];
 type RouteStops = { name: string; lat: number; lng: number }[];
 type RouteBounds = { minLat: number; minLng: number; maxLat: number; maxLng: number };
 // Lane E: live ride
-type RideAlertKind = 'emergency' | 'out' | 'regroup';
+type RideAlertKind = 'emergency' | 'out' | 'fuel' | 'regroup';
 export type LiveStateJson = {
   me: { stops_at: string } | null;
   riders: {

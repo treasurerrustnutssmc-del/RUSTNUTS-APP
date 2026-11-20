@@ -122,6 +122,8 @@ test('who can raise which alert', () => {
   // was raised with no signal and sent later), as long as the ride is still on.
   assert.equal(alertProblem('emergency', { ...open, sharing: false }), null);
   assert.equal(alertProblem('out', { ...open, sharing: false }), null);
+  assert.equal(alertProblem('fuel', open), null);
+  assert.equal(alertProblem('fuel', { ...open, sharing: false }), null, 'a fuel call sent later still gets through');
   assert.equal(alertProblem('emergency', { ...open, live: 'This ride’s finished.' }), 'This ride’s finished.');
   assert.equal(alertProblem('regroup', open), 'Only ride leaders can set a regroup pin.');
   assert.equal(alertProblem('regroup', { ...open, leader: true }), null);

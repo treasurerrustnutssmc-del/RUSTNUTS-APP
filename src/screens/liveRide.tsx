@@ -173,6 +173,7 @@ export function LiveRideScreen({ route, navigation }: RootScreen<'LiveRide'>) {
   const myPos = live.myFix;
   const others = state.alerts.filter((a) => a.memberId !== me.id && !a.resolvedAt);
   const myEmergency = state.alerts.find((a) => a.memberId === me.id && a.kind === 'emergency' && !a.resolvedAt);
+  const myFuel = state.alerts.find((a) => a.memberId === me.id && a.kind === 'fuel' && !a.resolvedAt);
   const regroup = others.find((a) => a.kind === 'regroup') ?? state.alerts.find((a) => a.kind === 'regroup' && !a.resolvedAt);
   const urgent = others.filter((a) => a.kind !== 'regroup');
   const split = leader ? splitWarning(state.riders, now) : null;
@@ -230,6 +231,15 @@ export function LiveRideScreen({ route, navigation }: RootScreen<'LiveRide'>) {
         </Card>
       ) : null}
 
+      {myFuel ? (
+        <Notice tone="warn" title="Fuel call sent">
+          <Stack gap={space.sm}>
+            <Body>Everyone sharing on this ride has been told. Leaders can ring you.</Body>
+            <Button label="Got fuel, cancel" kind="quiet" busy={busy === myFuel.id} onPress={run(myFuel.id, () => live.resolve(myFuel.id))} />
+          </Stack>
+        </Notice>
+      ) : null}
+
       {urgent.map((a) => (
         <AlertBlock
           key={a.id}
@@ -259,6 +269,9 @@ export function LiveRideScreen({ route, navigation }: RootScreen<'LiveRide'>) {
       <Stack gap={space.sm}>
         {myEmergency ? null : (
           <ConfirmButton label="Emergency" confirmLabel="Send emergency" icon="warning" onConfirm={run('emergency', () => live.raise('emergency'))} style={styles.big} />
+        )}
+        {myFuel ? null : (
+          <ConfirmButton label="Need fuel" confirmLabel="Send fuel call" kind="secondary" icon="water-outline" onConfirm={run('fuel', () => live.raise('fuel'))} />
         )}
         <ConfirmButton label="I’ve dropped out" confirmLabel="Yes, I’m out" kind="secondary" icon="exit-outline" onConfirm={run('out', () => live.raise('out'))} />
         {leader ? (
@@ -304,9 +317,10 @@ function Fact({ icon, text }: { icon: React.ComponentProps<typeof Ionicons>['nam
   );
 }
 
-const ALERT_TITLE: Record<'emergency' | 'out', (name: string) => string> = {
+const ALERT_TITLE: Record<'emergency' | 'out' | 'fuel', (name: string) => string> = {
   emergency: (name) => `${name} needs help`,
   out: (name) => `${name} has dropped out`,
+  fuel: (name) => `${name} needs fuel`,
 };
 
 function AlertBlock({
@@ -326,7 +340,7 @@ function AlertBlock({
   onClear: () => void;
   contacts: { id: string; name: string; relationship: string; phone: string }[];
 }) {
-  const kind = alert.kind === 'emergency' ? 'emergency' : 'out';
+  const kind = alert.kind === 'emergency' || alert.kind === 'fuel' ? alert.kind : 'out';
   return (
     <Notice tone={kind === 'emergency' ? 'danger' : 'warn'} title={ALERT_TITLE[kind](alert.name)}>
       <Stack gap={space.sm}>

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alertNotice, createAlertQueue, drainQueue, queueAlert, smsUrl, textLeaders, unseenAlerts, type QueuedAlert } from './liveQueue';
+import { alertNotice, createAlertQueue, drainQueue, queueAlert, smsUrl, tellWhenRefused, textLeaders, unseenAlerts, type QueuedAlert } from './liveQueue';
 import type { RideAlert } from '../domain/types';
 
 const alert = (over: Partial<RideAlert> = {}): RideAlert => ({
@@ -23,6 +23,7 @@ test('what the notification says', () => {
   assert.deepEqual(alertNotice(alert(), me), { title: 'EMERGENCY: Rusty needs help', body: '2.1 km S · 9:42 am' });
   assert.deepEqual(alertNotice(alert({ kind: 'out' }), me), { title: 'Rusty has dropped out', body: '2.1 km S · 9:42 am' });
   assert.deepEqual(alertNotice(alert({ kind: 'regroup' }), me), { title: 'Regroup here', body: '2.1 km S · 9:42 am' });
+  assert.deepEqual(alertNotice(alert({ kind: 'fuel' }), me), { title: 'Rusty needs fuel', body: '2.1 km S · 9:42 am' });
   assert.deepEqual(alertNotice(alert({ position: null }), me), { title: 'EMERGENCY: Rusty needs help', body: 'Location unknown · 9:42 am' });
   assert.deepEqual(alertNotice(alert(), null), { title: 'EMERGENCY: Rusty needs help', body: 'Location unknown · 9:42 am' });
 });
@@ -162,4 +163,8 @@ test('sharing again forgets a stop still waiting for signal, so it can’t switc
   assert.deepEqual((await q.list()).map((a) => `${a.rideId}:${a.kind}`), ['r-2:stop', 'r-1:emergency']);
   await q.flush();
   assert.deepEqual(sent, ['stop', 'emergency']);
+});
+
+test('a call for help, fuel or dropping out that the club refuses is shown to the rider', () => {
+  assert.deepEqual((['emergency', 'out', 'fuel', 'regroup', 'stop'] as const).filter(tellWhenRefused), ['emergency', 'out', 'fuel']);
 });

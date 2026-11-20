@@ -241,6 +241,27 @@ begin
     'no fresh emergency comes back after a leader cleared it';
 end $$;
 
+\echo 'Needing fuel: leaders get the rider''s number, nobody gets contacts, and the rider stays on the ride'
+do $$
+declare
+  rita constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  tom constant uuid := '00000000-0000-0000-0000-0000000000d2';
+  a uuid;
+  again uuid;
+  s jsonb;
+begin
+  a := (pg_temp.get_as(rita, $s$public.raise_ride_alert('00000000-0000-0000-0000-0000000000e1', 'fuel', -37.7, 144.7)$s$) #>> '{}')::uuid;
+  again := (pg_temp.get_as(rita, $s$public.raise_ride_alert('00000000-0000-0000-0000-0000000000e1', 'fuel', null, null)$s$) #>> '{}')::uuid;
+  assert a = again, 'pressing it again is the same fuel call';
+  assert exists (select 1 from public.live_riders where member_id = rita and ride_id = '00000000-0000-0000-0000-0000000000e1'),
+    'she keeps sharing';
+  s := pg_temp.get_as(tom, $s$public.live_ride_state('00000000-0000-0000-0000-0000000000e1')$s$);
+  assert (select x->>'phone' from jsonb_array_elements(s->'alerts') x where x->>'id' = a::text) = '0400 000 001',
+    'the leader can ring her';
+  assert jsonb_array_length(s->'contacts') = 0, 'fuel is not an emergency: no contacts';
+  assert pg_temp.try_as(tom, format('select public.resolve_ride_alert(%L)', a)) is null, 'a leader clears it';
+end $$;
+
 \echo 'Regroup pins: leaders only, and a new one replaces the last'
 do $$
 declare

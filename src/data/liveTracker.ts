@@ -24,7 +24,7 @@ import type { Fix } from './liveRideBackend';
 import { liveBackend } from './liveRideSource';
 import { appMode } from './reviewMode';
 import { ensureChannels } from './notificationChannels';
-import { QUEUE_KEY, alertNotice, createAlertQueue, unseenAlerts, type QueuedAlert, type Refused } from './liveQueue';
+import { QUEUE_KEY, alertNotice, createAlertQueue, tellWhenRefused, unseenAlerts, type QueuedAlert, type Refused } from './liveQueue';
 
 export const LIVE_TASK = 'rustnuts-live-ride';
 const ACTIVE = 'live.active';
@@ -137,11 +137,11 @@ const queue = createAlertQueue(AsyncStorage, async (item) => {
   else await withTimeout((await backend()).raise(item.rideId, item.kind, item.at, item.queuedAt));
 });
 
-/** Sends what's waiting for signal. An emergency or dropping out the club refused (say the ride
+/** Sends what's waiting for signal. A call for help or fuel, or dropping out, the club refused (say the ride
  *  ended before signal came back) is kept to show the rider, never dropped quietly. */
 export async function flushQueue(): Promise<void> {
   const refused = await queue.flush();
-  const tell = refused.filter((r) => r.item.kind === 'emergency' || r.item.kind === 'out');
+  const tell = refused.filter((r) => tellWhenRefused(r.item.kind));
   if (tell.length > 0) await write(UNSENT, [...(await read<Refused[]>(UNSENT, [])), ...tell]);
 }
 
