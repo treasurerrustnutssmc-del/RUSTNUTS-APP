@@ -74,13 +74,14 @@ text in the secret, and change the key id in the workflow and in `eas.json`.
    login can make a push key. Make an Apple Push Notifications key by hand (Certificates, Identifiers
    & Profiles › Keys), then add it to the app on expo.dev (project › Credentials › iOS). Without it
    iPhones never get push.
-5. **Check the first ipa** before uploading it (download it from the build page):
-   `unzip -l Rustnuts.ipa | grep -E 'SDWebImage.framework/PrivacyInfo|appex/PrivacyInfo'`
-   should list both `Frameworks/SDWebImage.framework/PrivacyInfo.xcprivacy` and
-   `PlugIns/expo-sharing-extension.appex/PrivacyInfo.xcprivacy`. If either is missing, App Store
-   Connect rejects the upload with a privacy-manifest email (see
-   `docs/superpowers/specs/2026-10-31-ios-readiness-design.md`, section 1).
-6. **Upload: Store build › `ios-submit`** (`eas submit --latest` with the same key; it stops early
-   until `ascAppId` is set). `--latest` takes the newest *store* build (never an `ios-simulator`
-   one) but doesn't wait for it to finish, so run it once the build page says finished. Submitting
-   sends the key to Expo's submission service, which uses it to talk to Apple; that's expected.
+5. **Privacy manifests** are checked by `ios-submit` itself (`.github/scripts/check-ipa-privacy.py`)
+   before anything is uploaded: the app, every app extension (`PlugIns/*.appex`) and every embedded
+   framework on Apple's list of commonly used SDKs (SDWebImage and the like) must carry a
+   `PrivacyInfo.xcprivacy`, or App Store Connect rejects the upload with a privacy-manifest email (see
+   `docs/superpowers/specs/2026-10-31-ios-readiness-design.md`, section 1). A red job names the
+   bundle that's missing one.
+6. **Upload: Store build › `ios-submit`.** It picks the newest *finished* `production` iPhone build
+   (never an `ios-simulator` one, never one still building), downloads its `.ipa` for the check
+   above, then runs `eas submit --id <that build>` with the same key. It stops early until
+   `ascAppId` is set, or when no store build has finished yet. Submitting sends the key to Expo's
+   submission service, which uses it to talk to Apple; that's expected.
