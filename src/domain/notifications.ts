@@ -69,6 +69,7 @@ export type NotificationTarget =
   | { screen: 'Chat'; params: { chatId: string } }
   | { screen: 'RideDetail'; params: { rideId: string } }
   | { screen: 'LiveRide'; params: { rideId: string } }
+  | { screen: 'RunCheckin'; params: { sessionId: string } }
   | { screen: 'Feedback'; params: undefined }
   | { screen: 'WebsitePhotos'; params: undefined }
   | { screen: 'Tabs'; params: { screen: 'Board' } };
@@ -77,6 +78,7 @@ export function notificationTarget(data: Record<string, unknown> | null | undefi
   const id = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null);
   const chatId = id(data?.chatId);
   const rideId = id(data?.rideId);
+  const sessionId = id(data?.sessionId);
   switch (data?.kind) {
     case 'chat':
       return chatId ? { screen: 'Chat', params: { chatId } } : null;
@@ -85,6 +87,9 @@ export function notificationTarget(data: Record<string, unknown> | null | undefi
       return rideId ? { screen: 'RideDetail', params: { rideId } } : null;
     case 'live-alert':
       return rideId ? { screen: 'LiveRide', params: { rideId } } : null;
+    case 'checkin':
+      // Someone tapped I'm here: the check-in, where the leader confirms them.
+      return sessionId ? { screen: 'RunCheckin', params: { sessionId } } : null;
     case 'feedback':
       // A reply to (or the closing of) your own report: your reports.
       return { screen: 'Feedback', params: undefined };

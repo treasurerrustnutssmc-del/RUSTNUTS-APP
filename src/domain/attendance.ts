@@ -5,6 +5,7 @@
 import { isBoardOf, isNational, reviewsChapter } from './access';
 import { heldPositions } from './acting';
 import { BOARD_ROLES } from './labels';
+import { melbourneDate } from './rides';
 import type { Chapter, CheckinKind, CheckinSession, ClubData, MeetingType, Member, Position, Ride } from './types';
 
 /** No 0/O, 1/I/L: easy to read off a phone held up at a servo. */
@@ -91,6 +92,71 @@ export function checkInProblem(me: Member | null, session: CheckinSession | unde
   if (!session) return 'That code doesn’t match a check-in.';
   if (session.closedAt) return 'That check-in has closed.';
   if (session.heldOn !== today) return 'That check-in isn’t for today.';
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// "I'm here": the rider taps it, a ride leader or the board confirms it. Mirrors ask_check_in and
+// answer_check_in. The code and QR stay as a backup.
+// ---------------------------------------------------------------------------
+
+/** A ride (its check-in opens itself if nobody has opened it yet), or an open check-in such as a meeting. */
+export type CheckInAt = { rideId: string } | { sessionId: string };
+
+/** Whoever runs the check-in, and on a ride anyone on that ride's crew. Mirrors private.can_confirm_checkin. */
+export function canConfirmCheckin(viewer: Member | null, session: CheckinSession, data: ClubData): boolean {
+  if (canRunCheckin(viewer, session.chapterId, data.positions)) return true;
+  if (!viewer || viewer.approval !== 'approved' || viewer.status === 'family' || session.kind !== 'ride') return false;
+  return (data.crew ?? []).some((c) => c.rideId === session.rideId && c.memberId === viewer.id);
+}
+
+const ON_THE_DAY = 'You can only check in on the day.';
+
+/** Why `me` can't say they're here, or null. */
+export function askCheckInProblem(me: Member | null, at: CheckInAt, data: ClubData, today: string): string | null {
+  if (!me) return 'Sign in first.';
+  if (!canCheckIn(me)) return 'Only members and applicants can check in.';
+  const sessions = data.checkinSessions ?? [];
+  let session: CheckinSession | undefined;
+  if ('rideId' in at) {
+    const ride = data.rides.find((r) => r.id === at.rideId);
+    if (!ride) return 'No such ride.';
+    if (ride.cancelledAt) return 'That ride was cancelled.';
+    session = sessions.find((s) => s.rideId === ride.id);
+    if (!session) return melbourneDate(ride.startsAt) === today ? null : ON_THE_DAY;
+  } else {
+    session = sessions.find((s) => s.id === at.sessionId);
+    if (!session) return 'That check-in no longer exists.';
+  }
+  if (session.closedAt) return 'That check-in has closed.';
+  if (session.heldOn !== today) return ON_THE_DAY;
+  return null;
+}
+
+/** What tapping "I'm here" does for `me`: checks them straight in if they confirm check-ins themselves,
+ *  otherwise asks; or nothing, when they're already in or already waiting. */
+export function checkinAsk(me: Member, session: CheckinSession, data: ClubData): 'in' | 'ask' | 'already' | 'waiting' {
+  if ((data.attendance ?? []).some((a) => a.sessionId === session.id && a.memberId === me.id)) return 'already';
+  if (canConfirmCheckin(me, session, data)) return 'in';
+  if ((data.checkinRequests ?? []).some((r) => r.sessionId === session.id && r.memberId === me.id)) return 'waiting';
+  return 'ask';
+}
+
+/** Who's waiting to be confirmed at a check-in, first to ask first. */
+export function waitingFor(sessionId: string, data: ClubData): Member[] {
+  return (data.checkinRequests ?? [])
+    .filter((r) => r.sessionId === sessionId)
+    .sort((a, b) => a.askedAt.localeCompare(b.askedAt))
+    .flatMap((r) => data.members.filter((m) => m.id === r.memberId));
+}
+
+/** Why `me` can't confirm (or turn down) `memberId`'s "I'm here", or null. */
+export function answerCheckinProblem(me: Member | null, session: CheckinSession | undefined, memberId: string, data: ClubData): string | null {
+  if (!session) return 'That check-in no longer exists.';
+  if (!canConfirmCheckin(me, session, data)) return 'Only the ride crew or the board can confirm check-ins.';
+  if (!(data.checkinRequests ?? []).some((r) => r.sessionId === session.id && r.memberId === memberId)) {
+    return 'They’re not waiting to be confirmed.';
+  }
   return null;
 }
 
