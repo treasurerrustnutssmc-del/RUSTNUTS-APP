@@ -963,6 +963,8 @@ export function ClubFinancesScreen({ navigation }: RootScreen<'ClubFinances'>) {
         <H1>Club finances</H1>
         <Small>The Treasurer’s Reports, once they’ve been presented. Every member can read them (13.8).</Small>
       </Stack>
+      {/* Before the database has club_spending(), members (who get no ledger lines) have nothing to list. */}
+      {data.spending !== undefined || (data.ledger ?? []).length > 0 ? (
       <Card style={{ padding: 0, gap: 0 }}>
         <ListRow
           last
@@ -973,6 +975,7 @@ export function ClubFinancesScreen({ navigation }: RootScreen<'ClubFinances'>) {
           onPress={() => navigation.navigate('ClubSpending')}
         />
       </Card>
+      ) : null}
       {meetings.length > 0 ? (
         <>
           <SectionTitle title="For meetings" />
