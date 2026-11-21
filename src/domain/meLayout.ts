@@ -1,7 +1,8 @@
 // The Me tab used to be one scroll of about 30 sections. It now keeps the profile card on top and
 // folds the rest into six groups, each with a one-line summary you can read without opening it. A
-// group starts open only when something in it needs the member. The wording and the open/closed
-// rule live here so they can be tested without drawing a screen.
+// group used to start open only when something in it needed the member; since 21 Nov 2026 every group
+// starts open (Jeff: buttons shouldn't hide behind other options), and folding one is the member's choice.
+// The wording lives here so it can be tested without drawing a screen.
 //
 // Acting roles (Task 20): what Me and Home show a board holder about covering their seat while
 // they're away (spec: Screens, "Me, for a board holder" and "The covered holder, on Me and Home").
@@ -42,12 +43,12 @@ export function meGroups(m: MeInput): MeGroup[] {
       : `${plural(m.contacts, 'emergency contact', 'emergency contacts')}, ${m.bikes === 0 ? 'no bikes' : plural(m.bikes, 'bike', 'bikes')}`;
   const fees = m.owingCents > 0 ? `${formatCents(m.owingCents)} owing` : m.onHiatus ? 'On hiatus: no new fees' : 'All paid up';
   return [
-    { id: 'year', title: 'My club year', summary: 'Attendance and badges', startsOpen: false },
+    { id: 'fees', title: 'Fees', summary: fees, startsOpen: m.owingCents > 0 },
     { id: 'details', title: 'My details', summary: details, startsOpen: m.contacts === 0 },
     { id: 'rules', title: 'Rules and papers', summary: rules, startsOpen: m.roadRules?.urgent === true },
-    { id: 'fees', title: 'Fees', summary: fees, startsOpen: m.owingCents > 0 },
     { id: 'settings', title: 'Notifications and privacy', summary: 'Alerts and sharing your mobile', startsOpen: false },
     { id: 'help', title: 'Help and the club online', summary: 'Feedback, support, links and sponsors', startsOpen: false },
+    { id: 'year', title: 'My club year', summary: 'Attendance and badges', startsOpen: false },
   ];
 }
 

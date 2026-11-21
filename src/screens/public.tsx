@@ -42,7 +42,7 @@ import {
 
 export function WelcomeScreen({ navigation }: RootScreen<'Welcome'>) {
   const { data, isDemo } = useClub();
-  const [linksOpen, setLinksOpen] = useState(false);
+  const [linksOpen, setLinksOpen] = useState(true);
   return (
     <Screen padTop>
       <Flannel style={{ alignItems: 'center', paddingVertical: space.xl }}>

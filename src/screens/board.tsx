@@ -304,7 +304,7 @@ export function BoardScreen({ navigation, route }: TabScreen<'Board'>) {
       <BoardAuditRow />
 
       {groups.map((g) => {
-        const isOpen = chosen[g.id] ?? false;
+        const isOpen = chosen[g.id] ?? true;
         return (
           <View key={g.id} ref={mark(g.id)} collapsable={false}>
           <Disclosure title={g.title} summary={g.summary} open={isOpen} onToggle={() => setChosen((c) => ({ ...c, [g.id]: !isOpen }))}>

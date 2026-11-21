@@ -172,7 +172,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
       <MeAuditSection />
 
       {groups.map((g) => {
-        const isOpen = chosen[g.id] ?? false;
+        const isOpen = chosen[g.id] ?? true;
         return (
           <Disclosure key={g.id} title={g.title} summary={g.summary} open={isOpen} onToggle={() => setChosen((c) => ({ ...c, [g.id]: !isOpen }))}>
             {g.id === 'year' ? (

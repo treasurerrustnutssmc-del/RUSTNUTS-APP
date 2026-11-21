@@ -13,7 +13,8 @@ const base = { contacts: 1, bikes: 1, owingCents: 0, onHiatus: false, roadRules:
 const byId = (input: Parameters<typeof meGroups>[0]) => Object.fromEntries(meGroups(input).map((g) => [g.id, g]));
 
 test('Me has six groups, in a fixed order', () => {
-  assert.deepEqual(meGroups(base).map((g) => g.id), ['year', 'details', 'rules', 'fees', 'settings', 'help']);
+  // The things you act on first; attendance and badges (read, not tapped) last (Jeff, 21 Nov 2026).
+  assert.deepEqual(meGroups(base).map((g) => g.id), ['fees', 'details', 'rules', 'settings', 'help', 'year']);
 });
 
 test('with nothing to do, every group starts closed', () => {

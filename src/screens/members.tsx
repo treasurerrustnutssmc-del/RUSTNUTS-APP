@@ -321,7 +321,7 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
     setChosenChapter(id);
     saved.save({ memberChapter: id });
   };
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(true);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
