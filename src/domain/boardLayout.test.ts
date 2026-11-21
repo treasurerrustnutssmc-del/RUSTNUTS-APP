@@ -33,7 +33,8 @@ test('singular and plural read correctly', () => {
 
 test('the groups come in a fixed order, and only the ones with something open start expanded', () => {
   const quiet = boardGroups(none);
-  assert.deepEqual(quiet.map((g) => g.id), ['approvals', 'people', 'meetings', 'money', 'website']);
+  // Website and app is a row on its own screen now (Jeff, 21 Nov 2026: simplify the Board page).
+  assert.deepEqual(quiet.map((g) => g.id), ['approvals', 'people', 'meetings', 'money']);
   assert.deepEqual(quiet.filter((g) => g.startsOpen), []);
   const busy = boardGroups({ pending: 2, alerts: 1, noContact: 0, fngs: 0 });
   assert.deepEqual(busy.filter((g) => g.startsOpen).map((g) => g.id), ['approvals', 'people']);
@@ -47,7 +48,6 @@ test('each group says in one line what is inside, with counts where there are an
   assert.equal(g.people, '1 due, 2 without a contact, 3 FNG reviews');
   assert.equal(g.meetings, 'Agendas, minutes, votes, attendance and check-ins');
   assert.equal(g.money, 'The books and chapter fees');
-  assert.equal(g.website, 'Enquiries, news, visits, app feedback and app usage');
   assert.equal(boardGroups(none).find((x) => x.id === 'people')!.summary, 'Nothing due');
 });
 

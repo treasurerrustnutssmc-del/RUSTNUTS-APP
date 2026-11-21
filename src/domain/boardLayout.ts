@@ -27,7 +27,7 @@ export type BoardCounts = {
   fngs: number;
 };
 
-export type BoardGroupId = 'approvals' | 'people' | 'meetings' | 'money' | 'website';
+export type BoardGroupId = 'approvals' | 'people' | 'meetings' | 'money';
 
 /** Which count a Needs-you row stands for. */
 export type NeedsYouKind = keyof BoardCounts;
@@ -90,7 +90,6 @@ export function boardGroups(c: BoardCounts): BoardGroup[] {
     { id: 'people', title: 'People', summary: people.length ? people.join(', ') : 'Nothing due', startsOpen: people.length > 0 },
     { id: 'meetings', title: 'Meetings, votes and attendance', summary: 'Agendas, minutes, votes, attendance and check-ins', startsOpen: false },
     { id: 'money', title: 'Money', summary: 'The books and chapter fees', startsOpen: false },
-    { id: 'website', title: 'Website and app', summary: 'Enquiries, news, visits, app feedback and app usage', startsOpen: false },
   ];
 }
 

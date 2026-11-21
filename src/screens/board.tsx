@@ -32,11 +32,6 @@ import { useJump } from '../ui/useJump';
 import { settleOpen } from '../domain/groupOpen';
 import { BoardCheckins } from './checkin';
 import { BoardAttendance } from './attendance';
-import { WebsiteEnquiries } from './enquiries';
-import { WebsiteNews } from './siteNews'; // club news for the website
-import { WebsiteVisits } from './siteVisits'; // website page views
-import { AppUsage } from './appUsage'; // app screens reached, anonymous
-import { AppFeedbackSection } from './feedback'; // Feedback and issues
 import { termState } from '../domain/terms';
 import { seatTitle } from '../domain/home';
 import { BoardFees } from './fees';
@@ -44,6 +39,7 @@ import { TreasuryRow } from './treasury';
 import { BoardAdminCard } from './adminRows'; // Stage 5D
 import { BoardAuditRow } from './audit'; // National Auditor
 import { DocumentsBoardRow } from './documents'; // Stage 5C
+import { WebsiteAppRow } from './websiteApp'; // Website and app, its own page
 import { seesAnyLedger } from '../domain/ledger';
 import { IntroProgressCard, VotesFields } from './fng';
 import { DateField, useDate } from './adminBits';
@@ -274,15 +270,14 @@ export function BoardScreen({ navigation, route }: TabScreen<'Board'>) {
         <BoardRequest key={r.id} request={r} onDone={setDone} />
       ))}
 
-      {/* Stage 5C: document library */}
+      {/* Club admin, one card (Jeff, 21 Nov 2026: simplify the Board page): documents, the Auditor,
+          conduct, merch, National, and the website and app on their own page */}
       <Card style={{ padding: 0, gap: 0 }}>
-        <DocumentsBoardRow last />
+        <DocumentsBoardRow />
+        <BoardAuditRow bare />
+        <BoardAdminCard bare />
+        <WebsiteAppRow last />
       </Card>
-
-      {/* Stage 5D: conduct records, merch, national */}
-      <BoardAdminCard />
-      {/* The National Auditor's requests and reports */}
-      <BoardAuditRow />
 
       {groups.map((g) => {
         const isOpen = chosen[g.id] ?? true;
@@ -408,16 +403,6 @@ export function BoardScreen({ navigation, route }: TabScreen<'Board'>) {
                   </Card>
                 ) : null}
                 <BoardFees />
-              </>
-            ) : null}
-            {g.id === 'website' ? (
-              <>
-                {/* People who asked through the club website's Ride With Us form */}
-                <WebsiteEnquiries onDone={setDone} />
-                <WebsiteNews onDone={setDone} />
-                <WebsiteVisits />
-                <AppFeedbackSection onDone={setDone} />
-                <AppUsage />
               </>
             ) : null}
           </Disclosure>

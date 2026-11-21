@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { WebsiteAppScreen } from '../screens/websiteApp';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HeaderBackButton, HeaderTitle } from '@react-navigation/elements';
 import { createNavigationContainerRef, DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
@@ -403,6 +404,7 @@ export function RootNavigator() {
             <Stack.Screen name="AskClub" component={AskClubScreen} options={{ title: 'Ask the club' }} />
             {/* Stage 5: meetings and votes */}
             <Stack.Screen name="Business" component={BusinessScreen} options={{ title: 'Meetings and votes' }} />
+            <Stack.Screen name="WebsiteApp" component={WebsiteAppScreen} options={{ title: 'Website and app' }} />
             <Stack.Screen name="Meeting" component={MeetingScreen} options={{ title: 'Meeting' }} />
             <Stack.Screen name="OtterMinutes" component={OtterMinutesScreen} options={{ title: 'Draft from Otter' }} />
             <Stack.Screen name="OtterGuide" component={OtterGuideScreen} options={{ title: 'Draft from Otter' }} />

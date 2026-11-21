@@ -42,6 +42,7 @@ export type RootParams = {
   ManageMember: { memberId: string };
   // Stage 5: meetings and votes
   Business: undefined;
+  WebsiteApp: undefined; // Website and app, off the Board (21 Nov 2026)
   Meeting: { meetingId: string };
   OtterMinutes: { meetingId: string }; // Draft from Otter: minutes from a meeting's transcript
   OtterGuide: undefined; // the secretary's guide to Draft from Otter
