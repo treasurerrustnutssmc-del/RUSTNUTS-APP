@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decideApplicationProblem, fngDue, fngOutcomeStatus, fngReviewProblem, introProgress, votesProblem } from './joining';
+import { APPROVE_AS } from './labels';
+import { approveAsHint, decideApplicationProblem, fngDue, fngOutcomeStatus, fngReviewProblem, introProgress, votesProblem } from './joining';
 import { club, member, session, who } from './stage4.testkit';
 import type { MemberDecision, Votes } from './types';
 
@@ -99,4 +100,15 @@ test('what each review outcome makes them', () => {
   assert.equal(fngOutcomeStatus('continue'), 'fng');
   assert.equal(fngOutcomeStatus('patch'), 'full');
   assert.equal(fngOutcomeStatus('not_continuing'), 'supporter');
+});
+
+test('approval choices put Family up front next to Supporter, with Full member last', () => {
+  assert.deepEqual(APPROVE_AS, ['introduced', 'fng', 'family', 'supporter', 'full']);
+});
+
+test('approving someone who asked as a Supporter points at Family', () => {
+  assert.match(approveAsHint('supporter', 'supporter') ?? '', /partner or family.*Family/);
+  assert.equal(approveAsHint('supporter', 'family'), null);
+  assert.equal(approveAsHint('introduced', 'supporter'), null);
+  assert.equal(approveAsHint('family', 'family'), null);
 });

@@ -506,6 +506,13 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      // "I'm here" taps waiting to be confirmed; only through ask_check_in and answer_check_in.
+      checkin_requests: {
+        Row: { session_id: string; member_id: string; asked_at: string };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       // Only the columns read directly; the rest come through members_money().
       checkin_sessions: {
         Row: { id: string; meeting_type: MeetingType | null };
@@ -941,6 +948,8 @@ export type Database = {
       };
       checkin_code: { Args: { p_session: string }; Returns: string };
       check_in: { Args: { p_code: string }; Returns: string };
+      ask_check_in: { Args: { p_ride: string | null; p_session: string | null }; Returns: string };
+      answer_check_in: { Args: { p_session: string; p_member: string; p_here: boolean }; Returns: undefined };
       mark_attendance: { Args: { p_session: string; p_member: string; p_present: boolean }; Returns: undefined };
       close_checkin: { Args: { p_session: string }; Returns: undefined };
       decide_application: {

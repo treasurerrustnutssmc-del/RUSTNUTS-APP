@@ -501,7 +501,7 @@ export function PendingScreen({ navigation }: RootScreen<'Pending'>) {
       {!declined && !suspended && me.status === 'introduced' ? (
         <>
           <IntroProgressCard member={me} self />
-          <Button label="Check in" kind="secondary" icon="scan" onPress={() => navigation.navigate('CheckIn')} />
+          <Button label="Check in" kind="secondary" icon="hand-right-outline" onPress={() => navigation.navigate('CheckIn')} />
         </>
       ) : null}
 

@@ -228,10 +228,10 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       <CoverPanels panels={homeCoverPanels(me, data, today)} />
       {/* New here? Where things are, once */}
       <FirstRunCard />
+      {/* On the day: I'm here, and riders waiting for a leader to confirm them, at the top */}
+      <HomeCheckinCard />
       {/* The next ride, so it is one tap from opening the app */}
       <HomeNextRideCard onOpen={(rideId) => navigation.navigate('RideDetail', { rideId })} />
-      {/* Stage 4: today's check-in */}
-      <HomeCheckinCard />
       {/* The everyday jobs that aren't a tab */}
       <HomeQuickActions />
       {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}

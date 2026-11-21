@@ -1,5 +1,5 @@
 // Home leads with what needs the person (Jeff, 21 Nov 2026: "Approvals top regos bottom"): the
-// Needs you card first, then the next ride, today's check-in and the quick buttons, then club
+// Needs you card first, then today's check-in, the next ride and the quick buttons, then club
 // business, the Road Rules and the social cards, and the rego, licence and first aid reminders last.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -22,8 +22,9 @@ test('Needs you is the first card under the greeting', () => {
   assert.ok(at('</Flannel>') < needs, 'after the greeting');
 });
 
-test('the ride, check-in and quick buttons come before the social cards', () => {
-  const urgent = [at('<HomeNextRideCard'), at('<HomeCheckinCard'), at('<HomeQuickActions')];
+test('check-in, the ride and quick buttons come before the social cards', () => {
+  // On the day, I'm here and Confirm sit above the next ride (PR #192).
+  const urgent = [at('<HomeCheckinCard'), at('<HomeNextRideCard'), at('<HomeQuickActions')];
   assert.deepEqual([...urgent].sort((a, b) => a - b), urgent);
   const social = Math.min(at('<HomeShoutoutsCard'), at('<HomeOnThisDayCard'), at('<HomeNewsCard'));
   assert.ok(Math.max(...urgent) < social);

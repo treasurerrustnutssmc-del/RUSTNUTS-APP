@@ -25,8 +25,10 @@ export const STATUS_LABEL: Record<MemberStatus, string> = {
 /**
  * What a board can let a new applicant in as. Full is only for someone already patched whose
  * sign-up email didn't match the roster (Jeff, 20 Nov 2026). Nomad is earned, Legacy is for leaving.
+ * The approval card shows them in this order: Family up front next to Supporter so a board can't
+ * miss it (Jeff missed it, 21 Nov 2026), and the rarely used Full last.
  */
-export const APPROVE_AS: MemberStatus[] = ['introduced', 'fng', 'full', 'supporter', 'family'];
+export const APPROVE_AS: MemberStatus[] = ['introduced', 'fng', 'family', 'supporter', 'full'];
 export const APPROVE_AS_PROBLEM = 'Let them in as Introduced, FNG, Full, Supporter or Family.';
 
 export const STATUS_ORDER: MemberStatus[] = ['full', 'nomad', 'fng', 'introduced', 'supporter', 'family', 'legacy'];

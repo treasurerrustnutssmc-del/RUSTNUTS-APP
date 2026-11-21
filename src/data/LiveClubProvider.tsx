@@ -70,7 +70,7 @@ import {
   signRoadRulesArgs,
 } from './liveData';
 // Stage 4
-import { canCheckIn, closeProblem, exemptionProblem, markProblem, openCheckinProblem } from '../domain/attendance';
+import { answerCheckinProblem, askCheckInProblem, canCheckIn, closeProblem, exemptionProblem, markProblem, openCheckinProblem } from '../domain/attendance';
 import { big4CrewProblem, big4GoingProblem, big4WaiverProblem, seesBig4Records, designateBig4Problem, undesignateBig4Problem } from '../domain/big4';
 import { closeNoticeProblem, giveNoticeProblem, respondProblem } from '../domain/notices';
 import {
@@ -652,6 +652,22 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const r = ok(await supabase().rpc('check_in', { p_code: code }));
       await after();
       return r.data as string;
+    },
+    askCheckIn: async (at) => {
+      deny(askCheckInProblem(visibleMe, at, data, today));
+      const r = ok(
+        await supabase().rpc('ask_check_in', {
+          p_ride: 'rideId' in at ? at.rideId : null,
+          p_session: 'sessionId' in at ? at.sessionId : null,
+        }),
+      );
+      await after();
+      return r.data as string;
+    },
+    answerCheckin: async (sessionId, memberId, here) => {
+      deny(answerCheckinProblem(visibleMe, (data.checkinSessions ?? []).find((s) => s.id === sessionId), memberId, data));
+      ok(await supabase().rpc('answer_check_in', { p_session: sessionId, p_member: memberId, p_here: here }));
+      await after();
     },
     markAttendance: async (sessionId, memberId, present) => {
       const session = (data.checkinSessions ?? []).find((s) => s.id === sessionId);
