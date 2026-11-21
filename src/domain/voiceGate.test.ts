@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createVoiceGate, NOISE_FILTERS, parseNoiseFilter, type NoiseFilter } from './voiceGate';
+import { createMeterCheck, createVoiceGate, NOISE_FILTERS, parseNoiseFilter, pcm16Level, type NoiseFilter } from './voiceGate';
 
 /** A level (0 to 1, like the phone reports) from decibels below full scale. */
 const lvl = (db: number) => 10 ** (db / 20);
@@ -123,4 +123,47 @@ test('the stored filter falls back to medium when missing or broken', () => {
   assert.equal(parseNoiseFilter('loud'), 'medium');
   assert.equal(parseNoiseFilter('off'), 'off');
   assert.equal(parseNoiseFilter('strong'), 'strong');
+});
+
+test('a sudden louder road (into the wind, a truck alongside) closes again within seconds, not minutes', () => {
+  const { gate, clock } = setup();
+  run(gate, clock, -40, 3000);
+  run(gate, clock, -24, 9000); // opens on the jump, then learns the new road
+  assert.equal(run(gate, clock, -24, 3000).open, false);
+});
+
+test('softer words mid-sentence keep the mic open', () => {
+  const { gate, clock } = setup();
+  run(gate, clock, -30, 3000);
+  run(gate, clock, -15, 400); // opens
+  // Seven dB over the road: not enough to open on medium, enough to stay open.
+  assert.equal(run(gate, clock, -23, 2500).open, true);
+});
+
+test('the Android mic level is read from raw little-endian samples', () => {
+  const b64 = (samples: number[]) => {
+    const bytes = samples.flatMap((v) => [(v & 0xff), ((v >> 8) & 0xff)]);
+    return Buffer.from(bytes).toString('base64');
+  };
+  const decode = (s: string) => Buffer.from(s, 'base64').toString('latin1');
+  assert.equal(pcm16Level(b64([0, 0, 0, 0]), decode), 0);
+  const full = pcm16Level(b64([32767, -32768, 32767, -32768]), decode);
+  assert.ok(Math.abs(full - 1) < 0.001, `full scale reads ${full}`);
+  // -20 dB: a tenth of full scale.
+  const tenth = pcm16Level(b64([3277, -3277, 3277, -3277]), decode);
+  assert.ok(Math.abs(tenth - 0.1) < 0.001, `a tenth reads ${tenth}`);
+  // A quiet sample whose low byte is big must not read loud (a byte-order mix-up does).
+  assert.ok(pcm16Level(b64([0x00ff, -0x00ff]), decode) < 0.01);
+  assert.equal(pcm16Level('!!!', () => { throw new Error('bad'); }), 0);
+});
+
+test('a meter stuck on one level is spotted, a live mic is not', () => {
+  const stuck = createMeterCheck();
+  let r = 'ok';
+  for (let t = 0; t <= 5000; t += 10) r = stuck(lvl(-5 + (t % 20 === 0 ? 0.3 : 0)), t);
+  assert.equal(r, 'broken');
+  const live = createMeterCheck();
+  r = 'ok';
+  for (let t = 0; t <= 10_000; t += 10) r = live(lvl(-30 + 4 * Math.sin(t / 37)), t);
+  assert.equal(r, 'ok');
 });

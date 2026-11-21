@@ -40,14 +40,18 @@ export function noiseFilterHint(filter: NoiseFilter): string {
 const MIN_VOICE_DB = -55;
 /** How long the mic stays open after the last loud enough moment, so words run together. */
 const HOLD_MS = 1200;
-/** Quick to hear a voice start, slower to learn the road. */
+/** Once open, softer words this much under the opening level still keep it open. */
+const KEEP_OPEN_DB = 4;
+/** Quick to hear a voice start, slower to follow the road. */
 const FAST_MS = 30;
 const SLOW_MS = 300;
-/** How fast the learnt road noise may follow the real one (dB a second). Rising stays slow while
- *  you talk, so a long sentence can't teach the gate that your voice is road noise. */
-const FLOOR_FALL = 10;
-const FLOOR_RISE = 2;
-const FLOOR_RISE_TALKING = 0.5;
+/** The road noise is the quietest the mic has been over the last two seconds (speech has gaps, so
+ *  a sentence can't pass for road noise), and it may only climb so fast (dB a second), slower while
+ *  you talk. Getting quieter is learnt at once. */
+const FLOOR_WINDOW_MS = 2000;
+const FLOOR_STEP_MS = 100;
+const FLOOR_RISE = 3;
+const FLOOR_RISE_TALKING = 1.5;
 
 const toDb = (level: number) => 20 * Math.log10(Math.max(level, 1e-5));
 
@@ -61,9 +65,11 @@ export function createVoiceGate(initial: NoiseFilter): VoiceGate {
   let filter = initial;
   let fast = 0;
   let slow = 0;
-  let floor = 0;
   let last: number | null = null;
+  let floor = 0;
   let openUntil = -Infinity;
+  // The quietest smoothed level in each 100 ms step of the last two seconds.
+  let steps: { at: number; min: number }[] = [];
 
   return {
     setFilter: (f) => {
@@ -71,22 +77,69 @@ export function createVoiceGate(initial: NoiseFilter): VoiceGate {
     },
     feed: (level, now) => {
       const db = toDb(level);
-      if (last === null) {
-        fast = slow = floor = db;
+      const first = last === null;
+      const dt = first ? 0 : Math.min(Math.max(now - (last as number), 0), 500);
+      if (first) {
+        fast = slow = db;
       } else {
-        const dt = Math.min(Math.max(now - last, 0), 500);
         fast += (db - fast) * (1 - Math.exp(-dt / FAST_MS));
         slow += (db - slow) * (1 - Math.exp(-dt / SLOW_MS));
-        const talking = now < openUntil;
-        floor =
-          slow < floor
-            ? Math.max(slow, floor - (FLOOR_FALL * dt) / 1000)
-            : Math.min(slow, floor + ((talking ? FLOOR_RISE_TALKING : FLOOR_RISE) * dt) / 1000);
       }
       last = now;
+      const step = Math.floor(now / FLOOR_STEP_MS);
+      const top = steps[steps.length - 1];
+      if (top && top.at === step) top.min = Math.min(top.min, slow);
+      else steps.push({ at: step, min: slow });
+      while (steps.length && steps[0].at <= step - FLOOR_WINDOW_MS / FLOOR_STEP_MS) steps.shift();
+      const quietest = Math.min(...steps.map((x) => x.min));
+      const open = now < openUntil;
+      floor = first ? quietest : Math.min(quietest, floor + ((open ? FLOOR_RISE_TALKING : FLOOR_RISE) * dt) / 1000);
+
       const margin = NOISE_FILTERS.find((f) => f.id === filter)?.margin ?? 0;
-      if (fast > floor + margin && fast > MIN_VOICE_DB) openUntil = now + HOLD_MS;
+      const needed = open ? Math.max(margin - KEEP_OPEN_DB, 2) : margin;
+      if (fast > floor + needed && fast > MIN_VOICE_DB) openUntil = now + HOLD_MS;
       return filter === 'off' || now < openUntil;
     },
+  };
+}
+
+/** The loudness (0 to 1, root mean square) of 16-bit little-endian sound sent as base64, which is
+ *  how Android hands over the mic's raw samples. */
+export function pcm16Level(base64: string, decode: (b64: string) => string): number {
+  let bin: string;
+  try {
+    bin = decode(base64);
+  } catch {
+    return 0;
+  }
+  const n = bin.length >> 1;
+  if (n === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
+    if (v & 0x8000) v -= 0x10000;
+    sum += v * v;
+  }
+  return Math.sqrt(sum / n) / 32768;
+}
+
+/** Watches the levels a meter reports and says when they can't be a real mic: a live mic's level
+ *  always wobbles, so one that sits within 1.5 dB for five seconds is reading something else (or
+ *  nothing), and the gate should step aside and leave the mic open. */
+export function createMeterCheck() {
+  let since: number | null = null;
+  let lo = Infinity;
+  let hi = -Infinity;
+  return (level: number, now: number): 'ok' | 'broken' => {
+    const db = toDb(level);
+    if (since === null) since = now;
+    lo = Math.min(lo, db);
+    hi = Math.max(hi, db);
+    if (hi - lo > 1.5) {
+      since = now;
+      lo = hi = db;
+      return 'ok';
+    }
+    return now - since >= 5000 ? 'broken' : 'ok';
   };
 }

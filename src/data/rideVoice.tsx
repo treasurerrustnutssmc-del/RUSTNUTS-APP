@@ -103,6 +103,7 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [noiseFilter, setNoiseFilterState] = useState<NoiseFilter>(DEFAULT_NOISE_FILTER);
   const noiseFilterNow = useRef<NoiseFilter>(DEFAULT_NOISE_FILTER);
+  const noiseFilterChosen = useRef(false); // a tap before the saved choice loads wins
   const call = useRef<Call | null>(null);
   const busy = useRef(false); // two quick taps on Connect make one call
   const mutedNow = useRef(false);
@@ -159,7 +160,7 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
     let live = true;
     AsyncStorage.getItem(NOISE_FILTER_KEY)
       .then((raw) => {
-        if (!live || raw === null) return;
+        if (!live || raw === null || noiseFilterChosen.current) return;
         noiseFilterNow.current = parseNoiseFilter(raw);
         setNoiseFilterState(noiseFilterNow.current);
         call.current?.setNoiseFilter?.(noiseFilterNow.current);
@@ -171,6 +172,7 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setNoiseFilter = useCallback((next: NoiseFilter) => {
+    noiseFilterChosen.current = true;
     noiseFilterNow.current = next;
     setNoiseFilterState(next);
     call.current?.setNoiseFilter?.(next);
@@ -245,6 +247,8 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           call.current = joined;
+          // A choice made while it was connecting.
+          joined.setNoiseFilter?.(noiseFilterNow.current);
         }
         setState('connected');
       } catch (e) {
