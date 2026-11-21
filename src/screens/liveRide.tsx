@@ -10,6 +10,7 @@ import { useClub } from '../data/ClubStore';
 import { activeRide } from '../data/liveTracker';
 import { smsUrl, textLeaders } from '../data/liveQueue';
 import { useLiveRide } from '../data/useLiveRide';
+import { calledOffIds } from '../domain/rideCalls';
 import { BACKGROUND_LOCATION_NOTICE, awayText, homeLiveRide, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, offTime, splitGroups, splitWarning } from '../domain/liveRide';
 import { initials } from '../domain/profile';
 import { riderPins } from '../domain/rideMap';
@@ -86,13 +87,13 @@ const offAtMidnight = (ride: Ride, now: string) => {
 
 /** Home, right under the greeting while a ride of yours is under way (or you're sharing on one):
  *  one tap into the live ride. Jeff, 21 Nov 2026, on the Big 4. The rules are homeLiveRide. */
-export function HomeLiveRideCard() {
+/** The live ride for Home, looked at again each time Home comes into view and each minute while it's open
+ *  (so it turns up at the meet-up and goes when the ride ends). The Live ride and Next ride cards both use
+ *  this, so they always agree on which ride is live. */
+export function useHomeLiveRide(): { ride: Ride | null; saved: { rideId: string; meId: string } | null; now: string } {
   const { me, data, isDemo } = useClub();
-  const navigation = useNavigation<NavigationProp<RootParams>>();
   const [saved, setSaved] = useState<{ rideId: string; meId: string } | null>(null);
   const [now, setNow] = useState(() => new Date().toISOString());
-  // Look again each time Home comes back into view, and each minute while it's open, so the card
-  // turns up at the meet-up and goes when the ride ends without a pull to refresh.
   useFocusEffect(
     useCallback(() => {
       const look = () => {
@@ -106,15 +107,17 @@ export function HomeLiveRideCard() {
       return () => clearInterval(t);
     }, [isDemo]),
   );
+  const ride = me
+    ? homeLiveRide({ me, rides: data.rides, rsvps: data.rsvps, categories: defaultCategories(me, data.chapters), now, sharing: saved, calledOff: calledOffIds(data) })
+    : null;
+  return { ride, saved, now };
+}
+
+export function HomeLiveRideCard() {
+  const { me, data } = useClub();
+  const navigation = useNavigation<NavigationProp<RootParams>>();
+  const { ride, saved, now } = useHomeLiveRide();
   if (!me) return null;
-  const ride = homeLiveRide({
-    me,
-    rides: data.rides,
-    rsvps: data.rsvps,
-    categories: defaultCategories(me, data.chapters),
-    now,
-    sharing: saved,
-  });
   if (!ride) return null;
   const sharing = saved?.meId === me.id && saved.rideId === ride.id;
   const leg = legLabel(ride.id, data);
@@ -130,7 +133,7 @@ export function HomeLiveRideCard() {
       <Body>
         {sharing
           ? 'You’re sharing your location with this ride.'
-          : `Ride comms and location sharing are on. ${offAtMidnight(ride, now)} Nothing is kept.`}
+          : `Ride comms and location sharing are open for this ride. ${offAtMidnight(ride, now)} Nothing is kept.`}
       </Body>
       <Button
         label={sharing ? 'Open live ride (sharing)' : 'Open live ride'}

@@ -71,7 +71,7 @@ const QUICK: Quick[] = [
   { key: 'docs', icon: 'folder-open-outline', label: 'Documents', screen: 'Documents' },
   // Only once the club assistant is switched on.
   { key: 'ask', icon: 'chatbubbles-outline', label: 'Ask the club', screen: 'AskClub', ask: true },
-  { key: 'feedback', icon: 'megaphone-outline', label: 'Tell us', screen: 'Feedback' },
+  { key: 'feedback', icon: 'megaphone-outline', label: 'Feedback', screen: 'Feedback' },
 ];
 
 /** The everyday jobs that aren't a tab already: one tap each, on Me. */
@@ -83,8 +83,17 @@ export function QuickButtons() {
   const rules = homeRoadRulesRow(me, data, today);
   const fees = feesButtonLine(totalOwing(me.id, data), me.onHiatus);
   const toSign = (data.documents ?? []).filter((d) => signStatus(me, d, data, today) === 'unsigned').length;
+  // Road Rules only speaks up when you need to act: not signed yet (you can't say Going until you do),
+  // due soon, or run out. Otherwise it stays quiet.
+  const rulesDue = rules && (rules.tone === 'warn' || rules.tone === 'danger') ? rules.text : null;
   const subOf = (q: Quick): { text: string; alert: boolean } | null =>
-    q.mine ? { text: fees.text, alert: fees.owing } : q.key === 'docs' && toSign > 0 ? { text: `${toSign} to sign`, alert: true } : null;
+    q.mine
+      ? { text: fees.text, alert: fees.owing }
+      : q.key === 'docs' && toSign > 0
+        ? { text: `${toSign} to sign`, alert: true }
+        : q.rules && rulesDue
+          ? { text: rulesDue, alert: true }
+          : null;
   const screenOf = (q: Quick) => (q.rules && rules?.opens === 'guide' ? 'RoadRulesGuide' : q.screen);
   return (
     <View style={styles.grid} accessibilityRole="toolbar" accessibilityLabel="Quick buttons">

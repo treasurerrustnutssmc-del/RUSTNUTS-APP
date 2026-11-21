@@ -1,6 +1,6 @@
 // Feedback and issues. Members: a card on Me opens a form (what it is, what happened, where, a
 // screenshot) and shows their own reports with the keepers' replies. Keepers (Treasurer, NEC):
-// the "App feedback" section on the Board screen, with status buttons, a reply and Email.
+// the "App feedback" section on Board › Website and app, with status buttons, a reply and Email.
 // Spec: docs/superpowers/specs/2026-11-01-app-feedback-design.md
 
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
@@ -268,7 +268,7 @@ function Screenshot({ path, screenshotUrl }: { path: string; screenshotUrl: (p: 
   );
 }
 
-/** "App feedback" on the Board screen, for the keepers. */
+/** "App feedback" on Board › Website and app, for the keepers. */
 export function AppFeedbackSection({ onDone }: { onDone: (msg: string) => void }) {
   const { me, data } = useClub();
   const { ready, feedback, loadError, answer, screenshotUrl } = useFeedback();
@@ -285,7 +285,7 @@ export function AppFeedbackSection({ onDone }: { onDone: (msg: string) => void }
         </Card>
       ) : feedback.length === 0 ? (
         <Card>
-          <Small>Nobody has sent feedback yet. Members send it from Me › Feedback and issues.</Small>
+          <Small>Nobody has sent feedback yet. Members send it from the Feedback button on Me, or Me › Help › Feedback and issues.</Small>
         </Card>
       ) : (
         feedback.map((f) => <KeeperCard key={f.id} report={f} onDone={onDone} answer={answer} screenshotUrl={screenshotUrl} />)

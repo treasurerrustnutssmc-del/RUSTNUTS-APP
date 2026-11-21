@@ -315,7 +315,16 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
         value={chapterId}
         onChange={setChapterId}
       />
-      <Button label="What do SAA, RC and the other short names mean?" kind="quiet" onPress={() => navigation.navigate('ClubWords')} />
+      {/* A row that says what it opens (Jeff, 21 Nov 2026: the old question button read as a question with no answer) */}
+      <Card style={{ padding: 0, gap: 0 }}>
+        <ListRow
+          last
+          left={<IconBadge icon="book-outline" />}
+          title="Club words"
+          subtitle="What SAA, RC, TG and the other short role names mean"
+          onPress={() => navigation.navigate('ClubWords')}
+        />
+      </Card>
       {groups.length === 0 ? (
         <Notice title="Nobody matches">Try a road name, a real name or a bike, like “Softail”.</Notice>
       ) : null}

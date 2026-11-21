@@ -217,7 +217,8 @@ const SHOW_BEFORE = HOUR;
  * The live ride Home shows straight under your name, or null. The ride you're sharing on comes first
  * (while its live window is open). Otherwise a ride that's under way: from an hour before it starts
  * (the meet-up) until it ends, or until its live window closes when it has no end time. It has to be
- * yours: in your colours and not answered Can't go, or one you said Going or Maybe to. Two at once
+ * yours: in your colours and not answered Can't go, or one you said Going or Maybe to (another club's
+ * ride only then), and not called off or postponed. Two at once
  * (legs of a trip) shows the one that started last.
  */
 export function homeLiveRide(input: {
@@ -228,6 +229,8 @@ export function homeLiveRide(input: {
   now: string;
   /** The share saved on this phone, if any. Only counts when it's this member's (a shared phone keeps it after sign-out). */
   sharing: { rideId: string; meId: string } | null;
+  /** Rides called off or postponed (an active ride call): never live on Home. */
+  calledOff?: string[];
 }): Ride | null {
   const { me, rides, rsvps, categories, now } = input;
   if (!me || me.approval !== 'approved') return null;
@@ -238,7 +241,8 @@ export function homeLiveRide(input: {
   const answer = (rideId: string) => rsvps.find((r) => r.rideId === rideId && r.memberId === me.id)?.answer ?? null;
   const mine = (r: Ride) => {
     const a = answer(r.id);
-    return a === 'going' || a === 'maybe' || (a !== 'no' && categories.includes(r.category));
+    // Another club's ride (Supported) only when you said you're going: it's in everyone's colours.
+    return a === 'going' || a === 'maybe' || (a !== 'no' && r.category !== 'supported' && categories.includes(r.category));
   };
   const underWay = (r: Ride) => {
     const w = liveWindow(r);
@@ -248,7 +252,7 @@ export function homeLiveRide(input: {
   };
   return (
     rides
-      .filter((r) => underWay(r) && mine(r))
+      .filter((r) => underWay(r) && mine(r) && !input.calledOff?.includes(r.id))
       .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())[0] ?? null
   );
 }

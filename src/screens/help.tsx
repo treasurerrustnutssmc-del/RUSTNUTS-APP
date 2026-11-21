@@ -1,4 +1,4 @@
-// Stage 7: "Who can help?" Members who can lend a hand with a skill, and the club's trusted mechanics.
+// Stage 7: Help and mechanics (was "Who can help?"). Members who can lend a hand with a skill, and the club's trusted mechanics.
 
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
@@ -78,13 +78,13 @@ function SkillGrid({ children }: { children: React.ReactNode }) {
 // Members tab: the way in
 // ---------------------------------------------------------------------------
 
-/** Members tab: a row into Who can help. */
+/** Members tab: a row into Help and mechanics. */
 export function WhoCanHelpRow({ last = false }: { last?: boolean }) {
   const navigation = useNavigation<Nav>();
   return (
     <ListRow
       left={<IconBadge icon="construct" tone="red" />}
-      title="Who can help?"
+      title="Help and mechanics"
       subtitle="Members who can lend a hand, and trusted mechanics"
       onPress={() => navigation.navigate('WhoCanHelp')}
       last={last}
@@ -358,7 +358,7 @@ function SkillsForm({ mine, onDone }: { mine: HelpSkill[]; onDone: () => void })
   return (
     <Screen>
       <Card>
-        <Small>Members looking for a hand with one of these see you under Who can help, and can message you.</Small>
+        <Small>Members looking for a hand with one of these see you under Help and mechanics, and can message you.</Small>
         <SkillGrid>
           {HELP_SKILLS.map((s) => (
             <SkillPick key={s} skill={s} role="checkbox" selected={picked.includes(s)} onPress={() => toggle(s)} />

@@ -2,9 +2,8 @@
 // Going / Maybe / Can't make it, its route and its crew. Rides come from the calendar sync, or are made in the
 // app by the people who run them (src/screens/editRide.tsx); only app rides change here.
 
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { homeLiveRide } from '../domain/liveRide';
 import { useClub } from '../data/ClubStore';
 import { briefingOf, editBriefingProblem, hazardSummary, moreLabel, readCount, readCountLine, readState } from '../domain/briefings';
 import { formatAuDate, weekday } from '../domain/dates';
@@ -39,7 +38,7 @@ import { COLOUR_NOTE_TEXT, colourNote } from '../domain/savedFilters';
 import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
-import { LiveRideCard } from './liveRide';
+import { LiveRideCard, useHomeLiveRide } from './liveRide';
 // Lane E: share
 import { ShareRideButton } from './shareRide';
 import { HubSection, RideCallBanner, RidePlanSection, SwapSection } from './ridePlanning'; // Ride planning extras
@@ -169,7 +168,8 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
       {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
 
       {/* Which colours the calendar above shows */}
-      <View style={styles.filters} accessibilityLabel="Show rides by colour">
+      <SectionTitle title="Show rides by colour" />
+      <View style={styles.filters} accessibilityLabel="Colour buttons">
         {RIDE_CATEGORIES.map((c) => {
           const on = categories.includes(c);
           const col = rideColors[c];
@@ -264,18 +264,13 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
   // True while an answer is being saved. A ref, so a Retry from an older toast sees it too.
   const saving = useRef(false);
-  // Look again each minute, in step with the Live ride card above, so the two never show the same ride.
-  const [now, setNow] = useState(() => new Date().toISOString());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date().toISOString()), 60_000);
-    return () => clearInterval(t);
-  }, []);
+  // The ride the Live ride card above shows (same look, saved share included), so this card moves on
+  // to the ride after it rather than showing it twice.
+  const { ride: live } = useHomeLiveRide();
   if (!me || me.approval !== 'approved') return null;
-  const ride = nextRide(data.rides, defaultCategories(me, data.chapters), today);
+  const cats = defaultCategories(me, data.chapters);
+  const ride = nextRide(live ? data.rides.filter((r) => r.id !== live.id) : data.rides, cats, today);
   if (!ride) return null;
-  // Under way: it's the Live ride card straight under your name already, so it isn't shown twice.
-  const live = homeLiveRide({ me, rides: [ride], rsvps: data.rsvps, categories: defaultCategories(me, data.chapters), now, sharing: null });
-  if (live) return null;
   const mine = data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null;
   // One tap here only when the ride screen would allow Going too; otherwise the card opens the ride, which says why.
   const whyNot = quickAnswerReason(me, ride, data, today, new Date().toISOString());
@@ -767,7 +762,8 @@ export function RideDetailScreen({ route, navigation }: RootScreen<'RideDetail'>
       <RideCallBanner ride={ride} me={me} data={data} />
 
       {/* Lane E: live ride */}
-      <LiveRideCard ride={ride} onOpen={() => navigation.navigate('LiveRide', { rideId: ride.id })} />
+      {/* Not while the ride's off or postponed: the banner above says so */}
+      {!call ? <LiveRideCard ride={ride} onOpen={() => navigation.navigate('LiveRide', { rideId: ride.id })} /> : null}
       {/* Lane E: share */}
       <ShareRideButton ride={ride} />
 

@@ -6,6 +6,9 @@ import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
 import { useClub } from '../data/ClubStore';
 import { useEnquiries } from '../data/enquiries';
+import { useFeedback } from '../data/feedback';
+import { websiteAppLine } from '../domain/boardLayout';
+import { isFeedbackKeeper } from '../domain/feedback';
 import { isAnyBoard } from '../domain/social/help';
 import type { RootParams } from '../navigation/types';
 import { IconBadge, ListRow, Notice, Screen } from '../ui/primitives';
@@ -35,18 +38,22 @@ export function WebsiteAppScreen() {
   );
 }
 
-/** The Board's way in: how many website enquiries are waiting, red while any are. */
+/** The Board's way in: website enquiries and new app feedback waiting, red while any are. */
 export function WebsiteAppRow({ last }: { last?: boolean }) {
   const { me, data } = useClub();
   const navigation = useNavigation<NavigationProp<RootParams>>();
   const { enquiries } = useEnquiries();
+  const { feedback } = useFeedback();
   const waiting = isAnyBoard(me, data.positions) ? enquiries.filter((e) => e.handledAt === null).length : 0;
+  // New app feedback counts for the people who look after it (Treasurer, NEC Chair, NEC Secretary).
+  const fresh = isFeedbackKeeper(me, data.positions) ? feedback.filter((f) => f.status === 'new').length : 0;
+  const line = websiteAppLine(waiting, fresh);
   return (
     <ListRow
       last={last}
-      left={<IconBadge icon="globe-outline" tone={waiting > 0 ? 'red' : 'steel'} />}
+      left={<IconBadge icon="globe-outline" tone={line.waiting ? 'red' : 'steel'} />}
       title="Website and app"
-      subtitle={waiting > 0 ? `${waiting} website ${waiting === 1 ? 'enquiry' : 'enquiries'} waiting` : 'Enquiries, news, visits, app feedback and usage'}
+      subtitle={line.text}
       onPress={() => navigation.navigate('WebsiteApp')}
     />
   );
