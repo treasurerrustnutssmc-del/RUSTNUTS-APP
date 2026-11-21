@@ -23,6 +23,11 @@ export interface ExpoMessage {
   /** iPhone only: a time-sensitive push breaks through Focus and the notification summary (the app's
    *  time-sensitive entitlement allows it). Only live ride alerts earn it. */
   interruptionLevel?: 'time-sensitive';
+  /** Android: a notification with the same tag replaces the one already showing. */
+  tag?: string;
+  /** iPhone: replaces the notification already showing with the same id (Android: only the latest of
+   *  these is delivered if the phone was offline, which is fine, as the latest holds the whole stack). */
+  collapseId?: string;
   /** Ours, to match tickets to outbox rows; removed before posting. */
   outboxId: number;
 }
@@ -49,6 +54,16 @@ function soundFor(kind: unknown, rev: boolean): { channelId: string; sound: stri
   return rev ? { channelId: `${base}-rev2`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
 }
 
+/** Chat stacks like Messenger: one notification per chat, each new message replacing the last one for
+ *  that chat. The database writes the stack into the message (the unread lines and a count in the
+ *  title; push_chat_message in 20270950000000_chat_push_stack.sql), so nothing is lost when it's
+ *  replaced. Everything else keeps a notification of its own. */
+function stackFor(data: Record<string, unknown>): { tag: string; collapseId: string } | null {
+  if (data.kind !== 'chat' || typeof data.chatId !== 'string' || data.chatId === '') return null;
+  const key = `chat-${data.chatId}`;
+  return { tag: key, collapseId: key };
+}
+
 /** One message per phone. Live ride alerts keep the urgent sound and are time-sensitive on iPhone;
  *  the rest rev unless the member switched it off. All go high priority: Android holds normal ones
  *  while the phone sleeps, so a chat message could turn up many minutes late or not until the app
@@ -57,6 +72,7 @@ export function toExpoMessages(rows: OutboxMessage[]): ExpoMessage[] {
   return rows.flatMap((r) => {
     const { channelId, sound } = soundFor(r.data.kind, r.rev ?? true);
     const urgent = r.data.kind === 'live-alert';
+    const stack = stackFor(r.data);
     return r.tokens.map((to): ExpoMessage => ({
       to,
       title: r.title,
@@ -66,6 +82,7 @@ export function toExpoMessages(rows: OutboxMessage[]): ExpoMessage[] {
       data: r.data,
       priority: 'high',
       ...(urgent ? { interruptionLevel: 'time-sensitive' as const } : {}),
+      ...(stack ?? {}),
       outboxId: r.id,
     }));
   });
@@ -82,6 +99,28 @@ export function deadTokens(messages: ExpoMessage[], tickets: ExpoTicket[]): stri
   return messages.filter((_, i) => tickets[i]?.details?.error === 'DeviceNotRegistered').map((m) => m.to);
 }
 
+/** Several chat pushes in one round for the same chat and the same member's phones: only the newest
+ *  goes. Each holds the whole stack, and the phone would only replace one with the next; sending them
+ *  together, they could land out of order and leave an older, shorter stack showing. The older ones
+ *  count as sent when the newest is. */
+export function newestPerChat(rows: OutboxMessage[]): { keep: OutboxMessage[]; supersededBy: Map<number, number> } {
+  const newest = new Map<string, number>();
+  const key = (r: OutboxMessage) =>
+    stackFor(r.data) ? `${String(r.data.chatId)}|${[...r.tokens].sort().join(',')}` : null;
+  for (const r of rows) {
+    const k = key(r);
+    if (k !== null && r.id > (newest.get(k) ?? -Infinity)) newest.set(k, r.id);
+  }
+  const supersededBy = new Map<number, number>();
+  const keep = rows.filter((r) => {
+    const k = key(r);
+    const top = k === null ? r.id : newest.get(k)!;
+    if (top !== r.id) supersededBy.set(r.id, top);
+    return top === r.id;
+  });
+  return { keep, supersededBy };
+}
+
 export async function sendAll(io: {
   take: () => Promise<{ enabled: boolean; messages: OutboxMessage[] }>;
   post: (batch: Omit<ExpoMessage, 'outboxId'>[]) => Promise<ExpoTicket[]>;
@@ -89,9 +128,10 @@ export async function sendAll(io: {
 }): Promise<{ enabled: boolean; sent: number; failed: number }> {
   const { enabled, messages } = await io.take();
   if (!enabled || messages.length === 0) return { enabled, sent: 0, failed: 0 };
+  const { keep, supersededBy } = newestPerChat(messages);
   const delivered = new Set<number>();
   const dead: string[] = [];
-  for (const batch of chunk(toExpoMessages(messages), 100)) {
+  for (const batch of chunk(toExpoMessages(keep), 100)) {
     try {
       const tickets = await io.post(batch.map(({ outboxId: _id, ...m }) => m));
       batch.forEach((m, i) => tickets[i]?.status === 'ok' && delivered.add(m.outboxId));
@@ -100,6 +140,7 @@ export async function sendAll(io: {
       // The whole batch failed; its rows are recorded as failed below unless another phone got them.
     }
   }
+  for (const [older, newer] of supersededBy) if (delivered.has(newer)) delivered.add(older);
   const sent = messages.filter((m) => delivered.has(m.id)).map((m) => m.id);
   const failed = messages.filter((m) => !delivered.has(m.id)).map((m) => m.id);
   await io.done(sent, failed, dead);

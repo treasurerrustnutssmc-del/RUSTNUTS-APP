@@ -118,7 +118,7 @@ begin
   select * into o from private.push_outbox where dedupe_key = 'chat:' || msg and member_id = '00000000-0000-0000-0000-0000000000d3';
   assert o.title = 'Whole club', o.title;
   assert o.body = 'Wes: Who’s up for a ride Sunday?', o.body;
-  assert o.data = jsonb_build_object('kind', 'chat', 'chatId', pg_temp.chat('club')), o.data::text;
+  assert o.data = jsonb_build_object('kind', 'chat', 'chatId', pg_temp.chat('club'), 'line', o.body), o.data::text;
   assert o.status = 'held', 'held while push is switched off, like every other push';
 end $$;
 
@@ -171,19 +171,19 @@ begin
 end $$;
 
 \o
-\echo 'Long messages are cut short; photos and GIFs say what was sent'
+\echo 'Long messages are cut short; photos and GIFs say what was sent (each message''s own line; the stack is in chat_push_stack_test.sql)'
 \o /dev/null
 do $$
 declare msg uuid;
 begin
   msg := pg_temp.send(pg_temp.chat('club'), repeat('vroom ', 60));
-  assert (select char_length(body) from private.push_outbox where dedupe_key = 'chat:' || msg limit 1) = 140;
-  assert (select body like 'Wes: vroom vroom%…' from private.push_outbox where dedupe_key = 'chat:' || msg limit 1);
+  assert (select char_length(data->>'line') from private.push_outbox where dedupe_key = 'chat:' || msg limit 1) = 140;
+  assert (select data->>'line' like 'Wes: vroom vroom%…' from private.push_outbox where dedupe_key = 'chat:' || msg limit 1);
   msg := pg_temp.send(pg_temp.chat('club'), '', '[{"kind": "gif", "path": "https://media.giphy.com/media/abc/giphy.gif"}]');
-  assert (select body from private.push_outbox where dedupe_key = 'chat:' || msg limit 1) = 'Wes sent a GIF',
-    (select body from private.push_outbox where dedupe_key = 'chat:' || msg limit 1);
+  assert (select data->>'line' from private.push_outbox where dedupe_key = 'chat:' || msg limit 1) = 'Wes sent a GIF',
+    (select data->>'line' from private.push_outbox where dedupe_key = 'chat:' || msg limit 1);
   msg := pg_temp.send(pg_temp.chat('club'), 'Look', '[{"kind": "gif", "path": "https://media.giphy.com/media/abc/giphy.gif"}]');
-  assert (select body from private.push_outbox where dedupe_key = 'chat:' || msg limit 1) = 'Wes: Look', 'words win over the GIF';
+  assert (select data->>'line' from private.push_outbox where dedupe_key = 'chat:' || msg limit 1) = 'Wes: Look', 'words win over the GIF';
   -- A voice note (sent on its own; written directly here, as the recording's storage checks aren't the point).
   insert into public.messages (id, conversation_id, author_id, body)
   values ('00000000-0000-0000-0000-0000000000f9', pg_temp.chat('club'), '00000000-0000-0000-0000-0000000000d1', null);
@@ -191,8 +191,8 @@ begin
   values ('00000000-0000-0000-0000-0000000000f9', pg_temp.chat('club'), 'voice', pg_temp.chat('club') || '/note.m4a', 4000);
   set constraints all immediate;
   set constraints all deferred;
-  assert (select body from private.push_outbox where dedupe_key = 'chat:00000000-0000-0000-0000-0000000000f9' limit 1) = 'Wes sent a voice note',
-    (select body from private.push_outbox where dedupe_key = 'chat:00000000-0000-0000-0000-0000000000f9' limit 1);
+  assert (select data->>'line' from private.push_outbox where dedupe_key = 'chat:00000000-0000-0000-0000-0000000000f9' limit 1) = 'Wes sent a voice note',
+    (select data->>'line' from private.push_outbox where dedupe_key = 'chat:00000000-0000-0000-0000-0000000000f9' limit 1);
 end $$;
 
 \o

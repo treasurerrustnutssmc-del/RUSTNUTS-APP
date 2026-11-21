@@ -35,6 +35,7 @@ import {
   type RideJson,
 } from './liveChat';
 import { prepareUpload, prepareVoiceUpload, type Upload } from './media';
+import { clearChatNotifications } from '../clearChatNotifications';
 
 const PAGE = 40;
 const BUCKET = 'chat-media';
@@ -125,7 +126,10 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   const markRead = useCallback(
     (chatId: string) =>
       rpc('mark_chat_read', { p_chat: chatId }).then(
-        () => setRawList((list) => list.map((s) => (s.conversation.id === chatId ? { ...s, unread: 0 } : s))),
+        () => {
+          setRawList((list) => list.map((s) => (s.conversation.id === chatId ? { ...s, unread: 0 } : s)));
+          void clearChatNotifications(chatId);
+        },
         () => undefined,
       ),
     [],

@@ -6,7 +6,7 @@
 
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { foregroundPlan } from '../domain/notifications';
+import { bannerLine, foregroundPlan } from '../domain/notifications';
 import { viewingChat } from './viewingChat';
 
 /** One notification for the club's banner. */
@@ -35,7 +35,7 @@ if (Platform.OS === 'ios' || Platform.OS === 'android') {
       const data = (n.request.content.data ?? {}) as Record<string, unknown>;
       const plan = foregroundPlan(data, viewingChat(), { inAppBanner: presenter !== null });
       if (plan.inApp && presenter) {
-        presenter({ id: n.request.identifier, title: n.request.content.title ?? 'Rustnuts', body: n.request.content.body ?? '', data });
+        presenter({ id: n.request.identifier, title: n.request.content.title ?? 'Rustnuts', body: bannerLine(n.request.content.body ?? '', data), data });
       }
       return { shouldShowBanner: plan.phone.banner, shouldShowList: plan.phone.list, shouldPlaySound: plan.phone.sound, shouldSetBadge: false };
     },
