@@ -45,8 +45,8 @@ test('each group says in one line what is inside, with counts where there are an
   const g = Object.fromEntries(boardGroups({ pending: 0, alerts: 1, noContact: 2, fngs: 3 }).map((x) => [x.id, x.summary]));
   assert.equal(g.approvals, 'Nobody waiting');
   assert.equal(g.people, '1 due, 2 without a contact, 3 FNG reviews');
-  assert.equal(g.meetings, 'Attendance and check-ins');
-  assert.equal(g.money, 'Chapter fees');
+  assert.equal(g.meetings, 'Agendas, minutes, votes, attendance and check-ins');
+  assert.equal(g.money, 'The books and chapter fees');
   assert.equal(g.website, 'Enquiries, news, visits, app feedback and app usage');
   assert.equal(boardGroups(none).find((x) => x.id === 'people')!.summary, 'Nothing due');
 });
@@ -285,4 +285,13 @@ test('several members open the list on the Board that names each of them', () =>
 test('approvals are decided on the Board itself, so they always open that list', () => {
   assert.deepEqual(needsYouTarget('pending', ['m1']), { to: 'list', kind: 'pending' });
   assert.deepEqual(needsYouTarget('pending', ['m1', 'm2']), { to: 'list', kind: 'pending' });
+});
+
+// Jeff, 21 Nov 2026: headings must say what's under them. Meetings and votes sit under Meetings, the
+// books under Money, and the Road Rules sign-off under People, not in an unnamed card above the groups.
+test('Board headings name what is under them', () => {
+  const g = Object.fromEntries(boardGroups({ pending: 0, alerts: 0, noContact: 0, fngs: 0 }).map((x) => [x.id, x]));
+  assert.equal(g.meetings.title, 'Meetings, votes and attendance');
+  assert.match(g.meetings.summary, /votes/);
+  assert.match(g.money.summary, /books/);
 });

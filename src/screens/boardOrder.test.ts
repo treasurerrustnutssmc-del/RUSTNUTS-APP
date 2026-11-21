@@ -8,11 +8,14 @@ import { test } from 'node:test';
 const board = fs.readFileSync(path.resolve(import.meta.dirname, 'board.tsx'), 'utf8');
 const screen = board.slice(board.indexOf('export function BoardScreen'), board.indexOf('export function ManageMemberScreen'));
 
-test('Needs you first, then the menu of areas, then the groups', () => {
+// Jeff, 21 Nov 2026: each row sits under the heading it belongs to (Meetings and votes in Meetings, the
+// books in Money). The groups all start open, so the rows' live counts stay visible.
+test('Needs you first, then the groups, which hold the menu rows', () => {
   const needs = screen.indexOf('<SectionTitle title="Needs you" />');
-  const menu = screen.indexOf('title="Meetings and votes"');
   const groups = screen.indexOf('{groups.map(');
-  assert.ok(needs > 0 && needs < menu && menu < groups);
+  const menu = screen.indexOf('title="Meetings and votes"');
+  assert.ok(needs > 0 && needs < groups && groups < menu);
+  assert.ok(screen.includes('const isOpen = chosen[g.id] ?? true;'), 'groups start open');
 });
 
 test('the menu of areas is never folded away (its counts must stay visible)', () => {

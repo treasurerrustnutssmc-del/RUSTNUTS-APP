@@ -71,7 +71,7 @@ test('the guide counts the tabs a member has and gives Merch its own row', () =>
 test('the Me row names every group Me folds into, by the title the app shows', () => {
   const where = section('where-things-are');
   for (const g of groups) assert.ok(where.includes(g.title), `the Me row should name "${g.title}"`);
-  assert.ok(where.includes(`then ${COUNT[groups.length]} groups you tap to open`), 'counts the groups');
+  assert.ok(where.includes(`then ${COUNT[groups.length]} groups, all open when you arrive`), 'counts the groups');
   assert.match(where, /Sign out is at the bottom/);
 });
 
@@ -113,7 +113,7 @@ test('the first five minutes follow the app: Road Rules before a ride, RSVP on H
   // "Can’t go" is the Home card's own short label (rides.tsx). RSVP_LABEL.no, "Can’t make it", is the one on the ride.
   assert.ok(first.includes(`on Home, tap ${RSVP_LABEL.going}, ${RSVP_LABEL.maybe} or Can’t go under Next ride`), 'RSVP from Home');
   assert.match(first, /The buttons show once you’ve signed the Road Rules/);
-  assert.ok(first.includes(`Me › ${group('fees')}, or the fees card on Home when something is owing. Tap it to open Your fees`), 'where fees are');
+  assert.ok(first.includes(`Me › ${group('fees')}, or My fees on Home. Tap it to open Your fees`), 'where fees are');
   assert.match(first, /If anything is owing, pay by PayID or bank transfer/);
   assert.match(first, /tap I’ve paid this, check the amount and tap Tell the treasurer/);
 });

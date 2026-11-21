@@ -284,7 +284,7 @@ export function MeSocialSection() {
   const mySkills = skills.find((s) => s.memberId === me.id)?.skills ?? [];
   return (
     <>
-      <SectionTitle title="Social" />
+      {/* Its heading is Me's Social group. */}
       <Card style={{ padding: 0, gap: 0 }}>
         <ListRow
           left={<IconBadge icon="gift-outline" tone={mine ? 'red' : 'steel'} />}
