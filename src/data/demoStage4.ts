@@ -2,7 +2,21 @@
 // functions that take the club as it is and hand back the club as it should be, or throw with
 // the same words as the database's actions (checked by src/data/parity.test.ts).
 
-import { checkInProblem, closeProblem, canRunCheckin, markProblem, newCode, normalizeCode, openCheckinProblem, rideChapterId, type OpenCheckinInput } from '../domain/attendance';
+import {
+  answerCheckinProblem,
+  askCheckInProblem,
+  checkInProblem,
+  checkinAsk,
+  closeProblem,
+  canRunCheckin,
+  markProblem,
+  newCode,
+  normalizeCode,
+  openCheckinProblem,
+  rideChapterId,
+  type CheckInAt,
+  type OpenCheckinInput,
+} from '../domain/attendance';
 import { agmDateProblem, clubYearOf, proRata, proRataNote, recordAgmProblem } from '../domain/clubYear';
 import { addDays } from '../domain/dates';
 import {
@@ -88,8 +102,62 @@ export function checkIn(ctx: DemoCtx, code: string): { data: ClubData; id: strin
   const attendance = ctx.data.attendance ?? [];
   if (attendance.some((a) => a.sessionId === s!.id && a.memberId === ctx.me!.id)) return { data: ctx.data, id: s!.id };
   return {
-    data: { ...ctx.data, attendance: [...attendance, { sessionId: s!.id, memberId: ctx.me!.id, checkedInAt: nowOf(ctx), markedBy: null }] },
+    data: {
+      ...ctx.data,
+      attendance: [...attendance, { sessionId: s!.id, memberId: ctx.me!.id, checkedInAt: nowOf(ctx), markedBy: null }],
+      checkinRequests: (ctx.data.checkinRequests ?? []).filter((r) => !(r.sessionId === s!.id && r.memberId === ctx.me!.id)),
+    },
     id: s!.id,
+  };
+}
+
+/** I'm here: at a ride (its check-in opens itself if nobody has opened it) or an open check-in. */
+export function askCheckIn(ctx: DemoCtx, at: CheckInAt): { data: ClubData; id: string } {
+  deny(askCheckInProblem(ctx.me, at, ctx.data, ctx.today));
+  let data = ctx.data;
+  const sessions = data.checkinSessions ?? [];
+  let s = 'rideId' in at ? sessions.find((x) => x.rideId === at.rideId) : sessions.find((x) => x.id === at.sessionId);
+  if (!s && 'rideId' in at) {
+    const ride = data.rides.find((r) => r.id === at.rideId)!;
+    s = {
+      id: newId('s'), kind: 'ride', chapterId: rideChapterId(ride, data.chapters), rideId: ride.id, title: ride.title,
+      heldOn: melbourneDate(ride.startsAt), openedBy: null, closedAt: null, code: newCode(), meetingType: null,
+    };
+    data = { ...data, checkinSessions: [...sessions, s] };
+  }
+  const session = s!;
+  const me = ctx.me!;
+  switch (checkinAsk(me, session, data)) {
+    case 'in':
+      return {
+        data: {
+          ...data,
+          attendance: [...(data.attendance ?? []), { sessionId: session.id, memberId: me.id, checkedInAt: nowOf(ctx), markedBy: null }],
+          checkinRequests: (data.checkinRequests ?? []).filter((r) => !(r.sessionId === session.id && r.memberId === me.id)),
+        },
+        id: session.id,
+      };
+    case 'ask':
+      return {
+        data: { ...data, checkinRequests: [...(data.checkinRequests ?? []), { sessionId: session.id, memberId: me.id, askedAt: nowOf(ctx) }] },
+        id: session.id,
+      };
+    default:
+      return { data, id: session.id };
+  }
+}
+
+/** Confirms (here) or turns down someone's I'm here. */
+export function answerCheckin(ctx: DemoCtx, sessionId: string, memberId: string, here: boolean): ClubData {
+  const s = (ctx.data.checkinSessions ?? []).find((x) => x.id === sessionId);
+  deny(answerCheckinProblem(ctx.me, s, memberId, ctx.data));
+  const checkinRequests = (ctx.data.checkinRequests ?? []).filter((r) => !(r.sessionId === sessionId && r.memberId === memberId));
+  const attendance = ctx.data.attendance ?? [];
+  const already = attendance.some((a) => a.sessionId === sessionId && a.memberId === memberId);
+  return {
+    ...ctx.data,
+    checkinRequests,
+    attendance: here && !already ? [...attendance, { sessionId, memberId, checkedInAt: nowOf(ctx), markedBy: ctx.me!.id }] : attendance,
   };
 }
 
@@ -103,6 +171,7 @@ export function markAttendance(ctx: DemoCtx, sessionId: string, memberId: string
   return {
     ...ctx.data,
     attendance: [...others, { sessionId, memberId, checkedInAt: nowOf(ctx), markedBy: ctx.me!.id }],
+    checkinRequests: (ctx.data.checkinRequests ?? []).filter((r) => !(r.sessionId === sessionId && r.memberId === memberId)),
   };
 }
 
@@ -112,6 +181,8 @@ export function closeCheckin(ctx: DemoCtx, sessionId: string): ClubData {
   return {
     ...ctx.data,
     checkinSessions: (ctx.data.checkinSessions ?? []).map((x) => (x.id === sessionId ? { ...x, closedAt: nowOf(ctx) } : x)),
+    // Closing it ends any wait.
+    checkinRequests: (ctx.data.checkinRequests ?? []).filter((r) => r.sessionId !== sessionId),
   };
 }
 

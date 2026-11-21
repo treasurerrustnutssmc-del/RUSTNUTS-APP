@@ -392,6 +392,8 @@ export interface ClubData extends LedgerData, AdminData, AuditData, ShopData {
   // Stage 4: members and money
   checkinSessions?: CheckinSession[];
   attendance?: Attendance[];
+  /** "I'm here" taps waiting for a ride leader or the board to confirm. Missing means none. */
+  checkinRequests?: CheckinRequest[];
   decisions?: MemberDecision[];
   feeRates?: FeeRate[];
   /** Recorded AGM dates (fees run AGM to AGM). */
@@ -453,6 +455,13 @@ export interface Attendance {
   checkedInAt: string;
   /** Who ticked them off; null when they checked themselves in. */
   markedBy: string | null;
+}
+
+/** A member's "I'm here", waiting for someone who runs the check-in (or the ride's crew) to confirm it. */
+export interface CheckinRequest {
+  sessionId: string;
+  memberId: string;
+  askedAt: string;
 }
 
 export type DecisionKind = 'application' | 'fng_review';

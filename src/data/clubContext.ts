@@ -41,7 +41,7 @@ import type {
   Votes,
 } from '../domain/types';
 // Stage 4
-import type { OpenCheckinInput } from '../domain/attendance';
+import type { CheckInAt, OpenCheckinInput } from '../domain/attendance';
 import type { NoticeInput } from '../domain/notices';
 import type { FngOutcome } from '../domain/joining';
 // Stage 5D: board and admin
@@ -186,6 +186,11 @@ export interface ClubContextValue {
   checkinCode: (sessionId: string) => Promise<string>;
   /** Checks you in with a typed or scanned code. Resolves to the session's id. */
   checkIn: (code: string) => Promise<string>;
+  /** I'm here: at a ride (its check-in opens itself) or an open check-in. A leader confirms it,
+   *  unless you confirm check-ins yourself. Resolves to the session's id. */
+  askCheckIn: (at: CheckInAt) => Promise<string>;
+  /** Confirms (here) or turns down someone's I'm here. */
+  answerCheckin: (sessionId: string, memberId: string, here: boolean) => Promise<void>;
   markAttendance: (sessionId: string, memberId: string, present: boolean) => Promise<void>;
   closeCheckin: (sessionId: string) => Promise<void>;
   // Attendance rules and Big 4 rides

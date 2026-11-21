@@ -146,6 +146,12 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
       setData(result.data);
       return result.id;
     },
+    askCheckIn: async (at) => {
+      const result = s4.askCheckIn(ctx, at);
+      setData(result.data);
+      return result.id;
+    },
+    answerCheckin: async (sessionId, memberId, here) => keep(s4.answerCheckin(fresh(), sessionId, memberId, here)),
     markAttendance: async (sessionId, memberId, present) => keep(s4.markAttendance(fresh(), sessionId, memberId, present)),
     closeCheckin: async (sessionId) => setData(s4.closeCheckin(ctx, sessionId)),
     designateBig4: async (rideId, chapterId) => setData(attendanceRules.designateBig4(ctx, rideId, chapterId)),

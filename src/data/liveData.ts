@@ -235,7 +235,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
   );
   // Attendance rules and Big 4 rides: empty rather than blocking the app (also before the live
   // database has the tables).
-  const [big4, exemptions, meetingTypes, waivers, notices, changes] = await Promise.all([
+  const [big4, exemptions, meetingTypes, waivers, notices, changes, checkinAsks] = await Promise.all([
     db.from('big4_rides').select('*'),
     db.from('attendance_exemptions').select('*'),
     db.from('checkin_sessions').select('id, meeting_type'),
@@ -243,7 +243,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     db.from('big4_waivers').select('*'),
     db.from('status_notices').select('*'),
     db.from('status_changes').select('*'),
-  ]).catch(() => [null, null, null, null, null, null] as const);
+    // "I'm here" taps waiting to be confirmed
+    db.from('checkin_requests').select('*'),
+  ]).catch(() => [null, null, null, null, null, null, null] as const);
   const rowsOf = <T,>(r: { data: T[] | null; error: { message: string } | null } | null, what: string): T[] => {
     if (r?.error) console.warn(`${what}:`, r.error.message);
     return r?.error ? [] : (r?.data ?? []);
@@ -502,6 +504,9 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       givenOn: n.given_on, respondBy: n.respond_by, givenBy: n.given_by, response: n.response ?? '',
       respondedAt: n.responded_at ? instant(n.responded_at) : null, outcome: n.outcome, outcomeNote: n.outcome_note ?? '',
       closedOn: n.closed_on, closedBy: n.closed_by,
+    })),
+    checkinRequests: rowsOf(checkinAsks, 'checkin_requests').map((r) => ({
+      sessionId: r.session_id, memberId: r.member_id, askedAt: instant(r.asked_at),
     })),
     statusChanges: rowsOf(changes, 'status_changes').map((c) => ({
       id: c.id, memberId: c.member_id, chapterId: c.chapter_id, fromStatus: c.from_status, toStatus: c.to_status, byRequest: c.by_request,

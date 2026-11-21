@@ -187,6 +187,11 @@ test('open app on that same chat: nothing at all, the message is already on scre
   });
 });
 
+test('someone saying they’re here opens the check-in, to confirm them', () => {
+  assert.deepEqual(notificationTarget({ kind: 'checkin', sessionId: 's1' }), { screen: 'RunCheckin', params: { sessionId: 's1' } });
+  assert.equal(notificationTarget({ kind: 'checkin' }), null, 'no check-in named');
+});
+
 test('ride news and replies get the club banner too', () => {
   for (const kind of ['ride', 'ride-reminder', 'feedback', 'site_photo', 'feedback-sent', 'ride-change', undefined]) {
     assert.equal(foregroundPlan({ kind, rideId: 'r1' }, 'c1', ready).inApp, true, String(kind));
