@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useClub } from '../data/ClubStore';
 import { seesEveryChapter } from '../domain/access';
 import { homeNeedsYou } from '../domain/homeNeedsYou';
+import { seesReports } from '../domain/ledger';
 import { alertFix, expiryAlerts, type ExpiryAlert } from '../domain/profile';
 import { colors, radius, space, type } from '../theme';
 import { Card, H2, IconBadge, Ionicons, ListRow, Notice, type IconName } from '../ui/primitives';
@@ -51,8 +52,10 @@ export function HomeNeedsYouCard() {
   );
 }
 
-const QUICK: { key: string; icon: IconName; label: string; screen: string; mine?: boolean }[] = [
+const QUICK: { key: string; icon: IconName; label: string; screen: string; mine?: boolean; reports?: boolean }[] = [
   { key: 'fees', icon: 'wallet-outline', label: 'My fees', screen: 'MemberFees', mine: true },
+  // The Treasurer's Reports and Club spending, for every member who can read them (not Family or Legacy).
+  { key: 'finances', icon: 'stats-chart-outline', label: 'Finances', screen: 'ClubFinances', reports: true },
   { key: 'bus', icon: 'bus-outline', label: 'Rusty Bus', screen: 'Bus' },
   { key: 'docs', icon: 'folder-open-outline', label: 'Documents', screen: 'Documents' },
   { key: 'feedback', icon: 'megaphone-outline', label: 'Tell us', screen: 'Feedback' },
@@ -65,7 +68,7 @@ export function HomeQuickActions() {
   if (!me || me.approval !== 'approved') return null;
   return (
     <View style={styles.grid} accessibilityRole="toolbar" accessibilityLabel="Quick buttons">
-      {QUICK.map((q) => (
+      {QUICK.filter((q) => !q.reports || seesReports(me)).map((q) => (
         <Pressable
           key={q.key}
           accessibilityRole="button"
