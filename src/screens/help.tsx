@@ -1,4 +1,4 @@
-// Stage 7: "Who can help?" Members who can lend a hand with a skill, and the club's trusted mechanics.
+// Stage 7: Help and mechanics (was "Who can help?"). Members who can lend a hand with a skill, and the club's trusted mechanics.
 
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import React, { useState } from 'react';
@@ -78,7 +78,7 @@ function SkillGrid({ children }: { children: React.ReactNode }) {
 // Members tab: the way in
 // ---------------------------------------------------------------------------
 
-/** Members tab: a row into Who can help. */
+/** Members tab: a row into Help and mechanics. */
 export function WhoCanHelpRow({ last = false }: { last?: boolean }) {
   const navigation = useNavigation<Nav>();
   return (

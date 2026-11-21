@@ -90,3 +90,10 @@ test('another club’s ride (Supported) only when you said Going or Maybe', () =
   assert.equal(at('2026-11-06T23:00:00.000Z', { rides: [sup], rsvps: [going('r-1')] })?.id, 'r-1');
   assert.equal(at('2026-11-06T23:00:00.000Z', { rides: [sup], rsvps: [going('r-1', 'maybe')] })?.id, 'r-1');
 });
+
+// Deliberate: while you're still sharing on a ride that has since been called off, Home keeps it, because
+// that card is your way back to Stop sharing.
+test('the ride you are sharing on stays, even once it is called off', () => {
+  const sharing = { rideId: 'r-1', meId: 'm-1' };
+  assert.equal(at('2026-11-06T23:00:00.000Z', { calledOff: ['r-1'], sharing })?.id, 'r-1');
+});

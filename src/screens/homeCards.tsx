@@ -83,7 +83,8 @@ export function QuickButtons() {
   const rules = homeRoadRulesRow(me, data, today);
   const fees = feesButtonLine(totalOwing(me.id, data), me.onHiatus);
   const toSign = (data.documents ?? []).filter((d) => signStatus(me, d, data, today) === 'unsigned').length;
-  // Road Rules only speaks up when your sign-off is due soon or has run out.
+  // Road Rules only speaks up when you need to act: not signed yet (you can't say Going until you do),
+  // due soon, or run out. Otherwise it stays quiet.
   const rulesDue = rules && (rules.tone === 'warn' || rules.tone === 'danger') ? rules.text : null;
   const subOf = (q: Quick): { text: string; alert: boolean } | null =>
     q.mine

@@ -87,7 +87,7 @@ test('the club in numbers lives on the Members tab now', () => {
 test('the next ride card steps aside while that ride is the live ride above it', () => {
   const rides = fs.readFileSync(path.resolve(import.meta.dirname, 'rides.tsx'), 'utf8');
   const next = rides.slice(rides.indexOf('export function HomeNextRideCard'));
-  assert.match(next.slice(0, 1500), /homeLiveRide\(/);
+  assert.match(next.slice(0, 1500), /useHomeLiveRide\(\)/);
 });
 
 // Review, 21 Nov 2026: the Documents row on Me used to say "N to sign"; with it gone, the button says it.
@@ -97,8 +97,8 @@ test('the Documents quick button says how many club documents are waiting for yo
 });
 
 // Superpowers audit, 21 Nov 2026: the Road Rules button warns when your sign-off is due or has run out,
-// as the old Road Rules row on Home did; otherwise it stays quiet.
-test('the Road Rules quick button carries the due or expired warning', () => {
+// or isn't signed yet, as the old Road Rules row on Home did; otherwise it stays quiet.
+test('the Road Rules quick button carries the not signed, due or expired warning', () => {
   const sub = cards.slice(cards.indexOf('const rulesDue'), cards.indexOf('const screenOf'));
   assert.ok(sub.includes('q.rules'), 'Road Rules has a sub-line');
   assert.ok(/rules\?\.tone === 'warn'|rules\.tone === 'warn'/.test(sub) && sub.includes("'danger'"), 'only when due soon or ran out');
