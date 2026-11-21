@@ -14,8 +14,8 @@ const at = (s: string) => {
 };
 
 test('urgent items come before the social cards', () => {
-  const urgent = [at('<HomeNextRideCard'), at('<HomeCheckinCard'), at('{myAlerts.map'), at('<HomeRoadRulesRow'), at('<HomeFeesCard')];
-  assert.deepEqual([...urgent].sort((a, b) => a - b), urgent, 'next ride, check-in, alerts, Road Rules, fees in that order');
+  const urgent = [at('<HomeCheckinCard'), at('<HomeNextRideCard'), at('{myAlerts.map'), at('<HomeRoadRulesRow'), at('<HomeFeesCard')];
+  assert.deepEqual([...urgent].sort((a, b) => a - b), urgent, 'check-in (I’m here and Confirm on the day), next ride, alerts, Road Rules, fees in that order');
   const social = Math.min(at('<HomeShoutoutsCard'), at('<HomeOnThisDayCard'), at('<HomeNewsCard'));
   assert.ok(Math.max(...urgent) < social, 'all of them before shout-outs, on this day and news');
   assert.ok(at('{business.summary') < social, 'club business before the social cards too');
