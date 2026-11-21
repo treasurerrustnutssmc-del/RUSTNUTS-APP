@@ -4,8 +4,7 @@ import { DEMO_DATA, STORY_TODAY } from '../data/demoStory.testkit';
 import { accessLevel, actingWarnings } from './access';
 import {
   boardGroups, boardRequests, closeRequestNote, boardScope, needsYou, needsYouTarget, requestActions, requestConfirmNote, requestLine, requestNext, scopeText, stintLine, stintsDue,
-  stintTone, termsDue, vpFallbackLine,
-} from './boardLayout';
+  stintTone, termsDue, vpFallbackLine, websiteAppLine } from './boardLayout';
 import { addDays } from './dates';
 import type { ActingRequest, ClubData, Member, Position, Vote } from './types';
 
@@ -294,4 +293,14 @@ test('Board headings name what is under them', () => {
   assert.equal(g.meetings.title, 'Meetings, votes and attendance');
   assert.match(g.meetings.summary, /votes/);
   assert.match(g.money.summary, /books/);
+});
+
+// Superpowers audit, 21 Nov 2026: the Board's Website and app row says what's waiting there, new app
+// feedback included (for the people who look after it), and is quiet when nothing is.
+test('the Website and app row: enquiries and new app feedback waiting', () => {
+  assert.deepEqual(websiteAppLine(0, 0), { text: 'Enquiries, news, visits, app feedback and usage', waiting: false });
+  assert.deepEqual(websiteAppLine(1, 0), { text: '1 website enquiry waiting', waiting: true });
+  assert.deepEqual(websiteAppLine(3, 0), { text: '3 website enquiries waiting', waiting: true });
+  assert.deepEqual(websiteAppLine(0, 1), { text: '1 new app feedback waiting', waiting: true });
+  assert.deepEqual(websiteAppLine(2, 4), { text: '2 website enquiries and 4 new app feedback waiting', waiting: true });
 });

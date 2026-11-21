@@ -10,6 +10,7 @@ import { useClub } from '../data/ClubStore';
 import { activeRide } from '../data/liveTracker';
 import { smsUrl, textLeaders } from '../data/liveQueue';
 import { useLiveRide } from '../data/useLiveRide';
+import { calledOffIds } from '../domain/rideCalls';
 import { BACKGROUND_LOCATION_NOTICE, awayText, homeLiveRide, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, offTime, splitGroups, splitWarning } from '../domain/liveRide';
 import { initials } from '../domain/profile';
 import { riderPins } from '../domain/rideMap';
@@ -114,6 +115,7 @@ export function HomeLiveRideCard() {
     categories: defaultCategories(me, data.chapters),
     now,
     sharing: saved,
+    calledOff: calledOffIds(data),
   });
   if (!ride) return null;
   const sharing = saved?.meId === me.id && saved.rideId === ride.id;
@@ -130,7 +132,7 @@ export function HomeLiveRideCard() {
       <Body>
         {sharing
           ? 'You’re sharing your location with this ride.'
-          : `Ride comms and location sharing are on. ${offAtMidnight(ride, now)} Nothing is kept.`}
+          : `Ride comms and location sharing are open for this ride. ${offAtMidnight(ride, now)} Nothing is kept.`}
       </Body>
       <Button
         label={sharing ? 'Open live ride (sharing)' : 'Open live ride'}

@@ -25,3 +25,9 @@ test('Rides: the calendar first, then the colour filters and legend, then the ri
   assert.ok(at('No rides coming up.') < filters, 'the empty calendar note sits where the calendar is');
   assert.match(screen, /Turn on more colours just below/);
 });
+
+// Superpowers audit, 21 Nov 2026: under a long calendar the colour buttons need a heading to say what they do.
+test('Rides: the colour buttons sit under a "Show rides by colour" heading', () => {
+  const heading = at('<SectionTitle title="Show rides by colour"');
+  assert.ok(at('{months.map((g)') < heading && heading < at('accessibilityLabel="Show rides by colour"'));
+});

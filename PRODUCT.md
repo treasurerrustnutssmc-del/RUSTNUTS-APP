@@ -148,9 +148,9 @@ It is built for this one club and nobody else. It knows the club's real ranks (I
 
 ## Ask the club (31 Oct 2026)
 
-- **What:** an assistant on its own screen, opened from Home, for approved members (not Family). It answers questions about the constitution, the Road Rules, the ride calendar, the Rusty Bus and the member's own fees in plain words, citing clause numbers, and it can propose doing things: answer a ride, take or leave a crew spot, call a ride off or postponed, book or cancel the Rusty Bus, log its km or keys, post in a chat, and add a ride.
+- **What:** an assistant on its own screen, opened from the Ask the club quick button on Me, for approved members (not Family). It answers questions about the constitution, the Road Rules, the ride calendar, the Rusty Bus and the member's own fees in plain words, citing clause numbers, and it can propose doing things: answer a ride, take or leave a crew spot, call a ride off or postponed, book or cancel the Rusty Bus, log its km or keys, post in a chat, and add a ride.
 - **Nothing happens without a tap:** every action shows as a card checked with the app's own rules, and only runs when the member taps Confirm, as the member, so the database rules hold. Money, votes, statuses, positions, conduct and deleting are left to their own screens.
 - **Adding a ride:** ride runners get a ready-filled Google Calendar entry on the Rustnuts Rides calendar to save; anyone else's ride idea goes to their chapter's Road Captain (or President) as a private message.
 - **Cost and limits:** Claude Opus 5.5 through the club's own Anthropic account, 15 questions a member a day, and a US$20 monthly budget kept by the database, after which it rests until next month. Questions and answers aren't kept by the club.
-- **Switched off until launch:** it shows on Home only once the `assistant_on` setting is true. The demo has a small scripted version that never touches the network.
+- **Switched off until launch:** its quick button on Me shows only once the `assistant_on` setting is true. The demo has a small scripted version that never touches the network.
 - Spec: `docs/superpowers/specs/2026-10-31-club-assistant-design.md`.

@@ -36,7 +36,7 @@ import { useToast } from '../ui/Toast';
 import { useSavedFilters } from '../data/savedFilters';
 import { isConnectionProblem } from '../data/friendlyError';
 import { COLOUR_NOTE_TEXT, colourNote } from '../domain/savedFilters';
-import { activeCall, callTitle } from '../domain/rideCalls'; // Ride planning extras
+import { activeCall, calledOffIds, callTitle } from '../domain/rideCalls'; // Ride planning extras
 import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: live ride
 import { LiveRideCard } from './liveRide';
@@ -169,6 +169,7 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
       {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
 
       {/* Which colours the calendar above shows */}
+      <SectionTitle title="Show rides by colour" />
       <View style={styles.filters} accessibilityLabel="Show rides by colour">
         {RIDE_CATEGORIES.map((c) => {
           const on = categories.includes(c);
@@ -271,11 +272,12 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
     return () => clearInterval(t);
   }, []);
   if (!me || me.approval !== 'approved') return null;
-  const ride = nextRide(data.rides, defaultCategories(me, data.chapters), today);
+  const cats = defaultCategories(me, data.chapters);
+  // The ride under way is the Live ride card straight under your name already, so this card moves on to
+  // the one after it rather than showing it twice (or showing nothing).
+  const liveId = homeLiveRide({ me, rides: data.rides, rsvps: data.rsvps, categories: cats, now, sharing: null, calledOff: calledOffIds(data) })?.id;
+  const ride = nextRide(liveId ? data.rides.filter((r) => r.id !== liveId) : data.rides, cats, today);
   if (!ride) return null;
-  // Under way: it's the Live ride card straight under your name already, so it isn't shown twice.
-  const live = homeLiveRide({ me, rides: [ride], rsvps: data.rsvps, categories: defaultCategories(me, data.chapters), now, sharing: null });
-  if (live) return null;
   const mine = data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null;
   // One tap here only when the ride screen would allow Going too; otherwise the card opens the ride, which says why.
   const whyNot = quickAnswerReason(me, ride, data, today, new Date().toISOString());

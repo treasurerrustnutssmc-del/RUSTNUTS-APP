@@ -67,6 +67,11 @@ export function activeCall(rideId: string, data: ClubData): RideCall | null {
   return call && call.state !== 'on' ? call : null;
 }
 
+/** Every ride that's off or postponed right now (its latest call isn't Back on). */
+export function calledOffIds(data: ClubData): string[] {
+  return (data.rideCalls ?? []).filter((c) => c.state !== 'on').map((c) => c.rideId);
+}
+
 /** "Ride’s off" or "Postponed to 15/11/2026": the banner's title. */
 export function callTitle(call: RideCall): string {
   if (call.state === 'off') return 'Ride’s off';

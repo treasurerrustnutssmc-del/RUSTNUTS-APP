@@ -68,7 +68,7 @@ test('the quick buttons live on Me now, not Home', () => {
   assert.ok(meScreen.includes('<QuickButtons'), 'on Me');
   assert.match(cards, /label: 'Road Rules'/);
   assert.match(cards, /label: 'Ask the club', screen: 'AskClub'/);
-  for (const label of ['My fees', 'Finances', 'Rusty Bus', 'Documents', 'Tell us']) assert.ok(cards.includes(`label: '${label}'`), label);
+  for (const label of ['My fees', 'Finances', 'Rusty Bus', 'Documents', 'Feedback']) assert.ok(cards.includes(`label: '${label}'`), label);
 });
 
 test('Club business, with its summary, sits under the quick buttons on Me', () => {
@@ -94,4 +94,12 @@ test('the next ride card steps aside while that ride is the live ride above it',
 test('the Documents quick button says how many club documents are waiting for your signature', () => {
   assert.match(cards, /signStatus\(me, d, data, today\) === 'unsigned'/);
   assert.match(cards, /to sign`/);
+});
+
+// Superpowers audit, 21 Nov 2026: the Road Rules button warns when your sign-off is due or has run out,
+// as the old Road Rules row on Home did; otherwise it stays quiet.
+test('the Road Rules quick button carries the due or expired warning', () => {
+  const sub = cards.slice(cards.indexOf('const rulesDue'), cards.indexOf('const screenOf'));
+  assert.ok(sub.includes('q.rules'), 'Road Rules has a sub-line');
+  assert.ok(/rules\?\.tone === 'warn'|rules\.tone === 'warn'/.test(sub) && sub.includes("'danger'"), 'only when due soon or ran out');
 });

@@ -84,7 +84,7 @@ export function WhoCanHelpRow({ last = false }: { last?: boolean }) {
   return (
     <ListRow
       left={<IconBadge icon="construct" tone="red" />}
-      title="Who can help?"
+      title="Help and mechanics"
       subtitle="Members who can lend a hand, and trusted mechanics"
       onPress={() => navigation.navigate('WhoCanHelp')}
       last={last}
@@ -358,7 +358,7 @@ function SkillsForm({ mine, onDone }: { mine: HelpSkill[]; onDone: () => void })
   return (
     <Screen>
       <Card>
-        <Small>Members looking for a hand with one of these see you under Who can help, and can message you.</Small>
+        <Small>Members looking for a hand with one of these see you under Help and mechanics, and can message you.</Small>
         <SkillGrid>
           {HELP_SKILLS.map((s) => (
             <SkillPick key={s} skill={s} role="checkbox" selected={picked.includes(s)} onPress={() => toggle(s)} />

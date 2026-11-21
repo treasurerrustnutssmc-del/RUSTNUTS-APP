@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { activeCall, ALREADY_OFF, BAD_NEW_DAY, NOT_CALLED, callLine, callProblem, CALL_TOO_LATE, NEW_DAY_NEEDS_POSTPONED, NOT_CALLER, REASON_TOO_LONG } from './rideCalls';
+import { activeCall, calledOffIds, ALREADY_OFF, BAD_NEW_DAY, NOT_CALLED, callLine, callProblem, CALL_TOO_LATE, NEW_DAY_NEEDS_POSTPONED, NOT_CALLER, REASON_TOO_LONG } from './rideCalls';
 import { AFTER_DAY, BEFORE, planningClub, who } from './planning.testkit';
 
 test('calling a ride: in the database’s order', () => {
@@ -42,4 +42,11 @@ test('the active call: Off or Postponed, not Back on', () => {
   assert.equal(activeCall('r-west', planningClub({ rideCalls: [{ ...call, state: 'off' }] }))?.state, 'off');
   assert.equal(activeCall('r-west', planningClub({ rideCalls: [{ ...call, state: 'on' }] })), null);
   assert.equal(activeCall('r-west', planningClub()), null);
+});
+
+test('the rides called off or postponed right now (Home never shows them as live)', () => {
+  const call = { reason: '', newDay: null, calledBy: 'rc', calledAt: '2026-10-30T00:00:00.000Z' };
+  const data = planningClub({ rideCalls: [{ ...call, rideId: 'a', state: 'off' }, { ...call, rideId: 'b', state: 'postponed' }, { ...call, rideId: 'c', state: 'on' }] });
+  assert.deepEqual(calledOffIds(data), ['a', 'b']);
+  assert.deepEqual(calledOffIds(planningClub()), []);
 });

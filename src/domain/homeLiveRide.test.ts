@@ -75,3 +75,18 @@ test('a share saved on this phone by someone else (signed out, then another memb
   const other = ride({ id: 'r-2', category: 'north' });
   assert.equal(at('2026-11-06T23:00:00.000Z', { rides: [other], sharing: { rideId: 'r-2', meId: 'm-someone-else' } }), null);
 });
+
+// Superpowers audit, 21 Nov 2026: a ride that's been called off or postponed isn't live, and another
+// club's ride (Supported) only goes on your Home when you said Going or Maybe.
+test('a ride called off or postponed is not shown as live', () => {
+  assert.equal(at('2026-11-06T23:00:00.000Z', { calledOff: ['r-1'] }), null);
+  assert.equal(at('2026-11-06T23:00:00.000Z', { calledOff: ['r-1'], rsvps: [going('r-1')] }), null, 'even if you said Going');
+  assert.equal(at('2026-11-06T23:00:00.000Z', { calledOff: ['r-other'] })?.id, 'r-1', 'another ride called off');
+});
+
+test('another club’s ride (Supported) only when you said Going or Maybe', () => {
+  const sup = ride({ category: 'supported' });
+  assert.equal(at('2026-11-06T23:00:00.000Z', { rides: [sup] }), null, 'in your colours, but not your club');
+  assert.equal(at('2026-11-06T23:00:00.000Z', { rides: [sup], rsvps: [going('r-1')] })?.id, 'r-1');
+  assert.equal(at('2026-11-06T23:00:00.000Z', { rides: [sup], rsvps: [going('r-1', 'maybe')] })?.id, 'r-1');
+});

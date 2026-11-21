@@ -128,7 +128,7 @@ begin
   assert (select count(*) from private.push_outbox where dedupe_key = 'feedback:' || r.id) = 2, 'both keepers hear';
   assert (select count(*) from private.push_outbox where dedupe_key = 'feedback:' || r.id and member_id = jeff) = 1, 'Jeff hears';
   assert (select body from private.push_outbox where dedupe_key = 'feedback:' || r.id and member_id = jeff) = 'Nell: The map is blank', 'with who and what';
-  assert (select data->>'kind' from private.push_outbox where dedupe_key = 'feedback:' || r.id and member_id = jeff) = 'feedback-sent', 'tap opens the Board screen';
+  assert (select data->>'kind' from private.push_outbox where dedupe_key = 'feedback:' || r.id and member_id = jeff) = 'feedback-sent', 'tap opens Board › Website and app';
   delete from app_feedback;
 
   -- Family use the app too.

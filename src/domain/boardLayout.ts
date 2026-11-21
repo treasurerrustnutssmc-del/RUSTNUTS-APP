@@ -283,3 +283,13 @@ export function stintLine(p: Position, data: Pick<ClubData, 'members' | 'positio
 export function stintTone(p: Position, today: string): 'warning' | null {
   return isActing(p) && daysBetween(today, p.actingUntil!) <= 7 ? 'warning' : null;
 }
+
+/** The Board's Website and app row: what's waiting there (website enquiries, new app feedback), or what's in it. */
+export function websiteAppLine(enquiries: number, newFeedback: number): { text: string; waiting: boolean } {
+  const parts = [
+    enquiries > 0 ? `${enquiries} website ${enquiries === 1 ? 'enquiry' : 'enquiries'}` : null,
+    newFeedback > 0 ? `${newFeedback} new app feedback` : null,
+  ].filter(Boolean);
+  if (parts.length === 0) return { text: 'Enquiries, news, visits, app feedback and usage', waiting: false };
+  return { text: `${parts.join(' and ')} waiting`, waiting: true };
+}

@@ -537,7 +537,7 @@ export function RootNavigator() {
             <Stack.Screen name="PublishDocument" component={PublishDocumentScreen} options={{ title: 'Publish a version' }} />
             <Stack.Screen name="DocumentApproval" component={DocumentApprovalScreen} options={{ title: 'Record approval' }} />
             <Stack.Screen name="DocumentSignoffs" component={DocumentSignoffsScreen} options={{ title: 'Who’s signed' }} />
-            <Stack.Screen name="WhoCanHelp" component={WhoCanHelpScreen} options={{ title: 'Who can help?' }} />
+            <Stack.Screen name="WhoCanHelp" component={WhoCanHelpScreen} options={{ title: 'Help and mechanics' }} />
             <Stack.Screen name="Mechanic" component={MechanicScreen} options={{ title: 'Workshop' }} />
             <Stack.Screen
               name="EditMechanic"
