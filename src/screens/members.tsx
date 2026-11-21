@@ -6,9 +6,7 @@ import {
   canSeePhone,
   canSeePrivate,
   endTermProblem,
-  pendingFor,
   reviewsChapter,
-  seesEveryChapter,
   visibleMembers,
   withHolders,
 } from '../domain/access';
@@ -19,7 +17,7 @@ import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { clubCounts, longSeatTitle, longTitle, necRows, positionTitles, seatTitle, type StatusSplit } from '../domain/home';
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
-import { alertFix, displayName, expiryAlerts, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist, type ExpiryAlert } from '../domain/profile';
+import { displayName, hasEarnedDisc, initials, nextFngReview, phoneNote, profileChecklist } from '../domain/profile';
 import type { Member, Position } from '../domain/types';
 import type { MemberFocus, RootScreen, TabScreen } from '../navigation/types';
 import { MemberChatButtons } from './chat';
@@ -33,7 +31,7 @@ import { canSeeFees } from '../domain/fees';
 import { AttendanceSummary, HomeCheckinCard } from './checkin';
 import { StandingCard } from './attendance';
 import { termEndsOn, termState } from '../domain/terms';
-import { HomeFeesCard } from './fees';
+import { HomeNeedsYouCard, HomeQuickActions, HomeReminders } from './homeCards';
 import { IntroProgressCard } from './fng';
 // Stage 7: social extras
 import { ChaptersNationalRow } from './adminRows'; // Stage 5D
@@ -47,6 +45,7 @@ import { BragRow } from './brag';
 import { BadgesCard } from './badges';
 import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
+import { mustSignFirst } from '../domain/roadRules';
 import { HomeNextRideCard } from './rides';
 import { MORE_FROM_CLUB } from '../domain/membersLayout';
 import { homeCoverPanels } from '../domain/meLayout';
@@ -175,30 +174,13 @@ function sortMembers(list: Member[]) {
 const nowInstant = () => new Date().toISOString();
 
 export function HomeScreen({ navigation }: TabScreen<'Home'>) {
-  const { me, data, level, today, isDemo, refresh } = useClub();
+  const { me, data, today, isDemo, refresh } = useClub();
   const [numbersOpen, setNumbersOpen] = useState(false);
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const positions = sortedPositions(me.id, data);
   const checklist = profileChecklist(me, data);
   const done = checklist.filter((c) => c.done).length;
-  const myAlerts = expiryAlerts([me], data, today);
-  // Your own due box opens where you update it: that bike's rego, or your profile.
-  const openFix = (a: ExpiryAlert) => {
-    const fix = alertFix(a);
-    if (fix.screen === 'EditBike') navigation.navigate('EditBike', { bikeId: fix.bikeId });
-    else navigation.navigate('EditProfile');
-  };
-  const isBoard = level === 'board' || level === 'national';
-  // An Acting President is on the NEC (level 'national') but reads their own chapter's members only.
-  const everyChapter = seesEveryChapter(me, data.positions);
-  const pending = isBoard ? pendingFor(me, data) : [];
-  const boardScope = isBoard
-    ? data.members.filter(
-        (m) => m.approval === 'approved' && (everyChapter || m.chapterId === me.chapterId),
-      )
-    : [];
-  const boardAlerts = isBoard ? expiryAlerts(boardScope, data, today) : [];
   const counts = clubCounts(data.chapters, data.members, data.unclaimedRoster ?? []);
   const business = businessFor(me, data, nowInstant());
   // The header names the home chapter first, so a seat there doesn't repeat it ("North chapter · Road Captain,
@@ -240,6 +222,8 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Row>
       </Flannel>
 
+      {/* Anything waiting on you, approvals first: the first thing you see */}
+      <HomeNeedsYouCard />
       {/* A covered holder: who is acting for them, and I'm back */}
       <CoverPanels panels={homeCoverPanels(me, data, today)} />
       {/* New here? Where things are, once */}
@@ -248,50 +232,17 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       <HomeCheckinCard />
       {/* The next ride, so it is one tap from opening the app */}
       <HomeNextRideCard onOpen={(rideId) => navigation.navigate('RideDetail', { rideId })} />
-      {myAlerts.map((a) => (
-        <Notice key={`${a.kind}-${a.bikeId ?? ''}-${a.label}`} tone={a.state === 'expired' ? 'danger' : 'warn'} title={a.label} onPress={() => openFix(a)}>
-          {`${a.description}. Tap to update it once it’s renewed.`}
-        </Notice>
-      ))}
+      {/* The everyday jobs that aren't a tab */}
+      <HomeQuickActions />
       {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}
-      <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />
-      <HomeFeesCard />
-
-      {isBoard && (pending.length > 0 || boardAlerts.length > 0) ? (
-        <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
-          <View style={{ padding: space.lg, paddingBottom: space.sm }}>
-            <Row style={{ gap: space.sm }}>
-              <H2>Board</H2>
-              <Chip label={everyChapter ? 'All chapters' : `${chapter?.name} chapter`} tone="redOutline" />
-            </Row>
-          </View>
-          {pending.length > 0 ? (
-            <ListRow
-              left={<IconBadge icon="person-add" tone="red" />}
-              title={`${pending.length} waiting for approval`}
-              subtitle={pending.map((p) => p.fullName).join(', ')}
-              onPress={() => navigation.navigate('Board', { focus: 'pending' })}
-              last={boardAlerts.length === 0}
-            />
-          ) : null}
-          {boardAlerts.length > 0 ? (
-            <ListRow
-              left={<IconBadge icon="alert-circle" />}
-              title={`${boardAlerts.length} ${boardAlerts.length === 1 ? 'rego, licence or first aid renewal needs' : 'rego, licence or first aid renewals need'} attention`}
-              subtitle={`${boardAlerts.filter((a) => a.state === 'expired').length} expired, ${boardAlerts.filter((a) => a.state === 'soon').length} due within 30 days`}
-              onPress={() => navigation.navigate('Board', { focus: 'alerts' })}
-              last
-              lines="all"
-            />
-          ) : null}
-        </Card>
-      ) : null}
+      {/* Hidden while you still have to sign: that's a Needs you row */}
+      {mustSignFirst(me, data, today) ? null : <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />}
 
       {/* Stage 5: meetings and votes */}
       {business.summary ? (
         <Card style={{ padding: 0, gap: 0 }}>
           <ListRow
-            left={<IconBadge icon="hammer" tone={business.needsMe.length ? 'red' : undefined} />}
+            left={<IconBadge icon="hammer" />}
             title="Club business"
             subtitle={business.summary}
             onPress={() => navigation.navigate('Business')}
@@ -348,6 +299,9 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
           ) : null}
         </Card>
       </Disclosure>
+
+      {/* Rego, licence and first aid reminders last ("approvals top, regos bottom") */}
+      <HomeReminders />
     </Screen>
   );
 }

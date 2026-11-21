@@ -42,9 +42,10 @@ test('the Board opens at a Needs-you list when another screen asks for one', () 
 
 const home = fs.readFileSync(path.resolve(import.meta.dirname, 'members.tsx'), 'utf8');
 test('the Home board rows open the Board at the matching list, not at its top', () => {
-  assert.ok(home.includes("navigation.navigate('Board', { focus: 'pending' })"));
-  assert.ok(home.includes("navigation.navigate('Board', { focus: 'alerts' })"));
-  assert.ok(!home.includes("navigation.navigate('Board')}"));
+  // Applicants are a Needs you row (Board, focus pending; see homeNeedsYou.test.ts); renewals sit in Reminders.
+  const cards = fs.readFileSync(path.resolve(import.meta.dirname, 'homeCards.tsx'), 'utf8');
+  assert.ok(cards.includes("navigation.navigate('Board', { focus: 'alerts' })"));
+  assert.ok(!home.includes("navigation.navigate('Board')}") && !cards.includes("navigation.navigate('Board')}"));
 });
 
 test('a member page can open at Ride-ready or Emergency contacts', () => {

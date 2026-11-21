@@ -8,7 +8,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 
-const home = fs.readFileSync(path.resolve(import.meta.dirname, 'members.tsx'), 'utf8');
+// Home is HomeScreen plus its cards file (Needs you, quick buttons, reminders).
+const home =
+  fs.readFileSync(path.resolve(import.meta.dirname, 'members.tsx'), 'utf8') +
+  fs.readFileSync(path.resolve(import.meta.dirname, 'homeCards.tsx'), 'utf8');
 const ui = fs.readFileSync(path.resolve(import.meta.dirname, '../ui/primitives.tsx'), 'utf8');
 
 /** The ListRow element whose source contains `marker`: from its `<ListRow` to the next row or card end. */
