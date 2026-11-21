@@ -110,6 +110,20 @@ export function showWhileOpen(data: Record<string, unknown> | null | undefined, 
   return !(data?.kind === 'chat' && viewingChatId !== null && data.chatId === viewingChatId);
 }
 
+/** Chat notifications stack (one per chat, holding the unread lines; see sendPush.ts), so the club's
+ *  banner shows only the message that just came in, which the push carries as data.line. */
+export function bannerLine(body: string, data: Record<string, unknown> | null | undefined): string {
+  return data?.kind === 'chat' && typeof data.line === 'string' && data.line !== '' ? data.line : body;
+}
+
+/** The notifications on the phone for a chat that's just been read, to clear them as Messenger does. */
+export function chatNotificationsToClear(
+  shown: { id: string; data: Record<string, unknown> | null | undefined }[],
+  chatId: string,
+): string[] {
+  return shown.filter((n) => n.data?.kind === 'chat' && n.data.chatId === chatId).map((n) => n.id);
+}
+
 /** What happens to a notification that arrives while the app is open: what the phone itself does with
  *  it, and whether the club's own banner shows at the top of the app. */
 export interface ForegroundPlan {

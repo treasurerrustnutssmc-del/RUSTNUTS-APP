@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  actingReminderPlan, ANDROID_CHANNELS, RETIRED_ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, phoneNotificationState, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, foregroundPlan, type Reminder,
+  actingReminderPlan, ANDROID_CHANNELS, RETIRED_ANDROID_CHANNELS, DEFAULT_PREFS, completePrefs, notificationTarget, phoneNotificationState, REV_SOUND, reminderDiff, reminderPlan, showWhileOpen, soundFor, foregroundPlan, bannerLine, chatNotificationsToClear, type Reminder,
 } from './notifications';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import type { ClubData, Position, Ride, Rsvp } from './types';
@@ -253,4 +253,24 @@ test('acting reminders keep 9 am in winter, and follow the rev setting', () => {
   assert.equal(actingReminderPlan('m-crank', acting([winter]), '2027-05-02T00:00:00.000Z')[0].at, '2027-07-02T23:00:00.000Z');
   const [plain] = actingReminderPlan('m-crank', acting([crankTre]), ACTING_NOW, { ...DEFAULT_PREFS, revSound: false });
   assert.deepEqual([plain.channelId, plain.sound], ['club', 'default']);
+});
+
+test('the club banner shows just the new message, not the whole stack the phone gets', () => {
+  const stack = 'Wes: hi\nSue: yo\nWes: Meet at the servo';
+  assert.equal(bannerLine(stack, { kind: 'chat', chatId: 'c1', line: 'Wes: Meet at the servo' }), 'Wes: Meet at the servo');
+  assert.equal(bannerLine('Wes: hi', { kind: 'chat', chatId: 'c1' }), 'Wes: hi', 'a push from before the stack');
+  assert.equal(bannerLine('West run moved', { kind: 'ride', line: 'nope' }), 'West run moved', 'only chat');
+  assert.equal(bannerLine('x', { kind: 'chat', line: '' }), 'x');
+});
+
+test('reading a chat clears that chat’s notification from the phone, and nothing else', () => {
+  const shown = [
+    { id: 'a', data: { kind: 'chat', chatId: 'c1' } },
+    { id: 'b', data: { kind: 'chat', chatId: 'c2' } },
+    { id: 'c', data: { kind: 'ride', rideId: 'c1' } },
+    { id: 'd', data: null },
+    { id: 'e', data: { kind: 'chat', chatId: 'c1', line: 'Wes: hi' } },
+  ];
+  assert.deepEqual(chatNotificationsToClear(shown, 'c1'), ['a', 'e']);
+  assert.deepEqual(chatNotificationsToClear(shown, 'zz'), []);
 });

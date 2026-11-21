@@ -43,6 +43,36 @@ test('the Harley rev follows the member’s setting, except on live ride alerts,
   }
 });
 
+test('chat stacks one notification per chat, like Messenger: each new one replaces the last for that chat on both phones', () => {
+  const [a, b] = toExpoMessages([
+    row({ id: 1, data: { kind: 'chat', chatId: 'c1' }, tokens: ['t'] }),
+    row({ id: 2, data: { kind: 'chat', chatId: 'c2' }, tokens: ['t'] }),
+  ]);
+  assert.deepEqual([a.tag, a.collapseId], ['chat-c1', 'chat-c1']);
+  assert.deepEqual([b.tag, b.collapseId], ['chat-c2', 'chat-c2']);
+  for (const data of [{ kind: 'ride', rideId: 'r1' }, { kind: 'live-alert', rideId: 'r2' }, { kind: 'chat' }]) {
+    const [m] = toExpoMessages([row({ data, tokens: ['t'] })]);
+    assert.equal('tag' in m || 'collapseId' in m, false, `${JSON.stringify(data)} keeps one notification each`);
+  }
+});
+
+test('when a round holds several pushes for the same chat and phone, only the newest goes (it holds the whole stack); the rest count as sent with it', async () => {
+  const posted: { title: string; to: string }[] = [];
+  const result = await sendAll({
+    take: async () => ({ enabled: true, messages: [
+      row({ id: 1, title: 'one', data: { kind: 'chat', chatId: 'c1' }, tokens: ['a'] }),
+      row({ id: 2, title: 'ride', data: { kind: 'ride', rideId: 'r1' }, tokens: ['a'] }),
+      row({ id: 3, title: 'two', data: { kind: 'chat', chatId: 'c1' }, tokens: ['a'] }),
+      row({ id: 4, title: 'other chat', data: { kind: 'chat', chatId: 'c2' }, tokens: ['a'] }),
+      row({ id: 5, title: 'someone else', data: { kind: 'chat', chatId: 'c1' }, tokens: ['b'] }),
+    ] }),
+    post: async (batch) => { posted.push(...batch.map((m) => ({ title: m.title, to: m.to }))); return batch.map(() => ({ status: 'ok' })); },
+    done: async (sent, failed) => { assert.deepEqual([sent, failed], [[1, 2, 3, 4, 5], []]); },
+  });
+  assert.deepEqual(posted.map((p) => p.title), ['ride', 'two', 'other chat', 'someone else']);
+  assert.equal(result.sent, 5);
+});
+
 test('sent 100 at a time (Expo’s limit)', () => {
   assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
   assert.equal(chunk(Array.from({ length: 250 }, (_, i) => i), 100).length, 3);
