@@ -24,3 +24,12 @@ test('Members: the list first, then More from the club in one card, then the clu
   assert.equal(card.match(/<Card/g)?.length, 1, 'one card');
   for (const row of ["navigate('Chapters')", '<HistoryRow', '<WhoCanHelpRow', '<SwapRow', '<BuildsRow', '<BragRow']) assert.ok(card.includes(row), row);
 });
+
+// Jeff, 21 Nov 2026: "a question about roles and no answers on the members page". The link reads as a row that
+// says what it opens, like Club words on Me, never as a bare question.
+test('the Club words link is a row that names what it opens, not a question', () => {
+  const link = screen.slice(0, screen.indexOf('{groups.map('));
+  assert.ok(!/label="[^"]*\?"/.test(link), 'no question-mark button above the list');
+  assert.ok(link.includes('title="Club words"'), 'titled Club words');
+  assert.ok(link.includes('<ListRow'), 'a tappable row with a chevron');
+});
