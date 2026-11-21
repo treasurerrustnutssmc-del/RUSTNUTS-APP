@@ -45,6 +45,7 @@ import { BragRow } from './brag';
 import { BadgesCard } from './badges';
 import { AskClubHomeRow } from './askClub';
 import { HomeRoadRulesRow } from './roadRules';
+import { mustSignFirst } from '../domain/roadRules';
 import { HomeNextRideCard } from './rides';
 import { MORE_FROM_CLUB } from '../domain/membersLayout';
 import { homeCoverPanels } from '../domain/meLayout';
@@ -234,13 +235,14 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       {/* The everyday jobs that aren't a tab */}
       <HomeQuickActions />
       {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}
-      <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />
+      {/* Hidden while you still have to sign: that's a Needs you row */}
+      {mustSignFirst(me, data, today) ? null : <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />}
 
       {/* Stage 5: meetings and votes */}
       {business.summary ? (
         <Card style={{ padding: 0, gap: 0 }}>
           <ListRow
-            left={<IconBadge icon="hammer" tone={business.needsMe.length ? 'red' : undefined} />}
+            left={<IconBadge icon="hammer" />}
             title="Club business"
             subtitle={business.summary}
             onPress={() => navigation.navigate('Business')}

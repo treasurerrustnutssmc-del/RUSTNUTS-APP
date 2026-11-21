@@ -5,7 +5,7 @@
  * HomeReminders: your own rego, licence and first aid boxes, and the board's renewals row, last.
  * Spec: docs/superpowers/specs/2026-11-21-home-needs-you-design.md
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useClub } from '../data/ClubStore';
@@ -23,13 +23,19 @@ type Nav = { navigate: (screen: any, params?: any) => void };
 export function HomeNeedsYouCard() {
   const { me, data, today } = useClub();
   const navigation = useNavigation<Nav>();
-  const items = homeNeedsYou(me, data, today, nowInstant());
+  // Worked out again only when the club data, the person or the day changes, not on every render.
+  const items = useMemo(() => homeNeedsYou(me, data, today, nowInstant()), [me, data, today]);
   if (!items.length) return null;
   return (
     <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
       <View style={styles.head}>
         <H2>Needs you</H2>
-        <Text style={[type.name, { color: colors.boneDim, fontVariant: ['tabular-nums'] }]}>{items.length}</Text>
+        <Text
+          accessibilityLabel={`${items.length} ${items.length === 1 ? 'thing' : 'things'} waiting`}
+          style={[type.name, { color: colors.boneDim, fontVariant: ['tabular-nums'] }]}
+        >
+          {items.length}
+        </Text>
       </View>
       {items.map((i, n) => (
         <ListRow

@@ -11,7 +11,7 @@ import { requestsToAnswer } from './audit';
 import { boardRequests, boardScope, requestNext } from './boardLayout';
 import { managesBus, waitingForYes } from './bus';
 import { businessFor } from './business';
-import { canManageFees, formatCents, totalOwing } from './fees';
+import { canManageFees, chargesOf, formatCents, totalOwing } from './fees';
 import { fngDue } from './joining';
 import { keepsBooks, needsMyApproval } from './ledger';
 import { ordersToAct } from './merch';
@@ -62,8 +62,12 @@ export function homeNeedsYou(me: Member | null, data: ClubData, today: string, n
     });
   }
 
-  // Acting and cover requests with a step for me (confirm it, or start or follow the board vote).
-  const requests = boardRequests(me, data, now).filter((r) => requestNext(r, me, data, now) !== null);
+  // Acting and cover requests with a step for me: confirm it, or start the board vote. An open vote on
+  // one is not counted here: casting it is a "votes" row, and once cast there's nothing left to do.
+  const requests = boardRequests(me, data, now).filter((r) => {
+    const next = requestNext(r, me, data, now);
+    return next !== null && next.kind !== 'see';
+  });
   if (requests.length) {
     approve.push({
       key: 'acting',
@@ -217,13 +221,19 @@ export function homeNeedsYou(me: Member | null, data: ClubData, today: string, n
       to: { screen: 'RoadRules' },
     });
   }
-  const owing = totalOwing(me.id, data);
-  if (owing > 0) {
+  // Fees still to pay, less what you've told the treasurer you've paid (it waits on them, not you).
+  const mine = new Set(chargesOf(me.id, data).map((c) => c.id));
+  const told = (data.payments ?? [])
+    .filter((p) => p.state === 'claimed' && mine.has(p.chargeId))
+    .reduce((sum, p) => sum + p.amountCents, 0);
+  const toPay = totalOwing(me.id, data) - told;
+  if (toPay > 0) {
     you.push({
       key: 'fees',
       group: 'you',
       icon: 'wallet-outline',
-      title: `${formatCents(owing)} in fees to pay`,
+      title: `${formatCents(toPay)} in fees to pay`,
+      subtitle: told > 0 ? `You’ve told the treasurer about ${formatCents(told)}` : undefined,
       to: { screen: 'MemberFees', params: { memberId: me.id } },
     });
   }

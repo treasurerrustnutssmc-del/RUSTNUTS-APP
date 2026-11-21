@@ -25,6 +25,13 @@ cover requests with a step for you, Rusty Bus bookings, payments to check, book 
 merch orders, national contributions, Auditor questions, overdue FNG reviews. Then what's waiting on
 you personally: votes, a board notice to answer, the Road Rules to sign, fees owing.
 
+Rules that keep it honest (from the independent review):
+- An acting or cover request counts only while you have a step on it (confirm, or start the vote).
+  Once its board vote is open, casting it is the "votes" row; after that there's nothing for you to do.
+- Fees count what's left after payments you've told the treasurer about (subtitle names that amount).
+- The Road Rules row hides while you still have to sign (that's a Needs you row); Club business keeps
+  its summary but no longer uses a red icon, since the votes are already in Needs you.
+
 Rego, licence and first aid are never in it. The old Fees card and the inline Board card are gone
 from Home: both now live as Needs you rows, so nothing shows twice.
 

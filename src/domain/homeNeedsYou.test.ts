@@ -77,3 +77,15 @@ test('each item has a place to go and a title', () => {
     }
   }
 });
+
+test('fees you have told the treasurer about come off: they wait on the treasurer, not you', () => {
+  const rusty = member('m-rusty');
+  const charge = { id: 'c-x', memberId: rusty.id, chapterId: rusty.chapterId, fy: 2027, kind: 'annual' as const, description: 'Annual fee', amountCents: 36000, dueOn: STORY_TODAY, createdAt: now, waivedAt: null };
+  const claim = (amountCents: number) => ({ ...DEMO_DATA, charges: [charge], payments: [{ ...(DEMO_DATA.payments ?? [])[0], id: 'p-x', chargeId: 'c-x', amountCents, state: 'claimed' as const }] });
+  const part = homeNeedsYou(rusty, claim(10000) as ClubData, STORY_TODAY, now).find((i) => i.key === 'fees');
+  assert.ok(part);
+  assert.match(part.title, /\$260/);
+  assert.match(part.subtitle ?? '', /told the treasurer about \$100/);
+  assert.equal(homeNeedsYou(rusty, claim(36000) as ClubData, STORY_TODAY, now).find((i) => i.key === 'fees'), undefined);
+});
+
