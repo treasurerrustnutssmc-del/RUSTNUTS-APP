@@ -74,7 +74,7 @@ import {
   Stack,
   type IconName,
 } from '../ui/primitives';
-import { ChapterChip, FollowRouteNow, NavigateChooser, OpenInMapsButton, RouteFacts, StopList } from '../ui/RouteBits';
+import { ChapterChip, FollowRoutePanel, RouteFacts, StopList } from '../ui/RouteBits';
 import { RideMap } from '../ui/RideMap';
 import { canReplay } from '../domain/rideReplay'; // Ride replay
 import { OtherClubsRow, RideInvitesSection } from './invites'; // Invites to and from other clubs
@@ -1050,14 +1050,7 @@ function RouteSection({
                 <StopList stops={route.stops} flat />
               </Stack>
             ) : null}
-            {route.line.length > 0 ? (
-              <>
-                <FollowRouteNow route={route} />
-                <NavigateChooser to={{ lat: route.line[0][0], lng: route.line[0][1] }} toLabel="the start" route={route} />
-              </>
-            ) : (
-              <OpenInMapsButton route={route} kind="secondary" />
-            )}
+            <FollowRoutePanel route={route} />
             {/* Ride replay */}
             {canReplay(route) ? (
               <Button label="Ride replay" icon="film-outline" kind="secondary" accessibilityLabel="Play the ride replay and share it as a video" onPress={onReplay} />
