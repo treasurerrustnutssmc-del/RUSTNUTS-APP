@@ -97,6 +97,13 @@ export function decideApplicationProblem(
   return votesProblem(votes);
 }
 
+/** A nudge on the approval card when someone who asked to be a Supporter is about to be let in as one:
+ * a member's partner or family sometimes picks Supporter, and Family is the view made for them. */
+export function approveAsHint(asked: MemberStatus, chosen: MemberStatus): string | null {
+  if (asked !== 'supporter' || chosen !== 'supporter') return null;
+  return 'They asked to be a Supporter. If they’re a member’s partner or family, let them in as Family instead.';
+}
+
 export type FngOutcome = Extract<DecisionOutcome, 'continue' | 'patch' | 'not_continuing'>;
 
 /** Reviews can be recorded up to this many days before they fall due. */

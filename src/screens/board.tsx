@@ -23,7 +23,7 @@ import type { ActingRequest, Member, MemberStatus, Position, PositionRole, Votes
 import type { RootScreen, TabScreen } from '../navigation/types';
 import { colors, fonts, space, type } from '../theme';
 // Stage 4
-import { fngDue } from '../domain/joining';
+import { approveAsHint, fngDue } from '../domain/joining';
 import {
   boardGroups, boardRequests, boardScope, closeRequestNote, NEED_GROUP, needsYou, needsYouTarget, requestActions, requestConfirmNote, requestLine, requestNext,
   scopeText, vpFallbackLine, type BoardGroupId, type NeedsYou, type NeedsYouKind,
@@ -84,6 +84,7 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
   const priv = data.privates.find((p) => p.memberId === applicant.id);
   const chapter = data.chapters.find((c) => c.id === applicant.chapterId);
   const bikes = data.bikes.filter((b) => b.memberId === applicant.id);
+  const hint = approveAsHint(applicant.status, status);
 
   const [busy, setBusy] = useState(false);
   const act = async (fn: () => Promise<void>, msg: string) => {
@@ -135,6 +136,7 @@ function ApplicantCard({ applicant, onDone }: { applicant: Member; onDone: (msg:
         value={status}
         onChange={setStatus}
       />
+      {hint ? <Notice tone="info">{hint}</Notice> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
       <Small>
         {status === 'full'
