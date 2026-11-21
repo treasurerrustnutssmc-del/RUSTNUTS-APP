@@ -1,7 +1,7 @@
 /**
  * Home's new top and bottom (Jeff, 21 Nov 2026: "Approvals top regos bottom").
  * HomeNeedsYouCard: everything waiting on you, approvals first, right under the greeting.
- * HomeQuickActions: the everyday jobs that aren't already a tab, one tap each.
+ * QuickButtons: the everyday jobs that aren't already a tab, one tap each (on Me since 21 Nov 2026).
  * HomeReminders: your own rego, licence and first aid boxes, and the board's renewals row, last.
  * Spec: docs/superpowers/specs/2026-11-21-home-needs-you-design.md
  */
@@ -14,6 +14,7 @@ import { homeNeedsYou } from '../domain/homeNeedsYou';
 import { seesReports } from '../domain/ledger';
 import { homeRoadRulesRow } from '../domain/roadRules';
 import { totalOwing } from '../domain/fees';
+import { signStatus } from '../domain/documents';
 import { feesButtonLine } from '../domain/meLayout';
 import { useAskClubOn } from './askClub';
 import { alertFix, expiryAlerts, type ExpiryAlert } from '../domain/profile';
@@ -81,6 +82,9 @@ export function QuickButtons() {
   if (!me || me.approval !== 'approved') return null;
   const rules = homeRoadRulesRow(me, data, today);
   const fees = feesButtonLine(totalOwing(me.id, data), me.onHiatus);
+  const toSign = (data.documents ?? []).filter((d) => signStatus(me, d, data, today) === 'unsigned').length;
+  const subOf = (q: Quick): { text: string; alert: boolean } | null =>
+    q.mine ? { text: fees.text, alert: fees.owing } : q.key === 'docs' && toSign > 0 ? { text: `${toSign} to sign`, alert: true } : null;
   const screenOf = (q: Quick) => (q.rules && rules?.opens === 'guide' ? 'RoadRulesGuide' : q.screen);
   return (
     <View style={styles.grid} accessibilityRole="toolbar" accessibilityLabel="Quick buttons">
@@ -92,15 +96,15 @@ export function QuickButtons() {
           onPress={() => navigation.navigate(screenOf(q), q.mine ? { memberId: me.id } : undefined)}
           style={({ pressed }) => [styles.tile, pressed && { backgroundColor: colors.steel }]}
         >
-          <Ionicons name={q.icon} size={22} color={q.mine && fees.owing ? colors.redText : colors.bone} />
+          <Ionicons name={q.icon} size={22} color={subOf(q)?.alert ? colors.redText : colors.bone} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={type.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
               {q.label}
             </Text>
-            {/* What's owing, on the button itself (the old Fees group lower on Me is gone) */}
-            {q.mine ? (
-              <Text style={[styles.sub, { color: fees.owing ? colors.redText : colors.boneDim }]} numberOfLines={1}>
-                {fees.text}
+            {/* What's owing, or documents to sign, on the button itself (the rows lower on Me are gone) */}
+            {subOf(q) ? (
+              <Text style={[styles.sub, { color: subOf(q)!.alert ? colors.redText : colors.boneDim }]} numberOfLines={1}>
+                {subOf(q)!.text}
               </Text>
             ) : null}
           </View>

@@ -125,28 +125,6 @@ export function DocumentsBoardRow({ last }: { last?: boolean }) {
   );
 }
 
-/** Me: the library, with how many documents are waiting for your signature. */
-export function DocumentsMeRow() {
-  const { me, data, today } = useClub();
-  const navigation = useNavigation<Nav>();
-  if (!me) return null;
-  const toSign = (data.documents ?? []).filter((d) => signStatus(me, d, data, today) === 'unsigned').length;
-  return (
-    <>
-      <SectionTitle title="Club documents" />
-      <Card style={{ padding: 0, gap: 0 }}>
-        <ListRow
-          last
-          left={<IconBadge icon="library-outline" tone={toSign > 0 ? 'red' : 'steel'} />}
-          title={toSign > 0 ? `${toSign} to sign` : 'Constitution and bylaws'}
-          subtitle="The club’s rules, policies and forms"
-          onPress={() => navigation.navigate('Documents')}
-        />
-      </Card>
-    </>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Library
 // ---------------------------------------------------------------------------

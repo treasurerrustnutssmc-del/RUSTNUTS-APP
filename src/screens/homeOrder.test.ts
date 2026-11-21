@@ -89,3 +89,9 @@ test('the next ride card steps aside while that ride is the live ride above it',
   const next = rides.slice(rides.indexOf('export function HomeNextRideCard'));
   assert.match(next.slice(0, 1500), /homeLiveRide\(/);
 });
+
+// Review, 21 Nov 2026: the Documents row on Me used to say "N to sign"; with it gone, the button says it.
+test('the Documents quick button says how many club documents are waiting for your signature', () => {
+  assert.match(cards, /signStatus\(me, d, data, today\) === 'unsigned'/);
+  assert.match(cards, /to sign`/);
+});

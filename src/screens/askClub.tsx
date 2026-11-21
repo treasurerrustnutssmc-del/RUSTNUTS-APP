@@ -300,7 +300,7 @@ function ProposalCard({ item, onConfirm, onDecline }: { item: Extract<Item, { ki
 }
 
 /** Whether Ask the club is open to `me`: approved members only, and in a live build only once it's switched on.
- *  Home shows its quick button while this is true. */
+ *  Me shows its quick button while this is true. */
 export function useAskClubOn(): boolean {
   const { me, isDemo } = useClub();
   const api = useAssistantApi();

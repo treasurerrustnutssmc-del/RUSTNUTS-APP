@@ -2,7 +2,7 @@
 // Going / Maybe / Can't make it, its route and its crew. Rides come from the calendar sync, or are made in the
 // app by the people who run them (src/screens/editRide.tsx); only app rides change here.
 
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { homeLiveRide } from '../domain/liveRide';
 import { useClub } from '../data/ClubStore';
@@ -264,11 +264,17 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
   // True while an answer is being saved. A ref, so a Retry from an older toast sees it too.
   const saving = useRef(false);
+  // Look again each minute, in step with the Live ride card above, so the two never show the same ride.
+  const [now, setNow] = useState(() => new Date().toISOString());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date().toISOString()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   if (!me || me.approval !== 'approved') return null;
   const ride = nextRide(data.rides, defaultCategories(me, data.chapters), today);
   if (!ride) return null;
   // Under way: it's the Live ride card straight under your name already, so it isn't shown twice.
-  const live = homeLiveRide({ me, rides: [ride], rsvps: data.rsvps, categories: defaultCategories(me, data.chapters), now: new Date().toISOString(), sharing: null });
+  const live = homeLiveRide({ me, rides: [ride], rsvps: data.rsvps, categories: defaultCategories(me, data.chapters), now, sharing: null });
   if (live) return null;
   const mine = data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null;
   // One tap here only when the ride screen would allow Going too; otherwise the card opens the ride, which says why.
