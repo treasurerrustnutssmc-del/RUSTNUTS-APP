@@ -280,7 +280,6 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
     setChosenChapter(id);
     saved.save({ memberChapter: id });
   };
-  const [moreOpen, setMoreOpen] = useState(true);
   // The club in numbers moved here from Home (Jeff, 21 Nov 2026: "Make the home screen clean and simple").
   const [numbersOpen, setNumbersOpen] = useState(false);
   const counts = clubCounts(data.chapters, data.members, data.unclaimedRoster ?? []);
@@ -316,25 +315,6 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
         value={chapterId}
         onChange={setChapterId}
       />
-      {/* Chapters, history and the social extras: folded away so the member list comes first */}
-      <Disclosure title={MORE_FROM_CLUB.title} summary={MORE_FROM_CLUB.summary} open={moreOpen} onToggle={() => setMoreOpen((o) => !o)}>
-        <Card style={{ padding: 0, gap: 0 }}>
-          <ListRow
-            left={<IconBadge icon="flag" tone="red" />}
-            title="Chapters"
-            subtitle="Boards and the National committee"
-            onPress={() => navigation.navigate('Chapters')}
-          />
-          <HistoryRow last />
-        </Card>
-        {/* Stage 7: social extras */}
-        <Card style={{ padding: 0, gap: 0 }}>
-          <WhoCanHelpRow />
-          <SwapRow />
-          <BuildsRow />
-          <BragRow last />
-        </Card>
-      </Disclosure>
       <Button label="What do SAA, RC and the other short names mean?" kind="quiet" onPress={() => navigation.navigate('ClubWords')} />
       {groups.length === 0 ? (
         <Notice title="Nobody matches">Try a road name, a real name or a bike, like “Softail”.</Notice>
@@ -345,6 +325,24 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
           <GroupedMembers members={g.members} onOpen={(id) => navigation.navigate('MemberDetail', { memberId: id })} />
         </Stack>
       ))}
+      {/* Chapters, history and the social extras: one card under the members (Jeff, 21 Nov 2026: simplify) */}
+      <Stack gap={space.sm}>
+        <SectionTitle title={MORE_FROM_CLUB.title} />
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            left={<IconBadge icon="flag" tone="red" />}
+            title="Chapters"
+            subtitle="Boards and the National committee"
+            onPress={() => navigation.navigate('Chapters')}
+          />
+          <HistoryRow />
+          {/* Stage 7: social extras */}
+          <WhoCanHelpRow />
+          <SwapRow />
+          <BuildsRow />
+          <BragRow last />
+        </Card>
+      </Stack>
       <Disclosure title={CLUB_NUMBERS.title} summary={CLUB_NUMBERS.summary} open={numbersOpen} onToggle={() => setNumbersOpen((o) => !o)}>
         <Card>
           <ClubSplitTable rows={[...counts.split, { id: 'club-total', name: 'Club', ...counts.club }]} />
