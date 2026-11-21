@@ -78,7 +78,7 @@ export function needsYouTarget(kind: NeedsYouKind, memberIds: string[]): NeedsYo
 
 export type BoardGroup = { id: BoardGroupId; title: string; summary: string; startsOpen: boolean };
 
-/** The five groups, in a fixed order. A group starts open only when it has something waiting. */
+/** The four groups, in a fixed order. A group starts open only when it has something waiting. */
 export function boardGroups(c: BoardCounts): BoardGroup[] {
   const people = [
     c.alerts > 0 ? `${c.alerts} due` : null,

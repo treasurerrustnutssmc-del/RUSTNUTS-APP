@@ -72,7 +72,7 @@ export type NotificationTarget =
   | { screen: 'RunCheckin'; params: { sessionId: string } }
   | { screen: 'Feedback'; params: undefined }
   | { screen: 'WebsitePhotos'; params: undefined }
-  | { screen: 'Tabs'; params: { screen: 'Board' } };
+  | { screen: 'WebsiteApp'; params: undefined };
 
 export function notificationTarget(data: Record<string, unknown> | null | undefined): NotificationTarget | null {
   const id = (v: unknown) => (typeof v === 'string' && v !== '' ? v : null);
@@ -97,8 +97,8 @@ export function notificationTarget(data: Record<string, unknown> | null | undefi
       // "Your photo is on the club website": where the poster sees it and can take it down.
       return { screen: 'WebsitePhotos', params: undefined };
     case 'feedback-sent':
-      // A new report, for the keepers: the Board screen's App feedback section.
-      return { screen: 'Tabs', params: { screen: 'Board' } };
+      // A new report, for the keepers: App feedback, on the Website and app page (off the Board since 21 Nov 2026).
+      return { screen: 'WebsiteApp', params: undefined };
     default:
       return null;
   }
