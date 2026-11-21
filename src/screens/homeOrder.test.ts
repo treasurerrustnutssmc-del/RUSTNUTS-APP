@@ -1,5 +1,6 @@
-// Home puts what needs the member before the news: the next ride, today's check-in, anything expired
-// or due, the Road Rules, fees, then club business, then the social cards (shout-outs, on this day, news).
+// Home leads with what needs the person (Jeff, 21 Nov 2026: "Approvals top regos bottom"): the
+// Needs you card first, then the next ride, today's check-in and the quick buttons, then club
+// business, the Road Rules and the social cards, and the rego, licence and first aid reminders last.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,10 +14,31 @@ const at = (s: string) => {
   return i;
 };
 
-test('urgent items come before the social cards', () => {
-  const urgent = [at('<HomeNextRideCard'), at('<HomeCheckinCard'), at('{myAlerts.map'), at('<HomeRoadRulesRow'), at('<HomeFeesCard')];
-  assert.deepEqual([...urgent].sort((a, b) => a - b), urgent, 'next ride, check-in, alerts, Road Rules, fees in that order');
+test('Needs you is the first card under the greeting', () => {
+  const needs = at('<HomeNeedsYouCard');
+  for (const s of ['<CoverPanels', '<FirstRunCard', '<HomeNextRideCard', '<HomeCheckinCard', '<HomeQuickActions', '<HomeRoadRulesRow']) {
+    assert.ok(needs < at(s), `Needs you before ${s}`);
+  }
+  assert.ok(at('</Flannel>') < needs, 'after the greeting');
+});
+
+test('the ride, check-in and quick buttons come before the social cards', () => {
+  const urgent = [at('<HomeNextRideCard'), at('<HomeCheckinCard'), at('<HomeQuickActions')];
+  assert.deepEqual([...urgent].sort((a, b) => a - b), urgent);
   const social = Math.min(at('<HomeShoutoutsCard'), at('<HomeOnThisDayCard'), at('<HomeNewsCard'));
-  assert.ok(Math.max(...urgent) < social, 'all of them before shout-outs, on this day and news');
+  assert.ok(Math.max(...urgent) < social);
   assert.ok(at('{business.summary') < social, 'club business before the social cards too');
+});
+
+test('rego, licence and first aid reminders sit at the bottom, after everything else', () => {
+  const reminders = at('<HomeReminders');
+  for (const s of ['<HomeNewsCard', '<AskClubHomeRow', '<Disclosure title={CLUB_NUMBERS.title}']) {
+    assert.ok(at(s) < reminders, `${s} before the reminders`);
+  }
+  assert.ok(!home.includes('{myAlerts.map'), 'no expiry boxes higher up');
+});
+
+test('fees and applicants are not shown twice: they live in Needs you', () => {
+  assert.ok(!home.includes('<HomeFeesCard'), 'fees owing is a Needs you row');
+  assert.ok(!home.includes('waiting for approval`'), 'applicants are a Needs you row');
 });

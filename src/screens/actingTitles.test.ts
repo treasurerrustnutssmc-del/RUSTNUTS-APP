@@ -13,6 +13,7 @@ import type { Position } from '../domain/types';
 
 const read = (rel: string) => fs.readFileSync(path.resolve(import.meta.dirname, rel), 'utf8');
 const members = read('members.tsx');
+const homeCards = read('homeCards.tsx');
 const me = read('me.tsx');
 const coverBits = read('coverBits.tsx');
 const deleteAccount = read('deleteAccount.tsx');
@@ -26,7 +27,7 @@ function fn(src: string, name: string): string {
   return src.slice(at, src.indexOf('\n}\n', at));
 }
 
-test('members.tsx gates alerts and the All chapters chip on seesEveryChapter, not level === \'national\'', () => {
+test('Home gates the board renewals on seesEveryChapter, not level === \'national\'', () => {
   // Why: Jet, Acting President of North in an empty seat, is on the NEC but reads North only.
   const jetActing: Position = {
     id: 'p-jet-acting', memberId: 'm-jet', chapterId: 'ch-north', role: 'president', startedOn: '2026-11-01', endedOn: null,
@@ -37,19 +38,14 @@ test('members.tsx gates alerts and the All chapters chip on seesEveryChapter, no
   assert.equal(accessLevel(jet, positions), 'national');
   assert.equal(seesEveryChapter(jet, positions), false);
 
-  const home = fn(members, 'HomeScreen');
-  // The national level still shows the Board card (isBoard); it just doesn't widen it to every chapter.
-  const scope = home.slice(home.indexOf('const boardScope'), home.indexOf('const boardAlerts'));
-  const chip = home.split('\n').find((l) => l.includes("'All chapters'"));
-  assert.ok(chip, 'the Board card still has the All chapters chip');
-  for (const [what, src] of [['the renewal alerts', scope], ['the All chapters chip', chip]]) {
-    assert.doesNotMatch(src, /level === 'national'/, `${what} don’t read the national level as every chapter`);
-  }
-  const every = /const (\w+) = seesEveryChapter\(me, data\.positions\);/.exec(home);
+  // Home's board renewals row (now in Reminders, at the bottom of Home) widens to every chapter only
+  // for a club-wide seat. The national level still shows the row (isBoard).
+  const reminders = fn(homeCards, 'HomeReminders');
+  const scope = reminders.slice(reminders.indexOf('const scope'), reminders.indexOf('const board ='));
+  assert.doesNotMatch(scope, /level === 'national'/, 'the renewal alerts don’t read the national level as every chapter');
+  const every = /const (\w+) = seesEveryChapter\(me, data\.positions\);/.exec(reminders);
   assert.ok(every, 'Home asks seesEveryChapter once');
-  const flag = every[1];
-  assert.match(scope, new RegExp(`\\(${flag} \\|\\| m\\.chapterId === me\\.chapterId\\)`), 'the renewal alerts cover every chapter only for a club-wide seat');
-  assert.match(chip, new RegExp(`label=\\{${flag} \\? 'All chapters'`));
+  assert.match(scope, new RegExp(`\\(${every[1]} \\|\\| m\\.chapterId === me\\.chapterId\\)`), 'the renewal alerts cover every chapter only for a club-wide seat');
 });
 
 test('sortedPositions uses heldPositions', () => {
