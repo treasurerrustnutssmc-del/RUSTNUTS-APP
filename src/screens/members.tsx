@@ -244,10 +244,10 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       <CoverPanels panels={homeCoverPanels(me, data, today)} />
       {/* New here? Where things are, once */}
       <FirstRunCard />
+      {/* On the day: I'm here, and riders waiting for a leader to confirm them, at the top */}
+      <HomeCheckinCard />
       {/* The next ride, so it is one tap from opening the app */}
       <HomeNextRideCard onOpen={(rideId) => navigation.navigate('RideDetail', { rideId })} />
-      {/* Stage 4: today's check-in and what you owe */}
-      <HomeCheckinCard />
       {myAlerts.map((a) => (
         <Notice key={`${a.kind}-${a.bikeId ?? ''}-${a.label}`} tone={a.state === 'expired' ? 'danger' : 'warn'} title={a.label} onPress={() => openFix(a)}>
           {`${a.description}. Tap to update it once it’s renewed.`}

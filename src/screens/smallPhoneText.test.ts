@@ -165,7 +165,8 @@ test('Book the Rusty Bus: a “For a ride?” option shows in full', () => {
 
 test('Home check-in card: a check-in title shows in full', () => {
   const card = block(read('checkin.tsx'), 'export function HomeCheckinCard(');
-  assert.match(tagHolding(card, 'title={r.title}', 'ListRow'), ALL);
+  assert.doesNotMatch(tagHolding(card, '{`Check in · ${t.title}`}', 'Text'), CLAMP);
+  assert.match(tagHolding(card, 'subtitle={session.title}', 'ListRow'), ALL);
 });
 
 test('Route library and Choose route: a route name is never cut short', () => {

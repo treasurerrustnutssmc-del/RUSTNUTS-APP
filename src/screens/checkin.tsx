@@ -138,6 +138,45 @@ export function ImHere({ at }: { at: CheckInAt }) {
   );
 }
 
+/** Someone who says they're here, with Confirm and Not here, for the ride's leaders. */
+function WaitingRow({ member, session, busy, last, onAnswer }: {
+  member: Member;
+  session: CheckinSession;
+  busy: boolean;
+  last: boolean;
+  onAnswer: (memberId: string, here: boolean) => void;
+}) {
+  const { data } = useClub();
+  const asked = (data.checkinRequests ?? []).find((r) => r.sessionId === session.id && r.memberId === member.id);
+  return (
+    <View>
+      <ListRow
+        last
+        left={<Avatar text={initials(member)} size={40} />}
+        title={displayName(member)}
+        subtitle={asked ? `Says they’re here · ${melbourneTime(asked.askedAt)}` : 'Says they’re here'}
+      />
+      <Row style={{ gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.lg, borderBottomWidth: last ? 0 : 1, borderColor: colors.line }}>
+        <Button
+          label="Confirm"
+          icon="checkmark"
+          busy={busy}
+          accessibilityLabel={`Confirm ${displayName(member)} is here`}
+          onPress={() => onAnswer(member.id, true)}
+          style={{ flex: 1 }}
+        />
+        <Button
+          label="Not here"
+          kind="quiet"
+          disabled={busy}
+          accessibilityLabel={`${displayName(member)} isn’t here`}
+          onPress={() => onAnswer(member.id, false)}
+        />
+      </Row>
+    </View>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Checking in
 // ---------------------------------------------------------------------------
@@ -447,36 +486,9 @@ export function RunCheckinScreen({ route }: RootScreen<'RunCheckin'>) {
                 <Small>Nobody waiting. When someone taps I’m here, they show up here and you get a notice.</Small>
               </View>
             ) : (
-              waiting.map((m, i) => {
-                const asked = (data.checkinRequests ?? []).find((r) => r.sessionId === session.id && r.memberId === m.id);
-                return (
-                  <View key={m.id}>
-                    <ListRow
-                      last
-                      left={<Avatar text={initials(m)} size={40} />}
-                      title={displayName(m)}
-                      subtitle={asked ? `Says they’re here · ${melbourneTime(asked.askedAt)}` : 'Says they’re here'}
-                    />
-                    <Row style={{ gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.lg, borderBottomWidth: i === waiting.length - 1 ? 0 : 1, borderColor: colors.line }}>
-                      <Button
-                        label="Confirm"
-                        icon="checkmark"
-                        busy={busyId === m.id}
-                        accessibilityLabel={`Confirm ${displayName(m)} is here`}
-                        onPress={() => answer(m.id, true)}
-                        style={{ flex: 1 }}
-                      />
-                      <Button
-                        label="Not here"
-                        kind="quiet"
-                        disabled={busyId === m.id}
-                        accessibilityLabel={`${displayName(m)} isn’t here`}
-                        onPress={() => answer(m.id, false)}
-                      />
-                    </Row>
-                  </View>
-                );
-              })
+              waiting.map((m, i) => (
+                <WaitingRow key={m.id} member={m} session={session} busy={busyId === m.id} last={i === waiting.length - 1} onAnswer={answer} />
+              ))
             )}
           </Card>
         </>
@@ -814,58 +826,81 @@ export function RideCheckinCard({ ride }: { ride: Ride }) {
   );
 }
 
-/** Home, on the day: what you can say you're here at, and check-ins with people waiting for you to confirm them. */
+/** Home, on the day, at the top: an I'm here button for today's rides and open meetings, and for
+ *  the ride's leaders, everyone waiting with Confirm and Not here right there. */
 export function HomeCheckinCard() {
-  const { me, data, today } = useClub();
+  const { me, data, today, answerCheckin, isDemo, refresh } = useClub();
   const navigation = useNavigation<Nav>();
-  if (!me || !canCheckIn(me)) return null;
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const sessions = sessionsOf(data.checkinSessions);
-  const running = sessions.filter((s) => !s.closedAt && s.heldOn === today && canConfirmCheckin(me, s, data));
-  const going = (rideId: string) => data.rsvps.some((r) => r.rideId === rideId && r.memberId === me.id && r.answer === 'going');
-  // Today's rides you're going to (and open meetings), unless you run them: you're straight in from the ride.
+  const leading = me && canCheckIn(me)
+    ? sessions.filter((s) => !s.closedAt && s.heldOn === today && canConfirmCheckin(me, s, data))
+    : [];
+  const leadingToday = leading.length > 0;
+  // Leaders on the day: look again every 30 seconds, so riders who tap I'm here pop up here.
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    if (isDemo || !leadingToday) return;
+    const t = setInterval(() => refreshRef.current().catch(() => undefined), 30000);
+    return () => clearInterval(t);
+  }, [isDemo, leadingToday]);
+  if (!me || !canCheckIn(me)) return null;
+
+  // Today's rides and meetings you haven't been checked in to yet (you stay listed while you wait).
   const toJoin = checkInsToday(me, data, today).filter(({ at }) => {
     const s = sessionAt(at, sessions);
-    if (s && (running.includes(s) || (data.attendance ?? []).some((a) => a.sessionId === s.id && a.memberId === me.id))) return false;
-    return 'rideId' in at ? going(at.rideId) : true;
+    return !(s && (data.attendance ?? []).some((a) => a.sessionId === s.id && a.memberId === me.id));
   });
-  if (running.length === 0 && toJoin.length === 0) return null;
-  const rows = [
-    ...running.map((s) => {
-      const waiting = waitingFor(s.id, data).length;
-      return {
-        key: s.id,
-        icon: waiting > 0 ? ('hand-right' as const) : ('people' as const),
-        title: waiting > 0 ? `Confirm ${waiting} waiting · ${s.title}` : `Who’s here · ${s.title}`,
-        subtitle: `${attendeesOf(s.id, data).length} checked in`,
-        onPress: () => navigation.navigate('RunCheckin', { sessionId: s.id }),
-      };
-    }),
-    ...toJoin.map((t) => {
-      const s = sessionAt(t.at, sessions);
-      const waiting = !!s && (data.checkinRequests ?? []).some((r) => r.sessionId === s.id && r.memberId === me.id);
-      return {
-        key: t.key,
-        icon: waiting ? ('time-outline' as const) : ('hand-right-outline' as const),
-        title: `Check in · ${t.title}`,
-        subtitle: waiting ? 'Waiting to be confirmed' : 'Tap I’m here when you arrive',
-        onPress: () => navigation.navigate('CheckIn'),
-      };
-    }),
-  ];
+  const waitingAt = leading.map((s) => ({ session: s, waiting: waitingFor(s.id, data).filter((m) => m.id !== me.id) }));
+  const toConfirm = waitingAt.filter((w) => w.waiting.length > 0);
+  if (toJoin.length === 0 && toConfirm.length === 0) return null;
+
+  const answer = async (sessionId: string, memberId: string, here: boolean) => {
+    setError(null);
+    setBusyId(memberId);
+    try {
+      await answerCheckin(sessionId, memberId, here);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
-    <Card style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
-      {rows.map((r, i) => (
-        <ListRow
-          key={r.key}
-          left={<IconBadge icon={r.icon} tone="red" />}
-          title={r.title}
-          lines="all"
-          subtitle={r.subtitle}
-          onPress={r.onPress}
-          last={i === rows.length - 1}
-        />
+    <Stack gap={space.sm}>
+      {toConfirm.map(({ session, waiting }) => (
+        <Card key={session.id} style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
+          <ListRow
+            left={<IconBadge icon="hand-right" tone="red" />}
+            title={waiting.length === 1 ? 'Confirm who’s here' : `Confirm ${waiting.length} who are here`}
+            subtitle={session.title}
+            lines="all"
+            onPress={() => navigation.navigate('RunCheckin', { sessionId: session.id })}
+          />
+          {waiting.map((m, i) => (
+            <WaitingRow
+              key={m.id}
+              member={m}
+              session={session}
+              busy={busyId === m.id}
+              last={i === waiting.length - 1}
+              onAnswer={(memberId, here) => answer(session.id, memberId, here)}
+            />
+          ))}
+        </Card>
       ))}
-    </Card>
+      {error ? <Notice tone="danger">{error}</Notice> : null}
+      {toJoin.map((t) => (
+        <Card key={t.key} style={{ padding: 0, gap: 0, borderColor: colors.redBright }}>
+          <View style={{ paddingHorizontal: space.lg, paddingTop: space.lg }}>
+            <Text style={[type.name, { color: colors.bone }]}>{`Check in · ${t.title}`}</Text>
+          </View>
+          <ImHere at={t.at} />
+        </Card>
+      ))}
+    </Stack>
   );
 }
 
