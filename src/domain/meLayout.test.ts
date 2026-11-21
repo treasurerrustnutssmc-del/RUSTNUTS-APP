@@ -12,9 +12,23 @@ import type { ActingRequest, ClubData, Member, MemberPrivate, Position, Position
 const base = { contacts: 1, bikes: 1, owingCents: 0, onHiatus: false, roadRules: null };
 const byId = (input: Parameters<typeof meGroups>[0]) => Object.fromEntries(meGroups(input).map((g) => [g.id, g]));
 
-test('Me has six groups, in a fixed order', () => {
+test('Me has eight groups, in a fixed order', () => {
   // The things you act on first; attendance and badges (read, not tapped) last (Jeff, 21 Nov 2026).
-  assert.deepEqual(meGroups(base).map((g) => g.id), ['fees', 'details', 'rules', 'settings', 'help', 'year']);
+  assert.deepEqual(meGroups(base).map((g) => g.id), ['fees', 'details', 'social', 'rules', 'settings', 'help', 'online', 'year']);
+});
+
+// Jeff, 21 Nov 2026: "too many things hidden behind heading that dont relate to what the heading states".
+// Each heading names what is under it: social bits aren't "details", and the club's links aren't "help".
+test('each heading says what is under it', () => {
+  const g = byId(base);
+  assert.equal(g.fees.title, 'Fees and club finances');
+  assert.equal(g.social.title, 'Social');
+  assert.match(g.social.summary, /birthday/i);
+  assert.equal(g.help.title, 'Help');
+  assert.match(g.help.summary, /feedback/i);
+  assert.equal(g.online.title, 'The club online');
+  assert.match(g.online.summary, /sponsors/i);
+  assert.doesNotMatch(g.help.summary, /sponsors|links/i, 'links and sponsors are under The club online, not Help');
 });
 
 test('with nothing to do, every group starts closed', () => {

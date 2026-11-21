@@ -20,7 +20,7 @@ import { BOARD_ROLES, ROLE_LABEL, ROLE_SHORT } from './labels';
 import { displayName } from './profile';
 import type { ActingRequest, ClubData, Member, Position } from './types';
 
-export type MeGroupId = 'year' | 'details' | 'rules' | 'fees' | 'settings' | 'help';
+export type MeGroupId = 'year' | 'details' | 'social' | 'rules' | 'fees' | 'settings' | 'help' | 'online';
 
 export type MeInput = {
   contacts: number;
@@ -43,11 +43,13 @@ export function meGroups(m: MeInput): MeGroup[] {
       : `${plural(m.contacts, 'emergency contact', 'emergency contacts')}, ${m.bikes === 0 ? 'no bikes' : plural(m.bikes, 'bike', 'bikes')}`;
   const fees = m.owingCents > 0 ? `${formatCents(m.owingCents)} owing` : m.onHiatus ? 'On hiatus: no new fees' : 'All paid up';
   return [
-    { id: 'fees', title: 'Fees', summary: fees, startsOpen: m.owingCents > 0 },
+    { id: 'fees', title: 'Fees and club finances', summary: fees, startsOpen: m.owingCents > 0 },
     { id: 'details', title: 'My details', summary: details, startsOpen: m.contacts === 0 },
+    { id: 'social', title: 'Social', summary: 'Your birthday shout-out and what you can help with', startsOpen: false },
     { id: 'rules', title: 'Rules and papers', summary: rules, startsOpen: m.roadRules?.urgent === true },
     { id: 'settings', title: 'Notifications and privacy', summary: 'Alerts and sharing your mobile', startsOpen: false },
-    { id: 'help', title: 'Help and the club online', summary: 'Feedback, support, links and sponsors', startsOpen: false },
+    { id: 'help', title: 'Help', summary: 'Club words, support lines, the quick tour, feedback', startsOpen: false },
+    { id: 'online', title: 'The club online', summary: 'Website, podcast, socials and sponsors', startsOpen: false },
     { id: 'year', title: 'My club year', summary: 'Attendance and badges', startsOpen: false },
   ];
 }

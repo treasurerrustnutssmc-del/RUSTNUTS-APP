@@ -274,27 +274,8 @@ export function BoardScreen({ navigation, route }: TabScreen<'Board'>) {
         <BoardRequest key={r.id} request={r} onDone={setDone} />
       ))}
 
-      {/* Stage 5: meetings and votes */}
+      {/* Stage 5C: document library */}
       <Card style={{ padding: 0, gap: 0 }}>
-        <ListRow
-          left={<IconBadge icon="hammer" />}
-          title="Meetings and votes"
-          subtitle="Agendas, minutes, action items and votes"
-          onPress={() => navigation.navigate('Business')}
-          last={signoffs === null && !books}
-        />
-        {signoffs !== null ? (
-          <ListRow
-            left={<IconBadge icon="document-text-outline" />}
-            title="Road Rules sign-off"
-            subtitle={<Text style={styles.rowMeta}>{signoffs}</Text>}
-            onPress={() => navigation.navigate('RoadRulesSignoffs')}
-            last={!books}
-          />
-        ) : null}
-        {/* Stage 5B: treasurer */}
-        <TreasuryRow />
-        {/* Stage 5C: document library */}
         <DocumentsBoardRow last />
       </Card>
 
@@ -319,6 +300,17 @@ export function BoardScreen({ navigation, route }: TabScreen<'Board'>) {
             ) : null}
             {g.id === 'people' ? (
               <>
+                {signoffs !== null ? (
+                  <Card style={{ padding: 0, gap: 0 }}>
+                    <ListRow
+                      left={<IconBadge icon="document-text-outline" />}
+                      title="Road Rules sign-off"
+                      subtitle={<Text style={styles.rowMeta}>{signoffs}</Text>}
+                      onPress={() => navigation.navigate('RoadRulesSignoffs')}
+                      last
+                    />
+                  </Card>
+                ) : null}
                 {alerts.length === 0 && noContact.length === 0 && fngs.length === 0 ? (
                   <Card>
                     <Small>No regos, licences or first aid certificates due in the next 30 days, and no FNG reviews.</Small>
@@ -393,11 +385,31 @@ export function BoardScreen({ navigation, route }: TabScreen<'Board'>) {
             ) : null}
             {g.id === 'meetings' ? (
               <>
+                {/* Stage 5: meetings and votes */}
+                <Card style={{ padding: 0, gap: 0 }}>
+                  <ListRow
+                    left={<IconBadge icon="hammer" />}
+                    title="Meetings and votes"
+                    subtitle="Agendas, minutes, action items and votes"
+                    onPress={() => navigation.navigate('Business')}
+                    last
+                  />
+                </Card>
                 <BoardAttendance chapterId={scopeChapter} />
                 <BoardCheckins chapterId={scopeChapter} />
               </>
             ) : null}
-            {g.id === 'money' ? <BoardFees /> : null}
+            {g.id === 'money' ? (
+              <>
+                {/* Stage 5B: the treasurer's books (only for those who keep or read them) */}
+                {books ? (
+                  <Card style={{ padding: 0, gap: 0 }}>
+                    <TreasuryRow last />
+                  </Card>
+                ) : null}
+                <BoardFees />
+              </>
+            ) : null}
             {g.id === 'website' ? (
               <>
                 {/* People who asked through the club website's Ride With Us form */}

@@ -231,10 +231,11 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
                   })}
                   <ListRow last left={<IconBadge icon="add" tone="red" />} title="Add a bike" onPress={() => navigation.navigate('EditBike', {})} />
                 </Card>
-                {/* Stage 7: social extras */}
-                <MeSocialSection />
               </>
             ) : null}
+
+            {/* Stage 7: social extras (birthday shout-out, what you can help with) */}
+            {g.id === 'social' ? <MeSocialSection /> : null}
 
             {g.id === 'rules' ? (
               <>
@@ -306,6 +307,12 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
                     onPress={() => navigation.navigate('ClubWords')}
                   />
                   <ListRow
+                    left={<IconBadge icon="heart-outline" />}
+                    title="Support"
+                    subtitle="24/7 crisis lines, in the app"
+                    onPress={() => navigation.navigate('Support')}
+                  />
+                  <ListRow
                     last
                     left={<IconBadge icon="compass-outline" />}
                     title="Show the quick tour again"
@@ -317,12 +324,17 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
                     }}
                   />
                 </Card>
-                {/* Club links: the website, shop, podcast and socials */}
-                <ClubLinksSection withoutShops />
-                {/* Sponsors: who backs the club, and member deals */}
-                <SponsorsSection />
                 {/* Feedback and issues: tell the club what's wrong with the app */}
                 <FeedbackRow />
+              </>
+            ) : null}
+
+            {g.id === 'online' ? (
+              <>
+                {/* Club links: the website, podcast and socials (Support is under Help) */}
+                <ClubLinksSection withoutShops withoutSupport />
+                {/* Sponsors: who backs the club, and member deals */}
+                <SponsorsSection />
               </>
             ) : null}
           </Disclosure>

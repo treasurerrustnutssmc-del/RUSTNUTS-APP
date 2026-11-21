@@ -88,8 +88,8 @@ export function boardGroups(c: BoardCounts): BoardGroup[] {
   return [
     { id: 'approvals', title: 'Approvals', summary: c.pending > 0 ? `${c.pending} waiting` : 'Nobody waiting', startsOpen: c.pending > 0 },
     { id: 'people', title: 'People', summary: people.length ? people.join(', ') : 'Nothing due', startsOpen: people.length > 0 },
-    { id: 'meetings', title: 'Meetings and attendance', summary: 'Attendance and check-ins', startsOpen: false },
-    { id: 'money', title: 'Money', summary: 'Chapter fees', startsOpen: false },
+    { id: 'meetings', title: 'Meetings, votes and attendance', summary: 'Agendas, minutes, votes, attendance and check-ins', startsOpen: false },
+    { id: 'money', title: 'Money', summary: 'The books and chapter fees', startsOpen: false },
     { id: 'website', title: 'Website and app', summary: 'Enquiries, news, visits, app feedback and app usage', startsOpen: false },
   ];
 }
