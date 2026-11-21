@@ -9,9 +9,10 @@ import { useClub } from '../data/ClubStore';
 import { useRideVoice } from '../data/rideVoice';
 import { voiceRoster, voiceStatus } from '../domain/rideVoice';
 import { DEMO_COMMS_CAPTION } from '../domain/rideVoiceDemo';
+import { NOISE_FILTERS, noiseFilterHint } from '../domain/voiceGate';
 import type { RootParams } from '../navigation/types';
 import { colors, fonts, radius, space, type } from '../theme';
-import { Card, H2, Ionicons, Notice, Row, Small, type IconName } from '../ui/primitives';
+import { Card, Choices, H2, Ionicons, Notice, Row, Small, type IconName } from '../ui/primitives';
 
 function BigButton({ label, icon, tone, busy, disabled, checked, onPress }: {
   label: string;
@@ -42,6 +43,22 @@ const tones = {
   plain: { bg: 'transparent', active: colors.steel, fg: colors.bone, border: colors.lineStrong },
 } as const;
 
+/** The voice gate: how loud you must talk over the road before your mic opens. Set before or during a call. */
+function NoiseFilterPicker() {
+  const voice = useRideVoice();
+  return (
+    <View style={{ gap: space.xs }}>
+      <Choices
+        label="Road noise filter"
+        options={NOISE_FILTERS.map((f) => ({ value: f.id, label: f.label }))}
+        value={voice.noiseFilter}
+        onChange={voice.setNoiseFilter}
+      />
+      <Small>{noiseFilterHint(voice.noiseFilter)}</Small>
+    </View>
+  );
+}
+
 /** The voice card. `problem` is the live ride's reason this member can't join now, if any. */
 export function RideCommsCard({ rideId, problem }: { rideId: string; problem: string | null }) {
   const { me } = useClub();
@@ -63,7 +80,7 @@ export function RideCommsCard({ rideId, problem }: { rideId: string; problem: st
       </Row>
       {!on ? (
         <>
-          <Small>Open mic with everyone on this ride. Nothing is recorded. Your headset’s play button may mute it too.</Small>
+          <Small>Talk with everyone on this ride. Nothing is recorded. Your headset’s play button may mute it too.</Small>
           {voice.mode === 'demo' ? <Small>{DEMO_COMMS_CAPTION}</Small> : null}
           {problem ? <Notice>{problem}</Notice> : null}
           {elsewhere ? <Notice>You’re on another ride’s comms. Disconnect there first.</Notice> : null}
@@ -75,6 +92,7 @@ export function RideCommsCard({ rideId, problem }: { rideId: string; problem: st
             disabled={!!problem || elsewhere}
             onPress={() => void voice.connect(rideId)}
           />
+          <NoiseFilterPicker />
           {here && voice.state === 'connecting' ? (
             <BigButton label="Cancel" icon="close" tone="plain" onPress={() => void voice.disconnect()} />
           ) : null}
@@ -102,6 +120,7 @@ export function RideCommsCard({ rideId, problem }: { rideId: string; problem: st
               </View>
             ))}
           </View>
+          <NoiseFilterPicker />
           <BigButton label="Disconnect" icon="close-circle" tone="stop" onPress={() => void voice.disconnect()} />
         </>
       )}

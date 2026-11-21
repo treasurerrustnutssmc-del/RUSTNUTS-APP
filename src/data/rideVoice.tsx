@@ -4,12 +4,14 @@
 // call) shows a made-up room so the screen can be seen; on a phone the demo also plays sample
 // audio, so App Review hears that comms makes sound.
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { NativeModules, Platform } from 'react-native';
 import { displayName } from '../domain/profile';
 import { shouldHangUp, VOICE_MSG, type VoiceParticipant, type VoiceState } from '../domain/rideVoice';
 import { demoCallAudioMode } from '../domain/rideVoiceDemo';
+import { DEFAULT_NOISE_FILTER, parseNoiseFilter, type NoiseFilter } from '../domain/voiceGate';
 import { useClub } from './ClubStore';
 import { rideCommsNative } from './rideCommsNative';
 import type { Call } from './rideVoiceLive';
@@ -26,7 +28,12 @@ export interface RideVoiceValue {
   connect: (rideId: string) => Promise<void>;
   disconnect: () => Promise<void>;
   setMuted: (muted: boolean) => Promise<void>;
+  /** The road noise filter (the voice gate), remembered on this phone. */
+  noiseFilter: NoiseFilter;
+  setNoiseFilter: (filter: NoiseFilter) => void;
 }
+
+const NOISE_FILTER_KEY = 'rideComms:noiseFilter';
 
 const RideVoiceContext = createContext<RideVoiceValue | null>(null);
 
@@ -94,6 +101,9 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
   const [people, setPeople] = useState<VoiceParticipant[]>([]);
   const [muted, setMutedState] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [noiseFilter, setNoiseFilterState] = useState<NoiseFilter>(DEFAULT_NOISE_FILTER);
+  const noiseFilterNow = useRef<NoiseFilter>(DEFAULT_NOISE_FILTER);
+  const noiseFilterChosen = useRef(false); // a tap before the saved choice loads wins
   const call = useRef<Call | null>(null);
   const busy = useRef(false); // two quick taps on Connect make one call
   const mutedNow = useRef(false);
@@ -144,6 +154,30 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
     },
     [mode, me?.id],
   );
+
+  // The filter is the phone's, not the member's: it's about this rider's helmet and mic.
+  useEffect(() => {
+    let live = true;
+    AsyncStorage.getItem(NOISE_FILTER_KEY)
+      .then((raw) => {
+        if (!live || raw === null || noiseFilterChosen.current) return;
+        noiseFilterNow.current = parseNoiseFilter(raw);
+        setNoiseFilterState(noiseFilterNow.current);
+        call.current?.setNoiseFilter?.(noiseFilterNow.current);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const setNoiseFilter = useCallback((next: NoiseFilter) => {
+    noiseFilterChosen.current = true;
+    noiseFilterNow.current = next;
+    setNoiseFilterState(next);
+    call.current?.setNoiseFilter?.(next);
+    AsyncStorage.setItem(NOISE_FILTER_KEY, next).catch(() => undefined);
+  }, []);
 
   const attempt = useCallback(
     async (id: string) => {
@@ -207,12 +241,14 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
               }
             },
             onPeople: (ps) => !cancelled() && setPeople(ps),
-          });
+          }, noiseFilterNow.current);
           if (cancelled()) {
             await joined.hangUp();
             return;
           }
           call.current = joined;
+          // A choice made while it was connecting.
+          joined.setNoiseFilter?.(noiseFilterNow.current);
         }
         setState('connected');
       } catch (e) {
@@ -272,8 +308,8 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ mode, state, rideId, people, muted, error, connect, disconnect, setMuted }),
-    [mode, state, rideId, people, muted, error, connect, disconnect, setMuted],
+    () => ({ mode, state, rideId, people, muted, error, connect, disconnect, setMuted, noiseFilter, setNoiseFilter }),
+    [mode, state, rideId, people, muted, error, connect, disconnect, setMuted, noiseFilter, setNoiseFilter],
   );
   return <RideVoiceContext.Provider value={value}>{children}</RideVoiceContext.Provider>;
 }

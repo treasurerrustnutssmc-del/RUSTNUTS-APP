@@ -1,11 +1,12 @@
 // Lane E: ride comms. The LiveKit side of a ride's voice call: audio set up for a helmet headset,
-// an open mic with the phone's noise suppression, and who's on. Only loaded on phone builds that
+// an open mic with the phone's noise suppression and the voice gate, and who's on. Only loaded on phone builds that
 // have LiveKit's native modules (see rideVoice.tsx).
 
 import { AndroidAudioTypePresets, AudioSession, registerGlobals, setupIOSAudioManagement } from '@livekit/react-native';
-import { Room, RoomEvent, type Participant } from 'livekit-client';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { Room, RoomEvent, Track, type Participant } from 'livekit-client';
+import { NativeEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import type { VoiceParticipant, VoiceState } from '../domain/rideVoice';
+import { createMeterCheck, createVoiceGate, pcm16Level, type NoiseFilter } from '../domain/voiceGate';
 
 let prepared = false;
 
@@ -31,6 +32,157 @@ export interface CallEvents {
 export interface Call {
   setMuted: (muted: boolean) => Promise<void>;
   hangUp: () => Promise<void>;
+  /** Changes the road noise filter mid-call. */
+  setNoiseFilter?: (filter: NoiseFilter) => void;
+}
+
+interface GateTrack {
+  id: string;
+  enabled: boolean;
+  _peerConnectionId?: number;
+}
+
+type LiveKitNative = {
+  createVolumeProcessor?: (pcId: number, trackId: string) => string;
+  deleteVolumeProcessor?: (tag: string, pcId: number, trackId: string) => boolean;
+  createAudioSinkListener?: (pcId: number, trackId: string) => string;
+  deleteAudioSinkListener?: (tag: string, pcId: number, trackId: string) => boolean;
+};
+
+/**
+ * The voice gate on a live call: your mic's level feeds the gate, and the gate switches the mic's
+ * sound on and off while you stay "on air". Muting still wins. The level comes from LiveKit's
+ * native code already in the phone build: on Android the raw mic samples (LiveKit's own Android
+ * level meter reads them in the wrong byte order, so it can't be used), on iPhone its level meter.
+ * Anything odd (no meter, a meter that goes quiet or reads a flat line, the mic being swapped) and
+ * the gate steps aside for the rest of the call and leaves the mic open: the worst case is the old
+ * open mic, never a rider nobody can hear.
+ */
+function startVoiceGate(room: Room, initial: NoiseFilter) {
+  const lk = NativeModules.LivekitReactNativeModule as LiveKitNative | undefined;
+  const android = Platform.OS === 'android';
+  const create = android ? lk?.createAudioSinkListener : lk?.createVolumeProcessor;
+  const remove = android ? lk?.deleteAudioSinkListener : lk?.deleteVolumeProcessor;
+  const gate = createVoiceGate(initial);
+  let meterCheck = createMeterCheck();
+  let filter = initial;
+  let attached: { track: GateTrack; tag: string } | null = null;
+  let tries = 0;
+  let broken = false;
+  let heardAt = 0;
+
+  const micTrack = () => {
+    const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+    const mst = pub?.track?.mediaStreamTrack as unknown as GateTrack | undefined;
+    return { mst, muted: !pub || pub.isMuted };
+  };
+  const openMic = () => {
+    const { mst, muted } = micTrack();
+    if (mst && !muted && !mst.enabled) mst.enabled = true;
+  };
+  const detach = () => {
+    if (!attached) return;
+    const { track, tag } = attached;
+    attached = null;
+    try {
+      remove?.call(lk, tag, track._peerConnectionId ?? -1, track.id);
+    } catch {
+      // Already gone with the track.
+    }
+  };
+  let sub: { remove: () => void } | null = null;
+  const giveUp = () => {
+    broken = true;
+    try {
+      sub?.remove();
+    } catch {
+      // Gone anyway.
+    }
+    sub = null;
+    detach();
+    try {
+      openMic();
+    } catch {
+      // Nothing more to do: the call carries on as it was.
+    }
+  };
+  /** Nothing in the gate may throw into the call or the app; a slip leaves the mic open. */
+  const safely =
+    <A extends unknown[]>(fn: (...a: A) => void) =>
+    (...a: A) => {
+      try {
+        fn(...a);
+      } catch {
+        giveUp();
+      }
+    };
+
+  const hear = (level: number) => {
+    if (broken) return;
+    const now = Date.now();
+    heardAt = now;
+    if (meterCheck(level, now) === 'broken') return giveUp();
+    const open = gate.feed(level, now);
+    const { mst, muted } = micTrack();
+    if (!mst || muted || mst !== attached?.track) return;
+    if (mst.enabled !== open) mst.enabled = open;
+  };
+
+  try {
+    sub = new NativeEventEmitter(NativeModules.LivekitReactNativeModule).addListener(
+      android ? 'LK_AUDIO_DATA' : 'LK_VOLUME_PROCESSED',
+      safely((e: { id?: string; data?: string; volume?: number }) => {
+        if (!attached || e.id !== attached.tag) return;
+        hear(android ? pcm16Level(e.data ?? '', atob) : typeof e.volume === 'number' ? e.volume : 0);
+      }),
+    );
+  } catch {
+    sub = null;
+  }
+
+  // Puts the meter on the mic, and opens the mic if the meter's gone quiet.
+  const check = safely(() => {
+    if (broken) return;
+    const { mst, muted } = micTrack();
+    if (!sub || !create) return giveUp();
+    if (filter === 'off') {
+      detach();
+      openMic();
+      return;
+    }
+    if (mst && attached && mst !== attached.track) return giveUp(); // swapped mid-call: keep it simple
+    if (mst && !attached) {
+      if (++tries > 3) return giveUp();
+      try {
+        const tag = create.call(lk, mst._peerConnectionId ?? -1, mst.id);
+        if (tag) {
+          attached = { track: mst, tag };
+          tries = 0;
+          heardAt = Date.now();
+          meterCheck = createMeterCheck();
+        }
+      } catch {
+        // Tried again shortly; the mic stays open meanwhile.
+      }
+      return;
+    }
+    if (mst && !muted && !mst.enabled && Date.now() - heardAt > 1000) giveUp();
+  });
+  check();
+  const timer = setInterval(check, 500);
+
+  return {
+    setFilter: safely((next: NoiseFilter) => {
+      filter = next;
+      gate.setFilter(next);
+      if (next !== 'off' && !attached) tries = 0;
+      check();
+    }),
+    stop: () => {
+      clearInterval(timer);
+      giveUp();
+    },
+  };
 }
 
 const person = (p: Participant, speaking: Set<string>): VoiceParticipant => ({
@@ -55,7 +207,8 @@ export async function prepareMic(): Promise<void> {
 }
 
 /** Joins the room with the microphone on (after prepareMic). Throws when the room can't be reached. */
-export async function joinCall(url: string, token: string, events: CallEvents): Promise<Call> {
+/** Joins the room with the microphone on (after prepareMic). Throws when the room can't be reached. */
+export async function joinCall(url: string, token: string, events: CallEvents, noiseFilter: NoiseFilter = 'off'): Promise<Call> {
   prepare();
   if (Platform.OS === 'android') {
     await AudioSession.configureAudio({
@@ -98,9 +251,12 @@ export async function joinCall(url: string, token: string, events: CallEvents): 
     });
 
   let ended = false;
+  let gate: ReturnType<typeof startVoiceGate> | null = null;
   async function hangUp() {
     if (ended) return;
     ended = true;
+    gate?.stop();
+    gate = null;
     room.removeAllListeners();
     await room.disconnect().catch(() => undefined);
     if (Platform.OS === 'android') await AudioSession.stopAudioSession().catch(() => undefined);
@@ -112,6 +268,11 @@ export async function joinCall(url: string, token: string, events: CallEvents): 
     await hangUp();
     throw e;
   }
+  try {
+    gate = startVoiceGate(room, noiseFilter);
+  } catch {
+    gate = null; // an open mic, as before
+  }
   tell();
   return {
     setMuted: async (muted) => {
@@ -119,5 +280,6 @@ export async function joinCall(url: string, token: string, events: CallEvents): 
       tell();
     },
     hangUp,
+    setNoiseFilter: (filter) => gate?.setFilter(filter),
   };
 }
