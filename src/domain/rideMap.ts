@@ -213,10 +213,10 @@ export function followRouteOptions(ahead: RouteAhead, os: string, version: strin
 }
 
 /** How far along the route Waze is sent: far enough to be worth a tap, near enough to keep it on the route. */
-const WAZE_AHEAD_M = 15_000;
+const WAZE_AHEAD_M = 30_000;
 
 /**
- * Waze takes one spot, never waypoints, so the best it can do is the point about 15 km further
+ * Waze takes one spot, never waypoints, so the best it can do is the point about 30 km further
  * along the route (the end when less is left), or the start for a rider on the way to the ride.
  * Tapping again there sends it on to the next. Null when there's no route.
  */
