@@ -16,7 +16,7 @@ const at = (s: string) => {
 
 test('Needs you comes before every other card but a live ride', () => {
   const needs = at('<HomeNeedsYouCard');
-  for (const s of ['<CoverPanels', '<FirstRunCard', '<HomeNextRideCard', '<HomeCheckinCard', '<HomeQuickActions', '<HomeRoadRulesRow']) {
+  for (const s of ['<CoverPanels', '<FirstRunCard', '<HomeNextRideCard', '<HomeCheckinCard', '<HomeQuickActions']) {
     assert.ok(needs < at(s), `Needs you before ${s}`);
   }
   assert.ok(at('</Flannel>') < needs, 'after the greeting');
@@ -28,12 +28,11 @@ test('check-in, the ride and quick buttons come before the social cards', () => 
   assert.deepEqual([...urgent].sort((a, b) => a - b), urgent);
   const social = Math.min(at('<HomeShoutoutsCard'), at('<HomeOnThisDayCard'), at('<HomeNewsCard'));
   assert.ok(Math.max(...urgent) < social);
-  assert.ok(at('{business.summary') < social, 'club business before the social cards too');
 });
 
 test('rego, licence and first aid reminders sit at the bottom, after everything else', () => {
   const reminders = at('<HomeReminders');
-  for (const s of ['<HomeNewsCard', '<AskClubHomeRow', '<Disclosure title={CLUB_NUMBERS.title}']) {
+  for (const s of ['<HomeNewsCard', '<HomeQuickActions']) {
     assert.ok(at(s) < reminders, `${s} before the reminders`);
   }
   assert.ok(!home.includes('{myAlerts.map'), 'no expiry boxes higher up');
@@ -48,4 +47,32 @@ test('a live ride sits straight under the greeting, above Needs you (Jeff, 21 No
   const live = at('<HomeLiveRideCard');
   assert.ok(at('</Flannel>') < live, 'after the greeting');
   assert.ok(live < at('<HomeNeedsYouCard'), 'before Needs you');
+});
+
+// Jeff, 21 Nov 2026: "Make the home screen clean and simple." The one-row cards (Road Rules, Club
+// business, Ask the club) became quick buttons, and the club numbers moved to the Members tab.
+const cards = fs.readFileSync(path.resolve(import.meta.dirname, 'homeCards.tsx'), 'utf8');
+
+test('clean Home: no one-row cards for the Road Rules, Club business or Ask the club, and no numbers table', () => {
+  for (const gone of ['<HomeRoadRulesRow', 'title="Club business"', '<AskClubHomeRow', 'CLUB_NUMBERS', '<ClubSplitTable']) {
+    assert.ok(!home.includes(gone), `${gone} is off Home`);
+  }
+});
+
+test('they are quick buttons instead, one tap each', () => {
+  assert.match(cards, /label: 'Meetings', screen: 'Business'/);
+  assert.match(cards, /label: 'Road Rules'/);
+  assert.match(cards, /label: 'Ask the club', screen: 'AskClub'/);
+});
+
+test('the club in numbers lives on the Members tab now', () => {
+  const members = m.slice(m.indexOf('export function MembersScreen'));
+  assert.ok(members.includes('CLUB_NUMBERS.title'));
+  assert.ok(members.includes('<ClubSplitTable'));
+});
+
+test('the next ride card steps aside while that ride is the live ride above it', () => {
+  const rides = fs.readFileSync(path.resolve(import.meta.dirname, 'rides.tsx'), 'utf8');
+  const next = rides.slice(rides.indexOf('export function HomeNextRideCard'));
+  assert.match(next.slice(0, 1500), /homeLiveRide\(/);
 });

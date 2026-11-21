@@ -12,6 +12,8 @@ import { useClub } from '../data/ClubStore';
 import { seesEveryChapter } from '../domain/access';
 import { homeNeedsYou } from '../domain/homeNeedsYou';
 import { seesReports } from '../domain/ledger';
+import { homeRoadRulesRow } from '../domain/roadRules';
+import { useAskClubOn } from './askClub';
 import { alertFix, expiryAlerts, type ExpiryAlert } from '../domain/profile';
 import { colors, radius, space, type } from '../theme';
 import { Card, H2, IconBadge, Ionicons, ListRow, Notice, type IconName } from '../ui/primitives';
@@ -52,28 +54,40 @@ export function HomeNeedsYouCard() {
   );
 }
 
-const QUICK: { key: string; icon: IconName; label: string; screen: string; mine?: boolean; reports?: boolean }[] = [
+type Quick = { key: string; icon: IconName; label: string; screen: string; mine?: boolean; reports?: boolean; ask?: boolean; rules?: boolean };
+
+// Jeff, 21 Nov 2026: "Make the home screen clean and simple." The Road Rules, Club business and Ask
+// the club used to be a card each on Home; they're buttons here now, beside the other everyday jobs.
+const QUICK: Quick[] = [
   { key: 'fees', icon: 'wallet-outline', label: 'My fees', screen: 'MemberFees', mine: true },
   // The Treasurer's Reports and Club spending, for every member who can read them (not Family or Legacy).
   { key: 'finances', icon: 'stats-chart-outline', label: 'Finances', screen: 'ClubFinances', reports: true },
+  { key: 'meetings', icon: 'hammer-outline', label: 'Meetings', screen: 'Business' },
+  // The illustrated draft until the NEC publishes, then the version you sign.
+  { key: 'rules', icon: 'document-text-outline', label: 'Road Rules', screen: 'RoadRules', rules: true },
   { key: 'bus', icon: 'bus-outline', label: 'Rusty Bus', screen: 'Bus' },
   { key: 'docs', icon: 'folder-open-outline', label: 'Documents', screen: 'Documents' },
+  // Only once the club assistant is switched on.
+  { key: 'ask', icon: 'chatbubbles-outline', label: 'Ask the club', screen: 'AskClub', ask: true },
   { key: 'feedback', icon: 'megaphone-outline', label: 'Tell us', screen: 'Feedback' },
 ];
 
 /** The everyday jobs that aren't a tab already: one tap from Home. */
 export function HomeQuickActions() {
-  const { me } = useClub();
+  const { me, data, today } = useClub();
   const navigation = useNavigation<Nav>();
+  const askOn = useAskClubOn();
   if (!me || me.approval !== 'approved') return null;
+  const rules = homeRoadRulesRow(me, data, today);
+  const screenOf = (q: Quick) => (q.rules && rules?.opens === 'guide' ? 'RoadRulesGuide' : q.screen);
   return (
     <View style={styles.grid} accessibilityRole="toolbar" accessibilityLabel="Quick buttons">
-      {QUICK.filter((q) => !q.reports || seesReports(me)).map((q) => (
+      {QUICK.filter((q) => (!q.reports || seesReports(me)) && (!q.ask || askOn)).map((q) => (
         <Pressable
           key={q.key}
           accessibilityRole="button"
           accessibilityLabel={q.label}
-          onPress={() => navigation.navigate(q.screen, q.mine ? { memberId: me.id } : undefined)}
+          onPress={() => navigation.navigate(screenOf(q), q.mine ? { memberId: me.id } : undefined)}
           style={({ pressed }) => [styles.tile, pressed && { backgroundColor: colors.steel }]}
         >
           <Ionicons name={q.icon} size={22} color={colors.bone} />

@@ -4,6 +4,7 @@
 
 import React, { useId, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { homeLiveRide } from '../domain/liveRide';
 import { useClub } from '../data/ClubStore';
 import { briefingOf, editBriefingProblem, hazardSummary, moreLabel, readCount, readCountLine, readState } from '../domain/briefings';
 import { formatAuDate, weekday } from '../domain/dates';
@@ -263,6 +264,9 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
   if (!me || me.approval !== 'approved') return null;
   const ride = nextRide(data.rides, defaultCategories(me, data.chapters), today);
   if (!ride) return null;
+  // Under way: it's the Live ride card straight under your name already, so it isn't shown twice.
+  const live = homeLiveRide({ me, rides: [ride], rsvps: data.rsvps, categories: defaultCategories(me, data.chapters), now: new Date().toISOString(), sharing: null });
+  if (live) return null;
   const mine = data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null;
   // One tap here only when the ride screen would allow Going too; otherwise the card opens the ride, which says why.
   const whyNot = quickAnswerReason(me, ride, data, today, new Date().toISOString());
