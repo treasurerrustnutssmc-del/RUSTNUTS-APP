@@ -2,8 +2,9 @@
 // Going / Maybe / Can't make it, its route and its crew. Rides come from the calendar sync, or are made in the
 // app by the people who run them (src/screens/editRide.tsx); only app rides change here.
 
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { homeLiveRide } from '../domain/liveRide';
 import { useClub } from '../data/ClubStore';
 import { briefingOf, editBriefingProblem, hazardSummary, moreLabel, readCount, readCountLine, readState } from '../domain/briefings';
 import { formatAuDate, weekday } from '../domain/dates';
@@ -132,46 +133,42 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
-      {/* Family view: no route library or Rusty Bus for Family */}
-      {me.approval === 'approved' && !isFamily(me) ? (
-        <>
-          {/* Rides made in the app: for the people who run them */}
-          {managesAnyCategory(me, data) ? (
-            <Card style={{ padding: 0, gap: 0 }}>
-              <ListRow
-                last
-                left={<IconBadge icon="add-circle-outline" tone="red" />}
-                title="New ride"
-                subtitle={<Text style={styles.metaTime}>Put a ride on, for members and the website</Text>}
-                onPress={() => navigation.navigate('EditRide')}
-              />
-            </Card>
-          ) : null}
-          <Disclosure title={RIDE_TOOLS.title} summary={RIDE_TOOLS.summary} open={toolsOpen} onToggle={() => setToolsOpen((o) => !o)}>
-            <Card style={{ padding: 0, gap: 0 }}>
-              <ListRow
-                left={<IconBadge icon="map-outline" />}
-                title="Route library"
-                subtitle={
-                  <Text style={styles.metaTime}>
-                    {routeCount === 0 ? 'GPX routes for OsmAnd and MyRoute' : `${routeCount} ${routeCount === 1 ? 'route' : 'routes'} for OsmAnd and MyRoute`}
-                  </Text>
-                }
-                onPress={() => navigation.navigate('Routes')}
-              />
-              {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
-              <ListRow
-                left={<IconBadge icon="bus-outline" />}
-                title="Rusty Bus"
-                subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
-                onPress={() => navigation.navigate('Bus')}
-              />
-              <OtherClubsRow last />
-            </Card>
-          </Disclosure>
-        </>
+      {/* Jeff, 21 Nov 2026: the ride calendar first, then the colour filters under it, then the ride tools. */}
+      {freshness?.stale ? <Notice tone="warn">{freshness.text}</Notice> : null}
+
+      {months.length === 0 ? (
+        <Notice title="No rides coming up.">
+          {anyComing ? 'Turn on more colours just below to see other rides.' : 'New rides show up here once they’re on the club calendar or made in the app.'}
+        </Notice>
       ) : null}
 
+      {months.map((g) => (
+        <Stack key={g.month} gap={space.sm}>
+          <SectionTitle title={g.month} />
+          <Card style={{ padding: 0, gap: 0 }}>
+            {g.rides.map((ride, i) => (
+              <RideRow
+                key={ride.id}
+                ride={ride}
+                going={rsvpCounts(ride.id, data.rsvps).going}
+                mine={data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null}
+                spot={spotOf(ride.id, me.id, data.crew)}
+                crewNeeded={showsCrewNeeded(me, ride, data, today)}
+                big4={isBig4(ride.id, data)}
+                call={activeCall(ride.id, data)}
+                charity={isCharityRide(ride.id, data)}
+                leg={legLabel(ride.id, data)}
+                last={i === g.rides.length - 1}
+                onPress={() => navigation.navigate('RideDetail', { rideId: ride.id })}
+              />
+            ))}
+          </Card>
+        </Stack>
+      ))}
+
+      {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
+
+      {/* Which colours the calendar above shows */}
       <View style={styles.filters} accessibilityLabel="Show rides by colour">
         {RIDE_CATEGORIES.map((c) => {
           const on = categories.includes(c);
@@ -216,39 +213,46 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
         </Row>
       ) : null}
 
-      {freshness?.stale ? <Notice tone="warn">{freshness.text}</Notice> : null}
 
-      {months.length === 0 ? (
-        <Notice title="No rides coming up.">
-          {anyComing ? 'Turn on more colours above to see other rides.' : 'New rides show up here once they’re on the club calendar or made in the app.'}
-        </Notice>
-      ) : null}
-
-      {months.map((g) => (
-        <Stack key={g.month} gap={space.sm}>
-          <SectionTitle title={g.month} />
-          <Card style={{ padding: 0, gap: 0 }}>
-            {g.rides.map((ride, i) => (
-              <RideRow
-                key={ride.id}
-                ride={ride}
-                going={rsvpCounts(ride.id, data.rsvps).going}
-                mine={data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null}
-                spot={spotOf(ride.id, me.id, data.crew)}
-                crewNeeded={showsCrewNeeded(me, ride, data, today)}
-                big4={isBig4(ride.id, data)}
-                call={activeCall(ride.id, data)}
-                charity={isCharityRide(ride.id, data)}
-                leg={legLabel(ride.id, data)}
-                last={i === g.rides.length - 1}
-                onPress={() => navigation.navigate('RideDetail', { rideId: ride.id })}
+      {/* Family view: no route library or Rusty Bus for Family */}
+      {me.approval === 'approved' && !isFamily(me) ? (
+        <>
+          {/* Rides made in the app: for the people who run them */}
+          {managesAnyCategory(me, data) ? (
+            <Card style={{ padding: 0, gap: 0 }}>
+              <ListRow
+                last
+                left={<IconBadge icon="add-circle-outline" tone="red" />}
+                title="New ride"
+                subtitle={<Text style={styles.metaTime}>Put a ride on, for members and the website</Text>}
+                onPress={() => navigation.navigate('EditRide')}
               />
-            ))}
-          </Card>
-        </Stack>
-      ))}
-
-      {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
+            </Card>
+          ) : null}
+          <Disclosure title={RIDE_TOOLS.title} summary={RIDE_TOOLS.summary} open={toolsOpen} onToggle={() => setToolsOpen((o) => !o)}>
+            <Card style={{ padding: 0, gap: 0 }}>
+              <ListRow
+                left={<IconBadge icon="map-outline" />}
+                title="Route library"
+                subtitle={
+                  <Text style={styles.metaTime}>
+                    {routeCount === 0 ? 'GPX routes for OsmAnd and MyRoute' : `${routeCount} ${routeCount === 1 ? 'route' : 'routes'} for OsmAnd and MyRoute`}
+                  </Text>
+                }
+                onPress={() => navigation.navigate('Routes')}
+              />
+              {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
+              <ListRow
+                left={<IconBadge icon="bus-outline" />}
+                title="Rusty Bus"
+                subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
+                onPress={() => navigation.navigate('Bus')}
+              />
+              <OtherClubsRow last />
+            </Card>
+          </Disclosure>
+        </>
+      ) : null}
     </Screen>
   );
 }
@@ -260,9 +264,18 @@ export function HomeNextRideCard({ onOpen }: { onOpen: (rideId: string) => void 
   const [busy, setBusy] = useState<RsvpAnswer | null>(null);
   // True while an answer is being saved. A ref, so a Retry from an older toast sees it too.
   const saving = useRef(false);
+  // Look again each minute, in step with the Live ride card above, so the two never show the same ride.
+  const [now, setNow] = useState(() => new Date().toISOString());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date().toISOString()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   if (!me || me.approval !== 'approved') return null;
   const ride = nextRide(data.rides, defaultCategories(me, data.chapters), today);
   if (!ride) return null;
+  // Under way: it's the Live ride card straight under your name already, so it isn't shown twice.
+  const live = homeLiveRide({ me, rides: [ride], rsvps: data.rsvps, categories: defaultCategories(me, data.chapters), now, sharing: null });
+  if (live) return null;
   const mine = data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null;
   // One tap here only when the ride screen would allow Going too; otherwise the card opens the ride, which says why.
   const whyNot = quickAnswerReason(me, ride, data, today, new Date().toISOString());

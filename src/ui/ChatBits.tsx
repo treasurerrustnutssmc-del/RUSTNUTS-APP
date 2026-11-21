@@ -295,16 +295,21 @@ export function ActionChip({ label, icon, onPress, tone = 'bone' }: { label: str
 }
 
 /** Square icon button for the composer and headers: 44 across. */
-export function IconButton({ icon, label, onPress, disabled, active }: { icon: IconName; label: string; onPress: () => void; disabled?: boolean; active?: boolean }) {
+export function IconButton({ icon, label, onPress, disabled, active, caption }: { icon: IconName; label: string; onPress: () => void; disabled?: boolean; active?: boolean; /** A short word under the icon, so it's clear what it does. */ caption?: string }) {
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled, selected: !!active }}
-      style={({ pressed }) => [styles.iconBtn, active && { backgroundColor: colors.steelHi }, pressed && { backgroundColor: colors.steel }, disabled && { opacity: 0.45 }]}
+      style={({ pressed }) => [styles.iconBtn, caption ? styles.captioned : null, active && { backgroundColor: colors.steelHi }, pressed && { backgroundColor: colors.steel }, disabled && { opacity: 0.45 }]}
     >
-      <Ionicons name={icon} size={22} color={active ? colors.bone : colors.boneDim} />
+      <Ionicons name={icon} size={caption ? 20 : 22} color={active ? colors.bone : colors.boneDim} />
+      {caption ? (
+        <Text style={styles.caption} numberOfLines={1}>
+          {caption}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -442,6 +447,8 @@ const styles = StyleSheet.create({
   },
   actionText: { fontFamily: fonts.stencil, fontSize: 14, letterSpacing: 0.4, textTransform: 'uppercase' },
   iconBtn: { width: 44, height: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  captioned: { width: 'auto', minWidth: 44, paddingHorizontal: 6, gap: 1 },
+  caption: { fontFamily: fonts.stencil, fontSize: 10, lineHeight: 12, letterSpacing: 0.3, color: colors.boneDim },
   strip: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm },
   stripItem: { width: 64, height: 64, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.steel },
   stripMark: { position: 'absolute', left: 4, bottom: 4 },

@@ -7,7 +7,7 @@ import { BOARD_ROLES } from './labels';
 import { lastDay, melbourneDate, melbourneTime } from './rides';
 import { NEC_OFFICER_ROLES } from './access';
 import { heldPositions } from './acting';
-import type { AlertKind, LatLng, LiveRider, Member, Position, PositionRole, Ride, RideAlert } from './types';
+import type { AlertKind, LatLng, LiveRider, Member, Position, PositionRole, Ride, RideAlert, RideCategory, Rsvp } from './types';
 
 // Shown on the live ride card before the location prompt. Google Play wants this disclosure (what's
 // collected, what for, and that it carries on in the background) before background location is asked.
@@ -209,4 +209,46 @@ export function splitWarning(riders: LiveRider[], now: string): string | null {
   if (!main || rest.length === 0) return null;
   const parts = rest.map((g) => `${g.length} ${g.length === 1 ? 'rider' : 'riders'} ${formatDistance(gapKm(main, g))} away`);
   return `Group split: ${parts.join(', ')}`;
+}
+
+const SHOW_BEFORE = HOUR;
+
+/**
+ * The live ride Home shows straight under your name, or null. The ride you're sharing on comes first
+ * (while its live window is open). Otherwise a ride that's under way: from an hour before it starts
+ * (the meet-up) until it ends, or until its live window closes when it has no end time. It has to be
+ * yours: in your colours and not answered Can't go, or one you said Going or Maybe to. Two at once
+ * (legs of a trip) shows the one that started last.
+ */
+export function homeLiveRide(input: {
+  me: Member | null;
+  rides: Ride[];
+  rsvps: Rsvp[];
+  categories: RideCategory[];
+  now: string;
+  /** The share saved on this phone, if any. Only counts when it's this member's (a shared phone keeps it after sign-out). */
+  sharing: { rideId: string; meId: string } | null;
+}): Ride | null {
+  const { me, rides, rsvps, categories, now } = input;
+  if (!me || me.approval !== 'approved') return null;
+  const t = new Date(now).getTime();
+  const sharingRideId = input.sharing?.meId === me.id ? input.sharing.rideId : null;
+  const sharing = sharingRideId ? rides.find((r) => r.id === sharingRideId) : undefined;
+  if (sharing && !liveProblem(me, sharing, now)) return sharing;
+  const answer = (rideId: string) => rsvps.find((r) => r.rideId === rideId && r.memberId === me.id)?.answer ?? null;
+  const mine = (r: Ride) => {
+    const a = answer(r.id);
+    return a === 'going' || a === 'maybe' || (a !== 'no' && categories.includes(r.category));
+  };
+  const underWay = (r: Ride) => {
+    const w = liveWindow(r);
+    if (!w) return false;
+    const ends = r.endsAt && !r.allDay ? r.endsAt : w.closes;
+    return new Date(r.startsAt).getTime() - SHOW_BEFORE <= t && t < new Date(ends).getTime();
+  };
+  return (
+    rides
+      .filter((r) => underWay(r) && mine(r))
+      .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())[0] ?? null
+  );
 }

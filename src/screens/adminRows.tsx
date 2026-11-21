@@ -15,7 +15,7 @@ type Nav = NavigationProp<RootParams>;
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** Board screen: Conduct records, Merch and National, each with what's waiting. */
-export function BoardAdminCard() {
+export function BoardAdminCard({ bare }: { bare?: boolean } = {}) {
   const { me, data, today } = useClub();
   const navigation = useNavigation<Nav>();
   if (!me) return null;
@@ -28,8 +28,8 @@ export function BoardAdminCard() {
   const showConduct = recordsConductFor(me, data) || records.length > 0;
   const merchNotes = [orders > 0 ? count(orders, 'order') + ' to act on' : null, waitingItems > 0 ? count(waitingItems, 'item') + ' waiting' : null].filter(Boolean);
   const nationalNotes = [decide > 0 ? `${decide} to decide` : null, proposals > 0 ? count(proposals, 'new chapter') : null].filter(Boolean);
-  return (
-    <Card style={{ padding: 0, gap: 0 }}>
+  const rows = (
+    <>
       {showConduct ? (
         <ListRow
           left={<IconBadge icon="shield-outline" tone={open > 0 ? 'red' : 'steel'} />}
@@ -45,14 +45,16 @@ export function BoardAdminCard() {
         onPress={() => navigation.navigate('Tabs', { screen: 'Shop' })}
       />
       <ListRow
-        last
+        last={!bare}
         left={<IconBadge icon="flag-outline" tone={decide > 0 ? 'red' : 'steel'} />}
         title="National"
         subtitle={nationalNotes.length > 0 ? nationalNotes.join(' · ') : 'Contributions and new chapters'}
         onPress={() => navigation.navigate('National')}
       />
-    </Card>
+    </>
   );
+  // Bare: rows only, inside the Board's one admin card (21 Nov 2026).
+  return bare ? rows : <Card style={{ padding: 0, gap: 0 }}>{rows}</Card>;
 }
 
 /** The two club stores: members' designs in the Discord #merch-shop, public designs on the website. */

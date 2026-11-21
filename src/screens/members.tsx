@@ -13,7 +13,6 @@ import {
 import { heldRows, isActing } from '../domain/acting';
 import { canSeeAttendance } from '../domain/attendance';
 import { compassFor } from '../domain/compass';
-import { businessFor } from '../domain/business';
 import { describeExpiry, expiryState, formatAuDate, formatLongDate, monthsBetween } from '../domain/dates';
 import { clubCounts, longSeatTitle, longTitle, necRows, positionTitles, seatTitle, type StatusSplit } from '../domain/home';
 import { BOARD_ROLES, CLUB_ROLES, LICENCE_LABEL, NATIONAL_ROLES, ROLE_LABEL, STATUS_LABEL, STATUS_ORDER } from '../domain/labels';
@@ -31,7 +30,8 @@ import { canSeeFees } from '../domain/fees';
 import { AttendanceSummary, HomeCheckinCard } from './checkin';
 import { StandingCard } from './attendance';
 import { termEndsOn, termState } from '../domain/terms';
-import { HomeNeedsYouCard, HomeQuickActions, HomeReminders } from './homeCards';
+import { HomeNeedsYouCard, HomeReminders } from './homeCards';
+import { HomeLiveRideCard } from './liveRide';
 import { IntroProgressCard } from './fng';
 // Stage 7: social extras
 import { ChaptersNationalRow } from './adminRows'; // Stage 5D
@@ -43,9 +43,6 @@ import { BuildsRow } from './builds';
 import { HistoryRow } from './history';
 import { BragRow } from './brag';
 import { BadgesCard } from './badges';
-import { AskClubHomeRow } from './askClub';
-import { HomeRoadRulesRow } from './roadRules';
-import { mustSignFirst } from '../domain/roadRules';
 import { HomeNextRideCard } from './rides';
 import { MORE_FROM_CLUB } from '../domain/membersLayout';
 import { homeCoverPanels } from '../domain/meLayout';
@@ -170,19 +167,13 @@ function sortMembers(list: Member[]) {
 // Home
 // ---------------------------------------------------------------------------
 
-/** Stage 5: the current instant, for the club business row. */
-const nowInstant = () => new Date().toISOString();
-
 export function HomeScreen({ navigation }: TabScreen<'Home'>) {
   const { me, data, today, isDemo, refresh } = useClub();
-  const [numbersOpen, setNumbersOpen] = useState(false);
   if (!me) return null;
   const chapter = data.chapters.find((c) => c.id === me.chapterId);
   const positions = sortedPositions(me.id, data);
   const checklist = profileChecklist(me, data);
   const done = checklist.filter((c) => c.done).length;
-  const counts = clubCounts(data.chapters, data.members, data.unclaimedRoster ?? []);
-  const business = businessFor(me, data, nowInstant());
   // The header names the home chapter first, so a seat there doesn't repeat it ("North chapter · Road Captain,
   // Acting Treasurer"). A stint's title goes last and its until date on a line of its own, so the header
   // never wraps to three lines at 390 wide. Each title wraps as one piece, so on a narrower phone a line
@@ -222,7 +213,9 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Row>
       </Flannel>
 
-      {/* Anything waiting on you, approvals first: the first thing you see */}
+      {/* A ride under way (or one you're sharing on): straight under your name, one tap to the live ride */}
+      <HomeLiveRideCard />
+      {/* Anything waiting on you, approvals first */}
       <HomeNeedsYouCard />
       {/* A covered holder: who is acting for them, and I'm back */}
       <CoverPanels panels={homeCoverPanels(me, data, today)} />
@@ -232,32 +225,10 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       <HomeCheckinCard />
       {/* The next ride, so it is one tap from opening the app */}
       <HomeNextRideCard onOpen={(rideId) => navigation.navigate('RideDetail', { rideId })} />
-      {/* The everyday jobs that aren't a tab */}
-      <HomeQuickActions />
-      {/* The Road Rules: the illustrated draft until the NEC publishes, then where you stand */}
-      {/* Hidden while you still have to sign: that's a Needs you row */}
-      {mustSignFirst(me, data, today) ? null : <HomeRoadRulesRow onOpen={(to) => navigation.navigate(to)} />}
-
-      {/* Stage 5: meetings and votes */}
-      {business.summary ? (
-        <Card style={{ padding: 0, gap: 0 }}>
-          <ListRow
-            left={<IconBadge icon="hammer" />}
-            title="Club business"
-            subtitle={business.summary}
-            onPress={() => navigation.navigate('Business')}
-            last
-            lines="all"
-          />
-        </Card>
-      ) : null}
-
       {/* Stage 7: birthdays and patch anniversaries this week */}
       <HomeShoutoutsCard />
       <HomeOnThisDayCard />
       <HomeNewsCard />
-      {/* Ask the club, the club assistant */}
-      <AskClubHomeRow onOpen={() => navigation.navigate('AskClub')} />
 
       {showProfileCard(done, checklist.length) ? (
         <Card>
@@ -286,19 +257,7 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
             </>
           )}
         </Card>
-  
       ) : null}
-
-      <Disclosure title={CLUB_NUMBERS.title} summary={CLUB_NUMBERS.summary} open={numbersOpen} onToggle={() => setNumbersOpen((o) => !o)}>
-        <Card>
-          <ClubSplitTable rows={[...counts.split, { id: 'club-total', name: 'Club', ...counts.club }]} />
-          {counts.onApp < counts.total ? (
-            <Small>
-              {counts.onApp} of {counts.total} signed in to the app so far.
-            </Small>
-          ) : null}
-        </Card>
-      </Disclosure>
 
       {/* Rego, licence and first aid reminders last ("approvals top, regos bottom") */}
       <HomeReminders />
@@ -321,7 +280,9 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
     setChosenChapter(id);
     saved.save({ memberChapter: id });
   };
-  const [moreOpen, setMoreOpen] = useState(true);
+  // The club in numbers moved here from Home (Jeff, 21 Nov 2026: "Make the home screen clean and simple").
+  const [numbersOpen, setNumbersOpen] = useState(false);
+  const counts = clubCounts(data.chapters, data.members, data.unclaimedRoster ?? []);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -354,25 +315,6 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
         value={chapterId}
         onChange={setChapterId}
       />
-      {/* Chapters, history and the social extras: folded away so the member list comes first */}
-      <Disclosure title={MORE_FROM_CLUB.title} summary={MORE_FROM_CLUB.summary} open={moreOpen} onToggle={() => setMoreOpen((o) => !o)}>
-        <Card style={{ padding: 0, gap: 0 }}>
-          <ListRow
-            left={<IconBadge icon="flag" tone="red" />}
-            title="Chapters"
-            subtitle="Boards and the National committee"
-            onPress={() => navigation.navigate('Chapters')}
-          />
-          <HistoryRow last />
-        </Card>
-        {/* Stage 7: social extras */}
-        <Card style={{ padding: 0, gap: 0 }}>
-          <WhoCanHelpRow />
-          <SwapRow />
-          <BuildsRow />
-          <BragRow last />
-        </Card>
-      </Disclosure>
       <Button label="What do SAA, RC and the other short names mean?" kind="quiet" onPress={() => navigation.navigate('ClubWords')} />
       {groups.length === 0 ? (
         <Notice title="Nobody matches">Try a road name, a real name or a bike, like “Softail”.</Notice>
@@ -383,6 +325,34 @@ export function MembersScreen({ navigation }: TabScreen<'Members'>) {
           <GroupedMembers members={g.members} onOpen={(id) => navigation.navigate('MemberDetail', { memberId: id })} />
         </Stack>
       ))}
+      {/* Chapters, history and the social extras: one card under the members (Jeff, 21 Nov 2026: simplify) */}
+      <Stack gap={space.sm}>
+        <SectionTitle title={MORE_FROM_CLUB.title} />
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            left={<IconBadge icon="flag" tone="red" />}
+            title="Chapters"
+            subtitle="Boards and the National committee"
+            onPress={() => navigation.navigate('Chapters')}
+          />
+          <HistoryRow />
+          {/* Stage 7: social extras */}
+          <WhoCanHelpRow />
+          <SwapRow />
+          <BuildsRow />
+          <BragRow last />
+        </Card>
+      </Stack>
+      <Disclosure title={CLUB_NUMBERS.title} summary={CLUB_NUMBERS.summary} open={numbersOpen} onToggle={() => setNumbersOpen((o) => !o)}>
+        <Card>
+          <ClubSplitTable rows={[...counts.split, { id: 'club-total', name: 'Club', ...counts.club }]} />
+          {counts.onApp < counts.total ? (
+            <Small>
+              {counts.onApp} of {counts.total} signed in to the app so far.
+            </Small>
+          ) : null}
+        </Card>
+      </Disclosure>
     </Screen>
   );
 }

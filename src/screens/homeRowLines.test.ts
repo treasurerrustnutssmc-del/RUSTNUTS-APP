@@ -40,13 +40,10 @@ test('the Home Board renewals row shows its whole title on a small phone', () =>
   assert.match(rowWith("'rego, licence or first aid renewals need'"), /\blines="all"/);
 });
 
-test('the Home Club business row shows its whole summary on a small phone', () => {
-  assert.match(rowWith('title="Club business"'), /\blines="all"/);
-});
-
-test('only those two Home rows lift the limit', () => {
-  assert.equal(home.match(/\blines="all"/g)?.length, 2);
-  assert.equal(home.match(/\blines=/g)?.length, 2, 'no other Home row changes its line limit');
+// The Club business row moved to Me (21 Nov 2026), so only the renewals row is left on Home.
+test('only that Home row lifts the limit', () => {
+  assert.equal(home.match(/\blines="all"/g)?.length, 1);
+  assert.equal(home.match(/\blines=/g)?.length, 1, 'no other Home row changes its line limit');
 });
 
 // Jeff, 15 Nov: your own rego, licence or first aid box on Home opens the screen where you update it.

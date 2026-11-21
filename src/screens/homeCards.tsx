@@ -1,7 +1,7 @@
 /**
  * Home's new top and bottom (Jeff, 21 Nov 2026: "Approvals top regos bottom").
  * HomeNeedsYouCard: everything waiting on you, approvals first, right under the greeting.
- * HomeQuickActions: the everyday jobs that aren't already a tab, one tap each.
+ * QuickButtons: the everyday jobs that aren't already a tab, one tap each (on Me since 21 Nov 2026).
  * HomeReminders: your own rego, licence and first aid boxes, and the board's renewals row, last.
  * Spec: docs/superpowers/specs/2026-11-21-home-needs-you-design.md
  */
@@ -12,8 +12,13 @@ import { useClub } from '../data/ClubStore';
 import { seesEveryChapter } from '../domain/access';
 import { homeNeedsYou } from '../domain/homeNeedsYou';
 import { seesReports } from '../domain/ledger';
+import { homeRoadRulesRow } from '../domain/roadRules';
+import { totalOwing } from '../domain/fees';
+import { signStatus } from '../domain/documents';
+import { feesButtonLine } from '../domain/meLayout';
+import { useAskClubOn } from './askClub';
 import { alertFix, expiryAlerts, type ExpiryAlert } from '../domain/profile';
-import { colors, radius, space, type } from '../theme';
+import { colors, fonts, radius, space, type } from '../theme';
 import { Card, H2, IconBadge, Ionicons, ListRow, Notice, type IconName } from '../ui/primitives';
 
 const nowInstant = () => new Date().toISOString();
@@ -52,34 +57,57 @@ export function HomeNeedsYouCard() {
   );
 }
 
-const QUICK: { key: string; icon: IconName; label: string; screen: string; mine?: boolean; reports?: boolean }[] = [
+type Quick = { key: string; icon: IconName; label: string; screen: string; mine?: boolean; reports?: boolean; ask?: boolean; rules?: boolean };
+
+// Jeff, 21 Nov 2026: "Make the home screen clean and simple", then "Move this to the me page": the
+// quick buttons sit on Me now, with the Road Rules and Ask the club beside the other everyday jobs.
+const QUICK: Quick[] = [
   { key: 'fees', icon: 'wallet-outline', label: 'My fees', screen: 'MemberFees', mine: true },
   // The Treasurer's Reports and Club spending, for every member who can read them (not Family or Legacy).
   { key: 'finances', icon: 'stats-chart-outline', label: 'Finances', screen: 'ClubFinances', reports: true },
+  // The illustrated draft until the NEC publishes, then the version you sign.
+  { key: 'rules', icon: 'document-text-outline', label: 'Road Rules', screen: 'RoadRules', rules: true },
   { key: 'bus', icon: 'bus-outline', label: 'Rusty Bus', screen: 'Bus' },
   { key: 'docs', icon: 'folder-open-outline', label: 'Documents', screen: 'Documents' },
+  // Only once the club assistant is switched on.
+  { key: 'ask', icon: 'chatbubbles-outline', label: 'Ask the club', screen: 'AskClub', ask: true },
   { key: 'feedback', icon: 'megaphone-outline', label: 'Tell us', screen: 'Feedback' },
 ];
 
-/** The everyday jobs that aren't a tab already: one tap from Home. */
-export function HomeQuickActions() {
-  const { me } = useClub();
+/** The everyday jobs that aren't a tab already: one tap each, on Me. */
+export function QuickButtons() {
+  const { me, data, today } = useClub();
   const navigation = useNavigation<Nav>();
+  const askOn = useAskClubOn();
   if (!me || me.approval !== 'approved') return null;
+  const rules = homeRoadRulesRow(me, data, today);
+  const fees = feesButtonLine(totalOwing(me.id, data), me.onHiatus);
+  const toSign = (data.documents ?? []).filter((d) => signStatus(me, d, data, today) === 'unsigned').length;
+  const subOf = (q: Quick): { text: string; alert: boolean } | null =>
+    q.mine ? { text: fees.text, alert: fees.owing } : q.key === 'docs' && toSign > 0 ? { text: `${toSign} to sign`, alert: true } : null;
+  const screenOf = (q: Quick) => (q.rules && rules?.opens === 'guide' ? 'RoadRulesGuide' : q.screen);
   return (
     <View style={styles.grid} accessibilityRole="toolbar" accessibilityLabel="Quick buttons">
-      {QUICK.filter((q) => !q.reports || seesReports(me)).map((q) => (
+      {QUICK.filter((q) => (!q.reports || seesReports(me)) && (!q.ask || askOn)).map((q) => (
         <Pressable
           key={q.key}
           accessibilityRole="button"
           accessibilityLabel={q.label}
-          onPress={() => navigation.navigate(q.screen, q.mine ? { memberId: me.id } : undefined)}
+          onPress={() => navigation.navigate(screenOf(q), q.mine ? { memberId: me.id } : undefined)}
           style={({ pressed }) => [styles.tile, pressed && { backgroundColor: colors.steel }]}
         >
-          <Ionicons name={q.icon} size={22} color={colors.bone} />
-          <Text style={type.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-            {q.label}
-          </Text>
+          <Ionicons name={q.icon} size={22} color={subOf(q)?.alert ? colors.redText : colors.bone} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={type.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+              {q.label}
+            </Text>
+            {/* What's owing, or documents to sign, on the button itself (the rows lower on Me are gone) */}
+            {subOf(q) ? (
+              <Text style={[styles.sub, { color: subOf(q)!.alert ? colors.redText : colors.boneDim }]} numberOfLines={1}>
+                {subOf(q)!.text}
+              </Text>
+            ) : null}
+          </View>
         </Pressable>
       ))}
     </View>
@@ -130,6 +158,7 @@ export function HomeReminders() {
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: space.lg, paddingBottom: space.sm },
+  sub: { fontFamily: fonts.stencil, fontSize: 12, lineHeight: 16, letterSpacing: 0.3 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   tile: {
     flexBasis: '48%',

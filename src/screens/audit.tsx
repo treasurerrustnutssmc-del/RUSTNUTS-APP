@@ -644,7 +644,7 @@ export function MeAuditSection() {
   );
 }
 
-export function BoardAuditRow() {
+export function BoardAuditRow({ bare }: { bare?: boolean } = {}) {
   const { me, data } = useClub();
   const navigation = useNavigation<NavigationProp<RootParams>>();
   if (!me || isAuditor(me, data.positions)) return null;
@@ -653,16 +653,16 @@ export function BoardAuditRow() {
   if (mine.length === 0 && reports.length === 0) return null;
   const toAnswer = mine.filter((r) => r.closedAt === null && r.answer === null && answersRequest(me, r, data.positions)).length;
   const open = mine.filter((r) => r.closedAt === null).length;
-  return (
-    <Card style={{ padding: 0, gap: 0 }}>
+  const row = (
       <ListRow
-        last
+        last={!bare}
         left={<IconBadge icon="search-outline" tone={toAnswer > 0 ? 'red' : 'steel'} />}
         title="National Auditor"
         subtitle={toAnswer > 0 ? `${count(toAnswer, 'request')} to answer` : `${count(open, 'open request')} · ${count(reports.length, 'report')}`}
         onPress={() => navigation.navigate('Audit')}
       />
-    </Card>
   );
+  // Bare: the row only, inside the Board's one admin card (21 Nov 2026).
+  return bare ? row : <Card style={{ padding: 0, gap: 0 }}>{row}</Card>;
 }
 

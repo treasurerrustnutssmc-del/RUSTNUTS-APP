@@ -6,22 +6,22 @@ import {
   untilRange, WHY_NEEDED, withdrawRequestProblem,
 } from './access';
 import { coveredNotice, coverNote } from './home';
-import { coverConfirmNote, coverPanels, coverUntilError, homeCoverPanels, meGroups, standInChoices, standInPanels } from './meLayout';
+import { coverConfirmNote, coverPanels, coverUntilError, feesButtonLine, homeCoverPanels, meGroups, standInChoices, standInPanels } from './meLayout';
 import type { ActingRequest, ClubData, Member, MemberPrivate, Position, PositionRole } from './types';
 
 const base = { contacts: 1, bikes: 1, owingCents: 0, onHiatus: false, roadRules: null };
 const byId = (input: Parameters<typeof meGroups>[0]) => Object.fromEntries(meGroups(input).map((g) => [g.id, g]));
 
-test('Me has eight groups, in a fixed order', () => {
+test('Me has seven groups, in a fixed order', () => {
   // The things you act on first; attendance and badges (read, not tapped) last (Jeff, 21 Nov 2026).
-  assert.deepEqual(meGroups(base).map((g) => g.id), ['fees', 'details', 'social', 'rules', 'settings', 'help', 'online', 'year']);
+  // The fees group went when the My fees and Finances quick buttons moved onto Me (Jeff, 21 Nov 2026: "drop the doubles").
+  assert.deepEqual(meGroups(base).map((g) => g.id), ['details', 'social', 'rules', 'settings', 'help', 'online', 'year']);
 });
 
 // Jeff, 21 Nov 2026: "too many things hidden behind heading that dont relate to what the heading states".
 // Each heading names what is under it: social bits aren't "details", and the club's links aren't "help".
 test('each heading says what is under it', () => {
   const g = byId(base);
-  assert.equal(g.fees.title, 'Fees and club finances');
   assert.equal(g.social.title, 'Social');
   assert.match(g.social.summary, /birthday/i);
   assert.equal(g.help.title, 'Help');
@@ -54,15 +54,13 @@ test('Road Rules that need signing open Rules and papers; otherwise it shows whe
   const fine = byId({ ...base, roadRules: { text: 'Signed until 02/11/2027', urgent: false } });
   assert.equal(fine.rules.startsOpen, false);
   assert.equal(fine.rules.summary, 'Road Rules: signed until 02/11/2027');
-  assert.equal(byId(base).rules.summary, 'Club documents and policies');
+  assert.equal(byId(base).rules.summary, 'Club policies');
 });
 
-test('money owing opens Fees; paid up and on hiatus read plainly', () => {
-  const owing = byId({ ...base, owingCents: 12500 });
-  assert.equal(owing.fees.startsOpen, true);
-  assert.equal(owing.fees.summary, '$125.00 owing');
-  assert.equal(byId(base).fees.summary, 'All paid up');
-  assert.equal(byId({ ...base, onHiatus: true }).fees.summary, 'On hiatus: no new fees');
+test('the My fees button says what is owing; paid up and on hiatus read plainly', () => {
+  assert.deepEqual(feesButtonLine(12500, false), { text: '$125.00 owing', owing: true });
+  assert.deepEqual(feesButtonLine(0, false), { text: 'All paid up', owing: false });
+  assert.deepEqual(feesButtonLine(0, true), { text: 'On hiatus', owing: false });
 });
 
 // ---------------------------------------------------------------------------

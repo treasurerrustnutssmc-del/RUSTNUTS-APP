@@ -17,7 +17,8 @@ test('Me and the Board show every group open unless the person folds it', () => 
 });
 
 test('Members, Rides and the public screen show their extra links without a tap', () => {
-  assert.ok(read('members.tsx').includes('const [moreOpen, setMoreOpen] = useState(true);'), 'More from the club');
+  // Members' extras aren't folded at all now: one card under the member list (21 Nov 2026).
+  assert.ok(!read('members.tsx').includes('<Disclosure title={MORE_FROM_CLUB.title}'), 'More from the club is not a fold');
   assert.ok(read('rides.tsx').includes('const [toolsOpen, setToolsOpen] = useState(true);'), 'Ride tools');
   assert.ok(read('public.tsx').includes('const [linksOpen, setLinksOpen] = useState(true);'), 'Find the club online');
 });

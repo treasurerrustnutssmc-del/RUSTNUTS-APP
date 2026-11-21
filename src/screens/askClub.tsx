@@ -299,8 +299,9 @@ function ProposalCard({ item, onConfirm, onDecline }: { item: Extract<Item, { ki
   );
 }
 
-/** The way in from Home: approved members only, and in a live build only once it's switched on. */
-export function AskClubHomeRow({ onOpen }: { onOpen: () => void }) {
+/** Whether Ask the club is open to `me`: approved members only, and in a live build only once it's switched on.
+ *  Me shows its quick button while this is true. */
+export function useAskClubOn(): boolean {
   const { me, isDemo } = useClub();
   const api = useAssistantApi();
   const [on, setOn] = useState(isDemo);
@@ -311,18 +312,7 @@ export function AskClubHomeRow({ onOpen }: { onOpen: () => void }) {
     api.status().then((s) => live && setOn(s.on), () => undefined);
     return () => { live = false; };
   }, [api, isDemo, member]);
-  if (!member || !on) return null;
-  return (
-    <Card style={{ padding: 0, gap: 0 }}>
-      <ListRow
-        left={<IconBadge icon="chatbubbles-outline" />}
-        title="Ask the club"
-        subtitle="The rules, the rides and the Rusty Bus, in plain words"
-        onPress={onOpen}
-        last
-      />
-    </Card>
-  );
+  return member && on;
 }
 
 const styles = StyleSheet.create({
