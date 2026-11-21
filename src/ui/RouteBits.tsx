@@ -279,7 +279,7 @@ function FollowRouteButton({
         icon={NAV_ICON[app]}
         kind={kind}
         busy={busy}
-        accessibilityLabel={app === 'waze' ? 'Waze to the next 15 kilometres of the route, from where you are' : `Follow the route in ${label}, from where you are`}
+        accessibilityLabel={app === 'waze' ? 'Waze to the next 30 kilometres of the route, from where you are' : `Follow the route in ${label}, from where you are`}
         onPress={open}
       />
       <View accessibilityLiveRegion="polite" role="alert">
@@ -292,7 +292,7 @@ function FollowRouteButton({
 /**
  * "Follow the route": every maps app in one place, each a big button that starts from where the
  * rider is. Apple Maps (iOS 18.4+) and Google Maps get points along the route and stop at each;
- * Waze takes one spot, so it goes about 15 km along; Garmin, OsmAnd and MyRoute take the GPX
+ * Waze takes one spot, so it goes about 30 km along; Garmin, OsmAnd and MyRoute take the GPX
  * itself and follow every bend. Nothing when the route has no line to follow.
  */
 export function FollowRoutePanel({ route }: { route: Pick<Route, 'id' | 'name' | 'line'> }) {
@@ -304,9 +304,9 @@ export function FollowRoutePanel({ route }: { route: Pick<Route, 'id' | 'name' |
       {apps.map((app) => (
         <FollowRouteButton key={app} app={app} label={FOLLOW_LABEL[app]} line={route.line} kind="primary" buttonLabel={FOLLOW_LABEL[app]} />
       ))}
-      <FollowRouteButton app="waze" label="Waze" line={route.line} kind="primary" buttonLabel="Waze, next 15 km" />
+      <FollowRouteButton app="waze" label="Waze" line={route.line} kind="primary" buttonLabel="Waze, next 30 km" />
       <Small>
-        All start from where you are. Google and Apple Maps stop at each point, and Waze goes 15 km at a time: come back and tap again.
+        All start from where you are. Google and Apple Maps stop at each point, and Waze goes 30 km at a time: come back and tap again.
       </Small>
       <SendToGarminButton route={route} kind="primary" />
       <OpenInMapsButton route={route} kind="primary" />
