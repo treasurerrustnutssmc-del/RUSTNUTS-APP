@@ -2,19 +2,23 @@
 // emergency, say they've dropped out, or (leaders) set a regroup pin. Ride day only, opt-in,
 // switches itself off, nothing kept. The rules are in src/domain/liveRide.ts.
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useNavigation, type NavigationProp } from '@react-navigation/native';
 import * as SMS from 'expo-sms';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { activeRide } from '../data/liveTracker';
 import { smsUrl, textLeaders } from '../data/liveQueue';
 import { useLiveRide } from '../data/useLiveRide';
-import { BACKGROUND_LOCATION_NOTICE, awayText, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, offTime, splitGroups, splitWarning } from '../domain/liveRide';
+import { BACKGROUND_LOCATION_NOTICE, awayText, homeLiveRide, isRideLeader, isStale, lastSeen, liveProblem, liveWindow, offTime, splitGroups, splitWarning } from '../domain/liveRide';
 import { initials } from '../domain/profile';
 import { riderPins } from '../domain/rideMap';
 import { routeOf } from '../domain/routes';
 import type { LatLng, LiveRider, Ride, RideAlert } from '../domain/types';
-import type { RootScreen } from '../navigation/types';
+import type { RootParams, RootScreen } from '../navigation/types';
+import { defaultCategories, lastDay, melbourneDate } from '../domain/rides';
+import { formatAuDate } from '../domain/dates';
+import { legLabel } from '../domain/rideLegs';
 // Lane E: ride comms
 import { RideCommsCard } from './rideComms';
 import { colors, fonts, radius, space, type } from '../theme';
@@ -66,6 +70,71 @@ export function LiveRideCard({ ride, onOpen }: { ride: Ride; onOpen: () => void 
         {`Ride comms and location sharing for riders on this ride. Both switch off by ${offTime(w.closes, now)}. Nothing is kept or recorded.`}
       </Body>
       <Button label={sharingHere ? 'Open live ride (sharing)' : 'Open live ride'} icon="navigate" onPress={onOpen} />
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// On Home, straight under your name
+// ---------------------------------------------------------------------------
+
+/** "They switch off at midnight tonight." The live window always closes as the ride's last day ends. */
+const offAtMidnight = (ride: Ride, now: string) => {
+  const day = lastDay(ride);
+  return day === melbourneDate(now) ? 'They switch off at midnight tonight.' : `They switch off at midnight at the end of ${formatAuDate(day)}.`;
+};
+
+/** Home, right under the greeting while a ride of yours is under way (or you're sharing on one):
+ *  one tap into the live ride. Jeff, 21 Nov 2026, on the Big 4. The rules are homeLiveRide. */
+export function HomeLiveRideCard() {
+  const { me, data } = useClub();
+  const navigation = useNavigation<NavigationProp<RootParams>>();
+  const [sharingRideId, setSharingRideId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date().toISOString());
+  // Look again each time Home comes back into view, and each minute while it's open, so the card
+  // turns up at the meet-up and goes when the ride ends without a pull to refresh.
+  useFocusEffect(
+    useCallback(() => {
+      const look = () => {
+        setNow(new Date().toISOString());
+        activeRide().then((a) => setSharingRideId(a?.rideId ?? null)).catch(() => undefined);
+      };
+      look();
+      const t = setInterval(look, 60_000);
+      return () => clearInterval(t);
+    }, []),
+  );
+  if (!me) return null;
+  const ride = homeLiveRide({
+    me,
+    rides: data.rides,
+    rsvps: data.rsvps,
+    categories: defaultCategories(me, data.chapters),
+    now,
+    sharingRideId,
+  });
+  if (!ride) return null;
+  const sharing = sharingRideId === ride.id;
+  const leg = legLabel(ride.id, data);
+  return (
+    <Card style={{ borderColor: colors.redBright }}>
+      <Row style={{ gap: space.sm, flexWrap: 'nowrap' }}>
+        <Ionicons name="navigate-circle" size={22} color={colors.redText} />
+        <Text style={[type.name, { color: colors.bone, flex: 1 }]} accessibilityRole="header">
+          {`Live ride · ${ride.title}`}
+        </Text>
+      </Row>
+      {leg ? <Small>{leg}</Small> : null}
+      <Body>
+        {sharing
+          ? 'You’re sharing your location with this ride.'
+          : `Ride comms and location sharing are on. ${offAtMidnight(ride, now)} Nothing is kept.`}
+      </Body>
+      <Button
+        label={sharing ? 'Open live ride (sharing)' : 'Open live ride'}
+        icon="navigate"
+        onPress={() => navigation.navigate('LiveRide', { rideId: ride.id })}
+      />
     </Card>
   );
 }

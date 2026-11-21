@@ -32,6 +32,7 @@ import { AttendanceSummary, HomeCheckinCard } from './checkin';
 import { StandingCard } from './attendance';
 import { termEndsOn, termState } from '../domain/terms';
 import { HomeNeedsYouCard, HomeQuickActions, HomeReminders } from './homeCards';
+import { HomeLiveRideCard } from './liveRide';
 import { IntroProgressCard } from './fng';
 // Stage 7: social extras
 import { ChaptersNationalRow } from './adminRows'; // Stage 5D
@@ -222,7 +223,9 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
         </Row>
       </Flannel>
 
-      {/* Anything waiting on you, approvals first: the first thing you see */}
+      {/* A ride under way (or one you're sharing on): straight under your name, one tap to the live ride */}
+      <HomeLiveRideCard />
+      {/* Anything waiting on you, approvals first */}
       <HomeNeedsYouCard />
       {/* A covered holder: who is acting for them, and I'm back */}
       <CoverPanels panels={homeCoverPanels(me, data, today)} />

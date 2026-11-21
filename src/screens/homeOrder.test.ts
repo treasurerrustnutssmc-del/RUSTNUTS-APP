@@ -14,7 +14,7 @@ const at = (s: string) => {
   return i;
 };
 
-test('Needs you is the first card under the greeting', () => {
+test('Needs you comes before every other card but a live ride', () => {
   const needs = at('<HomeNeedsYouCard');
   for (const s of ['<CoverPanels', '<FirstRunCard', '<HomeNextRideCard', '<HomeCheckinCard', '<HomeQuickActions', '<HomeRoadRulesRow']) {
     assert.ok(needs < at(s), `Needs you before ${s}`);
@@ -42,4 +42,10 @@ test('rego, licence and first aid reminders sit at the bottom, after everything 
 test('fees and applicants are not shown twice: they live in Needs you', () => {
   assert.ok(!home.includes('<HomeFeesCard'), 'fees owing is a Needs you row');
   assert.ok(!home.includes('waiting for approval`'), 'applicants are a Needs you row');
+});
+
+test('a live ride sits straight under the greeting, above Needs you (Jeff, 21 Nov 2026)', () => {
+  const live = at('<HomeLiveRideCard');
+  assert.ok(at('</Flannel>') < live, 'after the greeting');
+  assert.ok(live < at('<HomeNeedsYouCard'), 'before Needs you');
 });
