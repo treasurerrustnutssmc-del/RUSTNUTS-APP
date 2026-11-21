@@ -8,7 +8,7 @@ import { openInMapsApp, sendToGarmin } from '../data/routeFiles';
 import { whereAmI } from '../data/whereAmI';
 import { formatClimb, formatKm, routeChapterName } from '../domain/routes';
 import { routeScore, starsLine } from '../domain/ratings';
-import { followApps, followRouteOptions, navigateOptions, routeAhead, type NavApp } from '../domain/rideMap';
+import { followApps, followRouteOptions, navigateOptions, routeAhead, wazeAheadUrl, type NavApp } from '../domain/rideMap';
 import type { ClubData, LatLng, Route } from '../domain/types';
 import { colors, fonts, radius, rideColors, space, type } from '../theme';
 import { Button, Card, Chip, Ionicons, Notice, Row, Small, Stack } from './primitives';
@@ -262,9 +262,9 @@ function FollowRouteButton({
     setBusy(true);
     try {
       const ahead = routeAhead(line, await whereAmI());
-      const option = followRouteOptions(ahead, Platform.OS, Platform.Version).find((o) => o.app === app);
-      if (!option) throw new Error('no link');
-      await Linking.openURL(option.url);
+      const url = app === 'waze' ? wazeAheadUrl(ahead) : followRouteOptions(ahead, Platform.OS, Platform.Version).find((o) => o.app === app)?.url;
+      if (!url) throw new Error('no link');
+      await Linking.openURL(url);
       onOpened?.();
     } catch {
       setFailed(true);
@@ -279,7 +279,7 @@ function FollowRouteButton({
         icon={NAV_ICON[app]}
         kind={kind}
         busy={busy}
-        accessibilityLabel={`Follow the route in ${label}, from where you are`}
+        accessibilityLabel={app === 'waze' ? 'Waze to the next 15 kilometres of the route, from where you are' : `Follow the route in ${label}, from where you are`}
         onPress={open}
       />
       <View accessibilityLiveRegion="polite" role="alert">
@@ -290,17 +290,26 @@ function FollowRouteButton({
 }
 
 /**
- * One big "Follow the route" button for mid-ride. Google Maps ends at each point it's given, so a
- * rider comes back here and taps once to carry on from where they are. Nothing when this phone has
- * no app that can follow a route, or the route has no line.
+ * "Follow the route": every maps app in one place, each a big button that starts from where the
+ * rider is. Apple Maps (iOS 18.4+) and Google Maps get points along the route and stop at each;
+ * Waze takes one spot, so it goes about 15 km along; Garmin, OsmAnd and MyRoute take the GPX
+ * itself and follow every bend. Nothing when the route has no line to follow.
  */
-export function FollowRouteNow({ route }: { route: Pick<Route, 'line'> }) {
-  const app = route.line.length > 0 ? followApps(Platform.OS, Platform.Version)[0] : undefined;
-  if (!app) return null;
+export function FollowRoutePanel({ route }: { route: Pick<Route, 'id' | 'name' | 'line'> }) {
+  if (route.line.length === 0) return <OpenInMapsButton route={route} />;
+  const apps = followApps(Platform.OS, Platform.Version);
   return (
-    <Stack gap={space.xs}>
-      <FollowRouteButton app={app} label={FOLLOW_LABEL[app]} line={route.line} kind="primary" buttonLabel={`Follow the route in ${FOLLOW_LABEL[app]}`} />
-      <Small>Picks up from where you are. When Maps stops at a point, come back and tap again. OsmAnd rides it with no stops.</Small>
+    <Stack gap={space.sm}>
+      <Text style={styles.navTitle}>Follow the route</Text>
+      {apps.map((app) => (
+        <FollowRouteButton key={app} app={app} label={FOLLOW_LABEL[app]} line={route.line} kind="primary" buttonLabel={FOLLOW_LABEL[app]} />
+      ))}
+      <FollowRouteButton app="waze" label="Waze" line={route.line} kind="primary" buttonLabel="Waze, next 15 km" />
+      <Small>
+        All start from where you are. Google and Apple Maps stop at each point, and Waze goes 15 km at a time: come back and tap again.
+      </Small>
+      <SendToGarminButton route={route} kind="primary" />
+      <OpenInMapsButton route={route} kind="primary" />
     </Stack>
   );
 }

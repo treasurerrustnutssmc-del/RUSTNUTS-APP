@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { boundsAround, fitCamera, followApps, followRouteOptions, mapsAvailable, navigateOptions, placeSearchUrl, riderPins, routeAhead } from './rideMap';
+import { boundsAround, fitCamera, followApps, followRouteOptions, mapsAvailable, wazeAheadUrl, navigateOptions, placeSearchUrl, riderPins, routeAhead } from './rideMap';
 import type { LiveRider } from './types';
 
 const NOW = '2026-11-08T01:00:00.000Z';
@@ -215,4 +215,17 @@ test('followApps lists the apps that can follow a route without working the rout
   assert.deepEqual(followApps('ios', '18.4'), ['apple', 'google']);
   assert.deepEqual(followApps('ios', '17.2'), ['google']);
   assert.deepEqual(followApps('android', 35), ['google']);
+});
+
+test('Waze can only take one spot, so it gets the point about 15 km further along the route', () => {
+  // north's points are ~1.1 km apart: 15 km on is the 14th point after where the rider is.
+  const url = new URL(wazeAheadUrl({ line: north, fromStart: false })!);
+  assert.equal(url.origin + url.pathname, 'https://waze.com/ul');
+  assert.equal(url.searchParams.get('ll'), '-37.86,145');
+  assert.equal(url.searchParams.get('navigate'), 'yes');
+  // Less than 15 km left: the end.
+  assert.equal(new URL(wazeAheadUrl({ line: north.slice(15), fromStart: false })!).searchParams.get('ll'), '-37.8,145');
+  // On the way to the ride: the start.
+  assert.equal(new URL(wazeAheadUrl({ line: north, fromStart: true })!).searchParams.get('ll'), '-38,145');
+  assert.equal(wazeAheadUrl({ line: [], fromStart: true }), null);
 });

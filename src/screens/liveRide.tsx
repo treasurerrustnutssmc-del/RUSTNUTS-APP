@@ -35,7 +35,7 @@ import {
   Stack,
 } from '../ui/primitives';
 import { hasRealMap, RideMap } from '../ui/RideMap';
-import { FollowRouteNow, NavigateChooser } from '../ui/RouteBits';
+import { FollowRoutePanel, NavigateChooser } from '../ui/RouteBits';
 
 const open = (url: string) => Linking.openURL(url).catch(() => {});
 const mapsUrl = (p: LatLng) => `https://maps.google.com/?q=${p.lat},${p.lng}`;
@@ -211,7 +211,7 @@ export function LiveRideScreen({ route, navigation }: RootScreen<'LiveRide'>) {
         <ConfirmButton label="Stop sharing" confirmLabel="Stop now" kind="secondary" onConfirm={run('stop', live.stop)} />
       </Card>
 
-      {rideRoute ? <FollowRouteNow route={rideRoute} /> : null}
+      {rideRoute ? <FollowRoutePanel route={rideRoute} /> : null}
 
       {unsentNotice}
       {live.offline ? (

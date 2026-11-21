@@ -48,7 +48,7 @@ import {
   Stack,
 } from '../ui/primitives';
 import { RouteRatings } from './ridePlanning'; // Ride planning extras
-import { ChapterChip, chapterColours, NavigateChooser, OpenInMapsButton, RouteFacts, RouteRow, StopList } from '../ui/RouteBits';
+import { ChapterChip, chapterColours, FollowRoutePanel, OpenInMapsButton, RouteFacts, RouteRow, StopList } from '../ui/RouteBits';
 import { RideMap } from '../ui/RideMap';
 import { RouteShape } from '../ui/RouteShape';
 
@@ -198,7 +198,7 @@ export function RouteScreen({ route: nav, navigation }: RootScreen<'Route'>) {
       <RideMap route={route} />
 
       {route.line.length > 0 ? (
-        <NavigateChooser to={{ lat: route.line[0][0], lng: route.line[0][1] }} toLabel="the start" route={route} kind="primary" />
+        <FollowRoutePanel route={route} />
       ) : (
         <OpenInMapsButton route={route} />
       )}

@@ -212,6 +212,32 @@ export function followRouteOptions(ahead: RouteAhead, os: string, version: strin
   return list;
 }
 
+/** How far along the route Waze is sent: far enough to be worth a tap, near enough to keep it on the route. */
+const WAZE_AHEAD_M = 15_000;
+
+/**
+ * Waze takes one spot, never waypoints, so the best it can do is the point about 15 km further
+ * along the route (the end when less is left), or the start for a rider on the way to the ride.
+ * Tapping again there sends it on to the next. Null when there's no route.
+ */
+export function wazeAheadUrl(ahead: RouteAhead): string | null {
+  const { line } = ahead;
+  if (line.length === 0) return null;
+  let target = line[line.length - 1];
+  if (ahead.fromStart) target = line[0];
+  else {
+    let gone = 0;
+    for (let i = 1; i < line.length; i++) {
+      gone += haversineM(line[i - 1], line[i]);
+      if (gone >= WAZE_AHEAD_M) {
+        target = line[i];
+        break;
+      }
+    }
+  }
+  return `https://waze.com/ul?ll=${coord(target[0])},${coord(target[1])}&navigate=yes`;
+}
+
 /**
  * A link that looks a typed place up (a ride's meeting point, say) in the phone's own maps app:
  * Apple Maps on an iPhone, Google Maps everywhere else. Both open in the browser without the app.
