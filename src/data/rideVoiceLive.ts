@@ -64,7 +64,7 @@ function startVoiceGate(room: Room, initial: NoiseFilter) {
   const create = android ? lk?.createAudioSinkListener : lk?.createVolumeProcessor;
   const remove = android ? lk?.deleteAudioSinkListener : lk?.deleteVolumeProcessor;
   const gate = createVoiceGate(initial);
-  const meterCheck = createMeterCheck();
+  let meterCheck = createMeterCheck();
   let filter = initial;
   let attached: { track: GateTrack; tag: string } | null = null;
   let tries = 0;
@@ -93,11 +93,29 @@ function startVoiceGate(room: Room, initial: NoiseFilter) {
   let sub: { remove: () => void } | null = null;
   const giveUp = () => {
     broken = true;
-    sub?.remove();
+    try {
+      sub?.remove();
+    } catch {
+      // Gone anyway.
+    }
     sub = null;
     detach();
-    openMic();
+    try {
+      openMic();
+    } catch {
+      // Nothing more to do: the call carries on as it was.
+    }
   };
+  /** Nothing in the gate may throw into the call or the app; a slip leaves the mic open. */
+  const safely =
+    <A extends unknown[]>(fn: (...a: A) => void) =>
+    (...a: A) => {
+      try {
+        fn(...a);
+      } catch {
+        giveUp();
+      }
+    };
 
   const hear = (level: number) => {
     if (broken) return;
@@ -113,17 +131,17 @@ function startVoiceGate(room: Room, initial: NoiseFilter) {
   try {
     sub = new NativeEventEmitter(NativeModules.LivekitReactNativeModule).addListener(
       android ? 'LK_AUDIO_DATA' : 'LK_VOLUME_PROCESSED',
-      (e: { id?: string; data?: string; volume?: number }) => {
+      safely((e: { id?: string; data?: string; volume?: number }) => {
         if (!attached || e.id !== attached.tag) return;
         hear(android ? pcm16Level(e.data ?? '', atob) : typeof e.volume === 'number' ? e.volume : 0);
-      },
+      }),
     );
   } catch {
     sub = null;
   }
 
   // Puts the meter on the mic, and opens the mic if the meter's gone quiet.
-  const check = () => {
+  const check = safely(() => {
     if (broken) return;
     const { mst, muted } = micTrack();
     if (!sub || !create) return giveUp();
@@ -141,6 +159,7 @@ function startVoiceGate(room: Room, initial: NoiseFilter) {
           attached = { track: mst, tag };
           tries = 0;
           heardAt = Date.now();
+          meterCheck = createMeterCheck();
         }
       } catch {
         // Tried again shortly; the mic stays open meanwhile.
@@ -148,17 +167,17 @@ function startVoiceGate(room: Room, initial: NoiseFilter) {
       return;
     }
     if (mst && !muted && !mst.enabled && Date.now() - heardAt > 1000) giveUp();
-  };
+  });
   check();
   const timer = setInterval(check, 500);
 
   return {
-    setFilter: (next: NoiseFilter) => {
+    setFilter: safely((next: NoiseFilter) => {
       filter = next;
       gate.setFilter(next);
       if (next !== 'off' && !attached) tries = 0;
       check();
-    },
+    }),
     stop: () => {
       clearInterval(timer);
       giveUp();
