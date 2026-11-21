@@ -114,7 +114,7 @@ export function RideChip({ category }: { category: RideCategory }) {
 export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
   const { me, data, today, isDemo, refresh } = useClub();
   const [shown, setShown] = useState<RideCategory[] | null>(null);
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(true);
   const saved = useSavedFilters();
   if (!me) return null;
   const categories = shown ?? saved.filters.rideColours ?? defaultCategories(me, data.chapters);
