@@ -141,9 +141,9 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
     navigation.setOptions({
       headerRight: () => (
         <Row style={{ gap: 2, marginRight: space.sm }}>
-          {family ? null : <IconButton icon="images-outline" label="Photos and ride walls" onPress={() => navigation.navigate('Photos')} />}
-          {mayGroup ? <IconButton icon="people-outline" label="New group" onPress={() => navigation.navigate('NewGroup')} /> : null}
-          {mayMessage ? <IconButton icon="create-outline" label="New private chat" onPress={() => navigation.navigate('NewChat')} /> : null}
+          {family ? null : <IconButton icon="images-outline" label="Photos and ride walls" caption="Photos" onPress={() => navigation.navigate('Photos')} />}
+          {mayGroup ? <IconButton icon="people-outline" label="New group" caption="New group" onPress={() => navigation.navigate('NewGroup')} /> : null}
+          {mayMessage ? <IconButton icon="create-outline" label="New private chat" caption="Message" onPress={() => navigation.navigate('NewChat')} /> : null}
         </Row>
       ),
     });
