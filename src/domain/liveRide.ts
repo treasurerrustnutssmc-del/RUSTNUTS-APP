@@ -226,11 +226,13 @@ export function homeLiveRide(input: {
   rsvps: Rsvp[];
   categories: RideCategory[];
   now: string;
-  sharingRideId: string | null;
+  /** The share saved on this phone, if any. Only counts when it's this member's (a shared phone keeps it after sign-out). */
+  sharing: { rideId: string; meId: string } | null;
 }): Ride | null {
-  const { me, rides, rsvps, categories, now, sharingRideId } = input;
+  const { me, rides, rsvps, categories, now } = input;
   if (!me || me.approval !== 'approved') return null;
   const t = new Date(now).getTime();
+  const sharingRideId = input.sharing?.meId === me.id ? input.sharing.rideId : null;
   const sharing = sharingRideId ? rides.find((r) => r.id === sharingRideId) : undefined;
   if (sharing && !liveProblem(me, sharing, now)) return sharing;
   const answer = (rideId: string) => rsvps.find((r) => r.rideId === rideId && r.memberId === me.id)?.answer ?? null;
@@ -247,6 +249,6 @@ export function homeLiveRide(input: {
   return (
     rides
       .filter((r) => underWay(r) && mine(r))
-      .sort((a, b) => b.startsAt.localeCompare(a.startsAt))[0] ?? null
+      .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())[0] ?? null
   );
 }

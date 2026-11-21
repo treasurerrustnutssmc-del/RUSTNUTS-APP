@@ -19,7 +19,7 @@ const ride = (over: Partial<Ride> = {}): Ride => ({
 const going = (rideId: string, answer: Rsvp['answer'] = 'going'): Rsvp => ({ rideId, memberId: 'm-1', answer, updatedAt: '2026-11-01T00:00:00.000Z' });
 const CATS: RideCategory[] = ['west', 'club', 'supported'];
 const at = (now: string, over: Partial<Parameters<typeof homeLiveRide>[0]> = {}) =>
-  homeLiveRide({ me: member(), rides: [ride()], rsvps: [], categories: CATS, now, sharingRideId: null, ...over });
+  homeLiveRide({ me: member(), rides: [ride()], rsvps: [], categories: CATS, now, sharing: null, ...over });
 
 test('shows from an hour before the start until the ride ends', () => {
   assert.equal(at('2026-11-06T21:29:00.000Z'), null, 'too early');
@@ -59,9 +59,9 @@ test('never a cancelled ride, and only for approved members', () => {
 test('the ride you are sharing on wins, even outside the usual times', () => {
   const other = ride({ id: 'r-2', category: 'north', startsAt: '2026-11-06T20:00:00.000Z', endsAt: '2026-11-06T21:00:00.000Z' });
   // r-2 has ended, but you are still sharing on it and its live window is open.
-  assert.equal(at('2026-11-06T23:00:00.000Z', { rides: [ride(), other], sharingRideId: 'r-2' })?.id, 'r-2');
+  assert.equal(at('2026-11-06T23:00:00.000Z', { rides: [ride(), other], sharing: { rideId: 'r-2', meId: 'm-1' } })?.id, 'r-2');
   // Sharing on a ride whose window has closed doesn't count.
-  assert.equal(at('2026-11-08T01:00:00.000Z', { rides: [other], sharingRideId: 'r-2' }), null);
+  assert.equal(at('2026-11-08T01:00:00.000Z', { rides: [other], sharing: { rideId: 'r-2', meId: 'm-1' } }), null);
 });
 
 test('two at once (legs of a trip): the one that started last', () => {
@@ -69,4 +69,9 @@ test('two at once (legs of a trip): the one that started last', () => {
   const leg2 = ride({ id: 'leg-2', startsAt: '2026-11-06T23:00:00.000Z', endsAt: '2026-11-07T04:00:00.000Z' });
   assert.equal(at('2026-11-06T23:30:00.000Z', { rides: [leg1, leg2] })?.id, 'leg-2');
   assert.equal(at('2026-11-06T21:30:00.000Z', { rides: [leg1, leg2] })?.id, 'leg-1', 'leg 2 not yet within the hour');
+});
+
+test('a share saved on this phone by someone else (signed out, then another member signed in) is not yours', () => {
+  const other = ride({ id: 'r-2', category: 'north' });
+  assert.equal(at('2026-11-06T23:00:00.000Z', { rides: [other], sharing: { rideId: 'r-2', meId: 'm-someone-else' } }), null);
 });

@@ -87,9 +87,9 @@ const offAtMidnight = (ride: Ride, now: string) => {
 /** Home, right under the greeting while a ride of yours is under way (or you're sharing on one):
  *  one tap into the live ride. Jeff, 21 Nov 2026, on the Big 4. The rules are homeLiveRide. */
 export function HomeLiveRideCard() {
-  const { me, data } = useClub();
+  const { me, data, isDemo } = useClub();
   const navigation = useNavigation<NavigationProp<RootParams>>();
-  const [sharingRideId, setSharingRideId] = useState<string | null>(null);
+  const [saved, setSaved] = useState<{ rideId: string; meId: string } | null>(null);
   const [now, setNow] = useState(() => new Date().toISOString());
   // Look again each time Home comes back into view, and each minute while it's open, so the card
   // turns up at the meet-up and goes when the ride ends without a pull to refresh.
@@ -97,12 +97,14 @@ export function HomeLiveRideCard() {
     useCallback(() => {
       const look = () => {
         setNow(new Date().toISOString());
-        activeRide().then((a) => setSharingRideId(a?.rideId ?? null)).catch(() => undefined);
+        // The demo keeps its share in memory (as the live ride screen does), so a saved one isn't it.
+        if (isDemo) return;
+        activeRide().then((a) => setSaved(a ? { rideId: a.rideId, meId: a.meId } : null)).catch(() => undefined);
       };
       look();
       const t = setInterval(look, 60_000);
       return () => clearInterval(t);
-    }, []),
+    }, [isDemo]),
   );
   if (!me) return null;
   const ride = homeLiveRide({
@@ -111,10 +113,10 @@ export function HomeLiveRideCard() {
     rsvps: data.rsvps,
     categories: defaultCategories(me, data.chapters),
     now,
-    sharingRideId,
+    sharing: saved,
   });
   if (!ride) return null;
-  const sharing = sharingRideId === ride.id;
+  const sharing = saved?.meId === me.id && saved.rideId === ride.id;
   const leg = legLabel(ride.id, data);
   return (
     <Card style={{ borderColor: colors.redBright }}>
