@@ -23,17 +23,15 @@ import { sortedPositions } from '../ui/MemberBits';
 import { useFirstRun } from '../data/firstRun';
 import { useUnsavedGuard } from '../ui/useUnsavedGuard';
 import { hasChanges } from '../domain/dirty';
-import { formatCents, totalOwing } from '../domain/fees'; // Stage 4
+import { totalOwing } from '../domain/fees'; // Stage 4
 import { settleOpen } from '../domain/groupOpen';
 import { coverPanels, meGroups, standInPanels, type MeGroupId } from '../domain/meLayout';
 import { CoverPanels, StandInPanels } from './coverBits';
-import { seesReports } from '../domain/ledger'; // Stage 5B
 import { MeAdminSection } from './adminRows'; // Stage 5D
 import { MeAuditSection } from './audit'; // National Auditor
 import { asksToSign, currentRoadRules, myRoadRulesLine, needsSigning, roadRulesStatus } from '../domain/roadRules'; // Road Rules
 import { MAX_RANGE, MIN_RANGE, RANGE_LIMITS } from '../domain/fuel'; // Ride planning extras
 import { readRange } from './ridePlanning'; // Ride planning extras
-import { DocumentsMeRow } from './documents'; // Stage 5C
 import { BadgesCard } from './badges'; // Stage 7: badges
 import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
@@ -259,33 +257,9 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
               <>
                 {/* Road Rules sign-off: for everyone who's asked to sign */}
                 {asksToSign(me) ? <RoadRulesRow onOpen={() => navigation.navigate('RoadRules')} /> : null}
-                {/* Stage 5C: document library */}
-                <DocumentsMeRow />
                 <PrivacyPolicyRow />
                 <PostingRulesRow />
               </>
-            ) : null}
-
-            {g.id === 'fees' ? (
-              <Card style={{ padding: 0, gap: 0 }}>
-                <ListRow
-                  left={<IconBadge icon="cash-outline" tone={owing > 0 ? 'red' : 'steel'} />}
-                  title={owing > 0 ? `${formatCents(owing)} owing` : 'All paid up'}
-                  subtitle={me.onHiatus && owing === 0 ? 'On hiatus: no new fees while you’re away' : 'Charges, payments and receipts'}
-                  onPress={() => navigation.navigate('MemberFees', { memberId: me.id })}
-                  last={!seesReports(me)}
-                />
-                {/* Stage 5B: presented Treasurer's Reports (13.8) */}
-                {seesReports(me) ? (
-                  <ListRow
-                    last
-                    left={<IconBadge icon="document-text-outline" />}
-                    title="Club finances"
-                    subtitle="The Treasurer’s Report each month"
-                    onPress={() => navigation.navigate('ClubFinances')}
-                  />
-                ) : null}
-              </Card>
             ) : null}
 
             {g.id === 'settings' ? (

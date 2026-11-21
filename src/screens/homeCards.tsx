@@ -13,9 +13,11 @@ import { seesEveryChapter } from '../domain/access';
 import { homeNeedsYou } from '../domain/homeNeedsYou';
 import { seesReports } from '../domain/ledger';
 import { homeRoadRulesRow } from '../domain/roadRules';
+import { totalOwing } from '../domain/fees';
+import { feesButtonLine } from '../domain/meLayout';
 import { useAskClubOn } from './askClub';
 import { alertFix, expiryAlerts, type ExpiryAlert } from '../domain/profile';
-import { colors, radius, space, type } from '../theme';
+import { colors, fonts, radius, space, type } from '../theme';
 import { Card, H2, IconBadge, Ionicons, ListRow, Notice, type IconName } from '../ui/primitives';
 
 const nowInstant = () => new Date().toISOString();
@@ -78,6 +80,7 @@ export function QuickButtons() {
   const askOn = useAskClubOn();
   if (!me || me.approval !== 'approved') return null;
   const rules = homeRoadRulesRow(me, data, today);
+  const fees = feesButtonLine(totalOwing(me.id, data), me.onHiatus);
   const screenOf = (q: Quick) => (q.rules && rules?.opens === 'guide' ? 'RoadRulesGuide' : q.screen);
   return (
     <View style={styles.grid} accessibilityRole="toolbar" accessibilityLabel="Quick buttons">
@@ -89,10 +92,18 @@ export function QuickButtons() {
           onPress={() => navigation.navigate(screenOf(q), q.mine ? { memberId: me.id } : undefined)}
           style={({ pressed }) => [styles.tile, pressed && { backgroundColor: colors.steel }]}
         >
-          <Ionicons name={q.icon} size={22} color={colors.bone} />
-          <Text style={type.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
-            {q.label}
-          </Text>
+          <Ionicons name={q.icon} size={22} color={q.mine && fees.owing ? colors.redText : colors.bone} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={type.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+              {q.label}
+            </Text>
+            {/* What's owing, on the button itself (the old Fees group lower on Me is gone) */}
+            {q.mine ? (
+              <Text style={[styles.sub, { color: fees.owing ? colors.redText : colors.boneDim }]} numberOfLines={1}>
+                {fees.text}
+              </Text>
+            ) : null}
+          </View>
         </Pressable>
       ))}
     </View>
@@ -143,6 +154,7 @@ export function HomeReminders() {
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: space.lg, paddingBottom: space.sm },
+  sub: { fontFamily: fonts.stencil, fontSize: 12, lineHeight: 16, letterSpacing: 0.3 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   tile: {
     flexBasis: '48%',

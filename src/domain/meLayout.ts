@@ -20,7 +20,7 @@ import { BOARD_ROLES, ROLE_LABEL, ROLE_SHORT } from './labels';
 import { displayName } from './profile';
 import type { ActingRequest, ClubData, Member, Position } from './types';
 
-export type MeGroupId = 'year' | 'details' | 'social' | 'rules' | 'fees' | 'settings' | 'help' | 'online';
+export type MeGroupId = 'year' | 'details' | 'social' | 'rules' | 'settings' | 'help' | 'online';
 
 export type MeInput = {
   contacts: number;
@@ -33,17 +33,22 @@ export type MeInput = {
 
 export type MeGroup = { id: MeGroupId; title: string; summary: string; startsOpen: boolean };
 
+/** The second line on Me's My fees button: what is owing, or that you're square. */
+export function feesButtonLine(owingCents: number, onHiatus: boolean): { text: string; owing: boolean } {
+  if (owingCents > 0) return { text: `${formatCents(owingCents)} owing`, owing: true };
+  return { text: onHiatus ? 'On hiatus' : 'All paid up', owing: false };
+}
+
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function meGroups(m: MeInput): MeGroup[] {
-  const rules = m.roadRules ? `Road Rules: ${m.roadRules.text[0].toLowerCase()}${m.roadRules.text.slice(1)}` : 'Club documents and policies';
+  const rules = m.roadRules ? `Road Rules: ${m.roadRules.text[0].toLowerCase()}${m.roadRules.text.slice(1)}` : 'Club policies';
   const details =
     m.contacts === 0
       ? 'No emergency contact yet'
       : `${plural(m.contacts, 'emergency contact', 'emergency contacts')}, ${m.bikes === 0 ? 'no bikes' : plural(m.bikes, 'bike', 'bikes')}`;
-  const fees = m.owingCents > 0 ? `${formatCents(m.owingCents)} owing` : m.onHiatus ? 'On hiatus: no new fees' : 'All paid up';
+  // No fees group: My fees and Finances are quick buttons at the top of Me (Jeff, 21 Nov 2026: "drop the doubles").
   return [
-    { id: 'fees', title: 'Fees and club finances', summary: fees, startsOpen: m.owingCents > 0 },
     { id: 'details', title: 'My details', summary: details, startsOpen: m.contacts === 0 },
     { id: 'social', title: 'Social', summary: 'Your birthday shout-out and what you can help with', startsOpen: false },
     { id: 'rules', title: 'Rules and papers', summary: rules, startsOpen: m.roadRules?.urgent === true },
