@@ -133,6 +133,41 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
+      {/* Jeff, 21 Nov 2026: the ride calendar first, then the ride tools, then the colour filters. */}
+      {freshness?.stale ? <Notice tone="warn">{freshness.text}</Notice> : null}
+
+      {months.length === 0 ? (
+        <Notice title="No rides coming up.">
+          {anyComing ? 'Turn on more colours below to see other rides.' : 'New rides show up here once they’re on the club calendar or made in the app.'}
+        </Notice>
+      ) : null}
+
+      {months.map((g) => (
+        <Stack key={g.month} gap={space.sm}>
+          <SectionTitle title={g.month} />
+          <Card style={{ padding: 0, gap: 0 }}>
+            {g.rides.map((ride, i) => (
+              <RideRow
+                key={ride.id}
+                ride={ride}
+                going={rsvpCounts(ride.id, data.rsvps).going}
+                mine={data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null}
+                spot={spotOf(ride.id, me.id, data.crew)}
+                crewNeeded={showsCrewNeeded(me, ride, data, today)}
+                big4={isBig4(ride.id, data)}
+                call={activeCall(ride.id, data)}
+                charity={isCharityRide(ride.id, data)}
+                leg={legLabel(ride.id, data)}
+                last={i === g.rides.length - 1}
+                onPress={() => navigation.navigate('RideDetail', { rideId: ride.id })}
+              />
+            ))}
+          </Card>
+        </Stack>
+      ))}
+
+      {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
+
       {/* Family view: no route library or Rusty Bus for Family */}
       {me.approval === 'approved' && !isFamily(me) ? (
         <>
@@ -173,6 +208,8 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
         </>
       ) : null}
 
+
+      {/* Which colours the calendar above shows */}
       <View style={styles.filters} accessibilityLabel="Show rides by colour">
         {RIDE_CATEGORIES.map((c) => {
           const on = categories.includes(c);
@@ -217,39 +254,6 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
         </Row>
       ) : null}
 
-      {freshness?.stale ? <Notice tone="warn">{freshness.text}</Notice> : null}
-
-      {months.length === 0 ? (
-        <Notice title="No rides coming up.">
-          {anyComing ? 'Turn on more colours above to see other rides.' : 'New rides show up here once they’re on the club calendar or made in the app.'}
-        </Notice>
-      ) : null}
-
-      {months.map((g) => (
-        <Stack key={g.month} gap={space.sm}>
-          <SectionTitle title={g.month} />
-          <Card style={{ padding: 0, gap: 0 }}>
-            {g.rides.map((ride, i) => (
-              <RideRow
-                key={ride.id}
-                ride={ride}
-                going={rsvpCounts(ride.id, data.rsvps).going}
-                mine={data.rsvps.find((r) => r.rideId === ride.id && r.memberId === me.id)?.answer ?? null}
-                spot={spotOf(ride.id, me.id, data.crew)}
-                crewNeeded={showsCrewNeeded(me, ride, data, today)}
-                big4={isBig4(ride.id, data)}
-                call={activeCall(ride.id, data)}
-                charity={isCharityRide(ride.id, data)}
-                leg={legLabel(ride.id, data)}
-                last={i === g.rides.length - 1}
-                onPress={() => navigation.navigate('RideDetail', { rideId: ride.id })}
-              />
-            ))}
-          </Card>
-        </Stack>
-      ))}
-
-      {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
     </Screen>
   );
 }
