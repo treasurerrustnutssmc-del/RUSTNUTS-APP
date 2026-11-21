@@ -56,13 +56,12 @@ export function HomeNeedsYouCard() {
 
 type Quick = { key: string; icon: IconName; label: string; screen: string; mine?: boolean; reports?: boolean; ask?: boolean; rules?: boolean };
 
-// Jeff, 21 Nov 2026: "Make the home screen clean and simple." The Road Rules, Club business and Ask
-// the club used to be a card each on Home; they're buttons here now, beside the other everyday jobs.
+// Jeff, 21 Nov 2026: "Make the home screen clean and simple", then "Move this to the me page": the
+// quick buttons sit on Me now, with the Road Rules and Ask the club beside the other everyday jobs.
 const QUICK: Quick[] = [
   { key: 'fees', icon: 'wallet-outline', label: 'My fees', screen: 'MemberFees', mine: true },
   // The Treasurer's Reports and Club spending, for every member who can read them (not Family or Legacy).
   { key: 'finances', icon: 'stats-chart-outline', label: 'Finances', screen: 'ClubFinances', reports: true },
-  { key: 'meetings', icon: 'hammer-outline', label: 'Meetings', screen: 'Business' },
   // The illustrated draft until the NEC publishes, then the version you sign.
   { key: 'rules', icon: 'document-text-outline', label: 'Road Rules', screen: 'RoadRules', rules: true },
   { key: 'bus', icon: 'bus-outline', label: 'Rusty Bus', screen: 'Bus' },
@@ -72,8 +71,8 @@ const QUICK: Quick[] = [
   { key: 'feedback', icon: 'megaphone-outline', label: 'Tell us', screen: 'Feedback' },
 ];
 
-/** The everyday jobs that aren't a tab already: one tap from Home. */
-export function HomeQuickActions() {
+/** The everyday jobs that aren't a tab already: one tap each, on Me. */
+export function QuickButtons() {
   const { me, data, today } = useClub();
   const navigation = useNavigation<Nav>();
   const askOn = useAskClubOn();

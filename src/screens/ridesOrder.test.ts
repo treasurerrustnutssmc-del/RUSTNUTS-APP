@@ -13,14 +13,15 @@ const at = (s: string) => {
   return i;
 };
 
-test('Rides: the calendar first, then the ride tools, then the colour filters and legend', () => {
+// Then (same evening): "Swap the ride tools and the calendar tags around": the colour tags sit straight under the calendar.
+test('Rides: the calendar first, then the colour filters and legend, then the ride tools', () => {
   const calendar = at('{months.map((g)');
   const tools = at('<Disclosure title={RIDE_TOOLS.title}');
   const newRide = at('title="New ride"');
   const filters = at('accessibilityLabel="Show rides by colour"');
   const legend = at('{rideColourLegend()}');
-  assert.ok(calendar < newRide && calendar < tools, 'calendar before the tools');
-  assert.ok(tools < filters && filters < legend, 'tools, then the filters and their legend');
-  assert.ok(at('No rides coming up.') < tools, 'the empty calendar note sits where the calendar is');
-  assert.match(screen, /Turn on more colours below/);
+  assert.ok(calendar < filters && filters < legend, 'calendar, then the filters and their legend');
+  assert.ok(legend < newRide && legend < tools, 'the ride tools last');
+  assert.ok(at('No rides coming up.') < filters, 'the empty calendar note sits where the calendar is');
+  assert.match(screen, /Turn on more colours just below/);
 });

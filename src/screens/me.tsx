@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
+import { businessFor } from '../domain/business';
+import { QuickButtons } from './homeCards';
 import { compassFor } from '../domain/compass';
 import { dateHintWith, formatAuDate, parseAuDate, describeExpiry, typeDate } from '../domain/dates';
 import { positionTitles, roleChipTexts } from '../domain/home';
@@ -96,6 +98,7 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
   const until = titles.find((t) => t.until)?.until;
   const owing = totalOwing(me.id, data);
   const rulesStatus = roadRulesStatus(me, data, today);
+  const business = businessFor(me, data, new Date().toISOString());
   const groups = meGroups({
     contacts: contacts.length,
     bikes: bikes.length,
@@ -163,6 +166,21 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
             title="Membership card"
             subtitle="Show it at club events"
             onPress={() => navigation.navigate('MembershipCard')}
+          />
+        </Card>
+      ) : null}
+      {/* The everyday jobs, moved here from Home (Jeff, 21 Nov 2026: "Move this to the me page") */}
+      <QuickButtons />
+      {/* Stage 5: meetings and votes, with what's waiting */}
+      {business.summary ? (
+        <Card style={{ padding: 0, gap: 0 }}>
+          <ListRow
+            left={<IconBadge icon="hammer" />}
+            title="Club business"
+            subtitle={business.summary}
+            onPress={() => navigation.navigate('Business')}
+            last
+            lines="all"
           />
         </Card>
       ) : null}

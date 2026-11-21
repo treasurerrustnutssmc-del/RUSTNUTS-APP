@@ -30,7 +30,7 @@ import { canSeeFees } from '../domain/fees';
 import { AttendanceSummary, HomeCheckinCard } from './checkin';
 import { StandingCard } from './attendance';
 import { termEndsOn, termState } from '../domain/terms';
-import { HomeNeedsYouCard, HomeQuickActions, HomeReminders } from './homeCards';
+import { HomeNeedsYouCard, HomeReminders } from './homeCards';
 import { HomeLiveRideCard } from './liveRide';
 import { IntroProgressCard } from './fng';
 // Stage 7: social extras
@@ -225,8 +225,6 @@ export function HomeScreen({ navigation }: TabScreen<'Home'>) {
       <HomeCheckinCard />
       {/* The next ride, so it is one tap from opening the app */}
       <HomeNextRideCard onOpen={(rideId) => navigation.navigate('RideDetail', { rideId })} />
-      {/* The everyday jobs that aren't a tab */}
-      <HomeQuickActions />
       {/* Stage 7: birthdays and patch anniversaries this week */}
       <HomeShoutoutsCard />
       <HomeOnThisDayCard />

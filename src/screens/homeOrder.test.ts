@@ -16,15 +16,15 @@ const at = (s: string) => {
 
 test('Needs you comes before every other card but a live ride', () => {
   const needs = at('<HomeNeedsYouCard');
-  for (const s of ['<CoverPanels', '<FirstRunCard', '<HomeNextRideCard', '<HomeCheckinCard', '<HomeQuickActions']) {
+  for (const s of ['<CoverPanels', '<FirstRunCard', '<HomeNextRideCard', '<HomeCheckinCard']) {
     assert.ok(needs < at(s), `Needs you before ${s}`);
   }
   assert.ok(at('</Flannel>') < needs, 'after the greeting');
 });
 
-test('check-in, the ride and quick buttons come before the social cards', () => {
+test('check-in and the ride come before the social cards', () => {
   // On the day, I'm here and Confirm sit above the next ride (PR #192).
-  const urgent = [at('<HomeCheckinCard'), at('<HomeNextRideCard'), at('<HomeQuickActions')];
+  const urgent = [at('<HomeCheckinCard'), at('<HomeNextRideCard')];
   assert.deepEqual([...urgent].sort((a, b) => a - b), urgent);
   const social = Math.min(at('<HomeShoutoutsCard'), at('<HomeOnThisDayCard'), at('<HomeNewsCard'));
   assert.ok(Math.max(...urgent) < social);
@@ -32,7 +32,7 @@ test('check-in, the ride and quick buttons come before the social cards', () => 
 
 test('rego, licence and first aid reminders sit at the bottom, after everything else', () => {
   const reminders = at('<HomeReminders');
-  for (const s of ['<HomeNewsCard', '<HomeQuickActions']) {
+  for (const s of ['<HomeNewsCard', '<HomeNextRideCard']) {
     assert.ok(at(s) < reminders, `${s} before the reminders`);
   }
   assert.ok(!home.includes('{myAlerts.map'), 'no expiry boxes higher up');
@@ -59,10 +59,23 @@ test('clean Home: no one-row cards for the Road Rules, Club business or Ask the 
   }
 });
 
-test('they are quick buttons instead, one tap each', () => {
-  assert.match(cards, /label: 'Meetings', screen: 'Business'/);
+// Jeff, 21 Nov 2026 (photo of the quick buttons, Road Rules and Club business): "Move this to the me page".
+const meSrc = fs.readFileSync(path.resolve(import.meta.dirname, 'me.tsx'), 'utf8');
+const meScreen = meSrc.slice(meSrc.indexOf('export function MeScreen'));
+
+test('the quick buttons live on Me now, not Home', () => {
+  assert.ok(!home.includes('QuickButtons'), 'off Home');
+  assert.ok(meScreen.includes('<QuickButtons'), 'on Me');
   assert.match(cards, /label: 'Road Rules'/);
   assert.match(cards, /label: 'Ask the club', screen: 'AskClub'/);
+  for (const label of ['My fees', 'Finances', 'Rusty Bus', 'Documents', 'Tell us']) assert.ok(cards.includes(`label: '${label}'`), label);
+});
+
+test('Club business, with its summary, sits under the quick buttons on Me', () => {
+  const quick = meScreen.indexOf('<QuickButtons');
+  const business = meScreen.indexOf('title="Club business"');
+  assert.ok(quick >= 0 && business > quick, 'under the quick buttons');
+  assert.match(meScreen, /businessFor\(/);
 });
 
 test('the club in numbers lives on the Members tab now', () => {

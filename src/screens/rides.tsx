@@ -133,12 +133,12 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
 
   return (
     <Screen onRefresh={isDemo ? undefined : refresh}>
-      {/* Jeff, 21 Nov 2026: the ride calendar first, then the ride tools, then the colour filters. */}
+      {/* Jeff, 21 Nov 2026: the ride calendar first, then the colour filters under it, then the ride tools. */}
       {freshness?.stale ? <Notice tone="warn">{freshness.text}</Notice> : null}
 
       {months.length === 0 ? (
         <Notice title="No rides coming up.">
-          {anyComing ? 'Turn on more colours below to see other rides.' : 'New rides show up here once they’re on the club calendar or made in the app.'}
+          {anyComing ? 'Turn on more colours just below to see other rides.' : 'New rides show up here once they’re on the club calendar or made in the app.'}
         </Notice>
       ) : null}
 
@@ -167,47 +167,6 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
       ))}
 
       {freshness && !freshness.stale ? <Small style={{ textAlign: 'center' }}>{freshness.text}</Small> : null}
-
-      {/* Family view: no route library or Rusty Bus for Family */}
-      {me.approval === 'approved' && !isFamily(me) ? (
-        <>
-          {/* Rides made in the app: for the people who run them */}
-          {managesAnyCategory(me, data) ? (
-            <Card style={{ padding: 0, gap: 0 }}>
-              <ListRow
-                last
-                left={<IconBadge icon="add-circle-outline" tone="red" />}
-                title="New ride"
-                subtitle={<Text style={styles.metaTime}>Put a ride on, for members and the website</Text>}
-                onPress={() => navigation.navigate('EditRide')}
-              />
-            </Card>
-          ) : null}
-          <Disclosure title={RIDE_TOOLS.title} summary={RIDE_TOOLS.summary} open={toolsOpen} onToggle={() => setToolsOpen((o) => !o)}>
-            <Card style={{ padding: 0, gap: 0 }}>
-              <ListRow
-                left={<IconBadge icon="map-outline" />}
-                title="Route library"
-                subtitle={
-                  <Text style={styles.metaTime}>
-                    {routeCount === 0 ? 'GPX routes for OsmAnd and MyRoute' : `${routeCount} ${routeCount === 1 ? 'route' : 'routes'} for OsmAnd and MyRoute`}
-                  </Text>
-                }
-                onPress={() => navigation.navigate('Routes')}
-              />
-              {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
-              <ListRow
-                left={<IconBadge icon="bus-outline" />}
-                title="Rusty Bus"
-                subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
-                onPress={() => navigation.navigate('Bus')}
-              />
-              <OtherClubsRow last />
-            </Card>
-          </Disclosure>
-        </>
-      ) : null}
-
 
       {/* Which colours the calendar above shows */}
       <View style={styles.filters} accessibilityLabel="Show rides by colour">
@@ -254,6 +213,46 @@ export function RidesScreen({ navigation }: TabScreen<'Rides'>) {
         </Row>
       ) : null}
 
+
+      {/* Family view: no route library or Rusty Bus for Family */}
+      {me.approval === 'approved' && !isFamily(me) ? (
+        <>
+          {/* Rides made in the app: for the people who run them */}
+          {managesAnyCategory(me, data) ? (
+            <Card style={{ padding: 0, gap: 0 }}>
+              <ListRow
+                last
+                left={<IconBadge icon="add-circle-outline" tone="red" />}
+                title="New ride"
+                subtitle={<Text style={styles.metaTime}>Put a ride on, for members and the website</Text>}
+                onPress={() => navigation.navigate('EditRide')}
+              />
+            </Card>
+          ) : null}
+          <Disclosure title={RIDE_TOOLS.title} summary={RIDE_TOOLS.summary} open={toolsOpen} onToggle={() => setToolsOpen((o) => !o)}>
+            <Card style={{ padding: 0, gap: 0 }}>
+              <ListRow
+                left={<IconBadge icon="map-outline" />}
+                title="Route library"
+                subtitle={
+                  <Text style={styles.metaTime}>
+                    {routeCount === 0 ? 'GPX routes for OsmAnd and MyRoute' : `${routeCount} ${routeCount === 1 ? 'route' : 'routes'} for OsmAnd and MyRoute`}
+                  </Text>
+                }
+                onPress={() => navigation.navigate('Routes')}
+              />
+              {/* The Rusty Bus: free or out today, and for the board, how many are waiting for a yes. */}
+              <ListRow
+                left={<IconBadge icon="bus-outline" />}
+                title="Rusty Bus"
+                subtitle={<Text style={styles.metaTime}>{busRowLine(me, data, today)}</Text>}
+                onPress={() => navigation.navigate('Bus')}
+              />
+              <OtherClubsRow last />
+            </Card>
+          </Disclosure>
+        </>
+      ) : null}
     </Screen>
   );
 }
