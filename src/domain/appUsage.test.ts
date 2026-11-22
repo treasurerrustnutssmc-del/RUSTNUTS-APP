@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   JOURNEYS,
+  startsNewVisit,
   USAGE_BATCH_MAX,
   USAGE_QUEUE_MAX,
   UsageQueue,
@@ -151,4 +152,20 @@ test('every journey step is a real route name', () => {
     assert.ok(j.steps.length >= 2, j.id);
     for (const s of j.steps) assert.equal(cleanUsageName(s), s);
   }
+});
+
+// Weekly note, 22 Nov 2026: 3 visits reached Sign in and none reached Home. Signing in used to start a new
+// visit (to keep two people on one phone apart), so the Sign in → Home journey could never finish in one
+// visit. A visit now carries on from signed out into signing in, and only a sign-out or a switch of
+// person starts a new one.
+test('signing in carries the visit on; signing out or switching person starts a new one', () => {
+  // The first argument is the last person signed in this visit (null if nobody yet).
+  assert.equal(startsNewVisit(null, 'm-1'), false, 'signing in');
+  assert.equal(startsNewVisit(null, 'applying'), false, 'asking to join');
+  assert.equal(startsNewVisit(null, 'load-error'), false, 'a load error');
+  assert.equal(startsNewVisit('m-1', 'load-error'), false, 'a load error is not a sign-out');
+  assert.equal(startsNewVisit('m-1', 'm-1'), false, 'same person, after a load error');
+  assert.equal(startsNewVisit('m-1', 'signed-out'), true, 'signing out');
+  assert.equal(startsNewVisit('m-1', 'applying'), true, 'signed out, then a new email asks to join');
+  assert.equal(startsNewVisit('m-1', 'm-2'), true, 'someone else');
 });
