@@ -8,6 +8,7 @@ import React, { useEffect, useRef } from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usageNewVisit, usageScreenChanged, usageScreenReader, useUsageSender } from '../data/usage';
+import { startsNewVisit } from '../domain/appUsage';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { pendingFor } from '../domain/access';
@@ -299,13 +300,16 @@ export function RootNavigator() {
   const stackKey = loadError ? 'load-error' : me?.id ?? (needsApplication ? 'applying' : 'signed-out');
   const toastScreenChange = useToastScreenChange();
   useUsageSender();
-  // App usage: a new visit when someone else signs in, so two people on one phone stay apart.
-  const firstKey = useRef(stackKey);
+  // App usage: signing in carries the visit on; a sign-out or someone else starts a new one, so two
+  // people on one phone stay apart.
+  const lastPerson = useRef<string | null>(null);
   useEffect(() => {
-    if (firstKey.current === stackKey) return;
-    firstKey.current = stackKey;
-    usageNewVisit();
-  }, [stackKey]);
+    if (startsNewVisit(lastPerson.current, stackKey)) {
+      usageNewVisit();
+      lastPerson.current = null;
+    }
+    if (me?.id) lastPerson.current = me.id;
+  }, [stackKey, me?.id]);
   return (
     <NavigationContainer
       ref={navigationRef}

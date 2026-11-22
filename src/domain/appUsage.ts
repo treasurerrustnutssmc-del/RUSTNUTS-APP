@@ -158,6 +158,21 @@ export interface Journey {
   steps: string[];
 }
 
+/** Keys the app's navigator uses when nobody is signed in to a member record yet. */
+const NOT_A_PERSON = new Set(['signed-out', 'applying', 'load-error']);
+
+/**
+ * Whether the navigator moving to `nextKey` starts a new usage visit. `lastPerson` is the member last
+ * signed in during this visit (null if nobody yet). Signing in carries the visit on, so the Sign in →
+ * Home journey can finish in one visit; signing out, or a different person, starts a new one so two
+ * people on one phone stay apart. A load error is neither.
+ */
+export function startsNewVisit(lastPerson: string | null, nextKey: string): boolean {
+  if (lastPerson === null || nextKey === 'load-error') return false;
+  if (NOT_A_PERSON.has(nextKey)) return true;
+  return nextKey !== lastPerson;
+}
+
 /** The jobs worth finishing, as screens in order. The last step reached means it got done. */
 export const JOURNEYS: Journey[] = [
   { id: 'sign-in', label: 'Sign in', steps: ['SignIn', 'Home'] },
