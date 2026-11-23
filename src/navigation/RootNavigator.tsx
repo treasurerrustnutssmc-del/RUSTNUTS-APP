@@ -52,6 +52,7 @@ import {
 import { ClubSpendingScreen } from '../screens/clubSpending';
 import { BudgetScreen, ClubFinancesScreen, LedgerEntryScreen, LedgerScreen, MonthReportScreen, NewEntryScreen, TreasuryScreen } from '../screens/treasury';
 import { MeetingReportScreen } from '../screens/meetingReport';
+import { BoardFilesScreen, BoardFolderScreen } from '../screens/boardFiles';
 // Lane E: ride comms
 import { OnAirBar } from '../screens/rideComms';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
@@ -494,6 +495,8 @@ export function RootNavigator() {
             <Stack.Screen name="NewEntry" component={NewEntryScreen} options={{ title: 'New entry' }} />
             <Stack.Screen name="MonthReport" component={MonthReportScreen} options={{ title: 'Treasurer’s Report' }} />
             <Stack.Screen name="MeetingReport" component={MeetingReportScreen} options={{ title: 'Report for a meeting' }} />
+            <Stack.Screen name="BoardFiles" component={BoardFilesScreen} options={{ title: 'Board files' }} />
+            <Stack.Screen name="BoardFolder" component={BoardFolderScreen} options={{ title: 'Folder' }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ title: 'Budget' }} />
             <Stack.Screen name="ClubFinances" component={ClubFinancesScreen} options={{ title: 'Club finances' }} />
             <Stack.Screen name="ClubSpending" component={ClubSpendingScreen} options={{ title: 'Club spending' }} />

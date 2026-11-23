@@ -184,6 +184,8 @@ export type RootParams = {
   AuditReport: { reportId?: string } | undefined;
   // Stage 5C: document library. `version` opens that version instead of the one in force.
   Documents: undefined;
+  BoardFiles: undefined;
+  BoardFolder: { chapterId: string | null; role: PositionRole | null };
   Document: { id: string; version?: string };
   NewDocument: undefined;
   PublishDocument: { id: string };

@@ -17,6 +17,7 @@ import { bindDemoLive } from './liveRideSource';
 import * as s4 from './demoStage4';
 import * as attendanceRules from './demoAttendance';
 import * as ledger from './ledgerActions';
+import * as boardFiles from './boardFileActions';
 import * as admin from './adminActions'; // Stage 5D
 import * as docs from './documentActions';
 import { forFamily } from './familyData'; // Family view
@@ -283,6 +284,13 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     attachMeetingReportPdf: async (id, file) => setData(ledger.attachMeetingReportPdf(ctx, id, file)),
     removeMeetingReportPdf: async (id) => setData(ledger.removeMeetingReportPdf(ctx, id)),
     meetingReportPdfUrl: async (path) => path, // the demo keeps the picked file's own address
+    addBoardFile: async (folder, file) => {
+      const result = boardFiles.addBoardFile(ctx, folder, file);
+      setData(result.data);
+      return result.id;
+    },
+    removeBoardFile: async (id) => setData(boardFiles.removeBoardFile(ctx, id)),
+    boardFileUrl: async (path) => boardFiles.demoBoardFileUrl(path),
     // Stage 5D: board and admin
     recordConduct: async (input) => {
       const result = admin.recordConduct(ctx, input);

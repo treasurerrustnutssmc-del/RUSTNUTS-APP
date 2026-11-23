@@ -323,7 +323,7 @@ const PLANNED = [
 /** Every other date path in the data: things that have happened, never after now. Listed by hand. */
 const HAPPENED = [
   'actionItems.doneOn', 'attendance.checkedInAt', 'auditReports.fromOn', 'auditReports.issuedAt', 'auditReports.savedAt',
-  'auditReports.toOn', 'auditRequests.answeredAt', 'auditRequests.raisedAt', 'big4Rides.designatedAt', 'briefingReads.readAt',
+  'auditReports.toOn', 'auditRequests.answeredAt', 'auditRequests.raisedAt', 'big4Rides.designatedAt', 'boardFiles.addedAt', 'briefingReads.readAt',
   'briefings.updatedAt', 'budgets.updatedAt', 'busBookings.bookedAt', 'busBookings.decidedAt', 'busCosts.loggedAt',
   'busCosts.spentOn', 'busCosts.struckAt', 'busKeys.loggedAt', 'busKm.loggedAt', 'busKm.readOn', 'busKm.struckAt',
   'chapterProposals.proposedAt', 'charges.createdAt', 'charges.waivedAt', 'charityRides.updatedAt', 'charitySignups.signedAt',
@@ -365,10 +365,10 @@ const eachDate = (data: ClubData, visit: (key: string, value: string) => void) =
   walk(data, []);
 };
 
-test('the two lists of date paths are the 100 in the data, each once', () => {
+test('the two lists of date paths are the 101 in the data, each once', () => {
   assert.equal(PLANNED.length, 16);
   assert.equal(new Set([...PLANNED, ...HAPPENED]).size, PLANNED.length + HAPPENED.length);
-  assert.equal(PLANNED.length + HAPPENED.length, 100);
+  assert.equal(PLANNED.length + HAPPENED.length, 101);
   // The lists are the date paths the data really has: none missing, none left over.
   const found = new Set<string>();
   for (const instant of INSTANTS) eachDate(builtFor(instant), (key) => found.add(key));

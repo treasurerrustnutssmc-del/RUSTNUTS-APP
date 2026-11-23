@@ -335,6 +335,8 @@ export interface RosterTally {
 export interface ClubData extends LedgerData, AdminData, AuditData, ShopData {
   chapters: Chapter[];
   members: Member[];
+  /** Board files: each seat's folder and Club info (spec 2026-11-24-board-files-design.md). Board and NEC only. */
+  boardFiles?: BoardFile[];
   /** Roster places not yet claimed (live mode only). Missing means none. */
   unclaimedRoster?: RosterTally[];
   privates: MemberPrivate[];
@@ -1552,4 +1554,21 @@ export interface ShopData {
   shopRunners?: ShopRunner[];
   /** Orders the viewer may see. Missing means none. */
   shopOrders?: ShopOrder[];
+}
+
+/**
+ * A file in Board files. The folder is the seat (chapter and role), so a new office holder finds it:
+ * no chapter and no role is Club info; no chapter with a role is a national seat.
+ */
+export interface BoardFile {
+  id: string;
+  chapterId: string | null;
+  role: PositionRole | null;
+  /** Where it is in the board-files bucket (the demo keeps the picked file's own address). */
+  path: string;
+  name: string;
+  sizeBytes: number | null;
+  /** Null once whoever added it has left the app. */
+  addedBy: string | null;
+  addedAt: string;
 }

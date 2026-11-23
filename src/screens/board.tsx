@@ -39,6 +39,7 @@ import { TreasuryRow } from './treasury';
 import { BoardAdminCard } from './adminRows'; // Stage 5D
 import { BoardAuditRow } from './audit'; // National Auditor
 import { DocumentsBoardRow } from './documents'; // Stage 5C
+import { BoardFilesRow } from './boardFiles'; // Board files
 import { WebsiteAppRow } from './websiteApp'; // Website and app, its own page
 import { seesAnyLedger } from '../domain/ledger';
 import { IntroProgressCard, VotesFields } from './fng';
@@ -274,6 +275,7 @@ export function BoardScreen({ navigation, route }: TabScreen<'Board'>) {
           conduct, merch, National, and the website and app on their own page */}
       <Card style={{ padding: 0, gap: 0 }}>
         <DocumentsBoardRow />
+        <BoardFilesRow />
         <BoardAuditRow bare />
         <BoardAdminCard bare />
         <WebsiteAppRow last />
