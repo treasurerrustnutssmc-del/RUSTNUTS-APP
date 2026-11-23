@@ -12,7 +12,7 @@ import * as charity from './charityActions'; // Charity ride sign-ups
 import * as rides from './rideActions'; // Rides made in the app
 import * as busExtras from './busExtrasActions'; // Rusty Bus extras
 import * as act from './demoActions';
-import { buildDemoData, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
+import { buildDemoData, DEMO_ROUTE_GPX, demoTodayClubRide, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
 import * as s4 from './demoStage4';
 import * as attendanceRules from './demoAttendance';
@@ -33,7 +33,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   const [raw, setData] = useState<ClubData>(() => {
     // The session returns the same instant on every call, so both seeds see one moment.
     const club = buildDemoData(demoSession.now());
-    return { ...club, rides: [...club.rides, demoTodayRide(demoSession.now())] };
+    // Ride comms bubbles: and a second one, so two rides' comms can be on at once.
+    return { ...club, rides: [...club.rides, demoTodayRide(demoSession.now()), demoTodayClubRide(demoSession.now())] };
   });
   // Store review demo: the reviewers arrive signed in, as a Full member.
   const reviewing = appMode.reviewing();

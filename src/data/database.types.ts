@@ -925,6 +925,9 @@ export type Database = {
       sign_document: { Args: { p_version: string }; Returns: undefined };
       // Lane E: live ride
       start_live_ride: { Args: { p_ride: string }; Returns: string };
+      // Ride comms bubbles
+      ride_comms_here: { Args: { p_ride: string; p_here: boolean }; Returns: undefined };
+      ride_comms_counts: { Args: never; Returns: { ride_id: string; connected: number }[] };
       live_ride_state: { Args: { p_ride: string }; Returns: LiveStateJson };
       update_live_position: {
         Args: { p_ride: string; p_lat: number; p_lng: number; p_accuracy: number | null; p_heading: number | null; p_speed: number | null };
