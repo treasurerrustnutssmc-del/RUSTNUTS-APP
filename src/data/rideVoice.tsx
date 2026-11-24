@@ -16,6 +16,8 @@ import { useClub } from './ClubStore';
 import { rideCommsNative } from './rideCommsNative';
 import type { Call } from './rideVoiceLive';
 import { supabase } from './supabase';
+// Ride comms bubbles: the club hears who's on each ride's comms.
+import { sayOnComms } from './commsBubblesData';
 
 export interface RideVoiceValue {
   /** 'live' on a phone build with LiveKit, 'demo' in the demo, otherwise why it can't work here. */
@@ -111,6 +113,12 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
   const generation = useRef(0);
   // A cancelled connect still finishing; the next one waits for it, so its hang-up can't cut the new call's audio.
   const settling = useRef<Promise<void> | null>(null);
+  // The ride the club's been told this phone is on (live calls only), so leaving tells it too.
+  const toldOnAir = useRef<string | null>(null);
+  const tellLeft = () => {
+    if (toldOnAir.current) sayOnComms(toldOnAir.current, false);
+    toldOnAir.current = null;
+  };
 
   const endNative = () => {
     try {
@@ -126,6 +134,7 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
     const c = call.current;
     call.current = null;
     endNative();
+    tellLeft();
     setState('idle');
     setRideId(null);
     setPeople([]);
@@ -238,6 +247,7 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
               if (s === 'failed') {
                 call.current = null;
                 endNative();
+                tellLeft();
               }
             },
             onPeople: (ps) => !cancelled() && setPeople(ps),
@@ -247,6 +257,8 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           call.current = joined;
+          toldOnAir.current = id;
+          sayOnComms(id, true);
           // A choice made while it was connecting.
           joined.setNoiseFilter?.(noiseFilterNow.current);
         }
@@ -284,6 +296,13 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, [state, setMuted]);
 
+  // Still on: tell the club each minute, so the bubbles' counts hold even if a sweep is missed.
+  useEffect(() => {
+    if (mode !== 'live' || state !== 'connected' || !rideId) return;
+    const timer = setInterval(() => sayOnComms(rideId, true), 60_000);
+    return () => clearInterval(timer);
+  }, [mode, state, rideId]);
+
   // Ends itself when the ride's live window closes, the ride's called off, or the rider signs out.
   const ride = rideId ? data.rides.find((r) => r.id === rideId) : undefined;
   useEffect(() => {
@@ -303,6 +322,7 @@ export function RideVoiceProvider({ children }: { children: React.ReactNode }) {
       void call.current?.hangUp();
       call.current = null;
       endNative();
+      tellLeft();
     },
     [],
   );

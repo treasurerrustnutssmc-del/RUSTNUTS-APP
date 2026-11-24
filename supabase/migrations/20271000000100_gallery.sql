@@ -3,7 +3,7 @@
 -- crew or the NEC can approve them onto the public website. Photos and ride walls now show these
 -- beside the chat photos. Same rules and words as src/domain/gallery.ts, in the same order
 -- (checked by supabase/tests/gallery_test.sql).
--- Spec: docs/superpowers/specs/2026-11-23-club-gallery-design.md. Needs 20270970000000_gallery_kind.sql,
+-- Spec: docs/superpowers/specs/2026-11-23-club-gallery-design.md. Needs 20271000000000_gallery_kind.sql,
 -- the chat, website photos (site_photos) and storage purge migrations.
 
 -- ---------------------------------------------------------------------------------------------

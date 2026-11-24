@@ -125,7 +125,7 @@ export interface PublicSitePhotoRow {
   height: number;
   caption: string | null;
   taken_at: string;
-  /** The gallery (20270970000100): videos, their Cloudflare addresses, and the album. */
+  /** The gallery (20271000000100): videos, their Cloudflare addresses, and the album. */
   kind?: 'photo' | 'video';
   video_url?: string | null;
   poster_url?: string | null;

@@ -2,7 +2,7 @@
 // applies the same rules the database enforces (checked by src/data/parity.test.ts).
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { canSeeReport, type MessageMedia } from '../../domain/chat';
+import { canSeeReport, withParent, type MessageMedia } from '../../domain/chat';
 import type { ClubData } from '../../domain/types';
 import { NotAllowedError, useClub } from '../clubContext';
 import { addProblem as galleryAddProblem, albumChoices, approveProblem, removeProblem as galleryRemoveProblem, waitsForWebsite, type GalleryItem } from '../../domain/gallery';
@@ -65,7 +65,7 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
     unreadTotal: list.reduce((sum, s) => sum + s.unread, 0),
     blocks: myBlocks,
     reportedMessageIds,
-    conversation: (chatId) => chat.conversations.find((c) => c.id === chatId),
+    conversation: (chatId) => withParent(chat.conversations.find((c) => c.id === chatId), chat.conversations),
     messages: (chatId) =>
       withoutBlocked(chat.messages.filter((m) => m.conversationId === chatId), chat.blocks, me?.id ?? null).filter((m) => !reportedMessageIds.includes(m.id)),
     hasOlder: () => false,
@@ -93,6 +93,14 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
     renameGroup: async (chatId, name) => setChat(act.renameGroup(ctx(), chatId, name)),
     removeFromGroup: async (chatId, memberId) => setChat(act.removeFromGroup(ctx(), chatId, memberId)),
     leaveGroup: async (chatId) => setChat(act.leaveGroup(ctx(), chatId)),
+    startTopic: async (chatId, name) => {
+      const result = act.startTopic(ctx(), chatId, name);
+      setChat(result.chat);
+      return result.id;
+    },
+    renameTopic: async (chatId, name) => setChat(act.renameTopic(ctx(), chatId, name)),
+    closeTopic: async (chatId) => setChat(act.closeTopic(ctx(), chatId)),
+    reopenTopic: async (chatId) => setChat(act.reopenTopic(ctx(), chatId)),
     rideChat: async (rideId) => {
       const result = act.rideChat(ctx(), rideId);
       setChat(result.chat);
@@ -101,7 +109,7 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
     reports: async () =>
       chat.reports.flatMap((r): ReportView[] => {
         const message = chat.messages.find((m) => m.id === r.messageId);
-        const conversation = message && chat.conversations.find((c) => c.id === message.conversationId);
+        const conversation = message && withParent(chat.conversations.find((c) => c.id === message.conversationId), chat.conversations);
         const reporter = club.members.find((m) => m.id === r.reporterId);
         if (r.resolvedAt || !message || !conversation || !canSeeReport(me, conversation, reporter, club)) return [];
         return [{

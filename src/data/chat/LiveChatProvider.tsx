@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { addProblem as galleryAddProblem, GALLERY_FOLDER } from '../../domain/gallery';
-import { chatTitle, postProblem, type Block, type Conversation, type Message } from '../../domain/chat';
+import { chatTitle, postProblem, withParent, type Block, type Conversation, type Message } from '../../domain/chat';
 import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
 import {
@@ -49,6 +49,8 @@ const URL_KEEP_MS = 4 * 60_000;
 // A link that got no answer (a dropped connection, a slow site) is tried again after this long.
 const PREVIEW_RETRY_MS = 10 * 60_000;
 const CONVERSATION_FIELDS = 'id, kind, chapter_id, ride_id, committee, pinned_message_id, conversation_members(member_id)';
+// From the chat topics paste on, a chat opened before the list arrives (from a push) also needs these.
+const TOPIC_FIELDS = `${CONVERSATION_FIELDS}, name, created_by, parent_id, closed_at, closed_by`;
 
 // The chat tables and actions aren't in the generated types yet, so they go through an untyped client.
 const db = () => supabase() as unknown as SupabaseClient;
@@ -119,7 +121,9 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadConversation = useCallback(async (chatId: string) => {
-    const { data, error } = await db().from('conversations').select(CONVERSATION_FIELDS).eq('id', chatId).maybeSingle();
+    let { data, error } = await db().from('conversations').select(TOPIC_FIELDS).eq('id', chatId).maybeSingle();
+    // Before the topics paste those columns aren't there yet.
+    if (error) ({ data, error } = await db().from('conversations').select(CONVERSATION_FIELDS).eq('id', chatId).maybeSingle());
     if (error || !data) return;
     const row = data as ChatJson & { conversation_members: { member_id: string }[] };
     setExtra((x) => ({ ...x, [chatId]: toConversation({ ...row, member_ids: row.conversation_members.map((m) => m.member_id) }) }));
@@ -178,11 +182,16 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, [meId, loadList, loadPage, markRead]);
 
-  const list = useMemo(
-    () => sortSummaries(rawList.map((s) => ({ ...s, title: chatTitle(s.conversation, me, club, s.ride) }))),
-    [rawList, me, club],
-  );
-  const conversation = (chatId: string) => list.find((s) => s.conversation.id === chatId)?.conversation ?? extra[chatId];
+  const list = useMemo(() => {
+    // A topic comes with its chat, so the rules can look through it.
+    const all = rawList.map((s) => s.conversation);
+    return sortSummaries(rawList.map((s) => {
+      const conversation = withParent(s.conversation, all)!;
+      return { ...s, conversation, title: chatTitle(conversation, me, club, s.ride) };
+    }));
+  }, [rawList, me, club]);
+  const conversation = (chatId: string) =>
+    list.find((s) => s.conversation.id === chatId)?.conversation ?? withParent(extra[chatId], [...list.map((s) => s.conversation), ...Object.values(extra)]);
 
   const open = useCallback(
     (chatId: string) => {
@@ -343,6 +352,23 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     },
     leaveGroup: async (chatId) => {
       await rpc('leave_group', { p_chat: chatId });
+      await loadList();
+    },
+    startTopic: async (chatId, name) => {
+      const id = await rpc<string>('start_topic', { p_chat: chatId, p_name: name });
+      await loadList();
+      return id;
+    },
+    renameTopic: async (chatId, name) => {
+      await rpc('rename_topic', { p_chat: chatId, p_name: name });
+      await loadList();
+    },
+    closeTopic: async (chatId) => {
+      await rpc('close_topic', { p_chat: chatId });
+      await loadList();
+    },
+    reopenTopic: async (chatId) => {
+      await rpc('reopen_topic', { p_chat: chatId });
       await loadList();
     },
     rideChat: async (rideId) => {

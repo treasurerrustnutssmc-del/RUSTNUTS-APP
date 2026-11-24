@@ -17,6 +17,7 @@ import { needsPostingRules } from '../domain/postingRules';
 import { BoardScreen, ManageMemberScreen } from '../screens/board';
 import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteScreen } from '../screens/business';
 import { ChatListScreen, ChatReportsScreen, ChatScreen, GroupInfoScreen, NewChatScreen, NewGroupScreen } from '../screens/chat';
+import { TopicInfoScreen, TopicsScreen } from '../screens/chatTopics';
 import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
 import { PickWebsitePhotoScreen, WebsitePhotosScreen } from '../screens/sitePhotos'; // club photos on the website
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
@@ -38,6 +39,7 @@ import { BookBusScreen, BusBookingScreen, BusScreen, ChangeBusScreen } from '../
 import { BusCostsScreen, BusKeysScreen } from '../screens/busLog'; // Rusty Bus extras
 // Lane E: live ride
 import { LiveRideScreen } from '../screens/liveRide';
+import { CommsBubbles } from '../ui/CommsBubbles'; // Ride comms bubbles
 // Lane E: notifications
 import { ReminderSync } from '../data/reminders';
 import { LocalAlertSync } from '../data/localAlerts'; // Ride planning extras
@@ -53,6 +55,7 @@ import {
 import { ClubSpendingScreen } from '../screens/clubSpending';
 import { BudgetScreen, ClubFinancesScreen, LedgerEntryScreen, LedgerScreen, MonthReportScreen, NewEntryScreen, TreasuryScreen } from '../screens/treasury';
 import { MeetingReportScreen } from '../screens/meetingReport';
+import { BoardFilesScreen, BoardFolderScreen } from '../screens/boardFiles';
 // Lane E: ride comms
 import { OnAirBar } from '../screens/rideComms';
 import { JoinScreen, LoadErrorScreen, PendingScreen, SignInScreen, WelcomeScreen } from '../screens/public';
@@ -481,6 +484,8 @@ export function RootNavigator() {
             <Stack.Screen name="NewChat" component={NewChatScreen} options={{ title: 'New private chat' }} />
             <Stack.Screen name="NewGroup" component={NewGroupScreen} options={({ route }) => ({ title: route.params?.chatId ? 'Add people' : 'New group' })} />
             <Stack.Screen name="GroupInfo" component={GroupInfoScreen} options={{ title: 'Group' }} />
+            <Stack.Screen name="Topics" component={TopicsScreen} options={{ title: 'Topics' }} getId={({ params }) => params.chatId} />
+            <Stack.Screen name="TopicInfo" component={TopicInfoScreen} options={{ title: 'Topic' }} />
             <Stack.Screen name="ChatReports" component={ChatReportsScreen} options={{ title: 'Reports' }} />
             <Stack.Screen name="Photos" component={PhotosScreen} options={{ title: 'Photos' }} />
             <Stack.Screen name="AddToGallery" component={AddToGalleryScreen} options={{ title: 'Add to the gallery' }} />
@@ -496,6 +501,8 @@ export function RootNavigator() {
             <Stack.Screen name="NewEntry" component={NewEntryScreen} options={{ title: 'New entry' }} />
             <Stack.Screen name="MonthReport" component={MonthReportScreen} options={{ title: 'Treasurer’s Report' }} />
             <Stack.Screen name="MeetingReport" component={MeetingReportScreen} options={{ title: 'Report for a meeting' }} />
+            <Stack.Screen name="BoardFiles" component={BoardFilesScreen} options={{ title: 'Board files' }} />
+            <Stack.Screen name="BoardFolder" component={BoardFolderScreen} options={{ title: 'Folder' }} />
             <Stack.Screen name="Budget" component={BudgetScreen} options={{ title: 'Budget' }} />
             <Stack.Screen name="ClubFinances" component={ClubFinancesScreen} options={{ title: 'Club finances' }} />
             <Stack.Screen name="ClubSpending" component={ClubSpendingScreen} options={{ title: 'Club spending' }} />
@@ -607,6 +614,8 @@ export function RootNavigator() {
           </>
         )}
       </Stack.Navigator>
+      {/* Ride comms bubbles: over every screen while a ride's comms are on */}
+      <CommsBubbles navigation={navigationRef} />
       {/* Over every screen: a notification that arrives while the app is open */}
       <IncomingBanner navigation={navigationRef} />
     </NavigationContainer>

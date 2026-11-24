@@ -58,6 +58,10 @@ export interface ChatJson {
   // From the chat groups paste on; before it, there are no groups.
   name?: string | null;
   created_by?: string | null;
+  // From the chat topics paste on; before it, there are no topics.
+  parent_id?: string | null;
+  closed_at?: string | null;
+  closed_by?: string | null;
 }
 
 export interface ChatListJson extends ChatJson {
@@ -129,6 +133,7 @@ export function toConversation(c: ChatJson): Conversation {
     id: c.id, kind: c.kind, chapterId: c.chapter_id, rideId: c.ride_id, committee: c.committee,
     pinnedMessageId: c.pinned_message_id ?? null, memberIds: c.member_ids ?? [],
     name: c.name ?? null, createdBy: c.created_by ?? null,
+    parentId: c.parent_id ?? null, closedAt: c.closed_at ? instant(c.closed_at) : null, closedBy: c.closed_by ?? null,
   };
 }
 

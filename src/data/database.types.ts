@@ -293,6 +293,15 @@ export type Database = {
         Update: { [_ in never]: never };
         Relationships: [];
       };
+      board_files: {
+        Row: {
+          id: string; chapter_id: string | null; role: Database['public']['Enums']['position_role'] | null; path: string; name: string;
+          size_bytes: number | null; added_by: string | null; added_at: string;
+        };
+        Insert: { [_ in never]: never }; // files are filed only through add_board_file
+        Update: { [_ in never]: never };
+        Relationships: [];
+      };
       ride_legs: {
         Row: { ride_id: string; trip_id: string; leg_no: number; set_by: string | null; set_at: string };
         Insert: { [_ in never]: never }; // legs change only through set_ride_legs
@@ -903,6 +912,9 @@ export type Database = {
       present_meeting_report: { Args: { p_id: string }; Returns: undefined };
       delete_meeting_report: { Args: { p_id: string }; Returns: undefined };
       set_meeting_report_pdf: { Args: { p_id: string; p_path: string | null; p_name: string | null }; Returns: undefined };
+      // Board files
+      add_board_file: { Args: { p_chapter: string | null; p_role: string | null; p_path: string; p_name: string; p_size: number | null }; Returns: string };
+      remove_board_file: { Args: { p_id: string }; Returns: undefined };
       // Stage 5C: document library
       club_documents: { Args: never; Returns: DocumentsJson };
       document_body: { Args: { p_version: string }; Returns: string | null };
@@ -925,6 +937,9 @@ export type Database = {
       sign_document: { Args: { p_version: string }; Returns: undefined };
       // Lane E: live ride
       start_live_ride: { Args: { p_ride: string }; Returns: string };
+      // Ride comms bubbles
+      ride_comms_here: { Args: { p_ride: string; p_here: boolean }; Returns: undefined };
+      ride_comms_counts: { Args: never; Returns: { ride_id: string; connected: number }[] };
       live_ride_state: { Args: { p_ride: string }; Returns: LiveStateJson };
       update_live_position: {
         Args: { p_ride: string; p_lat: number; p_lng: number; p_accuracy: number | null; p_heading: number | null; p_speed: number | null };

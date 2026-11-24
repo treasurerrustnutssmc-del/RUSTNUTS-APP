@@ -205,6 +205,30 @@ export function demoTodayRide(now: Date): Ride {
   };
 }
 
+/**
+ * Ride comms bubbles: a second made-up ride on now, a whole-club one that started two hours ago, so
+ * two bubbles (two rides' comms at once) can be seen. Home's live ride stays the coffee run (it
+ * started last).
+ */
+export function demoTodayClubRide(now: Date): Ride {
+  const hour = 3600_000;
+  const back = new Date(now.getTime() - 2 * hour).toISOString();
+  const midnight = melbourneInstant(melbourneDate(now.toISOString()), '00:00')!;
+  return {
+    id: 'r-today-club',
+    title: 'Toy run (demo)',
+    startsAt: back > midnight ? back : midnight,
+    endsAt: new Date(now.getTime() + 2 * hour).toISOString(),
+    allDay: false,
+    location: 'Melton Toyota',
+    notes: 'A made-up whole-club ride, on at the same time as the coffee run.',
+    category: 'club',
+    cancelledAt: null,
+    source: 'feed',
+    website: true,
+  };
+}
+
 // The Road Rules' sample text (see below).
 const RULES_SAMPLE = `# Sample Road Rules (demo only)
 
@@ -890,6 +914,15 @@ export function buildDemoData(now: Date): ClubData {
       notes: 'The hoodie money came in ahead of the printer’s bill, so the Club fund looks flush. It isn’t: the second run is still to pay.\n\nGravel paid twice by mistake. His refund is on the way.',
       savedBy: 'm-sparks', savedAt: was(thisMonth), presentedBy: 'm-sparks', presentedAt: was(thisMonth),
     }],
+    // Board files: the club's paperwork, kept by seat. These have no bytes behind them, so they say they don't open.
+    boardFiles: [
+      { id: 'bf-d1', chapterId: null, role: null, path: 'demo/club/info/insurance.pdf', name: 'Public liability certificate.pdf', sizeBytes: 412_000, addedBy: 'm-torque', addedAt: at(ago(40)) },
+      { id: 'bf-d2', chapterId: null, role: null, path: 'demo/club/info/incorporation.pdf', name: 'Certificate of incorporation.pdf', sizeBytes: 188_000, addedBy: 'm-torque', addedAt: at(ago(120)) },
+      { id: 'bf-d3', chapterId: null, role: null, path: 'demo/club/info/business.docx', name: 'Club business details.docx', sizeBytes: 24_000, addedBy: 'm-rusty', addedAt: at(ago(12)) },
+      { id: 'bf-d4', chapterId: 'ch-west', role: 'treasurer', path: 'demo/west/treasurer/budget.xlsx', name: 'West budget workings.xlsx', sizeBytes: 61_000, addedBy: 'm-sparks', addedAt: at(ago(20)) },
+      { id: 'bf-d5', chapterId: 'ch-west', role: 'treasurer', path: 'demo/west/treasurer/bank.pdf', name: 'Bank account letter.pdf', sizeBytes: 96_000, addedBy: 'm-gravel', addedAt: at(ago(700)) },
+      { id: 'bf-d6', chapterId: 'ch-west', role: 'secretary', path: 'demo/west/secretary/minutes.docx', name: 'Minutes template.docx', sizeBytes: 31_000, addedBy: 'm-torque', addedAt: at(ago(90)) },
+    ],
   } satisfies Partial<ClubData>);
 
   // ---------------------------------------------------------------------------

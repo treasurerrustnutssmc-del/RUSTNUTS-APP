@@ -329,6 +329,12 @@ Someone acting in a role, until a date, always shows as acting, in the stencil l
 - The report for a meeting follows Jeff's paper report: cash position (the bank figure in H2), each fund's closing with its opening, in and out underneath, month by month with the net, the read-out in italics inside quotes, then receipts and payments by code (largest first, a Totals / Each line switch for whoever reads the lines), the treasurer's notes and the checks with green ticks. Amounts out are in brackets, as on paper. "Present to members" is the one red action; Save draft and Share as PDF are secondary; Delete draft is a two-tap danger button.
 - The printed report is ink on white: the real logo top left, headings in the stencil, the club red only for rules and section titles, and the footer "RUSTNUTS SMC | A0119901K | Treasurer's report • <month>" on every page.
 
+### Ride comms bubbles
+- While a ride's comms are on, a round 56 bubble per ride (most three) floats on the right edge over every screen: steel with a 2px strong hairline ring, a headset, the connected count in the stencil on an ink disc at its top left, and the ride's short name in the stencil under it on an ink tab. On air on that ride, the ring is 3px bright club red and the headset becomes a mic.
+- Joined to its left, a 48 round Emergency button: ink with a 2px danger ring and a danger warning icon. One tap turns it into a danger-filled pill "SEND EMERGENCY" in ink stencil; a second tap sends; it disarms after 6 seconds. Then "SENDING…", "SENT" or "WAITING" (no signal) in the same pill.
+- Tap the bubble for a panel beside it (raised ink, strong hairline, 8 corners): ride name, leg, "6 connected" or "On air · 6 riders", Connect / Switch to this ride or Mute and Disconnect, Open live ride, Hide this bubble, and the emergency note in a danger tint when one's been sent.
+- **The one exception to the Flat Clubhouse Rule.** Jeff asked for a bubble that floats, so this does, still with no shadow: the ring on steel stands it off the screen. Nothing else floats. It drags up and down, steps aside while the keyboard is up, and pops in once (240 ms ease-out, none with Reduce Motion).
+
 ## Do's and Don'ts
 
 ### Do:

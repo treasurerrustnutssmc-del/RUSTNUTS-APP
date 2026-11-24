@@ -12,6 +12,11 @@ import {
   renameGroupProblem,
   blockProblem,
   canSeeReport,
+  closeTopicProblem,
+  renameTopicProblem,
+  reopenTopicProblem,
+  startTopicProblem,
+  withParent,
   directProblem,
   pinProblem,
   postProblem,
@@ -77,7 +82,8 @@ function refuse(problem: string | null): void {
   if (problem) throw new NotAllowedError(problem);
 }
 
-const findChat = (chat: ChatData, id: string) => chat.conversations.find((c) => c.id === id);
+// A topic comes with its chat, so the rules can look through it.
+const findChat = (chat: ChatData, id: string) => withParent(chat.conversations.find((c) => c.id === id), chat.conversations);
 const findMessage = (chat: ChatData, id: string) => chat.messages.find((m) => m.id === id);
 
 function patchMessage(chat: ChatData, id: string, patch: (m: Message) => Message): ChatData {
@@ -275,6 +281,37 @@ export function leaveGroup(ctx: ChatCtx, chatId: string): ChatData {
   return patchChat(ctx.chat, chatId, (c) => ({ ...c, memberIds: c.memberIds.filter((id) => id !== me) }));
 }
 
+// Topics (2026-11-24-chat-topics-design.md).
+
+const openTopics = (chat: ChatData, parentId: string | null | undefined) =>
+  chat.conversations.filter((c) => c.kind === 'topic' && c.parentId === parentId && !c.closedAt).length;
+
+/** A new topic inside a board, committee or group chat, started by me. */
+export function startTopic(ctx: ChatCtx, chatId: string, name: string): { chat: ChatData; id: string } {
+  refuse(startTopicProblem(ctx.me, findChat(ctx.chat, chatId), name, ctx.club, openTopics(ctx.chat, chatId)));
+  const conv: Conversation = {
+    id: newId('topic'), kind: 'topic', chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [],
+    name: trimWords(name), createdBy: ctx.me!.id, parentId: chatId, closedAt: null, closedBy: null,
+  };
+  return { chat: { ...ctx.chat, conversations: [...ctx.chat.conversations, conv] }, id: conv.id };
+}
+
+export function renameTopic(ctx: ChatCtx, chatId: string, name: string): ChatData {
+  refuse(renameTopicProblem(ctx.me, findChat(ctx.chat, chatId), name, ctx.club));
+  return patchChat(ctx.chat, chatId, (c) => ({ ...c, name: trimWords(name) }));
+}
+
+export function closeTopic(ctx: ChatCtx, chatId: string): ChatData {
+  refuse(closeTopicProblem(ctx.me, findChat(ctx.chat, chatId), ctx.club));
+  return patchChat(ctx.chat, chatId, (c) => ({ ...c, closedAt: ctx.now, closedBy: ctx.me!.id }));
+}
+
+export function reopenTopic(ctx: ChatCtx, chatId: string): ChatData {
+  const conv = findChat(ctx.chat, chatId);
+  refuse(reopenTopicProblem(ctx.me, conv, ctx.club, openTopics(ctx.chat, conv?.parentId)));
+  return patchChat(ctx.chat, chatId, (c) => ({ ...c, closedAt: null, closedBy: null }));
+}
+
 export function markRead(ctx: ChatCtx, chatId: string): ChatData {
   refuse(readProblem(ctx.me, findChat(ctx.chat, chatId), ctx.club));
   return withRead(ctx.chat, chatId, ctx.me!.id, ctx.now);
@@ -292,7 +329,8 @@ export type ChatAction =
   | { action: 'chatDirect'; member: string }
   | { action: 'chatPin'; chat: string; message: string | null }
   | { action: 'chatReport'; message: string; reason: string; repeat?: number }
-  | { action: 'chatBlock'; member: string; blocked: boolean };
+  | { action: 'chatBlock'; member: string; blocked: boolean }
+  | { action: 'chatStartTopic'; chat: string; topic: string; repeat?: number };
 
 /** A case's words: `repeat` writes them out that many times, for the length limits. */
 export const caseText = (text: string, repeat?: number) => (repeat ? text.repeat(repeat) : text);
@@ -323,5 +361,7 @@ export function runChatAction(ctx: ChatCtx, a: ChatAction): ChatData {
       return reportMessage(ctx, a.message, caseText(a.reason, a.repeat)).chat;
     case 'chatBlock':
       return setBlock(ctx, a.member, a.blocked);
+    case 'chatStartTopic':
+      return startTopic(ctx, a.chat, caseText(a.topic, a.repeat)).chat;
   }
 }

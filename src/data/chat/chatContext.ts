@@ -17,6 +17,10 @@ export interface ChatSummary {
     voice: boolean;
   } | null;
   unread: number;
+  /** A chat with topics, once the list folds them in (foldTopics): how many are open and closed. */
+  topics?: { open: number; closed: number };
+  /** The topic the newest line (last) is from, when it's from one. */
+  lastTopic?: string | null;
 }
 
 /** A photo or video in a feed, with who posted it and when. */
@@ -120,6 +124,11 @@ export interface ChatContextValue {
   renameGroup: (chatId: string, name: string) => Promise<void>;
   removeFromGroup: (chatId: string, memberId: string) => Promise<void>;
   leaveGroup: (chatId: string) => Promise<void>;
+  /** Topics inside board, committee and group chats (2026-11-24-chat-topics-design.md): starts one and gives its id. */
+  startTopic: (chatId: string, name: string) => Promise<string>;
+  renameTopic: (chatId: string, name: string) => Promise<void>;
+  closeTopic: (chatId: string) => Promise<void>;
+  reopenTopic: (chatId: string) => Promise<void>;
   rideChat: (rideId: string) => Promise<string>;
   reports: () => Promise<ReportView[]>;
   resolveReport: (reportId: string, remove: boolean) => Promise<void>;

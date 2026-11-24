@@ -383,7 +383,12 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
 
   if (!me) return null;
   const taken = new Set(list.filter((p) => p.status !== 'removed' && p.mediaId).map((p) => p.mediaId));
-  const pickable = (m: FeedItem): PickablePhoto => ({ media: m, chatKind: (m.conversationId && chat.conversation(m.conversationId)?.kind) || 'club', authorId: m.authorId });
+  // A topic's photos go by its chat's kind; a topic whose chat isn't known counts as a group's, to be safe.
+  const kindOf = (chatId: string) => {
+    const c = chat.conversation(chatId);
+    return c?.kind === 'topic' ? c.parent?.kind ?? 'group' : c?.kind ?? 'club';
+  };
+  const pickable = (m: FeedItem): PickablePhoto => ({ media: m, chatKind: m.conversationId ? kindOf(m.conversationId) : 'club', authorId: m.authorId });
   const send = async (caption: string, consent: boolean) => {
     if (!chosen) return;
     setBusy(true);
