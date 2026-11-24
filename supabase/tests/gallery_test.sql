@@ -187,6 +187,7 @@ declare
 begin
   assert pg_temp.value_as(nell, 'select jsonb_array_length(public.gallery_for_site())') = '0', 'members see nothing waiting';
   assert pg_temp.value_as(smo, 'select jsonb_array_length(public.gallery_for_site())') = '1', 'the SMO sees the ticked one';
+  assert pg_temp.value_as(smo, $q$select public.gallery_for_site()->0->>'album'$q$) = 'Coast run', 'with its album';
   assert pg_temp.try_as(nell, format('select public.approve_gallery_for_site(%L, null)', coast)) = 'Only the Social Media Officer, their crew or the NEC can put photos on the website.', 'member';
   assert pg_temp.try_as(smo, format('select public.approve_gallery_for_site(%L, null)', vid)) = 'That one isn’t waiting for the website any more.', 'not ticked';
   assert pg_temp.try_as(smo, format('select public.approve_gallery_for_site(%L, %L)', coast, repeat('x', 121))) = 'Keep the caption to 120 characters.', 'caption';

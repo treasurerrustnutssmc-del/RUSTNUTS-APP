@@ -15,7 +15,7 @@ import { melbourneDate } from '../domain/rides';
 import { CAPTION_MAX } from '../domain/sitePhotos';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, MAX_CONTENT_WIDTH, space } from '../theme';
-import { Button, Card, Field, Ionicons, ListRow, Notice, Row, Screen, SectionTitle, Small, Stack, Toggle } from '../ui/primitives';
+import { Button, Card, Field, Ionicons, ListRow, Notice, Screen, SectionTitle, Small, Stack, Toggle } from '../ui/primitives';
 
 const COLUMNS = 4;
 const GAP = 4;
@@ -92,10 +92,10 @@ export function AddToGalleryScreen({ navigation, route }: RootScreen<'AddToGalle
           <Small>Up to {GALLERY_MAX} at a time. Videos can be up to 60 seconds.</Small>
         )}
         {room > 0 ? (
-          <Row style={{ gap: space.sm }}>
-            <Button label="From your phone" kind="secondary" icon="images-outline" onPress={() => pick('library')} style={{ flex: 1 }} disabled={busy} />
-            <Button label="Camera" kind="secondary" icon="camera-outline" onPress={() => pick('camera')} style={{ flex: 1 }} disabled={busy} />
-          </Row>
+          <Stack gap={space.sm}>
+            <Button label="From your phone" kind="secondary" icon="images-outline" onPress={() => pick('library')} disabled={busy} />
+            <Button label="Camera" kind="secondary" icon="camera-outline" onPress={() => pick('camera')} disabled={busy} />
+          </Stack>
         ) : null}
       </Card>
 

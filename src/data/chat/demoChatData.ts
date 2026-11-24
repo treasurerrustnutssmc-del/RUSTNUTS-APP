@@ -150,17 +150,12 @@ export function demoChatData(now: Date, rides: Ride[]): ChatData {
     blocks: [],
     reports: [],
     // The gallery: Sparks added the twisties shot to the Lorne run album and ticked "OK for the
-    // website" (so the website crew have one waiting), and Diesel's Club life photo.
+    // website", so the website crew have one waiting.
     gallery: [
       {
         id: 'demo-g-1', uploadedBy: 'm-sparks', rideId: 'r-past-1', kind: 'photo', path: 'demo/twisties.jpg', posterPath: null,
         width: 900, height: 1200, durationMs: null, caption: 'Coming down off the Otways', websiteOk: true, websiteDeclinedAt: null,
         onWebsite: false, createdAt: ago(14 * 24 * 60 - 90), removedAt: null,
-      },
-      {
-        id: 'demo-g-2', uploadedBy: 'm-diesel', rideId: null, kind: 'photo', path: 'demo/servo-night.jpg', posterPath: null,
-        width: 1200, height: 900, durationMs: null, caption: 'Servo stop on the way home', websiteOk: false, websiteDeclinedAt: null,
-        onWebsite: false, createdAt: ago(3 * 24 * 60), removedAt: null,
       },
     ],
   };

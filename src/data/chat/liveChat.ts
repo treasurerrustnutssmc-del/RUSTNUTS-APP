@@ -77,6 +77,7 @@ export interface FeedJson extends MediaRow {
   ride_id?: string | null;
   caption?: string | null;
   website_ok?: boolean;
+  album?: string | null;
 }
 
 export interface ReportJson {
@@ -160,6 +161,7 @@ export function toGalleryItem(f: FeedJson): GalleryItem {
     id: f.id, uploadedBy: f.author_id, rideId: f.ride_id ?? null, kind: f.kind === 'video' ? 'video' : 'photo', path: f.path,
     posterPath: f.poster_path, width: f.width, height: f.height, durationMs: f.duration_ms, caption: f.caption ?? null,
     websiteOk: !!f.website_ok, websiteDeclinedAt: null, onWebsite: false, createdAt: instant(f.created_at), removedAt: null,
+    albumTitle: f.album ?? null,
   };
 }
 

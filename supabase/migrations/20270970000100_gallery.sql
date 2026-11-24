@@ -343,8 +343,9 @@ returns jsonb language plpgsql stable security definer set search_path = '' as $
 begin
   if not private.is_site_photo_editor() then return '[]'::jsonb; end if;
   return coalesce((
-    select jsonb_agg(private.gallery_json(g) || jsonb_build_object('website_ok', true) order by g.created_at, g.id)
+    select jsonb_agg(private.gallery_json(g) || jsonb_build_object('website_ok', true, 'album', r.title) order by g.created_at, g.id)
     from public.gallery_items g
+    left join public.rides r on r.id = g.ride_id
     where g.website_ok and g.website_declined_at is null and g.removed_at is null
       and not exists (select 1 from public.site_photos p where p.gallery_id = g.id)
   ), '[]'::jsonb);

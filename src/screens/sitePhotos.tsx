@@ -206,7 +206,7 @@ function WaitingSection({ onDone }: { onDone: (msg: string) => void }) {
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {items.map((g) => {
         const who = data.members.find((m) => m.id === g.uploadedBy);
-        const album = g.rideId ? data.rides.find((r) => r.id === g.rideId)?.title : null;
+        const album = g.albumTitle ?? (g.rideId ? data.rides.find((r) => r.id === g.rideId)?.title : null);
         return (
           <Card key={g.id}>
             <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>

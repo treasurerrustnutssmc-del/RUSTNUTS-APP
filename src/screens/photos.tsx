@@ -147,7 +147,7 @@ export function PhotosScreen({ navigation, route }: RootScreen<'Photos'>) {
     <Screen onRefresh={load}>
       {added ? (
         <Notice tone="ok" title="Added">
-          {added === 1 ? 'It’s in the gallery.' : `All ${added} are in the gallery.`} Everyone in the club can see and save them.
+          {`${added === 1 ? 'It’s in the gallery.' : added === 2 ? 'Both are in the gallery.' : `All ${added} are in the gallery.`} Everyone in the club can see and save ${added === 1 ? 'it' : 'them'}.`}
         </Notice>
       ) : null}
       {canAddToGallery(me) ? (

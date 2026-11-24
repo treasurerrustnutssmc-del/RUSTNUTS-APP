@@ -137,7 +137,10 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       setChat((c) => ({ ...c, gallery: (c.gallery ?? []).map((g) => (g.id === id ? { ...g, removedAt: now } : g)) }));
     },
-    galleryForSite: async () => (isSitePhotoEditor(me, club.positions, demoCrew) ? (chat.gallery ?? []).filter(waitsForWebsite) : []),
+    galleryForSite: async () =>
+      isSitePhotoEditor(me, club.positions, demoCrew)
+        ? (chat.gallery ?? []).filter(waitsForWebsite).map((g) => ({ ...g, albumTitle: club.rides.find((r) => r.id === g.rideId)?.title ?? null }))
+        : [],
     approveGalleryForSite: async (id, caption) => {
       const cant = approveProblem(me, club.positions, demoCrew, chat.gallery?.find((g) => g.id === id), caption);
       if (cant) throw new NotAllowedError(cant);

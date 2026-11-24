@@ -51,6 +51,8 @@ export interface GalleryItem {
   onWebsite: boolean;
   createdAt: string;
   removedAt: string | null;
+  /** The album's name as the database gives it (the ride may be older than the app has loaded). */
+  albumTitle?: string | null;
 }
 
 /** What the Add to the gallery form sends (the files go separately). */
