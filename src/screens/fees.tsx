@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
+import { FEES_PRIVATE } from '../domain/financePrivacy';
 import {
   PAYING_STATUSES,
   canManageFees,
@@ -45,6 +46,7 @@ import {
   ListRow,
   LockNote,
   Notice,
+  PrivacyLine,
   Row,
   Screen,
   SectionTitle,
@@ -390,6 +392,7 @@ export function MemberFeesScreen({ route }: RootScreen<'MemberFees'>) {
         </View>
         <LockNote text={isSelf ? 'You + board' : 'Board only'} />
       </Row>
+      {isSelf ? <PrivacyLine text={FEES_PRIVATE} /> : null}
 
       {msg ? (
         <Notice tone="ok" title="Done">

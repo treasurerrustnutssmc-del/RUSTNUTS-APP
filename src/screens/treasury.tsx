@@ -7,6 +7,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { spendingFor, spendingTotal } from '../domain/clubSpending';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
+import { PRIVACY_LINE, privacyLine } from '../domain/financePrivacy';
 import { fyLabel, fyOf, formatCents, parseDollars } from '../domain/fees';
 import {
   addFeeProblem,
@@ -63,6 +64,7 @@ import {
   KeyValue,
   ListRow,
   Notice,
+  PrivacyLine,
   Row,
   Screen,
   SectionTitle,
@@ -177,6 +179,7 @@ export function TreasuryScreen({ navigation }: RootScreen<'Treasury'>) {
         <H1>Treasury</H1>
         <Small>{`${fyLabel(fyOf(today))} · balances as of today`}</Small>
       </Stack>
+      <PrivacyLine text={privacyLine(me, data)} />
 
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
 
@@ -343,6 +346,7 @@ export function LedgerScreen({ route, navigation }: RootScreen<'Ledger'>) {
         <Text style={[type.h2, num]}>{formatCents(fundBalance(fund, today, data))}</Text>
         <Small>Balance today</Small>
       </Stack>
+      <PrivacyLine text={privacyLine(me, data, fund)} />
 
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
 
@@ -705,6 +709,7 @@ export function MonthReportScreen({ route, navigation }: RootScreen<'MonthReport
         <Small>{fyLabel(fyOf(month))}</Small>
         {presented ? <Chip label={`Presented ${melbourneDateShown(presented.presentedAt)}`} tone="ok" icon="checkmark" /> : null}
       </Stack>
+      <PrivacyLine text={PRIVACY_LINE} />
       {books ? (
         <MonthStepper
           month={month}
@@ -963,6 +968,7 @@ export function ClubFinancesScreen({ navigation }: RootScreen<'ClubFinances'>) {
         <H1>Club finances</H1>
         <Small>The Treasurer’s Reports, once they’ve been presented. Every member can read them (13.8).</Small>
       </Stack>
+      <PrivacyLine text={PRIVACY_LINE} />
       {/* Before the database has club_spending(), members (who get no ledger lines) have nothing to list. */}
       {data.spending !== undefined || (data.ledger ?? []).length > 0 ? (
       <Card style={{ padding: 0, gap: 0 }}>

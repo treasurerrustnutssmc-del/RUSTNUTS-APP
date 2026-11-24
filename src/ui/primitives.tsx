@@ -738,6 +738,16 @@ function noticeText(title: string | undefined, children: React.ReactNode): strin
   return parts.join(' ').trim();
 }
 
+/** Member privacy on the club's finances (Jeff, 24 Nov 2026): a shield and one line of fine print. */
+export function PrivacyLine({ text }: { text: string }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: space.xs, alignItems: 'flex-start' }} accessible accessibilityLabel={text}>
+      <Ionicons name="shield-checkmark-outline" size={16} color={colors.ok} style={{ marginTop: 1 }} />
+      <Small style={{ flexShrink: 1 }}>{text}</Small>
+    </View>
+  );
+}
+
 export function LockNote({ text = 'Board only' }: { text?: string }) {
   return (
     <Row style={{ gap: 4 }}>

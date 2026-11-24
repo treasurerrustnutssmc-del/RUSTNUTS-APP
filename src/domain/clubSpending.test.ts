@@ -20,6 +20,19 @@ test('member names come out of what members read', () => {
   assert.equal(hideMemberNames('Dawn Studios - merchandise', people), 'Dawn Studios - merchandise');
 });
 
+test('first names, surnames and road names however they are spaced come out too (Jeff, 24 Nov 2026)', () => {
+  const crew = [
+    { fullName: 'Gary Kowalski', roadName: 'Bam Bam' },
+    { fullName: 'Christopher Andrew Dyson', roadName: 'Dysco' },
+  ] as Pick<Member, 'fullName' | 'roadName'>[];
+  assert.equal(hideMemberNames('Fuel for Gary', crew), 'Fuel for a member', 'a first name alone');
+  assert.equal(hideMemberNames('Kowalski’s refund', crew), 'a member’s refund', 'a surname alone');
+  assert.equal(hideMemberNames('Fees - BamBam and bam-bam', crew), 'Fees - a member and a member', 'road name spaced differently');
+  assert.equal(hideMemberNames('Merch from Christopher Andrew D', crew), 'Merch from a member D', 'every part of a full name');
+  assert.equal(hideMemberNames('Dawn Studios - merchandise', crew), 'Dawn Studios - merchandise', 'businesses stay');
+  assert.equal(hideMemberNames('Garyville and Bambam2', crew), 'Garyville and Bambam2', 'still whole words only');
+});
+
 let n = 0;
 const line = (over: Partial<LedgerEntry>): LedgerEntry => ({
   id: `e-${++n}`, chapterId: null, code: 'DB-001', description: 'Thing', amountCents: 100, receivedOn: null,

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import { meetingFigures, meetingLines } from './meetingReport';
+import { PRIVACY_LINE } from './financePrivacy';
 import { meetingReportFullHtml as meetingReportHtml } from './meetingReportFullHtml';
 import type { ClubData, LedgerEntry } from './types';
 
@@ -75,4 +76,8 @@ test('no notes, no notes section; a failed check says so', () => {
   const off = { ...figures, closingCents: figures.closingCents + 1 };
   assert.match(meetingReportHtml({ ...base, figures: off }), /Check failed/);
   assert.match(meetingReportHtml(base), /Each of the 2 paid lines/);
+});
+
+test('the full workings say member privacy is protected (Jeff, 24 Nov 2026)', () => {
+  assert.ok(meetingReportHtml(base).includes(PRIVACY_LINE));
 });

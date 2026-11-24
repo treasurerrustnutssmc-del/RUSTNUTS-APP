@@ -7,13 +7,14 @@ import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { spendingByCode, spendingFor, spendingMonths, spendingTotal, spendingYears } from '../domain/clubSpending';
 import { formatAuDate } from '../domain/dates';
+import { PRIVACY_LINE } from '../domain/financePrivacy';
 import { formatCents, fyLabel } from '../domain/fees';
 import { fundName, seesReports } from '../domain/ledger';
 import { monthName } from '../domain/meetingReport';
 import { STATEMENT_LABEL } from '../domain/meetingStatement';
 import type { RootScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
-import { Card, Choices, Divider, H1, H2, ListRow, Notice, Row, Screen, SectionTitle, Small, Stack } from '../ui/primitives';
+import { Card, Choices, Divider, H1, H2, ListRow, Notice, PrivacyLine, Row, Screen, SectionTitle, Small, Stack } from '../ui/primitives';
 
 const num = { fontVariant: ['tabular-nums' as const] };
 
@@ -37,8 +38,9 @@ export function ClubSpendingScreen(_: RootScreen<'ClubSpending'>) {
     <Screen>
       <Stack gap={space.xs}>
         <H1>Club spending</H1>
-        <Small>Every expense paid from the club’s bank account, from the treasurer’s books. Members’ names are left out.</Small>
+        <Small>Every expense paid from the club’s bank account, from the treasurer’s books.</Small>
       </Stack>
+      <PrivacyLine text={PRIVACY_LINE} />
 
       <Choices<string>
         label="Financial year (1 July to 30 June)"

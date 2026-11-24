@@ -14,26 +14,37 @@ const MIN_NAME = 3;
 
 type Named = Pick<Member, 'fullName' | 'roadName'>;
 
-/** Every member's full and road name worth hiding, longest first so a full name goes before a part of it. */
+/**
+ * Every member's full name, each part of it (first name, middle names, surname) and road name worth
+ * hiding, longest first so a full name goes before a part of it. Jeff, 24 Nov 2026: "no personal or
+ * road names on any transactions".
+ */
 function namesOf(members: Named[]): string[] {
   const all = new Set<string>();
+  const add = (n: string) => {
+    const t = n.trim();
+    if ([...t].length >= MIN_NAME) all.add(t);
+  };
   for (const m of members) {
-    for (const n of [m.fullName, m.roadName]) {
-      const t = (n ?? '').trim();
-      if ([...t].length >= MIN_NAME) all.add(t);
-    }
+    const full = (m.fullName ?? '').trim();
+    add(full);
+    for (const part of full.split(/\s+/)) add(part);
+    add(m.roadName ?? '');
   }
   return [...all].sort((a, b) => b.length - a.length || a.localeCompare(b));
 }
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const wordRe = (name: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${escape(name)}(?![\\p{L}\\p{N}_])`, 'giu');
+/** Spaces in a name also match no space, a hyphen, a dot or an underscore: "Bam Bam", "BamBam", "bam-bam". */
+const flexible = (name: string) => name.split(/\s+/).map(escape).join('[\\s._-]*');
+const wordRe = (name: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${flexible(name)}(?![\\p{L}\\p{N}_])`, 'giu');
 
-/** Replaces any member's full or road name (whole words, any case) with "a member". */
+/** Replaces any member's name (full, any part of it, or road name; whole words, any case) with "a member". */
 export function hideMemberNames(text: string, members: Named[]): string {
   let out = text;
   for (const name of namesOf(members)) out = out.replace(wordRe(name), 'a member');
-  return out;
+  // "Christopher Andrew D" is two parts of one name, so one "a member", not two in a row.
+  return out.replace(/a member(?:\s+a member)+/g, 'a member');
 }
 
 function payeeOf(payeeMemberId: string | null, payeeName: string | null, members: Named[]): string | null {
