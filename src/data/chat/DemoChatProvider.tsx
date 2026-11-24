@@ -4,7 +4,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { canSeeReport, type MessageMedia } from '../../domain/chat';
 import type { ClubData } from '../../domain/types';
-import { useClub } from '../clubContext';
+import { NotAllowedError, useClub } from '../clubContext';
+import { addProblem as galleryAddProblem, approveProblem, removeProblem as galleryRemoveProblem, waitsForWebsite, type GalleryItem } from '../../domain/gallery';
+import { cleanCaption, isSitePhotoEditor } from '../../domain/sitePhotos';
+import { demoSitePhotoCrew } from '../sitePhotosData';
 import { ChatContext, type Attachment, type ChatContextValue, type ReportView } from './chatContext';
 import { feedFrom, listFor, rideWallFrom, rideWallsFrom, withoutBlocked } from './chatList';
 import * as act from './demoChatActions';
@@ -30,6 +33,8 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
   const [pastRides] = useState(() => demoPastRides(demoSession.now()));
   const club: ClubData = useMemo(() => ({ ...data, rides: [...pastRides, ...data.rides] }), [data, pastRides]);
   const [chat, setChat] = useState<act.ChatData>(() => demoChatData(demoSession.now(), data.rides));
+  // The website photo crew, as the demo's Website photos screen has it (who may take gallery items down or approve them).
+  const [demoCrew] = useState(() => demoSitePhotoCrew(demoSession.now()));
   const ctx = (): act.ChatCtx => ({ chat, club, me, now: new Date().toISOString() });
 
   const list = useMemo(() => listFor(chat, club, me, today), [chat, club, me, today]);
@@ -112,6 +117,38 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
     photos: async (before) => feedFrom(chat, club, me, before),
     rideWalls: async () => rideWallsFrom(chat, club, me),
     rideWall: async (rideId) => rideWallFrom(chat, club, me, rideId),
+    addToGallery: async (add) => {
+      const cant = galleryAddProblem(me, { ...add, count: add.files.length }, club.rides);
+      if (cant || !me) throw new NotAllowedError(cant ?? 'Sign in first.');
+      const now = new Date().toISOString();
+      const caption = cleanCaption(add.caption);
+      const added: GalleryItem[] = add.files.map((f, i) => ({
+        id: `demo-g-${Date.now()}-${i}`, uploadedBy: me.id, rideId: add.rideId, kind: f.kind, path: f.uri, posterPath: null,
+        width: f.width, height: f.height, durationMs: f.kind === 'video' ? f.durationMs : null, caption, websiteOk: add.websiteOk,
+        websiteDeclinedAt: null, onWebsite: false, createdAt: now, removedAt: null,
+      }));
+      setChat((c) => ({ ...c, gallery: [...(c.gallery ?? []), ...added] }));
+      return added.length;
+    },
+    removeGalleryItem: async (id) => {
+      const item = chat.gallery?.find((g) => g.id === id);
+      const cant = galleryRemoveProblem(me, club.positions, demoCrew, item);
+      if (cant) throw new NotAllowedError(cant);
+      const now = new Date().toISOString();
+      setChat((c) => ({ ...c, gallery: (c.gallery ?? []).map((g) => (g.id === id ? { ...g, removedAt: now } : g)) }));
+    },
+    galleryForSite: async () => (isSitePhotoEditor(me, club.positions, demoCrew) ? (chat.gallery ?? []).filter(waitsForWebsite) : []),
+    approveGalleryForSite: async (id, caption) => {
+      const cant = approveProblem(me, club.positions, demoCrew, chat.gallery?.find((g) => g.id === id), caption);
+      if (cant) throw new NotAllowedError(cant);
+      setChat((c) => ({ ...c, gallery: (c.gallery ?? []).map((g) => (g.id === id ? { ...g, onWebsite: true } : g)) }));
+    },
+    declineGalleryForSite: async (id) => {
+      const cant = approveProblem(me, club.positions, demoCrew, chat.gallery?.find((g) => g.id === id), '');
+      if (cant) throw new NotAllowedError(cant);
+      const now = new Date().toISOString();
+      setChat((c) => ({ ...c, gallery: (c.gallery ?? []).map((g) => (g.id === id ? { ...g, websiteDeclinedAt: now } : g)) }));
+    },
     mediaUrl: async (path) => DEMO_MEDIA[path] ?? path,
     linkPreview: async (url) => DEMO_PREVIEWS[url] ?? null,
     refresh: async () => {},

@@ -1,3 +1,4 @@
+import { AddToGalleryScreen } from '../screens/addToGallery';
 import { Ionicons } from '@expo/vector-icons';
 import { WebsiteAppScreen } from '../screens/websiteApp';
 import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -482,6 +483,7 @@ export function RootNavigator() {
             <Stack.Screen name="GroupInfo" component={GroupInfoScreen} options={{ title: 'Group' }} />
             <Stack.Screen name="ChatReports" component={ChatReportsScreen} options={{ title: 'Reports' }} />
             <Stack.Screen name="Photos" component={PhotosScreen} options={{ title: 'Photos' }} />
+            <Stack.Screen name="AddToGallery" component={AddToGalleryScreen} options={{ title: 'Add to the gallery' }} />
             <Stack.Screen name="RideWall" component={RideWallScreen} options={{ title: 'Ride wall', ...twoLineHeader }} />
             <Stack.Screen name="WebsitePhotos" component={WebsitePhotosScreen} options={{ title: 'Website photos' }} />
             <Stack.Screen name="PickWebsitePhoto" component={PickWebsitePhotoScreen} options={{ title: 'Pick a photo' }} />

@@ -114,7 +114,10 @@ export type RootParams = {
   NewGroup: { chatId?: string } | undefined;
   GroupInfo: { chatId: string };
   ChatReports: undefined;
-  Photos: undefined;
+  /** added: how many just went into the gallery (Add to the gallery comes back here). */
+  Photos: { added?: number } | undefined;
+  /** The gallery: rideId starts the album on that ride. */
+  AddToGallery: { rideId?: string } | undefined;
   RideWall: { rideId: string };
   MediaViewer: { items: FeedItem[]; index: number };
   // Website-and-app task 23: club photos on the website

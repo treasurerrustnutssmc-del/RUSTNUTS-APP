@@ -1,6 +1,7 @@
 // Turns the database's chat rows and JSON (snake_case) into the app's records (camelCase), and
 // merges pages of messages as they arrive. Pure, so it's tested without a database.
 
+import type { GalleryItem } from '../../domain/gallery';
 import type { ChatCommittee, ChatKind, Conversation, MediaKind, Message, MessageMedia } from '../../domain/chat';
 import type { Ride, RideCategory } from '../../domain/types';
 import type { ChatSummary, FeedItem, ReportView } from './chatContext';
@@ -67,9 +68,15 @@ export interface ChatListJson extends ChatJson {
 }
 
 export interface FeedJson extends MediaRow {
-  conversation_id: string;
+  /** Null for one added straight to the gallery. */
+  conversation_id: string | null;
   author_id: string;
   created_at: string;
+  /** Added straight to the gallery (private.gallery_json). */
+  gallery?: boolean;
+  ride_id?: string | null;
+  caption?: string | null;
+  website_ok?: boolean;
 }
 
 export interface ReportJson {
@@ -138,7 +145,22 @@ export function toSummaryParts(c: ChatListJson): Omit<ChatSummary, 'title'> {
 }
 
 export function toFeedItem(f: FeedJson): FeedItem {
-  return { ...toMedia(f), conversationId: f.conversation_id, authorId: f.author_id, createdAt: instant(f.created_at) };
+  return {
+    ...toMedia({ ...f, message_id: f.message_id ?? '' }),
+    conversationId: f.conversation_id,
+    authorId: f.author_id,
+    createdAt: instant(f.created_at),
+    gallery: f.gallery ? { rideId: f.ride_id ?? null, caption: f.caption ?? null } : null,
+  };
+}
+
+/** One waiting for the website, as gallery_for_site gives it. */
+export function toGalleryItem(f: FeedJson): GalleryItem {
+  return {
+    id: f.id, uploadedBy: f.author_id, rideId: f.ride_id ?? null, kind: f.kind === 'video' ? 'video' : 'photo', path: f.path,
+    posterPath: f.poster_path, width: f.width, height: f.height, durationMs: f.duration_ms, caption: f.caption ?? null,
+    websiteOk: !!f.website_ok, websiteDeclinedAt: null, onWebsite: false, createdAt: instant(f.created_at), removedAt: null,
+  };
 }
 
 export function toReport(r: ReportJson): ReportView {

@@ -2,6 +2,7 @@
 // the chats as they are and hand back the chats as they should be, or throw with the same words
 // the database uses. src/data/parity.test.ts checks them against the database's rules.
 
+import type { GalleryItem } from '../../domain/gallery';
 import {
   addToGroupProblem,
   createGroupProblem,
@@ -52,6 +53,8 @@ export interface ChatData {
   reads: ChatRead[];
   blocks: Block[];
   reports: ChatReport[];
+  /** Photos and videos added straight to the gallery (src/domain/gallery.ts). */
+  gallery?: GalleryItem[];
 }
 
 export interface ChatCtx {

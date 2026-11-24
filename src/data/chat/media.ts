@@ -21,6 +21,10 @@ export async function pickMedia(source: 'library' | 'camera', room = MAX_MEDIA, 
     mediaTypes: photosOnly ? ['images'] : ['images', 'videos'],
     quality: 1,
     videoMaxDuration: MAX_VIDEO_MS / 1000,
+    // Smaller videos (gallery design, Jeff's tap 22 Nov): iPhones hand over a 720p copy (about a
+    // tenth of the size) and film at medium quality. Android needs a native shrinker in the next build.
+    videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720,
+    videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
   };
   let result: ImagePicker.ImagePickerResult;
   if (source === 'camera') {
