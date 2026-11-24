@@ -593,7 +593,19 @@ function RoadNameCard({ member, run }: { member: Member; run: (fn: () => Promise
         autoCorrect={false}
         hint="Leave blank to clear it. They can still change it themselves in Edit profile."
       />
-      <Button label={busy ? 'Saving…' : 'Save road name'} kind="secondary" disabled={next === saved || busy} onPress={save} />
+      {/* Clearing one wipes a name given on a ride, so it takes a second tap. */}
+      {!next && saved ? (
+        <ConfirmButton
+          label="Clear road name"
+          confirmLabel="Yes, clear it"
+          kind="secondary"
+          confirmNote={`${saved} goes, and they show by their name until someone gives them a new one.`}
+          disabled={busy}
+          onConfirm={save}
+        />
+      ) : (
+        <Button label={busy ? 'Saving…' : 'Save road name'} kind="secondary" disabled={next === saved || busy} onPress={save} />
+      )}
     </Card>
   );
 }

@@ -9,7 +9,8 @@ declare
   me uuid := private.require_member();
   t public.members%rowtype;
 begin
-  select * into t from public.members where id = p_member for update;
+  -- No row lock until the checks pass: the update below takes it.
+  select * into t from public.members where id = p_member;
   if not found then raise exception 'That member no longer exists.'; end if;
   if t.id = me then raise exception 'Change your own road name in Edit profile.'; end if;
   if not private.sees_board_of(t.chapter_id) then raise exception 'Only that member’s chapter board or the NEC can do that.'; end if;
