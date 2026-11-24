@@ -68,7 +68,8 @@ export function listFor(chat: ChatData, club: ClubData, me: Member | null, today
  *  shows the newest line across itself and them (2026-11-24-chat-topics-design.md). */
 export function foldTopics(list: ChatSummary[]): ChatSummary[] {
   const topics = list.filter((s) => s.conversation.kind === 'topic');
-  return list
+  // Sorted again, so a group whose topic is busiest moves up with its newest line.
+  return sortSummaries(list
     .filter((s) => s.conversation.kind !== 'topic')
     .map((s) => {
       const mine = topics.filter((t) => t.conversation.parentId === s.conversation.id);
@@ -89,7 +90,7 @@ export function foldTopics(list: ChatSummary[]): ChatSummary[] {
         unread: s.unread + mine.reduce((n, t) => n + t.unread, 0),
         topics: { open: mine.length - closed, closed },
       };
-    });
+    }));
 }
 
 /** A chat's topics: open ones first, each lot with the latest message first. */

@@ -98,14 +98,15 @@ Two files, because Postgres can't use a new enum value in the transaction that a
 - Chat list: topic rows are left out of the main list; a parent's row adds its topics' unread to its
   badge, takes the newest message across them for its time and preview ("Christmas party · Rusty:
   …"), and sorts as before.
-- Chat screen: in a chat with topics, a **Topics** bar under the header ("Topics · 3 open · 2 new ›")
-  opens the Topics screen. In a topic, the header shows the topic name with the parent chat under it,
-  and a header button opens Topic info. A closed topic shows "This topic is closed." where the message
-  box was, with Reopen for those who can.
+- Chat screen: in a chat with topics, a **Topics** bar under the header ("Topics · 2 open", with a red
+  count of their new messages) opens the Topics screen. In a topic, the header shows the topic's name,
+  a bar under it says "In All boards" (tap to go to that chat, with a Closed chip when closed), and a
+  header button opens Topic info. A closed topic shows "This topic is closed." where the message box
+  was, with Reopen for those who can.
 - **Topics screen** (per chat): New topic (name field + Start topic), open topics newest activity first
-  with unread badges, then "Closed topics".
-- **Topic info screen:** name (editable for those who can), who started it and when, Close topic /
-  Reopen topic (ConfirmButton, no Alert).
+  with unread badges, then closed topics.
+- **Topic info screen:** name (editable for those who can), who started it, when and by whom it was
+  closed, Close topic (ConfirmButton, no Alert) / Reopen topic.
 - Demo: All boards gets "Christmas party" and "Insurance renewal" open and "Big 4 bookings" closed.
 
 ## Tests
@@ -123,6 +124,7 @@ does, no topics come back and the chats work as before.
 ## Calls Claude made
 
 - Groups are included (the coordinator's brief; they're board-run).
+- Website photos: a topic whose chat the picker can't see counts as a group's (kept off).
 - 50 open topics a chat, 40-character names (same as group names).
 - Closing instead of deleting, so nothing said is lost.
 - Rename/close by the starter or any board member/NEC, rather than only moderators, so a committee

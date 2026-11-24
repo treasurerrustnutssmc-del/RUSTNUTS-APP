@@ -1122,6 +1122,11 @@ export function GroupInfoScreen({ route, navigation }: RootScreen<'GroupInfo'>) 
 export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
   const { data } = useClub();
   const chat = useChat();
+  // A report's chat opens for the board unless it's private: a private chat, a group, or a topic in one.
+  const openable = (c: ReportView['conversation']): boolean => {
+    const kind = c.kind === 'topic' ? chat.conversation(c.parentId ?? '')?.kind : c.kind;
+    return !!kind && kind !== 'direct' && kind !== 'group';
+  };
   const social = useSocial();
   const [reports, setReports] = useState<ReportView[] | null>(null);
   // Member content rules: reports of listings, build updates, nominations, workshops and profiles
@@ -1238,8 +1243,8 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
             </Small>
             <ConfirmButton label="Remove the message" confirmLabel="Yes, remove it" icon="trash-outline" onConfirm={() => deal(r.id, true)} />
             <Button label="Leave it up" kind="secondary" onPress={() => deal(r.id, false)} />
-            {/* The board dealing with a private chat or group isn't in it. */}
-            {r.conversation.kind !== 'direct' && r.conversation.kind !== 'group' ? (
+            {/* The board dealing with a private chat or group (or a group's topic) isn't in it. */}
+            {openable(r.conversation) ? (
               <Button label="Open the chat" kind="quiet" icon="chatbubbles-outline" onPress={() => navigation.navigate('Chat', { chatId: r.conversation.id })} />
             ) : null}
           </Card>

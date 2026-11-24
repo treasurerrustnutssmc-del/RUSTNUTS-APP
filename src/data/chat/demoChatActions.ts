@@ -326,7 +326,8 @@ export type ChatAction =
   | { action: 'chatDirect'; member: string }
   | { action: 'chatPin'; chat: string; message: string | null }
   | { action: 'chatReport'; message: string; reason: string; repeat?: number }
-  | { action: 'chatBlock'; member: string; blocked: boolean };
+  | { action: 'chatBlock'; member: string; blocked: boolean }
+  | { action: 'chatStartTopic'; chat: string; topic: string; repeat?: number };
 
 /** A case's words: `repeat` writes them out that many times, for the length limits. */
 export const caseText = (text: string, repeat?: number) => (repeat ? text.repeat(repeat) : text);
@@ -357,5 +358,7 @@ export function runChatAction(ctx: ChatCtx, a: ChatAction): ChatData {
       return reportMessage(ctx, a.message, caseText(a.reason, a.repeat)).chat;
     case 'chatBlock':
       return setBlock(ctx, a.member, a.blocked);
+    case 'chatStartTopic':
+      return startTopic(ctx, a.chat, caseText(a.topic, a.repeat)).chat;
   }
 }
