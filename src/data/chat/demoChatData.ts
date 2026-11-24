@@ -125,6 +125,14 @@ export function demoChatData(now: Date, rides: Ride[]): ChatData {
   // All boards: both chapters' boards and the NEC. A group the boards set up for the Big 4.
   say('boards', 'm-torque', 26 * 60, 'Both boards: can we get together for a joint meeting soon?');
   say('boards', 'm-smokey', 25 * 60, 'North’s keen. Clubrooms work for us.', { reactions: [['m-torque', '👍']] });
+  // Topics inside All boards (2026-11-24-chat-topics-design.md): two open, one closed.
+  say('topic:xmas', 'm-torque', 6 * 60, 'Club party: clubhouse or the pub? We need numbers by the next meeting.');
+  say('topic:xmas', 'm-smokey', 5 * 60, 'Clubhouse. Cheaper, and nobody has to ride home far.', { reactions: [['m-torque', '👍'], ['m-sparks', '👍']] });
+  say('topic:xmas', 'm-sparks', 35, 'I can put $400 from the social fund towards the food.');
+  say('topic:insurance', 'm-rusty', 2 * 24 * 60, 'AUZi renewal is coming up. Same cover as before unless anyone wants food cover added.');
+  say('topic:insurance', 'm-torque', 2 * 24 * 60 - 120, 'Worth asking what food cover costs if we’re doing the club party.');
+  say('topic:big4-bookings', 'm-smokey', 9 * 24 * 60, 'Cabins are booked for both chapters.');
+  say('topic:big4-bookings', 'm-rusty', 9 * 24 * 60 - 30, 'Legend. Closing this one.');
   say('group:big4', 'm-rusty', 90, 'Big 4 crew: meet at the servo at 7:30, full tanks.');
   say('group:big4', 'm-crank', 75, 'North’s lot will be there at 7:15.', { reactions: [['m-rusty', '🔥']] });
 
@@ -135,6 +143,11 @@ export function demoChatData(now: Date, rides: Ride[]): ChatData {
       conv('family', { kind: 'family', pinnedMessageId: bbq }),
       conv('boards', { kind: 'boards' }),
       conv('nec', { kind: 'nec' }),
+      conv('topic:xmas', { kind: 'topic', parentId: 'boards', name: 'Club party', createdBy: 'm-torque' }),
+      conv('topic:insurance', { kind: 'topic', parentId: 'boards', name: 'Insurance renewal', createdBy: 'm-rusty' }),
+      conv('topic:big4-bookings', {
+        kind: 'topic', parentId: 'boards', name: 'Big 4 bookings', createdBy: 'm-smokey', closedAt: ago(9 * 24 * 60 - 40), closedBy: 'm-rusty',
+      }),
       conv('committee:ride', { kind: 'committee', committee: 'ride' }),
       conv('committee:charity', { kind: 'committee', committee: 'charity' }),
       ...chapters.flatMap((c) => [conv(`chapter:${c}`, { kind: 'chapter', chapterId: c }), conv(`board:${c}`, { kind: 'board', chapterId: c })]),

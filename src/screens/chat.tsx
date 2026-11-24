@@ -17,6 +17,7 @@ import { useChat } from '../data/chat/ChatProvider';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
 import { REPORT_KIND_LABEL, type ContentReport } from '../domain/reports';
 import type { Attachment, ChatSummary, ReportView, VoiceRecording } from '../data/chat/chatContext';
+import { foldTopics, topicsOf } from '../data/chat/chatList';
 import { pickMedia } from '../data/chat/media';
 import { watchChat } from '../data/viewingChat';
 import {
@@ -24,6 +25,9 @@ import {
   trimWords,
   canModerate,
   canRunGroups,
+  canRunTopic,
+  hasTopics,
+  topicParentTitle,
   chatTitle,
   createGroupProblem,
   directProblem,
@@ -98,7 +102,7 @@ const KIND_ICON: Record<string, IconName> = {
 };
 
 /** "7:30 am" today, "Yesterday", or the date. */
-function when(iso: string, today: string): string {
+export function when(iso: string, today: string): string {
   const day = melbourneDate(iso);
   if (day === today) return melbourneTime(iso);
   const yesterday = new Date(`${today}T00:00:00Z`);
@@ -107,15 +111,17 @@ function when(iso: string, today: string): string {
   return formatAuDate(day);
 }
 
-function preview(s: ChatSummary, me: Member | null, members: Member[]): string {
+export function preview(s: ChatSummary, me: Member | null, members: Member[]): string {
   const last = s.last;
   if (!last) return s.conversation.kind === 'direct' ? 'Say g’day.' : 'Nothing yet.';
   const who = last.authorId === me?.id ? 'You' : displayName(members.find((m) => m.id === last.authorId) ?? { roadName: null, fullName: 'Someone' });
   const what = last.removed ? 'Message removed' : last.body ?? (mediaSummary(last.mediaCount, last.voice) || 'Photo');
-  return s.conversation.kind === 'direct' && who !== 'You' ? what : `${who}: ${what}`;
+  const line = s.conversation.kind === 'direct' && who !== 'You' ? what : `${who}: ${what}`;
+  // The newest line is from one of the chat's topics: say which.
+  return s.lastTopic ? `${s.lastTopic} · ${line}` : line;
 }
 
-function UnreadBadge({ n }: { n: number }) {
+export function UnreadBadge({ n }: { n: number }) {
   if (!n) return null;
   return (
     <View style={styles.unread} accessibilityLabel={`${n} unread`}>
@@ -136,6 +142,8 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
   // Board members and the NEC start groups (2026-11-20-chat-groups-design.md).
   const mayGroup = canRunGroups(me, data);
   const people = useMemo(() => [...data.members, ...(data.chatPeople ?? [])], [data.members, data.chatPeople]);
+  // Topics sit inside their chat, which counts their new messages (2026-11-24-chat-topics-design.md).
+  const rows = useMemo(() => foldTopics(chat.list), [chat.list]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -175,16 +183,16 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
       ) : null}
       {!chat.ready ? (
         <Small>Loading your chats…</Small>
-      ) : chat.list.length === 0 ? (
+      ) : rows.length === 0 ? (
         <Notice title="No chats yet">Chats open up once the board approves you.</Notice>
       ) : (
         <Card style={{ padding: 0 }}>
-          {chat.list.map((s, i) => {
+          {rows.map((s, i) => {
             const other = s.conversation.kind === 'direct' ? data.members.find((m) => s.conversation.memberIds.includes(m.id) && m.id !== me?.id) : null;
             return (
               <ListRow
                 key={s.conversation.id}
-                last={i === chat.list.length - 1}
+                last={i === rows.length - 1}
                 left={other ? <Avatar text={initials(other)} /> : <IconBadge icon={KIND_ICON[s.conversation.kind] ?? 'chatbubbles'} />}
                 title={
                   <Row style={{ gap: space.sm, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
@@ -309,8 +317,10 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     const title = summary?.title ?? (conv && me ? chatTitle(conv, me, data, data.rides.find((r) => r.id === conv.rideId) ?? null) : 'Chat');
     navigation.setOptions({ title });
   }, [navigation, summary?.title, conv, me, data]);
-  // A group's people, and for board members and the NEC adding, renaming and taking out.
+  // A group's people, and for board members and the NEC adding, renaming and taking out. A topic's
+  // name, who started it, and closing it.
   const isGroup = conv?.kind === 'group';
+  const isTopic = conv?.kind === 'topic';
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: isGroup
@@ -319,9 +329,19 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
               <IconButton icon="people-outline" label="Group info" onPress={() => navigation.navigate('GroupInfo', { chatId })} />
             </View>
           )
-        : undefined,
+        : isTopic
+          ? () => (
+              <View style={{ marginRight: space.sm }}>
+                <IconButton icon="information-circle-outline" label="Topic info" onPress={() => navigation.navigate('TopicInfo', { chatId })} />
+              </View>
+            )
+          : undefined,
     });
-  }, [navigation, isGroup, chatId]);
+  }, [navigation, isGroup, isTopic, chatId]);
+  // A board, committee or group chat's topics, for the bar at the top.
+  const topics = useMemo(() => (conv && hasTopics(conv) ? topicsOf(chat.list, chatId) : []), [conv, chat.list, chatId]);
+  const openTopics = topics.filter((t) => !t.conversation.closedAt).length;
+  const topicsUnread = topics.reduce((n, t) => n + t.unread, 0);
 
   const items = useMemo(() => {
     const out: Item[] = [];
@@ -593,6 +613,30 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.ink }}>
       <View style={{ flex: 1, width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' }}>
+        {hasTopics(conv) ? (
+          <Pressable
+            onPress={() => navigation.navigate('Topics', { chatId })}
+            style={({ pressed }) => [styles.topicsBar, pressed && { backgroundColor: colors.steel }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Topics, ${openTopics === 1 ? '1 open' : `${openTopics} open`}${topicsUnread ? `, ${topicsUnread} unread` : ''}`}
+          >
+            <Ionicons name="albums-outline" size={18} color={colors.bone} />
+            <Text style={styles.topicsBarText}>{openTopics ? `Topics · ${openTopics} open` : 'Topics · start one'}</Text>
+            <UnreadBadge n={topicsUnread} />
+            <Ionicons name="chevron-forward" size={18} color={colors.boneDim} />
+          </Pressable>
+        ) : isTopic ? (
+          <Pressable
+            onPress={() => conv.parentId && navigation.navigate('Chat', { chatId: conv.parentId })}
+            style={({ pressed }) => [styles.topicsBar, pressed && { backgroundColor: colors.steel }]}
+            accessibilityRole="button"
+            accessibilityLabel={`A topic in ${topicParentTitle(conv, me, data)}${conv.closedAt ? ', closed' : ''}. Opens ${topicParentTitle(conv, me, data)}`}
+          >
+            <Ionicons name="return-up-back" size={18} color={colors.boneDim} />
+            <Text style={[styles.topicsBarText, { color: colors.boneDim }]} numberOfLines={1}>{`In ${topicParentTitle(conv, me, data)}`}</Text>
+            {conv.closedAt ? <Text style={styles.closedChip}>Closed</Text> : null}
+          </Pressable>
+        ) : null}
         {pinned && !pinned.removedAt ? (
           <View style={styles.pinned}>
             <Ionicons name="pin" size={16} color={colors.boneDim} />
@@ -672,7 +716,15 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
       </View>
       <View style={[styles.composerWrap, { paddingBottom: composerBottomRoom(Platform.OS, keyboard, insets.bottom, space.sm) }]}>
         <View style={{ width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' }}>
-          {family && !hasAgreedPostingRules(me) ? (
+          {isTopic && conv.closedAt ? (
+            // A closed topic: nobody posts until it's reopened (2026-11-24-chat-topics-design.md).
+            <View style={styles.rulesCard}>
+              <Small>This topic is closed.{canRunTopic(me, conv, data) ? ' Reopen it to post again.' : ' Whoever started it, or a board member, can reopen it.'}</Small>
+              {canRunTopic(me, conv, data) ? (
+                <Button label="Reopen topic" kind="secondary" size="small" icon="lock-open-outline" onPress={() => run(() => chat.reopenTopic(chatId))} />
+              ) : null}
+            </View>
+          ) : family && !hasAgreedPostingRules(me) ? (
             // Family chat: Family agree to the club rules for chats and posts here, before their first
             // message (members agree before the tabs open). Reading needs nothing.
             <View style={styles.rulesCard}>
@@ -1242,6 +1294,15 @@ const styles = StyleSheet.create({
   },
   catchBarText: { flex: 1, fontFamily: fonts.stencil, fontSize: 15, letterSpacing: 0.6, color: colors.bone, textTransform: 'uppercase' },
   catchError: { paddingHorizontal: space.lg, paddingTop: space.sm },
+  topicsBar: {
+    flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48, paddingHorizontal: space.lg,
+    borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.ink2,
+  },
+  topicsBarText: { flex: 1, fontFamily: fonts.stencil, fontSize: 15, letterSpacing: 0.6, color: colors.bone, textTransform: 'uppercase' },
+  closedChip: {
+    fontFamily: fonts.stencil, fontSize: 12, letterSpacing: 0.6, color: colors.boneDim, textTransform: 'uppercase',
+    borderWidth: 1, borderColor: colors.line, borderRadius: radius.sm, paddingHorizontal: space.sm, paddingVertical: 2,
+  },
   catchCard: {
     gap: space.sm, padding: space.lg, borderBottomWidth: 1, borderBottomColor: colors.line, backgroundColor: colors.ink2,
   },

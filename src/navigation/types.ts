@@ -113,6 +113,9 @@ export type RootParams = {
   /** Board members and the NEC: a new group, or (with chatId) more people for that group. */
   NewGroup: { chatId?: string } | undefined;
   GroupInfo: { chatId: string };
+  /** A board, committee or group chat's topics, and one topic's info (2026-11-24-chat-topics-design.md). */
+  Topics: { chatId: string };
+  TopicInfo: { chatId: string };
   ChatReports: undefined;
   Photos: undefined;
   RideWall: { rideId: string };
