@@ -211,6 +211,14 @@ export function splitWarning(riders: LiveRider[], now: string): string | null {
   return `Group split: ${parts.join(', ')}`;
 }
 
+/** A ride of yours: in your colours and not answered Can't go, or one you said Going or Maybe to.
+ *  Another club's ride (Supported) only when you said Going or Maybe: it's in everyone's colours.
+ *  Home's live ride and the ride comms bubbles both use this. */
+export function isMyRide(ride: Ride, meId: string, rsvps: Rsvp[], categories: RideCategory[]): boolean {
+  const a = rsvps.find((r) => r.rideId === ride.id && r.memberId === meId)?.answer ?? null;
+  return a === 'going' || a === 'maybe' || (a !== 'no' && ride.category !== 'supported' && categories.includes(ride.category));
+}
+
 const SHOW_BEFORE = HOUR;
 
 /**
@@ -238,12 +246,7 @@ export function homeLiveRide(input: {
   const sharingRideId = input.sharing?.meId === me.id ? input.sharing.rideId : null;
   const sharing = sharingRideId ? rides.find((r) => r.id === sharingRideId) : undefined;
   if (sharing && !liveProblem(me, sharing, now)) return sharing;
-  const answer = (rideId: string) => rsvps.find((r) => r.rideId === rideId && r.memberId === me.id)?.answer ?? null;
-  const mine = (r: Ride) => {
-    const a = answer(r.id);
-    // Another club's ride (Supported) only when you said you're going: it's in everyone's colours.
-    return a === 'going' || a === 'maybe' || (a !== 'no' && r.category !== 'supported' && categories.includes(r.category));
-  };
+  const mine = (r: Ride) => isMyRide(r, me.id, rsvps, categories);
   const underWay = (r: Ride) => {
     const w = liveWindow(r);
     if (!w) return false;

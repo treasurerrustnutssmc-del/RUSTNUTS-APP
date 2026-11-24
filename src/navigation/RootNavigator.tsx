@@ -37,6 +37,7 @@ import { BookBusScreen, BusBookingScreen, BusScreen, ChangeBusScreen } from '../
 import { BusCostsScreen, BusKeysScreen } from '../screens/busLog'; // Rusty Bus extras
 // Lane E: live ride
 import { LiveRideScreen } from '../screens/liveRide';
+import { CommsBubbles } from '../ui/CommsBubbles'; // Ride comms bubbles
 // Lane E: notifications
 import { ReminderSync } from '../data/reminders';
 import { LocalAlertSync } from '../data/localAlerts'; // Ride planning extras
@@ -605,6 +606,8 @@ export function RootNavigator() {
           </>
         )}
       </Stack.Navigator>
+      {/* Ride comms bubbles: over every screen while a ride's comms are on */}
+      <CommsBubbles navigation={navigationRef} />
       {/* Over every screen: a notification that arrives while the app is open */}
       <IncomingBanner navigation={navigationRef} />
     </NavigationContainer>

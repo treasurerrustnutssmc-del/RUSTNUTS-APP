@@ -205,6 +205,30 @@ export function demoTodayRide(now: Date): Ride {
   };
 }
 
+/**
+ * Ride comms bubbles: a second made-up ride on now, a whole-club one that started two hours ago, so
+ * two bubbles (two rides' comms at once) can be seen. Home's live ride stays the coffee run (it
+ * started last).
+ */
+export function demoTodayClubRide(now: Date): Ride {
+  const hour = 3600_000;
+  const back = new Date(now.getTime() - 2 * hour).toISOString();
+  const midnight = melbourneInstant(melbourneDate(now.toISOString()), '00:00')!;
+  return {
+    id: 'r-today-club',
+    title: 'Toy run (demo)',
+    startsAt: back > midnight ? back : midnight,
+    endsAt: new Date(now.getTime() + 2 * hour).toISOString(),
+    allDay: false,
+    location: 'Melton Toyota',
+    notes: 'A made-up whole-club ride, on at the same time as the coffee run.',
+    category: 'club',
+    cancelledAt: null,
+    source: 'feed',
+    website: true,
+  };
+}
+
 // The Road Rules' sample text (see below).
 const RULES_SAMPLE = `# Sample Road Rules (demo only)
 
