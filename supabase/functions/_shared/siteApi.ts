@@ -125,7 +125,36 @@ export interface PublicSitePhotoRow {
   height: number;
   caption: string | null;
   taken_at: string;
+  /** The gallery (20270970000100): videos, their Cloudflare addresses, and the album. */
+  kind?: 'photo' | 'video';
+  video_url?: string | null;
+  poster_url?: string | null;
+  poster_path?: string | null;
+  album?: string | null;
+  album_date?: string | null;
 }
+
+/** One photo or video as the website gets it from GET /photos. */
+export interface SitePhotoOut {
+  id: string;
+  kind: 'photo' | 'video';
+  /** The picture to show: the photo, or the video's still. */
+  url: string | null;
+  width: number;
+  height: number;
+  caption: string | null;
+  taken_at: string;
+  album: string | null;
+  album_date: string | null;
+  /** The video itself (Cloudflare), or null for a photo. */
+  video: string | null;
+  /** A link that saves the file instead of opening it. */
+  download: string | null;
+}
+
+/** The saved file's name: rustnuts-<date>-<id>.<ending>, as the app's Save names it. */
+export const downloadName = (id: string, takenAt: string, path: string) =>
+  `rustnuts-${takenAt.slice(0, 10)}-${id.replace(/[^a-z0-9]/gi, '').slice(0, 8)}.${/\.([a-z0-9]{2,4})$/i.exec(path)?.[1]?.toLowerCase() ?? 'jpg'}`;
 
 export interface CleanSignup {
   ride: string;
@@ -168,8 +197,9 @@ export interface SiteApiDeps {
   countVisit: (page: string) => Promise<void>;
   /** public.public_site_photos() as anon. */
   listPhotos: () => Promise<PublicSitePhotoRow[]>;
-  /** A signed URL for a photo in the chat-media or site-media bucket, or null when it won't sign. */
-  signPhoto: (bucket: string, path: string) => Promise<string | null>;
+  /** A signed URL for a photo in the chat-media or site-media bucket, or null when it won't sign.
+   *  With `download`, the link saves the file under that name instead of opening it. */
+  signPhoto: (bucket: string, path: string, download?: string) => Promise<string | null>;
 }
 
 export interface SiteRequest {
@@ -347,16 +377,20 @@ export async function handleSiteApi(req: SiteRequest, deps: SiteApiDeps): Promis
     } catch {
       return reply(503, { error: 'The club photos are not available just now.' }, { 'cache-control': 'no-store' });
     }
-    const signed = await Promise.all(rows.map(async (p) => ({
-      id: p.id,
-      url: await deps.signPhoto(p.bucket, p.path).catch(() => null),
-      width: p.width,
-      height: p.height,
-      caption: p.caption,
-      taken_at: p.taken_at,
-    })));
-    // A photo that won't sign just isn't shown; the rest still are.
-    return reply(200, { photos: signed.filter((p) => p.url !== null) }, { 'cache-control': PHOTOS_CACHE });
+    const sign = (bucket: string, path: string, download?: string) => deps.signPhoto(bucket, path, download).catch(() => null);
+    const out = await Promise.all(rows.map(async (p): Promise<SitePhotoOut | null> => {
+      const base = { id: p.id, width: p.width, height: p.height, caption: p.caption, taken_at: p.taken_at, album: p.album ?? null, album_date: p.album_date ?? null };
+      if (p.kind === 'video') {
+        // A video shows only once it's on the club's Cloudflare storage (the database holds it back till then too).
+        if (!p.video_url) return null;
+        const still = p.poster_url ?? (p.poster_path ? await sign(p.bucket, p.poster_path) : null);
+        return { ...base, kind: 'video', url: still, video: p.video_url, download: `${p.video_url}?download=1` };
+      }
+      const url = await sign(p.bucket, p.path);
+      if (url === null) return null; // a photo that won't sign just isn't shown; the rest still are
+      return { ...base, kind: 'photo', url, video: null, download: await sign(p.bucket, p.path, downloadName(p.id, p.taken_at, p.path)) };
+    }));
+    return reply(200, { photos: out.filter((p): p is SitePhotoOut => p !== null) }, { 'cache-control': PHOTOS_CACHE });
   }
 
   if (path === '/visit') {

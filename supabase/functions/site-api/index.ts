@@ -78,9 +78,9 @@ Deno.serve(async (req) => {
         if (r.error) throw new Error(r.error.message);
         return (r.data ?? []) as PublicSitePhotoRow[];
       },
-      signPhoto: async (bucket, path) => {
+      signPhoto: async (bucket, path, download) => {
         if (bucket !== 'chat-media' && bucket !== 'site-media') return null;
-        const r = await admin.storage.from(bucket).createSignedUrl(path, LOGO_URL_LIFE_S);
+        const r = await admin.storage.from(bucket).createSignedUrl(path, LOGO_URL_LIFE_S, download ? { download } : undefined);
         return r.error ? null : r.data.signedUrl;
       },
     },

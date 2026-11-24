@@ -214,8 +214,17 @@ begin
   assert pg_temp.try_as(smo, format('select public.approve_gallery_for_site(%L, null)', vid)) is null, 'approved';
   assert (select kind from site_photos where gallery_id = vid) = 'video', 'kind kept';
   assert not exists (select 1 from public.public_site_photos() where caption = 'Burnout'), 'not until copied';
-  update site_photos set video_url = 'https://example.workers.dev/v/w.mp4' where gallery_id = vid;
+  -- The function's list: copy it. Only the service key may ask.
+  assert pg_temp.try_as(smo, 'select public.video_copy_jobs()') like 'permission denied%', 'members can''t list the jobs';
+  assert (select public.video_copy_jobs()->0->>'action') = 'copy', 'a job to copy';
+  perform public.video_copy_done((select id from site_photos where gallery_id = vid), 'https://example.workers.dev/v/w.mp4', null);
+  assert (select jsonb_array_length(public.video_copy_jobs())) = 0, 'nothing left to do';
   assert (select kind || ':' || coalesce(album, 'Club life') from public.public_site_photos() where caption = 'Burnout') = 'video:Club life', 'then it shows';
+  -- Taken down: the function is asked to delete it on Cloudflare, then clears the address.
+  perform pg_temp.try_as(snap, format('select public.remove_gallery_item(%L)', vid));
+  assert (select public.video_copy_jobs()->0->>'action') = 'clear', 'a job to clear';
+  perform public.video_copy_cleared((select id from site_photos where gallery_id = vid));
+  assert (select video_url from site_photos where gallery_id = vid) is null, 'cleared';
 end $$;
 
 \o
@@ -235,7 +244,7 @@ begin
   assert pg_temp.try_as(nell, format('select public.decline_gallery_for_site(%L)', d)) = 'Only the Social Media Officer, their crew or the NEC can put photos on the website.', 'member can''t decline';
   assert pg_temp.try_as(smo, format('select public.decline_gallery_for_site(%L)', d)) is null, 'declined';
   assert pg_temp.value_as(smo, 'select jsonb_array_length(public.gallery_for_site())') = '0', 'nothing waiting';
-  assert pg_temp.value_as(nell, 'select jsonb_array_length(public.club_photos(null, 60))') = '4', 'still in the gallery';
+  assert pg_temp.value_as(nell, 'select jsonb_array_length(public.club_photos(null, 60))') = '3', 'still in the gallery';
 
   assert pg_temp.try_as(nell, format('select public.remove_gallery_item(%L)', coast)) = 'Only the member who added it or the website photo crew can take it down.', 'someone else';
   assert pg_temp.try_as(snap, format('select public.remove_gallery_item(%L)', '00000000-0000-0000-0000-000000000000')) = 'No such photo or video.', 'nothing';
@@ -244,7 +253,7 @@ begin
   assert (select status from site_photos where gallery_id = coast) = 'removed', 'off the website too';
   assert exists (select 1 from private.storage_purge where path = 'gallery/' || snap || '/a.jpg'), 'file queued for the purge';
   assert pg_temp.try_as(smo, format('select public.remove_gallery_item(%L)', d)) is null, 'the SMO can take any down';
-  assert pg_temp.value_as(nell, 'select jsonb_array_length(public.club_photos(null, 60))') = '2', 'two left';
+  assert pg_temp.value_as(nell, 'select jsonb_array_length(public.club_photos(null, 60))') = '1', 'one left';
 end $$;
 
 \o

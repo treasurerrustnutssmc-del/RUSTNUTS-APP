@@ -408,3 +408,62 @@ $$;
 revoke all on function private.forget_gallery() from public, anon, authenticated;
 create trigger member_private_forget_gallery after delete on public.member_private
   for each row execute function private.forget_gallery();
+
+-- ---------------------------------------------------------------------------------------------
+-- Website videos on the club's Cloudflare storage (the site-video-copy Edge Function). The function
+-- runs with the service key and does only what these list.
+
+-- What to do: copy live website videos with no Cloudflare address yet; delete taken-down ones that
+-- still have one. A few at a time.
+create or replace function public.video_copy_jobs()
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(j), '[]'::jsonb) from (
+    select jsonb_build_object('id', p.id, 'action', case when p.status = 'live' then 'copy' else 'clear' end,
+                              'path', p.path, 'poster_path', p.poster_path, 'video_url', p.video_url) as j
+    from public.site_photos p
+    where p.kind = 'video'
+      and ((p.status = 'live' and p.video_url is null) or (p.status = 'removed' and p.video_url is not null))
+    order by p.picked_at
+    limit 5
+  ) x;
+$$;
+
+create or replace function public.video_copy_done(p_id uuid, p_video_url text, p_poster_url text)
+returns void language sql security definer set search_path = '' as $$
+  update public.site_photos set video_url = p_video_url, poster_url = p_poster_url
+  where id = p_id and kind = 'video' and status = 'live';
+$$;
+
+create or replace function public.video_copy_cleared(p_id uuid)
+returns void language sql security definer set search_path = '' as $$
+  update public.site_photos set video_url = null, poster_url = null where id = p_id and status = 'removed';
+$$;
+
+revoke all on function public.video_copy_jobs(), public.video_copy_done(uuid, text, text), public.video_copy_cleared(uuid)
+  from public, anon, authenticated;
+grant execute on function public.video_copy_jobs(), public.video_copy_done(uuid, text, text), public.video_copy_cleared(uuid)
+  to service_role;
+
+-- The nudge: when a website video goes live or comes down, call the function (no timer, so no extra
+-- cron runs). Does nothing until an admin saves 'video_copy_url' in private.app_settings. Never
+-- stops the change itself.
+create or replace function private.video_copy_kick()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  u text;
+begin
+  if new.kind <> 'video' then return null; end if;
+  if not ((new.status = 'live' and new.video_url is null) or (new.status = 'removed' and new.video_url is not null)) then return null; end if;
+  select value into u from private.app_settings where key = 'video_copy_url';
+  if u is null or u = '' then return null; end if;
+  begin
+    execute 'select net.http_post(url := $1, headers := private.cron_headers(), body := ''{}''::jsonb)' using u;
+  exception when others then
+    raise warning 'site-video-copy not called for %: %', new.id, sqlerrm;
+  end;
+  return null;
+end;
+$$;
+revoke all on function private.video_copy_kick() from public, anon, authenticated;
+create trigger site_photos_video_copy after insert or update of status on public.site_photos
+  for each row execute function private.video_copy_kick();
