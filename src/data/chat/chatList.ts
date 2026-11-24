@@ -2,13 +2,13 @@
 // database's chat_list, club_photos, ride_walls and ride_wall work them out. The demo uses these;
 // the live app gets the same shapes from the database and sorts them with sortSummaries.
 
-import { approvalProblem, chatTitle, memberProblem, readProblem, rideChatListed, type Block, type Message } from '../../domain/chat';
+import { approvalProblem, chatTitle, memberProblem, readProblem, rideChatListed, withParent, type Block, type Message } from '../../domain/chat';
 import type { ClubData, Member } from '../../domain/types';
 import { NotAllowedError } from '../clubContext';
 import type { ChatSummary, FeedItem, RideWall } from './chatContext';
 import type { ChatData } from './demoChatActions';
 
-const KIND_ORDER = ['club', 'family', 'chapter', 'board', 'boards', 'nec', 'committee', 'ride', 'group', 'direct'];
+const KIND_ORDER = ['club', 'family', 'chapter', 'board', 'boards', 'nec', 'committee', 'ride', 'group', 'direct', 'topic'];
 
 /** The whole club first, then Family, chapter, big table, All boards, NEC and committee chats, ride chats
  *  by when the ride starts, then groups and private chats with the latest message first. */
@@ -34,6 +34,7 @@ export function listFor(chat: ChatData, club: ClubData, me: Member | null, today
   if (!me || approvalProblem(me)) return [];
   const mine = withoutBlocked(chat.messages, chat.blocks, me.id);
   const list = chat.conversations
+    .map((c) => withParent(c, chat.conversations)!)
     .filter((c) => !readProblem(me, c, club))
     .flatMap((c): ChatSummary[] => {
       const ride = c.rideId ? club.rides.find((r) => r.id === c.rideId) ?? null : null;
@@ -61,6 +62,46 @@ export function listFor(chat: ChatData, club: ClubData, me: Member | null, today
       }];
     });
   return sortSummaries(list);
+}
+
+/** The chat list as it shows: topics tucked under their chat, which counts their unread messages and
+ *  shows the newest line across itself and them (2026-11-24-chat-topics-design.md). */
+export function foldTopics(list: ChatSummary[]): ChatSummary[] {
+  const topics = list.filter((s) => s.conversation.kind === 'topic');
+  // Sorted again, so a group whose topic is busiest moves up with its newest line.
+  return sortSummaries(list
+    .filter((s) => s.conversation.kind !== 'topic')
+    .map((s) => {
+      const mine = topics.filter((t) => t.conversation.parentId === s.conversation.id);
+      if (!mine.length) return s;
+      let last = s.last;
+      let lastTopic: string | null = null;
+      for (const t of mine) {
+        if (t.last && (!last || t.last.createdAt > last.createdAt)) {
+          last = t.last;
+          lastTopic = t.title;
+        }
+      }
+      const closed = mine.filter((t) => t.conversation.closedAt).length;
+      return {
+        ...s,
+        last,
+        lastTopic,
+        unread: s.unread + mine.reduce((n, t) => n + t.unread, 0),
+        topics: { open: mine.length - closed, closed },
+      };
+    }));
+}
+
+/** A chat's topics: open ones first, each lot with the latest message first. */
+export function topicsOf(list: ChatSummary[], chatId: string): ChatSummary[] {
+  return list
+    .filter((s) => s.conversation.kind === 'topic' && s.conversation.parentId === chatId)
+    .sort((a, b) => {
+      const shut = Number(!!a.conversation.closedAt) - Number(!!b.conversation.closedAt);
+      if (shut) return shut;
+      return (b.last?.createdAt ?? '').localeCompare(a.last?.createdAt ?? '') || a.title.localeCompare(b.title);
+    });
 }
 
 const newestFirst = (a: Message, b: Message) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);

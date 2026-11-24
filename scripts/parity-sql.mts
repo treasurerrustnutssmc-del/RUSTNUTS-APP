@@ -779,6 +779,8 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.report_message(${id('msg', c.message)}, ${text(c.reason, c.repeat)})`;
     case 'chatBlock':
       return `public.set_block(${id('m', c.member)}, ${c.blocked})`;
+    case 'chatStartTopic':
+      return `public.start_topic(${caseChat}, ${text(c.topic, c.repeat)})`;
     // Member content rules (App Store Guideline 1.2)
     case 'agreePostingRules':
       return 'public.accept_posting_rules()';

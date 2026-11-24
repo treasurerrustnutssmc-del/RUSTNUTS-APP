@@ -645,6 +645,15 @@ done
 "${PSQL[@]}" -d rustnuts_chat_groups -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_chat_groups -f "$ROOT/supabase/tests/chat_groups_test.sql"
 
+# Topics inside board, committee and group chats, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_chat_topics" >/dev/null
+"${PSQL[@]}" -d rustnuts_chat_topics -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_chat_topics -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_chat_topics -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_chat_topics -f "$ROOT/supabase/tests/chat_topics_test.sql"
+
 # The sign-up block list, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_blocked_signups" >/dev/null
 "${PSQL[@]}" -d rustnuts_blocked_signups -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null

@@ -38,7 +38,7 @@ test('a chat-list entry gives its chat, ride, last message and unread count', ()
     ride: rideRow, unread: 3,
     last: { id: 'm9', author_id: 'a1', body: null, created_at: '2026-10-24T01:00:00+00:00', removed: false, media_count: 2 },
   });
-  assert.deepEqual(parts.conversation, { id: 'c1', kind: 'ride', chapterId: null, rideId: 'r1', committee: null, pinnedMessageId: null, memberIds: [], name: null, createdBy: null });
+  assert.deepEqual(parts.conversation, { id: 'c1', kind: 'ride', chapterId: null, rideId: 'r1', committee: null, pinnedMessageId: null, memberIds: [], name: null, createdBy: null, parentId: null, closedAt: null, closedBy: null });
   assert.equal(parts.ride?.startsAt, '2026-11-07T21:30:00.000Z');
   assert.deepEqual(parts.last, { id: 'm9', authorId: 'a1', body: null, createdAt: '2026-10-24T01:00:00.000Z', removed: false, mediaCount: 2, voice: false });
   assert.equal(parts.unread, 3);
@@ -119,4 +119,17 @@ test('an upload lands in its chat’s folder with a fresh name and the right end
   assert.notEqual(uploadName('c1', 'image/jpeg'), name);
   assert.match(uploadName('c1', 'video/quicktime'), /\.mov$/);
   assert.match(uploadName('c1', 'video/mp4'), /\.mp4$/);
+});
+
+test('a topic from the chat list keeps its chat and whether it’s closed; chats from before the paste have none', () => {
+  const topic = toSummaryParts({
+    id: 't1', kind: 'topic', chapter_id: null, ride_id: null, committee: null, name: 'Christmas party', created_by: 'm1',
+    parent_id: 'b1', closed_at: '2026-11-24T01:00:00+00:00', closed_by: 'm2', ride: null, last: null, unread: 0,
+  }).conversation;
+  assert.equal(topic.parentId, 'b1');
+  assert.equal(topic.closedAt, '2026-11-24T01:00:00.000Z');
+  assert.equal(topic.closedBy, 'm2');
+  const old = toSummaryParts({ id: 'c1', kind: 'club', chapter_id: null, ride_id: null, committee: null, ride: null, last: null, unread: 0 }).conversation;
+  assert.equal(old.parentId, null);
+  assert.equal(old.closedAt, null);
 });
