@@ -851,8 +851,6 @@ export interface LedgerData {
   meetingTotals?: (MeetingFigures & { id: string })[];
   /** Live only: every paid expense with member names taken out, from club_spending(). */
   spending?: SpendingLine[];
-  /** Live only, for books keepers: every member's names, so shared PDFs can take them all out. */
-  privacyNames?: Pick<Member, 'fullName' | 'roadName'>[];
 }
 
 // Stage 5D: conduct records, merch, national contributions and new chapters ----------------------

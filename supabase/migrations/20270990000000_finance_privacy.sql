@@ -100,8 +100,9 @@ begin
 end;
 $$;
 
--- Two independent approvers (13.3): the refusals never name the payee, since board members approving
--- don't see who's paid ("the payee" instead). Otherwise as 20270870000000_acting_roles.sql. Mirrors
+-- Two independent approvers (13.3): when the tie is to the payee (covering their seat, or they put you
+-- in yours) the refusal is one plain line, since naming the reason would tell a board member who the
+-- hidden payee is. Otherwise as 20270870000000_acting_roles.sql. Mirrors
 -- approvalConflict in src/domain/ledger.ts.
 create or replace function private.approval_conflict(p_entry uuid, p_member uuid)
 returns text language plpgsql stable security definer set search_path = '' as $$
@@ -114,7 +115,7 @@ begin
   if not found then return null; end if;
   -- Seated: the member stands only through acting rows that the recorder, the payee or an approver
   -- already counted put there.
-  select case when x.n = 1 then 'the payee' else private.short_name(m) end into who
+  select case when x.n = 1 then chr(1) else private.short_name(m) end into who
   from (select e.recorded_by as id, 0 as n, null::timestamptz as at
         union all select e.payee_member_id, 1, null
         union all select a.member_id, 2, a.approved_at from public.ledger_approvals a
@@ -131,6 +132,7 @@ begin
         and h.acting_until is not null and x.id in (h.appointed_by, r.requested_by))
   order by x.n, x.at, x.id
   limit 1;
+  if who = chr(1) then return 'This payment goes to the other approvers (13.3).'; end if;
   if who is not null then
     return 'You’re acting because ' || who || ' put you there, so you can’t be the second approver on their entry (13.3).';
   end if;
@@ -157,13 +159,13 @@ begin
     return who || ' is acting because you put them there, so you can’t be the second approver after them (13.3).';
   end if;
   -- The payee's stand-in: their payment goes to the other approvers.
-  select 'the payee' into who
+  select 'x' into who
   from private.held_positions c
   join public.positions p on p.id = c.covers
   where c.member_id = p_member and p.member_id = e.payee_member_id
   limit 1;
   if who is not null then
-    return 'You’re covering ' || who || '’s seat, so their payment goes to the other approvers (13.3).';
+    return 'This payment goes to the other approvers (13.3).';
   end if;
   return null;
 end;
@@ -224,12 +226,6 @@ begin
       select jsonb_agg(jsonb_build_object('chapter_id', chapter_id, 'fy', fy, 'lines', lines, 'approved_vote_id', approved_vote_id,
         'approved_at', approved_at, 'approved_by', approved_by, 'updated_at', updated_at) order by fy, chapter_id)
       from public.budgets), '[]'::jsonb) else '[]'::jsonb end,
-    -- Whoever keeps any fund's books gets every member's names, so the PDFs they share can take them
-    -- all out (their own members list leaves out other chapters' applicants).
-    'hidden_names', case when exists (
-        select 1 from (select null::uuid as id union all select id from public.chapters) f where private.keeps_books(f.id)) then coalesce((
-      select jsonb_agg(jsonb_build_object('full_name', full_name, 'road_name', road_name) order by full_name)
-      from public.members), '[]'::jsonb) else '[]'::jsonb end,
     'reports', case when reads_reports then coalesce((
       select jsonb_agg(jsonb_build_object('month', month, 'presented_at', presented_at, 'presented_by', presented_by) order by month desc)
       from public.treasurer_reports), '[]'::jsonb) else '[]'::jsonb end,

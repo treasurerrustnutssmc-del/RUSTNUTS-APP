@@ -23,7 +23,6 @@ export interface LedgerJson {
   }[];
   reports: { month: string; presented_at: string; presented_by: string | null }[];
   report_totals: ReportJson[];
-  hidden_names?: { full_name: string; road_name: string | null }[];
 }
 
 const instant = (ts: string) => new Date(ts).toISOString();
@@ -48,7 +47,7 @@ function toReport(r: ReportJson): MonthReport {
 
 const list = <T>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
 
-export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<LedgerData, 'meetingReports' | 'meetingTotals' | 'spending' | 'privacyNames'>> & Pick<LedgerData, 'privacyNames'> {
+export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<LedgerData, 'meetingReports' | 'meetingTotals' | 'spending'>> {
   // Anything but a plain object (an old database without club_ledger, a stub) reads as no books.
   const json = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
   return {
@@ -86,9 +85,6 @@ export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<Ledg
     })),
     treasurerReports: list(json?.reports).map((r) => ({ month: r.month, presentedAt: instant(r.presented_at), presentedBy: r.presented_by })),
     reportTotals: list(json?.report_totals).map(toReport),
-    ...(list(json?.hidden_names).length
-      ? { privacyNames: list(json?.hidden_names).map((n) => ({ fullName: n.full_name, roadName: n.road_name })) }
-      : {}),
   };
 }
 

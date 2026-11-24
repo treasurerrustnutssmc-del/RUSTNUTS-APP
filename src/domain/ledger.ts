@@ -123,10 +123,11 @@ export const independentSeated = (name: string) =>
   `You’re acting because ${name} put you there, so you can’t be the second approver on their entry (13.3).`;
 export const independentPlanted = (name: string) =>
   `${name} is acting because you put them there, so you can’t be the second approver after them (13.3).`;
-/** How the refusals name a payee, never by name (Jeff, 24 Nov 2026). */
-export const THE_PAYEE = 'the payee';
-export const independentStandIn = (name: string) =>
-  `You’re covering ${name}’s seat, so their payment goes to the other approvers (13.3).`;
+/**
+ * When the tie is to the payee (you cover their seat, or they put you in yours), one plain refusal:
+ * naming the reason would tell a board member who the hidden payee is (Jeff, 24 Nov 2026).
+ */
+export const PAYEE_TIED = 'This payment goes to the other approvers (13.3).';
 
 const isAmount = (cents: number) => Number.isInteger(cents) && cents > 0;
 const isIsoDate = (s: string | null | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -229,7 +230,8 @@ export function approvalConflict(memberId: string, entry: LedgerEntry, data: Clu
     const putters = new Set(mine.filter((h) => isActing(h) && fundBoardRow(h, entry.chapterId)).flatMap((h) => putThereBy(h, data)));
     for (const [i, x] of [entry.recordedBy, entry.payeeMemberId, ...counted.map((a) => a.memberId)].entries()) {
       // The payee isn't named: board members approving don't see who's paid (Jeff, 24 Nov 2026).
-      const who = x && x !== memberId && putters.has(x) ? (i === 1 ? THE_PAYEE : nameOf(x)) : null;
+      if (i === 1 && x && x !== memberId && putters.has(x)) return PAYEE_TIED;
+      const who = x && x !== memberId && putters.has(x) ? nameOf(x) : null;
       if (who) return independentSeated(who);
     }
   }
@@ -247,7 +249,7 @@ export function approvalConflict(memberId: string, entry: LedgerEntry, data: Clu
   // The payee's stand-in, in any fund: their payment goes to the other approvers.
   for (const c of mine) {
     const covered = c.covers ? data.positions.find((p) => p.id === c.covers) : undefined;
-    if (covered && entry.payeeMemberId !== null && covered.memberId === entry.payeeMemberId) return independentStandIn(THE_PAYEE);
+    if (covered && entry.payeeMemberId !== null && covered.memberId === entry.payeeMemberId) return PAYEE_TIED;
   }
   return null;
 }

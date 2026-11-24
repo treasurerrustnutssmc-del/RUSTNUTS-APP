@@ -264,7 +264,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
     try {
       const assets = await reportAssets();
       // PDFs get passed around, so names come out of the notes and every line (Jeff, 24 Nov 2026).
-      const shared = forSharing({ notes, lines }, [...data.members, ...(data.privacyNames ?? [])]);
+      const shared = forSharing({ notes, lines }, data.members);
       const html = kind === 'full'
         ? meetingReportFullHtml({
           figures,

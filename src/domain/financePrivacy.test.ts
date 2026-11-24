@@ -101,7 +101,7 @@ test('a board member who can’t approve a hidden payment is told why without th
     ledger: [line({ id: 'r', state: 'awaiting', entryOn: null, description: 'Refund to Diesel', payeeMemberId: 'm-diesel', approvals: [{ memberId: 'm-sparks', approvedAt: '2026-11-02T00:00:00.000Z' }] })],
   };
   const seen = financesAsSeenBy(covered, who('m-torque'));
-  const want = 'You’re covering the payee’s seat, so their payment goes to the other approvers (13.3).';
+  const want = 'This payment goes to the other approvers (13.3).';
   assert.equal(seen.ledger![0].myConflict, want, 'worked out before the payee is taken off');
   assert.equal(approveProblem(who('m-torque'), 'r', seen), want, 'so the Approve button stays off');
   assert.ok(!needsMyApproval(who('m-torque'), seen).some((e) => e.id === 'r'), 'and it isn’t on Home as one to approve');
