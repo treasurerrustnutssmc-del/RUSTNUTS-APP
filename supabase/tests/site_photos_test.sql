@@ -300,7 +300,8 @@ begin
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   cross join lateral unnest(p.proargnames) with ordinality as a(attname, ord)
   where n.nspname = 'public' and p.proname = 'public_site_photos';
-  assert cols = 'bucket,caption,height,id,path,taken_at,width', 'public columns: ' || coalesce(cols, '(none)');
+  -- The gallery (20270970000100) added kind, album and the video addresses; still nothing personal.
+  assert cols = 'album,album_date,bucket,caption,height,id,kind,path,poster_path,poster_url,taken_at,video_url,width', 'public columns: ' || coalesce(cols, '(none)');
   assert pg_temp.try_as(null, 'select * from public.public_site_photos()') is null, 'anon reads the feed';
   perform big4;
 end $$;

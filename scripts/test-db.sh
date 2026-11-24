@@ -557,6 +557,14 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_site_photos -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_site_photos -f "$ROOT/supabase/tests/site_photos_test.sql"
+# The club gallery, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_gallery" >/dev/null
+"${PSQL[@]}" -d rustnuts_gallery -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_gallery -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_gallery -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_gallery -f "$ROOT/supabase/tests/gallery_test.sql"
 # Website visitor counts (site-api), on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_site_visits" >/dev/null
 "${PSQL[@]}" -d rustnuts_site_visits -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
