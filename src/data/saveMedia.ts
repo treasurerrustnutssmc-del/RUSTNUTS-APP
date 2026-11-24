@@ -47,9 +47,10 @@ export async function saveToPhone(source: MediaSource, item: { kind: 'photo' | '
     const file = await File.downloadFileAsync(url, new File(Paths.cache, name), { idempotent: true });
     local = file.uri;
   }
+  const mov = /\.mov$/i.test(name);
   await Sharing.shareAsync(local, {
-    mimeType: item.kind === 'video' ? 'video/mp4' : 'image/jpeg',
-    UTI: item.kind === 'video' ? 'public.mpeg-4' : 'public.jpeg',
+    mimeType: item.kind === 'video' ? (mov ? 'video/quicktime' : 'video/mp4') : 'image/jpeg',
+    UTI: item.kind === 'video' ? (mov ? 'com.apple.quicktime-movie' : 'public.mpeg-4') : 'public.jpeg',
     dialogTitle: item.kind === 'video' ? 'Save the video' : 'Save the photo',
   });
 }

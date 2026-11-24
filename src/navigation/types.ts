@@ -115,7 +115,8 @@ export type RootParams = {
   GroupInfo: { chatId: string };
   ChatReports: undefined;
   /** added: how many just went into the gallery (Add to the gallery comes back here). */
-  Photos: { added?: number } | undefined;
+  /** `at` tells two adds of the same count apart, so the list reloads each time. */
+  Photos: { added?: number; at?: number } | undefined;
   /** The gallery: rideId starts the album on that ride. */
   /** From a ride wall: the ride, which may be older than the album picker's 30 days. */
   AddToGallery: { rideId?: string; rideTitle?: string; rideStartsAt?: string } | undefined;

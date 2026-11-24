@@ -18,6 +18,8 @@ import { colors, fonts, MAX_CONTENT_WIDTH, space } from '../theme';
 import { Button, Card, Field, Ionicons, ListRow, Notice, Screen, SectionTitle, Small, Stack, Toggle } from '../ui/primitives';
 
 const COLUMNS = 4;
+/** Counts adds this session, so Photos reloads even when two adds bring the same number. */
+let adds = 0;
 const GAP = 4;
 
 export function AddToGalleryScreen({ navigation, route }: RootScreen<'AddToGallery'>) {
@@ -84,7 +86,7 @@ export function AddToGalleryScreen({ navigation, route }: RootScreen<'AddToGalle
     try {
       const n = await chat.addToGallery({ rideId, caption, websiteOk, consent, files });
       setBusy(false);
-      navigation.navigate('Photos', { added: n });
+      navigation.navigate('Photos', { added: n, at: ++adds });
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -136,10 +138,11 @@ export function AddToGalleryScreen({ navigation, route }: RootScreen<'AddToGalle
             title={r.title}
             subtitle={formatAuDate(melbourneDate(r.startsAt))}
             checked={rideId === r.id}
+            right={<Tick on={rideId === r.id} />}
             onPress={() => choose(r.id)}
           />
         ))}
-        <ListRow title={CLUB_LIFE} subtitle="Not from a ride" checked={rideId === null} onPress={() => choose(null)} last />
+        <ListRow title={CLUB_LIFE} subtitle="Not from a ride" checked={rideId === null} right={<Tick on={rideId === null} />} onPress={() => choose(null)} last />
       </Card>
 
       <Card>
@@ -169,6 +172,11 @@ export function AddToGalleryScreen({ navigation, route }: RootScreen<'AddToGalle
       </Stack>
     </Screen>
   );
+}
+
+/** Which album is picked: a filled tick, or an empty ring. */
+function Tick({ on }: { on: boolean }) {
+  return <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? colors.redBright : colors.boneMute} />;
 }
 
 const styles = StyleSheet.create({

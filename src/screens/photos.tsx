@@ -76,6 +76,7 @@ export function PhotosScreen({ navigation, route }: RootScreen<'Photos'>) {
   const chat = useChat();
   const { me } = useClub();
   const added = route.params?.added;
+  const addedAt = route.params?.at;
   const [tab, setTab] = useState<'latest' | 'walls'>('latest');
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [walls, setWalls] = useState<RideWall[] | null>(null);
@@ -111,7 +112,7 @@ export function PhotosScreen({ navigation, route }: RootScreen<'Photos'>) {
     return () => {
       live = false;
     };
-  }, [added]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [added, addedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let live = true;
