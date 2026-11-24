@@ -727,6 +727,11 @@ export interface LedgerEntry {
   voidReason: string | null;
   voidedBy: string | null;
   approvals: { memberId: string; approvedAt: string }[];
+  /**
+   * Only on a line whose payee was taken off for this reader (finance privacy): why they can't
+   * approve it (null: they can), worked out with the payee. Undefined everywhere else.
+   */
+  myConflict?: string | null;
 }
 
 /** A fund's balance on 1 July of a financial year. */
@@ -846,6 +851,8 @@ export interface LedgerData {
   meetingTotals?: (MeetingFigures & { id: string })[];
   /** Live only: every paid expense with member names taken out, from club_spending(). */
   spending?: SpendingLine[];
+  /** Live only, for books keepers: every member's names, so shared PDFs can take them all out. */
+  privacyNames?: Pick<Member, 'fullName' | 'roadName'>[];
 }
 
 // Stage 5D: conduct records, merch, national contributions and new chapters ----------------------

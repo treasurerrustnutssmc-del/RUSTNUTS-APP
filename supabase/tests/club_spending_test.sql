@@ -166,4 +166,29 @@ begin
   assert pg_temp.notes_as(pg_temp.u(5)) = 'Thanks to a member and a member for the fuel run.', 'and the notes, as members read them';
 end $$;
 
+\echo 'Club words and businesses survive names that are everyday words; payee conflicts sent without the name'
+\o /dev/null
+insert into ledger_entries (chapter_id, code, description, amount_cents, entry_on, state, payee_name, payee_member_id)
+values
+  (null, 'DB-001', 'Rego for the Rusty Bus, paid rusty', 201, '2026-10-26', 'paid', 'Kowalski Motors', null),
+  (null, 'DB-001', 'Gary a membership', 202, '2026-10-27', 'paid', null, null),
+  ((select id from chapters where slug = 'west'), 'DB-001', 'Waiting refund', 203, null, 'awaiting', null, pg_temp.u(4));
+\o
+do $$
+declare
+  r jsonb := pg_temp.spending_as(pg_temp.u(4));
+  sec jsonb := pg_temp.ledger_as(pg_temp.u(5));
+  tre jsonb := pg_temp.ledger_as(pg_temp.u(2));
+begin
+  assert (select x->>'description' from jsonb_array_elements(r) x where x->>'amount_cents' = '201') = 'Rego for the Rusty Bus, paid a member',
+    'the Rusty Bus keeps its name: ' || (select x->>'description' from jsonb_array_elements(r) x where x->>'amount_cents' = '201');
+  assert (select x->>'payee' from jsonb_array_elements(r) x where x->>'amount_cents' = '201') = 'a member Motors', 'a business payee keeps its other words';
+  assert (select x->>'description' from jsonb_array_elements(r) x where x->>'amount_cents' = '202') = 'a member a membership', 'the collapse is whole words';
+  assert (select x ? 'my_conflict' and x->'my_conflict' = 'null'::jsonb from jsonb_array_elements(sec) x where x->>'amount_cents' = '203'),
+    'a hidden member payee waiting for approval carries the reader''s answer';
+  assert not (select x ? 'my_conflict' from jsonb_array_elements(sec) x where x->>'amount_cents' = '22600'), 'only on those lines';
+  assert not (select x ? 'my_conflict' from jsonb_array_elements(tre) x where x->>'amount_cents' = '203'), 'never for the treasurer';
+  assert (select x->>'payee_name' from jsonb_array_elements(sec) x where x->>'amount_cents' = '1500') = 'A member', 'a whole-name payee is a member';
+end $$;
+
 \echo 'All club spending checks passed'

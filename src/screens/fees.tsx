@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
-import { FEES_PRIVATE } from '../domain/financePrivacy';
+import { FEES_BOARD, FEES_PRIVATE } from '../domain/financePrivacy';
 import {
   PAYING_STATUSES,
   canManageFees,
@@ -392,7 +392,7 @@ export function MemberFeesScreen({ route }: RootScreen<'MemberFees'>) {
         </View>
         <LockNote text={isSelf ? 'You + board' : 'Board only'} />
       </Row>
-      {isSelf ? <PrivacyLine text={FEES_PRIVATE} /> : null}
+      <PrivacyLine text={isSelf ? FEES_PRIVATE : FEES_BOARD} />
 
       {msg ? (
         <Notice tone="ok" title="Done">
@@ -629,6 +629,7 @@ export function ChapterFeesScreen({ route, navigation }: RootScreen<'ChapterFees
     <Screen>
       <Stack gap={space.sm}>
         <H1>{`${chapter.name} fees`}</H1>
+        <PrivacyLine text={FEES_BOARD} />
         <Choices<string>
           options={years.map((y) => ({ value: String(y), label: clubYearLabel(y) }))}
           value={String(fy)}

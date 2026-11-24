@@ -6,8 +6,8 @@
 // Mirrors public.club_ledger() and public.meeting_reports() (20270990000000_finance_privacy.sql).
 
 import { isAuditor } from './access';
-import { A_MEMBER, hideMemberNames } from './clubSpending';
-import { keepsBooks } from './ledger';
+import { A_MEMBER, hideMemberNames, payeeShown } from './clubSpending';
+import { approvalConflict, keepsBooks } from './ledger';
 import type { ClubData, LedgerCode, LedgerEntry, Member } from './types';
 
 /** The line every finance screen carries. */
@@ -18,9 +18,10 @@ export function seesMemberNames(me: Member | null, chapterId: string | null, dat
   return keepsBooks(me, chapterId, data.positions) || isAuditor(me, data.positions);
 }
 
-function lineWithoutNames(e: LedgerEntry, me: Member | null, members: Member[]): LedgerEntry {
+function lineWithoutNames(e: LedgerEntry, me: Member | null, data: ClubData): LedgerEntry {
+  const members = data.members;
   const name = (e.payeeName ?? '').trim();
-  const payeeName = e.payeeMemberId || (name && hideMemberNames(name, members) !== name) ? A_MEMBER : e.payeeName;
+  const payeeName = e.payeeMemberId ? A_MEMBER : name ? payeeShown(name, members) : e.payeeName;
   return {
     ...e,
     description: hideMemberNames(e.description, members),
@@ -29,6 +30,9 @@ function lineWithoutNames(e: LedgerEntry, me: Member | null, members: Member[]):
     payeeMemberId: e.payeeMemberId && e.payeeMemberId === me?.id ? e.payeeMemberId : null,
     paymentId: null,
     voidReason: e.voidReason ? hideMemberNames(e.voidReason, members) : e.voidReason,
+    // Worked out while the payee is still known, so the Approve button and Home's list stay right.
+    ...(e.state === 'awaiting' && me && e.payeeMemberId && e.payeeMemberId !== me.id
+      ? { myConflict: approvalConflict(me.id, e, data) } : {}),
   };
 }
 
@@ -41,7 +45,7 @@ export function financesAsSeenBy(data: ClubData, me: Member | null): ClubData {
   if (!linesChange && !notesChange) return data;
   return {
     ...data,
-    ledger: linesChange ? ledger!.map((e) => (hideLine(e) ? lineWithoutNames(e, me, data.members) : e)) : ledger,
+    ledger: linesChange ? ledger!.map((e) => (hideLine(e) ? lineWithoutNames(e, me, data) : e)) : ledger,
     meetingReports: notesChange
       ? data.meetingReports!.map((r) => ({ ...r, notes: hideMemberNames(r.notes, data.members) }))
       : data.meetingReports,
@@ -62,7 +66,7 @@ export function forSharing<L extends Partial<Record<LedgerCode, LedgerEntry[]>> 
 
 /** The line on the books screens for whoever reads names there: who sees them, and that nothing shared carries them. */
 export const NAMES_HERE_LINE =
-  'Only treasurers and the National Auditor see members’ names here. What members read, and every PDF, has them taken out.';
+  'Only treasurers and the National Auditor see members’ names here. What members read, and every PDF the app makes, has them taken out.';
 
 /** The privacy line for a screen: about one fund's books when given, else any fund this person reads. */
 export function privacyLine(me: Member | null, data: Pick<ClubData, 'positions' | 'chapters'>, fund?: string | null): string {
@@ -72,3 +76,5 @@ export function privacyLine(me: Member | null, data: Pick<ClubData, 'positions' 
 
 /** On a member's own fees. */
 export const FEES_PRIVATE = 'Your fees are private: only you, your board and the treasurers see them. Members never see who has paid.';
+/** On the board's fees screens. */
+export const FEES_BOARD = 'Members’ fees are private: only the board and the treasurers see who has paid. Members never do.';

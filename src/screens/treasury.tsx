@@ -473,6 +473,7 @@ export function LedgerEntryScreen({ route }: RootScreen<'LedgerEntry'>) {
         {!credit ? <KeyValue label="Paid to" value={entry.payeeName ?? memberName(entry.payeeMemberId)} /> : null}
         <KeyValue label="Recorded by" value={`${memberName(entry.recordedBy)}, ${melbourneDateShown(entry.recordedAt)}`} />
       </Card>
+      <PrivacyLine text={privacyLine(me, data, entry.chapterId)} />
 
       {!credit && entry.code !== BANK_FEES ? (
         <>
@@ -596,6 +597,7 @@ export function NewEntryScreen({ route, navigation }: RootScreen<'NewEntry'>) {
 
   return (
     <Screen>
+      <PrivacyLine text={privacyLine(me, data, chapterId)} />
       <Choices<'credit' | 'debit'>
         options={[
           { value: 'credit', label: 'Money in' },
@@ -814,6 +816,7 @@ export function BudgetScreen({ route, navigation }: RootScreen<'Budget'>) {
     <Screen>
       <Stack gap={space.sm}>
         <H1>{`${fundName(fund, data)} budget`}</H1>
+        <PrivacyLine text={PRIVACY_LINE} />
         {funds.length > 1 ? (
           <Choices<string>
             options={funds.map((f) => ({ value: fundKey(f), label: fundName(f, data) }))}

@@ -11,7 +11,7 @@ interface ReportJson {
 export interface LedgerJson {
   entries: {
     id: string; chapter_id: string | null; code: LedgerCode; description: string; amount_cents: number;
-    received_on: string | null; entry_on: string | null; payee_member_id: string | null; payee_name: string | null;
+    received_on: string | null; entry_on: string | null; payee_member_id: string | null; payee_name: string | null; my_conflict?: string | null;
     payment_id: string | null; state: EntryState; recorded_by: string | null; recorded_at: string; updated_at: string;
     void_reason: string | null; voided_by: string | null; approvals: { member_id: string; approved_at: string }[];
   }[];
@@ -23,6 +23,7 @@ export interface LedgerJson {
   }[];
   reports: { month: string; presented_at: string; presented_by: string | null }[];
   report_totals: ReportJson[];
+  hidden_names?: { full_name: string; road_name: string | null }[];
 }
 
 const instant = (ts: string) => new Date(ts).toISOString();
@@ -47,7 +48,7 @@ function toReport(r: ReportJson): MonthReport {
 
 const list = <T>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
 
-export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<LedgerData, 'meetingReports' | 'meetingTotals' | 'spending'>> {
+export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<LedgerData, 'meetingReports' | 'meetingTotals' | 'spending' | 'privacyNames'>> & Pick<LedgerData, 'privacyNames'> {
   // Anything but a plain object (an old database without club_ledger, a stub) reads as no books.
   const json = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
   return {
@@ -68,6 +69,8 @@ export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<Ledg
       updatedAt: instant(e.updated_at),
       voidReason: e.void_reason,
       voidedBy: e.voided_by,
+      // Only sent on a line whose payee was taken off for this reader (finance privacy).
+      ...('my_conflict' in e ? { myConflict: e.my_conflict ?? null } : {}),
       approvals: list(e.approvals).map((a) => ({ memberId: a.member_id, approvedAt: instant(a.approved_at) })),
     })),
     fundOpenings: list(json?.openings).map((o) => ({ chapterId: o.chapter_id, fy: o.fy, amountCents: o.amount_cents })),
@@ -83,6 +86,9 @@ export function toLedger(raw: LedgerJson | null | undefined): Required<Omit<Ledg
     })),
     treasurerReports: list(json?.reports).map((r) => ({ month: r.month, presentedAt: instant(r.presented_at), presentedBy: r.presented_by })),
     reportTotals: list(json?.report_totals).map(toReport),
+    ...(list(json?.hidden_names).length
+      ? { privacyNames: list(json?.hidden_names).map((n) => ({ fullName: n.full_name, roadName: n.road_name })) }
+      : {}),
   };
 }
 

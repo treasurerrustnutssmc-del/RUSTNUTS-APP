@@ -390,7 +390,7 @@ test('a payee-requested Acting President can’t approve', () => {
       spend('lous', { recordedBy: 'lou', payeeName: null, payeeMemberId: 'lou', code: 'DB-006', approvals: [approval('hal')] }),
     ],
   });
-  refuses(data, 'hal', 'pennys', seated('Penny'), 'Hal is acting because Penny asked for him, so he can’t approve her reimbursement');
+  refuses(data, 'hal', 'pennys', seated('the payee'), 'Hal is acting because Penny asked for him, so he can’t approve her reimbursement');
   refuses(data, 'spanner', 'pennys', null, 'Spanner can');
   refuses(data, 'torque', 'pennys', null, 'and Torque');
   // The other order: Hal approved Lou's reimbursement first.
@@ -408,9 +408,9 @@ test('the payee’s stand-in can’t approve the refund', () => {
       entry({ id: 'club-refund', chapterId: null, code: 'DB-006', state: 'awaiting', entryOn: null, recordedBy: 'lou', payeeMemberId: 'torque' }),
     ],
   });
-  refuses(data, 'rusty', 'torques-refund', standIn('Torque'), 'Rusty, covering Torque’s Secretary seat, can’t approve it');
+  refuses(data, 'rusty', 'torques-refund', standIn('the payee'), 'Rusty, covering Torque’s Secretary seat, can’t approve it');
   refuses(data, 'rusty', 'other', null, 'but approves other West spending');
-  refuses(data, 'rusty', 'club-refund', standIn('Torque'), 'and the Club fund’s refund to Torque goes to the other approvers too');
+  refuses(data, 'rusty', 'club-refund', standIn('the payee'), 'and the Club fund’s refund to Torque goes to the other approvers too');
   refuses(data, 'smokey', 'club-refund', null, 'Smokey can');
 });
 

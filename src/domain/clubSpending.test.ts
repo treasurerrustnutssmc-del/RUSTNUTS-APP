@@ -83,3 +83,37 @@ test('the year’s spending by kind, biggest first, and the years to pick from',
   assert.deepEqual(spendingYears('2026-06-30'), [2025, 2024]);
   assert.deepEqual(spendingMonths(lines.slice().reverse()).map((m) => [m.month, m.lines.length]), [['2026-10', 3]]);
 });
+
+test('club words and businesses survive names that are everyday words (review, 24 Nov 2026)', () => {
+  const crew = [
+    { fullName: 'Tom Shell', roadName: 'Rusty' },
+    { fullName: 'Gary Kowalski', roadName: 'Diesel' },
+  ] as Pick<Member, 'fullName' | 'roadName'>[];
+  assert.equal(hideMemberNames('Rego for the Rusty Bus', crew), 'Rego for the Rusty Bus', 'the club’s van keeps its name');
+  assert.equal(hideMemberNames('RUSTY BUS tyres, paid Rusty', crew), 'Rusty Bus tyres, paid a member');
+  assert.equal(hideMemberNames('Gary a membership', crew), 'a member a membership', 'the collapse is whole words only');
+  assert.equal(hideMemberNames('Gary Kowalski Diesel', crew), 'a member', 'parts of names side by side collapse');
+});
+
+test('a typed business payee keeps its other words when one word is a name', () => {
+  const crew = [{ fullName: 'Tom Shell', roadName: 'Rusty' }] as Pick<Member, 'fullName' | 'roadName'>[];
+  const data: ClubData = {
+    ...DEMO_DATA, members: crew as Member[],
+    ledger: [
+      line({ id: 'a', entryOn: '2026-08-01', payeeName: 'Shell Ringwood' }),
+      line({ id: 'b', entryOn: '2026-08-02', payeeName: 'Tom' }),
+      line({ id: 'c', entryOn: '2026-08-03', payeeName: 'Rusty Bus Repairs' }),
+    ],
+  };
+  const out = spendingLines(data, 2026);
+  assert.equal(out.find((l) => l.id === 'a')!.payee, 'a member Ringwood', 'not swapped whole for one word');
+  assert.equal(out.find((l) => l.id === 'b')!.payee, 'A member', 'a name on its own is a member');
+  assert.equal(out.find((l) => l.id === 'c')!.payee, 'Rusty Bus Repairs');
+});
+
+test('hiding is quick with a big club and long books', () => {
+  const many = Array.from({ length: 300 }, (_, i) => ({ fullName: `Person${i} Surname${i}`, roadName: `Road${i}` }));
+  const t = Date.now();
+  for (let i = 0; i < 2000; i++) hideMemberNames(`Fuel for Road${i % 300} and Person${i % 7}`, many);
+  assert.ok(Date.now() - t < 1500, `2,000 lines took ${Date.now() - t} ms`);
+});

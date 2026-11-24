@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import { financesAsSeenBy, forSharing, NAMES_HERE_LINE, PRIVACY_LINE, privacyLine, seesMemberNames } from './financePrivacy';
+import { approveProblem, needsMyApproval } from './ledger';
 import type { ClubData, LedgerEntry, MeetingReport, Member } from './types';
 
 // Jeff, 24 Nov 2026: "no personal or road names on any transactions". Only the people who keep a
@@ -89,4 +90,19 @@ test('the privacy line says who sees names, to whoever sees them', () => {
   assert.equal(privacyLine(who('m-torque'), data, 'ch-west'), PRIVACY_LINE, 'a board member approving');
   assert.equal(privacyLine(who('m-gravel'), data), PRIVACY_LINE, 'a member');
   assert.equal(privacyLine(null, data), PRIVACY_LINE);
+});
+
+test('a board member who can’t approve a hidden payment is told why without the payee’s name', () => {
+  // Torque covers Diesel's Road Captain seat; Diesel's refund waits for approval.
+  const seat = DEMO_DATA.positions.find((p) => p.memberId === 'm-diesel' && p.role === 'road_captain')!;
+  const covered: ClubData = {
+    ...data,
+    positions: [...data.positions, { id: 'p-cover', memberId: 'm-torque', chapterId: 'ch-west', role: 'road_captain', startedOn: '2026-11-01', endedOn: null, actingUntil: '2026-12-31', actingWhy: 'Diesel away', covers: seat.id, appointedBy: 'm-rusty' }],
+    ledger: [line({ id: 'r', state: 'awaiting', entryOn: null, description: 'Refund to Diesel', payeeMemberId: 'm-diesel', approvals: [{ memberId: 'm-sparks', approvedAt: '2026-11-02T00:00:00.000Z' }] })],
+  };
+  const seen = financesAsSeenBy(covered, who('m-torque'));
+  const want = 'You’re covering the payee’s seat, so their payment goes to the other approvers (13.3).';
+  assert.equal(seen.ledger![0].myConflict, want, 'worked out before the payee is taken off');
+  assert.equal(approveProblem(who('m-torque'), 'r', seen), want, 'so the Approve button stays off');
+  assert.ok(!needsMyApproval(who('m-torque'), seen).some((e) => e.id === 'r'), 'and it isn’t on Home as one to approve');
 });
