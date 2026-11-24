@@ -117,8 +117,8 @@ mapping in `src/data/chat/liveChat.test.ts`.
 ## Shipping
 
 OTA only (no native module). The two SQL files run live in order, then the app update joins the next
-batched update with comms bubbles (PR #206) and board files (PR #207). The app copes with the SQL not
-being live yet: no topics come back, and starting one says the database isn't ready.
+batched update with comms bubbles (PR #206) and board files (PR #207). The SQL goes in first; until it
+does, no topics come back and the chats work as before.
 
 ## Calls Claude made
 

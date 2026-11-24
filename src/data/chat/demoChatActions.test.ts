@@ -17,6 +17,10 @@ import {
   sendMessage,
   setBlock,
   toggleReaction,
+  closeTopic,
+  renameTopic,
+  reopenTopic,
+  startTopic,
   type ChatCtx,
 } from './demoChatActions';
 
@@ -143,4 +147,40 @@ test('board members in a group add, rename and take out; anyone leaves', () => {
   assert.throws(() => sendMessage({ ...ctxAs('gravel'), chat }, id, 'Hi', []), /That’s a private group\./);
   chat = leaveGroup({ ...ctxAs('spanner'), chat }, id);
   assert.deepEqual([...chat.conversations.find((c) => c.id === id)!.memberIds].sort(), ['crank', 'torque']);
+});
+
+test('anyone in All boards starts a topic; it reads like All boards', () => {
+  const { chat, id } = startTopic(ctxAs('torque'), 'boards', '  Christmas party  ');
+  const t = chat.conversations.find((c) => c.id === id)!;
+  assert.equal(t.kind, 'topic');
+  assert.equal(t.parentId, 'boards');
+  assert.equal(t.name, 'Christmas party');
+  assert.equal(t.createdBy, 'torque');
+  assert.ok(sendMessage({ ...ctxAs('crank'), chat }, id, 'Venue booked?', []).id);
+  assert.throws(() => sendMessage({ ...ctxAs('spanner'), chat }, id, 'Hi', []), /That chat is for board members and the NEC\./);
+  assert.throws(() => startTopic(ctxAs('torque'), 'club', 'x'), /Topics are for board, committee and group chats\./);
+  assert.throws(() => startTopic(ctxAs('spanner'), 'boards', 'x'), /That chat is for board members and the NEC\./);
+});
+
+test('a topic closes, nobody posts in it, and it reopens', () => {
+  let { chat, id } = startTopic(ctxAs('torque'), 'boards', 'Insurance');
+  chat = closeTopic({ ...ctxAs('crank'), chat }, id);
+  const closed = chat.conversations.find((c) => c.id === id)!;
+  assert.equal(closed.closedAt, NOW);
+  assert.equal(closed.closedBy, 'crank');
+  assert.throws(() => sendMessage({ ...ctxAs('torque'), chat }, id, 'One more', []), /This topic is closed\. Reopen it to post\./);
+  assert.throws(() => closeTopic({ ...ctxAs('crank'), chat }, id), /That topic is already closed\./);
+  chat = reopenTopic({ ...ctxAs('torque'), chat }, id);
+  assert.equal(chat.conversations.find((c) => c.id === id)!.closedAt, null);
+  chat = renameTopic({ ...ctxAs('torque'), chat }, id, ' Insurance 2027 ');
+  assert.equal(chat.conversations.find((c) => c.id === id)!.name, 'Insurance 2027');
+});
+
+test('a chat holds up to 50 open topics', () => {
+  let chat = ctxAs('torque').chat;
+  for (let i = 0; i < 50; i++) chat = startTopic({ ...ctxAs('torque'), chat }, 'boards', `Topic ${i}`).chat;
+  assert.throws(() => startTopic({ ...ctxAs('torque'), chat }, 'boards', 'One more'), /This chat has 50 open topics\. Close one first\./);
+  const first = chat.conversations.find((c) => c.name === 'Topic 0')!.id;
+  chat = closeTopic({ ...ctxAs('torque'), chat }, first);
+  assert.ok(startTopic({ ...ctxAs('torque'), chat }, 'boards', 'One more').id);
 });

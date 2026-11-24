@@ -5,7 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { chatTitle, postProblem, type Block, type Conversation, type Message } from '../../domain/chat';
+import { chatTitle, postProblem, withParent, type Block, type Conversation, type Message } from '../../domain/chat';
 import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
 import {
@@ -176,10 +176,14 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, [meId, loadList, loadPage, markRead]);
 
-  const list = useMemo(
-    () => sortSummaries(rawList.map((s) => ({ ...s, title: chatTitle(s.conversation, me, club, s.ride) }))),
-    [rawList, me, club],
-  );
+  const list = useMemo(() => {
+    // A topic comes with its chat, so the rules can look through it.
+    const all = rawList.map((s) => s.conversation);
+    return sortSummaries(rawList.map((s) => {
+      const conversation = withParent(s.conversation, all)!;
+      return { ...s, conversation, title: chatTitle(conversation, me, club, s.ride) };
+    }));
+  }, [rawList, me, club]);
   const conversation = (chatId: string) => list.find((s) => s.conversation.id === chatId)?.conversation ?? extra[chatId];
 
   const open = useCallback(
@@ -341,6 +345,23 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     },
     leaveGroup: async (chatId) => {
       await rpc('leave_group', { p_chat: chatId });
+      await loadList();
+    },
+    startTopic: async (chatId, name) => {
+      const id = await rpc<string>('start_topic', { p_chat: chatId, p_name: name });
+      await loadList();
+      return id;
+    },
+    renameTopic: async (chatId, name) => {
+      await rpc('rename_topic', { p_chat: chatId, p_name: name });
+      await loadList();
+    },
+    closeTopic: async (chatId) => {
+      await rpc('close_topic', { p_chat: chatId });
+      await loadList();
+    },
+    reopenTopic: async (chatId) => {
+      await rpc('reopen_topic', { p_chat: chatId });
       await loadList();
     },
     rideChat: async (rideId) => {
