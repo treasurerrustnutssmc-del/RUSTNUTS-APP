@@ -788,6 +788,8 @@ const call = (c: ParityCase & Record<string, any>): string => {
       return `public.suspend_member_access(${id('m', c.member)})`;
     case 'restoreAccess':
       return `public.restore_member_access(${id('m', c.member)})`;
+    case 'setRoadName':
+      return `public.set_member_road_name(${id('m', c.member)}, ${q(c.roadName)})`;
     case 'socialReportContent': {
       const kind = String(c.kind);
       const prefix = kind === 'listing' ? 'listing' : kind === 'build_update' ? 'build' : kind === 'nomination' ? 'nom' : kind === 'mechanic' ? 'mech' : 'm';

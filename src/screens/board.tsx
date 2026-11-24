@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useClub } from '../data/ClubStore';
 import {
+  canEditRoadName,
   actingCap, actingDefaultUntil, actingWarnings, appointActingProblem, appointProblem, appointWarnings, auditorSeat, decidedNoticeFor, endTermProblem, hasCarriedAuditorVote, hasCarriedReinstateVote, hasCarriedSeatVote, isBoardOf, isChairman, isStepDown, pendingFor, renewAuditorProblem, requestActingProblem, restoreAccessProblem, setActingUntilProblem, statusChangeProblem, suspendAccessProblem, WHY_MAX, WHY_NEEDED,
 } from '../domain/access';
 import { heldPositions, heldRows, isActing } from '../domain/acting';
@@ -566,6 +567,37 @@ function VpFallback({ chapterId, onDone }: { chapterId: string; onDone: (text: s
 // Manage one member: status and positions
 // ---------------------------------------------------------------------------
 
+/**
+ * The member's chapter board or the NEC sets or clears someone's road name, often given on a ride.
+ * Members change their own in Edit profile. Keyed on the saved name, so a save (here or theirs) refills it.
+ */
+function RoadNameCard({ member, run }: { member: Member; run: (fn: () => Promise<void>, ok: string) => Promise<void> }) {
+  const { setRoadName } = useClub();
+  const saved = member.roadName ?? '';
+  const [name, setName] = useState(saved);
+  const [busy, setBusy] = useState(false);
+  const next = name.trim();
+  const save = async () => {
+    setBusy(true);
+    await run(() => setRoadName(member.id, next), next ? `Road name saved: ${next}.` : 'Road name cleared.');
+    setBusy(false);
+  };
+  return (
+    <Card>
+      <H2>Road name</H2>
+      <Field
+        label="Their road name"
+        value={name}
+        onChangeText={setName}
+        maxLength={40}
+        autoCorrect={false}
+        hint="Leave blank to clear it. They can still change it themselves in Edit profile."
+      />
+      <Button label={busy ? 'Saving…' : 'Save road name'} kind="secondary" disabled={next === saved || busy} onPress={save} />
+    </Card>
+  );
+}
+
 export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMember'>) {
   const { me, data, today, setMemberStatus, appoint, renewAuditor, suspendAccess, restoreAccess, appointActing, requestActing } = useClub();
   const member = data.members.find((m) => m.id === route.params.memberId);
@@ -683,6 +715,8 @@ export function ManageMemberScreen({ route, navigation }: RootScreen<'ManageMemb
       </Row>
 
       {msg ? <Notice tone={msg.tone}>{msg.text}</Notice> : null}
+
+      {canEditRoadName(me, member, data.positions) ? <RoadNameCard key={member.roadName ?? ''} member={member} run={run} /> : null}
 
       <Card>
         <H2>Status</H2>
