@@ -244,6 +244,15 @@ done
 "${PSQL[@]}" -d rustnuts_meeting_reports -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_meeting_reports -f "$ROOT/supabase/tests/meeting_reports_test.sql"
 
+# Board files, a folder for every seat, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_board_files" >/dev/null
+"${PSQL[@]}" -d rustnuts_board_files -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_board_files -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_board_files -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_board_files -f "$ROOT/supabase/tests/board_files_test.sql"
+
 # Club spending for members, member names taken out, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_club_spending" >/dev/null
 "${PSQL[@]}" -d rustnuts_club_spending -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
