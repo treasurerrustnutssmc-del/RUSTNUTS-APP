@@ -12,11 +12,12 @@ import * as charity from './charityActions'; // Charity ride sign-ups
 import * as rides from './rideActions'; // Rides made in the app
 import * as busExtras from './busExtrasActions'; // Rusty Bus extras
 import * as act from './demoActions';
-import { buildDemoData, DEMO_ROUTE_GPX, demoTodayRide } from './demoData';
+import { buildDemoData, DEMO_ROUTE_GPX, demoTodayClubRide, demoTodayRide } from './demoData';
 import { bindDemoLive } from './liveRideSource';
 import * as s4 from './demoStage4';
 import * as attendanceRules from './demoAttendance';
 import * as ledger from './ledgerActions';
+import * as boardFiles from './boardFileActions';
 import * as admin from './adminActions'; // Stage 5D
 import * as docs from './documentActions';
 import { financesAsSeenBy } from '../domain/financePrivacy';
@@ -34,7 +35,8 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   const [raw, setData] = useState<ClubData>(() => {
     // The session returns the same instant on every call, so both seeds see one moment.
     const club = buildDemoData(demoSession.now());
-    return { ...club, rides: [...club.rides, demoTodayRide(demoSession.now())] };
+    // Ride comms bubbles: and a second one, so two rides' comms can be on at once.
+    return { ...club, rides: [...club.rides, demoTodayRide(demoSession.now()), demoTodayClubRide(demoSession.now())] };
   });
   // Store review demo: the reviewers arrive signed in, as a Full member.
   const reviewing = appMode.reviewing();
@@ -284,6 +286,13 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
     attachMeetingReportPdf: async (id, file) => setData(ledger.attachMeetingReportPdf(ctx, id, file)),
     removeMeetingReportPdf: async (id) => setData(ledger.removeMeetingReportPdf(ctx, id)),
     meetingReportPdfUrl: async (path) => path, // the demo keeps the picked file's own address
+    addBoardFile: async (folder, file) => {
+      const result = boardFiles.addBoardFile(ctx, folder, file);
+      setData(result.data);
+      return result.id;
+    },
+    removeBoardFile: async (id) => setData(boardFiles.removeBoardFile(ctx, id)),
+    boardFileUrl: async (path) => boardFiles.demoBoardFileUrl(path),
     // Stage 5D: board and admin
     recordConduct: async (input) => {
       const result = admin.recordConduct(ctx, input);

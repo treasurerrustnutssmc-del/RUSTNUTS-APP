@@ -13,8 +13,9 @@ import type { ClubData, Member, Ride, RsvpAnswer } from './types';
 
 /** 'family' is the one chat members share with Family accounts (2026-11-03-family-chat-design.md).
  *  'boards' is All boards, every chapter's board and the NEC; 'group' is a named group the boards set
- *  up (2026-11-20-chat-groups-design.md). */
-export type ChatKind = 'club' | 'family' | 'chapter' | 'board' | 'boards' | 'nec' | 'committee' | 'ride' | 'group' | 'direct';
+ *  up (2026-11-20-chat-groups-design.md). 'topic' is a named chat inside a board, committee or group
+ *  chat, for whoever reads that chat (2026-11-24-chat-topics-design.md). */
+export type ChatKind = 'club' | 'family' | 'chapter' | 'board' | 'boards' | 'nec' | 'committee' | 'ride' | 'group' | 'direct' | 'topic';
 export type ChatCommittee = 'ride' | 'charity';
 /** A GIF is GIPHY's own https address, not a file in the club's storage. A voice note is a
  *  recording that goes in a message on its own. */
@@ -30,8 +31,14 @@ export interface Conversation {
   memberIds: string[]; // private chats: the two people in it; groups: everyone in it
   /** A group's name. */
   name: string | null;
-  /** Who started a group. */
+  /** Who started a group or a topic. */
   createdBy: string | null;
+  /** A topic's chat (its id, and the chat itself once it's looked up, so the rules can look through it). */
+  parentId?: string | null;
+  parent?: Conversation | null;
+  /** A closed topic: nobody posts until it's reopened. */
+  closedAt?: string | null;
+  closedBy?: string | null;
 }
 
 export interface MessageMedia {
@@ -122,6 +129,8 @@ export function readProblem(me: Member | null, conv: Conversation | undefined, d
   const notApproved = approvalProblem(me);
   if (notApproved || !me) return notApproved;
   if (!conv) return 'No such chat.';
+  // A topic is read by whoever reads its chat, with the chat's words.
+  if (conv.kind === 'topic') return conv.parent ? readProblem(me, conv.parent, data) : 'No such chat.';
   // Family get the Family chat and nothing else.
   if (me.status === 'family') return conv.kind === 'family' ? null : 'Family can only use the Family chat.';
   // Someone who might join gets the whole-club and ride chats only, until they're an FNG.
@@ -194,8 +203,9 @@ export function postProblem(
     if (!voice.durationMs || voice.durationMs < 1) return VOICE_BROKEN;
     if (voice.durationMs > MAX_VOICE_MS) return VOICE_TOO_LONG;
   }
-  // Last, as the message goes in: agreed to the club rules for chats and posts? (The database
+  // As the message goes in: a closed topic (private.refuse_closed_topic), then agreed to the club rules for chats and posts? (The database
   // checks this in a trigger on the row, so it comes after everything about the content.)
+  if (conv.kind === 'topic' && conv.closedAt) return TOPIC_CLOSED;
   return postingRulesProblem(me);
 }
 
@@ -205,6 +215,8 @@ export function postProblem(
 export function canModerate(me: Member | null, conv: Conversation, data: ClubData): boolean {
   // Family never moderate (private.can_moderate needs is_approved_member, which leaves them out).
   if (!me || me.approval !== 'approved' || me.status === 'family') return false;
+  // Whoever moderates a topic's chat moderates the topic.
+  if (conv.kind === 'topic') return !!conv.parent && canModerate(me, conv.parent, data);
   if (conv.kind === 'chapter' || conv.kind === 'board') return !!conv.chapterId && isBoardOf(me, conv.chapterId, data.positions);
   if (conv.kind === 'nec') return isNational(me.id, data.positions);
   if (conv.kind === 'direct' || conv.kind === 'group') return false;
@@ -295,6 +307,8 @@ export function reportProblem(
 /** Who acts on a report: whoever moderates the chat, or for a private chat or group (which nobody
  *  moderates) the reporter's chapter board. Mirrors private.can_act_on_report. */
 export function canSeeReport(me: Member | null, conv: Conversation, reporter: Member | undefined, data: ClubData): boolean {
+  // A report in a topic goes where one in its chat would.
+  if (conv.kind === 'topic') return !!conv.parent && canSeeReport(me, conv.parent, reporter, data);
   if (conv.kind !== 'direct' && conv.kind !== 'group') return canModerate(me, conv, data);
   return !!reporter && isBoardOf(me, reporter.chapterId, data.positions);
 }
@@ -471,6 +485,8 @@ export function chatTitle(conv: Conversation, me: Member | null, data: ClubData,
       return 'NEC';
     case 'group':
       return conv.name ?? 'Group chat';
+    case 'topic':
+      return conv.name ?? 'Topic';
     case 'committee':
       return conv.committee === 'charity' ? 'Charity committee' : 'Ride committee';
     case 'ride':
@@ -570,4 +586,85 @@ export function removeFromGroupProblem(me: Member | null, conv: Conversation | u
 /** Why `me` can't leave this group, or null. Mirrors public.leave_group. */
 export function leaveGroupProblem(me: Member | null, conv: Conversation | undefined, data: ClubData): string | null {
   return myGroupProblem(me, conv, data);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Topics (2026-11-24-chat-topics-design.md). Each mirrors its database action in
+// supabase/migrations/20270980000100_chat_topics.sql, in the same order and with the same words.
+
+export const MAX_TOPIC_NAME = 40;
+export const MAX_OPEN_TOPICS = 50;
+const TOPIC_CLOSED = 'This topic is closed. Reopen it to post.';
+const TOPIC_KINDS: ChatKind[] = ['board', 'boards', 'nec', 'committee', 'group'];
+const NOT_TOPIC_RUNNER = 'Only whoever started the topic, or a board member or the NEC, can do that.';
+const TOO_MANY_TOPICS = 'This chat has 50 open topics. Close one first.';
+
+/** Big tables, All boards, the NEC chat, committee chats and groups have topics. */
+export function hasTopics(conv: Pick<Conversation, 'kind'>): boolean {
+  return TOPIC_KINDS.includes(conv.kind);
+}
+
+/** The chat a topic sits in, as its header's second line ("All boards"). */
+export function topicParentTitle(conv: Conversation, me: Member | null, data: ClubData): string {
+  return conv.parent ? chatTitle(conv.parent, me, data) : 'Chat';
+}
+
+/** Gives a topic its chat from the chats `me` has, so the rules can look through it. */
+export function withParent(conv: Conversation | undefined, all: Conversation[]): Conversation | undefined {
+  if (!conv || conv.kind !== 'topic') return conv;
+  const parent = all.find((c) => c.id === conv.parentId) ?? null;
+  return parent === conv.parent ? conv : { ...conv, parent };
+}
+
+/** Why this can't be a topic's name, or null. Mirrors private.topic_name. */
+export function topicNameProblem(name: string): string | null {
+  const words = trimWords(name);
+  if (!words) return 'Give the topic a name.';
+  if (charCount(words) > MAX_TOPIC_NAME) return 'Keep the name to 40 characters.';
+  return null;
+}
+
+/** Why `me` can't start this topic in this chat, which has `openCount` open topics, or null.
+ *  Mirrors public.start_topic. */
+export function startTopicProblem(me: Member | null, parent: Conversation | undefined, name: string, data: ClubData, openCount: number): string | null {
+  if (!me) return 'Sign in first.';
+  const cant = readProblem(me, parent, data);
+  if (cant || !parent) return cant;
+  if (!hasTopics(parent)) return 'Topics are for board, committee and group chats.';
+  const badName = topicNameProblem(name);
+  if (badName) return badName;
+  return openCount >= MAX_OPEN_TOPICS ? TOO_MANY_TOPICS : null;
+}
+
+/** Renames, closes and reopens this topic: whoever started it, or a board member or the NEC (who
+ *  can read it). Mirrors private.my_topic. */
+export function canRunTopic(me: Member | null, conv: Conversation, data: ClubData): boolean {
+  return topicRunProblem(me, conv, data) === null;
+}
+
+function topicRunProblem(me: Member | null, conv: Conversation | undefined, data: ClubData): string | null {
+  if (!me) return 'Sign in first.';
+  if (conv && conv.kind !== 'topic') return 'That’s not a topic.';
+  const cant = readProblem(me, conv, data);
+  if (cant || !conv) return cant;
+  if (conv.createdBy !== me.id && !isAnyBoard(me, data.positions)) return NOT_TOPIC_RUNNER;
+  return null;
+}
+
+/** Why `me` can't rename this topic, or null. Mirrors public.rename_topic. */
+export function renameTopicProblem(me: Member | null, conv: Conversation | undefined, name: string, data: ClubData): string | null {
+  return topicRunProblem(me, conv, data) ?? topicNameProblem(name);
+}
+
+/** Why `me` can't close this topic, or null. Mirrors public.close_topic. */
+export function closeTopicProblem(me: Member | null, conv: Conversation | undefined, data: ClubData): string | null {
+  return topicRunProblem(me, conv, data) ?? (conv?.closedAt ? 'That topic is already closed.' : null);
+}
+
+/** Why `me` can't reopen this topic, whose chat has `openCount` open topics, or null. Mirrors public.reopen_topic. */
+export function reopenTopicProblem(me: Member | null, conv: Conversation | undefined, data: ClubData, openCount: number): string | null {
+  const cant = topicRunProblem(me, conv, data);
+  if (cant) return cant;
+  if (!conv?.closedAt) return 'That topic is already open.';
+  return openCount >= MAX_OPEN_TOPICS ? TOO_MANY_TOPICS : null;
 }

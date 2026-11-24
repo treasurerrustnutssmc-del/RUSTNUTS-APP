@@ -2883,6 +2883,47 @@
       "allowed": false
     },
     {
+      "name": "A board member starts a topic in All boards",
+      "as": "torque",
+      "action": "chatStartTopic",
+      "chat": "boards",
+      "topic": "Club party",
+      "allowed": true
+    },
+    {
+      "name": "A member can't start a topic in All boards",
+      "as": "spanner",
+      "action": "chatStartTopic",
+      "chat": "boards",
+      "topic": "Club party",
+      "allowed": false
+    },
+    {
+      "name": "Topics aren't for the whole-club chat",
+      "as": "torque",
+      "action": "chatStartTopic",
+      "chat": "club",
+      "topic": "Club party",
+      "allowed": false
+    },
+    {
+      "name": "A topic's name is up to 40 characters",
+      "as": "torque",
+      "action": "chatStartTopic",
+      "chat": "boards",
+      "topic": "a",
+      "repeat": 41,
+      "allowed": false
+    },
+    {
+      "name": "A topic needs a name",
+      "as": "torque",
+      "action": "chatStartTopic",
+      "chat": "boards",
+      "topic": "   ",
+      "allowed": false
+    },
+    {
       "name": "A member posts in the whole-club chat",
       "as": "spanner",
       "action": "chatSend",

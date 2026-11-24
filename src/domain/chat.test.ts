@@ -29,6 +29,14 @@ import {
   removeProblem,
   rideChatListed,
   unknownAuthors,
+  canRunTopic,
+  closeTopicProblem,
+  hasTopics,
+  renameTopicProblem,
+  reopenTopicProblem,
+  startTopicProblem,
+  topicNameProblem,
+  topicParentTitle,
   type Conversation,
   type Message,
   type PickedMedia,
@@ -536,4 +544,78 @@ test('board members in a group add people, rename it and take people out; anyone
   assert.equal(leaveGroupProblem(westie, group, club2), null);
   assert.equal(leaveGroupProblem(legacy, group, club2), 'That’s a private group.');
   assert.equal(leaveGroupProblem(westie, club, club2), 'That’s not a group chat.');
+});
+
+// Topics inside board, committee and group chats (docs/superpowers/specs/2026-11-24-chat-topics-design.md),
+// mirroring supabase/tests/chat_topics_test.sql.
+const westBoard = chat({ kind: 'board', id: 'c-west-board', chapterId: 'ch-west' });
+const rideCommittee = chat({ kind: 'committee', id: 'c-ride-committee', committee: 'ride' });
+const topic = (parent: Conversation, over: Partial<Conversation> = {}): Conversation =>
+  chat({ kind: 'topic', id: `t-${parent.id}`, parentId: parent.id, parent, name: 'Christmas party', createdBy: 'secretary', ...over });
+
+test('a topic is read by whoever reads its chat, in the chat’s words', () => {
+  const t = topic(allBoards);
+  assert.equal(readProblem(secretary, t, data), null);
+  assert.equal(readProblem(northPres, t, data), null);
+  assert.equal(readProblem(westie, t, data), 'That chat is for board members and the NEC.');
+  assert.equal(readProblem(member('fam', { status: 'family' }), t, data), 'Family can only use the Family chat.');
+  assert.equal(readProblem(secretary, chat({ kind: 'topic', parentId: 'gone', name: 'x' }), data), 'No such chat.', 'its chat is gone');
+  const gt = topic(group);
+  assert.equal(readProblem(westie, gt, data), null, 'in the group');
+  assert.equal(readProblem(northPres, gt, data), 'That’s a private group.', 'not in the group');
+  assert.equal(chatTitle(t, secretary, data), 'Christmas party');
+  assert.equal(topicParentTitle(t, secretary, data), 'All boards');
+});
+
+test('which chats have topics', () => {
+  for (const c of [westBoard, allBoards, chat({ kind: 'nec' }), rideCommittee, group]) assert.equal(hasTopics(c), true, c.kind);
+  for (const c of [club, west, rideChat, direct, chat({ kind: 'family' }), topic(allBoards)]) assert.equal(hasTopics(c), false, c.kind);
+});
+
+test('starting a topic: who, its name and how many can be open', () => {
+  assert.equal(startTopicProblem(secretary, allBoards, '  Christmas party ', data, 0), null);
+  assert.equal(startTopicProblem(westie, rideCommittee, 'Route recce', data, 0), null, 'a committee member not on a board');
+  assert.equal(startTopicProblem(null, allBoards, 'x', data, 0), 'Sign in first.');
+  assert.equal(startTopicProblem(westie, westBoard, 'x', data, 0), 'That chat is for the West board.');
+  assert.equal(startTopicProblem(member('nick', { status: 'introduced' }), westBoard, 'x', data, 0), 'That chat opens up once you’re an FNG.');
+  assert.equal(startTopicProblem(secretary, undefined, 'x', data, 0), 'No such chat.');
+  assert.equal(startTopicProblem(secretary, club, 'x', data, 0), 'Topics are for board, committee and group chats.');
+  assert.equal(startTopicProblem(secretary, topic(allBoards), 'x', data, 0), 'Topics are for board, committee and group chats.', 'no topics in topics');
+  assert.equal(startTopicProblem(secretary, allBoards, '   ', data, 0), 'Give the topic a name.');
+  assert.equal(startTopicProblem(secretary, allBoards, 'a'.repeat(41), data, 0), 'Keep the name to 40 characters.');
+  assert.equal(startTopicProblem(secretary, allBoards, '🏍'.repeat(40), data, 0), null, 'an emoji counts as one');
+  assert.equal(startTopicProblem(secretary, allBoards, 'x', data, 50), 'This chat has 50 open topics. Close one first.');
+  assert.equal(topicNameProblem('ok'), null);
+});
+
+test('the starter, or a board member or the NEC, renames, closes and reopens a topic', () => {
+  const t = topic(rideCommittee, { createdBy: 'northie' });
+  assert.equal(canRunTopic(northie, t, data), true, 'the starter');
+  assert.equal(canRunTopic(northPres, t, data), true, 'the NEC');
+  assert.equal(canRunTopic(westie, t, data), false, 'a committee member who didn’t start it');
+  assert.equal(renameTopicProblem(westie, t, 'x', data), 'Only whoever started the topic, or a board member or the NEC, can do that.');
+  assert.equal(closeTopicProblem(westie, t, data), 'Only whoever started the topic, or a board member or the NEC, can do that.');
+  assert.equal(renameTopicProblem(northie, t, '', data), 'Give the topic a name.');
+  assert.equal(renameTopicProblem(northie, t, 'Route recce 2', data), null);
+  assert.equal(closeTopicProblem(northie, t, data), null);
+  assert.equal(closeTopicProblem(legacy, t, data), 'That chat is for the ride committee.', 'outside the chat');
+  assert.equal(closeTopicProblem(northie, rideCommittee, data), 'That’s not a topic.');
+  const closed = { ...t, closedAt: '2026-11-24T00:00:00.000Z', closedBy: 'northie' };
+  assert.equal(closeTopicProblem(northie, closed, data), 'That topic is already closed.');
+  assert.equal(reopenTopicProblem(northie, t, data, 0), 'That topic is already open.');
+  assert.equal(reopenTopicProblem(northie, closed, data, 0), null);
+  assert.equal(reopenTopicProblem(northie, closed, data, 50), 'This chat has 50 open topics. Close one first.');
+});
+
+test('nobody posts in a closed topic; moderating and reports follow its chat', () => {
+  const t = topic(westBoard);
+  const closed = { ...t, closedAt: '2026-11-24T00:00:00.000Z' };
+  assert.equal(postProblem(secretary, t, 'hi', 0, data), null);
+  assert.equal(postProblem(secretary, closed, 'hi', 0, data), 'This topic is closed. Reopen it to post.');
+  assert.equal(postProblem(secretary, closed, '', 0, data), 'Write something or add a photo.', 'the content first, like the database');
+  assert.equal(canModerate(secretary, t, data), true, 'West’s board tidies its big table’s topics');
+  assert.equal(canModerate(northPres, topic(westBoard), data), false);
+  assert.equal(canModerate(secretary, topic(group), data), false, 'nobody moderates a group topic');
+  assert.equal(canSeeReport(northPres, topic(group), northie, data), true, 'a group topic’s reports go to the reporter’s board');
+  assert.equal(canSeeReport(secretary, topic(group), northie, data), false);
 });

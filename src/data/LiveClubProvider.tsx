@@ -106,6 +106,8 @@ import {
 } from '../domain/ledger'; // Stage 5B
 import { attachPdfProblem, deleteMeetingProblem, meetingProblem, MR_PDF_BIG, pdfFileName, presentMeetingProblem, removePdfProblem } from '../domain/meetingReport';
 import { reportPdfBytes } from './reportPdfFile';
+import { addBoardFileProblem, BF_BIG, BF_UPLOAD, boardFileKind, boardFileName, boardFilePath, removeBoardFileProblem } from '../domain/boardFiles';
+import { boardFileBytes } from './boardFilePick';
 import {
   cleanDocumentInput, cleanVersionInput, createDocumentProblem, markReviewedProblem, publishVersionProblem, recordApprovalProblem,
   signDocumentProblem,
@@ -124,6 +126,7 @@ import { SHOP_PICTURE_BUCKET, placeOrderBody, shopFunctionWords } from './shopLi
 
 const clubCache = createClubCache(AsyncStorage);
 const MEETING_PDF_BUCKET = 'treasurer-reports';
+const BOARD_FILES_BUCKET = 'board-files';
 
 const deny = (problem: string | null) => {
   if (problem) throw new NotAllowedError(problem);
@@ -1216,6 +1219,39 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       const { data: signed, error } = await supabase().storage.from(MEETING_PDF_BUCKET).createSignedUrl(path, 600);
       if (error) throw friendlyError(error);
       if (!signed) throw new Error('The PDF couldn’t be opened. Try again.');
+      return signed.signedUrl;
+    },
+    // Board files: up into the folder, then filed; a refused add takes the file back out.
+    addBoardFile: async (folder, file) => {
+      deny(addBoardFileProblem(visibleMe, folder, file, data));
+      const kind = boardFileKind(file.name, file.mimeType)!;
+      const path = boardFilePath(folder, newClientRef(), kind.ending);
+      const bytes = await boardFileBytes(file);
+      const up = await supabase().storage.from(BOARD_FILES_BUCKET).upload(path, bytes, { contentType: kind.contentType, upsert: false });
+      if (up.error) {
+        const big = /size|too large|413/i.test(`${up.error.message ?? ''} ${(up.error as { statusCode?: string }).statusCode ?? ''}`);
+        throw new Error(big ? BF_BIG : 'That file couldn’t be uploaded. Check your signal and try again.');
+      }
+      const r = await supabase().rpc('add_board_file', {
+        p_chapter: folder.chapterId, p_role: folder.role, p_path: path, p_name: boardFileName(file.name, kind.ending),
+        p_size: file.size ?? bytes.byteLength,
+      });
+      if (r.error || !r.data) {
+        supabase().storage.from(BOARD_FILES_BUCKET).remove([path]).then(() => undefined, () => undefined);
+        throw r.error ? friendlyError(r.error) : new Error(BF_UPLOAD);
+      }
+      await after();
+      return r.data;
+    },
+    removeBoardFile: async (id) => {
+      deny(removeBoardFileProblem(visibleMe, id, data));
+      ok(await supabase().rpc('remove_board_file', { p_id: id }));
+      await after();
+    },
+    boardFileUrl: async (path) => {
+      const { data: signed, error } = await supabase().storage.from(BOARD_FILES_BUCKET).createSignedUrl(path, 600);
+      if (error) throw friendlyError(error);
+      if (!signed) throw new Error('The file couldn’t be opened. Try again.');
       return signed.signedUrl;
     },
 

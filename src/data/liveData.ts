@@ -8,6 +8,7 @@ import type { BusInput } from '../domain/bus';
 import type { ClubData, MeetingType, MemberPrivate, Route } from '../domain/types';
 import { toBusiness } from './businessLive';
 import { toLedger, toMeetingReports, toSpending } from './ledgerLive'; // Stage 5B
+import { toBoardFiles } from './boardFileActions';
 import { loadPlanning } from './planningLive'; // Ride planning extras
 import { loadCharity } from './charityLive'; // Charity ride sign-ups
 import { loadBusExtras } from './busExtrasLive'; // Rusty Bus extras
@@ -187,6 +188,15 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
       },
       () => null,
     ),
+  );
+
+  // Board files, for board members and the NEC (RLS hands nobody else a row); before the migration, none.
+  const boardFiles = await db.from('board_files').select('*').then(
+    (r) => {
+      if (r.error && !MISSING_TABLE.includes(r.error.code ?? '')) console.warn('board_files:', r.error.message);
+      return r.error ? [] : toBoardFiles(r.data);
+    },
+    () => [],
   );
 
   // Club spending (member names taken out), the same way; before its migration, nothing.
@@ -483,6 +493,7 @@ export async function loadClub(db: SupabaseClient<Database>, signedIn: boolean):
     ...ledger,
     ...meetingReports,
     ...(spending ? { spending } : {}),
+    boardFiles,
     ...admin,
     ...audit,
     ...documents,

@@ -244,6 +244,15 @@ done
 "${PSQL[@]}" -d rustnuts_meeting_reports -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_meeting_reports -f "$ROOT/supabase/tests/meeting_reports_test.sql"
 
+# Board files, a folder for every seat, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_board_files" >/dev/null
+"${PSQL[@]}" -d rustnuts_board_files -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_board_files -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_board_files -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_board_files -f "$ROOT/supabase/tests/board_files_test.sql"
+
 # Club spending for members, member names taken out, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_club_spending" >/dev/null
 "${PSQL[@]}" -d rustnuts_club_spending -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
@@ -609,6 +618,15 @@ done
 "${PSQL[@]}" -d rustnuts_voice_sweep -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_voice_sweep -f "$ROOT/supabase/tests/voice_sweep_test.sql"
 
+# Ride comms bubbles (who's on each ride's comms, counts, emergencies to comms), on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_comms_bubbles" >/dev/null
+"${PSQL[@]}" -d rustnuts_comms_bubbles -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_comms_bubbles -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_comms_bubbles -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_comms_bubbles -f "$ROOT/supabase/tests/ride_comms_bubbles_test.sql"
+
 # The Family chat, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_family_chat" >/dev/null
 "${PSQL[@]}" -d rustnuts_family_chat -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
@@ -626,6 +644,15 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 "${PSQL[@]}" -d rustnuts_chat_groups -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
 "${PSQL[@]}" -d rustnuts_chat_groups -f "$ROOT/supabase/tests/chat_groups_test.sql"
+
+# Topics inside board, committee and group chats, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_chat_topics" >/dev/null
+"${PSQL[@]}" -d rustnuts_chat_topics -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_chat_topics -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_chat_topics -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_chat_topics -f "$ROOT/supabase/tests/chat_topics_test.sql"
 
 # The sign-up block list, on a fresh copy of the schema.
 "${PSQL[@]}" -c "create database rustnuts_blocked_signups" >/dev/null

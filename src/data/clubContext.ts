@@ -15,6 +15,8 @@ import type { Casting, VoteInput } from '../domain/votes';
 import type { CreditInput, DebitInput } from '../domain/ledger'; // Stage 5B
 import type { MeetingReportInput } from '../domain/meetingReport';
 import type { PickedPdfFile } from './reportPdfFile';
+import type { PickedBoardUpload } from './boardFilePick';
+import type { BoardFolderRef } from '../domain/boardFiles';
 import type { ApprovalInput, DocumentInput, VersionInput } from '../domain/documents'; // Stage 5C
 import type {
   Big4Ground, NoticeOutcome, // Big 4 RSVP rules and the 5.5 notice
@@ -345,6 +347,12 @@ export interface ClubContextValue {
   removeMeetingReportPdf: (id: string) => Promise<void>;
   /** An address that opens a report's attached PDF (a signed one, for ten minutes, when live). */
   meetingReportPdfUrl: (path: string) => Promise<string>;
+  // Board files: a folder for every seat, and Club info
+  /** Files a picked file or photo in a folder. Resolves to its id. */
+  addBoardFile: (folder: BoardFolderRef, file: PickedBoardUpload) => Promise<string>;
+  removeBoardFile: (id: string) => Promise<void>;
+  /** An address that opens a board file (a signed one, for ten minutes, when live). */
+  boardFileUrl: (path: string) => Promise<string>;
   // Stage 5D: board and admin
   /** Writes up a conduct matter on a member's record (6.5, 6.6, 6.9). Resolves to the record's id. */
   recordConduct: (input: ConductInput) => Promise<string>;

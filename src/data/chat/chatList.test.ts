@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Message, MessageMedia } from '../../domain/chat';
 import { fixtureChat, fixtureData } from '../parityFixture.testkit';
-import { feedFrom, listFor, rideWallFrom, rideWallsFrom, sortSummaries, withoutBlocked } from './chatList';
+import { feedFrom, foldTopics, listFor, rideWallFrom, rideWallsFrom, sortSummaries, topicsOf, withoutBlocked } from './chatList';
 import type { ChatData } from './demoChatActions';
 
 const club = fixtureData();
@@ -124,4 +124,32 @@ test('ride walls: rides with photos, newest ride first, each with its newest pho
   assert.deepEqual(wall.media.map((m) => m.id), ['b-0', 'b-1', 'a-0']);
   assert.throws(() => rideWallFrom(chat, club, as('crank'), 'nope'), /No such ride\./);
   assert.throws(() => rideWallFrom(chat, club, as('dylan'), 'soon'), /Only approved members can do that\./);
+});
+
+test('topics sit under their chat: its badge counts theirs, and its newest line can be one of theirs', () => {
+  const chat = chatWith({
+    conversations: [
+      ...chatWith().conversations,
+      { id: 't-1', kind: 'topic', chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], name: 'Christmas party', createdBy: 'torque', parentId: 'boards' },
+      { id: 't-2', kind: 'topic', chapterId: null, rideId: null, committee: null, pinnedMessageId: null, memberIds: [], name: 'Old one', createdBy: 'torque', parentId: 'boards', closedAt: '2026-10-20T00:00:00.000Z' },
+    ],
+    messages: [
+      msg('a', 'boards', 'crank', '2026-10-24T00:00:00.000Z'),
+      msg('b', 't-1', 'crank', '2026-10-24T00:30:00.000Z', { body: 'Pub or park?' }),
+      msg('c', 't-2', 'crank', '2026-10-24T00:10:00.000Z'),
+    ],
+  });
+  const list = listFor(chat, club, as('torque'), '2026-10-24');
+  const topic = list.find((s) => s.conversation.id === 't-1')!;
+  assert.equal(topic.title, 'Christmas party');
+  assert.equal(topic.conversation.parent?.id, 'boards', 'a topic carries its chat');
+  const folded = foldTopics(list);
+  assert.ok(!folded.some((s) => s.conversation.kind === 'topic'), 'no topic rows in the chat list');
+  const boards = folded.find((s) => s.conversation.id === 'boards')!;
+  assert.equal(boards.unread, 3, 'its own, its open topic’s and its closed topic’s');
+  assert.equal(boards.topics?.open, 1);
+  assert.equal(boards.last?.id, 'b', 'the newest message across it and its topics');
+  assert.equal(boards.lastTopic, 'Christmas party');
+  assert.deepEqual(topicsOf(list, 'boards').map((s) => s.conversation.id), ['t-1', 't-2'], 'open topics first, then closed');
+  assert.ok(!listFor(chat, club, as('spanner'), '2026-10-24').some((s) => s.conversation.kind === 'topic'), 'not for someone outside All boards');
 });

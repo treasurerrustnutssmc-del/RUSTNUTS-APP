@@ -113,6 +113,9 @@ export type RootParams = {
   /** Board members and the NEC: a new group, or (with chatId) more people for that group. */
   NewGroup: { chatId?: string } | undefined;
   GroupInfo: { chatId: string };
+  /** A board, committee or group chat's topics, and one topic's info (2026-11-24-chat-topics-design.md). */
+  Topics: { chatId: string };
+  TopicInfo: { chatId: string };
   ChatReports: undefined;
   Photos: undefined;
   RideWall: { rideId: string };
@@ -184,6 +187,8 @@ export type RootParams = {
   AuditReport: { reportId?: string } | undefined;
   // Stage 5C: document library. `version` opens that version instead of the one in force.
   Documents: undefined;
+  BoardFiles: undefined;
+  BoardFolder: { chapterId: string | null; role: PositionRole | null };
   Document: { id: string; version?: string };
   NewDocument: undefined;
   PublishDocument: { id: string };
