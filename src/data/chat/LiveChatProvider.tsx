@@ -365,7 +365,8 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
       return { ride: toRide(w.ride), chatId: w.chat_id, media: w.media.map(toFeedItem) };
     },
     addToGallery: async (add) => {
-      const cant = galleryAddProblem(me, { ...add, count: add.files.length }, club.rides);
+      // Its ride list starts today, so the database checks the album (an older ride's wall can add too).
+      const cant = galleryAddProblem(me, { ...add, count: add.files.length }, null);
       if (cant || !me) throw new NotAllowedError(cant ?? 'Sign in first.');
       const folder = `${GALLERY_FOLDER}/${me.id}`;
       const uploaded: string[] = [];
@@ -393,6 +394,10 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
       await rpc('remove_gallery_item', { p_id: id });
     },
     galleryForSite: async () => ((await rpc<FeedJson[]>('gallery_for_site')) ?? []).map(toGalleryItem),
+    galleryAlbums: async () =>
+      ((await rpc<{ id: string; title: string; starts_at: string }[]>('gallery_albums')) ?? []).map((r) => ({
+        id: r.id, title: r.title, startsAt: r.starts_at, cancelledAt: null,
+      })),
     approveGalleryForSite: async (id, caption) => {
       await rpc('approve_gallery_for_site', { p_id: id, p_caption: caption });
     },

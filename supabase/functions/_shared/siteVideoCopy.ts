@@ -26,8 +26,11 @@ export interface VideoCopyDeps {
   used: () => Promise<number>;
   put: (key: string, bytes: Uint8Array, contentType: string) => Promise<void>;
   remove: (key: string) => Promise<void>;
-  done: (id: string, videoUrl: string, posterUrl: string | null) => Promise<void>;
+  /** False when the video came down mid-copy (then what was put is deleted again). */
+  done: (id: string, videoUrl: string, posterUrl: string | null) => Promise<boolean>;
   cleared: (id: string) => Promise<void>;
+  /** Counts a failed copy; after three the database stops offering it. */
+  failed: (id: string) => Promise<void>;
   /** Where the Worker serves R2 from, no trailing slash. */
   base: string;
 }
@@ -36,36 +39,58 @@ const isMov = (path: string) => /\.mov$/i.test(path);
 const videoKey = (job: VideoJob) => `v/${job.id}.${isMov(job.path) ? 'mov' : 'mp4'}`;
 const stillKey = (job: VideoJob) => `v/${job.id}.jpg`;
 
+async function removeBoth(deps: VideoCopyDeps, job: VideoJob) {
+  await deps.remove(videoKey(job));
+  await deps.remove(stillKey(job));
+}
+
 export async function copyVideos(deps: VideoCopyDeps) {
   const result = { copied: 0, cleared: 0, skipped: 0, failed: 0 };
-  let used = await deps.used();
-  for (const job of await deps.jobs()) {
+  const jobs = await deps.jobs();
+  // Clears first: a taken-down video comes off even if the copies can't run.
+  for (const job of jobs.filter((j) => j.action === 'clear')) {
     try {
-      if (job.action === 'clear') {
-        await deps.remove(videoKey(job));
-        await deps.remove(stillKey(job));
-        await deps.cleared(job.id);
-        result.cleared++;
-        continue;
-      }
+      await removeBoth(deps, job);
+      await deps.cleared(job.id);
+      result.cleared++;
+    } catch {
+      result.failed++;
+    }
+  }
+  const copies = jobs.filter((j) => j.action === 'copy');
+  let used: number;
+  try {
+    used = await deps.used();
+  } catch {
+    // Without knowing the space, copy nothing (never risk the bill); they're offered again next time.
+    result.skipped += copies.length;
+    return result;
+  }
+  for (const job of copies) {
+    try {
       const video = await deps.download(job.path);
-      if (used + video.length > R2_CAP_BYTES) {
+      const still = job.poster_path ? await deps.download(job.poster_path) : null;
+      if (used + video.length + (still?.length ?? 0) > R2_CAP_BYTES) {
         result.skipped++;
         continue;
       }
       await deps.put(videoKey(job), video, isMov(job.path) ? 'video/quicktime' : 'video/mp4');
       used += video.length;
-      let posterUrl: string | null = null;
-      if (job.poster_path) {
-        const still = await deps.download(job.poster_path);
+      if (still) {
         await deps.put(stillKey(job), still, 'image/jpeg');
         used += still.length;
-        posterUrl = `${deps.base}/${stillKey(job)}`;
       }
-      await deps.done(job.id, `${deps.base}/${videoKey(job)}`, posterUrl);
-      result.copied++;
+      const took = await deps.done(job.id, `${deps.base}/${videoKey(job)}`, still ? `${deps.base}/${stillKey(job)}` : null);
+      if (took) {
+        result.copied++;
+      } else {
+        await removeBoth(deps, job);
+        used -= video.length + (still?.length ?? 0);
+        result.cleared++;
+      }
     } catch {
       result.failed++;
+      await deps.failed(job.id).catch(() => undefined);
     }
   }
   return result;

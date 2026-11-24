@@ -117,7 +117,8 @@ export type RootParams = {
   /** added: how many just went into the gallery (Add to the gallery comes back here). */
   Photos: { added?: number } | undefined;
   /** The gallery: rideId starts the album on that ride. */
-  AddToGallery: { rideId?: string } | undefined;
+  /** From a ride wall: the ride, which may be older than the album picker's 30 days. */
+  AddToGallery: { rideId?: string; rideTitle?: string; rideStartsAt?: string } | undefined;
   RideWall: { rideId: string };
   MediaViewer: { items: FeedItem[]; index: number };
   // Website-and-app task 23: club photos on the website

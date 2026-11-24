@@ -229,7 +229,7 @@ export function RideWallScreen({ route, navigation }: RootScreen<'RideWall'>) {
             <Notice title="No photos yet">Add them here or post them in the ride’s chat and they land here.</Notice>
           )}
           {canAddToGallery(me) ? (
-            <Button label="Add photos and videos" icon="add-circle-outline" onPress={() => navigation.navigate('AddToGallery', { rideId: wall.ride.id })} />
+            <Button label="Add photos and videos" icon="add-circle-outline" onPress={() => navigation.navigate('AddToGallery', { rideId: wall.ride.id, rideTitle: wall.ride.title, rideStartsAt: wall.ride.startsAt })} />
           ) : null}
           <Button
             label="Ride chat"

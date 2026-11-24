@@ -63,10 +63,13 @@ Deno.serve(async (req) => {
         if (!res.ok && res.status !== 404) throw new Error(`R2 delete ${res.status}`);
       },
       done: async (id, videoUrl, posterUrl) => {
-        await rpc('video_copy_done', { p_id: id, p_video_url: videoUrl, p_poster_url: posterUrl });
+        return (await rpc<boolean>('video_copy_done', { p_id: id, p_video_url: videoUrl, p_poster_url: posterUrl })) === true;
       },
       cleared: async (id) => {
         await rpc('video_copy_cleared', { p_id: id });
+      },
+      failed: async (id) => {
+        await rpc('video_copy_failed', { p_id: id });
       },
     });
     return Response.json(result);

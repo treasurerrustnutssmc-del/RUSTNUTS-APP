@@ -3,14 +3,14 @@
 // Rules: src/domain/gallery.ts. Spec: docs/superpowers/specs/2026-11-23-club-gallery-design.md
 
 import { Image } from 'expo-image';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { pickMedia, PickProblem } from '../data/chat/media';
 import type { PickedMedia } from '../domain/chat';
 import { formatAuDate } from '../domain/dates';
-import { addProblem, albumChoices, CLUB_LIFE, GALLERY_CONSENT_LINE, GALLERY_MAX } from '../domain/gallery';
+import { addProblem, albumChoices, CLUB_LIFE, GALLERY_CONSENT_LINE, GALLERY_MAX, type Album } from '../domain/gallery';
 import { melbourneDate } from '../domain/rides';
 import { CAPTION_MAX } from '../domain/sitePhotos';
 import type { RootScreen } from '../navigation/types';
@@ -25,9 +25,29 @@ export function AddToGalleryScreen({ navigation, route }: RootScreen<'AddToGalle
   const chat = useChat();
   const { width } = useWindowDimensions();
   const cell = Math.floor((Math.min(width, MAX_CONTENT_WIDTH) - space.lg * 2 - GAP * (COLUMNS - 1)) / COLUMNS);
-  const albums = albumChoices(data.rides, today);
+  const passedId = route.params?.rideId;
+  // The app's ride list starts today; the database lists the last 30 days.
+  const [loaded, setLoaded] = useState<Album[] | null>(null);
+  const albums = albumChoices(loaded ?? data.rides, today);
   const [files, setFiles] = useState<PickedMedia[]>([]);
-  const [rideId, setRideId] = useState<string | null>(route.params?.rideId ?? albums[0]?.id ?? null);
+  const [rideId, setRideId] = useState<string | null>(passedId ?? albums[0]?.id ?? null);
+  const picked = useRef(!!passedId);
+  useEffect(() => {
+    let live = true;
+    chat
+      .galleryAlbums()
+      .then((list) => {
+        if (!live) return;
+        setLoaded(list);
+        if (!picked.current) setRideId(albumChoices(list, today)[0]?.id ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+    // Once per visit: a later pick by the member must not be overwritten.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [caption, setCaption] = useState('');
   const [websiteOk, setWebsiteOk] = useState(false);
   const [consent, setConsent] = useState(false);
@@ -43,12 +63,21 @@ export function AddToGalleryScreen({ navigation, route }: RootScreen<'AddToGalle
       .catch((e) => setError(e instanceof PickProblem ? e.message : 'That couldn’t be opened. Try another.'));
   };
   // A ride passed in from its wall may be older than the picker's 30 days: keep it on the list.
-  const passed = route.params?.rideId ? data.rides.find((r) => r.id === route.params?.rideId) : undefined;
+  const passed: Album | undefined = passedId
+    ? (data.rides.find((r) => r.id === passedId) ??
+      (route.params?.rideTitle && route.params.rideStartsAt
+        ? { id: passedId, title: route.params.rideTitle, startsAt: route.params.rideStartsAt, cancelledAt: null }
+        : undefined))
+    : undefined;
   const shownAlbums = passed && !albums.some((r) => r.id === passed.id) ? [passed, ...albums] : albums;
+  const choose = (id: string | null) => {
+    picked.current = true;
+    setRideId(id);
+  };
 
   const send = async () => {
     const input = { rideId, caption, websiteOk, consent, count: files.length };
-    const cant = addProblem(me, input, data.rides);
+    const cant = addProblem(me, input, shownAlbums);
     if (cant) return setError(cant);
     setBusy(true);
     setError(null);
@@ -107,10 +136,10 @@ export function AddToGalleryScreen({ navigation, route }: RootScreen<'AddToGalle
             title={r.title}
             subtitle={formatAuDate(melbourneDate(r.startsAt))}
             checked={rideId === r.id}
-            onPress={() => setRideId(r.id)}
+            onPress={() => choose(r.id)}
           />
         ))}
-        <ListRow title={CLUB_LIFE} subtitle="Not from a ride" checked={rideId === null} onPress={() => setRideId(null)} last />
+        <ListRow title={CLUB_LIFE} subtitle="Not from a ride" checked={rideId === null} onPress={() => choose(null)} last />
       </Card>
 
       <Card>

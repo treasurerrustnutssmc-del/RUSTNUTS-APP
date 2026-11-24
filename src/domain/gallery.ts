@@ -77,13 +77,19 @@ function approvedProblem(me: Member | null): string | null {
   return null;
 }
 
-/** Why `me` can't add these, or null. Mirrors add_gallery_items (before the file checks). */
-export function addProblem(me: Member | null, input: GalleryInput, rides: Ride[]): string | null {
+/** A ride the gallery can file under (from the app's rides or the database's album list). */
+export type Album = Pick<Ride, 'id' | 'title' | 'startsAt' | 'cancelledAt'>;
+
+/**
+ * Why `me` can't add these, or null. Mirrors add_gallery_items (before the file checks). `rides` is
+ * every ride the caller knows of; null when it can't know them all (the database then checks).
+ */
+export function addProblem(me: Member | null, input: GalleryInput, rides: { id: string }[] | null): string | null {
   const who = approvedProblem(me);
   if (who) return who;
   if (input.count < 1) return NO_FILES;
   if (input.count > GALLERY_MAX) return TOO_MANY;
-  if (input.rideId !== null && !rides.some((r) => r.id === input.rideId)) return NO_SUCH_RIDE;
+  if (input.rideId !== null && rides !== null && !rides.some((r) => r.id === input.rideId)) return NO_SUCH_RIDE;
   if (input.caption.trim().length > CAPTION_MAX) return LONG_CAPTION;
   if (input.websiteOk && !input.consent) return WEBSITE_NEEDS_CONSENT;
   return null;
@@ -114,7 +120,7 @@ export function approveProblem(me: Member | null, positions: Position[], crew: S
 }
 
 /** Rides the Add form offers as albums: started in the last ALBUM_DAYS days up to today, newest first. */
-export function albumChoices(rides: Ride[], today: string): Ride[] {
+export function albumChoices<T extends Album>(rides: T[], today: string): T[] {
   const from = addDays(today, -ALBUM_DAYS);
   return rides
     .filter((r) => !r.cancelledAt)

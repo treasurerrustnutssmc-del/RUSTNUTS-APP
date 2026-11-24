@@ -42,6 +42,8 @@ test('adding checks in the database order: signed in, approved, files, how many,
   assert.equal(addProblem(who(d, 'snap'), input({ count: 0 }), rides), NO_FILES);
   assert.equal(addProblem(who(d, 'snap'), input({ count: GALLERY_MAX + 1 }), rides), TOO_MANY);
   assert.equal(addProblem(who(d, 'snap'), input({ rideId: 'nope' }), rides), 'No such ride.');
+  // The live app doesn't hold older rides: with no list, the database checks the album.
+  assert.equal(addProblem(who(d, 'snap'), input({ rideId: 'older' }), null), null);
   assert.equal(addProblem(who(d, 'snap'), input({ caption: 'x'.repeat(121) }), rides), LONG_CAPTION);
   assert.equal(addProblem(who(d, 'snap'), input({ websiteOk: true }), rides), WEBSITE_NEEDS_CONSENT);
   assert.equal(addProblem(who(d, 'snap'), input({ websiteOk: true, consent: true, rideId: 'r1' }), rides), null);

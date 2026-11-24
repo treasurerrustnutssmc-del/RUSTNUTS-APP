@@ -3,7 +3,7 @@
 
 import { createContext, useContext } from 'react';
 import type { Block, Conversation, Message, MessageMedia, PickedMedia } from '../../domain/chat';
-import type { GalleryItem } from '../../domain/gallery';
+import type { Album, GalleryItem } from '../../domain/gallery';
 import type { Ride } from '../../domain/types';
 
 export interface ChatSummary {
@@ -131,6 +131,8 @@ export interface ChatContextValue {
   removeGalleryItem: (id: string) => Promise<void>;
   /** What members ticked "OK for the website", waiting for the website crew. Empty for anyone else. */
   galleryForSite: () => Promise<GalleryItem[]>;
+  /** Rides from the last 30 days the Add form can file under (the app's own ride list starts today). */
+  galleryAlbums: () => Promise<Album[]>;
   approveGalleryForSite: (id: string, caption: string) => Promise<void>;
   declineGalleryForSite: (id: string) => Promise<void>;
   mediaUrl: (path: string) => Promise<MediaSource>;

@@ -409,61 +409,142 @@ revoke all on function private.forget_gallery() from public, anon, authenticated
 create trigger member_private_forget_gallery after delete on public.member_private
   for each row execute function private.forget_gallery();
 
+-- The album picker: rides that started in the last 30 days up to today (Melbourne), not cancelled,
+-- newest first. The app's ride list only runs from today on, so it can't offer these itself.
+create or replace function public.gallery_albums()
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'title', r.title, 'starts_at', r.starts_at)
+                            order by r.starts_at desc, r.id), '[]'::jsonb)
+  from public.rides r
+  where private.is_approved_member()
+    and r.cancelled_at is null
+    and (r.starts_at at time zone 'Australia/Melbourne')::date
+        between (now() at time zone 'Australia/Melbourne')::date - 30 and (now() at time zone 'Australia/Melbourne')::date;
+$$;
+revoke all on function public.gallery_albums() from public, anon;
+grant execute on function public.gallery_albums() to authenticated;
+
 -- ---------------------------------------------------------------------------------------------
 -- Website videos on the club's Cloudflare storage (the site-video-copy Edge Function). The function
 -- runs with the service key and does only what these list.
 
--- What to do: copy live website videos with no Cloudflare address yet; delete taken-down ones that
--- still have one. A few at a time.
+-- A copy that keeps failing (a missing or oversized file) stops being offered after three tries, so it
+-- can't hold up the queue.
+alter table public.site_photos add column video_copy_tries int not null default 0;
+
+-- Cloudflare copies whose row has gone (a deleted account, or any other delete): they still have to
+-- come off Cloudflare. Filled by the delete trigger below; emptied by video_copy_cleared.
+create table private.video_trash (
+  id uuid primary key,
+  path text not null,
+  poster_path text,
+  created_at timestamptz not null default now()
+);
+alter table private.video_trash enable row level security;
+revoke all on private.video_trash from public, anon, authenticated;
+
+-- What to do: delete taken-down (or deleted) videos from Cloudflare first, then copy live website
+-- videos with no Cloudflare address yet, a few at a time.
 create or replace function public.video_copy_jobs()
 returns jsonb language sql stable security definer set search_path = '' as $$
-  select coalesce(jsonb_agg(j), '[]'::jsonb) from (
-    select jsonb_build_object('id', p.id, 'action', case when p.status = 'live' then 'copy' else 'clear' end,
-                              'path', p.path, 'poster_path', p.poster_path, 'video_url', p.video_url) as j
-    from public.site_photos p
-    where p.kind = 'video'
-      and ((p.status = 'live' and p.video_url is null) or (p.status = 'removed' and p.video_url is not null))
-    order by p.picked_at
-    limit 5
+  select coalesce(jsonb_agg(j order by ord, at), '[]'::jsonb) from (
+    (select jsonb_build_object('id', p.id, 'action', 'clear', 'path', p.path, 'poster_path', p.poster_path,
+                               'video_url', p.video_url) as j, 0 as ord, p.picked_at as at
+     from public.site_photos p
+     where p.kind = 'video' and p.status = 'removed' and p.video_url is not null
+     order by p.picked_at limit 20)
+    union all
+    (select jsonb_build_object('id', t.id, 'action', 'clear', 'path', t.path, 'poster_path', t.poster_path,
+                               'video_url', null), 1, t.created_at
+     from private.video_trash t order by t.created_at limit 20)
+    union all
+    (select jsonb_build_object('id', p.id, 'action', 'copy', 'path', p.path, 'poster_path', p.poster_path,
+                               'video_url', p.video_url), 2, p.picked_at
+     from public.site_photos p
+     where p.kind = 'video' and p.status = 'live' and p.video_url is null and p.video_copy_tries < 3
+     order by p.picked_at limit 5)
   ) x;
 $$;
 
+-- True when it took. False when the video came down mid-copy: the copier then deletes what it put.
 create or replace function public.video_copy_done(p_id uuid, p_video_url text, p_poster_url text)
-returns void language sql security definer set search_path = '' as $$
+returns boolean language plpgsql security definer set search_path = '' as $$
+begin
   update public.site_photos set video_url = p_video_url, poster_url = p_poster_url
   where id = p_id and kind = 'video' and status = 'live';
+  return found;
+end;
 $$;
 
 create or replace function public.video_copy_cleared(p_id uuid)
 returns void language sql security definer set search_path = '' as $$
   update public.site_photos set video_url = null, poster_url = null where id = p_id and status = 'removed';
+  delete from private.video_trash where id = p_id;
 $$;
 
-revoke all on function public.video_copy_jobs(), public.video_copy_done(uuid, text, text), public.video_copy_cleared(uuid)
-  from public, anon, authenticated;
-grant execute on function public.video_copy_jobs(), public.video_copy_done(uuid, text, text), public.video_copy_cleared(uuid)
-  to service_role;
+create or replace function public.video_copy_failed(p_id uuid)
+returns void language sql security definer set search_path = '' as $$
+  update public.site_photos set video_copy_tries = video_copy_tries + 1 where id = p_id and kind = 'video';
+$$;
 
--- The nudge: when a website video goes live or comes down, call the function (no timer, so no extra
--- cron runs). Does nothing until an admin saves 'video_copy_url' in private.app_settings. Never
--- stops the change itself.
-create or replace function private.video_copy_kick()
-returns trigger language plpgsql security definer set search_path = '' as $$
+revoke all on function public.video_copy_jobs(), public.video_copy_done(uuid, text, text), public.video_copy_cleared(uuid),
+  public.video_copy_failed(uuid) from public, anon, authenticated;
+grant execute on function public.video_copy_jobs(), public.video_copy_done(uuid, text, text), public.video_copy_cleared(uuid),
+  public.video_copy_failed(uuid) to service_role;
+
+-- The nudge: when a website video goes live, comes down or is deleted, call the function (no timer,
+-- so no extra cron runs). Does nothing until an admin saves 'video_copy_url' in
+-- private.app_settings. Never stops the change itself.
+create or replace function private.video_copy_call(p_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
 declare
   u text;
 begin
-  if new.kind <> 'video' then return null; end if;
-  if not ((new.status = 'live' and new.video_url is null) or (new.status = 'removed' and new.video_url is not null)) then return null; end if;
   select value into u from private.app_settings where key = 'video_copy_url';
-  if u is null or u = '' then return null; end if;
+  if u is null or u = '' then return; end if;
   begin
     execute 'select net.http_post(url := $1, headers := private.cron_headers(), body := ''{}''::jsonb)' using u;
   exception when others then
-    raise warning 'site-video-copy not called for %: %', new.id, sqlerrm;
+    raise warning 'site-video-copy not called for %: %', p_id, sqlerrm;
   end;
+end;
+$$;
+revoke all on function private.video_copy_call(uuid) from public, anon, authenticated;
+
+create or replace function private.video_copy_kick()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.kind <> 'video' then return null; end if;
+  if not ((new.status = 'live' and new.video_url is null) or (new.status = 'removed' and new.video_url is not null)) then return null; end if;
+  perform private.video_copy_call(new.id);
   return null;
 end;
 $$;
 revoke all on function private.video_copy_kick() from public, anon, authenticated;
 create trigger site_photos_video_copy after insert or update of status on public.site_photos
   for each row execute function private.video_copy_kick();
+
+-- A deleted row with a Cloudflare copy (an account deleted, the gallery item gone) goes on the trash
+-- list so its copy still comes off Cloudflare.
+create or replace function private.video_copy_trash()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if old.kind = 'video' and old.video_url is not null then
+    insert into private.video_trash (id, path, poster_path) values (old.id, old.path, old.poster_path)
+    on conflict (id) do nothing;
+    perform private.video_copy_call(old.id);
+  end if;
+  return null;
+end;
+$$;
+revoke all on function private.video_copy_trash() from public, anon, authenticated;
+create trigger site_photos_video_trash after delete on public.site_photos
+  for each row execute function private.video_copy_trash();
+
+-- Gallery files stay put while they're listed: the chat tidy rule (any of your chat-media files
+-- not in a message) no longer reaches the gallery folder, so an approved photo can't be swapped.
+drop policy chat_media_tidy on storage.objects;
+create policy chat_media_tidy on storage.objects for delete to authenticated
+  using (bucket_id = 'chat-media' and owner_id = auth.uid()::text
+         and split_part(name, '/', 1) <> 'gallery'
+         and not exists (select 1 from public.message_media mm where mm.path = name or mm.poster_path = name));

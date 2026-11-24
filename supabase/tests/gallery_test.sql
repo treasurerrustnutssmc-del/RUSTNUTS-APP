@@ -76,7 +76,9 @@ $$;
 
 -- A ride for an album.
 insert into rides (id, title, starts_at, category) values
-  ('00000000-0000-0000-0000-00000000a001', 'Coast run', now() - interval '2 days', 'club');
+  ('00000000-0000-0000-0000-00000000a001', 'Coast run', now() - interval '2 days', 'club'),
+  ('00000000-0000-0000-0000-00000000a002', 'Old run', now() - interval '40 days', 'club'),
+  ('00000000-0000-0000-0000-00000000a003', 'Next run', now() + interval '3 days', 'club');
 
 -- A file in Snap's (or anyone's) gallery folder, uploaded as them through the storage rules.
 create function pg_temp.up(who uuid, file text) returns text language plpgsql as $$
@@ -113,6 +115,16 @@ begin
   assert exists (select 1 from storage.objects where name = 'gallery/' || snap || '/tidy.jpg'), 'but Nell can''t delete it';
   assert pg_temp.try_as(snap, format('delete from storage.objects where name = %L', 'gallery/' || snap || '/tidy.jpg')) is null, 'Snap tidies';
   assert not exists (select 1 from storage.objects where name = 'gallery/' || snap || '/tidy.jpg'), 'gone';
+end $$;
+
+\o
+\echo 'Gallery: the album picker offers the last 30 days of rides'
+\o /dev/null
+do $$
+begin
+  assert pg_temp.value_as('00000000-0000-0000-0000-0000000007b4', 'select string_agg(e->>''title'', '','') from jsonb_array_elements(public.gallery_albums()) e') = 'Coast run', 'past month only';
+  assert pg_temp.value_as('00000000-0000-0000-0000-0000000007b5', 'select jsonb_array_length(public.gallery_albums())') = '0', 'pending sees none';
+  assert pg_temp.try_as(null, 'select public.gallery_albums()') like 'permission denied%', 'anon';
 end $$;
 
 \o
@@ -228,6 +240,34 @@ begin
 end $$;
 
 \o
+\echo 'Gallery: a copy that keeps failing drops out, and nothing can swap an approved file'
+\o /dev/null
+do $$
+declare
+  smo constant uuid := '00000000-0000-0000-0000-0000000007b1';
+  snap constant uuid := '00000000-0000-0000-0000-0000000007b4';
+  vid uuid;
+  sp uuid;
+begin
+  perform pg_temp.up(snap, 'stuck.mp4');
+  perform pg_temp.value_as(snap, pg_temp.add_sql(null, 'Stuck', true, true, jsonb_build_array(pg_temp.item(snap, 'stuck.mp4', 'video'))));
+  vid := (select id from gallery_items where path like '%stuck.mp4');
+  perform pg_temp.try_as(smo, format('select public.approve_gallery_for_site(%L, null)', vid));
+  sp := (select id from site_photos where gallery_id = vid);
+  -- The owner can't delete (and so re-upload) a listed gallery file.
+  assert pg_temp.try_as(snap, format('delete from storage.objects where name = %L', 'gallery/' || snap || '/stuck.mp4')) is null, 'no error';
+  assert exists (select 1 from storage.objects where name = 'gallery/' || snap || '/stuck.mp4'), 'still there';
+  assert pg_temp.try_as(smo, format('select public.video_copy_failed(%L)', sp)) like 'permission denied%', 'service key only';
+  perform public.video_copy_failed(sp); perform public.video_copy_failed(sp);
+  assert (select public.video_copy_jobs()->0->>'id') = sp::text, 'still offered after two tries';
+  perform public.video_copy_failed(sp);
+  assert (select jsonb_array_length(public.video_copy_jobs())) = 0, 'dropped after three';
+  -- Taken down mid-copy: done says no, so the copier deletes what it put.
+  perform pg_temp.try_as(snap, format('select public.remove_gallery_item(%L)', vid));
+  assert not public.video_copy_done(sp, 'https://example.workers.dev/v/s.mp4', null), 'too late';
+end $$;
+
+\o
 \echo 'Gallery: declining and taking down'
 \o /dev/null
 do $$
@@ -262,13 +302,27 @@ end $$;
 do $$
 declare
   snap constant uuid := '00000000-0000-0000-0000-0000000007b4';
+  vid uuid;
+  sp uuid;
 begin
   perform pg_temp.up(snap, 'orphan.jpg');
+  -- A website video already on Cloudflare.
+  perform pg_temp.up(snap, 'cf.mp4');
+  perform pg_temp.value_as(snap, pg_temp.add_sql(null, 'On Cloudflare', true, true, jsonb_build_array(pg_temp.item(snap, 'cf.mp4', 'video'))));
+  vid := (select id from gallery_items where path like '%cf.mp4');
+  perform pg_temp.try_as('00000000-0000-0000-0000-0000000007b1', format('select public.approve_gallery_for_site(%L, null)', vid));
+  sp := (select id from site_photos where gallery_id = vid);
+  assert public.video_copy_done(sp, 'https://example.workers.dev/v/cf.mp4', null), 'copied';
   insert into member_private (member_id) values (snap) on conflict do nothing;
   delete from member_private where member_id = snap;
   assert not exists (select 1 from gallery_items where uploaded_by = snap), 'items gone';
   assert not exists (select 1 from site_photos where posted_by = snap), 'website rows gone';
   assert exists (select 1 from private.storage_purge where path = 'gallery/' || snap || '/orphan.jpg'), 'unlisted files queued too';
+  -- Its Cloudflare copy still has to come off.
+  assert (select public.video_copy_jobs()->0->>'id') = sp::text, 'a job to clear';
+  assert (select public.video_copy_jobs()->0->>'action') = 'clear', 'clear';
+  perform public.video_copy_cleared(sp);
+  assert not exists (select 1 from private.video_trash), 'done';
 end $$;
 
 \o

@@ -5,7 +5,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { canSeeReport, type MessageMedia } from '../../domain/chat';
 import type { ClubData } from '../../domain/types';
 import { NotAllowedError, useClub } from '../clubContext';
-import { addProblem as galleryAddProblem, approveProblem, removeProblem as galleryRemoveProblem, waitsForWebsite, type GalleryItem } from '../../domain/gallery';
+import { addProblem as galleryAddProblem, albumChoices, approveProblem, removeProblem as galleryRemoveProblem, waitsForWebsite, type GalleryItem } from '../../domain/gallery';
 import { cleanCaption, isSitePhotoEditor } from '../../domain/sitePhotos';
 import { demoSitePhotoCrew } from '../sitePhotosData';
 import { ChatContext, type Attachment, type ChatContextValue, type ReportView } from './chatContext';
@@ -137,6 +137,7 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       setChat((c) => ({ ...c, gallery: (c.gallery ?? []).map((g) => (g.id === id ? { ...g, removedAt: now } : g)) }));
     },
+    galleryAlbums: async () => albumChoices(club.rides, today),
     galleryForSite: async () =>
       isSitePhotoEditor(me, club.positions, demoCrew)
         ? (chat.gallery ?? []).filter(waitsForWebsite).map((g) => ({ ...g, albumTitle: club.rides.find((r) => r.id === g.rideId)?.title ?? null }))
