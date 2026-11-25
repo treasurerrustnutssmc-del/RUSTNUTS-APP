@@ -14,7 +14,11 @@ const MAX_DAYS = 16;
 /** WillyWeather's nearest place stands for a point only this close (km). */
 const NEAR_KM = 40;
 /** The most of each kind kept; the oldest goes first. */
-const KEEP_MAX = 500;
+const KEEP_MAX = 100;
+/** WillyWeather forecasts about a week; rides starting later than this many days ahead don't ask it. */
+const WILLY_DAYS = 6;
+/** How long the whole WillyWeather part may take before the answer goes out with Open-Meteo alone. */
+const WILLY_WAIT_MS = 4000;
 
 export interface Point {
   lat: number;
@@ -45,7 +49,8 @@ export type FetchJson = (url: string) => Promise<unknown>;
 
 export interface Cache {
   answers: Map<string, { at: number; value: unknown }>;
-  places: Map<string, number | null>;
+  /** A place found is kept for good; one not found (or an odd answer) for half an hour. */
+  places: Map<string, { at: number; id: number | null }>;
 }
 
 export const newCache = (): Cache => ({ answers: new Map(), places: new Map() });
@@ -200,10 +205,25 @@ export function blend(om: Series, ww: Map<string, Hour>): Series {
   return { time: om.time, temp: pick('temp', om.temp), rain: pick('rain', om.rain), gust: om.gust, code: pick('code', om.code) };
 }
 
+/** Whether any of WillyWeather's hours land on Open-Meteo's (so the card may credit it). */
+export const overlaps = (om: Series, ww: Map<string, Hour>) => om.time.some((t) => ww.has(t));
+
+/** Today in Melbourne, as an ISO day. */
+function melbourneToday(ms: number): string {
+  const p: Record<string, string> = {};
+  for (const x of new Intl.DateTimeFormat('en-AU', { timeZone: ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(ms))) p[x.type] = x.value;
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
 export interface Deps {
   fetchJson: FetchJson;
   now?: () => number;
   cache?: Cache;
+  /** The signed-in member's id, or null. The Edge Function always passes it; only members get an answer. */
+  userId?: () => Promise<string | null>;
+  willyWaitMs?: number;
 }
 
 const shared = newCache();
@@ -214,10 +234,25 @@ function remember<K, V>(map: Map<K, V>, key: K, value: V) {
   if (map.size > KEEP_MAX) map.delete(map.keys().next().value as K);
 }
 
+/** Resolves to `fallback` if `work` takes longer than `ms`. */
+function within<T>(work: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms);
+  });
+  return Promise.race([work, late]).finally(() => clearTimeout(timer));
+}
+
+// Never log the errors caught here: WillyWeather's addresses carry the club's key.
 export async function handleRideWeather(env: { WILLYWEATHER_API_KEY?: string }, body: unknown, deps: Deps): Promise<{ status: number; body: unknown }> {
+  if (deps.userId && !(await deps.userId().catch(() => null))) return { status: 401, body: { error: 'Sign in to see ride weather.' } };
   const ask = parseAsk(body);
-  if (!ask) return { status: 400, body: { error: 'Send 1 to 5 points in Australia and the ride’s days.' } };
   const now = deps.now ?? Date.now;
+  const today = melbourneToday(now());
+  // Only the forecast's own days: from yesterday (a ride still running) to 15 days ahead.
+  if (!ask || ask.days[0] < addDays(today, -1) || ask.days[0] > addDays(today, 15)) {
+    return { status: 400, body: { error: 'Send 1 to 5 points in Australia and the ride’s days, within the forecast.' } };
+  }
   const cache = deps.cache ?? shared;
 
   // A good answer is kept for half an hour; a failure is never kept.
@@ -238,27 +273,37 @@ export async function handleRideWeather(env: { WILLYWEATHER_API_KEY?: string }, 
   if (!om) return { status: 503, body: { error: NO_FORECAST } };
 
   const key = env.WILLYWEATHER_API_KEY;
-  let willy = false;
-  const series = await Promise.all(
-    om.map(async (s, i) => {
-      if (!key) return s;
-      try {
-        const p = ask.points[i];
-        const spot = `${coord(p.lat)},${coord(p.lng)}`;
-        let id = cache.places.get(spot);
-        if (id === undefined) {
-          id = parseWwLocation(await deps.fetchJson(wwPlaceUrl(key, p)));
-          remember(cache.places, spot, id);
+  if (!key || ask.days[0] > addDays(today, WILLY_DAYS)) return { status: 200, body: { series: om, willy: false } };
+
+  // One look-up per place, however many times it's asked for in this call.
+  const spots = new Map<string, Promise<Map<string, Hour>>>();
+  const hoursAt = (p: Point): Promise<Map<string, Hour>> => {
+    const spot = `${coord(p.lat)},${coord(p.lng)}`;
+    let job = spots.get(spot);
+    if (!job) {
+      job = (async () => {
+        try {
+          const kept = cache.places.get(spot);
+          let id: number | null;
+          if (kept && (kept.id !== null || now() - kept.at < KEEP_MS)) id = kept.id;
+          else {
+            id = parseWwLocation(await deps.fetchJson(wwPlaceUrl(key, p)));
+            remember(cache.places, spot, { at: now(), id });
+          }
+          if (id === null) return new Map<string, Hour>();
+          return wwHours(await get(wwWeatherUrl(key, id, ask), (v) => wwHours(v).size > 0));
+        } catch {
+          return new Map<string, Hour>();
         }
-        if (id === null) return s;
-        const hours = wwHours(await get(wwWeatherUrl(key, id, ask), (v) => wwHours(v).size > 0));
-        if (hours.size === 0) return s;
-        willy = true;
-        return blend(s, hours);
-      } catch {
-        return s;
-      }
-    }),
-  );
+      })();
+      spots.set(spot, job);
+    }
+    return job;
+  };
+
+  const none = om.map(() => new Map<string, Hour>());
+  const found = await within(Promise.all(ask.points.map(hoursAt)), deps.willyWaitMs ?? WILLY_WAIT_MS, none);
+  const willy = om.some((s, i) => overlaps(s, found[i]));
+  const series = om.map((s, i) => blend(s, found[i]));
   return { status: 200, body: { series, willy } };
 }

@@ -122,7 +122,7 @@ const ask = { points: [{ lat: -37.68, lng: 144.44 }, { lat: -37.35, lng: 144.14 
 
 test('the server blends both for every point, and says the Bureau forecast was used', async () => {
   const web = fakeWeb();
-  const a = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, ask, { fetchJson: web.fetchJson, cache: newCache() });
+  const a = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, ask, { fetchJson: web.fetchJson, cache: newCache(), now: () => NOW });
   assert.equal(a.status, 200);
   const body = a.body as { series: { temp: number[]; gust: number[] }[]; willy: boolean };
   assert.equal(body.series.length, 2);
@@ -140,15 +140,15 @@ test('the server blends both for every point, and says the Bureau forecast was u
 
 test('answers are kept for half an hour, and places for good', async () => {
   const web = fakeWeb();
-  let now = 0;
+  let now = NOW;
   const deps = { fetchJson: web.fetchJson, now: () => now, cache: newCache() };
   const env = { WILLYWEATHER_API_KEY: 'k' };
   await handleRideWeather(env, ask, deps);
   const first = web.asked.length;
-  now = 29 * 60_000;
+  now = NOW + 29 * 60_000;
   await handleRideWeather(env, ask, deps);
   assert.equal(web.asked.length, first, 'nothing asked again inside half an hour');
-  now = 31 * 60_000;
+  now = NOW + 31 * 60_000;
   await handleRideWeather(env, ask, deps);
   assert.ok(!web.asked.slice(first).some((u) => u.includes('search.json')), 'places are not looked up again');
   assert.ok(web.asked.slice(first).some((u) => u.includes('weather.json')));
@@ -160,7 +160,7 @@ test('WillyWeather down, too far, or no key: Open-Meteo alone, and the answer sa
     [{ WILLYWEATHER_API_KEY: 'k' }, fakeWeb({ ww: 'far' })],
     [{}, fakeWeb()],
   ] as const) {
-    const a = await handleRideWeather(env, ask, { fetchJson: web.fetchJson, cache: newCache() });
+    const a = await handleRideWeather(env, ask, { fetchJson: web.fetchJson, cache: newCache(), now: () => NOW });
     assert.equal(a.status, 200);
     const body = a.body as { series: { temp: number[] }[]; willy: boolean };
     assert.equal(body.willy, false);
@@ -169,9 +169,79 @@ test('WillyWeather down, too far, or no key: Open-Meteo alone, and the answer sa
 });
 
 test('Open-Meteo down: no forecast (the phone then asks Open-Meteo itself); a bad ask is refused', async () => {
-  const down = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, ask, { fetchJson: fakeWeb({ om: 'down' }).fetchJson, cache: newCache() });
+  const down = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, ask, { fetchJson: fakeWeb({ om: 'down' }).fetchJson, cache: newCache(), now: () => NOW });
   assert.equal(down.status, 503);
   assert.deepEqual(down.body, { error: NO_FORECAST });
-  const bad = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, { points: [] }, { fetchJson: fakeWeb().fetchJson, cache: newCache() });
+  const bad = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, { points: [] }, { fetchJson: fakeWeb().fetchJson, cache: newCache(), now: () => NOW });
   assert.equal(bad.status, 400);
+});
+
+// Review fixes: only members, only the forecast's days, no waste, no long waits.
+
+const NOW = Date.parse('2026-11-25T01:00:00Z'); // 25/11/2026, noon in Melbourne
+
+test('only a signed-in member gets a forecast', async () => {
+  const web = fakeWeb();
+  const a = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, ask, { fetchJson: web.fetchJson, cache: newCache(), now: () => NOW, userId: async () => null });
+  assert.equal(a.status, 401);
+  assert.equal(web.asked.length, 0);
+});
+
+test('days outside the forecast (past, or too far ahead) are refused without asking anyone', async () => {
+  for (const days of [['2026-11-20'], ['2026-12-12']]) {
+    const web = fakeWeb();
+    const a = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, { ...ask, days }, { fetchJson: web.fetchJson, cache: newCache(), now: () => NOW });
+    assert.equal(a.status, 400, days[0]);
+    assert.equal(web.asked.length, 0);
+  }
+});
+
+test('a ride past WillyWeather’s week is Open-Meteo alone, and WillyWeather is not asked', async () => {
+  const web = fakeWeb();
+  const a = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, { ...ask, days: ['2026-12-03'] }, { fetchJson: web.fetchJson, cache: newCache(), now: () => NOW });
+  assert.equal(a.status, 200);
+  assert.equal((a.body as { willy: boolean }).willy, false);
+  assert.ok(!web.asked.some((u) => u.includes('willyweather')));
+});
+
+test('WillyWeather is credited only when its figures landed on the ride’s hours', async () => {
+  const web = fakeWeb();
+  // WillyWeather answers, but for a different day than the one asked.
+  const fetchJson: FetchJson = async (url) => {
+    const v = await web.fetchJson(url);
+    return url.includes('weather.json') ? JSON.parse(JSON.stringify(v).replaceAll(DAY, '2026-11-29')) : v;
+  };
+  const a = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, ask, { fetchJson, cache: newCache(), now: () => NOW });
+  assert.equal((a.body as { willy: boolean }).willy, false);
+});
+
+test('the same point twice is looked up once', async () => {
+  const web = fakeWeb();
+  const p = { lat: -37.68, lng: 144.44 };
+  await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, { points: [p, p, p], days: [DAY] }, { fetchJson: web.fetchJson, cache: newCache(), now: () => NOW });
+  assert.equal(web.asked.filter((u) => u.includes('search.json')).length, 1);
+  assert.equal(web.asked.filter((u) => u.includes('weather.json')).length, 1);
+});
+
+test('a slow WillyWeather is given up on: Open-Meteo alone, quickly', async () => {
+  const web = fakeWeb();
+  const fetchJson: FetchJson = (url) => (url.includes('willyweather') ? new Promise(() => {}) : web.fetchJson(url));
+  const started = Date.now();
+  const a = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, ask, { fetchJson, cache: newCache(), now: () => NOW, willyWaitMs: 50 });
+  assert.equal(a.status, 200);
+  assert.equal((a.body as { willy: boolean }).willy, false);
+  assert.ok(Date.now() - started < 1000);
+});
+
+test('a place WillyWeather couldn’t find is tried again after half an hour', async () => {
+  let broken = true;
+  const web = fakeWeb();
+  const fetchJson: FetchJson = async (url) => (broken && url.includes('search.json') ? { odd: true } : web.fetchJson(url));
+  let now = NOW;
+  const deps = { fetchJson, cache: newCache(), now: () => now };
+  await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, ask, deps);
+  broken = false;
+  now += 31 * 60_000;
+  const a = await handleRideWeather({ WILLYWEATHER_API_KEY: 'k' }, ask, deps);
+  assert.equal((a.body as { willy: boolean }).willy, true);
 });

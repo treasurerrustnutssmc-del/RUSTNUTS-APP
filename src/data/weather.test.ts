@@ -219,3 +219,11 @@ test('the phone’s own Open-Meteo answer says it was not WillyWeather', async (
   const r = await rideForecast(ride(), routed(), '2026-11-01', forecastSource(fakeFetch({ forecast: [place()] })));
   assert.equal(r.kind === 'ready' && r.willy, false);
 });
+
+test('a club server that hangs is given up on, and the phone asks Open-Meteo itself', async () => {
+  const phone = fakeFetch({ forecast: [place()] });
+  const source = serverSource(() => new Promise(() => {}), forecastSource(phone), Date.now, 50);
+  const r = await rideForecast(ride(), routed(), '2026-11-01', source);
+  assert.equal(r.kind === 'ready' && r.willy, false);
+  assert.ok(phone.asked.some((u) => u.includes('api.open-meteo.com/v1/forecast')));
+});

@@ -80,6 +80,9 @@ export function forecastSource(fetcher: Fetcher, now: () => number = Date.now): 
   };
 }
 
+/** How long the card waits for the club's server before asking Open-Meteo itself. */
+const SERVER_WAIT_MS = 12_000;
+
 /** Calls the club's ride-weather server with the points and days; resolves its JSON answer, throws on failure. */
 export type Invoke = (body: { points: { lat: number; lng: number }[]; days: string[] }) => Promise<unknown>;
 
@@ -108,7 +111,7 @@ function readServer(json: unknown, count: number): { series: HourlySeries[]; wil
  * fails or answers oddly, the phone asks Open-Meteo itself (`fallback`). Place look-ups stay with
  * the fallback.
  */
-export function serverSource(invoke: Invoke, fallback: ForecastSource, now: () => number = Date.now): ForecastSource {
+export function serverSource(invoke: Invoke, fallback: ForecastSource, now: () => number = Date.now, waitMs = SERVER_WAIT_MS): ForecastSource {
   const kept = new Map<string, { at: number; series: HourlySeries[]; willy: boolean }>();
   return {
     geocode: fallback.geocode,
@@ -119,7 +122,11 @@ export function serverSource(invoke: Invoke, fallback: ForecastSource, now: () =
       if (hit && now() - hit.at < KEEP_MS) return hit;
       let answer: { series: HourlySeries[]; willy: boolean } | null = null;
       try {
-        answer = readServer(await invoke(body), points.length);
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const late = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('slow')), waitMs);
+        });
+        answer = readServer(await Promise.race([invoke(body), late]).finally(() => clearTimeout(timer)), points.length);
       } catch {
         answer = null;
       }
