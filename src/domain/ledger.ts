@@ -123,8 +123,11 @@ export const independentSeated = (name: string) =>
   `You’re acting because ${name} put you there, so you can’t be the second approver on their entry (13.3).`;
 export const independentPlanted = (name: string) =>
   `${name} is acting because you put them there, so you can’t be the second approver after them (13.3).`;
-export const independentStandIn = (name: string) =>
-  `You’re covering ${name}’s seat, so their payment goes to the other approvers (13.3).`;
+/**
+ * When the tie is to the payee (you cover their seat, or they put you in yours), one plain refusal:
+ * naming the reason would tell a board member who the hidden payee is (Jeff, 24 Nov 2026).
+ */
+export const PAYEE_TIED = 'This payment goes to the other approvers (13.3).';
 
 const isAmount = (cents: number) => Number.isInteger(cents) && cents > 0;
 const isIsoDate = (s: string | null | undefined): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -225,7 +228,9 @@ export function approvalConflict(memberId: string, entry: LedgerEntry, data: Clu
   // already counted put there.
   if (!mine.some((o) => fullFooting(o, entry.chapterId))) {
     const putters = new Set(mine.filter((h) => isActing(h) && fundBoardRow(h, entry.chapterId)).flatMap((h) => putThereBy(h, data)));
-    for (const x of [entry.recordedBy, entry.payeeMemberId, ...counted.map((a) => a.memberId)]) {
+    for (const [i, x] of [entry.recordedBy, entry.payeeMemberId, ...counted.map((a) => a.memberId)].entries()) {
+      // The payee isn't named: board members approving don't see who's paid (Jeff, 24 Nov 2026).
+      if (i === 1 && x && x !== memberId && putters.has(x)) return PAYEE_TIED;
       const who = x && x !== memberId && putters.has(x) ? nameOf(x) : null;
       if (who) return independentSeated(who);
     }
@@ -244,8 +249,7 @@ export function approvalConflict(memberId: string, entry: LedgerEntry, data: Clu
   // The payee's stand-in, in any fund: their payment goes to the other approvers.
   for (const c of mine) {
     const covered = c.covers ? data.positions.find((p) => p.id === c.covers) : undefined;
-    const who = covered && entry.payeeMemberId !== null && covered.memberId === entry.payeeMemberId ? nameOf(covered.memberId) : null;
-    if (who) return independentStandIn(who);
+    if (covered && entry.payeeMemberId !== null && covered.memberId === entry.payeeMemberId) return PAYEE_TIED;
   }
   return null;
 }
@@ -259,6 +263,8 @@ export function approveProblem(me: Member | null, entryId: string, data: ClubDat
   if (entry.state !== 'awaiting') return 'That isn’t waiting for approval.';
   if (entry.payeeMemberId === me!.id) return PAYEE_CANT_APPROVE;
   if (entry.approvals.some((a) => a.memberId === me!.id)) return 'You’ve already approved this.';
+  // A line with the payee taken off carries the database's answer, worked out with the payee.
+  if (entry.myConflict !== undefined) return entry.myConflict;
   return approvalConflict(me!.id, entry, data);
 }
 

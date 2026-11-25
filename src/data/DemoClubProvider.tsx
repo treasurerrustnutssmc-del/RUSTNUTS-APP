@@ -20,6 +20,7 @@ import * as ledger from './ledgerActions';
 import * as boardFiles from './boardFileActions';
 import * as admin from './adminActions'; // Stage 5D
 import * as docs from './documentActions';
+import { financesAsSeenBy } from '../domain/financePrivacy';
 import { forFamily } from './familyData'; // Family view
 import { REVIEWER_DEMO_MEMBER } from '../domain/reviewer'; // Store review demo
 import { appMode, demoSession } from './reviewMode';
@@ -50,7 +51,7 @@ export function DemoClubProvider({ children }: { children: React.ReactNode }) {
   const me = useMemo(() => data.members.find((m) => m.id === meId) ?? null, [data.members, meId]);
   const level = accessLevel(me, data.positions);
   // Family view: Family see only what the database would hand them.
-  const shown = useMemo(() => (level === 'family' && me ? forFamily(data, me) : data), [level, me, data]);
+  const shown = useMemo(() => financesAsSeenBy(level === 'family' && me ? forFamily(data, me) : data, me), [level, me, data]);
   useEffect(() => bindDemoLive(() => ({ data, me })), [data, me]);
   const ctx: act.DemoCtx = { data, me, today };
   // Some presses do several steps (save the minutes then share or confirm them; Draft from Otter's

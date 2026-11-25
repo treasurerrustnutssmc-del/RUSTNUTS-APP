@@ -117,7 +117,12 @@ export type RootParams = {
   Topics: { chatId: string };
   TopicInfo: { chatId: string };
   ChatReports: undefined;
-  Photos: undefined;
+  /** added: how many just went into the gallery (Add to the gallery comes back here). */
+  /** `at` tells two adds of the same count apart, so the list reloads each time. */
+  Photos: { added?: number; at?: number } | undefined;
+  /** The gallery: rideId starts the album on that ride. */
+  /** From a ride wall: the ride, which may be older than the album picker's 30 days. */
+  AddToGallery: { rideId?: string; rideTitle?: string; rideStartsAt?: string } | undefined;
   RideWall: { rideId: string };
   MediaViewer: { items: FeedItem[]; index: number };
   // Website-and-app task 23: club photos on the website

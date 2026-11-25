@@ -5,6 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import { addProblem as galleryAddProblem, GALLERY_FOLDER } from '../../domain/gallery';
 import { chatTitle, postProblem, withParent, type Block, type Conversation, type Message } from '../../domain/chat';
 import { NotAllowedError, useClub } from '../clubContext';
 import { friendlyError, supabase } from '../supabase';
@@ -22,6 +23,7 @@ import {
   mergeMessages,
   toConversation,
   toFeedItem,
+  toGalleryItem,
   toMessage,
   toReport,
   toRide,
@@ -381,12 +383,52 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     },
     photos: async (before) => ((await rpc<FeedJson[]>('club_photos', { p_before: before ?? null, p_limit: 60 })) ?? []).map(toFeedItem),
     rideWalls: async () => {
-      const walls = await rpc<{ ride: RideJson; chat_id: string; count: number; cover: FeedJson | null }[]>('ride_walls');
+      const walls = await rpc<{ ride: RideJson; chat_id: string | null; count: number; cover: FeedJson | null }[]>('ride_walls');
       return (walls ?? []).map((w) => ({ ride: toRide(w.ride), chatId: w.chat_id, count: w.count, cover: w.cover && toFeedItem(w.cover) }));
     },
     rideWall: async (rideId) => {
-      const w = await rpc<{ ride: RideJson; chat_id: string; media: FeedJson[] }>('ride_wall', { p_ride: rideId });
+      const w = await rpc<{ ride: RideJson; chat_id: string | null; media: FeedJson[] }>('ride_wall', { p_ride: rideId });
       return { ride: toRide(w.ride), chatId: w.chat_id, media: w.media.map(toFeedItem) };
+    },
+    addToGallery: async (add) => {
+      // Its ride list starts today, so the database checks the album (an older ride's wall can add too).
+      const cant = galleryAddProblem(me, { ...add, count: add.files.length }, null);
+      if (cant || !me) throw new NotAllowedError(cant ?? 'Sign in first.');
+      const folder = `${GALLERY_FOLDER}/${me.id}`;
+      const uploaded: string[] = [];
+      try {
+        const items = [];
+        for (const f of add.files) {
+          const prepared = await prepareUpload(f);
+          const path = await upload(folder, prepared.file, uploaded);
+          const posterPath = prepared.poster ? await upload(folder, prepared.poster, uploaded) : null;
+          items.push({
+            kind: f.kind, path, poster_path: posterPath, width: Math.round(prepared.file.width), height: Math.round(prepared.file.height),
+            duration_ms: f.durationMs === null ? null : Math.round(f.durationMs),
+          });
+        }
+        return await rpc<number>('add_gallery_items', {
+          p_ride: add.rideId, p_caption: add.caption, p_website_ok: add.websiteOk, p_consent: add.consent, p_items: items,
+        });
+      } catch (e) {
+        // Nothing half-added: files that went up are taken down again.
+        if (uploaded.length) db().storage.from(BUCKET).remove(uploaded).then(() => undefined, () => undefined);
+        throw e instanceof Error ? e : friendlyError(e as { message?: string });
+      }
+    },
+    removeGalleryItem: async (id) => {
+      await rpc('remove_gallery_item', { p_id: id });
+    },
+    galleryForSite: async () => ((await rpc<FeedJson[]>('gallery_for_site')) ?? []).map(toGalleryItem),
+    galleryAlbums: async () =>
+      ((await rpc<{ id: string; title: string; starts_at: string }[]>('gallery_albums')) ?? []).map((r) => ({
+        id: r.id, title: r.title, startsAt: r.starts_at, cancelledAt: null,
+      })),
+    approveGalleryForSite: async (id, caption) => {
+      await rpc('approve_gallery_for_site', { p_id: id, p_caption: caption });
+    },
+    declineGalleryForSite: async (id) => {
+      await rpc('decline_gallery_for_site', { p_id: id });
     },
     mediaUrl,
     linkPreview,

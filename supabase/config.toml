@@ -32,6 +32,9 @@ verify_jwt = false
 [functions.purge-files]
 verify_jwt = false
 
+[functions.site-video-copy]
+verify_jwt = false
+
 [functions.send-push]
 verify_jwt = false
 

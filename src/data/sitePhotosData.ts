@@ -6,6 +6,8 @@ export interface SitePhotoRow {
   media_id: string | null;
   bucket: 'chat-media' | 'site-media';
   path: string;
+  kind?: 'photo' | 'video';
+  poster_path?: string | null;
   width: number;
   height: number;
   caption: string | null;
@@ -31,6 +33,8 @@ export function toSitePhotos(rows: SitePhotoRow[]): SitePhoto[] {
     mediaId: r.media_id,
     bucket: r.bucket,
     path: r.path,
+    kind: r.kind ?? 'photo',
+    posterPath: r.poster_path ?? null,
     width: r.width,
     height: r.height,
     caption: r.caption,

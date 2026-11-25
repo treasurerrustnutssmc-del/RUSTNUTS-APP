@@ -3,6 +3,7 @@
 // opening funds, credits, debits, provisional balances and allocations, then the treasurer's
 // notes. Everything typed (the notes) is escaped.
 
+import { PRIVACY_LINE } from './financePrivacy';
 import { CLUB_LETTERHEAD, meetingStatement, noteParagraphs, statementAmount } from './meetingStatement';
 import type { ClubData, MeetingFigures } from './types';
 
@@ -66,7 +67,7 @@ ${logo ? `<img class="mark" src="${logo}" alt="">` : ''}
 ${rows}
 </table>
 ${notes ? `<div class="notes">\n${notes}\n</div>` : ''}
-<p class="source">From the club’s cashbook in the Rustnuts app.</p>
+<p class="source">From the club’s cashbook in the Rustnuts app. ${esc(PRIVACY_LINE)}</p>
 </div>
 </body></html>`;
 }

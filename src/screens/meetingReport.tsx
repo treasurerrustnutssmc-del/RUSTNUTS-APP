@@ -10,6 +10,7 @@ import { reportAssets, shareReportPdf } from '../data/reportPdf';
 import { pickReportPdf } from '../data/reportPdfFile';
 import { openLink } from '../ui/openLink';
 import { formatAuDate, parseAuDate, typeDate } from '../domain/dates';
+import { forSharing, privacyLine } from '../domain/financePrivacy';
 import { formatCents } from '../domain/fees';
 import { CODE_LABEL, fundName, keepsBooks, seesAnyLedger, seesReports } from '../domain/ledger';
 import {
@@ -24,7 +25,7 @@ import type { LedgerCode, LedgerEntry, MeetingFigures } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { colors, space, type } from '../theme';
 import {
-  Body, Button, Card, Chip, Choices, ConfirmButton, Divider, Field, H1, H2, Ionicons, Notice, Row, Screen, Small, Stack,
+  Body, Button, Card, Chip, Choices, ConfirmButton, Divider, Field, H1, H2, Ionicons, Notice, PrivacyLine, Row, Screen, Small, Stack,
 } from '../ui/primitives';
 
 type Msg = { tone: 'ok' | 'danger'; text: string } | null;
@@ -262,17 +263,19 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
     setMsg(null);
     try {
       const assets = await reportAssets();
+      // PDFs get passed around, so names come out of the notes and every line (Jeff, 24 Nov 2026).
+      const shared = forSharing({ notes, lines }, data.members);
       const html = kind === 'full'
         ? meetingReportFullHtml({
           figures,
           data,
-          notes,
+          notes: shared.notes,
           preparedBy: preparedBy(report?.presentedBy ?? report?.savedBy ?? me.id, data),
           preparedOn: meetingOn,
-          lines,
+          lines: shared.lines,
           ...assets,
         })
-        : meetingReportHtml({ figures, data, notes, meetingOn, ...assets });
+        : meetingReportHtml({ figures, data, notes: shared.notes, meetingOn, ...assets });
       const name = kind === 'full' ? 'Treasurer\'s workings' : 'Treasurer\'s Report';
       await shareReportPdf(html, `Rustnuts ${name} ${figures.from} to ${figures.to}.pdf`);
     } catch (e) {
@@ -296,6 +299,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
           <Chip label="Draft" tone="warn" />
         ) : null}
       </Stack>
+      <PrivacyLine text={privacyLine(me, data, null)} />
 
       {editable ? (
         <Card>
@@ -334,7 +338,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
             multiline
             maxLength={MR_NOTES_MAX}
             placeholder="Membership and payment classification, anything to follow up"
-            hint="Members read these once it’s presented. A blank line starts a new paragraph."
+            hint="Members read these once it’s presented, with any member’s name shown as “a member”. A blank line starts a new paragraph."
             error={problem === MR_NOTES ? MR_NOTES : null}
           />
         </Card>
@@ -353,6 +357,7 @@ export function MeetingReportScreen({ route, navigation }: RootScreen<'MeetingRe
       {editable || report?.pdfPath ? (
         <Card>
           <H2>{editable ? 'Your own PDF' : 'The treasurer’s PDF'}</H2>
+          {editable ? <Small>Take members’ names and road names out of your PDF before you attach it. The app can’t check inside it.</Small> : null}
           {!report ? (
             <Small>Save the draft first, then attach your PDF.</Small>
           ) : report.pdfPath && report.pdfName ? (

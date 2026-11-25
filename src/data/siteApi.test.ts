@@ -237,26 +237,59 @@ test('GET /news: the board’s notices straight through, cached five minutes; 50
 
 test('GET /photos: the picked photos with signed links and captions, nothing personal; a photo that won’t sign is left out', async () => {
   const rows = [
-    { id: 'p1', bucket: 'chat-media', path: 'club/a.jpg', width: 1200, height: 900, caption: 'Spring run', taken_at: '2026-10-13T06:10:00+00:00' },
-    { id: 'p2', bucket: 'site-media', path: 'u/b.jpg', width: 1600, height: 1200, caption: null, taken_at: '2026-10-12T06:10:00+00:00' },
-    { id: 'p3', bucket: 'site-media', path: 'u/gone.jpg', width: 1, height: 1, caption: 'Gone', taken_at: '2026-10-11T06:10:00+00:00' },
+    { id: 'p1', bucket: 'chat-media', path: 'club/a.jpg', width: 1200, height: 900, caption: 'Spring run', taken_at: '2026-10-13T06:10:00+00:00',
+      kind: 'photo', video_url: null, poster_url: null, poster_path: null, album: 'Run to Lorne', album_date: '2026-10-12' },
+    { id: 'p2', bucket: 'site-media', path: 'u/b.jpg', width: 1600, height: 1200, caption: null, taken_at: '2026-10-12T06:10:00+00:00',
+      kind: 'photo', video_url: null, poster_url: null, poster_path: null, album: null, album_date: null },
+    { id: 'p3', bucket: 'site-media', path: 'u/gone.jpg', width: 1, height: 1, caption: 'Gone', taken_at: '2026-10-11T06:10:00+00:00',
+      kind: 'photo', video_url: null, poster_url: null, poster_path: null, album: null, album_date: null },
   ];
-  const { d, calls } = deps({ listPhotos: async () => rows, signPhoto: async (bucket, path) => { calls.signed.push(`${bucket}/${path}`); return path.includes('gone') ? null : `https://x.supabase.co/signed/${bucket}/${path}`; } });
+  const { d, calls } = deps({
+    listPhotos: async () => rows,
+    signPhoto: async (bucket, path, download) => {
+      calls.signed.push(`${bucket}/${path}${download ? `?${download}` : ''}`);
+      return path.includes('gone') ? null : `https://x.supabase.co/signed/${bucket}/${path}${download ? `?download=${download}` : ''}`;
+    },
+  });
   const r = await handleSiteApi({ method: 'GET', path: '/photos', origin: ORIGIN, body: null }, d);
   assert.equal(r.status, 200);
   assert.deepEqual(r.body, {
     photos: [
-      { id: 'p1', url: 'https://x.supabase.co/signed/chat-media/club/a.jpg', width: 1200, height: 900, caption: 'Spring run', taken_at: '2026-10-13T06:10:00+00:00' },
-      { id: 'p2', url: 'https://x.supabase.co/signed/site-media/u/b.jpg', width: 1600, height: 1200, caption: null, taken_at: '2026-10-12T06:10:00+00:00' },
+      { id: 'p1', kind: 'photo', url: 'https://x.supabase.co/signed/chat-media/club/a.jpg', width: 1200, height: 900, caption: 'Spring run', taken_at: '2026-10-13T06:10:00+00:00',
+        album: 'Run to Lorne', album_date: '2026-10-12', video: null, download: 'https://x.supabase.co/signed/chat-media/club/a.jpg?download=rustnuts-2026-10-13-p1.jpg' },
+      { id: 'p2', kind: 'photo', url: 'https://x.supabase.co/signed/site-media/u/b.jpg', width: 1600, height: 1200, caption: null, taken_at: '2026-10-12T06:10:00+00:00',
+        album: null, album_date: null, video: null, download: 'https://x.supabase.co/signed/site-media/u/b.jpg?download=rustnuts-2026-10-12-p2.jpg' },
     ],
   });
   assert.equal(r.headers['cache-control'], PHOTOS_CACHE);
-  assert.deepEqual(calls.signed, ['chat-media/club/a.jpg', 'site-media/u/b.jpg', 'site-media/u/gone.jpg']);
+  assert.deepEqual(calls.signed.filter((x) => !x.includes('?')), ['chat-media/club/a.jpg', 'site-media/u/b.jpg', 'site-media/u/gone.jpg']);
   const down = deps({ listPhotos: async () => { throw new Error('boom'); } });
   const b = await handleSiteApi({ method: 'GET', path: '/photos', origin: ORIGIN, body: null }, down.d);
   assert.equal(b.status, 503);
   assert.equal(b.headers['cache-control'], 'no-store');
   assert.equal((await handleSiteApi({ method: 'POST', path: '/photos', origin: ORIGIN, body: {} }, d)).status, 405);
+});
+
+test('GET /photos: a video plays from the club’s Cloudflare address, with its still; one without an address is left out', async () => {
+  const rows = [
+    { id: 'v1', bucket: 'chat-media', path: 'gallery/m/v.mp4', width: 1280, height: 720, caption: 'Burnout', taken_at: '2026-11-20T06:10:00+00:00',
+      kind: 'video', video_url: 'https://media.example.workers.dev/v/v1.mp4', poster_url: 'https://media.example.workers.dev/v/v1.jpg', poster_path: 'gallery/m/v.jpg',
+      album: null, album_date: null },
+    { id: 'v2', bucket: 'chat-media', path: 'gallery/m/w.mp4', width: 1280, height: 720, caption: 'No still', taken_at: '2026-11-19T06:10:00+00:00',
+      kind: 'video', video_url: 'https://media.example.workers.dev/v/v2.mp4', poster_url: null, poster_path: 'gallery/m/w.jpg', album: null, album_date: null },
+    { id: 'v3', bucket: 'chat-media', path: 'gallery/m/x.mp4', width: 1280, height: 720, caption: 'Not copied', taken_at: '2026-11-18T06:10:00+00:00',
+      kind: 'video', video_url: null, poster_url: null, poster_path: null, album: null, album_date: null },
+  ];
+  const { d } = deps({ listPhotos: async () => rows });
+  const r = await handleSiteApi({ method: 'GET', path: '/photos', origin: ORIGIN, body: null }, d);
+  const photos = (r.body as { photos: { id: string; url: string | null; video: string | null; download: string | null; kind: string }[] }).photos;
+  assert.deepEqual(photos.map((p) => p.id), ['v1', 'v2']);
+  assert.equal(photos[0].kind, 'video');
+  assert.equal(photos[0].url, 'https://media.example.workers.dev/v/v1.jpg');
+  assert.equal(photos[0].video, 'https://media.example.workers.dev/v/v1.mp4');
+  assert.equal(photos[0].download, 'https://media.example.workers.dev/v/v1.mp4?download=1');
+  // No Cloudflare still yet: the still is signed from the app's own storage.
+  assert.equal(photos[1].url, 'https://x.supabase.co/signed/chat-media/gallery/m/w.jpg');
 });
 
 test('POST /visit: counts a clean page path, drops the rest, never errors to the page', async () => {

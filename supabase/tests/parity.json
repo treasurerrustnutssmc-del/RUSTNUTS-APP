@@ -4275,7 +4275,7 @@
       "action": "approveDebit",
       "entry": "west-refund",
       "allowed": false,
-      "refusal": "You’re covering Tania’s seat, so their payment goes to the other approvers (13.3).",
+      "refusal": "This payment goes to the other approvers (13.3).",
       "with": [
         { "key": "rusty-covers-torque", "member": "rusty", "chapter": "west", "role": "secretary", "actingUntilDays": 20, "covers": "torque-secretary", "why": "Torque overseas", "appointedBy": "penny" }
       ]
@@ -4286,7 +4286,7 @@
       "action": "approveDebit",
       "entry": "club-refund",
       "allowed": false,
-      "refusal": "You’re covering Tania’s seat, so their payment goes to the other approvers (13.3).",
+      "refusal": "This payment goes to the other approvers (13.3).",
       "with": [
         { "key": "rusty-covers-torque", "member": "rusty", "chapter": "west", "role": "secretary", "actingUntilDays": 20, "covers": "torque-secretary", "why": "Torque overseas", "appointedBy": "penny" }
       ]
@@ -4353,7 +4353,7 @@
       "action": "approveDebit",
       "entry": "west-refund",
       "allowed": false,
-      "refusal": "You’re acting because Tania put you there, so you can’t be the second approver on their entry (13.3).",
+      "refusal": "This payment goes to the other approvers (13.3).",
       "without": ["rusty-president"],
       "with": [
         { "key": "hal-acting-president", "member": "hal", "chapter": "west", "role": "president", "actingUntilDays": 20, "why": "No President since the ACM", "appointedBy": "penny", "requestedBy": "torque" }

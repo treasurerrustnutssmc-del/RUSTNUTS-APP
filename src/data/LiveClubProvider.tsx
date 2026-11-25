@@ -85,6 +85,7 @@ import {
 } from '../domain/fees';
 import { decideApplicationProblem, fngReviewProblem } from '../domain/joining';
 import { agmDateProblem, recordAgmProblem } from '../domain/clubYear';
+import { financesAsSeenBy } from '../domain/financePrivacy';
 import { forFamily } from './familyData'; // Family view
 import { refreshError, sessionView } from './session';
 import { friendlyError, supabase } from './supabase';
@@ -294,7 +295,11 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
   const visibleMe = view === 'ready' ? me : null;
   const level = accessLevel(visibleMe, data.positions);
   // Family view: the database already trims what Family get; this keeps the app to the same.
-  const shown = useMemo(() => (level === 'family' && visibleMe ? forFamily(data, visibleMe) : data), [level, visibleMe, data]);
+  // Member privacy on the finances: the database already hides names; this keeps the app to the same.
+  const shown = useMemo(
+    () => financesAsSeenBy(level === 'family' && visibleMe ? forFamily(data, visibleMe) : data, visibleMe),
+    [level, visibleMe, data],
+  );
 
   const refresh = useCallback(async () => {
     await reload(userId);
