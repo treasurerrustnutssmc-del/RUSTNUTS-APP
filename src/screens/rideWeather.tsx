@@ -1,10 +1,12 @@
 // Ride weather: the forecast for a ride's hours, along its route or at its meeting place, above
-// "Your answer" so riders see it before they say Going. Open-Meteo, asked by the phone.
+// "Your answer" so riders see it before they say Going. The club's server (WillyWeather, gusts from
+// Open-Meteo), or Open-Meteo asked by the phone when the server can't answer.
 
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { NOT_ANSWERING, demoSource, liveSource, rideForecast, type RideForecast } from '../data/weather';
+import { NOT_ANSWERING, demoSource, rideForecast, type RideForecast } from '../data/weather';
+import { liveSource } from '../data/weatherLive';
 import { formatAuDate, weekday } from '../domain/dates';
 import { melbourneTime } from '../domain/rides';
 import { routeOf } from '../domain/routes';
@@ -13,6 +15,7 @@ import type { WeatherSummary } from '../domain/weather';
 import { colors, fonts, space, type } from '../theme';
 import { Body, Button, Card, Ionicons, Notice, Row, SectionTitle, Small, Stack, type IconName } from '../ui/primitives';
 import { openLink } from '../ui/openLink';
+import { WillyWeatherCredit } from '../ui/WillyWeatherCredit';
 
 const OPEN_METEO = 'https://open-meteo.com/';
 
@@ -132,20 +135,40 @@ function Forecast({ state }: { state: Extract<RideForecast, { kind: 'ready' }> }
       <Stack gap={2}>
         {state.place ? <Small>{`At ${state.place}, from the ride’s meeting place.`}</Small> : null}
         {state.clipped ? <Small>Later days open closer to the ride.</Small> : null}
-        <Row style={{ gap: 4 }}>
-          <Small>{`Updated ${melbourneTime(new Date(state.fetchedAt).toISOString())}. Forecast:`}</Small>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="Forecast by Open-Meteo, open their site"
-            hitSlop={{ left: 4, right: 12 }}
-            style={styles.creditLink}
-            onPress={() => openLink(OPEN_METEO).catch(() => {})}
-          >
-            <Small style={styles.credit}>Open-Meteo</Small>
-          </Pressable>
-        </Row>
+        {state.willy ? (
+          <>
+            <Row style={{ gap: 6 }}>
+              <Small>Forecast:</Small>
+              <WillyWeatherCredit />
+            </Row>
+            <Small>{`Bureau of Meteorology data. Updated ${melbourneTime(new Date(state.fetchedAt).toISOString())}.`}</Small>
+            <Row style={{ gap: 4 }}>
+              <Small>Gusts:</Small>
+              <OpenMeteoLink label="Gusts by Open-Meteo, open their site" />
+            </Row>
+          </>
+        ) : (
+          <Row style={{ gap: 4 }}>
+            <Small>{`Updated ${melbourneTime(new Date(state.fetchedAt).toISOString())}. Forecast:`}</Small>
+            <OpenMeteoLink label="Forecast by Open-Meteo, open their site" />
+          </Row>
+        )}
       </Stack>
     </>
+  );
+}
+
+function OpenMeteoLink({ label }: { label: string }) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      hitSlop={{ left: 4, right: 12 }}
+      style={styles.creditLink}
+      onPress={() => openLink(OPEN_METEO).catch(() => {})}
+    >
+      <Small style={styles.credit}>Open-Meteo</Small>
+    </Pressable>
   );
 }
 

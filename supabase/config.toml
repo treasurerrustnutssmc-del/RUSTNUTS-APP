@@ -16,6 +16,9 @@ verify_jwt = true
 [functions.ride-voice-token]
 verify_jwt = true
 
+[functions.ride-weather]
+verify_jwt = true
+
 [functions.shop-order]
 verify_jwt = true
 

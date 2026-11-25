@@ -15,6 +15,7 @@
     "supabase/functions/send-push",
     "supabase/functions/voice-sweep",
     "supabase/functions/ride-voice-token",
+    "supabase/functions/ride-weather",
     "supabase/functions/ask-club",
     "supabase/functions/purge-files",
     "supabase/functions/site-video-copy",
