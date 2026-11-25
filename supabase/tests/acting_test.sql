@@ -3097,7 +3097,7 @@ begin
   perform pg_temp.id_by(9, pg_temp.confirm_sql(pg_temp.id_by(8, pg_temp.request_cover_sql(pg_temp.f(108), 7, pg_temp.today() + 28))));
   e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, 8, 'DB-006'));
   assert pg_temp.approvals(e) = 'awaiting 1', 'Penny records Torque''s refund, and her approval counts';
-  assert pg_temp.by(7, pg_temp.approve_sql(e)) = pg_temp.stand_in('Torque'),
+  assert pg_temp.by(7, pg_temp.approve_sql(e)) = 'This payment goes to the other approvers (13.3).',
     'Rusty, covering Torque''s Secretary seat, can''t approve it';
   e := pg_temp.id_by(9, pg_temp.record_debit_sql(w, null));
   assert pg_temp.by(7, pg_temp.approve_sql(e)) is null, 'but approves other West spending';

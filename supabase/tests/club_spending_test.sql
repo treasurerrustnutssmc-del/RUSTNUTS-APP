@@ -85,4 +85,110 @@ begin
   end;
 end $$;
 
+\echo 'Club spending: first names, surnames and road names however they are spaced (Jeff, 24 Nov 2026)'
+\o /dev/null
+insert into ledger_entries (chapter_id, code, description, amount_cents, entry_on, state, payee_name)
+values
+  (null, 'DB-001', 'Fuel for Gary, Kowalski’s bike', 101, '2026-10-20', 'paid', 'Gary'),
+  (null, 'DB-001', 'Snacks for ElJefe and el-jefe', 102, '2026-10-21', 'paid', 'Tess'),
+  (null, 'DB-001', 'Garyville hire', 103, '2026-10-22', 'paid', 'Garyville Hire');
+\o
+do $$
+declare r jsonb := pg_temp.spending_as(pg_temp.u(4));
+begin
+  assert r->0->>'description' = 'Garyville hire' and r->0->>'payee' = 'Garyville Hire', 'whole words only: ' || (r->0->>'description');
+  assert r->1->>'description' = 'Snacks for a member and a member', 'road name with no space or a hyphen: ' || (r->1->>'description');
+  assert r->1->>'payee' = 'A member', 'a first name alone as the payee';
+  assert r->2->>'description' = 'Fuel for a member, a member’s bike', 'first name and surname alone: ' || (r->2->>'description');
+  assert r->2->>'payee' = 'A member', 'a first name payee';
+end $$;
+
+\echo 'Meeting report notes: names hidden for members, kept for the treasurer who wrote them'
+\o /dev/null
+insert into treasurer_meeting_reports (from_on, to_on, notes, saved_by, presented_by, presented_at)
+values ('2026-07-01', '2026-10-31', 'Thanks to Gary Kowalski and El Jefe for the fuel run.', pg_temp.u(2), pg_temp.u(2), now());
+create function pg_temp.notes_as(who uuid) returns text language plpgsql as $$
+declare v jsonb;
+begin
+  perform set_config('request.jwt.claim.sub', coalesce(who::text, ''), true);
+  set local role authenticated;
+  v := public.meeting_reports();
+  reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
+  return v->0->>'notes';
+end $$;
+grant execute on function pg_temp.notes_as(uuid) to authenticated;
+\o
+do $$
+begin
+  assert pg_temp.notes_as(pg_temp.u(4)) = 'Thanks to a member and a member for the fuel run.', 'a member reads: ' || coalesce(pg_temp.notes_as(pg_temp.u(4)), 'null');
+  assert pg_temp.notes_as(pg_temp.u(2)) = 'Thanks to Gary Kowalski and El Jefe for the fuel run.', 'the treasurer keeps the names';
+end $$;
+
+\echo 'The books: board members approving spending see "a member"; the treasurer sees names (Jeff, 24 Nov 2026)'
+\o /dev/null
+insert into members (id, chapter_id, full_name, road_name, status, approval)
+values ('00000000-0000-0000-0000-0000000000e5', (select id from chapters where slug = 'west'), 'Sam Secretary', 'Quill', 'full', 'approved');
+insert into positions (member_id, chapter_id, role, started_on)
+values (pg_temp.u(5), (select id from chapters where slug = 'west'), 'secretary', '2025-08-16');
+insert into ledger_entries (chapter_id, code, description, amount_cents, entry_on, state, payee_name, payee_member_id, void_reason)
+values
+  ((select id from chapters where slug = 'west'), 'DB-001', 'Fuel for Rusty (Gary)', 4000, '2026-10-23', 'paid', null, pg_temp.u(4), null),
+  ((select id from chapters where slug = 'west'), 'DB-001', 'Pizza', 1500, '2026-10-24', 'paid', 'Gary Kowalski', null, null),
+  ((select id from chapters where slug = 'west'), 'DB-001', 'Quill’s own refund', 900, '2026-10-25', 'paid', null, pg_temp.u(5), null);
+create function pg_temp.ledger_as(who uuid) returns jsonb language plpgsql as $$
+declare v jsonb;
+begin
+  perform set_config('request.jwt.claim.sub', coalesce(who::text, ''), true);
+  set local role authenticated;
+  v := public.club_ledger()->'entries';
+  reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
+  return v;
+end $$;
+grant execute on function pg_temp.ledger_as(uuid) to authenticated;
+\o
+do $$
+declare
+  sec jsonb := pg_temp.ledger_as(pg_temp.u(5));
+  tre jsonb := pg_temp.ledger_as(pg_temp.u(2));
+  fuel jsonb := (select x from jsonb_array_elements(sec) x where x->>'amount_cents' = '4000');
+  pizza jsonb := (select x from jsonb_array_elements(sec) x where x->>'amount_cents' = '1500');
+  own jsonb := (select x from jsonb_array_elements(sec) x where x->>'amount_cents' = '900');
+begin
+  assert fuel->>'description' = 'Fuel for a member (a member)', 'the Secretary reads: ' || (fuel->>'description');
+  assert fuel->>'payee_name' = 'A member' and fuel->>'payee_member_id' is null, 'a member payee, and no id to look up';
+  assert pizza->>'payee_name' = 'A member', 'a member typed as the payee';
+  assert own->>'payee_member_id' = pg_temp.u(5)::text and own->>'description' = 'a member’s own refund', 'your own id stays, so you can’t approve it';
+  assert (select x->>'description' from jsonb_array_elements(sec) x where x->>'amount_cents' = '22600') = 'Dawn Studios - merchandise', 'businesses stay';
+  assert (select x->>'description' from jsonb_array_elements(tre) x where x->>'amount_cents' = '4000') = 'Fuel for Rusty (Gary)', 'the treasurer reads it as written';
+  assert (select x->>'payee_member_id' from jsonb_array_elements(tre) x where x->>'amount_cents' = '4000') = pg_temp.u(4)::text, 'with the payee';
+  assert pg_temp.notes_as(pg_temp.u(5)) = 'Thanks to a member and a member for the fuel run.', 'and the notes, as members read them';
+end $$;
+
+\echo 'Club words and businesses survive names that are everyday words; payee conflicts sent without the name'
+\o /dev/null
+insert into ledger_entries (chapter_id, code, description, amount_cents, entry_on, state, payee_name, payee_member_id)
+values
+  (null, 'DB-001', 'Rego for the Rusty Bus, paid rusty', 201, '2026-10-26', 'paid', 'Kowalski Motors', null),
+  (null, 'DB-001', 'Gary a membership', 202, '2026-10-27', 'paid', null, null),
+  ((select id from chapters where slug = 'west'), 'DB-001', 'Waiting refund', 203, null, 'awaiting', null, pg_temp.u(4));
+\o
+do $$
+declare
+  r jsonb := pg_temp.spending_as(pg_temp.u(4));
+  sec jsonb := pg_temp.ledger_as(pg_temp.u(5));
+  tre jsonb := pg_temp.ledger_as(pg_temp.u(2));
+begin
+  assert (select x->>'description' from jsonb_array_elements(r) x where x->>'amount_cents' = '201') = 'Rego for the Rusty Bus, paid a member',
+    'the Rusty Bus keeps its name: ' || (select x->>'description' from jsonb_array_elements(r) x where x->>'amount_cents' = '201');
+  assert (select x->>'payee' from jsonb_array_elements(r) x where x->>'amount_cents' = '201') = 'a member Motors', 'a business payee keeps its other words';
+  assert (select x->>'description' from jsonb_array_elements(r) x where x->>'amount_cents' = '202') = 'a member a membership', 'the collapse is whole words';
+  assert (select x ? 'my_conflict' and x->'my_conflict' = 'null'::jsonb from jsonb_array_elements(sec) x where x->>'amount_cents' = '203'),
+    'a hidden member payee waiting for approval carries the reader''s answer';
+  assert not (select x ? 'my_conflict' from jsonb_array_elements(sec) x where x->>'amount_cents' = '22600'), 'only on those lines';
+  assert not (select x ? 'my_conflict' from jsonb_array_elements(tre) x where x->>'amount_cents' = '203'), 'never for the treasurer';
+  assert (select x->>'payee_name' from jsonb_array_elements(sec) x where x->>'amount_cents' = '1500') = 'A member', 'a whole-name payee is a member';
+end $$;
+
 \echo 'All club spending checks passed'

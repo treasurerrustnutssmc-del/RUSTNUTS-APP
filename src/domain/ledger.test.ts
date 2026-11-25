@@ -5,7 +5,7 @@ import { recordDebit } from '../data/ledgerActions';
 import { settleActing } from './acting';
 import {
   addFeeProblem, approvalConflict, approveBudgetProblem, approveProblem, approvesFor, APPROVERS_ONLY, bankedLate, BUDGET_VOTE, budgetLines, budgetProblem,
-  creditProblem, debitProblem, feesToAdd, fundBalance, keepsBooks, KEEPS_ONLY, monthReport, NEEDS_TWO, PAYEE_CANT_APPROVE,
+  creditProblem, debitProblem, feesToAdd, fundBalance, keepsBooks, KEEPS_ONLY, monthReport, NEEDS_TWO, PAYEE_CANT_APPROVE, PAYEE_TIED,
   BUDGET_BOARD, BUDGET_STALE_VOTE, PAID_BEFORE_APPROVED, payProblem, presentProblem, reopenBudgetProblem, seesLedger, seesReports, updatedSince, voidProblem, workingDaysBetween,
 } from './ledger';
 import type { ActingRequest, ClubData, LedgerCode, LedgerEntry, Position, PositionRole, Vote } from './types';
@@ -286,7 +286,6 @@ const approval = (memberId: string, approvedAt = AT_TIME) => ({ memberId, approv
 // The independence refusals (Appendix A), word for word.
 const seated = (name: string) => `You’re acting because ${name} put you there, so you can’t be the second approver on their entry (13.3).`;
 const planted = (name: string) => `${name} is acting because you put them there, so you can’t be the second approver after them (13.3).`;
-const standIn = (name: string) => `You’re covering ${name}’s seat, so their payment goes to the other approvers (13.3).`;
 /** approveProblem and approvalConflict agree, and give `want`. */
 function refuses(data: ClubData, memberId: string, entryId: string, want: string | null, why: string) {
   const e = data.ledger!.find((x) => x.id === entryId)!;
@@ -390,7 +389,7 @@ test('a payee-requested Acting President can’t approve', () => {
       spend('lous', { recordedBy: 'lou', payeeName: null, payeeMemberId: 'lou', code: 'DB-006', approvals: [approval('hal')] }),
     ],
   });
-  refuses(data, 'hal', 'pennys', seated('Penny'), 'Hal is acting because Penny asked for him, so he can’t approve her reimbursement');
+  refuses(data, 'hal', 'pennys', PAYEE_TIED, 'Hal is acting because Penny asked for him, so he can’t approve her reimbursement');
   refuses(data, 'spanner', 'pennys', null, 'Spanner can');
   refuses(data, 'torque', 'pennys', null, 'and Torque');
   // The other order: Hal approved Lou's reimbursement first.
@@ -408,9 +407,9 @@ test('the payee’s stand-in can’t approve the refund', () => {
       entry({ id: 'club-refund', chapterId: null, code: 'DB-006', state: 'awaiting', entryOn: null, recordedBy: 'lou', payeeMemberId: 'torque' }),
     ],
   });
-  refuses(data, 'rusty', 'torques-refund', standIn('Torque'), 'Rusty, covering Torque’s Secretary seat, can’t approve it');
+  refuses(data, 'rusty', 'torques-refund', PAYEE_TIED, 'Rusty, covering Torque’s Secretary seat, can’t approve it');
   refuses(data, 'rusty', 'other', null, 'but approves other West spending');
-  refuses(data, 'rusty', 'club-refund', standIn('Torque'), 'and the Club fund’s refund to Torque goes to the other approvers too');
+  refuses(data, 'rusty', 'club-refund', PAYEE_TIED, 'and the Club fund’s refund to Torque goes to the other approvers too');
   refuses(data, 'smokey', 'club-refund', null, 'Smokey can');
 });
 

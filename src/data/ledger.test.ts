@@ -109,3 +109,18 @@ test('the live ledger read becomes app records', () => {
   assert.deepEqual(l.reportTotals[0].funds, { club: 5 });
   assert.deepEqual(toLedger(null).ledger, [], 'nothing back is nothing to show');
 });
+
+test('finance privacy: a hidden payee’s approval answer and come through', () => {
+  const base = {
+    id: 'e1', chapter_id: null, code: 'DB-001' as const, description: 'Refund to a member', amount_cents: 300, received_on: null, entry_on: null,
+    payee_member_id: null, payee_name: 'A member', payment_id: null, state: 'awaiting' as const, recorded_by: 'm1',
+    recorded_at: '2026-10-24T02:00:00+00:00', updated_at: '2026-10-24T02:00:00+00:00', void_reason: null, voided_by: null, approvals: [],
+  };
+  const l = toLedger({
+    entries: [{ ...base, my_conflict: null }, { ...base, id: 'e2', my_conflict: 'This payment goes to the other approvers (13.3).' }, { ...base, id: 'e3' }],
+    openings: [], floats: [], budgets: [], reports: [], report_totals: [],
+  });
+  assert.equal(l.ledger[0].myConflict, null, 'they can approve it');
+  assert.match(l.ledger[1].myConflict ?? '', /other approvers/);
+  assert.equal('myConflict' in l.ledger[2], false, 'not sent: the app works it out');
+});

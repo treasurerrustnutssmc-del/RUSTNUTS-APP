@@ -3,6 +3,7 @@
 // months, the read-out, receipts and payments, the treasurer's notes and the basis and checks.
 // Everything typed (notes, line descriptions) is escaped.
 
+import { PRIVACY_LINE } from './financePrivacy';
 import { formatAuDate } from './dates';
 import { formatCents } from './fees';
 import { CODE_LABEL, fundKey } from './ledger';
@@ -167,6 +168,7 @@ ${notes.split(/\n\s*\n/).map((para) => `<p>${esc(para.trim()).replace(/\n/g, '<b
 ${checks.map((c) => `<li>${c.ok ? '' : '<span class="fail">Check failed: </span>'}${esc(c.label)}</li>`).join('\n')}
 </ul>
 <p class="small">This is an unaudited cash-movement report, not a complete financial-position statement. It does not verify cash on hand, bank-statement agreement, stock, assets, unpaid bills or transactions after ${to}. No annual-reporting or CAV-compliance claim is made.</p>
+<p class="small">${PRIVACY_LINE}</p>
 </td></tr></tbody></table>
 </body></html>`;
 }

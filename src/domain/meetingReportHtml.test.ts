@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_DATA } from '../data/demoStory.testkit';
 import { meetingFigures } from './meetingReport';
+import { PRIVACY_LINE } from './financePrivacy';
 import { meetingReportHtml } from './meetingReportHtml';
 import type { ClubData, LedgerEntry } from './types';
 
@@ -64,4 +65,8 @@ test('notes: the lead in bold, everything typed escaped, no notes no notes', () 
   assert.match(html, /<p>Cobra: &lt;check&gt; the register\.<\/p>/);
   assert.ok(!html.includes('<check>'));
   assert.ok(!meetingReportHtml({ ...base, notes: '  ' }).includes('class="notes"'));
+});
+
+test('the members’ PDF says member privacy is protected (Jeff, 24 Nov 2026)', () => {
+  assert.ok(meetingReportHtml(base).includes(PRIVACY_LINE));
 });

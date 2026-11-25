@@ -727,6 +727,11 @@ export interface LedgerEntry {
   voidReason: string | null;
   voidedBy: string | null;
   approvals: { memberId: string; approvedAt: string }[];
+  /**
+   * Only on a line whose payee was taken off for this reader (finance privacy): why they can't
+   * approve it (null: they can), worked out with the payee. Undefined everywhere else.
+   */
+  myConflict?: string | null;
 }
 
 /** A fund's balance on 1 July of a financial year. */
