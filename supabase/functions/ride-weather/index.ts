@@ -14,7 +14,8 @@ const CORS = {
   'access-control-allow-methods': 'POST, OPTIONS',
 };
 
-const TIMEOUT_MS = 8000;
+// Each outside request; with WillyWeather's 4 s in all, the answer stays inside the phone's 12 s wait.
+const TIMEOUT_MS = 6000;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
