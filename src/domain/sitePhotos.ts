@@ -37,7 +37,7 @@ export const PHOTOS_SHOWN = 60;
 export const CONSENT_LINE = 'Everyone in this photo is happy for it to be on the club website.';
 
 export type SitePhotoStatus = 'live' | 'removed';
-export type SitePhotoSource = 'chat' | 'upload';
+export type SitePhotoSource = 'chat' | 'upload' | 'gallery';
 
 /** Someone the Social Media Officer put on the crew. */
 export interface SitePhotoCrew {
@@ -64,6 +64,9 @@ export interface SitePhoto {
   status: SitePhotoStatus;
   decidedAt: string | null;
   removedAt: string | null;
+  /** A gallery video (src/domain/gallery.ts) and its still; photos otherwise. */
+  kind?: 'photo' | 'video';
+  posterPath?: string | null;
 }
 
 /** A photo as the website receives it: nothing personal. Column names as public_site_photos returns them. */

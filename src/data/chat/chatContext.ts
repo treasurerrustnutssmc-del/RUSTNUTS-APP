@@ -3,6 +3,7 @@
 
 import { createContext, useContext } from 'react';
 import type { Block, Conversation, Message, MessageMedia, PickedMedia } from '../../domain/chat';
+import type { Album, GalleryItem } from '../../domain/gallery';
 import type { Ride } from '../../domain/types';
 
 export interface ChatSummary {
@@ -24,14 +25,27 @@ export interface ChatSummary {
 
 /** A photo or video in a feed, with who posted it and when. */
 export interface FeedItem extends MessageMedia {
-  conversationId: string;
+  /** The chat it was posted in; null for one added straight to the gallery. */
+  conversationId: string | null;
   authorId: string;
   createdAt: string;
+  /** Added straight to the gallery (src/domain/gallery.ts): its album and caption. */
+  gallery?: { rideId: string | null; caption: string | null } | null;
+}
+
+/** What Add to the gallery sends. */
+export interface GalleryAdd {
+  rideId: string | null;
+  caption: string;
+  websiteOk: boolean;
+  consent: boolean;
+  files: PickedMedia[];
 }
 
 export interface RideWall {
   ride: Ride;
-  chatId: string;
+  /** The ride's chat; null when it has only gallery photos and no chat yet. */
+  chatId: string | null;
   count: number;
   cover: FeedItem | null;
 }
@@ -120,7 +134,16 @@ export interface ChatContextValue {
   resolveReport: (reportId: string, remove: boolean) => Promise<void>;
   photos: (before?: string) => Promise<FeedItem[]>;
   rideWalls: () => Promise<RideWall[]>;
-  rideWall: (rideId: string) => Promise<{ ride: Ride; chatId: string; media: FeedItem[] }>;
+  rideWall: (rideId: string) => Promise<{ ride: Ride; chatId: string | null; media: FeedItem[] }>;
+  /** The gallery: adds photos and videos straight to Photos; gives how many went in. */
+  addToGallery: (add: GalleryAdd) => Promise<number>;
+  removeGalleryItem: (id: string) => Promise<void>;
+  /** What members ticked "OK for the website", waiting for the website crew. Empty for anyone else. */
+  galleryForSite: () => Promise<GalleryItem[]>;
+  /** Rides from the last 30 days the Add form can file under (the app's own ride list starts today). */
+  galleryAlbums: () => Promise<Album[]>;
+  approveGalleryForSite: (id: string, caption: string) => Promise<void>;
+  declineGalleryForSite: (id: string) => Promise<void>;
   mediaUrl: (path: string) => Promise<MediaSource>;
   /** The card for a link, or null when the page has nothing to show (or can't be reached). */
   linkPreview: (url: string) => Promise<LinkPreview | null>;

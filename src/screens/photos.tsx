@@ -10,14 +10,17 @@ import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import type { FeedItem, RideWall } from '../data/chat/chatContext';
 import { formatAuDate } from '../domain/dates';
+import { canAddToGallery, removeProblem as galleryRemoveProblem } from '../domain/gallery';
 import { RIDE_CATEGORY_LABEL } from '../domain/labels';
 import { displayName } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
 import type { Ride } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
 import { colors, fonts, MAX_CONTENT_WIDTH, rideColors, space, type } from '../theme';
+import { saveToPhone, SaveProblem } from '../data/saveMedia';
+import { useSitePhotos } from '../data/sitePhotos';
 import { asImage, MediaTile, useMediaSource } from '../ui/ChatBits';
-import { Button, Card, Choices, Ionicons, ListRow, Notice, Screen, Small } from '../ui/primitives';
+import { Button, Card, Choices, ConfirmButton, Ionicons, ListRow, Notice, Row, Screen, Small } from '../ui/primitives';
 import { WebsitePhotosRow } from './sitePhotos';
 
 const COLUMNS = 3;
@@ -43,7 +46,7 @@ function PhotoGrid({ items, onOpen }: { items: FeedItem[]; onOpen: (index: numbe
             media={m}
             style={{ width: cell, height: cell, borderRadius: 2 }}
             onPress={() => onOpen(i)}
-            label={`${m.kind === 'video' ? 'Video' : 'Photo'} from ${who ? displayName(who) : 'a former member'}, ${formatAuDate(melbourneDate(m.createdAt))}`}
+            label={`${m.kind === 'video' ? 'Video' : 'Photo'} from ${who ? displayName(who) : 'a former member'}, ${formatAuDate(melbourneDate(m.createdAt))}${m.gallery?.caption ? `, ${m.gallery.caption}` : ''}`}
           />
         );
       })}
@@ -69,8 +72,11 @@ function WallCover({ item }: { item: FeedItem | null }) {
   );
 }
 
-export function PhotosScreen({ navigation }: RootScreen<'Photos'>) {
+export function PhotosScreen({ navigation, route }: RootScreen<'Photos'>) {
   const chat = useChat();
+  const { me } = useClub();
+  const added = route.params?.added;
+  const addedAt = route.params?.at;
   const [tab, setTab] = useState<'latest' | 'walls'>('latest');
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [walls, setWalls] = useState<RideWall[] | null>(null);
@@ -89,6 +95,24 @@ export function PhotosScreen({ navigation }: RootScreen<'Photos'>) {
       setError((e as Error).message);
     }
   }, [chat]);
+
+  // Back from Add to the gallery: show what just went in.
+  useEffect(() => {
+    if (!added) return;
+    let live = true;
+    Promise.all([chat.photos(), chat.rideWalls()]).then(
+      ([latest, w]) => {
+        if (!live) return;
+        setItems(latest);
+        setWalls(w);
+        setMore(latest.length >= 60);
+      },
+      (e: Error) => live && setError(e.message),
+    );
+    return () => {
+      live = false;
+    };
+  }, [added, addedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let live = true;
@@ -122,6 +146,14 @@ export function PhotosScreen({ navigation }: RootScreen<'Photos'>) {
 
   return (
     <Screen onRefresh={load}>
+      {added ? (
+        <Notice tone="ok" title="Added">
+          {`${added === 1 ? 'It’s in the gallery.' : added === 2 ? 'Both are in the gallery.' : `All ${added} are in the gallery.`} Everyone in the club can see and save ${added === 1 ? 'it' : 'them'}.`}
+        </Notice>
+      ) : null}
+      {canAddToGallery(me) ? (
+        <Button label="Add photos and videos" icon="add-circle-outline" onPress={() => navigation.navigate('AddToGallery')} />
+      ) : null}
       <WebsitePhotosRow onOpen={() => navigation.navigate('WebsitePhotos')} />
       <Choices
         options={[
@@ -136,7 +168,7 @@ export function PhotosScreen({ navigation }: RootScreen<'Photos'>) {
         items === null ? (
           <ActivityIndicator color={colors.boneMute} />
         ) : items.length === 0 ? (
-          <Notice title="No photos yet">Photos and videos posted in the club, chapter and ride chats show up here.</Notice>
+          <Notice title="No photos yet">Photos and videos added here, or posted in the club, chapter and ride chats, show up here.</Notice>
         ) : (
           <>
             <PhotoGrid items={items} onOpen={(index) => navigation.navigate('MediaViewer', { items, index })} />
@@ -146,12 +178,12 @@ export function PhotosScreen({ navigation }: RootScreen<'Photos'>) {
       ) : walls === null ? (
         <ActivityIndicator color={colors.boneMute} />
       ) : walls.length === 0 ? (
-        <Notice title="No ride walls yet">Photos posted in a ride’s chat make that ride’s wall.</Notice>
+        <Notice title="No ride walls yet">Photos posted in a ride’s chat, or added to a ride’s album, make that ride’s wall.</Notice>
       ) : (
         <Card style={{ padding: 0 }}>
           {walls.map((w, i) => (
             <ListRow
-              key={w.chatId}
+              key={w.ride.id}
               last={i === walls.length - 1}
               left={<WallCover item={w.cover} />}
               title={w.ride.title}
@@ -172,7 +204,8 @@ export function PhotosScreen({ navigation }: RootScreen<'Photos'>) {
 
 export function RideWallScreen({ route, navigation }: RootScreen<'RideWall'>) {
   const chat = useChat();
-  const [wall, setWall] = useState<{ ride: Ride; chatId: string; media: FeedItem[] } | null>(null);
+  const { me } = useClub();
+  const [wall, setWall] = useState<{ ride: Ride; chatId: string | null; media: FeedItem[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
@@ -194,9 +227,21 @@ export function RideWallScreen({ route, navigation }: RootScreen<'RideWall'>) {
           {wall.media.length ? (
             <PhotoGrid items={wall.media} onOpen={(index) => navigation.navigate('MediaViewer', { items: wall.media, index })} />
           ) : (
-            <Notice title="No photos yet">Post them in the ride’s chat and they land here.</Notice>
+            <Notice title="No photos yet">Add them here or post them in the ride’s chat and they land here.</Notice>
           )}
-          <Button label="Ride chat" kind="secondary" icon="chatbubbles-outline" onPress={() => navigation.navigate('Chat', { chatId: wall.chatId })} />
+          {canAddToGallery(me) ? (
+            <Button label="Add photos and videos" icon="add-circle-outline" onPress={() => navigation.navigate('AddToGallery', { rideId: wall.ride.id, rideTitle: wall.ride.title, rideStartsAt: wall.ride.startsAt })} />
+          ) : null}
+          <Button
+            label="Ride chat"
+            kind="secondary"
+            icon="chatbubbles-outline"
+            onPress={() =>
+              wall.chatId
+                ? navigation.navigate('Chat', { chatId: wall.chatId })
+                : chat.rideChat(wall.ride.id).then((chatId) => navigation.navigate('Chat', { chatId }), (e: Error) => setError(e.message))
+            }
+          />
         </>
       ) : null}
     </Screen>
@@ -235,8 +280,75 @@ function PhotoPage({ item, width, height }: { item: FeedItem; width: number; hei
   );
 }
 
+/** Save, and for a gallery item its take-down, under the viewer. */
+function ViewerActions({ item, onOpenChat, onTakenDown }: { item: FeedItem; onOpenChat: (chatId: string) => void; onTakenDown: () => void }) {
+  const chat = useChat();
+  const { me, data } = useClub();
+  const { crew } = useSitePhotos();
+  const source = useMediaSource(item.path);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const kind = item.kind === 'video' ? 'video' : 'photo';
+  const save = async () => {
+    if (source === null) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      await saveToPhone(source, { kind, path: item.path, createdAt: item.createdAt, id: item.id });
+    } catch (e) {
+      setNote(e instanceof SaveProblem ? e.message : 'That one couldn’t be saved. Try again.');
+    }
+    setBusy(false);
+  };
+  const canTakeDown =
+    !!item.gallery &&
+    galleryRemoveProblem(me, data.positions, crew, {
+      id: item.id, uploadedBy: item.authorId, rideId: item.gallery.rideId, kind, path: item.path, posterPath: item.posterPath,
+      width: item.width, height: item.height, durationMs: item.durationMs, caption: item.gallery.caption, websiteOk: false,
+      websiteDeclinedAt: null, onWebsite: false, createdAt: item.createdAt, removedAt: null,
+    }) === null;
+  const takeDown = async () => {
+    try {
+      await chat.removeGalleryItem(item.id);
+      onTakenDown();
+    } catch (e) {
+      setNote((e as Error).message);
+    }
+  };
+  return (
+    <View style={styles.viewerBottom}>
+      {item.gallery?.caption ? <Text style={styles.caption} numberOfLines={2}>{item.gallery.caption}</Text> : null}
+      {note ? <Small style={{ color: colors.danger, textAlign: 'center' }}>{note}</Small> : null}
+      <Row style={{ gap: space.sm, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Button
+          label="Save"
+          kind="quiet"
+          icon="download-outline"
+          busy={busy}
+          disabled={busy || source === null}
+          onPress={save}
+          accessibilityLabel={item.kind === 'video' ? 'Save this video to your phone' : 'Save this photo to your phone'}
+        />
+        {item.conversationId ? (
+          <Button label="Open the chat" kind="quiet" icon="chatbubbles-outline" onPress={() => onOpenChat(item.conversationId as string)} />
+        ) : null}
+        {canTakeDown ? (
+          <ConfirmButton
+            label="Take down"
+            confirmLabel="Yes, take it down"
+            kind="quiet"
+            icon="trash-outline"
+            confirmNote="It leaves the gallery, and the website if it’s there."
+            onConfirm={takeDown}
+          />
+        ) : null}
+      </Row>
+    </View>
+  );
+}
+
 export function MediaViewerScreen({ route, navigation }: RootScreen<'MediaViewer'>) {
-  const { items } = route.params;
+  const [items, setItems] = useState(route.params.items);
   const { data } = useClub();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -279,14 +391,17 @@ export function MediaViewerScreen({ route, navigation }: RootScreen<'MediaViewer
         }
       />
       {current ? (
-        <View style={styles.viewerBottom}>
-          <Button
-            label="Open the chat"
-            kind="quiet"
-            icon="chatbubbles-outline"
-            onPress={() => navigation.navigate('Chat', { chatId: current.conversationId })}
-          />
-        </View>
+        <ViewerActions
+          key={current.id}
+          item={current}
+          onOpenChat={(chatId) => navigation.navigate('Chat', { chatId })}
+          onTakenDown={() => {
+            const left = items.filter((m) => m.id !== current.id);
+            if (!left.length) return navigation.goBack();
+            setItems(left);
+            setIndex(Math.min(index, left.length - 1));
+          }}
+        />
       ) : null}
     </View>
   );
@@ -300,5 +415,6 @@ const styles = StyleSheet.create({
   viewer: { flex: 1, backgroundColor: '#000' },
   viewerTop: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, height: 64 },
   close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  viewerBottom: { height: 56, alignItems: 'center', justifyContent: 'center' },
+  viewerBottom: { minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: space.lg },
+  caption: { fontFamily: fonts.body, fontSize: 15, lineHeight: 20, color: colors.bone, textAlign: 'center' },
 });

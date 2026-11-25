@@ -11,6 +11,7 @@ import { useChat } from '../data/chat/ChatProvider';
 import type { FeedItem, MediaSource } from '../data/chat/chatContext';
 import { siteMediaUrl, useSitePhotos } from '../data/sitePhotos';
 import type { PickedMedia } from '../domain/chat';
+import type { GalleryItem } from '../domain/gallery';
 import { formatAuDate } from '../domain/dates';
 import { displayName } from '../domain/profile';
 import { melbourneDate } from '../domain/rides';
@@ -45,8 +46,9 @@ function useSitePhotoSource(photo: Pick<SitePhoto, 'bucket' | 'path'>): MediaSou
   return fromSite?.path === photo.path ? fromSite.value : null;
 }
 
-function Thumb({ photo, size = 88 }: { photo: Pick<SitePhoto, 'bucket' | 'path'>; size?: number }) {
-  const shown = useSitePhotoSource(photo);
+function Thumb({ photo, size = 88 }: { photo: Pick<SitePhoto, 'bucket' | 'path' | 'kind' | 'posterPath'>; size?: number }) {
+  // A video shows its still (a video with none shows a plain tile).
+  const shown = useSitePhotoSource(photo.kind === 'video' ? { bucket: photo.bucket, path: photo.posterPath ?? '' } : photo);
   return (
     <View style={[styles.thumb, { width: size, height: size }]} accessibilityRole="image" accessibilityLabel="The photo">
       {shown !== null ? <Image source={asImage(shown, photo.path)} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
@@ -145,6 +147,8 @@ export function WebsitePhotosScreen({ navigation }: RootScreen<'WebsitePhotos'>)
         </Card>
       ) : null}
 
+      {editor ? <WaitingSection onDone={(msg) => { setDone(msg); void refresh(); }} /> : null}
+
       {crewManager ? <CrewSection crew={crew} setCrew={setCrew} onDone={setDone} /> : null}
 
       <SectionTitle title={editor ? 'The list' : 'Your photos on the website'} action={<Small>{editor ? photos.length : mine.length}</Small>} />
@@ -163,6 +167,72 @@ export function WebsitePhotosScreen({ navigation }: RootScreen<'WebsitePhotos'>)
       )}
       {editor || mine.length > 0 ? <Small>Anyone can take their own photo down, any time.</Small> : null}
     </Screen>
+  );
+}
+
+/** What members ticked "OK for the website" in the gallery, for the crew to put up or turn down. */
+function WaitingSection({ onDone }: { onDone: (msg: string) => void }) {
+  const chat = useChat();
+  const { data } = useClub();
+  const [items, setItems] = useState<GalleryItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const load = useCallback(() => {
+    chat.galleryForSite().then(setItems, (e: Error) => setError(e.message));
+  }, [chat]);
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const act = async (item: GalleryItem, yes: boolean) => {
+    setBusyId(item.id);
+    setError(null);
+    try {
+      if (yes) await chat.approveGalleryForSite(item.id, item.caption ?? '');
+      else await chat.declineGalleryForSite(item.id);
+      setItems((now) => (now ?? []).filter((g) => g.id !== item.id));
+      onDone(
+        !yes ? 'Turned down. It stays in the club’s gallery.'
+        : item.kind === 'video' ? 'Approved. The video shows on the website once it’s copied to the club’s video storage.'
+        : 'It’s on the website. The site shows it within a few minutes.',
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    setBusyId(null);
+  };
+  if (!items || items.length === 0) return error ? <Notice tone="danger">{error}</Notice> : null;
+  return (
+    <>
+      <SectionTitle title="Waiting for your OK" action={<Small>{items.length}</Small>} />
+      <Small>Members ticked these “OK for the website” when they added them to the gallery.</Small>
+      {error ? <Notice tone="danger">{error}</Notice> : null}
+      {items.map((g) => {
+        const who = data.members.find((m) => m.id === g.uploadedBy);
+        const album = g.albumTitle ?? (g.rideId ? data.rides.find((r) => r.id === g.rideId)?.title : null);
+        return (
+          <Card key={g.id}>
+            <Row style={{ gap: space.md, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+              <Thumb photo={{ bucket: 'chat-media', path: g.path, kind: g.kind, posterPath: g.posterPath }} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={type.name}>{g.caption ?? 'No caption'}</Text>
+                <Small>{who ? displayName(who) : 'Former member'}’s {g.kind === 'video' ? 'video' : 'photo'} · {album ?? 'Club life'}</Small>
+                <Small>Added {formatAuDate(melbourneDate(g.createdAt))}</Small>
+              </View>
+            </Row>
+            <Row style={{ gap: space.sm }}>
+              <ConfirmButton
+                label="Not this one"
+                confirmLabel="Yes, keep it off"
+                kind="secondary"
+                disabled={busyId !== null}
+                onConfirm={() => void act(g, false)}
+                accessibilityLabel={`Keep ${g.caption ?? 'this one'} off the website`}
+                style={{ flex: 1 }}
+              />
+              <Button label="Put it up" icon="globe-outline" busy={busyId === g.id} disabled={busyId !== null} onPress={() => void act(g, true)} style={{ flex: 1 }} />
+            </Row>
+          </Card>
+        );
+      })}
+    </>
   );
 }
 
@@ -190,7 +260,7 @@ function PhotoCard({ photo, canRemove, remove, onDone }: { photo: SitePhoto; can
         <Thumb photo={photo} />
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={type.name}>{photo.caption ?? 'No caption'}</Text>
-          <Small>{poster ? displayName(poster) : 'Former member'}’s photo · {photo.source === 'upload' ? 'from the phone' : 'from a club chat'}</Small>
+          <Small>{poster ? displayName(poster) : 'Former member'}’s {photo.kind === 'video' ? 'video' : 'photo'} · {photo.source === 'upload' ? 'from the phone' : photo.source === 'gallery' ? 'from the gallery' : 'from a club chat'}</Small>
           <Small>Picked {formatAuDate(melbourneDate(photo.pickedAt))}{picker ? ` by ${displayName(picker)}` : ''}</Small>
           <Chip label={STATUS_WORD[photo.status]} tone={STATUS_TONE[photo.status]} />
         </View>
@@ -294,7 +364,8 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
     try {
       // club_photos never includes private chats; keep photos only, and none from the Family chat
       // (family members' photos stay off the website).
-      setItems((await chat.photos()).filter((m) => m.kind === 'photo' && chat.conversation(m.conversationId)?.kind !== 'family'));
+      // Gallery items reach the website through their uploader's tick instead (WaitingSection).
+      setItems((await chat.photos()).filter((m) => m.kind === 'photo' && m.conversationId !== null && chat.conversation(m.conversationId)?.kind !== 'family'));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -302,7 +373,7 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
   useEffect(() => {
     let live = true;
     chat.photos().then(
-      (all) => live && setItems(all.filter((m) => m.kind === 'photo')),
+      (all) => live && setItems(all.filter((m) => m.kind === 'photo' && m.conversationId !== null)),
       (e: Error) => live && setError(e.message),
     );
     return () => {
@@ -317,7 +388,7 @@ export function PickWebsitePhotoScreen({ navigation }: RootScreen<'PickWebsitePh
     const c = chat.conversation(chatId);
     return c?.kind === 'topic' ? c.parent?.kind ?? 'group' : c?.kind ?? 'club';
   };
-  const pickable = (m: FeedItem): PickablePhoto => ({ media: m, chatKind: kindOf(m.conversationId), authorId: m.authorId });
+  const pickable = (m: FeedItem): PickablePhoto => ({ media: m, chatKind: m.conversationId ? kindOf(m.conversationId) : 'club', authorId: m.authorId });
   const send = async (caption: string, consent: boolean) => {
     if (!chosen) return;
     setBusy(true);

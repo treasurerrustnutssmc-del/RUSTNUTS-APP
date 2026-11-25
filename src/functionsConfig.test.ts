@@ -28,8 +28,8 @@ function settings(): Record<string, boolean> {
 }
 
 // No sign-in check by Supabase: the website's door (the website has no sign-in) and the four jobs the
-// database's clock calls, each of which refuses a call without the cron secret.
-const OPEN = ['purge-files', 'send-push', 'site-api', 'sync-rides', 'voice-sweep'];
+// database calls (the clock, or a website video going up or down), each of which refuses a call without the cron secret.
+const OPEN = ['purge-files', 'send-push', 'site-api', 'site-video-copy', 'sync-rides', 'voice-sweep'];
 
 test('config.toml names every server function, and nothing else', () => {
   assert.deepEqual(Object.keys(settings()).sort(), functions);

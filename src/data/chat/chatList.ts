@@ -2,6 +2,7 @@
 // database's chat_list, club_photos, ride_walls and ride_wall work them out. The demo uses these;
 // the live app gets the same shapes from the database and sorts them with sortSummaries.
 
+import type { GalleryItem } from '../../domain/gallery';
 import { approvalProblem, chatTitle, memberProblem, readProblem, rideChatListed, withParent, type Block, type Message } from '../../domain/chat';
 import type { ClubData, Member } from '../../domain/types';
 import { NotAllowedError } from '../clubContext';
@@ -113,18 +114,41 @@ function itemsOf(m: Message): FeedItem[] {
     .map((x) => ({ ...x, conversationId: m.conversationId, authorId: m.authorId, createdAt: m.createdAt }));
 }
 
-/** Photos and videos `me` can see in every chat but private ones, newest first, a page of about
- *  `limit` items that never splits a message. */
+/** A gallery item as the feeds show it. */
+export const galleryFeedItem = (g: GalleryItem): FeedItem => ({
+  id: g.id, messageId: '', kind: g.kind, path: g.path, posterPath: g.posterPath, width: g.width, height: g.height,
+  durationMs: g.durationMs, position: 0, conversationId: null, authorId: g.uploadedBy ?? '', createdAt: g.createdAt,
+  gallery: { rideId: g.rideId, caption: g.caption },
+});
+
+const blockedIds = (chat: ChatData, meId: string) => new Set(chat.blocks.filter((b) => b.blockerId === meId).map((b) => b.blockedId));
+
+/** The gallery items `me` sees: not taken down, not from someone they blocked. */
+function galleryFor(chat: ChatData, me: Member): GalleryItem[] {
+  const blocked = blockedIds(chat, me.id);
+  return (chat.gallery ?? []).filter((g) => !g.removedAt && !(g.uploadedBy && blocked.has(g.uploadedBy)));
+}
+
+/** Photos and videos `me` can see in every chat but private ones and in the gallery, newest
+ *  first, a page of about `limit` items that never splits a message. Mirrors club_photos. */
 export function feedFrom(chat: ChatData, club: ClubData, me: Member | null, before?: string, limit = 60): FeedItem[] {
   if (!me || memberProblem(me)) return [];
   const readable = new Set(chat.conversations.filter((c) => c.kind !== 'direct' && !readProblem(me, c, club)).map((c) => c.id));
-  const page: FeedItem[] = [];
-  for (const m of withoutBlocked(chat.messages, chat.blocks, me.id).sort(newestFirst)) {
+  const groups: { id: string; createdAt: string; items: FeedItem[] }[] = [];
+  for (const m of withoutBlocked(chat.messages, chat.blocks, me.id)) {
     if (!readable.has(m.conversationId) || m.removedAt || (before && m.createdAt >= before)) continue;
     const items = itemsOf(m);
-    if (!items.length) continue;
+    if (items.length) groups.push({ id: m.id, createdAt: m.createdAt, items });
+  }
+  for (const g of galleryFor(chat, me)) {
+    if (before && g.createdAt >= before) continue;
+    groups.push({ id: g.id, createdAt: g.createdAt, items: [galleryFeedItem(g)] });
+  }
+  groups.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  const page: FeedItem[] = [];
+  for (const g of groups) {
     if (page.length >= Math.min(Math.max(limit, 1), 200)) break;
-    page.push(...items);
+    page.push(...g.items);
   }
   return page;
 }
@@ -136,14 +160,26 @@ function wallItems(chat: ChatData, me: Member, chatId: string): FeedItem[] {
     .flatMap(itemsOf);
 }
 
+function rideItems(chat: ChatData, me: Member, rideId: string): { chatId: string | null; media: FeedItem[] } {
+  const conv = chat.conversations.find((c) => c.kind === 'ride' && c.rideId === rideId);
+  const media = [
+    ...(conv ? wallItems(chat, me, conv.id) : []),
+    ...galleryFor(chat, me).filter((g) => g.rideId === rideId).map(galleryFeedItem),
+  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.position - b.position);
+  return { chatId: conv?.id ?? null, media };
+}
+
 export function rideWallsFrom(chat: ChatData, club: ClubData, me: Member | null): RideWall[] {
   if (!me || memberProblem(me)) return [];
-  return chat.conversations
-    .filter((c) => c.kind === 'ride')
-    .flatMap((c): RideWall[] => {
-      const ride = club.rides.find((r) => r.id === c.rideId);
-      const media = wallItems(chat, me, c.id);
-      return ride && media.length ? [{ ride, chatId: c.id, count: media.length, cover: media[0] }] : [];
+  const rideIds = new Set([
+    ...chat.conversations.filter((c) => c.kind === 'ride' && c.rideId).map((c) => c.rideId as string),
+    ...(chat.gallery ?? []).flatMap((g) => (g.rideId ? [g.rideId] : [])),
+  ]);
+  return [...rideIds]
+    .flatMap((rideId): RideWall[] => {
+      const ride = club.rides.find((r) => r.id === rideId);
+      const { chatId, media } = rideItems(chat, me, rideId);
+      return ride && media.length ? [{ ride, chatId, count: media.length, cover: media[0] }] : [];
     })
     .sort((a, b) => b.ride.startsAt.localeCompare(a.ride.startsAt));
 }
@@ -153,6 +189,5 @@ export function rideWallFrom(chat: ChatData, club: ClubData, me: Member | null, 
   if (cant || !me) throw new NotAllowedError(cant ?? 'Sign in first.');
   const ride = club.rides.find((r) => r.id === rideId);
   if (!ride) throw new NotAllowedError('No such ride.');
-  const conv = chat.conversations.find((c) => c.kind === 'ride' && c.rideId === rideId);
-  return { ride, chatId: conv?.id ?? `ride:${rideId}`, media: conv ? wallItems(chat, me, conv.id) : [] };
+  return { ride, ...rideItems(chat, me, rideId) };
 }
