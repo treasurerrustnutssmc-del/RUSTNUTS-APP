@@ -12,7 +12,9 @@ import {
   rideWindow,
   routePoints,
   skyOf,
+  weatherChip,
   type HourlySeries,
+  type WeatherSummary,
 } from './weather';
 import type { Ride, Route } from './types';
 
@@ -253,4 +255,14 @@ test('a multi-day ride: a row per day, and heads-ups name the day', () => {
     ['Sat 30/01/2027', 'Rain', 19, 70],
   ]);
   assert.deepEqual(view?.headsUps, ['70% chance of rain on Sat 30/01/2027 at Phillip Island']);
+});
+
+test('the ride list chip: the temperatures, and the rain chance once it is worth a look', () => {
+  const dry: WeatherSummary = { sky: 'Clear', icon: 'sunny', low: 13, high: 17, rain: 10, gust: 20 };
+  assert.deepEqual(weatherChip(dry), { label: '13–17°', accessibilityLabel: 'weather: Clear, 13 to 17 degrees' });
+  assert.deepEqual(weatherChip({ ...dry, low: 17 }), { label: '17°', accessibilityLabel: 'weather: Clear, 17 degrees' });
+  assert.deepEqual(weatherChip({ ...dry, sky: 'Rain', icon: 'rainy', rain: 40 }), {
+    label: '13–17° · 40%',
+    accessibilityLabel: 'weather: Rain, 13 to 17 degrees, 40% chance of rain',
+  });
 });
