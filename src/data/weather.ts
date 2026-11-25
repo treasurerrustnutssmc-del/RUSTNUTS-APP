@@ -49,9 +49,18 @@ const KEEP_MAX = 50;
  */
 export function forecastSource(fetcher: Fetcher, now: () => number = Date.now): ForecastSource {
   const kept = new Map<string, { at: number; value: unknown }>();
-  const get = async <T>(url: string, read: (json: unknown) => T, keepIf: (value: T) => boolean): Promise<{ value: T; at: number }> => {
+  // Questions on their way, so a list of rides at the same place asks once.
+  const pending = new Map<string, Promise<{ value: unknown; at: number }>>();
+  const get = <T>(url: string, read: (json: unknown) => T, keepIf: (value: T) => boolean): Promise<{ value: T; at: number }> => {
     const hit = kept.get(url);
-    if (hit && now() - hit.at < KEEP_MS) return { value: hit.value as T, at: hit.at };
+    if (hit && now() - hit.at < KEEP_MS) return Promise.resolve({ value: hit.value as T, at: hit.at });
+    const on = pending.get(url);
+    if (on) return on as Promise<{ value: T; at: number }>;
+    const asking = ask(url, read, keepIf).finally(() => pending.delete(url));
+    pending.set(url, asking);
+    return asking;
+  };
+  const ask = async <T>(url: string, read: (json: unknown) => T, keepIf: (value: T) => boolean): Promise<{ value: T; at: number }> => {
     let json: unknown;
     try {
       const res = await fetcher(url);
@@ -83,6 +92,9 @@ export function forecastSource(fetcher: Fetcher, now: () => number = Date.now): 
 /** How long the card waits for the club's server before asking Open-Meteo itself. */
 const SERVER_WAIT_MS = 12_000;
 
+/** The most questions out to the club's server at once, so a list of rides doesn't ask everything together. */
+const SERVER_AT_ONCE = 3;
+
 /** Calls the club's ride-weather server with the points and days; resolves its JSON answer, throws on failure. */
 export type Invoke = (body: { points: { lat: number; lng: number }[]; days: string[] }) => Promise<unknown>;
 
@@ -113,29 +125,61 @@ function readServer(json: unknown, count: number): { series: HourlySeries[]; wil
  */
 export function serverSource(invoke: Invoke, fallback: ForecastSource, now: () => number = Date.now, waitMs = SERVER_WAIT_MS): ForecastSource {
   const kept = new Map<string, { at: number; series: HourlySeries[]; willy: boolean }>();
+  // Questions on their way, so the same ride asked twice asks once.
+  const pending = new Map<string, Promise<{ at: number; series: HourlySeries[]; willy?: boolean }>>();
+  // At most SERVER_AT_ONCE questions out to the server; the rest wait their turn (inside the same wait).
+  let out = 0;
+  const queue: (() => void)[] = [];
+  const slot = () => (out < SERVER_AT_ONCE ? (out++, Promise.resolve()) : new Promise<void>((go) => queue.push(() => (out++, go()))));
+  const free = () => {
+    out--;
+    queue.shift()?.();
+  };
+  const ask = async (points: ForecastPoint[], days: string[], body: Parameters<Invoke>[0], key: string) => {
+    let answer: { series: HourlySeries[]; willy: boolean } | null = null;
+    let gaveUp = false;
+    try {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const late = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('slow')), waitMs);
+      });
+      const asking = slot().then(() => {
+        if (gaveUp) {
+          free();
+          throw new Error('slow');
+        }
+        return invoke(body).finally(free);
+      });
+      asking.catch(() => {});
+      answer = readServer(
+        await Promise.race([asking, late]).finally(() => {
+          gaveUp = true;
+          clearTimeout(timer);
+        }),
+        points.length,
+      );
+    } catch {
+      answer = null;
+    }
+    if (!answer) return fallback.forecast(points, days);
+    const value = { ...answer, at: now() };
+    kept.delete(key);
+    kept.set(key, value);
+    if (kept.size > KEEP_MAX) kept.delete(kept.keys().next().value as string);
+    return value;
+  };
   return {
     geocode: fallback.geocode,
-    forecast: async (points, days) => {
+    forecast: (points, days) => {
       const body = { points: points.map((p) => ({ lat: p.lat, lng: p.lng })), days };
       const key = JSON.stringify(body);
       const hit = kept.get(key);
-      if (hit && now() - hit.at < KEEP_MS) return hit;
-      let answer: { series: HourlySeries[]; willy: boolean } | null = null;
-      try {
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        const late = new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error('slow')), waitMs);
-        });
-        answer = readServer(await Promise.race([invoke(body), late]).finally(() => clearTimeout(timer)), points.length);
-      } catch {
-        answer = null;
-      }
-      if (!answer) return fallback.forecast(points, days);
-      const value = { ...answer, at: now() };
-      kept.delete(key);
-      kept.set(key, value);
-      if (kept.size > KEEP_MAX) kept.delete(kept.keys().next().value as string);
-      return value;
+      if (hit && now() - hit.at < KEEP_MS) return Promise.resolve(hit);
+      const on = pending.get(key);
+      if (on) return on;
+      const asking = ask(points, days, body, key).finally(() => pending.delete(key));
+      pending.set(key, asking);
+      return asking;
     },
   };
 }

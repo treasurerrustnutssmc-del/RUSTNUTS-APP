@@ -227,3 +227,34 @@ test('a club server that hangs is given up on, and the phone asks Open-Meteo its
   assert.equal(r.kind === 'ready' && r.willy, false);
   assert.ok(phone.asked.some((u) => u.includes('api.open-meteo.com/v1/forecast')));
 });
+
+test('a list of rides asking at once: the same question is asked once, the server three at a time', async () => {
+  const pt = { lat: -37.7, lng: 144.7, label: 'x' };
+  // The phone: two rows at the same place share one look-up and one forecast.
+  let fetches = 0;
+  const phone = forecastSource(async () => {
+    fetches += 1;
+    await new Promise((r) => setTimeout(r, 5));
+    return { ok: true, status: 200, json: async () => place() };
+  });
+  await Promise.all([phone.forecast([pt], ['2026-11-07']), phone.forecast([pt], ['2026-11-07'])]);
+  assert.equal(fetches, 1);
+
+  // The server: five different questions never have more than three out at once; two the same share.
+  let out = 0;
+  let most = 0;
+  let calls = 0;
+  const server = serverSource(async (body) => {
+    calls += 1;
+    out += 1;
+    most = Math.max(most, out);
+    await new Promise((r) => setTimeout(r, 5));
+    out -= 1;
+    return { series: body.points.map(() => ({ time: HOURS, temp: [1, 2, 3, 4, 5], rain: [0, 0, 0, 0, 0], gust: [9, 9, 9, 9, 9], code: [1, 1, 1, 1, 1] })), willy: true };
+  }, phone);
+  const at = (i: number) => [{ lat: -37.7 + i / 100, lng: 144.7, label: 'x' }];
+  const answers = await Promise.all([0, 1, 2, 3, 4, 4].map((i) => server.forecast(at(i), ['2026-11-07'])));
+  assert.equal(calls, 5);
+  assert.ok(most <= 3, `most out at once: ${most}`);
+  assert.ok(answers.every((a) => a.willy === true));
+});
