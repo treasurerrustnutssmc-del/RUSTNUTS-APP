@@ -4,7 +4,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  accessLevel, appointProblem, endTermProblem, renewAuditorProblem, restoreAccessProblem, suspendAccessProblem,
+  accessLevel, appointProblem, endTermProblem, renewAuditorProblem, restoreAccessProblem, setRoadNameProblem, suspendAccessProblem,
   // Acting roles
   appointActingProblem, confirmActingProblem, requestActingProblem, requestCoverProblem, setActingUntilProblem, withdrawRequestProblem,
 } from '../domain/access';
@@ -422,6 +422,11 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
     restoreAccess: async (memberId) => {
       deny(restoreAccessProblem(visibleMe, data.members.find((m) => m.id === memberId), data.positions));
       ok(await supabase().rpc('restore_member_access', { p_member: memberId }));
+      await after();
+    },
+    setRoadName: async (memberId, roadName) => {
+      deny(setRoadNameProblem(visibleMe, data.members.find((m) => m.id === memberId), data.positions));
+      ok(await supabase().rpc('set_member_road_name', { p_member: memberId, p_road_name: roadName.trim() || null }));
       await after();
     },
 

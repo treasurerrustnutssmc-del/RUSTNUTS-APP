@@ -149,6 +149,8 @@ export interface ClubContextValue {
   /** The chapter board pauses a member's app access (approval 'suspended'), or gives it back. */
   suspendAccess: (memberId: string) => Promise<void>;
   restoreAccess: (memberId: string) => Promise<void>;
+  /** The member's chapter board or the NEC sets (or, blank, clears) someone else's road name. */
+  setRoadName: (memberId: string, roadName: string) => Promise<void>;
   /** Demo only: a removed profile report clears the bio on the demo's own club data. */
   demoClearBio?: (memberId: string) => void;
   declineMember: (memberId: string) => Promise<void>;

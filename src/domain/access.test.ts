@@ -1421,3 +1421,40 @@ test('the routes check signing in before anything they look up, as the RPCs do',
     SEAT_ENDED,
   );
 });
+
+// Board edits a member's road name (24 Nov 2026): the member's chapter board, or the NEC (Chairman,
+// Secretary, sitting Presidents). Not the Auditor, not another chapter's other seats, not yourself.
+test('set road name: chapter board or NEC, an approved member, never yourself', async () => {
+  const { setRoadNameProblem, canEditRoadName, EDIT_OWN_ROAD_NAME, NOT_ROAD_NAME_BOARD } = await import('./access');
+  const mk = (id: string, over: Partial<Member> = {}): Member => ({
+    id, chapterId: 'ch-west', fullName: id, roadName: null, status: 'full', approval: 'approved', joinedOn: '2024-01-01',
+    patchedOn: null, fngStartedOn: null, bio: null, sharePhone: false, appliedOn: null, onHiatus: false, ...over,
+  });
+  const sec = mk('sec');
+  const northPres = mk('np', { chapterId: 'ch-north' });
+  const northRc = mk('nrc', { chapterId: 'ch-north' });
+  const chair = mk('chair', { chapterId: 'ch-north' });
+  const auditor = mk('aud');
+  const target = mk('target');
+  const positions: Position[] = [
+    { id: 'p1', memberId: 'sec', chapterId: 'ch-west', role: 'secretary', startedOn: '2025-01-01', endedOn: null },
+    { id: 'p2', memberId: 'np', chapterId: 'ch-north', role: 'president', startedOn: '2025-01-01', endedOn: null },
+    { id: 'p3', memberId: 'nrc', chapterId: 'ch-north', role: 'road_captain', startedOn: '2025-01-01', endedOn: null },
+    { id: 'p4', memberId: 'chair', chapterId: null, role: 'nec_chair', startedOn: '2025-01-01', endedOn: null },
+    { id: 'p5', memberId: 'aud', chapterId: null, role: 'nec_auditor', startedOn: '2025-01-01', endedOn: null },
+  ];
+  assert.equal(setRoadNameProblem(sec, target, positions), null, 'own chapter board');
+  assert.equal(setRoadNameProblem(northPres, target, positions), null, 'a sitting President is on the NEC');
+  assert.equal(setRoadNameProblem(chair, target, positions), null, 'the National Chairman');
+  assert.equal(setRoadNameProblem(northRc, target, positions), NOT_ROAD_NAME_BOARD, 'another chapter’s Road Captain');
+  assert.equal(setRoadNameProblem(auditor, target, positions), NOT_ROAD_NAME_BOARD, 'the Auditor');
+  assert.equal(setRoadNameProblem(mk('plain'), target, positions), NOT_ROAD_NAME_BOARD);
+  assert.equal(setRoadNameProblem(null, target, positions), 'Sign in first.');
+  assert.equal(setRoadNameProblem(mk('p', { approval: 'pending' }), target, positions), 'Only approved members can do that.');
+  assert.equal(setRoadNameProblem(sec, undefined, positions), 'That member no longer exists.');
+  assert.equal(setRoadNameProblem(sec, sec, positions), EDIT_OWN_ROAD_NAME);
+  assert.equal(setRoadNameProblem(sec, mk('t2', { approval: 'pending' }), positions), 'They’re not an approved member.');
+  assert.equal(setRoadNameProblem(sec, mk('t3', { approval: 'suspended' }), positions), 'They’re not an approved member.');
+  assert.equal(canEditRoadName(sec, target, positions), true);
+  assert.equal(canEditRoadName(northRc, target, positions), false);
+});

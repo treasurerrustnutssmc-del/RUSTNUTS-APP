@@ -552,6 +552,28 @@ export function suspendAccessProblem(me: Member | null, target: Member | undefin
   return null;
 }
 
+export const EDIT_OWN_ROAD_NAME = 'Change your own road name in Edit profile.';
+export const NOT_ROAD_NAME_BOARD = 'Only that member’s chapter board or the NEC can do that.';
+
+/**
+ * Why `me` can't change `target`'s road name for them, or null: the member's chapter board, or
+ * whoever sees every chapter (the National Chairman or Secretary, a sitting President). Members
+ * change their own in Edit profile. Mirrors public.set_member_road_name.
+ */
+export function setRoadNameProblem(me: Member | null, target: Member | undefined, positions: Position[]): string | null {
+  if (!me) return 'Sign in first.';
+  if (!isApprovedMember(me)) return 'Only approved members can do that.';
+  if (!target) return 'That member no longer exists.';
+  if (target.id === me.id) return EDIT_OWN_ROAD_NAME;
+  if (!seesBoardOf(me, target.chapterId, positions)) return NOT_ROAD_NAME_BOARD;
+  if (target.approval !== 'approved') return NOT_APPROVED_TARGET;
+  return null;
+}
+
+export function canEditRoadName(me: Member | null, target: Member, positions: Position[]): boolean {
+  return setRoadNameProblem(me, target, positions) === null;
+}
+
 /** Why `me` can't restore `target`'s app access, or null. */
 export function restoreAccessProblem(me: Member | null, target: Member | undefined, positions: Position[]): string | null {
   if (!me) return 'Sign in first.';
