@@ -14,7 +14,7 @@ export interface SeenRead {
 }
 
 export interface SeenBy {
-  /** Who has seen it, first to see it first. */
+  /** Who has seen it, and when they were last in the chat (not when they first saw it: that isn't kept). */
   seen: { memberId: string; at: string }[];
   /** Who reads the chat and hasn't seen it yet. */
   notYet: string[];
@@ -33,7 +33,7 @@ export function seenBy(message: Pick<MessageLike, 'authorId' | 'createdAt'>, rea
     if (r.seenAt && Date.parse(r.seenAt) >= sent) seen.push({ memberId: r.memberId, at: r.seenAt });
     else notYet.push(r.memberId);
   }
-  seen.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  seen.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   return { seen, notYet };
 }
 
@@ -53,7 +53,7 @@ export function seenLine(s: SeenBy, kind: ChatKind, nameOf: (id: string) => stri
   const total = s.seen.length + s.notYet.length;
   if (!total) return null;
   if (!s.seen.length) return 'Not seen yet';
-  if (kind === 'direct') return `Seen ${seenWhen(s.seen[s.seen.length - 1].at, today)}`;
+  if (kind === 'direct') return 'Seen';
   if (!s.notYet.length) return 'Seen by everyone';
   if (s.seen.length > NAMED) return `Seen by ${s.seen.length} of ${total}`;
   const names = s.seen.map((r) => nameOf(r.memberId));

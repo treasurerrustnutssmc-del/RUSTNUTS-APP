@@ -8,6 +8,9 @@
 -- Anyone blocked either way with the asker is left out, since a blocker doesn't see the blocked
 -- person's messages. The app works out per message who has seen it (src/domain/chatSeen.ts).
 
+-- Each reader's newest post in the chat, without reading the whole chat once per member.
+create index if not exists messages_by_chat_author on public.messages (conversation_id, author_id, created_at desc);
+
 create or replace function public.chat_seen(p_chat uuid)
 returns table (member_id uuid, seen_at timestamptz)
 language plpgsql volatile security definer set search_path = '' as $$

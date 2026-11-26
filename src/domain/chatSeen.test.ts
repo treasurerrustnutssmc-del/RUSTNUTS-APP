@@ -14,9 +14,10 @@ test('seen is anyone who opened the chat at or after the message; the rest have 
     { memberId: 'd', seenAt: '2026-11-26T03:00:00.000Z' }, // the same moment counts
   ];
   const s = seenBy(msg, reads);
+  // Most recently in the chat first.
   assert.deepEqual(s.seen, [
-    { memberId: 'd', at: '2026-11-26T03:00:00.000Z' },
     { memberId: 'a', at: '2026-11-26T03:05:00.000Z' },
+    { memberId: 'd', at: '2026-11-26T03:00:00.000Z' },
   ]);
   assert.deepEqual(s.notYet, ['b', 'c']);
 });
@@ -31,9 +32,9 @@ test('the author is never on their own list, and times from the database compare
   assert.deepEqual(s.notYet, []);
 });
 
-test('a one-to-one chat says Seen and when, or Not seen yet', () => {
+test('a one-to-one chat says Seen or Not seen yet (their last look is no time to pin on the message)', () => {
   const today = '2026-11-26';
-  assert.equal(seenLine(seenBy(msg, [{ memberId: 'a', seenAt: '2026-11-26T03:05:00.000Z' }]), 'direct', nameOf, today), 'Seen 2:05 pm');
+  assert.equal(seenLine(seenBy(msg, [{ memberId: 'a', seenAt: '2026-11-26T03:05:00.000Z' }]), 'direct', nameOf, today), 'Seen');
   assert.equal(seenLine(seenBy(msg, [{ memberId: 'a', seenAt: null }]), 'direct', nameOf, today), 'Not seen yet');
 });
 

@@ -176,8 +176,23 @@ begin
   assert err = 'Chapter chats open up once you’re an FNG.', err;
   err := pg_temp.try_as(null, format('select * from public.chat_seen(%L)', pg_temp.chat('club')));
   assert err like 'permission denied%', err;
-  -- Asking doesn't leave anyone signed in as somebody else.
-  assert coalesce(current_setting('request.jwt.claim.sub', true), '') = '', current_setting('request.jwt.claim.sub', true);
+end $$;
+
+\o
+\echo 'Asking leaves the asker signed in as themselves (the check signs in as each reader in turn)'
+\o /dev/null
+do $$
+declare
+  wes constant uuid := '00000000-0000-0000-0000-0000000000d1';
+  still boolean;
+begin
+  perform set_config('request.jwt.claim.sub', wes::text, true);
+  set local role authenticated;
+  select bool_and(auth.uid() = wes) into still from public.chat_seen(pg_temp.chat('club'));
+  assert still, 'auth.uid() changed while the rows were made';
+  assert current_setting('request.jwt.claim.sub', true) = wes::text, current_setting('request.jwt.claim.sub', true);
+  reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
 end $$;
 
 \o

@@ -136,9 +136,23 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Before the Seen by paste the database has no chat_seen: the line just doesn't show.
+  // Only the newest ask for a chat counts, so a slow older answer can't undo a seen. Nothing changes
+  // (no re-render) when the answer is the same; a refusal (no longer in the chat) clears it.
+  const seenAsk = useRef(new Map<string, number>());
   const loadSeen = useCallback(async (chatId: string) => {
+    const ask = (seenAsk.current.get(chatId) ?? 0) + 1;
+    seenAsk.current.set(chatId, ask);
     const rows = await rpc<SeenRow[]>('chat_seen', { p_chat: chatId }).catch(() => null);
-    if (rows) setSeen((x) => ({ ...x, [chatId]: rows.map(toSeenRead) }));
+    if (seenAsk.current.get(chatId) !== ask) return;
+    setSeen((x) => {
+      if (!rows) {
+        if (!(chatId in x)) return x;
+        const { [chatId]: _gone, ...rest } = x;
+        return rest;
+      }
+      const next = rows.map(toSeenRead);
+      return JSON.stringify(x[chatId]) === JSON.stringify(next) ? x : { ...x, [chatId]: next };
+    });
   }, []);
 
   const markRead = useCallback(
@@ -169,10 +183,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         const open = [...openChats.current.keys()];
-        for (const chatId of open) {
-          loadPage(chatId).catch(() => undefined);
-          void loadSeen(chatId);
-        }
+        for (const chatId of open) loadPage(chatId).catch(() => undefined);
         // Open chats are marked read before the list is fetched, so their counts don't come back. Not
         // while the app is in the background: nobody's looking, and the club would hold back pushes.
         const looking = AppState.currentState === 'active' ? open : [];

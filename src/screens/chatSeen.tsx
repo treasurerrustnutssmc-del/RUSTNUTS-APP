@@ -78,8 +78,8 @@ export function SeenByScreen({ route, navigation }: RootScreen<'SeenBy'>) {
       <SectionTitle title={`Seen (${s.seen.length})`} />
       {s.seen.length ? (
         <Card style={{ padding: 0 }}>
-          {[...s.seen].reverse().map((r, i) =>
-            row(r.memberId, i === s.seen.length - 1, <Text style={{ fontFamily: fonts.stencil, fontSize: 13, color: colors.boneDim }}>{seenWhen(r.at, today)}</Text>),
+          {s.seen.map((r, i) =>
+            row(r.memberId, i === s.seen.length - 1, <Text style={{ fontFamily: fonts.stencil, fontSize: 13, color: colors.boneDim }}>Last in the chat {seenWhen(r.at, today)}</Text>),
           )}
         </Card>
       ) : (
