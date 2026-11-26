@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Message } from '../../domain/chat';
-import { goneMedia, mergeMessages, toFeedItem, toMessage, toReport, toRide, toSummaryParts, uploadName, voiceUploadType } from './liveChat';
+import { goneMedia, mergeMessages, toFeedItem, toMessage, toReport, toRide, toSeenRead, toSummaryParts, uploadName, voiceUploadType } from './liveChat';
 
 const rideRow = {
   id: 'r1', title: 'Coffee run', starts_at: '2026-11-07T21:30:00+00:00', ends_at: null, all_day: false,
@@ -132,4 +132,9 @@ test('a topic from the chat list keeps its chat and whether it’s closed; chats
   const old = toSummaryParts({ id: 'c1', kind: 'club', chapter_id: null, ride_id: null, committee: null, ride: null, last: null, unread: 0 }).conversation;
   assert.equal(old.parentId, null);
   assert.equal(old.closedAt, null);
+});
+
+test('a chat_seen row becomes a Seen by read, its time as an ISO instant', () => {
+  assert.deepEqual(toSeenRead({ member_id: 'a1', seen_at: '2026-11-26T03:05:00.123456+00:00' }), { memberId: 'a1', seenAt: '2026-11-26T03:05:00.123Z' });
+  assert.deepEqual(toSeenRead({ member_id: 'a2', seen_at: null }), { memberId: 'a2', seenAt: null });
 });

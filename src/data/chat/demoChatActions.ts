@@ -3,6 +3,7 @@
 // the database uses. src/data/parity.test.ts checks them against the database's rules.
 
 import type { GalleryItem } from '../../domain/gallery';
+import type { SeenRead } from '../../domain/chatSeen';
 import {
   addToGroupProblem,
   createGroupProblem,
@@ -317,6 +318,29 @@ export function markRead(ctx: ChatCtx, chatId: string): ChatData {
   return withRead(ctx.chat, chatId, ctx.me!.id, ctx.now);
 }
 
+/**
+ * Seen by: everyone else who reads the chat now and when they last saw it (their last look, or their
+ * own post if later; null when never). Not anyone blocked either way. Mirrors public.chat_seen.
+ */
+export function seenReads(ctx: ChatCtx, chatId: string): SeenRead[] {
+  const conv = findChat(ctx.chat, chatId);
+  refuse(readProblem(ctx.me, conv, ctx.club));
+  const me = ctx.me!;
+  const people = new Map<string, Member>();
+  for (const m of [...ctx.club.members, ...(ctx.club.chatPeople ?? [])]) people.set(m.id, m);
+  const out: SeenRead[] = [];
+  for (const m of people.values()) {
+    if (m.id === me.id || m.approval !== 'approved' || readProblem(m, conv, ctx.club)) continue;
+    if (ctx.chat.blocks.some((b) => (b.blockerId === me.id && b.blockedId === m.id) || (b.blockerId === m.id && b.blockedId === me.id))) continue;
+    const read = ctx.chat.reads.find((r) => r.conversationId === chatId && r.memberId === m.id)?.readAt ?? null;
+    const posted = ctx.chat.messages
+      .filter((x) => x.conversationId === chatId && x.authorId === m.id)
+      .reduce<string | null>((best, x) => (!best || x.createdAt > best ? x.createdAt : best), null);
+    out.push({ memberId: m.id, seenAt: !read ? posted : !posted ? read : read > posted ? read : posted });
+  }
+  return out;
+}
+
 /** The chat actions in the shared case list (supabase/tests/parity.json). */
 export type ChatAction =
   | {
@@ -330,7 +354,8 @@ export type ChatAction =
   | { action: 'chatPin'; chat: string; message: string | null }
   | { action: 'chatReport'; message: string; reason: string; repeat?: number }
   | { action: 'chatBlock'; member: string; blocked: boolean }
-  | { action: 'chatStartTopic'; chat: string; topic: string; repeat?: number };
+  | { action: 'chatStartTopic'; chat: string; topic: string; repeat?: number }
+  | { action: 'chatSeen'; chat: string };
 
 /** A case's words: `repeat` writes them out that many times, for the length limits. */
 export const caseText = (text: string, repeat?: number) => (repeat ? text.repeat(repeat) : text);
@@ -363,5 +388,8 @@ export function runChatAction(ctx: ChatCtx, a: ChatAction): ChatData {
       return setBlock(ctx, a.member, a.blocked);
     case 'chatStartTopic':
       return startTopic(ctx, a.chat, caseText(a.topic, a.repeat)).chat;
+    case 'chatSeen':
+      seenReads(ctx, a.chat);
+      return ctx.chat;
   }
 }

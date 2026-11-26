@@ -18,6 +18,7 @@ import { BoardScreen, ManageMemberScreen } from '../screens/board';
 import { BusinessScreen, EditMeetingScreen, MeetingScreen, NewVoteScreen, VoteScreen } from '../screens/business';
 import { ChatListScreen, ChatReportsScreen, ChatScreen, GroupInfoScreen, NewChatScreen, NewGroupScreen } from '../screens/chat';
 import { TopicInfoScreen, TopicsScreen } from '../screens/chatTopics';
+import { SeenByScreen } from '../screens/chatSeen';
 import { MediaViewerScreen, PhotosScreen, RideWallScreen } from '../screens/photos';
 import { PickWebsitePhotoScreen, WebsitePhotosScreen } from '../screens/sitePhotos'; // club photos on the website
 import { EditBikeScreen, EditContactScreen, EditProfileScreen, MeScreen } from '../screens/me';
@@ -486,6 +487,7 @@ export function RootNavigator() {
             <Stack.Screen name="GroupInfo" component={GroupInfoScreen} options={{ title: 'Group' }} />
             <Stack.Screen name="Topics" component={TopicsScreen} options={{ title: 'Topics' }} getId={({ params }) => params.chatId} />
             <Stack.Screen name="TopicInfo" component={TopicInfoScreen} options={{ title: 'Topic' }} />
+            <Stack.Screen name="SeenBy" component={SeenByScreen} options={{ title: 'Seen by' }} />
             <Stack.Screen name="ChatReports" component={ChatReportsScreen} options={{ title: 'Reports' }} />
             <Stack.Screen name="Photos" component={PhotosScreen} options={{ title: 'Photos' }} />
             <Stack.Screen name="AddToGallery" component={AddToGalleryScreen} options={{ title: 'Add to the gallery' }} />

@@ -2924,6 +2924,48 @@
       "allowed": false
     },
     {
+      "name": "A member sees who has seen messages in the whole-club chat",
+      "as": "spanner",
+      "action": "chatSeen",
+      "chat": "club",
+      "allowed": true
+    },
+    {
+      "name": "Seen by in your own chapter's chat",
+      "as": "spanner",
+      "action": "chatSeen",
+      "chat": "chapter:west",
+      "allowed": true
+    },
+    {
+      "name": "No Seen by for another chapter's chat",
+      "as": "crank",
+      "action": "chatSeen",
+      "chat": "chapter:west",
+      "allowed": false
+    },
+    {
+      "name": "No Seen by for a chat an Introduced member can't read",
+      "as": "nick",
+      "action": "chatSeen",
+      "chat": "chapter:west",
+      "allowed": false
+    },
+    {
+      "name": "No Seen by before approval",
+      "as": "dylan",
+      "action": "chatSeen",
+      "chat": "club",
+      "allowed": false
+    },
+    {
+      "name": "No Seen by while access is suspended",
+      "as": "benched",
+      "action": "chatSeen",
+      "chat": "club",
+      "allowed": false
+    },
+    {
       "name": "A member posts in the whole-club chat",
       "as": "spanner",
       "action": "chatSend",

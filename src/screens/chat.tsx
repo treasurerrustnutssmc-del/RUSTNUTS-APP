@@ -12,6 +12,7 @@ import { useCatchUpApi } from '../data/catchUpApi';
 import { isFamily } from '../domain/access'; // Family chat
 import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { catchUpCount } from '../domain/catchUp';
+import { lastOwnMessage, seenBy, seenLine, type SeenRead } from '../domain/chatSeen';
 import { composerBottomRoom } from '../domain/keyboard';
 import { useChat } from '../data/chat/ChatProvider';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
@@ -41,6 +42,7 @@ import {
   quoteWords,
   removeProblem,
   unknownAuthors,
+  type Conversation,
   type Message,
 } from '../domain/chat';
 import { pickReadable } from '../domain/contrast';
@@ -354,6 +356,10 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     return out.reverse(); // newest at the bottom of an upside-down list
   }, [messages, today]);
 
+  // Seen by goes under my newest message (2026-11-26, Jeff: tell "seen, no reply" from "not seen yet").
+  const seenReads = chat.seenReads(chatId);
+  const lastMine = me ? lastOwnMessage(messages, me.id) : undefined;
+
   const pinned = conv?.pinnedMessageId ? messages.find((m) => m.id === conv.pinnedMessageId) : undefined;
   const moderator = !!conv && canModerate(me, conv, data);
   const nameOf = (id: string) => (id === me?.id ? 'You' : displayName(people.find((m) => m.id === id) ?? { roadName: null, fullName: 'Former member' }));
@@ -547,6 +553,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
         <View style={[styles.under, mine ? { alignItems: 'flex-end' } : { paddingLeft: conv.kind !== 'direct' ? 40 : 0 }]}>
           <ReactionPills message={m} meId={me.id} onToggle={(e) => run(() => chat.react(m.id, e))} />
         </View>
+        {mine && m.id === lastMine?.id && seenReads ? <SeenLine message={m} kind={conv.kind} reads={seenReads} nameOf={nameOf} today={today}
+          onOpen={() => navigation.navigate('SeenBy', { chatId, messageId: m.id })} /> : null}
         {isSelected ? (
           <View style={[styles.actions, mine && { alignItems: 'flex-end' }]}>
             <ReactionBar
@@ -564,6 +572,9 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
                   icon="pin-outline"
                   onPress={() => run(async () => { await chat.pin(chatId, conv.pinnedMessageId === m.id ? null : m.id); setSelected(null); })}
                 />
+              ) : null}
+              {mine && seenReads ? (
+                <ActionChip label="Seen by" icon="eye-outline" onPress={() => { setSelected(null); navigation.navigate('SeenBy', { chatId, messageId: m.id }); }} />
               ) : null}
               {!mine ? <ActionChip label="Report" icon="flag-outline" onPress={() => { setReporting(m.id); setReason(''); }} /> : null}
             </View>
@@ -1255,6 +1266,33 @@ export function ChatReportsScreen({ navigation }: RootScreen<'ChatReports'>) {
 }
 
 // Your own bubble is steelHi, where the quiet bone is only 3.99:1; this steps up to the next colour that reads.
+/** Under my newest message: who has seen it. A tap opens the list, except in a private chat, where the line says it all. */
+function SeenLine({ message, kind, reads, nameOf, today, onOpen }: {
+  message: Message; kind: Conversation['kind']; reads: SeenRead[]; nameOf: (id: string) => string; today: string; onOpen: () => void;
+}) {
+  const line = seenLine(seenBy(message, reads), kind, nameOf, today);
+  if (!line) return null;
+  const words = (
+    <View style={styles.seenRow}>
+      <Ionicons name={line === 'Not seen yet' ? 'eye-off-outline' : 'eye-outline'} size={14} color={colors.boneMute} />
+      <Text style={styles.seenText}>{line}</Text>
+    </View>
+  );
+  if (kind === 'direct') return <View style={styles.seen}>{words}</View>;
+  return (
+    <Pressable
+      onPress={onOpen}
+      hitSlop={{ top: 12, bottom: 12 }}
+      style={({ pressed }) => [styles.seen, pressed && { opacity: 0.7 }]}
+      accessibilityRole="button"
+      accessibilityLabel={line}
+      accessibilityHint="Shows who has seen it and who hasn’t yet"
+    >
+      {words}
+    </Pressable>
+  );
+}
+
 const MINE_META_COLOR = pickReadable([colors.boneMute, colors.boneDim], colors.steelHi);
 
 const styles = StyleSheet.create({
@@ -1286,6 +1324,9 @@ const styles = StyleSheet.create({
   removed: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed' },
   time: { ...type.small },
   under: { marginTop: 4 },
+  seen: { alignSelf: 'flex-end', minHeight: 20, justifyContent: 'center', marginTop: 2 },
+  seenRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  seenText: { fontFamily: fonts.stencil, fontSize: 13, letterSpacing: 0.5, color: colors.boneMute },
   actions: { gap: space.sm, marginTop: space.sm, marginBottom: space.sm },
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   pinned: {

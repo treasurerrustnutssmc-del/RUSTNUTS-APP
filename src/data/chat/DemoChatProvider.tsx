@@ -69,6 +69,14 @@ export function DemoChatProvider({ children }: { children: React.ReactNode }) {
     messages: (chatId) =>
       withoutBlocked(chat.messages.filter((m) => m.conversationId === chatId), chat.blocks, me?.id ?? null).filter((m) => !reportedMessageIds.includes(m.id)),
     hasOlder: () => false,
+    seenReads: (chatId) => {
+      try {
+        return act.seenReads(ctx(), chatId);
+      } catch {
+        return undefined;
+      }
+    },
+    loadSeen: async () => {},
     open,
     loadOlder: async () => {},
     send: async (chatId, body, attachments, replyToId) => {

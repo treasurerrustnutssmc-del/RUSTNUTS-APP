@@ -116,6 +116,8 @@ export type RootParams = {
   /** A board, committee or group chat's topics, and one topic's info (2026-11-24-chat-topics-design.md). */
   Topics: { chatId: string };
   TopicInfo: { chatId: string };
+  /** Who has seen one of my messages and who hasn't yet. */
+  SeenBy: { chatId: string; messageId: string };
   ChatReports: undefined;
   /** added: how many just went into the gallery (Add to the gallery comes back here). */
   /** `at` tells two adds of the same count apart, so the list reloads each time. */
