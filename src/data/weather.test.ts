@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { demoSeries, forecastSource, rideForecast, type Fetcher } from './weather';
+import { demoSeries, forecastSource, rideForecast, serverSource, type Fetcher } from './weather';
 import type { ClubData, Ride, Route } from '../domain/types';
 
 const ride = (over: Partial<Ride> = {}): Ride => ({
@@ -149,4 +149,112 @@ test('the demo forecast follows Melbourne’s seasons: no 28° in July, no cold 
       assert.ok(top >= 20 && top <= 33, `January ${key}: top of the day ${top}°`);
     }
   }
+});
+
+// The club's server: the Bureau's forecast through WillyWeather, with the phone's own Open-Meteo as the fallback.
+
+const serverSeries = () => ({
+  time: HOURS,
+  temp: [9, 11, 13, 14, 15],
+  rain: [0, 0, 60, 0, 0],
+  gust: [20, 25, 30, 25, 20],
+  code: [0, 0, 80, 1, 1],
+});
+
+function fakeServer(answer: unknown | Error) {
+  const asked: unknown[] = [];
+  const invoke = async (body: unknown) => {
+    asked.push(body);
+    if (answer instanceof Error) throw answer;
+    return answer;
+  };
+  return { asked, invoke };
+}
+
+const routed = () => data({ routes: [loop], rideRoutes: [{ rideId: 'r-1', routeId: 'rt' }] });
+
+test('the club server answers: its blended hours are used and the card is told it was WillyWeather', async () => {
+  const server = fakeServer({ series: [serverSeries()], willy: true });
+  const phone = fakeFetch({ forecast: [place()] });
+  const r = await rideForecast(ride(), routed(), '2026-11-01', serverSource(server.invoke, forecastSource(phone)));
+  assert.equal(r.kind, 'ready');
+  if (r.kind !== 'ready') return;
+  assert.equal(r.willy, true);
+  assert.equal(r.view.headline.high, 14, 'the server’s figures (the ride ends before noon)');
+  assert.equal(r.view.headline.rain, 60);
+  assert.deepEqual(server.asked, [{ points: [{ lat: -37.85, lng: 144.77 }], days: ['2026-11-07'] }]);
+  assert.ok(!phone.asked.some((u) => u.includes('api.open-meteo.com/v1/forecast')), 'the phone does not ask Open-Meteo too');
+});
+
+test('the club server fails or answers oddly: the phone asks Open-Meteo itself, and the card says Open-Meteo', async () => {
+  for (const answer of [new Error('down'), { series: [{ time: HOURS }] }, { series: [serverSeries(), serverSeries()], willy: true }, null]) {
+    const phone = fakeFetch({ forecast: [place()] });
+    const r = await rideForecast(ride(), routed(), '2026-11-01', serverSource(fakeServer(answer).invoke, forecastSource(phone)));
+    assert.equal(r.kind, 'ready');
+    if (r.kind !== 'ready') return;
+    assert.equal(r.willy, false);
+    assert.equal(r.view.headline.high, 15, 'Open-Meteo’s figures');
+  }
+});
+
+test('the club server keeps WillyWeather out of it (no key yet): Open-Meteo figures, credited to Open-Meteo', async () => {
+  const r = await rideForecast(ride(), routed(), '2026-11-01', serverSource(fakeServer({ series: [serverSeries()], willy: false }).invoke, forecastSource(fakeFetch({}))));
+  assert.equal(r.kind === 'ready' && r.willy, false);
+});
+
+test('the club server is asked once in half an hour for the same ride', async () => {
+  const server = fakeServer({ series: [serverSeries()], willy: true });
+  let now = 0;
+  const source = serverSource(server.invoke, forecastSource(fakeFetch({})), () => now);
+  await rideForecast(ride(), routed(), '2026-11-01', source);
+  now = 29 * 60_000;
+  await rideForecast(ride(), routed(), '2026-11-01', source);
+  assert.equal(server.asked.length, 1);
+  now = 31 * 60_000;
+  await rideForecast(ride(), routed(), '2026-11-01', source);
+  assert.equal(server.asked.length, 2);
+});
+
+test('the phone’s own Open-Meteo answer says it was not WillyWeather', async () => {
+  const r = await rideForecast(ride(), routed(), '2026-11-01', forecastSource(fakeFetch({ forecast: [place()] })));
+  assert.equal(r.kind === 'ready' && r.willy, false);
+});
+
+test('a club server that hangs is given up on, and the phone asks Open-Meteo itself', async () => {
+  const phone = fakeFetch({ forecast: [place()] });
+  const source = serverSource(() => new Promise(() => {}), forecastSource(phone), Date.now, 50);
+  const r = await rideForecast(ride(), routed(), '2026-11-01', source);
+  assert.equal(r.kind === 'ready' && r.willy, false);
+  assert.ok(phone.asked.some((u) => u.includes('api.open-meteo.com/v1/forecast')));
+});
+
+test('a list of rides asking at once: the same question is asked once, the server three at a time', async () => {
+  const pt = { lat: -37.7, lng: 144.7, label: 'x' };
+  // The phone: two rows at the same place share one look-up and one forecast.
+  let fetches = 0;
+  const phone = forecastSource(async () => {
+    fetches += 1;
+    await new Promise((r) => setTimeout(r, 5));
+    return { ok: true, status: 200, json: async () => place() };
+  });
+  await Promise.all([phone.forecast([pt], ['2026-11-07']), phone.forecast([pt], ['2026-11-07'])]);
+  assert.equal(fetches, 1);
+
+  // The server: five different questions never have more than three out at once; two the same share.
+  let out = 0;
+  let most = 0;
+  let calls = 0;
+  const server = serverSource(async (body) => {
+    calls += 1;
+    out += 1;
+    most = Math.max(most, out);
+    await new Promise((r) => setTimeout(r, 5));
+    out -= 1;
+    return { series: body.points.map(() => ({ time: HOURS, temp: [1, 2, 3, 4, 5], rain: [0, 0, 0, 0, 0], gust: [9, 9, 9, 9, 9], code: [1, 1, 1, 1, 1] })), willy: true };
+  }, phone);
+  const at = (i: number) => [{ lat: -37.7 + i / 100, lng: 144.7, label: 'x' }];
+  const answers = await Promise.all([0, 1, 2, 3, 4, 4].map((i) => server.forecast(at(i), ['2026-11-07'])));
+  assert.equal(calls, 5);
+  assert.ok(most <= 3, `most out at once: ${most}`);
+  assert.ok(answers.every((a) => a.willy === true));
 });

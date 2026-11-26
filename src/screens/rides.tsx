@@ -53,7 +53,7 @@ import { RideCheckinCard } from './checkin'; // Stage 4
 import { Big4Card } from './attendance'; // Attendance rules and Big 4 rides
 import { big4GoingProblem, isBig4 } from '../domain/big4';
 import { isFamily } from '../domain/access'; // Family view
-import { RideWeatherSection } from './rideWeather'; // Ride weather
+import { RideWeatherSection, useRideWeatherChip } from './rideWeather'; // Ride weather
 import {
   Avatar,
   Body,
@@ -374,6 +374,7 @@ export function RideRow({
 }) {
   const date = melbourneDate(ride.startsAt);
   const cancelled = !!ride.cancelledAt;
+  const weather = useRideWeatherChip(ride);
   const label = [
     ride.title,
     cancelled ? 'cancelled' : null,
@@ -389,6 +390,7 @@ export function RideRow({
     !cancelled && mine ? `you: ${RSVP_LABEL[mine]}` : null,
     !cancelled && spot ? `you’re crew: ${ROLE_LABEL[spot]}` : null,
     !cancelled && crewNeeded ? 'crew needed' : null,
+    !cancelled && weather ? weather.accessibilityLabel : null,
   ]
     .filter(Boolean)
     .join(', ');
@@ -429,6 +431,7 @@ export function RideRow({
               {mine ? <Chip label={`You: ${RSVP_LABEL[mine]}`} tone={ANSWER_TONE[mine]} icon={ANSWER_ICON[mine]} /> : null}
               {spot ? <Chip label={ROLE_SHORT[spot]} tone="bone" icon="shield-half" /> : null}
               {crewNeeded ? <Chip label="Crew needed" tone="warn" icon="person-add" /> : null}
+              {weather ? <Chip label={weather.label} tone="bone" icon={weather.icon} /> : null}
             </>
           )}
         </Row>

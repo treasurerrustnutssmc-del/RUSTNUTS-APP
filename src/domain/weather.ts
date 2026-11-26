@@ -329,3 +329,17 @@ export function forecastView(points: ForecastPoint[], series: HourlySeries[], wi
 
   return { headline, rows, headsUps };
 }
+
+/** The rain chance the ride list's chip starts naming, in per cent. */
+const CHIP_RAIN = 30;
+
+/** The ride list's weather chip: the ride's temperatures, and its rain chance once it's worth a look. */
+export function weatherChip(s: WeatherSummary): { label: string; accessibilityLabel: string } {
+  const wet = s.rain >= CHIP_RAIN;
+  const temps = s.low === s.high ? `${s.high}°` : `${s.low}–${s.high}°`;
+  const spoken = s.low === s.high ? `${s.high} degrees` : `${s.low} to ${s.high} degrees`;
+  return {
+    label: wet ? `${temps} · ${s.rain}%` : temps,
+    accessibilityLabel: `weather: ${s.sky}, ${spoken}${wet ? `, ${s.rain}% chance of rain` : ''}`,
+  };
+}
