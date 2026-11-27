@@ -2,7 +2,7 @@
 // is and hand back the club as it should be, or throw when the person isn't allowed. The
 // demo screens use them, and src/data/parity.test.ts checks them against the database's rules.
 
-import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, isStepDown, LEARNER_FNG, LEARNER_FULL, restoreAccessProblem, statusChangeProblem, suspendAccessProblem } from '../domain/access';
+import { appointProblem, decidedNoticeFor, endTermProblem, isBoardOf, isLearner, isStepDown, LEARNER_FNG, LEARNER_FULL, restoreAccessProblem, setRoadNameProblem, statusChangeProblem, suspendAccessProblem } from '../domain/access';
 import { endPositionRows, isActing, openRows, settleActing } from '../domain/acting'; // Acting roles
 import { bioProblem } from '../domain/postingRules'; // Member content rules
 import { deleteAccountProblem, FORMER_MEMBER } from '../domain/account'; // Delete my account
@@ -186,6 +186,14 @@ export function restoreAccess(ctx: DemoCtx, memberId: string): ClubData {
   const problem = restoreAccessProblem(ctx.me, target, ctx.data.positions);
   if (problem) throw new NotAllowedError(problem);
   return patchMember(ctx.data, memberId, { approval: 'approved' });
+}
+
+/** The member's chapter board or the NEC sets someone else's road name; blank clears it. */
+export function setRoadName(ctx: DemoCtx, memberId: string, roadName: string): ClubData {
+  const target = ctx.data.members.find((m) => m.id === memberId);
+  const problem = setRoadNameProblem(ctx.me, target, ctx.data.positions);
+  if (problem) throw new NotAllowedError(problem);
+  return patchMember(ctx.data, memberId, { roadName: roadName.trim() || null });
 }
 
 export function decline(ctx: DemoCtx, memberId: string): ClubData {
@@ -687,6 +695,7 @@ export type DemoAction =
   | { action: 'agreePostingRules' }
   | { action: 'suspendAccess'; member: string }
   | { action: 'restoreAccess'; member: string }
+  | { action: 'setRoadName'; member: string; roadName: string }
   | { action: 'removeBike'; bike: string }
   | { action: 'removeContact'; contact: string }
   | { action: 'saveBike'; bike: string | null; make: string; model: string; year: number | null }
@@ -764,6 +773,8 @@ export function runDemoAction(ctx: DemoCtx, a: DemoAction): ClubData {
       return suspendAccess(ctx, a.member);
     case 'restoreAccess':
       return restoreAccess(ctx, a.member);
+    case 'setRoadName':
+      return setRoadName(ctx, a.member, a.roadName);
     case 'setStatus':
       return setStatus(ctx, a.member, a.status, a.byRequest ?? false);
     case 'removeBike':

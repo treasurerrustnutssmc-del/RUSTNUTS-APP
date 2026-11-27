@@ -16352,6 +16352,94 @@
       "action": "setRideLegs",
       "allowed": true,
       "rides": ["future-west", "future-club"]
+    },
+    {
+      "name": "The chapter Secretary changes a member's road name",
+      "as": "torque",
+      "action": "setRoadName",
+      "member": "gravel",
+      "roadName": "Sprocket",
+      "allowed": true
+    },
+    {
+      "name": "The President changes a member's road name",
+      "as": "rusty",
+      "action": "setRoadName",
+      "member": "gravel",
+      "roadName": "Sprocket",
+      "allowed": true
+    },
+    {
+      "name": "Another chapter's President (NEC) changes a road name",
+      "as": "smokey",
+      "action": "setRoadName",
+      "member": "gravel",
+      "roadName": "Sprocket",
+      "allowed": true
+    },
+    {
+      "name": "The NEC Chairman changes a road name",
+      "as": "chair",
+      "action": "setRoadName",
+      "member": "gravel",
+      "roadName": "Sprocket",
+      "allowed": true
+    },
+    {
+      "name": "The NEC Secretary changes a road name",
+      "as": "lou",
+      "action": "setRoadName",
+      "member": "gravel",
+      "roadName": "Sprocket",
+      "allowed": true
+    },
+    {
+      "name": "Another chapter's Road Captain can't change a road name",
+      "as": "crank",
+      "action": "setRoadName",
+      "member": "gravel",
+      "roadName": "Sprocket",
+      "allowed": false
+    },
+    {
+      "name": "The Auditor can't change a road name",
+      "as": "kim",
+      "action": "setRoadName",
+      "member": "gravel",
+      "roadName": "Sprocket",
+      "allowed": false
+    },
+    {
+      "name": "A plain member can't change someone's road name",
+      "as": "finn",
+      "action": "setRoadName",
+      "member": "gravel",
+      "roadName": "Sprocket",
+      "allowed": false
+    },
+    {
+      "name": "The board changes their own road name in Edit profile, not here",
+      "as": "torque",
+      "action": "setRoadName",
+      "member": "torque",
+      "roadName": "Sprocket",
+      "allowed": false
+    },
+    {
+      "name": "No road name change for a pending applicant",
+      "as": "torque",
+      "action": "setRoadName",
+      "member": "dylan",
+      "roadName": "Sprocket",
+      "allowed": false
+    },
+    {
+      "name": "No road name change for a suspended member",
+      "as": "torque",
+      "action": "setRoadName",
+      "member": "benched",
+      "roadName": "Sprocket",
+      "allowed": false
     }
   ],
   "chapters": [

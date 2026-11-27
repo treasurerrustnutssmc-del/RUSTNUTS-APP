@@ -1,5 +1,6 @@
-// Ride weather from Open-Meteo, asked by the phone itself (no account, no key). Answers are kept in
-// memory for half an hour. The demo never goes to the network: it makes a forecast up from the ride.
+// Ride weather: the club's ride-weather server (the Bureau's forecast through WillyWeather, gusts from
+// Open-Meteo), or Open-Meteo asked by the phone itself when the server can't answer. Answers are kept
+// in memory for half an hour. The demo never goes to the network: it makes a forecast up from the ride.
 
 import { routeOf } from '../domain/routes';
 import type { ClubData, Ride } from '../domain/types';
@@ -23,8 +24,9 @@ export type Fetcher = (url: string) => Promise<{ ok: boolean; status: number; js
 export interface ForecastSource {
   /** The first place a name matches in Australia, or null. */
   geocode: (name: string) => Promise<ForecastPoint | null>;
-  /** One series per point, for the days given, and when Open-Meteo gave it (epoch ms). */
-  forecast: (points: ForecastPoint[], days: string[]) => Promise<{ series: HourlySeries[]; at: number }>;
+  /** One series per point, for the days given, and when it was given (epoch ms). `willy`: the Bureau's
+   *  forecast through WillyWeather is in it (the club's server), so the card credits WillyWeather. */
+  forecast: (points: ForecastPoint[], days: string[]) => Promise<{ series: HourlySeries[]; at: number; willy?: boolean }>;
 }
 
 export type RideForecast =
@@ -33,7 +35,7 @@ export type RideForecast =
   /** No route and no place found for the location. */
   | { kind: 'none' }
   /** `place`: the place a location-only ride was looked up as. */
-  | { kind: 'ready'; view: ForecastView; clipped: boolean; place: string | null; fetchedAt: number };
+  | { kind: 'ready'; view: ForecastView; clipped: boolean; place: string | null; fetchedAt: number; willy: boolean };
 
 export const NOT_ANSWERING = 'The forecast isn’t answering. Try again soon.';
 const KEEP_MS = 30 * 60_000;
@@ -47,9 +49,18 @@ const KEEP_MAX = 50;
  */
 export function forecastSource(fetcher: Fetcher, now: () => number = Date.now): ForecastSource {
   const kept = new Map<string, { at: number; value: unknown }>();
-  const get = async <T>(url: string, read: (json: unknown) => T, keepIf: (value: T) => boolean): Promise<{ value: T; at: number }> => {
+  // Questions on their way, so a list of rides at the same place asks once.
+  const pending = new Map<string, Promise<{ value: unknown; at: number }>>();
+  const get = <T>(url: string, read: (json: unknown) => T, keepIf: (value: T) => boolean): Promise<{ value: T; at: number }> => {
     const hit = kept.get(url);
-    if (hit && now() - hit.at < KEEP_MS) return { value: hit.value as T, at: hit.at };
+    if (hit && now() - hit.at < KEEP_MS) return Promise.resolve({ value: hit.value as T, at: hit.at });
+    const on = pending.get(url);
+    if (on) return on as Promise<{ value: T; at: number }>;
+    const asking = ask(url, read, keepIf).finally(() => pending.delete(url));
+    pending.set(url, asking);
+    return asking;
+  };
+  const ask = async <T>(url: string, read: (json: unknown) => T, keepIf: (value: T) => boolean): Promise<{ value: T; at: number }> => {
     let json: unknown;
     try {
       const res = await fetcher(url);
@@ -74,6 +85,101 @@ export function forecastSource(fetcher: Fetcher, now: () => number = Date.now): 
       const { value, at } = await get(forecastUrl(points, days), (json) => parseForecast(json, points.length), (v) => v !== null);
       if (!value) throw new Error(NOT_ANSWERING);
       return { series: value, at };
+    },
+  };
+}
+
+/** How long the card waits for the club's server before asking Open-Meteo itself. */
+const SERVER_WAIT_MS = 12_000;
+
+/** The most questions out to the club's server at once, so a list of rides doesn't ask everything together. */
+const SERVER_AT_ONCE = 3;
+
+/** Calls the club's ride-weather server with the points and days; resolves its JSON answer, throws on failure. */
+export type Invoke = (body: { points: { lat: number; lng: number }[]; days: string[] }) => Promise<unknown>;
+
+/** The server's answer, checked: one full series per point. Null if it doesn't read. */
+function readServer(json: unknown, count: number): { series: HourlySeries[]; willy: boolean } | null {
+  const a = json as { series?: unknown; willy?: unknown } | null;
+  if (!a || !Array.isArray(a.series) || a.series.length !== count) return null;
+  const series: HourlySeries[] = [];
+  for (const s of a.series as Record<string, unknown>[]) {
+    const time = s?.time;
+    if (!Array.isArray(time) || !time.every((t) => typeof t === 'string')) return null;
+    const nums = (v: unknown) => (Array.isArray(v) && v.length === time.length ? v.map((x) => (typeof x === 'number' ? x : NaN)) : null);
+    const temp = nums(s.temp);
+    const rain = nums(s.rain);
+    const gust = nums(s.gust);
+    const code = nums(s.code);
+    if (!temp || !rain || !gust || !code) return null;
+    series.push({ time: time as string[], temp, rain, gust, code });
+  }
+  return { series, willy: a.willy === true };
+}
+
+/**
+ * The club's server first: the Bureau of Meteorology's forecast through WillyWeather, gusts from
+ * Open-Meteo, the key kept off the phone. A good answer is kept for half an hour. If the server
+ * fails or answers oddly, the phone asks Open-Meteo itself (`fallback`). Place look-ups stay with
+ * the fallback.
+ */
+export function serverSource(invoke: Invoke, fallback: ForecastSource, now: () => number = Date.now, waitMs = SERVER_WAIT_MS): ForecastSource {
+  const kept = new Map<string, { at: number; series: HourlySeries[]; willy: boolean }>();
+  // Questions on their way, so the same ride asked twice asks once.
+  const pending = new Map<string, Promise<{ at: number; series: HourlySeries[]; willy?: boolean }>>();
+  // At most SERVER_AT_ONCE questions out to the server; the rest wait their turn (inside the same wait).
+  let out = 0;
+  const queue: (() => void)[] = [];
+  const slot = () => (out < SERVER_AT_ONCE ? (out++, Promise.resolve()) : new Promise<void>((go) => queue.push(() => (out++, go()))));
+  const free = () => {
+    out--;
+    queue.shift()?.();
+  };
+  const ask = async (points: ForecastPoint[], days: string[], body: Parameters<Invoke>[0], key: string) => {
+    let answer: { series: HourlySeries[]; willy: boolean } | null = null;
+    let gaveUp = false;
+    try {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const late = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('slow')), waitMs);
+      });
+      const asking = slot().then(() => {
+        if (gaveUp) {
+          free();
+          throw new Error('slow');
+        }
+        return invoke(body).finally(free);
+      });
+      asking.catch(() => {});
+      answer = readServer(
+        await Promise.race([asking, late]).finally(() => {
+          gaveUp = true;
+          clearTimeout(timer);
+        }),
+        points.length,
+      );
+    } catch {
+      answer = null;
+    }
+    if (!answer) return fallback.forecast(points, days);
+    const value = { ...answer, at: now() };
+    kept.delete(key);
+    kept.set(key, value);
+    if (kept.size > KEEP_MAX) kept.delete(kept.keys().next().value as string);
+    return value;
+  };
+  return {
+    geocode: fallback.geocode,
+    forecast: (points, days) => {
+      const body = { points: points.map((p) => ({ lat: p.lat, lng: p.lng })), days };
+      const key = JSON.stringify(body);
+      const hit = kept.get(key);
+      if (hit && now() - hit.at < KEEP_MS) return Promise.resolve(hit);
+      const on = pending.get(key);
+      if (on) return on;
+      const asking = ask(points, days, body, key).finally(() => pending.delete(key));
+      pending.set(key, asking);
+      return asking;
     },
   };
 }
@@ -124,10 +230,11 @@ export const demoSource: ForecastSource = {
   },
 };
 
-/** The live source: the phone's own `fetch`. */
-export const liveSource: ForecastSource = forecastSource((url) => fetch(url));
+/** The phone asking Open-Meteo itself, with its own `fetch`. The live source (weatherLive.ts) puts the
+ *  club's server in front of it. */
+export const phoneSource: ForecastSource = forecastSource((url) => fetch(url));
 
-/** The forecast for a ride along its route, or at its meeting place. Throws NOT_ANSWERING when Open-Meteo fails. */
+/** The forecast for a ride along its route, or at its meeting place. Throws NOT_ANSWERING when no forecast comes back. */
 export async function rideForecast(ride: Ride, data: ClubData, today: string, source: ForecastSource): Promise<RideForecast> {
   const reach = forecastReach(ride, today);
   if (reach.kind !== 'ready') return reach;
@@ -147,10 +254,10 @@ export async function rideForecast(ride: Ride, data: ClubData, today: string, so
   }
   if (points.length === 0) return { kind: 'none' };
 
-  const { series, at } = await source.forecast(points, reach.days);
+  const { series, at, willy = false } = await source.forecast(points, reach.days);
   const days = new Set(reach.days);
   const window = rideWindow(ride);
   const view = forecastView(points, series, { ...window, days: reach.days, hours: window.hours.filter((h) => days.has(h.slice(0, 10))) });
   if (!view) throw new Error(NOT_ANSWERING);
-  return { kind: 'ready', view, clipped: reach.clipped, place, fetchedAt: at };
+  return { kind: 'ready', view, clipped: reach.clipped, place, fetchedAt: at, willy };
 }

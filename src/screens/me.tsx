@@ -37,6 +37,7 @@ import { ClubLinksSection } from './clubLinks'; // Club links
 import { SponsorsSection } from './sponsors'; // Sponsors
 import { FeedbackRow } from './feedback'; // Feedback and issues
 import { PrivacyPolicyRow } from './privacy'; // Privacy policy
+import { WillyWeatherAboutRow } from '../ui/WillyWeatherCredit';
 import { PostingRulesRow } from './postingRules'; // Chat and posting rules
 import {
   Avatar,
@@ -305,7 +306,6 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
                     onPress={() => navigation.navigate('Support')}
                   />
                   <ListRow
-                    last
                     left={<IconBadge icon="compass-outline" />}
                     title="Show the quick tour again"
                     subtitle="Where things are, on Home"
@@ -315,6 +315,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
                       navigation.navigate('Home');
                     }}
                   />
+                  {/* About: WillyWeather's credit, which their API terms ask for */}
+                  <WillyWeatherAboutRow last />
                 </Card>
                 {/* Feedback and issues: tell the club what's wrong with the app */}
                 <FeedbackRow />

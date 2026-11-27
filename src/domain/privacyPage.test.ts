@@ -37,7 +37,7 @@ test('the policy says what the update check sends Expo (a random install id and 
 
 test('the policy names every outside service the app sends data to', () => {
   const all = JSON.stringify(PRIVACY_SECTIONS);
-  for (const name of ['Supabase', 'Expo', 'Firebase', 'Apple Push', 'LiveKit', 'Open-Meteo', 'Google Maps', 'Apple Maps', 'GIPHY', 'Gmail', 'ML Kit', 'Make.com', 'Resend', 'Anthropic']) {
+  for (const name of ['Supabase', 'Expo', 'Firebase', 'Apple Push', 'LiveKit', 'Open-Meteo', 'WillyWeather', 'Google Maps', 'Apple Maps', 'GIPHY', 'Gmail', 'ML Kit', 'Make.com', 'Resend', 'Anthropic']) {
     assert.ok(all.includes(name), name);
   }
 });

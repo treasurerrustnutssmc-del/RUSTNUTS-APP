@@ -1,18 +1,21 @@
 // Ride weather: the forecast for a ride's hours, along its route or at its meeting place, above
-// "Your answer" so riders see it before they say Going. Open-Meteo, asked by the phone.
+// "Your answer" so riders see it before they say Going. The club's server (WillyWeather, gusts from
+// Open-Meteo), or Open-Meteo asked by the phone when the server can't answer.
 
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useClub } from '../data/ClubStore';
-import { NOT_ANSWERING, demoSource, liveSource, rideForecast, type RideForecast } from '../data/weather';
+import { NOT_ANSWERING, demoSource, rideForecast, type RideForecast } from '../data/weather';
+import { liveSource } from '../data/weatherLive';
 import { formatAuDate, weekday } from '../domain/dates';
 import { melbourneTime } from '../domain/rides';
 import { routeOf } from '../domain/routes';
 import type { Ride } from '../domain/types';
-import type { WeatherSummary } from '../domain/weather';
+import { weatherChip, type WeatherSummary } from '../domain/weather';
 import { colors, fonts, space, type } from '../theme';
 import { Body, Button, Card, Ionicons, Notice, Row, SectionTitle, Small, Stack, type IconName } from '../ui/primitives';
 import { openLink } from '../ui/openLink';
+import { WillyWeatherCredit } from '../ui/WillyWeatherCredit';
 
 const OPEN_METEO = 'https://open-meteo.com/';
 
@@ -20,9 +23,9 @@ type State = { kind: 'loading' } | { kind: 'failed'; message: string } | RideFor
 
 const temps = (s: WeatherSummary) => (s.low === s.high ? `${s.high}°` : `${s.low}–${s.high}°`);
 
-export function RideWeatherSection({ ride }: { ride: Ride }) {
+/** The ride's forecast, asked once per change that matters. `attempt`: bump it to ask again. */
+function useRideForecast(ride: Ride, attempt = 0): State {
   const { data, today, isDemo } = useClub();
-  const [attempt, setAttempt] = useState(0);
   const [answer, setAnswer] = useState<{ key: string; result: State } | null>(null);
   const route = routeOf(ride.id, data);
   // Only the parts of the ride the forecast depends on, so a new RSVP doesn't ask again.
@@ -40,7 +43,20 @@ export function RideWeatherSection({ ride }: { ride: Ride }) {
   }, [key]);
 
   // A stale answer (for an older key) shows as loading.
-  const state: State = answer?.key === key ? answer.result : { kind: 'loading' };
+  return answer?.key === key ? answer.result : { kind: 'loading' };
+}
+
+/** The ride list's weather chip, once the forecast is in; null while it loads, fails or hasn't opened. */
+export function useRideWeatherChip(ride: Ride): { label: string; accessibilityLabel: string; icon: IconName } | null {
+  const state = useRideForecast(ride);
+  if (state.kind !== 'ready') return null;
+  const { headline } = state.view;
+  return { ...weatherChip(headline), icon: headline.icon as IconName };
+}
+
+export function RideWeatherSection({ ride }: { ride: Ride }) {
+  const [attempt, setAttempt] = useState(0);
+  const state = useRideForecast(ride, attempt);
   if (state.kind === 'over') return null;
 
   return (
@@ -132,20 +148,40 @@ function Forecast({ state }: { state: Extract<RideForecast, { kind: 'ready' }> }
       <Stack gap={2}>
         {state.place ? <Small>{`At ${state.place}, from the ride’s meeting place.`}</Small> : null}
         {state.clipped ? <Small>Later days open closer to the ride.</Small> : null}
-        <Row style={{ gap: 4 }}>
-          <Small>{`Updated ${melbourneTime(new Date(state.fetchedAt).toISOString())}. Forecast:`}</Small>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="Forecast by Open-Meteo, open their site"
-            hitSlop={{ left: 4, right: 12 }}
-            style={styles.creditLink}
-            onPress={() => openLink(OPEN_METEO).catch(() => {})}
-          >
-            <Small style={styles.credit}>Open-Meteo</Small>
-          </Pressable>
-        </Row>
+        {state.willy ? (
+          <>
+            <Row style={{ gap: 6 }}>
+              <Small>Forecast:</Small>
+              <WillyWeatherCredit />
+            </Row>
+            <Small>{`Bureau of Meteorology data. Updated ${melbourneTime(new Date(state.fetchedAt).toISOString())}.`}</Small>
+            <Row style={{ gap: 4 }}>
+              <Small>Gusts:</Small>
+              <OpenMeteoLink label="Gusts by Open-Meteo, open their site" />
+            </Row>
+          </>
+        ) : (
+          <Row style={{ gap: 4 }}>
+            <Small>{`Updated ${melbourneTime(new Date(state.fetchedAt).toISOString())}. Forecast:`}</Small>
+            <OpenMeteoLink label="Forecast by Open-Meteo, open their site" />
+          </Row>
+        )}
       </Stack>
     </>
+  );
+}
+
+function OpenMeteoLink({ label }: { label: string }) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      hitSlop={{ left: 4, right: 12 }}
+      style={styles.creditLink}
+      onPress={() => openLink(OPEN_METEO).catch(() => {})}
+    >
+      <Small style={styles.credit}>Open-Meteo</Small>
+    </Pressable>
   );
 }
 

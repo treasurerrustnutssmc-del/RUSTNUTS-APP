@@ -20,6 +20,7 @@ import { UpdateReadyStrip } from './src/ui/UpdateReadyStrip';
 import { useWaitingShare } from './src/data/shareIn';
 import { shareWaitStage } from './src/domain/shareIn';
 import { ShareWaitingStrip } from './src/ui/ShareWaitingStrip';
+import { WillyWeatherLoadingCredit } from './src/ui/WillyWeatherCredit';
 import { useAppFonts } from './src/useAppFonts';
 
 function Shell() {
@@ -35,6 +36,7 @@ function Shell() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={colors.redText} />
+        <WillyWeatherLoadingCredit />
       </View>
     );
   }

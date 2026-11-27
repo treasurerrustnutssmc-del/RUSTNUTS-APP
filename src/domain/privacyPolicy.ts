@@ -15,7 +15,7 @@ export const PRIVACY_URL = 'https://www.rustnutssmc.com.au/app/privacy.html';
 export const PRIVACY_EMAIL = 'apps@rustnutssmc.com.au';
 
 /** ISO date the policy last changed. */
-export const PRIVACY_UPDATED_ON = '2026-11-21';
+export const PRIVACY_UPDATED_ON = '2026-11-25';
 
 /** A paragraph, or a list of points. */
 export type PrivacyBlock = string | { points: string[] };
@@ -136,7 +136,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
           'Google (Gmail) sends your sign-in code emails from the club’s email account.',
           'Expo delivers app updates and passes notifications to Google Firebase Cloud Messaging (Android) and Apple Push Notification service (iPhone). They see your device’s push token and the text of each notification. When the app checks for an update it also sends Expo a random install ID and, if an update failed to start, the crash error it gave; we use that to fix problems, and it isn’t tied to you or your account. On Android, Firebase also gets an installation ID, the app version and device details when the app first starts.',
           'LiveKit carries ride comms voice between riders, live. It isn’t recorded. LiveKit gets each rider’s member ID, short name and the ride’s room, plus the phone’s internet (IP) address and device details, and keeps a record of each session.',
-          'Open-Meteo gives ride weather. Your phone asks it directly, so it gets the ride’s route points and places and your phone’s internet (IP) address, but not your name or account.',
+          'Ride weather: our server asks WillyWeather (Bureau of Meteorology forecasts) and Open-Meteo (wind gusts) for the ride’s route points and days. They get those points and our server’s address, not yours, and not your name or account. If our server can’t answer, your phone asks Open-Meteo directly, so Open-Meteo gets the ride’s route points and places and your phone’s internet (IP) address. Looking up a ride’s meeting place on the map also goes from your phone to Open-Meteo.',
           'Google Maps (on Android) and Apple Maps (on iPhone) draw ride maps. On Android, Google’s Maps SDK sends Google your phone’s internet (IP) address, device and app details, a random ID, crash reports and how the map is moved and zoomed, which Google handles under its own terms. If you tap Navigate, the route opens in your maps app, under that app’s own privacy terms.',
           'Google ML Kit (on Android) reads the club’s check-in code on your phone. The picture stays on the phone; Google gets a random install ID and usage and diagnostic data about the scanner.',
           'GIPHY supplies GIFs for chats. Your phone asks it directly, so it gets the words you search for and your phone’s internet (IP) address, and GIFs in chats load from its servers. GIPHY handles that under its own privacy policy.',
