@@ -2,6 +2,7 @@
 // merges pages of messages as they arrive. Pure, so it's tested without a database.
 
 import type { GalleryItem } from '../../domain/gallery';
+import type { SeenRead } from '../../domain/chatSeen';
 import type { ChatCommittee, ChatKind, Conversation, MediaKind, Message, MessageMedia } from '../../domain/chat';
 import type { Ride, RideCategory } from '../../domain/types';
 import type { ChatSummary, FeedItem, ReportView } from './chatContext';
@@ -221,4 +222,14 @@ export function uploadName(chatId: string, contentType: string): string {
   let hex = '';
   for (let i = 0; i < 32; i++) hex += Math.floor(Math.random() * 16).toString(16);
   return `${chatId}/${hex}.${ENDINGS[contentType] ?? 'bin'}`;
+}
+
+/** A row of chat_seen: someone else who reads the chat and when they last saw it. */
+export interface SeenRow {
+  member_id: string;
+  seen_at: string | null;
+}
+
+export function toSeenRead(r: SeenRow): SeenRead {
+  return { memberId: r.member_id, seenAt: r.seen_at ? instant(r.seen_at) : null };
 }

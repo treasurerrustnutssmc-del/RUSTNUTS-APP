@@ -27,6 +27,7 @@ import {
   toMessage,
   toReport,
   toRide,
+  toSeenRead,
   toSummaryParts,
   uploadName,
   type ChatJson,
@@ -35,7 +36,9 @@ import {
   type MessageRow,
   type ReportJson,
   type RideJson,
+  type SeenRow,
 } from './liveChat';
+import type { SeenRead } from '../../domain/chatSeen';
 import { prepareUpload, prepareVoiceUpload, type Upload } from './media';
 import { clearChatNotifications } from '../clearChatNotifications';
 
@@ -48,6 +51,8 @@ const URL_LIFE_S = 300;
 const URL_KEEP_MS = 4 * 60_000;
 // A link that got no answer (a dropped connection, a slow site) is tried again after this long.
 const PREVIEW_RETRY_MS = 10 * 60_000;
+// Someone else opening a chat sends nothing to this phone, so Seen by is fetched again this often while a chat is open.
+const SEEN_EVERY_MS = 30_000;
 const CONVERSATION_FIELDS = 'id, kind, chapter_id, ride_id, committee, pinned_message_id, conversation_members(member_id)';
 // From the chat topics paste on, a chat opened before the list arrives (from a push) also needs these.
 const TOPIC_FIELDS = `${CONVERSATION_FIELDS}, name, created_by, parent_id, closed_at, closed_by`;
@@ -78,6 +83,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [pages, setPages] = useState<Record<string, Message[]>>({});
   const [older, setOlder] = useState<Record<string, boolean>>({});
+  const [seen, setSeen] = useState<Record<string, SeenRead[]>>({});
   const [blocks, setBlocks] = useState<Block[]>([]);
   // Member content rules: messages I've reported that the board hasn't dealt with yet.
   const [reportedMessageIds, setReportedMessageIds] = useState<string[]>([]);
@@ -129,6 +135,26 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     setExtra((x) => ({ ...x, [chatId]: toConversation({ ...row, member_ids: row.conversation_members.map((m) => m.member_id) }) }));
   }, []);
 
+  // Before the Seen by paste the database has no chat_seen: the line just doesn't show.
+  // Only the newest ask for a chat counts, so a slow older answer can't undo a seen. Nothing changes
+  // (no re-render) when the answer is the same; a refusal (no longer in the chat) clears it.
+  const seenAsk = useRef(new Map<string, number>());
+  const loadSeen = useCallback(async (chatId: string) => {
+    const ask = (seenAsk.current.get(chatId) ?? 0) + 1;
+    seenAsk.current.set(chatId, ask);
+    const rows = await rpc<SeenRow[]>('chat_seen', { p_chat: chatId }).catch(() => null);
+    if (seenAsk.current.get(chatId) !== ask) return;
+    setSeen((x) => {
+      if (!rows) {
+        if (!(chatId in x)) return x;
+        const { [chatId]: _gone, ...rest } = x;
+        return rest;
+      }
+      const next = rows.map(toSeenRead);
+      return JSON.stringify(x[chatId]) === JSON.stringify(next) ? x : { ...x, [chatId]: next };
+    });
+  }, []);
+
   const markRead = useCallback(
     (chatId: string) =>
       rpc('mark_chat_read', { p_chat: chatId }).then(
@@ -175,12 +201,17 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     const awake = AppState.addEventListener('change', (state) => {
       if (state === 'active') catchUp();
     });
+    const seenTimer = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
+      for (const chatId of openChats.current.keys()) void loadSeen(chatId);
+    }, SEEN_EVERY_MS);
     return () => {
+      clearInterval(seenTimer);
       if (timer) clearTimeout(timer);
       awake.remove();
       db().removeChannel(channel);
     };
-  }, [meId, loadList, loadPage, markRead]);
+  }, [meId, loadList, loadPage, markRead, loadSeen]);
 
   const list = useMemo(() => {
     // A topic comes with its chat, so the rules can look through it.
@@ -199,13 +230,14 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
       if (!listed.current.has(chatId)) loadConversation(chatId).catch(() => undefined);
       loadPage(chatId).catch(() => undefined);
       markRead(chatId);
+      void loadSeen(chatId);
       return () => {
         const n = (openChats.current.get(chatId) ?? 1) - 1;
         if (n > 0) openChats.current.set(chatId, n);
         else openChats.current.delete(chatId);
       };
     },
-    [loadPage, markRead, loadConversation],
+    [loadPage, markRead, loadConversation, loadSeen],
   );
 
   const after = async (chatId?: string) => {
@@ -301,6 +333,8 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     conversation,
     messages: (chatId) => withoutBlocked(pages[chatId] ?? [], blocks, meId).filter((m) => !reportedMessageIds.includes(m.id)),
     hasOlder: (chatId) => older[chatId] ?? false,
+    seenReads: (chatId) => seen[chatId],
+    loadSeen,
     open,
     loadOlder: async (chatId) => {
       const oldest = pages[chatId]?.[0];

@@ -4,6 +4,7 @@
 import { createContext, useContext } from 'react';
 import type { Block, Conversation, Message, MessageMedia, PickedMedia } from '../../domain/chat';
 import type { Album, GalleryItem } from '../../domain/gallery';
+import type { SeenRead } from '../../domain/chatSeen';
 import type { Ride } from '../../domain/types';
 
 export interface ChatSummary {
@@ -108,6 +109,11 @@ export interface ChatContextValue {
   /** What's loaded of a chat, oldest first, without anyone I've blocked or anything I've reported. */
   messages: (chatId: string) => Message[];
   hasOlder: (chatId: string) => boolean;
+  /** Seen by (src/domain/chatSeen.ts): everyone else who reads the chat and when they last saw it.
+   *  Undefined until it's loaded, or while the club's database can't say yet. Kept fresh while the chat is open. */
+  seenReads: (chatId: string) => SeenRead[] | undefined;
+  /** Fetches Seen by for a chat afresh. */
+  loadSeen: (chatId: string) => Promise<void>;
   /** Loads the newest page, marks the chat read and keeps it fresh until the returned close runs. */
   open: (chatId: string) => () => void;
   loadOlder: (chatId: string) => Promise<void>;

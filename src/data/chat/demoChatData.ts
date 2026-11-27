@@ -159,7 +159,14 @@ export function demoChatData(now: Date, rides: Ride[]): ChatData {
       conv('direct:m-rusty:m-spanner', { kind: 'direct', memberIds: ['m-rusty', 'm-spanner'] }),
     ],
     messages,
-    reads: [],
+    // When some of the club last opened a chat, so Seen by has something to say (posting counts too).
+    reads: [
+      ...(['m-diesel', 'm-smokey', 'm-jet', 'm-chook'] as const).map((memberId, i) => ({ conversationId: 'club', memberId, readAt: ago(150 - i * 30) })),
+      { conversationId: 'club', memberId: 'm-throttle', readAt: ago(4 * 60) },
+      { conversationId: 'group:big4', memberId: 'm-spanner', readAt: ago(60) },
+      { conversationId: 'chapter:ch-west', memberId: 'm-torque', readAt: ago(90) },
+      { conversationId: 'chapter:ch-west', memberId: 'm-sparks', readAt: ago(30) },
+    ],
     blocks: [],
     reports: [],
     // The gallery: Sparks added the twisties shot to the Lorne run album and ticked "OK for the

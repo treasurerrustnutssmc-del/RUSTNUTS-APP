@@ -8,6 +8,7 @@ import {
   removeFromGroup,
   renameGroup,
   markRead,
+  seenReads,
   openDirect,
   pinMessage,
   removeMessage,
@@ -183,4 +184,33 @@ test('a chat holds up to 50 open topics', () => {
   const first = chat.conversations.find((c) => c.name === 'Topic 0')!.id;
   chat = closeTopic({ ...ctxAs('torque'), chat }, first);
   assert.ok(startTopic({ ...ctxAs('torque'), chat }, 'boards', 'One more').id);
+});
+
+test('Seen by: everyone else who reads the chat, with their last look or own post, never the blocked', () => {
+  const ctx = ctxAs('spanner');
+  const at = (m: number) => new Date(Date.UTC(2026, 9, 24, 0, m)).toISOString();
+  const chat = {
+    ...ctx.chat,
+    reads: [
+      { conversationId: 'chapter:west', memberId: 'torque', readAt: at(5) },
+      { conversationId: 'club', memberId: 'gravel', readAt: at(9) }, // another chat's look doesn't count
+    ],
+    messages: [
+      ...ctx.chat.messages,
+      { id: 'g1', conversationId: 'chapter:west', authorId: 'gravel', body: 'Hi', createdAt: at(7), removedAt: null, replyToId: null, media: [], reactions: [] },
+    ],
+    blocks: [{ blockerId: 'hal', blockedId: 'spanner' }],
+  };
+  const reads = seenReads({ ...ctx, chat }, 'chapter:west');
+  const byId = Object.fromEntries(reads.map((r) => [r.memberId, r.seenAt]));
+  assert.equal(byId.torque, at(5));
+  assert.equal(byId.gravel, at(7));
+  assert.equal(byId.kim, null);
+  assert.ok(!('spanner' in byId), 'not me');
+  assert.ok(!('hal' in byId), 'not someone who blocked me');
+  assert.ok(!('crank' in byId), 'not another chapter');
+  assert.ok(!('nick' in byId), 'not an Introduced member');
+  assert.ok(!('dylan' in byId), 'not someone still pending');
+  assert.ok(!('benched' in byId), 'not someone suspended');
+  assert.throws(() => seenReads(ctxAs('crank'), 'chapter:west'), /That chat is for West chapter members\./);
 });
