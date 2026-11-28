@@ -333,6 +333,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     conversation,
     messages: (chatId) => withoutBlocked(pages[chatId] ?? [], blocks, meId).filter((m) => !reportedMessageIds.includes(m.id)),
     hasOlder: (chatId) => older[chatId] ?? false,
+    pageLoaded: (chatId) => older[chatId] !== undefined,
     seenReads: (chatId) => seen[chatId],
     loadSeen,
     open,

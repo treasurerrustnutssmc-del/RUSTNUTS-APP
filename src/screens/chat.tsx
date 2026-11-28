@@ -12,6 +12,7 @@ import { useCatchUpApi } from '../data/catchUpApi';
 import { isFamily } from '../domain/access'; // Family chat
 import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { catchUpCount } from '../domain/catchUp';
+import { firstNewMessage } from '../domain/chatResume';
 import { lastOwnMessage, readTags, seenBy, seenLine, withOwnPosts, type SeenRead } from '../domain/chatSeen';
 import { composerBottomRoom } from '../domain/keyboard';
 import { useChat } from '../data/chat/ChatProvider';
@@ -218,7 +219,7 @@ export function ChatListScreen({ navigation }: TabScreen<'Chats'>) {
   );
 }
 
-type Item = { key: string; kind: 'day'; label: string } | { key: string; kind: 'message'; message: Message; first: boolean; last: boolean };
+type Item = { key: string; kind: 'day'; label: string } | { key: string; kind: 'new'; count: number } | { key: string; kind: 'message'; message: Message; first: boolean; last: boolean };
 
 // Members the club was reloaded for once already this run, so a removed member's old messages
 // don't reload it every time.
@@ -278,6 +279,13 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
     isDemo ? messages.filter((m) => m.authorId !== me?.id && !m.removedAt).length : (summary?.unread ?? null),
   );
   if (unreadAtOpen === null && summary) setUnreadAtOpen(summary.unread);
+  // Open where I left off (Jeff, 28 Nov): how many were new when it opened, in the demo too, and the
+  // first of them, fixed once enough is loaded so new arrivals don't move the line.
+  const [newAtOpen, setNewAtOpen] = useState<number | null>(() => summary?.unread ?? null);
+  if (newAtOpen === null && summary) setNewAtOpen(summary.unread);
+  const [resumeAt, setResumeAt] = useState<string | null | undefined>(undefined);
+  const resumeLoads = useRef(0);
+  const [resumeTick, setResumeTick] = useState(0);
   // Family chat: Catch me up, profiles and the photo feeds are members' things.
   const family = isFamily(me);
   const people = useMemo(() => [...data.members, ...(data.chatPeople ?? [])], [data.members, data.chatPeople]);
@@ -345,16 +353,44 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const openTopics = topics.filter((t) => !t.conversation.closedAt).length;
   const topicsUnread = topics.reduce((n, t) => n + t.unread, 0);
 
+  // Find the first new message, loading older pages (up to 5 more) when more were new than are loaded.
+  useEffect(() => {
+    if (resumeAt !== undefined || newAtOpen === null || !me || !chat.pageLoaded(chatId)) return;
+    const found = firstNewMessage(messages, me.id, newAtOpen);
+    if (found && !found.complete && chat.hasOlder(chatId) && resumeLoads.current < 5) {
+      resumeLoads.current += 1;
+      chat.loadOlder(chatId).then(() => setResumeTick((n) => n + 1), () => setResumeAt(found.messageId));
+      return;
+    }
+    setResumeAt(found?.messageId ?? null);
+  }, [messages, newAtOpen, me, resumeAt, chatId, resumeTick, chat.pageLoaded(chatId)]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const items = useMemo(() => {
     const out: Item[] = [];
     for (const day of groupMessages(messages, today)) {
       out.push({ key: `day-${day.day}-${day.runs[0]?.messages[0]?.id}`, kind: 'day', label: day.day });
       for (const run of day.runs) {
-        run.messages.forEach((m, i) => out.push({ key: m.id, kind: 'message', message: m, first: i === 0, last: i === run.messages.length - 1 }));
+        run.messages.forEach((m, i) => {
+          if (m.id === resumeAt) out.push({ key: 'new-messages', kind: 'new', count: newAtOpen ?? 0 });
+          out.push({ key: m.id, kind: 'message', message: m, first: i === 0, last: i === run.messages.length - 1 });
+        });
       }
     }
     return out.reverse(); // newest at the bottom of an upside-down list
-  }, [messages, today]);
+  }, [messages, today, resumeAt, newAtOpen]);
+
+  // Scroll once so the New messages line sits at the top of the screen. The list is upside down, so
+  // the top of the screen is the far end (viewPosition 1).
+  const list = useRef<FlatList<Item>>(null);
+  const scrolledToNew = useRef(false);
+  const newIndex = items.findIndex((i) => i.kind === 'new');
+  useEffect(() => {
+    if (scrolledToNew.current || newIndex < 0) return;
+    scrolledToNew.current = true;
+    const t = setTimeout(() => list.current?.scrollToIndex({ index: newIndex, viewPosition: 1, animated: false }), 50);
+    return () => clearTimeout(t);
+  }, [newIndex]);
+  const [awayFromNewest, setAwayFromNewest] = useState(false);
 
   // Seen by goes under my newest message (2026-11-26, Jeff: tell "seen, no reply" from "not seen yet").
   const rawReads = chat.seenReads(chatId);
@@ -702,8 +738,19 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           </View>
         ) : null}
         <FlatList
+          ref={list}
           data={items}
           inverted
+          // Rows differ in height, so a far jump lands near first and then goes again once they're drawn.
+          onScrollToIndexFailed={(info) => {
+            list.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+            setTimeout(() => list.current?.scrollToIndex({ index: info.index, viewPosition: 1, animated: false }), 100);
+          }}
+          onScroll={(e) => {
+            const away = e.nativeEvent.contentOffset.y > 600;
+            if (away !== awayFromNewest) setAwayFromNewest(away);
+          }}
+          scrollEventThrottle={100}
           keyExtractor={(i) => i.key}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingHorizontal: space.lg, paddingVertical: space.md }}
@@ -719,11 +766,27 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           renderItem={({ item }) =>
             item.kind === 'day' ? (
               <Text style={styles.day}>{item.label}</Text>
+            ) : item.kind === 'new' ? (
+              <View style={styles.newLine} accessibilityRole="header" accessibilityLabel={`${item.count} new ${item.count === 1 ? 'message' : 'messages'} from here`}>
+                <View style={styles.newRule} />
+                <Text style={styles.newText}>New messages</Text>
+                <View style={styles.newRule} />
+              </View>
             ) : (
               renderMessage(item.message, item.first, item.last)
             )
           }
         />
+        {awayFromNewest ? (
+          <Pressable
+            onPress={() => list.current?.scrollToOffset({ offset: 0, animated: true })}
+            style={({ pressed }) => [styles.toNewest, pressed && { opacity: 0.8 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Go to the newest message"
+          >
+            <Ionicons name="arrow-down" size={22} color={colors.bone} />
+          </Pressable>
+        ) : null}
         {reported ? (
           <Pressable onPress={() => setReported(null)} style={styles.banner} accessibilityRole="button" accessibilityHint="Closes this note">
             <Notice tone="ok">{reported}</Notice>
@@ -1338,6 +1401,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   unreadText: { fontFamily: fonts.stencil, fontSize: 12, color: colors.bone },
+  // The line above the first message I haven't seen: the brand red, so it's found at a glance.
+  newLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginVertical: space.md },
+  newRule: { flex: 1, height: 1, backgroundColor: colors.redBright },
+  newText: { fontFamily: fonts.stencil, fontSize: 13, letterSpacing: 0.6, color: colors.redText, textTransform: 'uppercase' },
+  toNewest: {
+    position: 'absolute', right: space.lg, bottom: space.md, width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.steelHi, borderWidth: 1, borderColor: colors.lineStrong, alignItems: 'center', justifyContent: 'center',
+  },
   day: {
     alignSelf: 'center', marginVertical: space.md, fontFamily: fonts.stencil, fontSize: 13, letterSpacing: 0.6,
     color: colors.boneMute, textTransform: 'uppercase',
