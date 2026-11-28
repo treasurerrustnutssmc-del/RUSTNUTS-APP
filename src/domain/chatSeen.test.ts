@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lastOwnMessage, readTags, seenBy, seenLine, seenWhen, type SeenRead } from './chatSeen';
+import { lastOwnMessage, readTags, seenBy, seenLine, seenWhen, withOwnPosts, type SeenRead } from './chatSeen';
 
 const msg = { id: 'x', authorId: 'me', createdAt: '2026-11-26T03:00:00.000Z', removedAt: null };
 const names: Record<string, string> = { a: 'Cobra', b: 'Spanner', c: 'Wes', d: 'Nora', e: 'Len' };
@@ -96,4 +96,24 @@ test('Messenger-style tags: each person sits under the last message they have se
 test('no tags without reads or messages', () => {
   assert.equal(readTags([], [{ memberId: 'a', seenAt: '2026-11-26T03:00:00.000Z' }]).size, 0);
   assert.equal(readTags([{ id: '1', authorId: 'me', createdAt: '2026-11-26T03:00:00.000Z', removedAt: null }], []).size, 0);
+});
+
+test('a newer post than their last look counts as seen up to it (the look is fetched less often than messages)', () => {
+  const at = (m: number) => new Date(Date.UTC(2026, 10, 26, 3, m)).toISOString();
+  const messages = [
+    { id: '1', authorId: 'me', createdAt: at(0), removedAt: null },
+    { id: '2', authorId: 'a', createdAt: at(10), removedAt: null },
+  ];
+  const reads = withOwnPosts([{ memberId: 'a', seenAt: at(1) }, { memberId: 'b', seenAt: null }, { memberId: 'c', seenAt: at(20) }], messages);
+  assert.deepEqual(reads, [{ memberId: 'a', seenAt: at(10) }, { memberId: 'b', seenAt: null }, { memberId: 'c', seenAt: at(20) }]);
+  // a's tag would have sat under 1, above a's own post; now there's none, and 1 counts as seen by a.
+  assert.deepEqual(Object.fromEntries(readTags(messages, reads)), { '2': ['c'] });
+  assert.deepEqual(seenBy(messages[0], reads).seen.map((r) => r.memberId), ['c', 'a']);
+});
+
+test('tags: a look at exactly a message\'s time counts, and every tag is kept for the +N count', () => {
+  const t = '2026-11-26T03:00:00.000Z';
+  const messages = [{ id: '1', authorId: 'me', createdAt: t, removedAt: null }];
+  const reads = Array.from({ length: 9 }, (_, i) => ({ memberId: `m${i}`, seenAt: t }));
+  assert.equal(readTags(messages, reads).get('1')?.length, 9);
 });

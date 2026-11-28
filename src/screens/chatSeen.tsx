@@ -7,7 +7,7 @@ import { useClub } from '../data/ClubStore';
 import { useChat } from '../data/chat/ChatProvider';
 import { isFamily } from '../domain/access';
 import { mediaSummary } from '../domain/chat';
-import { seenBy, seenWhen } from '../domain/chatSeen';
+import { seenBy, seenWhen, withOwnPosts } from '../domain/chatSeen';
 import { displayName } from '../domain/profile';
 import type { Member } from '../domain/types';
 import type { RootScreen } from '../navigation/types';
@@ -50,7 +50,7 @@ export function SeenByScreen({ route, navigation }: RootScreen<'SeenBy'>) {
     );
   }
 
-  const s = seenBy(message, reads);
+  const s = seenBy(message, withOwnPosts(reads, chat.messages(chatId)));
   const byName = (a: string, b: string) => nameOf(a).localeCompare(nameOf(b));
   const nameOf = (id: string) => {
     const p = people.find((m) => m.id === id);
@@ -91,7 +91,7 @@ export function SeenByScreen({ route, navigation }: RootScreen<'SeenBy'>) {
       ) : (
         <Small>Everyone in this chat has seen it.</Small>
       )}
-      <Small>Seen means they’ve opened this chat since you sent it. It doesn’t mean they read every word.</Small>
+      <Small>Seen means they’ve opened this chat since it was sent. It doesn’t mean they read every word.</Small>
     </Screen>
   );
 }
