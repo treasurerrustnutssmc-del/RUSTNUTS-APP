@@ -442,7 +442,10 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   );
   const tagNames = useMemo(() => readers.map(displayName), [readers]);
   const myName = me ? displayName(me) : undefined;
-  const typingTag = tagQuery(draft);
+  // Where the cursor is, so a tag can be typed anywhere in the message, not only at the end.
+  const [cursor, setCursor] = useState<number | null>(null);
+  const at = Math.min(cursor ?? draft.length, draft.length);
+  const typingTag = tagQuery(draft, at);
   const tagChoices = useMemo(
     () => (typingTag === null ? [] : tagSuggestions(typingTag, readers.filter((p) => p.id !== me?.id).map((p) => ({ id: p.id, name: displayName(p) })), 5)),
     [typingTag, readers, me?.id],
@@ -628,7 +631,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
                   }}
                 />
               ) : null}
-              {m.body ? <MessageText body={m.body} spokenByMessage={ios} tagNames={tagNames} myName={myName} /> : null}
+              {m.body ? <MessageText body={m.body} spokenByMessage={ios} tagNames={tagNames} myName={mine ? undefined : myName} /> : null}
               {firstLink ? <LinkCard url={firstLink} /> : null}
               {last || isSelected ? <Text accessibilityElementsHidden={ios} style={[styles.time, mine && { textAlign: 'right', color: MINE_META_COLOR }]}>{melbourneTime(m.createdAt)}</Text> : null}
             </Pressable>
@@ -882,14 +885,15 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
             <>
             <AttachmentStrip items={attachments} onRemove={(i) => setAttachments((a) => a.filter((_, j) => j !== i))} />
             {tagChoices.length ? (
-              <View style={styles.tagList} accessibilityLabel="Tag someone">
+              <View style={styles.tagList} accessibilityLiveRegion="polite">
                 {tagChoices.map((t) => {
                   const who = t.id ? people.find((p) => p.id === t.id) : undefined;
                   return (
                     <Pressable
                       key={t.id ?? 'everyone'}
                       onPress={() => {
-                        setDraft((d) => insertTag(d, t.name));
+                        setDraft((d) => insertTag(d, t.name, Math.min(at, d.length)));
+                        setCursor(null);
                         input.current?.focus();
                       }}
                       accessibilityRole="button"
@@ -922,6 +926,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
                 ref={input}
                 value={draft}
                 onChangeText={setDraft}
+                onSelectionChange={(e) => setCursor(e.nativeEvent.selection.end)}
                 onFocus={() => setGifs(false)}
                 placeholder="Message"
                 placeholderTextColor={colors.boneMute}

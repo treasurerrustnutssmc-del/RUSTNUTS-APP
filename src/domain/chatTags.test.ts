@@ -57,3 +57,14 @@ test('a message splits into words and tags for showing, longest name first', () 
   assert.deepEqual(tagParts('no tags', ['Dave']), [{ text: 'no tags' }]);
   assert.deepEqual(tagParts('jeff@dave.com', ['Dave']), [{ text: 'jeff@dave.com' }]);
 });
+
+test('a tag typed in the middle of a message is found at the cursor, and picking it keeps the rest', () => {
+  assert.equal(tagQuery('hey @ti see you', 7), 'ti');
+  assert.equal(tagQuery('hey @ti see you', 15), null);
+  assert.equal(insertTag('hey @ti see you', 'Tinman', 7), 'hey @Tinman see you');
+  assert.equal(insertTag('hey @ti', 'Tinman', 7), 'hey @Tinman ');
+});
+
+test('letters that grow when lower-cased don’t throw the tags out of line', () => {
+  assert.deepEqual(tagParts('İ @Dave hi', ['Dave']), [{ text: 'İ ' }, { text: '@Dave', tag: 'Dave' }, { text: ' hi' }]);
+});

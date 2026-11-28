@@ -26,10 +26,13 @@ Bounded work. Claude approved this design (standing rule since 24 Oct); Jeff can
 - A tagged member gets the tag notification in place of the ordinary one for that message (same outbox
   row, data.kind `tag`); the next ordinary chat push still lists it in the stack.
 - Only new messages tag; editing a message doesn't re-notify.
+- Accepted: when one member's name starts another's ("Big" and "Big Dave"), "@Big Dave" rings both,
+  and two members shown with the same name both ring. The message shows the longer name's tag.
+- No limit on @everyone (Jeff: any member). If it gets overused, a per-sender cool-down is the fix.
 
 ## Shipping
 - SQL `supabase/migrations/20271020000000_chat_tags.sql` (column, 7-setting save, push_chat_message).
 - send-push redeploy (Tags channel, time-sensitive, not stacked). Without it a tag still arrives,
   on the club channel.
 - OTA for the app (pick list, highlight, Tags channel set up in JS, switch). No native build.
-- Order: SQL, send-push, OTA.
+- Order: OTA first (so phones know what a tag is and have the Tags switch), then SQL, then send-push.

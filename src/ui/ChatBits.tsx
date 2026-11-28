@@ -167,11 +167,11 @@ export function MessageText({ body, spokenByMessage, tagNames = [], myName }: {
   spokenByMessage?: boolean;
   /** Names that can be tagged in this chat, so @Tinman shows as a tag (src/domain/chatTags.ts). */
   tagNames?: string[];
-  /** The reader's own name: a tag of them (or @everyone) is picked out. */
+  /** The reader's own name, on other people's messages: a tag of them (or @everyone) is picked out. */
   myName?: string;
 }) {
   const parts = findLinks(body);
-  const mine = (tag: string) => tag === EVERYONE || (myName !== undefined && tag.toLowerCase() === myName.toLowerCase());
+  const mine = (tag: string) => myName !== undefined && (tag === EVERYONE || tag.toLowerCase() === myName.toLowerCase());
   const words = (
     <Text style={styles.body} selectable accessibilityElementsHidden={spokenByMessage}>
       {parts.map((part, i) =>
