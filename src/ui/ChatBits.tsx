@@ -10,6 +10,7 @@ import type { Attachment, FeedItem, GifPick, LinkPreview, MediaSource } from '..
 import { useChat } from '../data/chat/chatContext';
 import { searchGifs, type GifResult } from '../data/chat/gifSearch';
 import { findLinks, mediaKindWord, quoteWords, REACTIONS, type Message, type MessageMedia } from '../domain/chat';
+import { EVERYONE, tagParts } from '../domain/chatTags';
 import { actingSpoken, chipLabel, topSeat } from '../domain/home';
 import { displayName } from '../domain/profile';
 import type { ClubData, Member } from '../domain/types';
@@ -161,8 +162,16 @@ export function LinkCard({ url }: { url: string }) {
  * plain Views behind the words (the words stay on top for taps, links and Copy), opened by VoiceOver's
  * double-tap, never by a tap on the screen.
  */
-export function MessageText({ body, spokenByMessage }: { body: string; spokenByMessage?: boolean }) {
+export function MessageText({ body, spokenByMessage, tagNames = [], myName }: {
+  body: string;
+  spokenByMessage?: boolean;
+  /** Names that can be tagged in this chat, so @Tinman shows as a tag (src/domain/chatTags.ts). */
+  tagNames?: string[];
+  /** The reader's own name: a tag of them (or @everyone) is picked out. */
+  myName?: string;
+}) {
   const parts = findLinks(body);
+  const mine = (tag: string) => tag === EVERYONE || (myName !== undefined && tag.toLowerCase() === myName.toLowerCase());
   const words = (
     <Text style={styles.body} selectable accessibilityElementsHidden={spokenByMessage}>
       {parts.map((part, i) =>
@@ -171,7 +180,15 @@ export function MessageText({ body, spokenByMessage }: { body: string; spokenByM
             {part.text}
           </Text>
         ) : (
-          <Text key={i}>{part.text}</Text>
+          <Text key={i}>
+            {tagParts(part.text, tagNames).map((t, j) =>
+              t.tag ? (
+                <Text key={j} style={[styles.tag, mine(t.tag) && styles.tagMine]}>{t.text}</Text>
+              ) : (
+                t.text
+              ),
+            )}
+          </Text>
         ),
       )}
     </Text>
@@ -423,6 +440,9 @@ const styles = StyleSheet.create({
   linkSite: { fontFamily: fonts.stencil, fontSize: 12, letterSpacing: 0.4, color: colors.boneMute, textTransform: 'uppercase' },
   body: { ...type.body, color: colors.bone },
   link: { color: colors.bone, textDecorationLine: 'underline' },
+  // A tag (@Tinman, @everyone) in red text; one that calls the reader gets the red wash behind it too.
+  tag: { color: colors.redText, fontWeight: '700' },
+  tagMine: { backgroundColor: colors.dangerBg },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   author: { ...type.name, flexShrink: 1 },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

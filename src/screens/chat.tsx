@@ -41,6 +41,7 @@ import {
   mediaSummary,
   messageSpoken,
   quoteWords,
+  readProblem,
   removeProblem,
   unknownAuthors,
   type Conversation,
@@ -51,6 +52,7 @@ import { hasAgreedPostingRules } from '../domain/postingRules'; // Family chat
 import { formatAuDate } from '../domain/dates';
 import { authorPageLabel, authorSpoken } from '../domain/home';
 import { displayName, FORMER_MEMBER, initials } from '../domain/profile';
+import { insertTag, tagQuery, tagSuggestions } from '../domain/chatTags';
 import { melbourneDate, melbourneTime } from '../domain/rides';
 import type { Member } from '../domain/types';
 import type { RootScreen, TabScreen } from '../navigation/types';
@@ -432,6 +434,20 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   const moderator = !!conv && canModerate(me, conv, data);
   const nameOf = (id: string) => (id === me?.id ? 'You' : displayName(people.find((m) => m.id === id) ?? { roadName: null, fullName: 'Former member' }));
 
+  // Chat tags (Jeff, 28 Nov 2026): @name or @everyone rings that person's phone. Anyone who reads this
+  // chat can be tagged; the database tells them (20271020000000_chat_tags.sql).
+  const readers = useMemo(
+    () => (conv ? people.filter((p) => readProblem(p, conv, data) === null) : []),
+    [people, conv, data],
+  );
+  const tagNames = useMemo(() => readers.map(displayName), [readers]);
+  const myName = me ? displayName(me) : undefined;
+  const typingTag = tagQuery(draft);
+  const tagChoices = useMemo(
+    () => (typingTag === null ? [] : tagSuggestions(typingTag, readers.filter((p) => p.id !== me?.id).map((p) => ({ id: p.id, name: displayName(p) })), 5)),
+    [typingTag, readers, me?.id],
+  );
+
   const run = async (job: () => Promise<void>) => {
     try {
       setError(null);
@@ -612,7 +628,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
                   }}
                 />
               ) : null}
-              {m.body ? <MessageText body={m.body} spokenByMessage={ios} /> : null}
+              {m.body ? <MessageText body={m.body} spokenByMessage={ios} tagNames={tagNames} myName={myName} /> : null}
               {firstLink ? <LinkCard url={firstLink} /> : null}
               {last || isSelected ? <Text accessibilityElementsHidden={ios} style={[styles.time, mine && { textAlign: 'right', color: MINE_META_COLOR }]}>{melbourneTime(m.createdAt)}</Text> : null}
             </Pressable>
@@ -865,6 +881,29 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
           ) : (
             <>
             <AttachmentStrip items={attachments} onRemove={(i) => setAttachments((a) => a.filter((_, j) => j !== i))} />
+            {tagChoices.length ? (
+              <View style={styles.tagList} accessibilityLabel="Tag someone">
+                {tagChoices.map((t) => {
+                  const who = t.id ? people.find((p) => p.id === t.id) : undefined;
+                  return (
+                    <Pressable
+                      key={t.id ?? 'everyone'}
+                      onPress={() => {
+                        setDraft((d) => insertTag(d, t.name));
+                        input.current?.focus();
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={t.id ? `Tag ${t.name}` : 'Tag everyone in this chat'}
+                      style={({ pressed }) => [styles.tagRow, pressed && { backgroundColor: colors.steelHi }]}
+                    >
+                      {who ? <Avatar text={initials(who)} size={28} /> : <View style={styles.tagEveryone}><Ionicons name="megaphone-outline" size={16} color={colors.bone} /></View>}
+                      <Text style={styles.tagName} numberOfLines={1}>@{t.name}</Text>
+                      {t.id ? null : <Text style={styles.tagHint} numberOfLines={1}>rings everyone here</Text>}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
             <View style={styles.composer}>
               <IconButton icon="images-outline" label="Add photos or videos" onPress={() => pick('library')} disabled={attachments.length >= MAX_MEDIA} />
               {Platform.OS !== 'web' ? (
@@ -1496,6 +1535,11 @@ const styles = StyleSheet.create({
   replyBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: space.lg, paddingRight: space.sm, paddingTop: space.sm },
   rulesCard: { gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.md },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, paddingHorizontal: space.sm, paddingTop: space.sm },
+  tagList: { marginHorizontal: space.sm, marginTop: space.sm, borderRadius: radius.sm, backgroundColor: colors.steel, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  tagRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44, paddingHorizontal: space.md },
+  tagEveryone: { width: 28, height: 28, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.red },
+  tagName: { fontFamily: fonts.stencil, fontSize: 16, letterSpacing: 0.5, color: colors.bone, flexShrink: 1 },
+  tagHint: { ...type.small, color: colors.boneMute, flexShrink: 1 },
   gifBtn: {
     width: 44, height: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'transparent',
