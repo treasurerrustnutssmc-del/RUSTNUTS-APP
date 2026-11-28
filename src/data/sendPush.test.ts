@@ -116,3 +116,12 @@ test('a row counts as sent if any of its phones got it; a failed post fails the 
   });
   assert.deepEqual(done, [{ sent: [], failed: [1] }]);
 });
+
+test('a tag rings on its own: the Tags channel, time-sensitive on iPhone, never folded into the chat’s stack', () => {
+  for (const rev of [true, false]) {
+    const [m] = toExpoMessages([row({ rev, data: { kind: 'tag', chatId: 'c1', line: 'Wes: @Tinman' }, tokens: ['t'] })]);
+    assert.deepEqual({ channelId: m.channelId, sound: m.sound }, soundFor('tag', rev));
+    assert.equal(m.interruptionLevel, 'time-sensitive');
+    assert.equal('tag' in m || 'collapseId' in m, false);
+  }
+});

@@ -21,7 +21,7 @@ export interface ExpoMessage {
   priority?: 'high';
   channelId?: string;
   /** iPhone only: a time-sensitive push breaks through Focus and the notification summary (the app's
-   *  time-sensitive entitlement allows it). Only live ride alerts earn it. */
+   *  time-sensitive entitlement allows it). Only live ride alerts and chat tags earn it. */
   interruptionLevel?: 'time-sensitive';
   /** Android: a notification with the same tag replaces the one already showing. */
   tag?: string;
@@ -49,6 +49,8 @@ export interface ExpoTicket {
 const REV_SOUND = 'v_twin_rev_2.wav';
 function soundFor(kind: unknown, rev: boolean): { channelId: string; sound: string } {
   if (kind === 'live-alert') return { channelId: 'ride-alerts', sound: 'default' };
+  // A chat tag rings on its own loud channel with the phone's own sound (20271020000000_chat_tags.sql).
+  if (kind === 'tag') return { channelId: 'tags', sound: 'default' };
   // Chat has its own channels, so members can quiet chat on the phone and keep ride news.
   const base = kind === 'chat' ? 'chat' : 'club';
   return rev ? { channelId: `${base}-rev2`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
@@ -64,14 +66,16 @@ function stackFor(data: Record<string, unknown>): { tag: string; collapseId: str
   return { tag: key, collapseId: key };
 }
 
-/** One message per phone. Live ride alerts keep the urgent sound and are time-sensitive on iPhone;
+/** One message per phone. Live ride alerts keep the urgent sound and are time-sensitive on iPhone (tags
+ *  are time-sensitive too, with their own channel and never stacked);
  *  the rest rev unless the member switched it off. All go high priority: Android holds normal ones
  *  while the phone sleeps, so a chat message could turn up many minutes late or not until the app
  *  is opened. */
 export function toExpoMessages(rows: OutboxMessage[]): ExpoMessage[] {
   return rows.flatMap((r) => {
     const { channelId, sound } = soundFor(r.data.kind, r.rev ?? true);
-    const urgent = r.data.kind === 'live-alert';
+    // A tag is someone calling you by name, so it gets through Focus like a live ride alert.
+    const urgent = r.data.kind === 'live-alert' || r.data.kind === 'tag';
     const stack = stackFor(r.data);
     return r.tokens.map((to): ExpoMessage => ({
       to,

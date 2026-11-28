@@ -20,6 +20,8 @@ export async function loadNotificationPrefs(db: SupabaseClient<Database>): Promi
     revSound: data.rev_sound ?? true,
     // Missing until chat-push.sql is live: chat is on.
     chatMessages: data.chat_messages ?? true,
+    // Missing until chat-tags.sql is live: tags are on.
+    chatTags: data.chat_tags ?? true,
   };
 }
 
@@ -31,9 +33,12 @@ export async function saveNotificationPrefs(db: SupabaseClient<Database>, prefs:
     p_approvals: prefs.approvals,
   };
   const five = { ...four, p_rev_sound: prefs.revSound };
-  let { error } = await db.rpc('save_notification_prefs', { ...five, p_chat_messages: prefs.chatMessages });
-  // Until chat-push.sql (and before it rev-sound.sql) is live there's no six-setting (or five-setting)
-  // version: save what the club has room for (the rest then reads back as on).
+  const six = { ...five, p_chat_messages: prefs.chatMessages };
+  let { error } = await db.rpc('save_notification_prefs', { ...six, p_chat_tags: prefs.chatTags });
+  // Until chat-tags.sql (before it chat-push.sql, and before that rev-sound.sql) is live there's no
+  // seven-setting (or six- or five-setting) version: save what the club has room for (the rest then
+  // reads back as on).
+  if (error?.code === 'PGRST202') ({ error } = await db.rpc('save_notification_prefs', six));
   if (error?.code === 'PGRST202') ({ error } = await db.rpc('save_notification_prefs', five));
   if (error?.code === 'PGRST202') ({ error } = await db.rpc('save_notification_prefs', four));
   if (error) throw friendlyError(error);

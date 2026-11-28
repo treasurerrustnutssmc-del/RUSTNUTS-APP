@@ -9,7 +9,7 @@ import { displayName } from './profile';
 import { melbourneDate, melbourneTime } from './rides';
 import type { ClubData, NotificationPrefs, Position, Ride, RideCall, Rsvp } from './types';
 
-export const DEFAULT_PREFS: NotificationPrefs = { rideReminders: true, rideChanges: true, newRides: false, approvals: true, revSound: true, chatMessages: true };
+export const DEFAULT_PREFS: NotificationPrefs = { rideReminders: true, rideChanges: true, newRides: false, approvals: true, revSound: true, chatMessages: true, chatTags: true };
 
 /** Settings kept on the phone by an app from before a setting existed get that setting's default.
  *  Null (never saved) and undefined (not known) pass through. */
@@ -39,8 +39,9 @@ const REV = '-rev2';
  *  they are never reused, since Android would bring back the old sound. */
 export const RETIRED_ANDROID_CHANNELS = ['ride-reminders-rev', 'club-rev', 'chat-rev'];
 
-/** What a notification is: a ride reminder, news from the club, a chat message, or a live ride alert (safety). */
-export type NotificationKind = 'reminder' | 'club' | 'chat' | 'live-alert';
+/** What a notification is: a ride reminder, news from the club, a chat message, a chat tag (someone
+ *  @-tagged them), or a live ride alert (safety). */
+export type NotificationKind = 'reminder' | 'club' | 'chat' | 'tag' | 'live-alert';
 
 /**
  * The Android channels the phone sets up. Android fixes a channel's sound once it exists, so the rev
@@ -55,11 +56,15 @@ export const ANDROID_CHANNELS: { id: string; name: string; urgent: boolean; soun
   { id: `chat${REV}`, name: 'Chat messages (Harley rev)', urgent: false, sound: REV_SOUND },
   { id: 'chat', name: 'Chat messages', urgent: false, sound: 'default' },
   { id: 'ride-alerts', name: 'Live ride alerts', urgent: true, sound: 'default' },
+  // Chat tags ring (Jeff, 28 Nov 2026): over the screen with a long buzz and the phone's own sound,
+  // so a tag never sounds like an ordinary chat message.
+  { id: 'tags', name: 'Tags (someone @-tagged you)', urgent: true, sound: 'default' },
 ];
 
 /** The Android channel and iPhone sound for a notification. Pushes use the same (supabase/functions/_shared/sendPush.ts). */
 export function soundFor(kind: NotificationKind, revSound: boolean): { channelId: string; sound: string } {
   if (kind === 'live-alert') return { channelId: 'ride-alerts', sound: 'default' };
+  if (kind === 'tag') return { channelId: 'tags', sound: 'default' };
   const base = kind === 'reminder' ? 'ride-reminders' : kind;
   return revSound ? { channelId: `${base}${REV}`, sound: REV_SOUND } : { channelId: base, sound: 'default' };
 }
@@ -81,6 +86,7 @@ export function notificationTarget(data: Record<string, unknown> | null | undefi
   const sessionId = id(data?.sessionId);
   switch (data?.kind) {
     case 'chat':
+    case 'tag':
       return chatId ? { screen: 'Chat', params: { chatId } } : null;
     case 'ride':
     case 'ride-reminder':
@@ -104,16 +110,21 @@ export function notificationTarget(data: Record<string, unknown> | null | undefi
   }
 }
 
+/** A chat message's notification, or a tag's (which is a chat message too). */
+function isChatKind(kind: unknown): boolean {
+  return kind === 'chat' || kind === 'tag';
+}
+
 /** Whether a notification that arrives while the app is open is shown: not a message for the chat
  *  that's on screen, which already shows it. */
 export function showWhileOpen(data: Record<string, unknown> | null | undefined, viewingChatId: string | null): boolean {
-  return !(data?.kind === 'chat' && viewingChatId !== null && data.chatId === viewingChatId);
+  return !(isChatKind(data?.kind) && viewingChatId !== null && data?.chatId === viewingChatId);
 }
 
 /** Chat notifications stack (one per chat, holding the unread lines; see sendPush.ts), so the club's
  *  banner shows only the message that just came in, which the push carries as data.line. */
 export function bannerLine(body: string, data: Record<string, unknown> | null | undefined): string {
-  return data?.kind === 'chat' && typeof data.line === 'string' && data.line !== '' ? data.line : body;
+  return isChatKind(data?.kind) && typeof data?.line === 'string' && data.line !== '' ? data.line : body;
 }
 
 /** The notifications on the phone for a chat that's just been read, to clear them as Messenger does. */
@@ -121,7 +132,7 @@ export function chatNotificationsToClear(
   shown: { id: string; data: Record<string, unknown> | null | undefined }[],
   chatId: string,
 ): string[] {
-  return shown.filter((n) => n.data?.kind === 'chat' && n.data.chatId === chatId).map((n) => n.id);
+  return shown.filter((n) => isChatKind(n.data?.kind) && n.data?.chatId === chatId).map((n) => n.id);
 }
 
 /** What happens to a notification that arrives while the app is open: what the phone itself does with

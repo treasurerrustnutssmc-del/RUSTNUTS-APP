@@ -72,7 +72,7 @@ test('the plain words inside a message are hidden from VoiceOver on iPhone, so n
   assert.match(button, /<View style=\{styles\.bubbleNameText\} accessibilityElementsHidden=\{ios\}>/);
   assert.match(button, /<ReplyQuote message=\{replied\} author=\{replied \? nameOf\(replied\.authorId\) : ''\} spokenByMessage=\{ios\} \/>/);
   assert.match(button, /<VoiceNote [^>]*hideTimeFromReader=\{ios\} \/>/);
-  assert.match(button, /<MessageText body=\{m\.body\} spokenByMessage=\{ios\} \/>/);
+  assert.match(button, /<MessageText body=\{m\.body\} spokenByMessage=\{ios\}[^>]*\/>/);
   // A GIF tile does what the message's stop does (a double-tap selects the message), so on iPhone the
   // reader's "GIF" covers it; photos and videos open the viewer and stay stops of their own.
   assert.match(button, /<MediaGrid\b[^/]*spokenByMessage=\{ios\}/);

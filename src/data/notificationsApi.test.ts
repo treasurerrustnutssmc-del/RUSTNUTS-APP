@@ -15,13 +15,14 @@ function stub(rows: unknown[], error: { message: string; code?: string } | null 
 }
 
 test('the saved row becomes the app’s settings; no row means the defaults', async () => {
-  const row = { member_id: 'm1', ride_reminders: false, ride_changes: true, new_rides: true, approvals: false, rev_sound: false, chat_messages: false, updated_at: '' };
+  const row = { member_id: 'm1', ride_reminders: false, ride_changes: true, new_rides: true, approvals: false, rev_sound: false, chat_messages: false, chat_tags: false, updated_at: '' };
   assert.deepEqual(await loadNotificationPrefs(stub([row]).client), {
-    rideReminders: false, rideChanges: true, newRides: true, approvals: false, revSound: false, chatMessages: false,
+    rideReminders: false, rideChanges: true, newRides: true, approvals: false, revSound: false, chatMessages: false, chatTags: false,
   });
   // Before the rev_sound and chat_messages columns are live, both are on.
-  const { rev_sound: _rev, chat_messages: _chat, ...older } = row;
+  const { rev_sound: _rev, chat_messages: _chat, chat_tags: _tags, ...older } = row;
   assert.equal((await loadNotificationPrefs(stub([older]).client))?.revSound, true);
+  assert.equal((await loadNotificationPrefs(stub([older]).client))?.chatTags, true, 'before chat-tags.sql, tags are on');
   assert.equal((await loadNotificationPrefs(stub([older]).client))?.chatMessages, true);
   assert.equal(await loadNotificationPrefs(stub([]).client), null);
 });
@@ -30,25 +31,28 @@ test('a failed read fails the load, so saved settings are never mistaken for the
   await assert.rejects(loadNotificationPrefs(stub([], { message: 'Failed to fetch' }).client), /fetch/);
 });
 
-const PREFS = { rideReminders: true, rideChanges: false, newRides: true, approvals: false, revSound: false, chatMessages: false };
+const PREFS = { rideReminders: true, rideChanges: false, newRides: true, approvals: false, revSound: false, chatMessages: false, chatTags: false };
 
-test('saving sends all six', async () => {
+test('saving sends all seven', async () => {
   const { client, calls } = stub([]);
   await saveNotificationPrefs(client, PREFS);
   assert.deepEqual(calls, [{
     fn: 'save_notification_prefs',
-    args: { p_ride_reminders: true, p_ride_changes: false, p_new_rides: true, p_approvals: false, p_rev_sound: false, p_chat_messages: false },
+    args: { p_ride_reminders: true, p_ride_changes: false, p_new_rides: true, p_approvals: false, p_rev_sound: false, p_chat_messages: false, p_chat_tags: false },
   }]);
 });
 
-test('before chat-push.sql is live, saving falls back to five settings, and before rev-sound.sql to four', async () => {
+test('before chat-tags.sql is live, saving falls back to six settings, before chat-push.sql to five, and before rev-sound.sql to four', async () => {
   const missing = { message: 'Could not find the function public.save_notification_prefs(...)', code: 'PGRST202' };
+  const noTags = stub([], missing, (args) => 'p_chat_tags' in args);
+  await saveNotificationPrefs(noTags.client, PREFS);
+  assert.deepEqual(noTags.calls.map((c) => Object.keys(c.args as object).length), [7, 6]);
   const noChat = stub([], missing, (args) => 'p_chat_messages' in args);
   await saveNotificationPrefs(noChat.client, PREFS);
-  assert.deepEqual(noChat.calls.map((c) => Object.keys(c.args as object).length), [6, 5]);
+  assert.deepEqual(noChat.calls.map((c) => Object.keys(c.args as object).length), [7, 6, 5]);
   const neither = stub([], missing, (args) => 'p_rev_sound' in args);
   await saveNotificationPrefs(neither.client, PREFS);
-  assert.deepEqual(neither.calls.map((c) => Object.keys(c.args as object).length), [6, 5, 4]);
+  assert.deepEqual(neither.calls.map((c) => Object.keys(c.args as object).length), [7, 6, 5, 4]);
 });
 
 test('any other failure is not retried', async () => {

@@ -117,7 +117,7 @@ test('a reminder scheduled with the other sound is replaced; one from before the
 
 test('settings saved on the phone before the rev get it switched on; unknown stays unknown', () => {
   const old = { rideReminders: false, rideChanges: true, newRides: true, approvals: false } as never;
-  assert.deepEqual(completePrefs(old), { rideReminders: false, rideChanges: true, newRides: true, approvals: false, revSound: true, chatMessages: true });
+  assert.deepEqual(completePrefs(old), { rideReminders: false, rideChanges: true, newRides: true, approvals: false, revSound: true, chatMessages: true, chatTags: true });
   assert.equal(completePrefs(null), null);
   assert.equal(completePrefs(undefined), undefined);
 });
@@ -273,4 +273,27 @@ test('reading a chat clears that chat’s notification from the phone, and nothi
   ];
   assert.deepEqual(chatNotificationsToClear(shown, 'c1'), ['a', 'e']);
   assert.deepEqual(chatNotificationsToClear(shown, 'zz'), []);
+});
+
+test('a tag has its own loud channel with the phone’s own sound, rev or not, so it stands out from chat', () => {
+  for (const rev of [true, false]) assert.deepEqual(soundFor('tag', rev), { channelId: 'tags', sound: 'default' });
+  const tags = ANDROID_CHANNELS.find((c) => c.id === 'tags');
+  assert.deepEqual(tags && { urgent: tags.urgent, sound: tags.sound }, { urgent: true, sound: 'default' });
+});
+
+test('a tag opens its chat, hides while that chat is on screen, banners its own line and clears with the chat', () => {
+  assert.deepEqual(notificationTarget({ kind: 'tag', chatId: 'c1' }), { screen: 'Chat', params: { chatId: 'c1' } });
+  assert.equal(showWhileOpen({ kind: 'tag', chatId: 'c1' }, 'c1'), false);
+  assert.equal(showWhileOpen({ kind: 'tag', chatId: 'c1' }, 'c2'), true);
+  assert.equal(bannerLine('x', { kind: 'tag', chatId: 'c1', line: 'Wes: @Tinman you in?' }), 'Wes: @Tinman you in?');
+  assert.deepEqual(
+    chatNotificationsToClear([{ id: 'a', data: { kind: 'tag', chatId: 'c1' } }, { id: 'b', data: { kind: 'tag', chatId: 'c2' } }], 'c1'),
+    ['a'],
+  );
+});
+
+test('the Tags setting is on unless switched off, and settings saved before it existed get it on', () => {
+  assert.equal(DEFAULT_PREFS.chatTags, true);
+  const { chatTags: _t, ...older } = DEFAULT_PREFS;
+  assert.equal(completePrefs({ ...older, chatMessages: false } as typeof DEFAULT_PREFS).chatTags, true);
 });

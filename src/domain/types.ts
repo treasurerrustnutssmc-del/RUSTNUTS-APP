@@ -694,6 +694,8 @@ export interface NotificationPrefs {
   revSound: boolean;
   /** New messages in the chats they're in. */
   chatMessages: boolean;
+  /** Someone @-tags them (or @everyone) in a chat: rings even with chatMessages off. */
+  chatTags: boolean;
 }
 
 // Stage 5B: treasurer ---------------------------------------------------------------------------

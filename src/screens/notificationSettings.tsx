@@ -121,8 +121,14 @@ export function NotificationSettings() {
           onChange={change('chatMessages')}
         />
         <Toggle
+          label="Tags"
+          description="When someone tags you, or @everyone, in a chat. It rings like an alert, even with chat messages off."
+          value={prefs.chatTags}
+          onChange={change('chatTags')}
+        />
+        <Toggle
           label="Harley rev"
-          description="Notifications sound like a V-twin revving. Live ride alerts keep the urgent alarm."
+          description="Notifications sound like a V-twin revving. Live ride alerts and tags keep their own alarm."
           value={prefs.revSound}
           onChange={change('revSound')}
         />

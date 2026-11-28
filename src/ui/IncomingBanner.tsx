@@ -60,7 +60,7 @@ export function IncomingBanner({ navigation }: { navigation: NavigationContainer
     dismiss();
     if (target && reachable) navigation.navigate(target.screen, target.params as never);
   };
-  const icon = notice.data.kind === 'chat' ? 'chatbubbles-outline' : 'notifications-outline';
+  const icon = notice.data.kind === 'chat' || notice.data.kind === 'tag' ? 'chatbubbles-outline' : 'notifications-outline';
 
   return (
     <Animated.View
