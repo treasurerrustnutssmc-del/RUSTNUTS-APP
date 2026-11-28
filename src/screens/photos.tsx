@@ -392,7 +392,7 @@ export function MediaViewerScreen({ route, navigation }: RootScreen<'MediaViewer
           item.kind === 'video' ? (
             <VideoPage item={item} width={width} height={pageHeight} active={i === index} />
           ) : (
-            <PhotoPage key={item.id} item={item} width={width} height={pageHeight} onZoomed={setZoomed} />
+            <PhotoPage item={item} width={width} height={pageHeight} onZoomed={setZoomed} />
           )
         }
       />
