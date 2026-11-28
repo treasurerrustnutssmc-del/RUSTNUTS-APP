@@ -59,8 +59,13 @@ grant execute on function public.new_calendar_link() to authenticated;
 
 -- For the calendar-feed server function only: the rides the token's member answered Going, from 60
 -- days back, called-off ones included (so the calendar shows them called off), with each leg's number
--- and the trip's leg count. Null for a token nobody has; an empty list once the member is no longer
--- approved, so their subscription empties instead of erroring.
+-- and the trip's leg count. Null for a token nobody has; an empty list once the member is no longer an
+-- approved member who sees rides (the same test as private.is_approved_member: Family don't), so their
+-- subscription empties instead of erroring.
+-- A club-calendar ride whose start moves comes back from the sync as a new row, and the old one is
+-- called off with the answers still on it. So a called-off calendar ride that has a live row from the
+-- same calendar entry within 3 days of it is shown as that row: the ride moves in the member's
+-- calendar. (A repeating entry's other weeks are further apart, so they aren't pulled in.)
 create or replace function public.calendar_feed(p_token text)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -69,7 +74,7 @@ begin
   if p_token is null or p_token !~ '^[0-9a-f]{64}$' then return null; end if;
   select member_id into who from private.calendar_links where token = p_token;
   if who is null then return null; end if;
-  if not exists (select 1 from public.members where id = who and approval = 'approved') then
+  if not exists (select 1 from public.members where id = who and approval = 'approved' and status <> 'family') then
     return '[]'::jsonb;
   end if;
   return coalesce((
@@ -80,11 +85,24 @@ begin
         'leg_count', case when l.trip_id is null then null
                           else (select count(*) from public.ride_legs x where x.trip_id = l.trip_id) end
       ) order by r.starts_at)
-    from public.rsvps v
-    join public.rides r on r.id = v.ride_id
+    from (
+      select distinct coalesce(moved.id, g.id) as ride_id
+      from public.rsvps v
+      join public.rides g on g.id = v.ride_id
+      left join lateral (
+        select n.id from public.rides n
+        where g.cancelled_at is not null and g.feed_id is not null
+          and n.feed_id = g.feed_id and n.external_uid = g.external_uid and n.id <> g.id
+          and n.cancelled_at is null
+          and n.starts_at between g.starts_at - interval '3 days' and g.starts_at + interval '3 days'
+        order by abs(extract(epoch from n.starts_at - g.starts_at))
+        limit 1
+      ) moved on true
+      where v.member_id = who and v.answer = 'going'
+    ) picked
+    join public.rides r on r.id = picked.ride_id
     left join public.ride_legs l on l.ride_id = r.id
-    where v.member_id = who and v.answer = 'going'
-      and coalesce(r.ends_at, r.starts_at) >= now() - interval '60 days'
+    where coalesce(r.ends_at, r.starts_at) >= now() - interval '60 days'
   ), '[]'::jsonb);
 end $$;
 revoke all on function public.calendar_feed(text) from public, anon, authenticated;

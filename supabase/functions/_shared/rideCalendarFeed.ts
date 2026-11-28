@@ -34,6 +34,11 @@ export const FEED_CACHE = 'private, max-age=900';
 const DEFAULT_HOURS = 4;
 const TOKEN = /^\/([0-9a-f]{64})(?:\.ics)?$/;
 
+/** The path after the function's own name: /calendar-feed/<token>.ics (or /functions/v1/…) -> /<token>.ics. */
+export function feedPath(pathname: string): string {
+  return pathname.replace(/^\/+(?:functions\/v1\/)?calendar-feed(?=\/|$)/, '') || '/';
+}
+
 /** The token in /<token>.ics, or null. Tokens are 64 lowercase hex characters. */
 export function tokenFromPath(path: string): string | null {
   return TOKEN.exec(path)?.[1] ?? null;
@@ -60,9 +65,15 @@ function nextDay(day: string): string {
   return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`;
 }
 
-/** RFC 5545 text: backslash, semicolon, comma and line ends escaped. */
+/** RFC 5545 text: backslash, semicolon, comma and line ends escaped; other control characters dropped. */
 function text(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  return s
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r\n|\r|\n/g, '\\n')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x08\x0B-\x1F\x7F]/g, '');
 }
 
 /** Folds a line at 75 octets, never inside a character. */
@@ -112,8 +123,9 @@ function event(r: FeedRide, stamp: string): string[] {
     `SUMMARY:${text(r.cancelled_at ? `CALLED OFF: ${r.title.trim()}` : r.title.trim())}`,
     ...(r.location?.trim() ? [`LOCATION:${text(r.location.trim())}`] : []),
     `DESCRIPTION:${text(notes.join('\n\n'))}`,
-    `STATUS:${r.cancelled_at ? 'CANCELLED' : 'CONFIRMED'}`,
-    'TRANSP:OPAQUE',
+    // Google and Outlook hide STATUS:CANCELLED entries in subscribed calendars, and the point is that
+    // members see it's called off: the title says so, and it no longer marks them busy.
+    ...(r.cancelled_at ? ['TRANSP:TRANSPARENT'] : ['STATUS:CONFIRMED', 'TRANSP:OPAQUE']),
     'END:VEVENT',
   ];
 }

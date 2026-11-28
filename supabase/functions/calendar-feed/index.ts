@@ -6,16 +6,14 @@
 // service role may call, picks the rides. Spec: docs/superpowers/specs/2026-11-28-personal-ride-calendar-design.md.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
-import { handleCalendarFeed, type FeedRide } from '../_shared/rideCalendarFeed.ts';
+import { feedPath, handleCalendarFeed, type FeedRide } from '../_shared/rideCalendarFeed.ts';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false },
 });
 
 Deno.serve(async (req) => {
-  const url = new URL(req.url);
-  // The path after the function's own name: /calendar-feed/<token>.ics -> /<token>.ics.
-  const path = url.pathname.replace(/^\/+(?:functions\/v1\/)?calendar-feed(?=\/|$)/, '') || '/';
+  const path = feedPath(new URL(req.url).pathname);
   const out = await handleCalendarFeed(
     { method: req.method, path },
     {

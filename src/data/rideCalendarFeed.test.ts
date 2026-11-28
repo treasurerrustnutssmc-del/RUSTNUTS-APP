@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCalendar, handleCalendarFeed, tokenFromPath, type FeedRide } from '../../supabase/functions/_shared/rideCalendarFeed';
+import { buildCalendar, feedPath, handleCalendarFeed, tokenFromPath, type FeedRide } from '../../supabase/functions/_shared/rideCalendarFeed';
 
 const NOW = '2026-11-28T01:00:00.000Z';
 const TOKEN = 'a'.repeat(32) + 'b'.repeat(32);
@@ -53,10 +53,32 @@ test('an all-day ride uses Melbourne dates, with the day after the last as the e
   assert.ok(one.includes('DTEND;VALUE=DATE:20261122'));
 });
 
-test('a called-off ride stays, marked cancelled', () => {
+test('a called-off ride stays in view, titled CALLED OFF and not keeping you busy', () => {
   const l = lines(buildCalendar([ride({ cancelled_at: '2026-12-01T00:00:00.000Z' })], NOW));
   assert.ok(l.includes('SUMMARY:CALLED OFF: Breakfast run'));
-  assert.ok(l.includes('STATUS:CANCELLED'));
+  // Google and Outlook hide STATUS:CANCELLED entries in subscribed calendars, so it isn't sent.
+  assert.ok(!l.some((x) => x.startsWith('STATUS:')));
+  assert.ok(l.includes('TRANSP:TRANSPARENT'));
+  assert.ok(lines(buildCalendar([ride()], NOW)).includes('TRANSP:OPAQUE'));
+});
+
+test('stray carriage returns and control characters never reach the file', () => {
+  const l = lines(buildCalendar([ride({ notes: 'one\rtwo\r\nthree\u0007\u0000four' })], NOW));
+  assert.equal(l.find((x) => x.startsWith('DESCRIPTION:')), 'DESCRIPTION:one\\ntwo\\nthreefour\\n\\nFrom the Rustnuts app');
+  assert.ok(!buildCalendar([ride({ notes: 'a\rb' })], NOW).replace(/\r\n/g, '').includes('\r'));
+});
+
+test('an all-day ride whose end is not after its start is one day', () => {
+  const l = lines(buildCalendar([ride({ all_day: true, starts_at: '2026-11-20T13:00:00.000Z', ends_at: '2026-11-20T13:00:00.000Z' })], NOW));
+  assert.ok(l.includes('DTSTART;VALUE=DATE:20261121'));
+  assert.ok(l.includes('DTEND;VALUE=DATE:20261122'));
+});
+
+test('the path after the function name, however Supabase hands it over', () => {
+  assert.equal(feedPath(`/calendar-feed/${TOKEN}.ics`), `/${TOKEN}.ics`);
+  assert.equal(feedPath(`/functions/v1/calendar-feed/${TOKEN}.ics`), `/${TOKEN}.ics`);
+  assert.equal(feedPath('/calendar-feed'), '/');
+  assert.equal(tokenFromPath(feedPath(`/calendar-feed/${TOKEN}.ics`)), TOKEN);
 });
 
 test('notes carry the leg, the members-only notes and where it came from, escaped', () => {

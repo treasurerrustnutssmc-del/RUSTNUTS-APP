@@ -116,6 +116,30 @@ begin
   assert t2 ~ '^[0-9a-f]{64}$' and t2 <> t1, 'a new link is different';
   assert pg_temp.feed(t1) is null, 'the old link stops';
   assert jsonb_array_length(pg_temp.feed(t2)) = 3, 'the new link works';
+  assert pg_temp.value_as(wes, 'select public.my_calendar_link()') = t2, 'my link is the new one';
+
+  -- A club-calendar ride moved by the sync (a new row at the new start, the old one called off) follows
+  -- the move; another week's ride from the same repeating calendar entry is not pulled in.
+  insert into private.ride_feeds (id, url) values ('00000000-0000-0000-0000-00000000fee1', 'https://example.com/a.ics');
+  insert into rides (id, source, feed_id, external_uid, starts_at, title, category, cancelled_at) values
+    ('00000000-0000-0000-0000-00000000c911', 'feed', '00000000-0000-0000-0000-00000000fee1', 'weekly@x', now() + interval '10 days', 'Thursday run', 'club', now()),
+    ('00000000-0000-0000-0000-00000000c912', 'feed', '00000000-0000-0000-0000-00000000fee1', 'weekly@x', now() + interval '10 days 2 hours', 'Thursday run moved', 'club', null),
+    ('00000000-0000-0000-0000-00000000c913', 'feed', '00000000-0000-0000-0000-00000000fee1', 'weekly@x', now() + interval '17 days', 'Thursday run next week', 'club', null),
+    ('00000000-0000-0000-0000-00000000c914', 'feed', '00000000-0000-0000-0000-00000000fee1', 'gone@x', now() + interval '12 days', 'Called off for good', 'club', now());
+  insert into rsvps (ride_id, member_id, answer) values
+    ('00000000-0000-0000-0000-00000000c911', wes, 'going'),
+    ('00000000-0000-0000-0000-00000000c914', wes, 'going');
+  select string_agg(x->>'title' || coalesce(':' || left(x->>'cancelled_at', 1), ''), ',' order by x->>'starts_at') into titles
+  from jsonb_array_elements(pg_temp.feed(t2)) x where x->>'title' like '%Thursday%' or x->>'title' like 'Called off for%';
+  assert titles = 'Thursday run moved,Called off for good:2', 'moved ride follows: ' || coalesce(titles, 'none');
+  -- Also answered Going on the moved one: listed once.
+  insert into rsvps (ride_id, member_id, answer) values ('00000000-0000-0000-0000-00000000c912', wes, 'going');
+  assert (select count(*) from jsonb_array_elements(pg_temp.feed(t2)) x where x->>'title' = 'Thursday run moved') = 1, 'listed once';
+
+  -- Someone moved to Family keeps the link but it empties, as Family can't see rides.
+  update members set status = 'family' where id = wes;
+  assert pg_temp.feed(t2) = '[]'::jsonb, 'Family: an empty calendar';
+  update members set status = 'full' where id = wes;
 
   -- Someone no longer approved keeps the link but it empties.
   update members set approval = 'pending' where id = wes;

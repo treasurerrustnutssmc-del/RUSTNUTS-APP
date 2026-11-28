@@ -9,7 +9,7 @@ import type { RootParams } from '../navigation/types';
 import { useClub } from '../data/ClubStore';
 import { SUPABASE_URL } from '../data/config';
 import { calendarFeedLinks, type CalendarFeedLinks } from '../domain/calendarFeedLinks';
-import { space } from '../theme';
+import { colors, space } from '../theme';
 import { Body, Button, Card, ConfirmButton, H2, IconBadge, ListRow, Notice, Screen, Small, Stack } from '../ui/primitives';
 
 /** The row on Me that opens the screen. */
@@ -82,6 +82,19 @@ export function RideCalendarScreen() {
 
       {!calendarToken ? <Notice>In the demo there’s no real link. In the club’s app this gives you your own private link.</Notice> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
+      {error && !links && calendarToken ? (
+        <Button
+          label="Try again"
+          kind="secondary"
+          icon="refresh"
+          busy={busy}
+          onPress={() => {
+            setBusy(true);
+            setError(null);
+            show(calendarToken(false), false);
+          }}
+        />
+      ) : null}
       {renewed ? (
         <Notice tone="ok" notAnError>
           New link made. The old one has stopped working, so add this one to your calendar again.
@@ -107,6 +120,13 @@ export function RideCalendarScreen() {
           disabled={!links}
           onPress={() => links && open(links.outlook)}
         />
+        <Button
+          label="Outlook for work or school"
+          kind="quiet"
+          size="small"
+          disabled={!links}
+          onPress={() => links && open(links.outlookWork)}
+        />
         {Platform.OS === 'android' ? null : (
           <Button
             label="Add to Apple Calendar"
@@ -121,11 +141,18 @@ export function RideCalendarScreen() {
           kind="secondary"
           icon="share-outline"
           disabled={!links}
-          onPress={() => links && Share.share({ message: links.https }).catch(() => undefined)}
+          onPress={() =>
+            links && Share.share({ message: links.https }).catch(() => setError('Sharing didn’t work here. Copy the link below instead.'))
+          }
         />
         <Small>
           For any other calendar app, share the link to yourself and add it as a calendar from a web address (sometimes called subscribe).
         </Small>
+        {links ? (
+          <Small selectable style={{ color: colors.boneDim }}>
+            {links.https}
+          </Small>
+        ) : null}
       </Stack>
 
       <H2>Keep it to yourself</H2>

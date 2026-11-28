@@ -13,6 +13,8 @@ test('the calendar link, and the ways into Google, Outlook and Apple', () => {
     l.outlook,
     `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(l.https)}&name=${encodeURIComponent('Rustnuts rides')}`,
   );
+  // Work and school Microsoft 365 accounts add calendars on their own Outlook site.
+  assert.equal(l.outlookWork, l.outlook.replace('https://outlook.live.com/', 'https://outlook.office.com/'));
 });
 
 test('no link without a database address or a proper token', () => {

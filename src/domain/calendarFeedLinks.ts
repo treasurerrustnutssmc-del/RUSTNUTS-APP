@@ -9,16 +9,20 @@ export interface CalendarFeedLinks {
   webcal: string;
   google: string;
   outlook: string;
+  /** Outlook for a work or school (Microsoft 365) account. */
+  outlookWork: string;
 }
 
 export function calendarFeedLinks(supabaseUrl: string, token: string): CalendarFeedLinks | null {
   if (!supabaseUrl || !/^[0-9a-f]{64}$/.test(token)) return null;
   const https = `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/calendar-feed/${token}.ics`;
   const webcal = https.replace(/^https:\/\//, 'webcal://');
+  const outlookAdd = `calendar/0/addfromweb?url=${encodeURIComponent(https)}&name=${encodeURIComponent(CALENDAR_NAME)}`;
   return {
     https,
     webcal,
     google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`,
-    outlook: `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(https)}&name=${encodeURIComponent(CALENDAR_NAME)}`,
+    outlook: `https://outlook.live.com/${outlookAdd}`,
+    outlookWork: `https://outlook.office.com/${outlookAdd}`,
   };
 }
