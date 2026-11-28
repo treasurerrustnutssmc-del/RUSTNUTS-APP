@@ -20,6 +20,7 @@ import { colors, fonts, MAX_CONTENT_WIDTH, rideColors, space, type } from '../th
 import { saveToPhone, SaveProblem } from '../data/saveMedia';
 import { useSitePhotos } from '../data/sitePhotos';
 import { asImage, MediaTile, useMediaSource } from '../ui/ChatBits';
+import { ZoomablePhoto } from '../ui/ZoomablePhoto';
 import { Button, Card, Choices, ConfirmButton, Ionicons, ListRow, Notice, Row, Screen, Small } from '../ui/primitives';
 import { WebsitePhotosRow } from './sitePhotos';
 
@@ -267,12 +268,14 @@ function VideoPage({ item, width, height, active }: { item: FeedItem; width: num
   );
 }
 
-function PhotoPage({ item, width, height }: { item: FeedItem; width: number; height: number }) {
+function PhotoPage({ item, width, height, onZoomed }: { item: FeedItem; width: number; height: number; onZoomed: (zoomed: boolean) => void }) {
   const source = useMediaSource(item.path);
   return (
     <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
       {source !== null ? (
-        <Image source={asImage(source, item.path)} style={{ width, height }} contentFit="contain" />
+        <ZoomablePhoto width={width} height={height} onZoomed={onZoomed} accessibilityLabel={item.gallery?.caption ?? 'Photo'}>
+          <Image source={asImage(source, item.path)} style={{ width, height }} contentFit="contain" />
+        </ZoomablePhoto>
       ) : (
         <ActivityIndicator color={colors.boneMute} />
       )}
@@ -353,6 +356,8 @@ export function MediaViewerScreen({ route, navigation }: RootScreen<'MediaViewer
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [index, setIndex] = useState(route.params.index);
+  // While a photo is zoomed, a drag moves about the photo instead of swiping to the next one.
+  const [zoomed, setZoomed] = useState(false);
   const current = items[index];
   // Family chat: Family know people by the chat's names (data.chatPeople), not the directory.
   const who = current ? [...data.members, ...(data.chatPeople ?? [])].find((m) => m.id === current.authorId) : undefined;
@@ -372,6 +377,7 @@ export function MediaViewerScreen({ route, navigation }: RootScreen<'MediaViewer
         data={items}
         horizontal
         pagingEnabled
+        scrollEnabled={!zoomed}
         initialScrollIndex={route.params.index}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
         keyExtractor={(m) => m.id}
@@ -386,7 +392,7 @@ export function MediaViewerScreen({ route, navigation }: RootScreen<'MediaViewer
           item.kind === 'video' ? (
             <VideoPage item={item} width={width} height={pageHeight} active={i === index} />
           ) : (
-            <PhotoPage item={item} width={width} height={pageHeight} />
+            <PhotoPage item={item} width={width} height={pageHeight} onZoomed={setZoomed} />
           )
         }
       />
