@@ -83,6 +83,9 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [pages, setPages] = useState<Record<string, Message[]>>({});
   const [older, setOlder] = useState<Record<string, boolean>>({});
+  // Chats whose newest page has arrived since they were last opened: a page kept from an earlier
+  // visit misses what came in since, and Open where I left off counts back from the newest.
+  const [fresh, setFresh] = useState<Record<string, boolean>>({});
   const [seen, setSeen] = useState<Record<string, SeenRead[]>>({});
   const [blocks, setBlocks] = useState<Block[]>([]);
   // Member content rules: messages I've reported that the board hasn't dealt with yet.
@@ -124,6 +127,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     });
     // The first page says whether there's more behind it; later pages say when the start is reached.
     setOlder((o) => (before || o[chatId] === undefined ? { ...o, [chatId]: incoming.length === PAGE } : o));
+    if (!before) setFresh((f) => (f[chatId] ? f : { ...f, [chatId]: true }));
   }, []);
 
   const loadConversation = useCallback(async (chatId: string) => {
@@ -227,6 +231,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
   const open = useCallback(
     (chatId: string) => {
       openChats.current.set(chatId, (openChats.current.get(chatId) ?? 0) + 1);
+      setFresh((f) => (f[chatId] ? { ...f, [chatId]: false } : f));
       if (!listed.current.has(chatId)) loadConversation(chatId).catch(() => undefined);
       loadPage(chatId).catch(() => undefined);
       markRead(chatId);
@@ -333,7 +338,7 @@ export function LiveChatProvider({ children }: { children: React.ReactNode }) {
     conversation,
     messages: (chatId) => withoutBlocked(pages[chatId] ?? [], blocks, meId).filter((m) => !reportedMessageIds.includes(m.id)),
     hasOlder: (chatId) => older[chatId] ?? false,
-    pageLoaded: (chatId) => older[chatId] !== undefined,
+    pageLoaded: (chatId) => fresh[chatId] === true,
     seenReads: (chatId) => seen[chatId],
     loadSeen,
     open,

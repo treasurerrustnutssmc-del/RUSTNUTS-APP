@@ -109,7 +109,7 @@ export interface ChatContextValue {
   /** What's loaded of a chat, oldest first, without anyone I've blocked or anything I've reported. */
   messages: (chatId: string) => Message[];
   hasOlder: (chatId: string) => boolean;
-  /** True once a chat's newest page has arrived at least once. */
+  /** True once a chat's newest page has arrived since it was last opened. */
   pageLoaded: (chatId: string) => boolean;
   /** Seen by (src/domain/chatSeen.ts): everyone else who reads the chat and when they last saw it.
    *  Undefined until it's loaded, or while the club's database can't say yet. Kept fresh while the chat is open. */
