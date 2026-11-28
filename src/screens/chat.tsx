@@ -12,7 +12,7 @@ import { useCatchUpApi } from '../data/catchUpApi';
 import { isFamily } from '../domain/access'; // Family chat
 import { AI_PROVIDER_LINE } from '../domain/aiConsent';
 import { catchUpCount } from '../domain/catchUp';
-import { lastOwnMessage, seenBy, seenLine, type SeenRead } from '../domain/chatSeen';
+import { lastOwnMessage, readTags, seenBy, seenLine, type SeenRead } from '../domain/chatSeen';
 import { composerBottomRoom } from '../domain/keyboard';
 import { useChat } from '../data/chat/ChatProvider';
 import { useSocial } from '../data/social/SocialProvider'; // Member content rules
@@ -359,6 +359,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
   // Seen by goes under my newest message (2026-11-26, Jeff: tell "seen, no reply" from "not seen yet").
   const seenReads = chat.seenReads(chatId);
   const lastMine = me ? lastOwnMessage(messages, me.id) : undefined;
+  // Messenger-style tags (Jeff, 28 Nov): everyone's initials under the last message they've seen, anyone's message.
+  const tags = useMemo(() => (seenReads ? readTags(messages, seenReads) : new Map<string, string[]>()), [messages, seenReads]);
 
   const pinned = conv?.pinnedMessageId ? messages.find((m) => m.id === conv.pinnedMessageId) : undefined;
   const moderator = !!conv && canModerate(me, conv, data);
@@ -555,6 +557,8 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
         </View>
         {mine && m.id === lastMine?.id && seenReads ? <SeenLine message={m} kind={conv.kind} reads={seenReads} nameOf={nameOf} today={today}
           onOpen={() => navigation.navigate('SeenBy', { chatId, messageId: m.id })} /> : null}
+        {tags.get(m.id) ? <SeenTags ids={tags.get(m.id)!} people={people} nameOf={nameOf}
+          onOpen={() => navigation.navigate('SeenBy', { chatId, messageId: m.id })} /> : null}
         {isSelected ? (
           <View style={[styles.actions, mine && { alignItems: 'flex-end' }]}>
             <ReactionBar
@@ -573,7 +577,7 @@ export function ChatScreen({ route, navigation }: RootScreen<'Chat'>) {
                   onPress={() => run(async () => { await chat.pin(chatId, conv.pinnedMessageId === m.id ? null : m.id); setSelected(null); })}
                 />
               ) : null}
-              {mine && seenReads ? (
+              {seenReads ? (
                 <ActionChip label="Seen by" icon="eye-outline" onPress={() => { setSelected(null); navigation.navigate('SeenBy', { chatId, messageId: m.id }); }} />
               ) : null}
               {!mine ? <ActionChip label="Report" icon="flag-outline" onPress={() => { setReporting(m.id); setReason(''); }} /> : null}
@@ -1293,6 +1297,32 @@ function SeenLine({ message, kind, reads, nameOf, today, onOpen }: {
   );
 }
 
+const TAGS_SHOWN = 6;
+
+/** Messenger-style: the initials of everyone whose last look stops at this message, latest first. A tap opens Seen by. */
+function SeenTags({ ids, people, nameOf, onOpen }: { ids: string[]; people: Member[]; nameOf: (id: string) => string; onOpen: () => void }) {
+  const shown = ids.slice(0, TAGS_SHOWN);
+  const more = ids.length - shown.length;
+  const names = ids.map(nameOf);
+  const spoken = names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
+  return (
+    <Pressable
+      onPress={onOpen}
+      hitSlop={{ top: 12, bottom: 12 }}
+      style={({ pressed }) => [styles.tags, pressed && { opacity: 0.7 }]}
+      accessibilityRole="button"
+      accessibilityLabel={`Seen up to here by ${spoken}`}
+      accessibilityHint="Shows who has seen this message and who hasn’t yet"
+    >
+      {shown.map((id) => {
+        const p = people.find((x) => x.id === id);
+        return <Avatar key={id} text={p ? initials(p) : '?'} size={22} />;
+      })}
+      {more > 0 ? <Text style={styles.tagsMore}>+{more}</Text> : null}
+    </Pressable>
+  );
+}
+
 const MINE_META_COLOR = pickReadable([colors.boneMute, colors.boneDim], colors.steelHi);
 
 const styles = StyleSheet.create({
@@ -1326,6 +1356,8 @@ const styles = StyleSheet.create({
   under: { marginTop: 4 },
   seen: { alignSelf: 'flex-end', minHeight: 20, justifyContent: 'center', marginTop: 2 },
   seenRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  tags: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4, minHeight: 20 },
+  tagsMore: { fontFamily: fonts.stencil, fontSize: 12, letterSpacing: 0.5, color: colors.boneMute, marginLeft: 2 },
   seenText: { fontFamily: fonts.stencil, fontSize: 13, letterSpacing: 0.5, color: colors.boneMute },
   actions: { gap: space.sm, marginTop: space.sm, marginBottom: space.sm },
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

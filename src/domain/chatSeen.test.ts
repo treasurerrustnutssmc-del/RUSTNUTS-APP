@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lastOwnMessage, seenBy, seenLine, seenWhen, type SeenRead } from './chatSeen';
+import { lastOwnMessage, readTags, seenBy, seenLine, seenWhen, type SeenRead } from './chatSeen';
 
 const msg = { id: 'x', authorId: 'me', createdAt: '2026-11-26T03:00:00.000Z', removedAt: null };
 const names: Record<string, string> = { a: 'Cobra', b: 'Spanner', c: 'Wes', d: 'Nora', e: 'Len' };
@@ -70,4 +70,30 @@ test('the line goes under my newest message that is still there', () => {
   ];
   assert.equal(lastOwnMessage(messages, 'me')?.id, '1');
   assert.equal(lastOwnMessage(messages, 'b'), undefined);
+});
+
+test('Messenger-style tags: each person sits under the last message they have seen, latest look first', () => {
+  const at = (m: number) => new Date(Date.UTC(2026, 10, 26, 3, m)).toISOString();
+  const messages = [
+    { id: '1', authorId: 'me', createdAt: at(0), removedAt: null },
+    { id: '2', authorId: 'a', createdAt: at(10), removedAt: null },
+    { id: '3', authorId: 'me', createdAt: at(20), removedAt: at(21) }, // removed: tags skip back past it
+    { id: '4', authorId: 'b', createdAt: at(30), removedAt: null },
+  ];
+  const reads: SeenRead[] = [
+    { memberId: 'a', seenAt: at(12) }, // saw 1 and 2 (2 is a's own)
+    { memberId: 'c', seenAt: at(25) }, // saw up to 3, which is removed: tag under 2
+    { memberId: 'b', seenAt: at(30) }, // saw everything (posted the last one)
+    { memberId: 'd', seenAt: at(15) }, // also under 2, but looked later than a
+    { memberId: 'e', seenAt: null }, // never opened it: no tag
+    { memberId: 'f', seenAt: '2026-11-25T00:00:00.000Z' }, // before anything loaded: no tag
+  ];
+  const tags = readTags(messages, reads);
+  // b's last seen is b's own post, and a's is a's own: no tag for either.
+  assert.deepEqual(Object.fromEntries(tags), { '2': ['c', 'd'] });
+});
+
+test('no tags without reads or messages', () => {
+  assert.equal(readTags([], [{ memberId: 'a', seenAt: '2026-11-26T03:00:00.000Z' }]).size, 0);
+  assert.equal(readTags([{ id: '1', authorId: 'me', createdAt: '2026-11-26T03:00:00.000Z', removedAt: null }], []).size, 0);
 });

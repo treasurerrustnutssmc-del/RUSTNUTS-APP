@@ -69,3 +69,28 @@ export function lastOwnMessage<M extends MessageLike>(messages: M[], meId: strin
   }
   return best;
 }
+
+/**
+ * Messenger-style tags: for each person, the newest message still there that they've seen (at or
+ * before their last look). Gives message id → who, latest look first. Someone who never opened the
+ * chat, last looked before the oldest message loaded, or whose last seen message is their own, gets no tag.
+ */
+export function readTags<M extends MessageLike>(messages: M[], reads: SeenRead[]): Map<string, string[]> {
+  const shown = messages.filter((m) => !m.removedAt).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  const placed: { messageId: string; memberId: string; at: number }[] = [];
+  for (const r of reads) {
+    if (!r.seenAt) continue;
+    const at = Date.parse(r.seenAt);
+    let hit: M | undefined;
+    for (const m of shown) {
+      if (Date.parse(m.createdAt) <= at) hit = m;
+      else break;
+    }
+    // Up to their own post: the post itself says where they are, and Seen by never lists a message's author.
+    if (hit && hit.authorId !== r.memberId) placed.push({ messageId: hit.id, memberId: r.memberId, at });
+  }
+  placed.sort((a, b) => b.at - a.at);
+  const tags = new Map<string, string[]>();
+  for (const p of placed) tags.set(p.messageId, [...(tags.get(p.messageId) ?? []), p.memberId]);
+  return tags;
+}

@@ -1,5 +1,5 @@
-// Seen by: who has seen one of my messages and who hasn't yet (src/domain/chatSeen.ts). Opened from
-// the line under my newest message, or Seen by in a message's actions.
+// Seen by: who has seen a message (anyone's) and who hasn't yet (src/domain/chatSeen.ts). Opened from
+// the line under my newest message, the Seen tags under any message, or Seen by in a message's actions.
 
 import React, { useEffect, useMemo } from 'react';
 import { AppState, Text } from 'react-native';
@@ -35,7 +35,7 @@ export function SeenByScreen({ route, navigation }: RootScreen<'SeenBy'>) {
     return () => clearInterval(timer);
   }, [chatId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!message || !me || message.authorId !== me.id || message.removedAt) {
+  if (!message || !me || message.removedAt) {
     return (
       <Screen>
         <Notice tone="warn" title="Message not found">It may have been removed.</Notice>
@@ -74,7 +74,7 @@ export function SeenByScreen({ route, navigation }: RootScreen<'SeenBy'>) {
 
   return (
     <Screen>
-      <Small numberOfLines={2}>Your message, {seenWhen(message.createdAt, today)}: “{words}”</Small>
+      <Small numberOfLines={2}>{message.authorId === me.id ? 'Your message' : `${nameOf(message.authorId)}’s message`}, {seenWhen(message.createdAt, today)}: “{words}”</Small>
       <SectionTitle title={`Seen (${s.seen.length})`} />
       {s.seen.length ? (
         <Card style={{ padding: 0 }}>
@@ -83,7 +83,7 @@ export function SeenByScreen({ route, navigation }: RootScreen<'SeenBy'>) {
           )}
         </Card>
       ) : (
-        <Small>Nobody has opened the chat since you sent it.</Small>
+        <Small>Nobody has opened the chat since it was sent.</Small>
       )}
       <SectionTitle title={`Not seen yet (${s.notYet.length})`} />
       {s.notYet.length ? (
