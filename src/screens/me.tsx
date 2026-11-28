@@ -15,6 +15,7 @@ import type { RootScreen, TabScreen } from '../navigation/types';
 // Lane E: notifications
 import { UsageToggle } from './appUsage';
 import { NotificationSettings } from './notificationSettings';
+import { RideCalendarRow } from './rideCalendar'; // Rides in my calendar
 // Stage 7: social extras
 import { MeSocialSection } from './social';
 import { colors, space, type } from '../theme';
@@ -267,6 +268,8 @@ export function MeScreen({ navigation }: TabScreen<'Me'>) {
               <>
                 {/* Lane E: notifications */}
                 <NotificationSettings />
+                <SectionTitle title="Calendar" />
+                <RideCalendarRow />
                 <SectionTitle title="Privacy" />
                 <Card>
                   <Toggle

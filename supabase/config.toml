@@ -31,6 +31,11 @@ verify_jwt = true
 [functions.site-api]
 verify_jwt = false
 
+# A member's own ride calendar: calendar apps can't sign in, so the private link's token is the
+# key (supabase/functions/_shared/rideCalendarFeed.ts); only the service role reads a feed.
+[functions.calendar-feed]
+verify_jwt = false
+
 # Called by the database's clock. Each refuses a call without the cron secret.
 [functions.purge-files]
 verify_jwt = false
