@@ -772,4 +772,13 @@ psql -h "$WORK" -p "$PORT" -U postgres -q -X -d rustnuts_acting_backfill -f "$RO
   || { echo 'A second paste of the acting migration moved an open NEC ballot to another chapter'; exit 1; }
 echo 'A second paste of the acting migration says it is already in, and moves no NEC ballot'
 
+# The personal ride calendar, on a fresh copy of the schema.
+"${PSQL[@]}" -c "create database rustnuts_calendar_feed" >/dev/null
+"${PSQL[@]}" -d rustnuts_calendar_feed -f "$ROOT/supabase/tests/supabase_stub.sql" >/dev/null
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  "${PSQL[@]}" -d rustnuts_calendar_feed -f "$f" >/dev/null
+done
+"${PSQL[@]}" -d rustnuts_calendar_feed -f "$ROOT/supabase/tests/test_defaults.sql" >/dev/null
+"${PSQL[@]}" -d rustnuts_calendar_feed -f "$ROOT/supabase/tests/calendar_feed_test.sql"
+
 echo 'ALL DATABASE CHECKS PASSED'

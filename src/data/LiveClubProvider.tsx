@@ -99,6 +99,7 @@ import { authStorageKeys, createClubCache, isConnectionError, startupUser } from
 // Lane E: notifications
 import { completePrefs } from '../domain/notifications'; // Lane E: notifications
 import { loadNotificationPrefs, saveNotificationPrefs } from './notificationsApi';
+import { loadCalendarToken } from './calendarLinkApi';
 import { forgetThisDevice } from './pushDevice';
 import {
   addFeeProblem, approveBudgetProblem, approveProblem, budgetProblem, creditProblem, debitProblem, floatProblem, openingProblem,
@@ -1665,6 +1666,11 @@ export function LiveClubProvider({ children }: { children: React.ReactNode }) {
       );
       await after();
       return r.data as string;
+    },
+    // Rides in my calendar
+    calendarToken: async (fresh) => {
+      requireUser();
+      return loadCalendarToken(supabase(), fresh);
     },
     // Lane E: notifications
     saveNotificationPrefs: async (prefs) => {

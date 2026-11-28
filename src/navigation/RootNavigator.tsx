@@ -82,6 +82,7 @@ import { EditHistoryEntryScreen, EditHonourScreen, HistoryScreen } from '../scre
 import { AwardScreen, BraggingScreen, NominateScreen, OpenAwardScreen } from '../screens/brag';
 import { EditSponsorScreen, SponsorsScreen } from '../screens/sponsors'; // Sponsors
 import { PrivacyPolicyScreen } from '../screens/privacy'; // Privacy policy
+import { RideCalendarScreen } from '../screens/rideCalendar'; // Rides in my calendar
 import { PostingRulesScreen } from '../screens/postingRules'; // Chat and posting rules
 import { FeedbackScreen } from '../screens/feedback'; // Feedback and issues
 import { ClubWordsScreen } from '../screens/clubWords'; // Club words
@@ -447,6 +448,7 @@ export function RootNavigator() {
             <Stack.Screen name="AskSwap" component={AskSwapScreen} options={{ title: 'Ask to swap' }} />
             {/* Road Rules sign-off */}
             <Stack.Screen name="RoadRules" component={RoadRulesScreen} options={{ title: 'Road Rules' }} />
+            <Stack.Screen name="RideCalendar" component={RideCalendarScreen} options={{ title: 'Rides in my calendar' }} />
             <Stack.Screen name="EditRoadRules" component={EditRoadRulesScreen} options={{ title: 'Publish Road Rules' }} />
             <Stack.Screen name="RoadRulesSignoffs" component={RoadRulesSignoffsScreen} options={{ title: 'Who’s signed' }} />
             <Stack.Screen name="RoadRulesGuide" component={RoadRulesGuideScreen} options={{ title: 'Road Rules' }} />

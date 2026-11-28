@@ -641,6 +641,8 @@ export type Database = {
       set_ride_called_off: { Args: { p_id: string; p_off: boolean }; Returns: undefined };
       take_over_ride: { Args: { p_id: string }; Returns: undefined };
       set_ride_legs: { Args: { p_rides: string[] }; Returns: string | null };
+      my_calendar_link: { Args: Record<string, never>; Returns: string };
+      new_calendar_link: { Args: Record<string, never>; Returns: string };
       save_charity: {
         Args: {
           p_ride: string; p_cause: string; p_about: string | null; p_closes_on: string | null; p_places: number | null; p_jobs: string[];

@@ -130,6 +130,8 @@ export interface ClubContextValue {
   // Lane E: notifications
   /** Saves the signed-in member's notification settings. */
   saveNotificationPrefs?: (prefs: NotificationPrefs) => Promise<void>;
+  /** The signed-in member's private ride calendar link token; fresh makes a new one and stops the old (live mode only). */
+  calendarToken?: (fresh: boolean) => Promise<string>;
 
   // signing in
   signInAs: (memberId: string | null) => void; // demo only

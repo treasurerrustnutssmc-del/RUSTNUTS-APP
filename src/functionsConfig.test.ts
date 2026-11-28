@@ -27,9 +27,9 @@ function settings(): Record<string, boolean> {
   return out;
 }
 
-// No sign-in check by Supabase: the website's door (the website has no sign-in) and the four jobs the
+// No sign-in check by Supabase: members' own ride calendars (calendar apps can't sign in; the link's token is the key), the website's door (the website has no sign-in) and the four jobs the
 // database calls (the clock, or a website video going up or down), each of which refuses a call without the cron secret.
-const OPEN = ['purge-files', 'send-push', 'site-api', 'site-video-copy', 'sync-rides', 'voice-sweep'];
+const OPEN = ['calendar-feed', 'purge-files', 'send-push', 'site-api', 'site-video-copy', 'sync-rides', 'voice-sweep'];
 
 test('config.toml names every server function, and nothing else', () => {
   assert.deepEqual(Object.keys(settings()).sort(), functions);
@@ -41,8 +41,14 @@ test('only the website door and the clock-run jobs skip the sign-in check', () =
 });
 
 test('every clock-run job that skips the sign-in check asks for the cron secret itself', () => {
-  for (const name of OPEN.filter((f) => f !== 'site-api')) {
+  for (const name of OPEN.filter((f) => f !== 'site-api' && f !== 'calendar-feed')) {
     const source = readFileSync(join(root, 'functions', name, 'index.ts'), 'utf8');
     assert.match(source, /cronCallAllowed\(/, `${name} checks the cron secret`);
   }
+});
+
+test('the ride calendar door reads feeds only through its token, by public.calendar_feed', () => {
+  const source = readFileSync(join(root, 'functions', 'calendar-feed', 'index.ts'), 'utf8');
+  assert.match(source, /rpc\('calendar_feed', \{ p_token: token \}\)/);
+  assert.doesNotMatch(source, /\.from\(/, 'no table reads beside calendar_feed');
 });

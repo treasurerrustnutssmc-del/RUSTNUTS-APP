@@ -75,6 +75,7 @@ export type RootParams = {
   AskSwap: { rideId: string };
   // Road Rules sign-off. An older version number opens that version read-only.
   RoadRules: { version?: number } | undefined;
+  RideCalendar: undefined;
   EditRoadRules: undefined;
   RoadRulesSignoffs: undefined;
   // The illustrated Road Rules (Chris's draft): the rules one at a time, the diagrams, and one diagram to zoom.

@@ -20,6 +20,7 @@
     "supabase/functions/purge-files",
     "supabase/functions/site-video-copy",
     "supabase/functions/site-api",
+    "supabase/functions/calendar-feed",
     "supabase/functions/shop-order",
     "supabase/functions/seed-shop-pictures"
   ]
